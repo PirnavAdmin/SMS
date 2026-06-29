@@ -13,6 +13,9 @@ import Generate from './ADMIN/Generate/Generate';
 import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
 import Reports from './ADMIN/Reports/Reports';
 import Settings from './ADMIN/Settings/Settings';
+import HostelBlocks from './ADMIN/Configuration/Hostel Blocks/HostelBlocks';
+import HostelRooms from './ADMIN/Configuration/Hostel Rooms/HostelRooms';
+
 
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
@@ -65,10 +68,18 @@ function App() {
       setActiveTab(item.key);
     }
   };
-
+const configComponents = {
+  "Hostel Blocks": HostelBlocks,
+  "Hostel Rooms": HostelRooms,
+};
   const renderActiveView = () => {
     if (activeTab.startsWith('Config:')) {
       const category = activeTab.substring(7);
+       const component = configComponents[category];
+      if (component) {
+        return React.createElement(component);
+      } 
+
       return <ConfigSubViewer category={category} />;
     }
 
@@ -97,6 +108,10 @@ function App() {
         return <Settings />;
       default:
         return <Dashbaord />;
+        case 'Hostel Blocks':
+          return <HostelBlocks />;
+        case 'Hostel Rooms':
+          return <HostelRooms />;
     }
   };
 
