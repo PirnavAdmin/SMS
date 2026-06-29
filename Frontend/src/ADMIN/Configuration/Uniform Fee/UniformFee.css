@@ -1,0 +1,496 @@
+* {
+  box-sizing: border-box;
+}
+
+/* ===========================
+   Main Page
+=========================== */
+/* .uniform-fee-page {
+  min-height: 100vh;
+  padding: 10px 40px 10px 10px;
+  background:
+    radial-gradient(
+      circle at 25% 8%,
+      rgba(196, 61, 232, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 76% 16%,
+      rgba(59, 130, 246, 0.1),
+      transparent 30%
+    ),
+    #f8f7ff;
+  color: #1f2a55;
+} */
+.uniform-fee-page {
+  min-height: 100vh;
+  padding: 5px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      circle at 25% 8%,
+      rgba(196, 61, 232, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 76% 16%,
+      rgba(59, 130, 246, 0.1),
+      transparent 30%
+    ),
+    #f8f7ff;
+  color: #1f2a55;
+}
+/* ===========================
+   Section Header
+=========================== */
+.section-header {
+  background: #ffffff;
+  color: #25345f;
+  padding: 16px 22px;
+  font-weight: 600;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #ece8ff;
+  border-bottom: none;
+  border-left: 3px solid #d946ef;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 12px 28px rgba(124, 92, 246, 0.1);
+}
+
+/* ===========================
+   Card
+=========================== */
+.uniform-card {
+  background: #ffffff;
+  border: 1px solid #ece8ff;
+  border-top: none;
+  padding: 20px;
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 16px 35px rgba(79, 70, 229, 0.1);
+}
+
+/* ===========================
+   Form Layout
+=========================== */
+.fee-form-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(160px, 1fr)
+    minmax(210px, 1.15fr)
+    minmax(150px, 0.75fr)
+    minmax(190px, 0.85fr);
+  grid-template-areas:
+    "academic name size gender"
+    "fee fee . buttons";
+  gap: 28px 24px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+}
+
+.fee-academic-group {
+  grid-area: academic;
+}
+
+.fee-name-group {
+  grid-area: name;
+}
+
+.fee-size-group {
+  grid-area: size;
+}
+
+.fee-gender-group {
+  grid-area: gender;
+}
+
+.fee-amount-group {
+  grid-area: fee;
+  max-width: 450px;
+}
+
+.fee-button-group {
+  grid-area: buttons;
+  justify-self: end;
+  align-self: end;
+}
+
+/* ===========================
+   Form Fields
+=========================== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.form-group label {
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #25345f;
+}
+
+.form-group select,
+.form-group input {
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid #ded8fb;
+  border-radius: 6px;
+  outline: none;
+  transition: 0.3s;
+  color: #27345f;
+  background: #ffffff;
+  font-size: 14px;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16);
+}
+
+/* ===========================
+   Required Field
+=========================== */
+.required {
+  color: #dc2626;
+  font-weight: bold;
+}
+
+/* ===========================
+   Validation Error
+=========================== */
+.error {
+  border: 1px solid #dc2626 !important;
+}
+
+.error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 5px rgba(220, 38, 38, 0.3);
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+/* ===========================
+   Gender
+=========================== */
+.gender-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 51px;
+  margin-top: 29px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.gender-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #25345f;
+  font-weight: 600;
+}
+
+.gender-group input {
+  accent-color: #7c5cf6;
+}
+
+/* ===========================
+   Buttons
+=========================== */
+.button-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 51px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.save-btn,
+.clear-btn,
+.edit-btn,
+.delete-btn {
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 600;
+}
+
+.save-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(72, 120, 240, 0.9),
+    rgba(40, 68, 154, 0.9)
+  );
+  color: white;
+  border: none;
+  padding: 10px 22px;
+}
+
+.save-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(124, 92, 246, 0.36);
+}
+
+.clear-btn {
+  background: #ffffff;
+  color: #7c5cf6;
+  border: 1px solid #e4ddff;
+  padding: 10px 22px;
+}
+
+.clear-btn:hover {
+  background: #f4f0ff;
+  transform: translateY(-3px);
+}
+
+.edit-btn {
+  background: linear-gradient(135deg, #8b5cf6, #6d5dfc);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  margin-right: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.edit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(124, 92, 246, 0.3);
+}
+
+.delete-btn {
+  background: linear-gradient(90deg, #ff5570, #ef4444);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.35);
+}
+
+/* ===========================
+   Table
+=========================== */
+.table-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  color: #25345f;
+  font-weight: 600;
+}
+
+.table-top select,
+.table-top input {
+  margin: 0 8px;
+  padding: 8px 10px;
+  border: 1px solid #ded8fb;
+  border-radius: 6px;
+  color: #25345f;
+  background: #ffffff;
+  outline: none;
+}
+
+.table-top input:focus,
+.table-top select:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16);
+}
+
+.uniform-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #ece8ff;
+  border-radius: 6px;
+}
+
+.uniform-table thead tr {
+  background: linear-gradient(
+    135deg,
+    rgba(72, 120, 240, 0.9),
+    rgba(40, 68, 154, 0.9)
+  );
+}
+
+.uniform-table th {
+  background: transparent;
+  color: white;
+  padding: 11px 10px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.uniform-table td {
+  border-bottom: 1px solid #ece8ff;
+  border-right: 1px solid #ece8ff;
+  padding: 10px;
+  color: #26345f;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.uniform-table th:nth-child(1) {
+  width: 14%;
+}
+
+.uniform-table th:nth-child(2) {
+  width: 14%;
+}
+
+.uniform-table th:nth-child(3) {
+  width: 11%;
+}
+
+.uniform-table th:nth-child(4) {
+  width: 10%;
+}
+
+.uniform-table th:nth-child(5) {
+  width: 10%;
+}
+
+.uniform-table th:nth-child(6) {
+  width: 21%;
+}
+
+.uniform-table th:nth-child(7) {
+  width: 20%;
+}
+
+.uniform-table td:last-child {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  white-space: normal;
+  overflow: visible;
+}
+
+.uniform-table tbody tr:hover {
+  background: #f6f2ff;
+}
+
+.uniform-table td[align="center"] {
+  color: #ef4444;
+  font-weight: 600;
+  padding: 25px;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+
+.fee-form-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(220px, 260px)
+    minmax(260px, 330px)
+    minmax(170px, 220px)
+    auto;
+  grid-template-areas:
+    "academic name size ."
+    "fee gender buttons buttons";
+  gap: 24px 28px;
+  align-items: end;
+}
+
+.fee-button-group {
+  justify-self: start;
+}
+
+.gender-group {
+  margin-top: 29px;
+}
+
+.uniform-table th,
+.uniform-table td {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.edit-btn,
+.delete-btn {
+  padding: 7px 9px;
+}
+
+@media (max-width: 768px) {
+  .fee-form-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "academic"
+      "name"
+      "size"
+      "gender"
+      "fee"
+      "buttons";
+    gap: 18px;
+  }
+
+  .fee-amount-group {
+    grid-area: fee;
+    width: 300px;
+  }
+
+  .fee-button-group {
+    justify-self: start;
+  }
+
+  .table-top {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .button-group {
+    flex-wrap: wrap;
+    min-height: auto;
+  }
+
+  .gender-group {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    height: 40px;
+    margin-top: 0;
+    padding-top: 28px;
+  }
+
+  .gender-group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #25345f;
+    cursor: pointer;
+  }
+}
