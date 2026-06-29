@@ -1,3 +1,29 @@
+<<<<<<< HEAD
+import React from "react";
+import BankAccount from "./Bank Account Details";
+import Section from "./Section";
+import SyllabusTypes from "./Syllabus types";
+
+function ConfigSubViewer({ category }) {
+  switch (category) {
+    case "Bank Account Details":
+      return <BankAccount />;
+
+    case "Syllabus types":
+      return <SyllabusTypes />;
+
+    case "Section":
+      return <Section />;
+
+    default:
+      return (
+        <div>
+          <h2>{category}</h2>
+          <p>Module Coming Soon...</p>
+        </div>
+      );
+  }
+=======
 import React, { useState } from "react";
 
 function ConfigSubViewer({ category }) {
@@ -228,6 +254,7 @@ function ConfigSubViewer({ category }) {
       <p>Configure settings and details for {category}.</p>
     </div>
   );
+>>>>>>> 2111104a932047bd48a86550c859fb8ba5e48a85
 }
 
 export default ConfigSubViewer;
