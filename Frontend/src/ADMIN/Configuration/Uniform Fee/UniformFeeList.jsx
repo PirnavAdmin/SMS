@@ -4,7 +4,7 @@ import { FaEdit, FaTrash, FaSort } from "react-icons/fa";
 const UniformFeeList = ({ data, onEdit, onDelete }) => {
   return (
     <>
-      <div className="section-header">Rs Uniform Fee Configuration Details</div>
+      <div className="section-header">Uniform Fee Configuration Details</div>
 
       <div className="uniform-card">
         <div className="table-top">

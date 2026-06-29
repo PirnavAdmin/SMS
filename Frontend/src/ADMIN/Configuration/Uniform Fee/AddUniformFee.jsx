@@ -85,12 +85,12 @@ const AddUniformFee = ({ onSave, editData }) => {
 
   return (
     <>
-      <div className="section-header">Rs Student Uniform Fee Configuration</div>
+      <div className="section-header"> Student Uniform Fee Configuration</div>
 
       <div className="uniform-card">
         <div className="fee-form-grid">
           {/* Academic Year */}
-          <div className="form-group">
+          <div className="form-group fee-academic-group">
             <label>
               Academic Year <span className="required">*</span>
             </label>
@@ -117,7 +117,7 @@ const AddUniformFee = ({ onSave, editData }) => {
           </div>
 
           {/* Uniform Name */}
-          <div className="form-group">
+          <div className="form-group fee-name-group">
             <label>
               Name <span className="required">*</span>
             </label>
@@ -145,7 +145,7 @@ const AddUniformFee = ({ onSave, editData }) => {
           </div>
 
           {/* Size */}
-          <div className="form-group">
+          <div className="form-group fee-size-group">
             <label>
               Size / Quantity <span className="required">*</span>
             </label>
@@ -172,7 +172,7 @@ const AddUniformFee = ({ onSave, editData }) => {
           </div>
 
           {/* Gender */}
-          <div className="gender-group">
+          <div className="gender-group fee-gender-group">
             <label>
               <input
                 type="radio"
@@ -193,7 +193,7 @@ const AddUniformFee = ({ onSave, editData }) => {
           </div>
 
           {/* Fee */}
-          <div className="form-group">
+          <div className="form-group fee-amount-group">
             <label>
               Fee <span className="required">*</span>
             </label>
@@ -216,7 +216,7 @@ const AddUniformFee = ({ onSave, editData }) => {
           </div>
 
           {/* Buttons */}
-          <div className="button-group">
+          <div className="button-group fee-button-group">
             <button type="button" className="save-btn" onClick={handleSubmit}>
               {editData ? "Update" : "Save"}
             </button>

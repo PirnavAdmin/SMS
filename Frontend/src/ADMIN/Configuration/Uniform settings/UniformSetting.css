@@ -58,9 +58,24 @@
 
 .form-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.1fr auto;
+  grid-template-columns: 250px 250px;
+  grid-template-areas:
+    "academic class"
+    "uniform buttons";
   gap: 18px;
   align-items: start;
+}
+
+.academic-year-group {
+  grid-area: academic;
+}
+
+.class-group {
+  grid-area: class;
+}
+
+.uniform-group {
+  grid-area: uniform;
 }
 
 .form-group {
@@ -130,6 +145,7 @@
 =========================== */
 
 .button-group {
+  grid-area: buttons;
   display: flex;
   gap: 8px;
   align-items: end;
@@ -347,6 +363,11 @@
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "academic"
+      "class"
+      "uniform"
+      "buttons";
   }
 
   .button-group {

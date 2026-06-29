@@ -92,7 +92,7 @@ const AddUniformSettings = ({ onSave, editData }) => {
       <div className="uniform-card">
         <div className="form-row">
           {/* Academic Year */}
-          <div className="form-group">
+          <div className="form-group academic-year-group">
             <label>
               Academic Year <span className="required">*</span>
             </label>
@@ -119,7 +119,7 @@ const AddUniformSettings = ({ onSave, editData }) => {
           </div>
 
           {/* Class */}
-          <div className="form-group">
+          <div className="form-group class-group">
             <label>
               Class <span className="required">*</span>
             </label>
