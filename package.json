@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "scripts": {
+    "start": "npm.cmd --prefix Frontend start",
+    "build": "npm.cmd --prefix Frontend run build",
+    "frontend": "npm.cmd --prefix Frontend start"
+  }
+}
