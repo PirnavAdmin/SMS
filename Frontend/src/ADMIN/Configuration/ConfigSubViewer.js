@@ -1,6 +1,7 @@
 import React from "react";
 import AcademicYear from "./Academic Year/AcademicYear";
 import BankAccount from "./Bank Account Details";
+import BookeFee from "./Books Fee/BookeFee";
 import Section from "./Section";
 import SyllabusTypes from "./Syllabus types";
 import Users from './Users/Users';
@@ -13,6 +14,8 @@ function ConfigSubViewer({ category }) {
       return <AcademicYear />;
     case "Bank Account Details":
       return <BankAccount />;
+    case "Books Fee":
+      return <BookeFee />;
     case "Syllabus types":
       return <SyllabusTypes />;
     case "Section":

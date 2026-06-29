@@ -830,6 +830,16 @@
   font-weight: 700;
 }
 
+.matched-role {
+  margin: -0.55rem 0 0;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid rgba(15, 107, 112, 0.18);
+  border-radius: 8px;
+  background: rgba(15, 107, 112, 0.07);
+  color: #315963;
+  font-size: 0.84rem;
+}
+
 .security-alert {
   margin: 0;
   padding: 0.85rem 0.95rem;
