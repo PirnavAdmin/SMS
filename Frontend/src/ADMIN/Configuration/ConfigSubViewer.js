@@ -1,12 +1,17 @@
 import React from "react";
 import AcademicYear from "./Academic Year/AcademicYear";
 import BankAccount from "./Bank Account Details";
+import BookeFee from "./Books Fee/BookeFee";
 import Section from "./Section";
 import SyllabusTypes from "./Syllabus types";
 import Users from './Users/Users';
 import FeeMaster from './Fee Master/FeeMaster';
+<<<<<<< HEAD
 import UniformSetting from "./Uniform settings/UniformSetting";
 import UniformFee from "./Uniform Fee/UniformFee";
+=======
+import "./ConfigSubViewer.css";
+>>>>>>> 0dcab9e0d081e5de380c972e5251bdb8124d7e38
 
 function ConfigSubViewer({ category }) {
   switch (category) {
@@ -14,6 +19,8 @@ function ConfigSubViewer({ category }) {
       return <AcademicYear />;
     case "Bank Account Details":
       return <BankAccount />;
+    case "Books Fee":
+      return <BookeFee />;
     case "Syllabus types":
       return <SyllabusTypes />;
     case "Section":
@@ -22,6 +29,7 @@ function ConfigSubViewer({ category }) {
       return <Users />;
     case 'Fee Master':
       return <FeeMaster />;
+<<<<<<< HEAD
     case "Uniform settings":
       return <UniformSetting />;
     case "Uniform Fee":
@@ -31,9 +39,20 @@ function ConfigSubViewer({ category }) {
         <div style={{ padding: "20px" }}>
           <h3>{category}</h3>
           <p>No module created yet.</p>
+=======
+    default:
+      return (
+        <div className="config-placeholder">
+          <h3>Configuration: {category}</h3>
+          <p>Configure settings and details for {category}.</p>
+>>>>>>> 0dcab9e0d081e5de380c972e5251bdb8124d7e38
         </div>
       );
   }
 }
 
+<<<<<<< HEAD
 export default ConfigSubViewer;
+=======
+export default ConfigSubViewer;
+>>>>>>> 0dcab9e0d081e5de380c972e5251bdb8124d7e38

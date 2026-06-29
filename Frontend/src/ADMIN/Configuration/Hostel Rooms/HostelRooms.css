@@ -1,13 +1,9 @@
-.hostel-container,
-html,
-body {
+.hostel-container {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 
-.hostel-container::-webkit-scrollbar,
-html::-webkit-scrollbar,
-body::-webkit-scrollbar {
+.hostel-container::-webkit-scrollbar {
   display: none;
 }
 
@@ -136,13 +132,13 @@ body::-webkit-scrollbar {
 }
 
 /* Multi-colored search bar layout wrapper */
-.search-box-wrapper {
+.hostel-search-wrapper {
   position: relative;
   flex: 1 1 280px;
   max-width: 400px;
 }
 
-.search-icon {
+.hostel-search-icon {
   position: absolute;
   left: 14px;
   top: 50%;
@@ -151,13 +147,13 @@ body::-webkit-scrollbar {
   pointer-events: none;
 }
 
-.search-box {
+.hostel-search-box {
   width: 100%;
   height: 46px;
   padding: 0 16px 0 42px !important;
 }
 
-.search-box,
+.hostel-search-box,
 .form-card input,
 .form-card select {
   height: 46px;
@@ -172,7 +168,7 @@ body::-webkit-scrollbar {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.search-box:focus,
+.hostel-search-box:focus,
 .form-card input:focus,
 .form-card select:focus {
   border-color: #6366f1;
@@ -812,7 +808,7 @@ body::-webkit-scrollbar {
     flex-basis: auto;
   }
 
-  .search-box-wrapper {
+  .hostel-search-wrapper {
     flex: 1 1 100%;
     max-width: none;
   }
@@ -850,7 +846,7 @@ body::-webkit-scrollbar {
     flex-direction: column;
   }
 
-  .search-box-wrapper,
+  .hostel-search-wrapper,
   .primary-btn,
   .tab,
   .pagination-btn,
@@ -871,5 +867,334 @@ body::-webkit-scrollbar {
   .report-overview h3,
   .section-heading h3 {
     font-size: 21px;
+  }
+}
+
+/* Bank Account visual system */
+.hostel-container {
+  padding: 2px;
+  color: #202a52;
+  background: transparent;
+}
+
+.hostel-header,
+.table-container,
+.report-overview,
+.dashboard-card,
+.report-card,
+.summary-card,
+.room-students-card,
+.student-profile-card,
+.metric-card {
+  border: 1px solid rgba(154, 140, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 14px 32px rgba(92, 105, 190, 0.13);
+}
+
+.hostel-header {
+  min-height: 82px;
+  margin-bottom: 18px;
+  padding: 18px 20px;
+}
+
+.hostel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 250px;
+}
+
+.hostel-title-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #6654d9;
+  background: #f0edff;
+  box-shadow: 0 8px 18px rgba(102, 84, 217, 0.16);
+}
+
+.hostel-header h2 {
+  margin: 0;
+  color: #202a52;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.hostel-search-box,
+.form-card input,
+.form-card select {
+  min-height: 36px;
+  height: 40px;
+  border-color: #dfe3f5;
+  border-radius: 6px;
+  color: #303b5e;
+  box-shadow: 0 4px 12px rgba(92, 105, 190, 0.08);
+}
+
+.hostel-search-box:focus,
+.form-card input:focus,
+.form-card select:focus {
+  border-color: #7968ef;
+  box-shadow: 0 0 0 3px rgba(121, 104, 239, 0.16);
+}
+
+.primary-btn,
+.save-btn,
+.tab.active,
+.pagination-btn:not(:disabled) {
+  color: #fff;
+  background: linear-gradient(135deg, #9868e8, #438cf0);
+  box-shadow: 0 10px 20px rgba(93, 112, 225, 0.22);
+}
+
+.primary-btn {
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.hostel-dashboard {
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.dashboard-card {
+  min-height: 92px;
+  padding: 18px 20px;
+}
+
+.dashboard-card::before {
+  height: 3px;
+  background: linear-gradient(90deg, #9868e8, #438cf0);
+}
+
+.dashboard-card h4 {
+  margin-bottom: 8px;
+  color: #626986;
+  font-size: 12px;
+}
+
+.dashboard-card h2 {
+  color: #6654d9;
+  font-size: 27px;
+}
+
+.tabs {
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.tab {
+  min-height: 40px;
+  padding: 0 16px;
+  border-color: #e8ebf8;
+  border-radius: 6px;
+  color: #626986;
+  background: #fff;
+  font-size: 12px;
+  box-shadow: 0 8px 16px rgba(92, 105, 190, 0.08);
+}
+
+.table-container {
+  margin-bottom: 18px;
+  padding: 18px 20px;
+}
+
+.hostel-table {
+  border: 1px solid #e8ebf8;
+  border-radius: 7px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.hostel-table th {
+  padding: 11px 5px;
+  border: 0;
+  color: #fff;
+  background: linear-gradient(135deg, #9868e8, #438cf0);
+  text-align: center;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.hostel-table td {
+  padding: 11px 5px;
+  border: 0;
+  border-bottom: 1px solid #e8ebf8;
+  color: #303b5e;
+  text-align: center;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.hostel-table tbody tr:nth-child(even) {
+  background: #f8faff;
+}
+
+.hostel-table tbody tr:hover {
+  background: #f0edff;
+  box-shadow: none;
+}
+
+.view-btn,
+.edit-btn,
+.delete-btn {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  color: #fff;
+}
+
+.view-btn { background: linear-gradient(135deg, #5ae0cd, #438cf0); }
+.edit-btn { background: linear-gradient(135deg, #7968ef, #5d4fd2); }
+.delete-btn { background: linear-gradient(135deg, #ff6f85, #f54864); }
+
+.status-available,
+.status-full {
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+.status-available { color: #168263; background: #e7f8f1; }
+.status-full { color: #d3455b; background: #fff0f3; }
+
+.form-modal {
+  background: rgba(32, 42, 82, 0.38);
+  backdrop-filter: blur(5px);
+}
+
+.form-card {
+  border: 1px solid rgba(154, 140, 255, 0.28);
+  border-radius: 10px;
+  box-shadow: 0 24px 55px rgba(47, 50, 107, 0.22);
+}
+
+.form-card h3,
+.section-heading h3,
+.room-students-card h3 {
+  color: #202a52;
+}
+
+.cancel-btn,
+.close-btn {
+  color: #626986;
+  background: #fff;
+  border: 1px solid #e8ebf8;
+}
+
+.occupancy-fill {
+  background: linear-gradient(90deg, #9868e8, #438cf0);
+}
+
+@media (max-width: 760px) {
+  .hostel-header,
+  .header-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .hostel-search-wrapper {
+    width: 100%;
+    max-width: none;
+  }
+
+  .primary-btn {
+    width: 100%;
+  }
+}
+
+/* Fit every Hostel Rooms data table inside its card without horizontal scrolling. */
+.hostel-container .table-container,
+.hostel-container .room-students-card {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.hostel-container .hostel-table {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  table-layout: fixed;
+}
+
+.hostel-container .hostel-table th,
+.hostel-container .hostel-table td {
+  min-width: 0;
+  padding: 9px 3px;
+  font-size: 10.5px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.hostel-container .hostel-table th:first-child,
+.hostel-container .hostel-table td:first-child {
+  width: 8%;
+}
+
+.hostel-container .hostel-table th:last-child,
+.hostel-container .hostel-table td:last-child {
+  width: 13%;
+}
+
+.hostel-container .action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 3px;
+  min-width: 0;
+}
+
+.hostel-container .view-btn,
+.hostel-container .edit-btn,
+.hostel-container .delete-btn {
+  width: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+}
+
+.hostel-container .view-btn svg,
+.hostel-container .edit-btn svg,
+.hostel-container .delete-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+.hostel-container .status-available,
+.hostel-container .status-full {
+  max-width: 100%;
+  padding: 4px 6px;
+  font-size: 9.5px;
+  white-space: normal;
+}
+
+@media (max-width: 900px) {
+  .hostel-container .hostel-table th,
+  .hostel-container .hostel-table td {
+    padding: 8px 2px;
+    font-size: 9.5px;
+  }
+
+  .hostel-container .view-btn,
+  .hostel-container .edit-btn,
+  .hostel-container .delete-btn {
+    width: 27px;
+    min-width: 27px;
+    min-height: 28px;
   }
 }

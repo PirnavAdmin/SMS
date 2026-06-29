@@ -1,0 +1,17 @@
+.config-placeholder {
+  padding: 20px;
+  border: 1px solid rgba(154, 140, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.93);
+  color: #283354;
+  box-shadow: 0 14px 32px rgba(92, 105, 190, 0.1);
+}
+
+.config-placeholder h3 {
+  margin: 0 0 8px;
+}
+
+.config-placeholder p {
+  margin: 0;
+  color: #626986;
+}

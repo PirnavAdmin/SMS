@@ -1,510 +1,72 @@
-import React, { useState } from "react";
-import { FaRupeeSign, FaEdit, FaTrash, FaSearch, FaArrowLeft, FaArrowRight, FaSave } from "react-icons/fa";
+import React, { useEffect, useMemo, useState } from "react";
+import "./FeeMaster.css";
 
-const FeeMaster = () => {
-    const [feeType, setFeeType] = useState("");
-    const [fees, setFees] = useState([]);
-    const [search, setSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [usersPerPage, setUsersPerPage] = useState(5);
-    const [editIndex, setEditIndex] = useState(null);
-    const [error, setError] = useState("");
+const initialFees = [
+  { id: 1, feeName: "Tuition Fee" },
+  { id: 2, feeName: "Books Fee" },
+  { id: 3, feeName: "Transport Fee" },
+];
 
-    const handleSave = () => {
-        if (!feeType.trim()) {
-            setError("Please enter Fee type name");
-            return;
-        }
+function FeeIcon({ type }) {
+  const paths = {
+    rupee: <><path d="M6 4h12M6 8h12M7 4c5 0 7 2 7 5s-2 5-7 5h-1l9 7" /></>,
+    list: <><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3 6h.01M3 12h.01M3 18h.01" /></>,
+    save: <><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8M7 3v5h8" /></>,
+    clear: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></>,
+    edit: <><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z" /></>,
+    delete: <><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v5M14 11v5" /></>,
+  };
+  return <svg className={`fm-icon fm-icon-${type}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
+}
 
-        if (editIndex !== null) {
-            const updatedFees = [...fees];
-            updatedFees[editIndex].feeName = feeType;
-            setFees(updatedFees);
-            setEditIndex(null);
-        } else {
-            setFees([
-                ...fees,
-                {
-                    feeName: feeType,
-                },
-            ]);
-        }
+export default function FeeMaster() {
+  const [feeType, setFeeType] = useState("");
+  const [fees, setFees] = useState(initialFees);
+  const [editingId, setEditingId] = useState(null);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [entries, setEntries] = useState("10");
+  const [currentPage, setCurrentPage] = useState(1);
 
-        setFeeType("");
-        setError("");
-    };
+  const filteredFees = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return query ? fees.filter((fee) => fee.feeName.toLowerCase().includes(query)) : fees;
+  }, [fees, search]);
 
-    const handleEdit = (index) => {
-        setFeeType(fees[index].feeName);
-        setEditIndex(index);
-    };
+  const entriesPerPage = Number(entries);
+  const totalPages = Math.max(1, Math.ceil(filteredFees.length / entriesPerPage));
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const visibleFees = filteredFees.slice(startIndex, startIndex + entriesPerPage);
+  const firstEntry = filteredFees.length ? startIndex + 1 : 0;
+  const lastEntry = Math.min(startIndex + entriesPerPage, filteredFees.length);
+  useEffect(() => setCurrentPage((page) => Math.min(page, totalPages)), [totalPages]);
 
-    const handleDelete = (index) => {
-        const updatedFees = fees.filter((_, i) => i !== index);
-        setFees(updatedFees);
+  const resetForm = () => { setFeeType(""); setEditingId(null); setError(""); };
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const feeName = feeType.trim();
+    if (!feeName) { setError("Please enter a fee type name."); return; }
+    if (editingId !== null) setFees((current) => current.map((fee) => fee.id === editingId ? { ...fee, feeName } : fee));
+    else setFees((current) => [...current, { id: Date.now(), feeName }]);
+    resetForm();
+  };
+  const handleEdit = (fee) => { setFeeType(fee.feeName); setEditingId(fee.id); setError(""); };
+  const handleDelete = (id) => { setFees((current) => current.filter((fee) => fee.id !== id)); if (editingId === id) resetForm(); };
 
-        const newTotalPages = Math.ceil(
-            updatedFees.length / usersPerPage
-        );
-
-        if (currentPage > newTotalPages && currentPage > 1) {
-            setCurrentPage(currentPage - 1);
-        }
-    };
-
-    const filteredFees = fees.filter((fee) =>
-        fee.feeName.toLowerCase().includes(search.toLowerCase())
-    );
-
-    const indexOfLastUser = currentPage * usersPerPage;
-    const indexOfFirstUser = indexOfLastUser - usersPerPage;
-
-    const currentFees = filteredFees.slice(
-        indexOfFirstUser,
-        indexOfLastUser
-    );
-
-    const totalPages = Math.ceil(
-        filteredFees.length / usersPerPage
-    );
-
-    return (
-        <div style={styles.container}>
-            <div style={styles.card}>
-                <div style={styles.header}>
-                    <div style={styles.headerIcon}>
-                        <FaRupeeSign style={styles.icon} />
-                    </div>
-                    <span>Fee Types</span>
-                </div>
-
-                <div style={styles.formContainer}>
-                    <label style={styles.label}>
-                        Fee Type Name
-                        <span style={{ color: "red" }}> *</span>
-                    </label>
-                    <div style={styles.inputWrapper}>
-                        <div style={styles.iconBox}>
-                            <FaSave
-                                style={{
-                                    color: "#777",
-                                    fontSize: "14px",
-                                    transform: "scaleX(-1)",
-                                }}
-                            />
-                        </div>
-                        <input
-                            type="text"
-                            value={feeType}
-                            onChange={(e) => {
-                                setFeeType(e.target.value);
-                                setError("");
-                            }}
-                            style={{
-                                ...styles.input,
-                                ...(error ? styles.errorInput : {}),
-                            }}
-                        />
-                    </div>
-                    <button
-                        className="btn"
-                        style={styles.saveBtn}
-                        onClick={handleSave}
-                    >
-                        {editIndex !== null ? "Update" : "Save"}
-                    </button>
-                </div>
-
-                {error && (
-                    <div
-                        style={{
-                            color: "red",
-                            padding: "0px 20px 15px",
-                            fontSize: "13px",
-                        }}
-                    >
-                        {error}
-                    </div>
-                )}
-            </div>
-
-            <div style={styles.card}>
-                <div style={styles.userHeader}>
-                    <div style={styles.headerIcon}>
-                        <FaRupeeSign style={styles.icon} />
-                    </div>
-                    <span> Fee Master Details</span>
-                </div>
-
-                <div style={styles.tableControls}>
-                    <div style={styles.leftControls}>
-                        <label>Show </label>
-
-                        <select
-                            style={styles.selectBox}
-                            value={usersPerPage}
-                            onChange={(e) => {
-                                setUsersPerPage(
-                                    Number(e.target.value)
-                                );
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                        </select>
-
-                        <label> entries</label>
-                    </div>
-
-                    <div style={styles.searchContainer}>
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={search}
-                            onChange={(e) =>
-                                setSearch(e.target.value)
-                            }
-                            style={styles.searchBox}
-                        />
-                        <FaSearch style={styles.searchIcon} />
-                    </div>
-                </div>
-
-                <div style={{ padding: 10 }}>
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>
-                                    Fee Names
-                                </th>
-                                <th
-                                    style={{
-                                        ...styles.th,
-                                        textAlign: "center",
-                                    }}
-                                >
-                                    Action
-                                </th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {currentFees.length === 0 ? (
-                                <tr>
-                                    <td colSpan="2" style={styles.noData}>
-                                        No Fee Types Added
-                                    </td>
-                                </tr>
-                            ) : (
-                                currentFees.map((fee, index) => {
-                                    const rowStyle = {
-                                        backgroundColor:
-                                            index % 2 === 0
-                                                ? "#eef5f6"
-                                                : "#ffffff",
-                                    };
-
-                                    return (
-                                        <tr key={index}>
-                                            <td
-                                                style={{
-                                                    ...styles.td,
-                                                    ...rowStyle,
-                                                }}
-                                            >
-                                                {fee.feeName}
-                                            </td>
-
-                                            <td
-                                                style={{
-                                                    ...styles.td,
-                                                    ...rowStyle,
-                                                    textAlign: "center",
-                                                }}
-                                            >
-                                                <button
-                                                    className="btn"
-                                                    style={styles.editBtn}
-                                                    onClick={() =>
-                                                        handleEdit(
-                                                            indexOfFirstUser +
-                                                            index
-                                                        )
-                                                    }
-                                                >
-                                                    <FaEdit />
-                                                </button>
-
-                                                <button
-                                                    className="btn"
-                                                    style={styles.deleteBtn}
-                                                    onClick={() =>
-                                                        handleDelete(
-                                                            indexOfFirstUser +
-                                                            index
-                                                        )
-                                                    }
-                                                >
-                                                    <FaTrash />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
-
-                    {filteredFees.length > 0 && (
-                        <div
-                            style={
-                                styles.paginationContainer
-                            }
-                        >
-                            <button
-                                className="btn"
-                                style={styles.pageBtn}
-                                disabled={currentPage === 1}
-                                onClick={() =>
-                                    setCurrentPage(
-                                        currentPage - 1
-                                    )
-                                }
-                            >
-                                <FaArrowLeft size={12} />
-                            </button>
-
-                            {[...Array(totalPages)].map(
-                                (_, index) => (
-                                    <button
-                                        key={index}
-                                        className="btn"
-                                        style={{
-                                            ...styles.pageBtn,
-                                            background:
-                                                currentPage ===
-                                                    index + 1
-                                                    ? "linear-gradient(to right,#8e44ad,#3f51b5)"
-                                                    : "#fff",
-                                            color:
-                                                currentPage ===
-                                                    index + 1
-                                                    ? "#fff"
-                                                    : "#000",
-                                        }}
-                                        onClick={() =>
-                                            setCurrentPage(
-                                                index + 1
-                                            )
-                                        }
-                                    >
-                                        {index + 1}
-                                    </button>
-                                )
-                            )}
-
-                            <button
-                                className="btn"
-                                style={styles.pageBtn}
-                                disabled={
-                                    currentPage === totalPages
-                                }
-                                onClick={() =>
-                                    setCurrentPage(
-                                        currentPage + 1
-                                    )
-                                }
-                            >
-                                <FaArrowRight size={12} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div >
-    );
-};
-
-const styles = {
-    container: {
-        fontFamily: "Arial, sans-serif",
-    },
-    card: {
-        borderRadius: "5px",
-        overflow: "hidden",
-        marginBottom: "20px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-        background: "#fff",
-    },
-    header: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        padding: "10px 14px",
-        borderBottom: "1px solid #f0f0f0",
-        background: "#fff",
-        fontSize: "16px",
-        fontWeight: "600",
-    },
-
-    headerIcon: {
-        width: "35px",
-        height: "35px",
-        borderRadius: "20px",
-        background: "linear-gradient(135deg,#8e44ad,#3f51b5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        boxShadow: "0 4px 10px rgba(142,68,173,0.25)",
-    },
-
-    icon: {
-        fontSize: "16px",
-    },
-    userHeader: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        padding: "10px 14px",
-        borderBottom: "1px solid #f0f0f0",
-        background: "#fff",
-        fontSize: "16px",
-        fontWeight: "600",
-    },
-    formContainer: {
-        padding: "12px",
-        display: "flex",
-        alignItems: "center",
-        gap: "15px",
-    },
-    label: {
-        fontSize: "14px",
-        fontWeight: "700",
-    },
-    inputWrapper: {
-        display: "flex",
-        alignItems: "center",
-    },
-    iconBox: {
-        width: "42px",
-        height: "38px",
-        border: "1px solid #ccc",
-        borderRight: "none",
-        background: "#f5f5f5",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: "4px 0 0 4px",
-    },
-    input: {
-        height: "38px",
-        width: "250px",
-        border: "1px solid #ccc",
-        borderRadius: "0 4px 4px 0",
-        padding: "0 10px",
-        outline: "none",
-    },
-    errorInput: {
-        border: "1px solid red",
-    },
-    saveBtn: {
-        background: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        color: "#fff",
-        padding: "10px 20px",
-        borderRadius: "4px",
-        cursor: "pointer",
-    },
-    tableControls: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "10px 15px",
-    },
-    leftControls: {
-        display: "flex",
-        alignItems: "center",
-        gap: "5px",
-    },
-    selectBox: {
-        padding: "5px",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-    },
-    searchContainer: {
-        position: "relative",
-        display: "inline-block",
-    },
-    searchBox: {
-        width: "220px",
-        height: "36px",
-        padding: "0 35px 0 10px",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-        outline: "none",
-    },
-    searchIcon: {
-        position: "absolute",
-        right: "10px",
-        top: "50%",
-        transform: "translateY(-50%)",
-        color: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        fontSize: "14px",
-        pointerEvents: "none",
-    },
-    table: {
-        width: "100%",
-        borderCollapse: "collapse",
-        border: "1px solid #ebe0e0",
-    },
-    th: {
-        background: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        color: "#fff",
-        padding: "10px",
-        textAlign: "left",
-        border: "1px solid #ebe0e0",
-    },
-    td: {
-        padding: "5px",
-        border: "1px solid #ebe0e0",
-    },
-    editBtn: {
-        background: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        color: "#fff",
-        border: "none",
-        padding: "5px 10px",
-        borderRadius: "4px",
-        marginRight: "5px",
-        cursor: "pointer",
-    },
-    deleteBtn: {
-        background: "#e53935",
-        color: "#fff",
-        border: "none",
-        padding: "6px 12px",
-        borderRadius: "4px",
-        cursor: "pointer",
-    },
-    noData: {
-        textAlign: "center",
-        padding: "20px",
-    },
-    paginationContainer: {
-        display: "flex",
-        justifyContent: "flex-end",
-        gap: "5px",
-        padding: "8px",
-        marginTop: 10,
-    },
-    pageBtn: {
-        padding: "4px 10px",
-        border: "1px solid lightgray",
-        cursor: "pointer",
-        color: "black"
-    },
-};
-
-export default FeeMaster;
+  return <div className="fm-page">
+    <section className="fm-card fm-form-card">
+      <div className="fm-watermark" aria-hidden="true"><span className="fm-watermark-receipt"><i /><i /><i /></span><span className="fm-watermark-coin">₹</span><span className="fm-watermark-coin fm-watermark-coin-small">₹</span></div>
+      <div className="fm-section-title"><span className="fm-heading-icon"><FeeIcon type="rupee" /></span><h3>Configuration / Fee Master</h3></div>
+      <form className="fm-form" onSubmit={handleSubmit}>
+        <label className="fm-field"><span>Fee Type Name *</span><input value={feeType} onChange={(event) => { setFeeType(event.target.value); setError(""); }} placeholder="Enter Fee Type Name" aria-invalid={Boolean(error)} required />{error && <small className="fm-error">{error}</small>}</label>
+        <div className="fm-form-actions"><button className="fm-save-button" type="submit"><FeeIcon type="save" />{editingId !== null ? "Update Fee" : "Save Fee"}</button><button className="fm-clear-button" type="button" onClick={resetForm}><FeeIcon type="clear" />Clear</button></div>
+      </form>
+    </section>
+    <section className="fm-card fm-details-card">
+      <div className="fm-section-title"><span className="fm-heading-icon"><FeeIcon type="list" /></span><h3>Fee Master Details</h3></div>
+      <div className="fm-table-tools"><label className="fm-show-control">Show <select value={entries} onChange={(event) => { setEntries(event.target.value); setCurrentPage(1); }}><option value="5">5</option><option value="10">10</option><option value="25">25</option><option value="50">50</option></select> entries</label><label className="fm-search-control">Search: <input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label></div>
+      <div className="fm-table-wrap"><table className="fm-table"><thead><tr><th>Fee Type Name</th><th className="fm-action-column">Action</th></tr></thead><tbody>{visibleFees.length ? visibleFees.map((fee) => <tr key={fee.id}><td>{fee.feeName}</td><td><div className="fm-action-buttons"><button className="fm-edit-button" type="button" onClick={() => handleEdit(fee)}><FeeIcon type="edit" />Edit</button><button className="fm-delete-button" type="button" onClick={() => handleDelete(fee.id)}><FeeIcon type="delete" />Delete</button></div></td></tr>) : <tr><td className="fm-empty" colSpan="2">No fee types found.</td></tr>}</tbody></table></div>
+      <div className="fm-pagination-bar"><p>Showing {firstEntry} to {lastEntry} of {filteredFees.length} entries</p><div className="fm-pagination-actions"><button className="fm-page-button" type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}>Prev</button><button className="fm-page-button fm-page-current" type="button">{currentPage}</button><button className="fm-page-button" type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Next</button></div></div>
+    </section>
+  </div>;
+}
