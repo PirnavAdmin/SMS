@@ -1,0 +1,252 @@
+
+.erp-wrapper {
+  display: flex;
+  min-height: 100vh;
+  background-color: #f1f3f6 !important;
+  width: 100%;
+}
+
+
+.erp-sidebar {
+  width: 240px;
+  background-color: #312053 !important; /* Dark Purple */
+  color: #bfaedb !important;
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+}
+
+.sidebar-brand {
+  background-color: #241642 !important;
+  color: #fff !important;
+  padding: 15px;
+  font-size: 16px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-profile-sm {
+  text-align: right;
+  padding: 5px 15px;
+  font-size: 12px;
+  color: #fff !important;
+  background-color: #3c2a63 !important;
+}
+
+.sidebar-menu {
+  list-style: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.menu-item {
+  padding: 11px 15px !important;
+  font-size: 13px !important;
+  border-bottom: 1px solid #3c2a63 !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  color: #bfaedb !important;
+}
+
+.menu-item:hover, .menu-item.active {
+  background-color: #422f6c !important;
+  color: #fff !important;
+}
+
+.arrow-right {
+  position: absolute;
+  right: 15px;
+  font-size: 10px;
+}
+
+/* --- 2. మెయిన్ కంటెంట్ మరియు టైటిల్ బార్ --- */
+.erp-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #f1f3f6;
+}
+
+.breadcrumb-bar {
+  background-color: #6339a8 !important; /* Bright Purple Title Bar */
+  color: white !important;
+  padding: 12px 15px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content-inner {
+  padding: 20px;
+}
+
+/* --- 3. కార్డ్ సెక్షన్లు (Forms & Tables) --- */
+.card-section {
+  background: white !important;
+  border: 1px solid #cfd4da !important;
+  border-radius: 3px;
+  padding: 25px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.form-label {
+  width: 150px;
+  font-size: 13px;
+  color: #333;
+  text-align: right;
+  margin-right: 15px;
+  font-weight: bold;
+}
+
+.req { color: red; }
+
+.form-input {
+  width: 250px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  outline: none;
+  font-size: 13px;
+}
+
+.checkbox-row {
+  padding-left: 165px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 15px;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+}
+
+.form-buttons {
+  padding-left: 165px;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-blue-save {
+  background-color: #224abe !important; /* Blue color matching Save */
+  color: white !important;
+  border: none;
+  padding: 6px 16px;
+  font-size: 13px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.btn-gray-clear {
+  background-color: #fff !important;
+  color: #333 !important;
+  border: 1px solid #ccc !important;
+  padding: 6px 16px;
+  font-size: 13px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+/* --- 4. టేబుల్ లేఅవుట్ స్టైల్స్ --- */
+.table-section {
+  padding: 0 !important;
+}
+
+.table-purple-header {
+  background-color: #6339a8 !important;
+  color: white !important;
+  padding: 10px 15px;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-controls-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  font-size: 13px;
+  color: #333;
+}
+
+.table-controls-row select, .table-controls-row input {
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  outline: none;
+}
+
+.custom-erp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.custom-erp-table th, .custom-erp-table td {
+  border: 1px solid #e1e4e8 !important;
+  padding: 10px 15px;
+  text-align: left;
+}
+
+.custom-erp-table th {
+  background-color: #eff3f8 !important;
+  color: #3051a0 !important;
+  font-weight: bold;
+}
+
+.custom-erp-table tbody tr:nth-child(even) {
+  background-color: #f9fbfd;
+}
+
+/* Status Badges */
+.status-active { color: #2e7d32; font-weight: bold; }
+.status-inactive { color: #c62828; font-weight: bold; }
+
+/* Actions బటన్స్ */
+.action-btn-group {
+  display: flex;
+  gap: 5px;
+}
+
+.action-btn {
+  border: none;
+  color: white !important;
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: bold;
+}
+
+.edit-btn { background-color: #f0ad4e !important; }
+.delete-btn { background-color: #d9534f !important; }
+
+.table-footer-text {
+  text-align: center;
+  font-size: 11px;
+  color: #777;
+  padding: 15px;
+  background-color: #fff;
+  border-top: 1px solid #e1e4e8;
+}
