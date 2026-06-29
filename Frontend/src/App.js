@@ -1,60 +1,61 @@
-import React, { useState } from 'react';
-import './App.css';
+import React, { useState } from "react";
+import "./App.css";
+import { FaSearch } from "react-icons/fa";
 
-import Dashbaord from './ADMIN/Dashbaord/Dashbaord';
-import Admissions from './ADMIN/Admissions/Admissions';
-import StudentManagement from './ADMIN/Student Management/StudentManagement';
-import FacultyManagement from './ADMIN/Faculity Management/FacultyManagement';
-import Attendance from './ADMIN/Attendance/Attendance';
-import Fee from './ADMIN/Fee/Fee';
-import Communication from './ADMIN/Communication/Communication';
-import ConfigSubViewer from './ADMIN/Configuration/ConfigSubViewer';
-import Generate from './ADMIN/Generate/Generate';
-import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
-import Reports from './ADMIN/Reports/Reports';
-import Settings from './ADMIN/Settings/Settings';
+import Dashbaord from "./ADMIN/Dashbaord/Dashbaord";
+import Admissions from "./ADMIN/Admissions/Admissions";
+import StudentManagement from "./ADMIN/Student Management/StudentManagement";
+import FacultyManagement from "./ADMIN/Faculity Management/FacultyManagement";
+import Attendance from "./ADMIN/Attendance/Attendance";
+import Fee from "./ADMIN/Fee/Fee";
+import Communication from "./ADMIN/Communication/Communication";
+import ConfigSubViewer from "./ADMIN/Configuration/ConfigSubViewer";
+import Generate from "./ADMIN/Generate/Generate";
+import PromotionManagement from "./ADMIN/Promotion Management/PromotionManagement";
+import Reports from "./ADMIN/Reports/Reports";
+import Settings from "./ADMIN/Settings/Settings";
 
 const navigationItems = [
-  { name: 'Dashboard', key: 'Dashboard', badge: '04' },
-  { name: 'Admissions', key: 'Admissions', badge: '12' },
-  { name: 'Student Management', key: 'Student Management', badge: '128' },
-  { name: 'Faculty Management', key: 'Faculty Management', badge: '18' },
-  { name: 'Attendance', key: 'Attendance', badge: '09' },
-  { name: 'Fee', key: 'Fee', badge: '07' },
-  { name: 'Communication', key: 'Communication', badge: '06' },
-  { 
-    name: 'Configuration', 
-    key: 'Configuration', 
-    badge: '18',
+  { name: "Dashboard", key: "Dashboard", badge: "04" },
+  { name: "Admissions", key: "Admissions", badge: "12" },
+  { name: "Student Management", key: "Student Management", badge: "128" },
+  { name: "Faculty Management", key: "Faculty Management", badge: "18" },
+  { name: "Attendance", key: "Attendance", badge: "09" },
+  { name: "Fee", key: "Fee", badge: "07" },
+  { name: "Communication", key: "Communication", badge: "06" },
+  {
+    name: "Configuration",
+    key: "Configuration",
+    badge: "18",
     isDropdown: true,
     subItems: [
-      'Academic Year',
-      'Bank Account Details',
-      'Books Fee',
-      'Bus Timings',
-      'Bus stop Names',
-      'Class',
-      'Fee Master',
-      'Holiday',
-      'Hostel Blocks',
-      'Hostel Rooms',
-      'Medium',
-      'Orientation',
-      'Roles',
-      'Section',
-      'Syllabus types',
-      'Uniform Fee',
-      'Uniform settings',
-      'Users'
-    ]
+      "Academic Year",
+      "Bank Account Details",
+      "Books Fee",
+      "Bus Timings",
+      "Bus stop Names",
+      "Class",
+      "Fee Master",
+      "Holiday",
+      "Hostel Blocks",
+      "Hostel Rooms",
+      "Medium",
+      "Orientation",
+      "Roles",
+      "Section",
+      "Syllabus types",
+      "Uniform Fee",
+      "Uniform settings",
+      "Users",
+    ],
   },
-  { name: 'Generate', key: 'Generate', badge: '05' },
-  { name: 'Promotion Management', key: 'Promotion Management', badge: '01' },
-  { name: 'Reports', key: 'Reports', badge: '15' },
+  { name: "Generate", key: "Generate", badge: "05" },
+  { name: "Promotion Management", key: "Promotion Management", badge: "01" },
+  { name: "Reports", key: "Reports", badge: "15" },
 ];
 
 function App() {
-  const [activeTab, setActiveTab] = useState('Dashboard');
+  const [activeTab, setActiveTab] = useState("Dashboard");
   const [configExpanded, setConfigExpanded] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
@@ -67,33 +68,33 @@ function App() {
   };
 
   const renderActiveView = () => {
-    if (activeTab.startsWith('Config:')) {
+    if (activeTab.startsWith("Config:")) {
       const category = activeTab.substring(7);
       return <ConfigSubViewer category={category} />;
     }
 
     switch (activeTab) {
-      case 'Dashboard':
+      case "Dashboard":
         return <Dashbaord />;
-      case 'Admissions':
+      case "Admissions":
         return <Admissions />;
-      case 'Student Management':
+      case "Student Management":
         return <StudentManagement />;
-      case 'Faculty Management':
+      case "Faculty Management":
         return <FacultyManagement />;
-      case 'Attendance':
+      case "Attendance":
         return <Attendance />;
-      case 'Fee':
+      case "Fee":
         return <Fee />;
-      case 'Communication':
+      case "Communication":
         return <Communication />;
-      case 'Generate':
+      case "Generate":
         return <Generate />;
-      case 'Promotion Management':
+      case "Promotion Management":
         return <PromotionManagement />;
-      case 'Reports':
+      case "Reports":
         return <Reports />;
-      case 'Settings':
+      case "Settings":
         return <Settings />;
       default:
         return <Dashbaord />;
@@ -113,21 +114,22 @@ function App() {
 
         <nav className="nav-list" aria-label="Admin menu">
           {navigationItems.map((item) => {
-            const isConfigActive = activeTab.startsWith('Config:') && item.key === 'Configuration';
+            const isConfigActive =
+              activeTab.startsWith("Config:") && item.key === "Configuration";
             const isActive = activeTab === item.key || isConfigActive;
             return (
               <div key={item.key} className="nav-group">
                 <button
                   type="button"
-                  className={`nav-item${isActive ? ' active' : ''}`}
+                  className={`nav-item${isActive ? " active" : ""}`}
                   onClick={() => handleNavClick(item)}
                 >
                   <span>{item.name}</span>
                   <span className="nav-badge">
-                    {item.isDropdown && configExpanded ? '▲' : item.badge}
+                    {item.isDropdown && configExpanded ? "▲" : item.badge}
                   </span>
                 </button>
-                
+
                 {item.isDropdown && configExpanded && (
                   <div className="nav-submenu">
                     {item.subItems.map((sub) => {
@@ -136,7 +138,7 @@ function App() {
                         <button
                           key={sub}
                           type="button"
-                          className={`nav-subitem${isSubActive ? ' active' : ''}`}
+                          className={`nav-subitem${isSubActive ? " active" : ""}`}
                           onClick={() => setActiveTab(`Config:${sub}`)}
                         >
                           {sub}
@@ -151,7 +153,10 @@ function App() {
         </nav>
 
         <div className="profile-block">
-          <div className="profile-info" onClick={() => setProfileMenuOpen(!profileMenuOpen)}>
+          <div
+            className="profile-info"
+            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+          >
             <div className="profile-avatar">AR</div>
             <div className="profile-details">
               <strong>Anita Rao</strong>
@@ -160,15 +165,21 @@ function App() {
           </div>
           {profileMenuOpen && (
             <div className="profile-dropdown">
-              <button 
-                type="button" 
-                onClick={() => { setActiveTab('Settings'); setProfileMenuOpen(false); }}
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab("Settings");
+                  setProfileMenuOpen(false);
+                }}
               >
                 Settings
               </button>
-              <button 
-                type="button" 
-                onClick={() => { alert('Logged out successfully!'); setProfileMenuOpen(false); }}
+              <button
+                type="button"
+                onClick={() => {
+                  alert("Logged out successfully!");
+                  setProfileMenuOpen(false);
+                }}
               >
                 Logout
               </button>
@@ -180,13 +191,23 @@ function App() {
       <main className="dashboard-main">
         <header className="top-tab-bar">
           <div className="tab-title">
-            <h2>{activeTab.startsWith('Config:') ? activeTab.substring(7) : activeTab}</h2>
+            <h2>
+              {activeTab.startsWith("Config:")
+                ? activeTab.substring(7)
+                : activeTab}
+            </h2>
           </div>
           <div className="tab-actions">
             <div className="search-box">
               <input type="text" placeholder="Search..." />
             </div>
-            <button type="button" className="icon-button" onClick={() => alert('Notifications')}>🔔</button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => alert("Notifications")}
+            >
+              🔔
+            </button>
           </div>
         </header>
         {renderActiveView()}
@@ -196,5 +217,3 @@ function App() {
 }
 
 export default App;
-
-

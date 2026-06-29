@@ -1,0 +1,309 @@
+* {
+  box-sizing: border-box;
+}
+
+/* ===========================
+   Main Page
+=========================== */
+.uniform-fee-page {
+  min-height: 100vh;
+  padding: 16px;
+  background:
+    radial-gradient(
+      circle at 25% 8%,
+      rgba(196, 61, 232, 0.08),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 76% 16%,
+      rgba(59, 130, 246, 0.1),
+      transparent 30%
+    ),
+    #f8f7ff;
+  color: #1f2a55;
+}
+
+/* ===========================
+   Section Header
+=========================== */
+.section-header {
+  background: #ffffff;
+  color: #25345f;
+  padding: 16px 22px;
+  font-weight: 600;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #ece8ff;
+  border-bottom: none;
+  border-left: 3px solid #d946ef;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 12px 28px rgba(124, 92, 246, 0.1);
+}
+
+/* ===========================
+   Card
+=========================== */
+.uniform-card {
+  background: #ffffff;
+  border: 1px solid #ece8ff;
+  border-top: none;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 16px 35px rgba(79, 70, 229, 0.1);
+}
+
+/* ===========================
+   Form Layout
+=========================== */
+.fee-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 300px);
+  gap: 20px 40px;
+}
+
+/* ===========================
+   Form Fields
+=========================== */
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #25345f;
+}
+
+.form-group select,
+.form-group input {
+  padding: 10px;
+  border: 1px solid #ded8fb;
+  border-radius: 6px;
+  outline: none;
+  transition: 0.3s;
+  color: #27345f;
+  background: #ffffff;
+  font-size: 15px;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16);
+}
+
+/* ===========================
+   Required Field
+=========================== */
+.required {
+  color: #dc2626;
+  font-weight: bold;
+}
+
+/* ===========================
+   Validation Error
+=========================== */
+.error {
+  border: 1px solid #dc2626 !important;
+}
+
+.error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 5px rgba(220, 38, 38, 0.3);
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+/* ===========================
+   Gender
+=========================== */
+.gender-group {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 28px;
+}
+
+.gender-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #25345f;
+  font-weight: 600;
+}
+
+.gender-group input {
+  accent-color: #7c5cf6;
+}
+
+/* ===========================
+   Buttons
+=========================== */
+.button-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.save-btn,
+.clear-btn,
+.edit-btn,
+.delete-btn {
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-weight: 600;
+}
+
+.save-btn {
+  background: linear-gradient(
+    135deg,
+    rgba(72, 120, 240, 0.9),
+    rgba(40, 68, 154, 0.9)
+  );
+  color: white;
+  border: none;
+  padding: 10px 24px;
+}
+
+.save-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(124, 92, 246, 0.36);
+}
+
+.clear-btn {
+  background: #ffffff;
+  color: #7c5cf6;
+  border: 1px solid #e4ddff;
+  padding: 10px 24px;
+}
+
+.clear-btn:hover {
+  background: #f4f0ff;
+  transform: translateY(-3px);
+}
+
+.edit-btn {
+  background: linear-gradient(135deg, #8b5cf6, #6d5dfc);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  margin-right: 5px;
+}
+
+.edit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(124, 92, 246, 0.3);
+}
+
+.delete-btn {
+  background: linear-gradient(90deg, #ff5570, #ef4444);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+}
+
+.delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(239, 68, 68, 0.35);
+}
+
+/* ===========================
+   Table
+=========================== */
+.table-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  color: #25345f;
+  font-weight: 600;
+}
+
+.table-top select,
+.table-top input {
+  margin: 0 8px;
+  padding: 8px 10px;
+  border: 1px solid #ded8fb;
+  border-radius: 6px;
+  color: #25345f;
+  background: #ffffff;
+  outline: none;
+}
+
+.table-top input:focus,
+.table-top select:focus {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.16);
+}
+
+.uniform-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid #ece8ff;
+  border-radius: 6px;
+}
+
+.uniform-table thead tr {
+  background: linear-gradient(
+    135deg,
+    rgba(72, 120, 240, 0.9),
+    rgba(40, 68, 154, 0.9)
+  );
+}
+
+.uniform-table th {
+  background: transparent;
+  color: white;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.uniform-table td {
+  border-bottom: 1px solid #ece8ff;
+  border-right: 1px solid #ece8ff;
+  padding: 12px;
+  color: #26345f;
+}
+
+.uniform-table tbody tr:hover {
+  background: #f6f2ff;
+}
+
+.uniform-table td[align="center"] {
+  color: #ef4444;
+  font-weight: 600;
+  padding: 25px;
+}
+
+/* ===========================
+   Responsive
+=========================== */
+@media (max-width: 768px) {
+  .fee-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-top {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .button-group {
+    flex-wrap: wrap;
+  }
+}
