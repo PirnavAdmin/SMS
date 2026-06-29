@@ -8,7 +8,7 @@ import FacultyManagement from './ADMIN/Faculity Management/FacultyManagement';
 import Attendance from './ADMIN/Attendance/Attendance';
 import Fee from './ADMIN/Fee/Fee';
 import Communication from './ADMIN/Communication/Communication';
-import ConfigSubViewer from './ADMIN/Configuration/ConfigSubViewer';
+import ConfigSubViewer from './ADMIN/Configuration/Books Fee/ConfigSubViewer';
 import Generate from './ADMIN/Generate/Generate';
 import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
 import Reports from './ADMIN/Reports/Reports';
