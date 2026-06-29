@@ -1,0 +1,416 @@
+* {
+  box-sizing: border-box;
+}
+
+.busStopContainer {
+  width: 100%;
+  min-height: 100vh;
+  padding: 18px;
+  background: #eef1f7;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.pageCard {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #d8d8d8;
+  margin-bottom: 22px;
+}
+
+.pageHeader {
+  height: 42px;
+  background: #6b3fb6;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.headerIcon {
+  font-size: 16px;
+}
+
+.pageBody {
+  padding: 22px 18px 24px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 28px;
+  row-gap: 18px;
+  align-items: end;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup label {
+  font-size: 14px;
+  color: #333333;
+  font-weight: 600;
+  margin-bottom: 7px;
+}
+
+.formGroup label span {
+  color: #ff0000;
+}
+
+.formGroup input,
+.formGroup select {
+  width: 100%;
+  height: 36px;
+  border: 1px solid #bfc4cc;
+  background: #ffffff;
+  color: #333333;
+  border-radius: 2px;
+  padding: 6px 9px;
+  font-size: 14px;
+  outline: none;
+}
+
+.formGroup input:focus,
+.formGroup select:focus {
+  border-color: #6b3fb6;
+  box-shadow: 0 0 3px rgba(107, 63, 182, 0.35);
+}
+
+.activeGroup {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activeGroup input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.activeGroup label {
+  font-size: 14px;
+  color: #333333;
+  font-weight: 600;
+}
+.buttonRow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.saveButton,
+.clearButton {
+  border: none;
+  color: #ffffff;
+  min-width: 72px;
+  height: 34px;
+  padding: 0 18px;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.saveButton {
+  background: #0d6efd;
+}
+
+.clearButton {
+  background: #6c757d;
+}
+
+.saveButton:hover {
+  background: #0b5ed7;
+}
+
+.clearButton:hover {
+  background: #5c636a;
+}
+
+.tableCard {
+  margin-top: 4px;
+}
+
+.tableBody {
+  padding: 16px;
+}
+
+.tableTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 15px;
+}
+
+.showEntries,
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  color: #333333;
+}
+
+.showEntries select {
+  width: 64px;
+  height: 32px;
+  border: 1px solid #bfc4cc;
+  border-radius: 2px;
+  padding: 4px;
+  background: #ffffff;
+}
+
+.searchBox input {
+  width: 210px;
+  height: 32px;
+  border: 1px solid #bfc4cc;
+  border-radius: 2px;
+  padding: 5px 8px;
+  outline: none;
+}
+
+.searchBox input:focus {
+  border-color: #6b3fb6;
+}
+
+.tableResponsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.busStopTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.busStopTable thead {
+  background: #1676d2;
+  color: #ffffff;
+}
+
+.busStopTable th {
+  padding: 11px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  border: 1px solid #0d64b3;
+  white-space: nowrap;
+}
+
+.busStopTable td {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: #333333;
+  border: 1px solid #d9dee6;
+  vertical-align: middle;
+}
+
+.busStopTable tbody tr:nth-child(even) {
+  background: #f8f9fb;
+}
+
+.busStopTable tbody tr:hover {
+  background: #eef5ff;
+}
+
+.editButton,
+.deleteButton {
+  border: none;
+  color: #ffffff;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: 6px;
+}
+
+.editButton {
+  background: #f0ad4e;
+}
+
+.deleteButton {
+  background: #d9534f;
+}
+
+.editButton:hover {
+  background: #ec971f;
+}
+
+.deleteButton:hover {
+  background: #c9302c;
+}
+/* ===================================
+   STATUS
+=================================== */
+
+.statusActive {
+  display: inline-block;
+  background: #28a745;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 70px;
+}
+
+.statusInactive {
+  display: inline-block;
+  background: #dc3545;
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 70px;
+}
+
+/* ===================================
+   NO DATA
+=================================== */
+
+.noData {
+  text-align: center;
+  padding: 30px;
+  color: #777;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ===================================
+   TABLE FOOTER
+=================================== */
+
+.tableFooter {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 12px 0 4px;
+  color: #666;
+  font-size: 13px;
+}
+
+/* ===================================
+   SCROLLBAR
+=================================== */
+
+.tableResponsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.tableResponsive::-webkit-scrollbar-track {
+  background: #ececec;
+}
+
+.tableResponsive::-webkit-scrollbar-thumb {
+  background: #b8b8b8;
+  border-radius: 20px;
+}
+
+.tableResponsive::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* ===================================
+   BUTTON ANIMATION
+=================================== */
+
+.saveButton,
+.clearButton,
+.editButton,
+.deleteButton {
+  transition: all .25s ease;
+}
+
+.saveButton:hover,
+.clearButton:hover,
+.editButton:hover,
+.deleteButton:hover {
+  transform: translateY(-1px);
+}
+
+/* ===================================
+   INPUT PLACEHOLDER
+=================================== */
+
+input::placeholder {
+  color: #999;
+}
+
+/* ===================================
+   RESPONSIVE
+=================================== */
+
+@media screen and (max-width:1200px) {
+
+  .formGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+@media screen and (max-width:768px) {
+
+  .busStopContainer {
+    padding: 12px;
+  }
+
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableTop {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .searchBox {
+    width: 100%;
+  }
+
+  .searchBox input {
+    width: 100%;
+  }
+
+  .buttonRow {
+    flex-wrap: wrap;
+  }
+
+  .pageHeader {
+    font-size: 15px;
+  }
+
+}
+
+@media screen and (max-width:480px) {
+
+  .busStopTable th,
+  .busStopTable td {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .saveButton,
+  .clearButton {
+    width: 100%;
+  }
+
+  .editButton,
+  .deleteButton {
+    margin-bottom: 5px;
+  }
+
+}

@@ -13,6 +13,8 @@ import Generate from './ADMIN/Generate/Generate';
 import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
 import Reports from './ADMIN/Reports/Reports';
 import Settings from './ADMIN/Settings/Settings';
+import BusTimings from './ADMIN/Configuration/Bus Timings/BusTiming';
+import BusStopNames from "./ADMIN/Configuration/Bus stop Names/BusStopNames";
 
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
@@ -65,12 +67,24 @@ function App() {
       setActiveTab(item.key);
     }
   };
-
+  
+const configComponents = {
+  "Bus stop Names": BusStopNames,
+  "Bus Timings": BusTimings,
+};
+ 
   const renderActiveView = () => {
     if (activeTab.startsWith('Config:')) {
       const category = activeTab.substring(7);
+       const component = configComponents[category];
+      if (component) {
+        return React.createElement(component);
+      }
+ 
       return <ConfigSubViewer category={category} />;
     }
+
+
 
     switch (activeTab) {
       case 'Dashboard':
@@ -97,6 +111,11 @@ function App() {
         return <Settings />;
       default:
         return <Dashbaord />;
+        case 'Bus Timings':
+          return <BusTimings />;
+          case 'Bus stop Names':
+            return <BusStopNames />;
+
     }
   };
 
