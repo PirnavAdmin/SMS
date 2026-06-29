@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import "./App.css";
 import { FaSearch } from "react-icons/fa";
 
+<<<<<<< HEAD
 import Dashbaord from "./ADMIN/Dashbaord/Dashbaord";
 import Admissions from "./ADMIN/Admissions/Admissions";
 import StudentManagement from "./ADMIN/Student Management/StudentManagement";
@@ -14,6 +15,28 @@ import Generate from "./ADMIN/Generate/Generate";
 import PromotionManagement from "./ADMIN/Promotion Management/PromotionManagement";
 import Reports from "./ADMIN/Reports/Reports";
 import Settings from "./ADMIN/Settings/Settings";
+=======
+import Dashbaord from './ADMIN/Dashbaord/Dashbaord';
+import Admissions from './ADMIN/Admissions/Admissions';
+import StudentManagement from './ADMIN/Student Management/StudentManagement';
+import FacultyManagement from './ADMIN/Faculity Management/FacultyManagement';
+import Attendance from './ADMIN/Attendance/Attendance';
+import Fee from './ADMIN/Fee/Fee';
+import Communication from './ADMIN/Communication/Communication';
+import ConfigSubViewer from './ADMIN/Configuration/ConfigSubViewer';
+import Generate from './ADMIN/Generate/Generate';
+import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
+import Reports from './ADMIN/Reports/Reports';
+import Settings from './ADMIN/Settings/Settings';
+<<<<<<< HEAD
+import HostelBlocks from './ADMIN/Configuration/Hostel Blocks/HostelBlocks';
+import HostelRooms from './ADMIN/Configuration/Hostel Rooms/HostelRooms';
+
+=======
+import BusTimings from './ADMIN/Configuration/Bus Timings/BusTiming';
+import BusStopNames from "./ADMIN/Configuration/Bus stop Names/BusStopNames";
+>>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
+>>>>>>> 23dadab8849419e060ffbefdc53872d340eaf440
 
 const navigationItems = [
   { name: "Dashboard", key: "Dashboard", badge: "04" },
@@ -66,12 +89,36 @@ function App() {
       setActiveTab(item.key);
     }
   };
-
+<<<<<<< HEAD
+const configComponents = {
+  "Hostel Blocks": HostelBlocks,
+  "Hostel Rooms": HostelRooms,
+};
+=======
+  
+const configComponents = {
+  "Bus stop Names": BusStopNames,
+  "Bus Timings": BusTimings,
+};
+ 
+>>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
   const renderActiveView = () => {
     if (activeTab.startsWith("Config:")) {
       const category = activeTab.substring(7);
+       const component = configComponents[category];
+      if (component) {
+        return React.createElement(component);
+<<<<<<< HEAD
+      } 
+
+=======
+      }
+ 
+>>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
       return <ConfigSubViewer category={category} />;
     }
+
+
 
     switch (activeTab) {
       case "Dashboard":
@@ -98,6 +145,18 @@ function App() {
         return <Settings />;
       default:
         return <Dashbaord />;
+<<<<<<< HEAD
+        case 'Hostel Blocks':
+          return <HostelBlocks />;
+        case 'Hostel Rooms':
+          return <HostelRooms />;
+=======
+        case 'Bus Timings':
+          return <BusTimings />;
+          case 'Bus stop Names':
+            return <BusStopNames />;
+
+>>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
     }
   };
 
