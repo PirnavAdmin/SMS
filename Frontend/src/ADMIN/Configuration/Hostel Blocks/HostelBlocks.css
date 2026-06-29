@@ -1,0 +1,39 @@
+.hostel-blocks {
+  padding: 25px;
+  background: white;
+  border-radius: 12px;
+}
+
+.hostel-blocks .header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.hostel-blocks button {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hostel-blocks table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.hostel-blocks th,
+.hostel-blocks td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+
+.status {
+  background: #dcfce7;
+  color: #166534;
+  padding: 6px 10px;
+  border-radius: 20px;
+}
