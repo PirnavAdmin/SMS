@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import './App.css';
-
 import Dashbaord from './ADMIN/Dashbaord/Dashbaord';
 import Admissions from './ADMIN/Admissions/Admissions';
 import StudentManagement from './ADMIN/Student Management/StudentManagement';

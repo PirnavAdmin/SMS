@@ -1,12 +1,27 @@
-import React from 'react';
+import React from "react";
+import BankAccount from "./Bank Account Details";
+import Section from "./Section";
+import SyllabusTypes from "./Syllabus types";
 
 function ConfigSubViewer({ category }) {
-  return (
-    <div style={{ padding: '20px' }}>
-      <h3>Configuration: {category}</h3>
-      <p>Configure settings and details for {category}.</p>
-    </div>
-  );
+  switch (category) {
+    case "Bank Account Details":
+      return <BankAccount />;
+
+    case "Syllabus types":
+      return <SyllabusTypes />;
+
+    case "Section":
+      return <Section />;
+
+    default:
+      return (
+        <div>
+          <h2>{category}</h2>
+          <p>Module Coming Soon...</p>
+        </div>
+      );
+  }
 }
 
 export default ConfigSubViewer;

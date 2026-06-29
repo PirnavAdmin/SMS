@@ -1,8 +1,8 @@
 .admin-layout {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 280px 1fr;
+  display: block;
   color: #20303b;
+  overflow: visible;
 }
 
 .sidebar {
@@ -12,7 +12,10 @@
   padding: 1.25rem 1rem;
   color: #f7f2e8;
   background: linear-gradient(180deg, #123643 0%, #244f58 100%);
-  position: relative;
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 280px;
+  z-index: 20;
   overflow: hidden;
   height: 100vh;
   box-sizing: border-box;
@@ -322,9 +325,15 @@
 }
 
 .dashboard-main {
+  min-width: 0;
+  min-height: 100vh;
+  margin-left: 280px;
+  overflow-y: visible;
+  overflow-x: hidden;
   padding: 2rem;
   display: grid;
   gap: 1.3rem;
+  align-content: start;
 }
 
 
@@ -609,11 +618,23 @@
 
 @media (max-width: 1080px) {
   .admin-layout {
-    grid-template-columns: 1fr;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
   }
 
   .nav-list {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  .dashboard-main {
+    min-height: auto;
+    margin-left: 0;
+    overflow: visible;
   }
 
   .overview-grid {
