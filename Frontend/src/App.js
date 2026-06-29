@@ -13,6 +13,7 @@ import Generate from './ADMIN/Generate/Generate';
 import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
 import Reports from './ADMIN/Reports/Reports';
 import Settings from './ADMIN/Settings/Settings';
+import HolidayManagement from './ADMIN/Configuration/Holiday/HolidayManagement';
 
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
@@ -66,9 +67,17 @@ function App() {
     }
   };
 
+  const configComponents = {
+  "Holiday": HolidayManagement,
+};
+
   const renderActiveView = () => {
     if (activeTab.startsWith('Config:')) {
       const category = activeTab.substring(7);
+      const component = configComponents[category];
+      if(component){
+        return React.createElement(component);
+      }
       return <ConfigSubViewer category={category} />;
     }
 
@@ -95,6 +104,8 @@ function App() {
         return <Reports />;
       case 'Settings':
         return <Settings />;
+      case 'HolidayManagement':
+        return <HolidayManagement/>
       default:
         return <Dashbaord />;
     }
