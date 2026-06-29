@@ -1,13 +1,11 @@
 {
-<<<<<<< HEAD
   "private": true,
   "scripts": {
     "start": "npm.cmd --prefix Frontend start",
     "build": "npm.cmd --prefix Frontend run build",
     "frontend": "npm.cmd --prefix Frontend start"
-=======
+  },
   "dependencies": {
     "react-icons": "^5.6.0"
->>>>>>> d0f80c9a97e7ce28532d012c221c34933ea00091
   }
 }
