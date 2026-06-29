@@ -1,8 +1,9 @@
 .admin-layout {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 280px 1fr;
   color: #20303b;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -12,7 +13,8 @@
   padding: 1.25rem 1rem;
   color: #f7f2e8;
   background: linear-gradient(180deg, #123643 0%, #244f58 100%);
-  position: relative;
+  position: sticky;
+  top: 0;
   overflow: hidden;
   height: 100vh;
   box-sizing: border-box;
@@ -322,9 +324,15 @@
 }
 
 .dashboard-main {
+  min-width: 0;
+  min-height: 0;
+  height: 100vh;
   padding: 2rem;
   display: grid;
   gap: 1.3rem;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 
@@ -609,7 +617,20 @@
 
 @media (max-width: 1080px) {
   .admin-layout {
+    height: auto;
+    min-height: 100vh;
     grid-template-columns: 1fr;
+    overflow: visible;
+  }
+
+  .sidebar {
+    position: relative;
+    height: auto;
+  }
+
+  .dashboard-main {
+    height: auto;
+    overflow: visible;
   }
 
   .nav-list {

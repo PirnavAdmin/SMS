@@ -1,0 +1,367 @@
+/* =====================================================
+   GLOBAL
+===================================================== */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+.busTimingContainer{
+    width:100%;
+    min-height:100vh;
+    background:#eef1f7;
+    padding:20px;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+/* =====================================================
+   CARD
+===================================================== */
+
+.timingCard{
+    width:100%;
+    background:#fff;
+    border:1px solid #d9d9d9;
+    margin-bottom:18px;
+}
+
+.timingHeader{
+    height:42px;
+    background:#6b38b5;
+    color:#fff;
+    display:flex;
+    align-items:center;
+    padding:0 15px;
+    font-size:15px;
+    font-weight:600;
+}
+
+.timingIcon{
+    margin-right:8px;
+    font-size:14px;
+}
+
+.timingBody{
+    padding:28px 32px;
+}
+
+/* =====================================================
+   FORM
+===================================================== */
+
+.timingFormGrid{
+    display:grid;
+    grid-template-columns:220px 200px auto;
+    column-gap:35px;
+    align-items:end;
+}
+
+.timingFormGroup{
+    display:flex;
+    flex-direction:column;
+}
+
+.timingFormGroup label{
+    font-size:14px;
+    color:#333;
+    margin-bottom:8px;
+    font-weight:600;
+}
+
+.timingFormGroup span{
+    color:red;
+}
+
+.timingFormGroup input{
+    width:190px;
+    height:34px;
+    border:1px solid #cfcfcf;
+    padding:0 10px;
+    font-size:14px;
+    outline:none;
+    background:#fff;
+}
+
+.timingFormGroup input:focus{
+    border:1px solid #6b38b5;
+}
+
+/* =====================================================
+   ACTIVE CHECKBOX
+===================================================== */
+
+.timingActiveGroup{
+    display:flex;
+    align-items:center;
+    margin-top:28px;
+}
+
+.timingActiveGroup input{
+    width:16px;
+    height:16px;
+    cursor:pointer;
+}
+
+.timingActiveGroup label{
+    margin-left:8px;
+    font-size:14px;
+    color:#333;
+}
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
+.timingButtonRow{
+    display:flex;
+    align-items:center;
+    margin-top:20px;
+}
+
+.timingSaveButton{
+    background:#0d6efd;
+    color:#fff;
+    border:none;
+    padding:8px 18px;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:14px;
+    margin-right:10px;
+}
+
+.timingSaveButton:hover{
+    background:#0b5ed7;
+}
+
+.timingClearButton{
+    background:#efefef;
+    color:#333;
+    border:1px solid #d3d3d3;
+    padding:8px 18px;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:14px;
+}
+
+.timingClearButton:hover{
+    background:#e3e3e3;
+}
+
+/* =====================================================
+   TABLE AREA
+===================================================== */
+
+.timingTableBody{
+    padding:18px;
+}
+
+.timingTableTop{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+}
+
+.timingShowEntries{
+    display:flex;
+    align-items:center;
+    font-size:14px;
+    color:#333;
+}
+
+.timingShowEntries select{
+    width:70px;
+    height:32px;
+    margin:0 8px;
+    border:1px solid #ccc;
+    background:#fff;
+}
+
+.timingSearchBox{
+    display:flex;
+    align-items:center;
+}
+
+.timingSearchBox label{
+    margin-right:8px;
+    font-size:14px;
+}
+
+.timingSearchBox input{
+    width:220px;
+    height:32px;
+    border:1px solid #ccc;
+    padding:0 10px;
+}
+
+.timingTableResponsive{
+    overflow-x:auto;
+}
+.busTimingTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.busTimingTable thead {
+  background: #1669b8;
+  color: #ffffff;
+}
+
+.busTimingTable th {
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  border: 1px solid #0d5ca3;
+  white-space: nowrap;
+}
+
+.busTimingTable td {
+  padding: 9px 10px;
+  font-size: 13px;
+  color: #222;
+  border: 1px solid #d9dee6;
+  vertical-align: middle;
+}
+
+.busTimingTable tbody tr:nth-child(odd) {
+  background: #e8eef5;
+}
+
+.busTimingTable tbody tr:nth-child(even) {
+  background: #ffffff;
+}
+
+.busTimingTable tbody tr:hover {
+  background: #dfeaf7;
+}
+
+.timingEditButton,
+.timingDeleteButton {
+  border: none;
+  color: #ffffff;
+  height: 30px;
+  padding: 0 13px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: 6px;
+  font-weight: 500;
+}
+
+.timingEditButton {
+  background: #ffb22b;
+}
+
+.timingEditButton::before {
+  content: "✎ ";
+}
+
+.timingDeleteButton {
+  background: #ff1f1f;
+}
+
+.timingDeleteButton::before {
+  content: "🗑 ";
+}
+
+.timingEditButton:hover {
+  background: #f0a000;
+}
+
+.timingDeleteButton:hover {
+  background: #e60000;
+}
+
+.timingNoData {
+  text-align: center;
+  padding: 25px;
+  color: #777;
+  font-weight: 600;
+}
+
+.timingSaveButton,
+.timingClearButton,
+.timingEditButton,
+.timingDeleteButton {
+  transition: all 0.25s ease;
+}
+
+.timingSaveButton:hover,
+.timingClearButton:hover,
+.timingEditButton:hover,
+.timingDeleteButton:hover {
+  transform: translateY(-1px);
+}
+
+/* Responsive */
+
+@media screen and (max-width: 992px) {
+  .timingFormGrid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 20px;
+  }
+
+  .timingButtonRow {
+    grid-column: 1 / -1;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .busTimingContainer {
+    padding: 12px;
+  }
+
+  .timingFormGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .timingFormGroup input {
+    width: 100%;
+  }
+
+  .timingTableTop {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .timingSearchBox {
+    width: 100%;
+  }
+
+  .timingSearchBox input {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .timingBody {
+    padding: 20px 16px;
+  }
+
+  .timingSaveButton,
+  .timingClearButton {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .timingButtonRow {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .timingEditButton,
+  .timingDeleteButton {
+    margin-bottom: 5px;
+  }
+
+  .busTimingTable th,
+  .busTimingTable td {
+    font-size: 12px;
+    padding: 8px;
+  }
+}
