@@ -3,6 +3,8 @@ import AcademicYear from "./Academic Year/AcademicYear";
 import BankAccount from "./Bank Account Details";
 import Section from "./Section";
 import SyllabusTypes from "./Syllabus types";
+import Users from './Users/Users';
+import FeeMaster from './Fee Master/FeeMaster'
 
 function ConfigSubViewer({ category }) {
   switch (category) {
@@ -14,6 +16,10 @@ function ConfigSubViewer({ category }) {
       return <SyllabusTypes />;
     case "Section":
       return <Section />;
+    case 'Users':
+      return <Users />;
+    case 'Fee Master':
+      return <FeeMaster />;
     default:
       return (
         <div style={{ padding: "20px" }}>
