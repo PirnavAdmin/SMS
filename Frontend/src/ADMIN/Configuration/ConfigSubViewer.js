@@ -4,7 +4,8 @@ import BankAccount from "./Bank Account Details";
 import Section from "./Section";
 import SyllabusTypes from "./Syllabus types";
 import Users from './Users/Users';
-import FeeMaster from './Fee Master/FeeMaster'
+import FeeMaster from './Fee Master/FeeMaster';
+import "./ConfigSubViewer.css";
 
 function ConfigSubViewer({ category }) {
   switch (category) {
@@ -22,7 +23,7 @@ function ConfigSubViewer({ category }) {
       return <FeeMaster />;
     default:
       return (
-        <div style={{ padding: "20px" }}>
+        <div className="config-placeholder">
           <h3>Configuration: {category}</h3>
           <p>Configure settings and details for {category}.</p>
         </div>

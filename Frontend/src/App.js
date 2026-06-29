@@ -13,14 +13,10 @@ import Generate from './ADMIN/Generate/Generate';
 import PromotionManagement from './ADMIN/Promotion Management/PromotionManagement';
 import Reports from './ADMIN/Reports/Reports';
 import Settings from './ADMIN/Settings/Settings';
-<<<<<<< HEAD
 import HostelBlocks from './ADMIN/Configuration/Hostel Blocks/HostelBlocks';
 import HostelRooms from './ADMIN/Configuration/Hostel Rooms/HostelRooms';
-
-=======
 import BusTimings from './ADMIN/Configuration/Bus Timings/BusTiming';
 import BusStopNames from "./ADMIN/Configuration/Bus stop Names/BusStopNames";
->>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
 
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
@@ -73,32 +69,21 @@ function App() {
       setActiveTab(item.key);
     }
   };
-<<<<<<< HEAD
 const configComponents = {
   "Hostel Blocks": HostelBlocks,
   "Hostel Rooms": HostelRooms,
-};
-=======
-  
-const configComponents = {
   "Bus stop Names": BusStopNames,
   "Bus Timings": BusTimings,
 };
- 
->>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
+
   const renderActiveView = () => {
     if (activeTab.startsWith('Config:')) {
       const category = activeTab.substring(7);
-       const component = configComponents[category];
+      const component = configComponents[category];
       if (component) {
         return React.createElement(component);
-<<<<<<< HEAD
-      } 
-
-=======
       }
- 
->>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
+
       return <ConfigSubViewer category={category} />;
     }
 
@@ -129,18 +114,6 @@ const configComponents = {
         return <Settings />;
       default:
         return <Dashbaord />;
-<<<<<<< HEAD
-        case 'Hostel Blocks':
-          return <HostelBlocks />;
-        case 'Hostel Rooms':
-          return <HostelRooms />;
-=======
-        case 'Bus Timings':
-          return <BusTimings />;
-          case 'Bus stop Names':
-            return <BusStopNames />;
-
->>>>>>> 5b38b7fa345dfb09af1bf9e192fa1024584a94c8
     }
   };
 
@@ -227,8 +200,9 @@ const configComponents = {
             <h2>{activeTab.startsWith('Config:') ? activeTab.substring(7) : activeTab}</h2>
           </div>
           <div className="tab-actions">
-            <div className="search-box">
-              <input type="text" placeholder="Search..." />
+            <div className="top-search-box">
+              <span className="top-search-icon" aria-hidden="true">⌕</span>
+              <input type="search" placeholder="Search..." aria-label="Search admin portal" />
             </div>
             <button type="button" className="icon-button" onClick={() => alert('Notifications')}>🔔</button>
           </div>
