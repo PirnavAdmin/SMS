@@ -1,0 +1,1075 @@
+.syllabus-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 20px;
+  color: #10213f;
+  overflow-x: hidden;
+}
+
+.syllabus-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 20px;
+  border: 1px solid #d7e0ec;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 34, 60, 0.08);
+}
+
+.syllabus-title-bar {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 0 16px;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(90deg, #101a35, #28449a);
+}
+
+.syllabus-title-bar h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.syllabus-user-icon {
+  width: 18px;
+  height: 18px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.syllabus-user-icon::before,
+.syllabus-user-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffffff;
+}
+
+.syllabus-user-icon::before {
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.syllabus-user-icon::after {
+  bottom: 2px;
+  width: 15px;
+  height: 7px;
+  border-radius: 10px 10px 3px 3px;
+}
+
+.syllabus-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 28px;
+}
+
+.syllabus-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.syllabus-description {
+  grid-row: span 2;
+}
+
+.syllabus-field span,
+.syllabus-check-field span {
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+  color: #11254a;
+}
+
+.syllabus-field strong {
+  color: #dc2626;
+}
+
+.syllabus-field input,
+.syllabus-field textarea,
+.syllabus-search-control input,
+.syllabus-show-control select {
+  width: 100%;
+  border: 1px solid #c8d4e5;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #17233e;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.syllabus-field input,
+.syllabus-show-control select,
+.syllabus-search-control input {
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.syllabus-field textarea {
+  min-height: 88px;
+  padding: 12px;
+  resize: vertical;
+}
+
+.syllabus-field input:focus,
+.syllabus-field textarea:focus,
+.syllabus-search-control input:focus,
+.syllabus-show-control select:focus {
+  border-color: #416feb;
+  box-shadow: 0 0 0 3px rgba(65, 111, 235, 0.15);
+}
+
+.syllabus-check-field {
+  display: inline-flex;
+  align-items: center;
+  align-self: end;
+  gap: 10px;
+  min-height: 40px;
+}
+
+.syllabus-check-field input {
+  width: 16px;
+  height: 16px;
+  accent-color: #416feb;
+}
+
+.syllabus-form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.syllabus-save-btn,
+.syllabus-clear-btn,
+.syllabus-edit-btn,
+.syllabus-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #ffffff;
+  font-weight: 700;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: transform 0.35s, box-shadow 0.35s, background-position 0.35s;
+}
+
+.syllabus-button-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.syllabus-save-btn {
+  min-width: 132px;
+  min-height: 42px;
+  background: linear-gradient(135deg, rgba(72, 120, 240, 0.9), rgba(40, 68, 154, 0.9));
+  box-shadow: 0 8px 18px rgba(72, 120, 240, 0.25);
+}
+
+.syllabus-clear-btn {
+  min-height: 42px;
+  padding: 0 20px;
+  background: linear-gradient(135deg, rgba(107, 114, 128, 0.9), rgba(75, 85, 99, 0.9));
+}
+
+.syllabus-save-btn:hover,
+.syllabus-clear-btn:hover,
+.syllabus-edit-btn:hover,
+.syllabus-delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+  background-position: right center;
+}
+
+.syllabus-table-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.syllabus-show-control,
+.syllabus-search-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #11254a;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.syllabus-show-control select {
+  width: 88px;
+}
+
+.syllabus-search-control input {
+  width: 220px;
+}
+
+.syllabus-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.syllabus-table-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+.syllabus-table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+  color: #162343;
+  table-layout: fixed;
+}
+
+.syllabus-table thead {
+  background: #28449a;
+  color: #ffffff;
+}
+
+.syllabus-table th {
+  padding: 11px 8px;
+  font-weight: 700;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.syllabus-table td {
+  padding: 11px 8px;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.syllabus-table tbody tr {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.syllabus-table tbody tr:nth-child(even) {
+  background: #f8fbff;
+}
+
+.syllabus-table tbody tr:hover {
+  background: #eef5ff;
+}
+
+.syllabus-table th,
+.syllabus-table td {
+  border: none;
+}
+
+.syllabus-table th:last-child,
+.syllabus-table td:last-child {
+  width: 165px;
+}
+
+.syllabus-action-buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.syllabus-edit-btn,
+.syllabus-delete-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.syllabus-edit-btn {
+  min-width: 72px;
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.95), rgba(255, 193, 7, 0.9));
+}
+
+.syllabus-delete-btn {
+  min-width: 86px;
+  background: linear-gradient(135deg, rgba(229, 68, 68, 0.95), rgba(220, 38, 38, 0.9));
+}
+
+.syllabus-empty {
+  padding: 20px;
+  text-align: center;
+  color: #667085;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .syllabus-panel {
+    padding: 18px;
+  }
+
+  .syllabus-title-bar {
+    min-height: 50px;
+    padding: 0 14px;
+    margin-bottom: 20px;
+  }
+
+  .syllabus-title-bar h3 {
+    font-size: 18px;
+  }
+
+  .syllabus-form {
+    grid-template-columns: 1fr;
+  }
+
+  .syllabus-description {
+    grid-row: auto;
+  }
+
+  .syllabus-check-field {
+    align-self: start;
+  }
+
+  .syllabus-form-actions,
+  .syllabus-table-tools {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .syllabus-save-btn,
+  .syllabus-clear-btn,
+  .syllabus-search-control input {
+    width: 100%;
+  }
+
+  .syllabus-table th,
+  .syllabus-table td {
+    padding: 12px 6px;
+    font-size: 13px;
+  }
+}
+
+/* School Manager Admin Hub palette */
+.syllabus-panel {
+  border-color: #d3c5af;
+  background: #fffdf8;
+  box-shadow: 0 18px 35px rgba(35, 63, 74, 0.08);
+}
+
+.syllabus-title-bar,
+.syllabus-table thead {
+  background: linear-gradient(90deg, #123643, #244f58);
+}
+
+.syllabus-field span,
+.syllabus-check-field span,
+.syllabus-show-control,
+.syllabus-search-control {
+  color: #17313e;
+}
+
+.syllabus-field input,
+.syllabus-field textarea,
+.syllabus-search-control input,
+.syllabus-show-control select {
+  border-color: #d2d7d4;
+  background: #fffdf8;
+  color: #20303b;
+}
+
+.syllabus-field input:focus,
+.syllabus-field textarea:focus,
+.syllabus-search-control input:focus,
+.syllabus-show-control select:focus {
+  border-color: #d87457;
+  box-shadow: 0 0 0 3px rgba(216, 116, 87, 0.16);
+}
+
+.syllabus-check-field input {
+  accent-color: #d87457;
+}
+
+.syllabus-save-btn {
+  background: linear-gradient(135deg, #d87457, #b94f46);
+  box-shadow: 0 8px 18px rgba(185, 79, 70, 0.25);
+}
+
+.syllabus-clear-btn {
+  background: linear-gradient(135deg, #335565, #244f58);
+}
+
+.syllabus-edit-btn {
+  background: linear-gradient(135deg, #f0bb68, #d3993a);
+  color: #17313e;
+}
+
+.syllabus-delete-btn {
+  background: linear-gradient(135deg, #d87457, #b94f46);
+}
+
+.syllabus-table {
+  color: #20303b;
+}
+
+.syllabus-table tbody tr {
+  border-bottom-color: #e4dac8;
+}
+
+.syllabus-table tbody tr:nth-child(even) {
+  background: #fff8ed;
+}
+
+.syllabus-table tbody tr:hover {
+  background: #f7efe1;
+}
+
+/* Purple-blue configuration screen theme */
+.syllabus-page {
+  height: calc(100dvh - 8.8rem);
+  min-height: 560px;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 18px;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.syllabus-panel {
+  position: relative;
+  border: 1px solid rgba(155, 126, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 14px 35px rgba(74, 88, 190, 0.13);
+}
+
+.syllabus-panel:first-child {
+  padding: 20px;
+  isolation: isolate;
+}
+
+.syllabus-panel:last-child {
+  min-height: 0;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.syllabus-title-bar {
+  width: fit-content;
+  min-height: auto;
+  margin-bottom: 18px;
+  padding: 0;
+  color: #18244a;
+  background: transparent;
+}
+
+.syllabus-title-bar h3 {
+  font-size: 18px;
+}
+
+.syllabus-user-icon {
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 50%;
+  background: #f1edff;
+  box-shadow: 0 8px 18px rgba(123, 92, 255, 0.16);
+}
+
+.syllabus-user-icon::before,
+.syllabus-user-icon::after {
+  background: #7b5cff;
+}
+
+.syllabus-form {
+  width: min(700px, calc(100% - 220px));
+  gap: 14px 24px;
+}
+
+.syllabus-field {
+  gap: 6px;
+}
+
+.syllabus-field span,
+.syllabus-check-field span,
+.syllabus-show-control,
+.syllabus-search-control {
+  color: #1f2a4d;
+  font-size: 13px;
+}
+
+.syllabus-field input,
+.syllabus-field textarea,
+.syllabus-search-control input,
+.syllabus-show-control select {
+  border-color: #e2e5f3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #293457;
+  box-shadow: 0 4px 12px rgba(91, 103, 168, 0.08);
+}
+
+.syllabus-field input,
+.syllabus-show-control select,
+.syllabus-search-control input {
+  min-height: 36px;
+}
+
+.syllabus-field textarea {
+  min-height: 72px;
+  resize: none;
+}
+
+.syllabus-field input:focus,
+.syllabus-field textarea:focus,
+.syllabus-search-control input:focus,
+.syllabus-show-control select:focus {
+  border-color: #7b5cff;
+  box-shadow: 0 0 0 3px rgba(123, 92, 255, 0.16);
+}
+
+.syllabus-check-field input {
+  accent-color: #7b5cff;
+}
+
+.syllabus-form-actions {
+  justify-content: flex-start;
+  margin-top: 2px;
+}
+
+.syllabus-save-btn,
+.syllabus-clear-btn {
+  min-height: 38px;
+  border-radius: 6px;
+}
+
+.syllabus-save-btn {
+  min-width: 108px;
+  background: linear-gradient(135deg, #c333d8, #2678ec);
+  box-shadow: 0 10px 20px rgba(123, 92, 255, 0.25);
+}
+
+.syllabus-clear-btn {
+  padding: 0 20px;
+  color: #746f8c;
+  background: #ffffff;
+  border: 1px solid #edf0f8;
+  box-shadow: 0 8px 16px rgba(91, 103, 168, 0.1);
+}
+
+.syllabus-table-tools {
+  margin-bottom: 12px;
+}
+
+.syllabus-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #eef1fb;
+  border-radius: 7px;
+}
+
+.syllabus-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: linear-gradient(90deg, #c333d8, #2678ec);
+}
+
+.syllabus-table th,
+.syllabus-table td {
+  padding: 10px 8px;
+  font-size: 13px;
+}
+
+.syllabus-table tbody tr {
+  border-bottom-color: #eef1fb;
+}
+
+.syllabus-table tbody tr:nth-child(even) {
+  background: #fbfcff;
+}
+
+.syllabus-table tbody tr:hover {
+  background: #f4f1ff;
+}
+
+.syllabus-edit-btn {
+  background: linear-gradient(135deg, #7b5cff, #543bd7);
+  color: #ffffff;
+}
+
+.syllabus-delete-btn {
+  background: linear-gradient(135deg, #ff4d6d, #f13755);
+}
+
+.syllabus-hero-art {
+  position: absolute;
+  right: 34px;
+  top: 26px;
+  width: 172px;
+  height: 142px;
+  border-radius: 48% 52% 42% 58%;
+  background: radial-gradient(circle at 70% 15%, rgba(68, 226, 202, 0.35), transparent 12%),
+    linear-gradient(135deg, rgba(197, 51, 216, 0.13), rgba(255, 210, 120, 0.2));
+  z-index: -1;
+}
+
+.syllabus-art-book {
+  position: absolute;
+  top: 44px;
+  width: 56px;
+  height: 72px;
+  border: 7px solid #7b5cff;
+  background: #ffffff;
+  box-shadow: 0 10px 18px rgba(123, 92, 255, 0.22);
+}
+
+.syllabus-art-book-one {
+  left: 42px;
+  border-radius: 8px 2px 2px 8px;
+  transform: rotate(-6deg);
+}
+
+.syllabus-art-book-two {
+  left: 86px;
+  border-radius: 2px 8px 8px 2px;
+  transform: rotate(6deg);
+}
+
+.syllabus-art-book::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 20px;
+  height: 7px;
+  border-radius: 999px;
+  background: #c3b8ff;
+  box-shadow: 0 17px 0 #44e2ca;
+}
+
+.syllabus-art-page {
+  position: absolute;
+  right: 26px;
+  bottom: 28px;
+  width: 42px;
+  height: 30px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #44e2ca, #7b5cff);
+  box-shadow: 0 8px 14px rgba(38, 120, 236, 0.22);
+}
+
+@media (max-width: 900px) {
+  .syllabus-page {
+    height: auto;
+    overflow: visible;
+  }
+
+  .syllabus-form {
+    width: 100%;
+  }
+
+  .syllabus-hero-art {
+    display: none;
+  }
+}
+
+/* Medium Syllabus Types palette aligned with Bank and Section */
+.syllabus-page {
+  height: auto;
+  grid-template-rows: auto auto;
+  overflow: visible;
+}
+
+.syllabus-panel {
+  border-color: rgba(154, 140, 255, 0.28);
+  background: rgba(255, 255, 255, 0.93);
+  box-shadow: 0 14px 32px rgba(92, 105, 190, 0.13);
+}
+
+.syllabus-panel:first-child {
+  min-height: 290px;
+  padding: 22px 26px;
+}
+
+.syllabus-title-bar {
+  position: relative;
+  z-index: 1;
+  color: #202a52;
+}
+
+.syllabus-heading-icon {
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 50%;
+  color: #6654d9;
+  background: #f0edff;
+  box-shadow: 0 8px 18px rgba(102, 84, 217, 0.16);
+  flex: 0 0 auto;
+}
+
+.syllabus-form {
+  position: relative;
+  z-index: 1;
+  width: min(860px, 100%);
+}
+
+.syllabus-field span,
+.syllabus-check-field span,
+.syllabus-show-control,
+.syllabus-search-control {
+  color: #283354;
+}
+
+.syllabus-field input,
+.syllabus-field textarea,
+.syllabus-search-control input,
+.syllabus-show-control select {
+  border-color: #dfe3f5;
+  color: #303b5e;
+  box-shadow: 0 4px 12px rgba(92, 105, 190, 0.08);
+}
+
+.syllabus-field input:focus,
+.syllabus-field textarea:focus,
+.syllabus-search-control input:focus,
+.syllabus-show-control select:focus {
+  border-color: #7968ef;
+  box-shadow: 0 0 0 3px rgba(121, 104, 239, 0.16);
+}
+
+.syllabus-check-field input {
+  accent-color: #7968ef;
+}
+
+.syllabus-save-btn,
+.syllabus-table thead {
+  background: linear-gradient(135deg, #9868e8, #438cf0);
+}
+
+.syllabus-save-btn {
+  box-shadow: 0 10px 20px rgba(93, 112, 225, 0.24);
+}
+
+.syllabus-clear-btn {
+  border-color: #e8ebf8;
+  color: #626986;
+  box-shadow: 0 8px 16px rgba(92, 105, 190, 0.1);
+}
+
+.syllabus-table-wrap {
+  flex: 0 0 auto;
+  max-height: 420px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-color: #e8ebf8;
+  scrollbar-width: thin;
+  scrollbar-color: #b8adff #f5f6ff;
+}
+
+.syllabus-table-wrap::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+  height: 0;
+}
+
+.syllabus-table-wrap::-webkit-scrollbar-track {
+  background: #f5f6ff;
+}
+
+.syllabus-table-wrap::-webkit-scrollbar-thumb {
+  background: #b8adff;
+  border-radius: 999px;
+}
+
+.syllabus-table {
+  table-layout: fixed;
+}
+
+.syllabus-table th,
+.syllabus-table td {
+  padding: 12px 8px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.syllabus-table tbody tr {
+  border-bottom-color: #e8ebf8;
+}
+
+.syllabus-table tbody tr:nth-child(even) {
+  background: #f8faff;
+}
+
+.syllabus-table tbody tr:hover {
+  background: #f0edff;
+}
+
+.syllabus-edit-btn {
+  background: linear-gradient(135deg, #7968ef, #5d4fd2);
+}
+
+.syllabus-delete-btn {
+  background: linear-gradient(135deg, #ff6f85, #f54864);
+}
+
+.syllabus-hero-art {
+  right: 38px;
+  top: 28px;
+  width: 290px;
+  height: 230px;
+  background: radial-gradient(circle at 76% 16%, rgba(90, 224, 205, 0.38), transparent 11%),
+    radial-gradient(circle at 18% 72%, rgba(255, 110, 139, 0.16), transparent 17%),
+    linear-gradient(135deg, rgba(167, 127, 245, 0.24), rgba(255, 218, 138, 0.24));
+  z-index: 0;
+  pointer-events: none;
+}
+
+.syllabus-art-book {
+  top: 58px;
+  width: 82px;
+  height: 108px;
+  border: 10px solid #7968ef;
+  box-shadow: 0 18px 28px rgba(121, 104, 239, 0.22);
+}
+
+.syllabus-art-book-one {
+  left: 70px;
+  border-radius: 12px 3px 3px 12px;
+}
+
+.syllabus-art-book-two {
+  left: 134px;
+  border-radius: 3px 12px 12px 3px;
+}
+
+.syllabus-art-book::before {
+  left: 18px;
+  right: 18px;
+  top: 30px;
+  height: 9px;
+  background: #aaa0ff;
+  box-shadow: 0 24px 0 #5ae0cd;
+}
+
+.syllabus-art-page {
+  right: 28px;
+  bottom: 38px;
+  width: 66px;
+  height: 46px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #5ae0cd, #7968ef);
+  box-shadow: 0 12px 20px rgba(67, 140, 240, 0.22);
+}
+
+@media (max-width: 1100px) {
+  .syllabus-form {
+    width: 100%;
+  }
+
+  .syllabus-hero-art {
+    display: none;
+  }
+}
+
+/* Keep saved syllabus rows and action labels fully visible. */
+.syllabus-panel:last-child {
+  min-height: 340px;
+  overflow: visible;
+}
+
+.syllabus-table-wrap {
+  flex: 1 1 auto;
+  min-height: 190px;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.syllabus-table {
+  min-width: 820px;
+}
+
+.syllabus-table th:last-child,
+.syllabus-table td:last-child {
+  width: 210px;
+}
+
+.syllabus-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.syllabus-edit-btn,
+.syllabus-delete-btn {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.syllabus-edit-btn {
+  min-width: 82px;
+}
+
+.syllabus-delete-btn {
+  min-width: 96px;
+}
+
+.syllabus-edit-btn .syllabus-button-icon,
+.syllabus-delete-btn .syllabus-button-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 901px) {
+  .syllabus-table {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .syllabus-panel:last-child {
+    min-height: 0;
+  }
+
+  .syllabus-table-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .syllabus-search-control,
+  .syllabus-search-control input {
+    width: 100%;
+  }
+}
+
+.syllabus-search-control input::placeholder {
+  color: #a7aec3;
+  opacity: 1;
+  font-weight: 400;
+}
+
+/* Keep the form actions fully inside the Syllabus Types card. */
+.syllabus-panel:first-child {
+  min-height: 470px;
+  padding-bottom: 30px;
+}
+
+.syllabus-form-actions {
+  justify-content: flex-start;
+  min-height: 46px;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.syllabus-save-btn,
+.syllabus-clear-btn {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 22px;
+  border-radius: 7px;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.syllabus-save-btn {
+  min-width: 128px;
+}
+
+.syllabus-clear-btn {
+  min-width: 118px;
+}
+
+/* Compact form with a reserved right-side illustration area. */
+.syllabus-panel:first-child {
+  min-height: 390px;
+  padding: 20px 26px 26px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.syllabus-form {
+  width: min(800px, calc(100% - 360px));
+  gap: 14px 24px;
+}
+
+.syllabus-field {
+  gap: 6px;
+}
+
+.syllabus-field input {
+  min-height: 36px;
+}
+
+.syllabus-field textarea {
+  min-height: 76px;
+  padding: 10px 12px;
+}
+
+.syllabus-form-actions {
+  min-height: 42px;
+  margin-top: 4px;
+}
+
+.syllabus-save-btn,
+.syllabus-clear-btn {
+  min-height: 40px;
+}
+
+.syllabus-hero-art {
+  right: 38px;
+  top: 58px;
+  width: 290px;
+  height: 230px;
+  z-index: 0;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+@media (max-width: 1100px) {
+  .syllabus-panel:first-child {
+    min-height: 390px;
+  }
+
+  .syllabus-form {
+    width: 100%;
+  }
+
+  .syllabus-hero-art {
+    display: none;
+  }
+}

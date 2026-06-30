@@ -1,0 +1,42 @@
+import React from 'react';
+import Layout from '../components/Layout';
+import '../styles/pages.css';
+
+const AdminDashboard = () => {
+  return (
+    <Layout>
+      <div className="page-container">
+        <div className="dashboard-header">
+          <h1>Admin Dashboard</h1>
+          <p>Institution management and academic oversight</p>
+        </div>
+
+        <div className="dashboard-grid">
+          <div className="dashboard-card">
+            <h3>Institution Settings</h3>
+            <p>Manage institution information and configuration</p>
+          </div>
+          <div className="dashboard-card">
+            <h3>Staff Management</h3>
+            <p>Manage teachers and administrative staff</p>
+          </div>
+          <div className="dashboard-card">
+            <h3>Student Management</h3>
+            <p>Manage student enrollments and records</p>
+          </div>
+          <div className="dashboard-card">
+            <h3>Academic Calendar</h3>
+            <p>Manage terms, semesters, and holidays</p>
+          </div>
+        </div>
+
+        <div className="content-section">
+          <h2>Admin Activities</h2>
+          <p>Monitor recent administrative activities</p>
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default AdminDashboard;

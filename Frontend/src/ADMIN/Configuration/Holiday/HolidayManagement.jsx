@@ -394,7 +394,6 @@ const totalPages = Math.ceil(
   </span>
 
 
-
     
    <div className="pagination">
 

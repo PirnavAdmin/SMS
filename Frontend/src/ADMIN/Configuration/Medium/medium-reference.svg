@@ -1,0 +1,66 @@
+<svg width="300" height="230" viewBox="0 0 300 230" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cardGradient" x1="78" y1="35" x2="226" y2="186" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B84DFF"/>
+      <stop offset="1" stop-color="#2D8FFF"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="40" y1="58" x2="250" y2="198" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7ECFF"/>
+      <stop offset="1" stop-color="#EDF7FF"/>
+    </linearGradient>
+    <linearGradient id="greenGradient" x1="216" y1="120" x2="264" y2="175" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#40D7B5"/>
+      <stop offset="1" stop-color="#25B981"/>
+    </linearGradient>
+    <filter id="softShadow" x="35" y="23" width="228" height="184" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="13"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.278 0 0 0 0 0.196 0 0 0 0 0.714 0 0 0 0.2 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+
+  <path d="M47 92C62 51 104 28 150 29C198 31 240 58 256 101C272 144 251 189 209 204C168 219 103 211 68 183C34 155 32 132 47 92Z" fill="url(#accentGradient)"/>
+  <circle cx="63" cy="78" r="10" fill="#FFFFFF" stroke="#DCCBFF" stroke-width="7"/>
+  <circle cx="235" cy="177" r="11" fill="#FFFFFF" stroke="#DCE7FF" stroke-width="7"/>
+  <path d="M238 73L244 84L256 87L246 94L247 106L238 99L226 103L230 91L222 82L234 82L238 73Z" fill="#C7F7F0"/>
+  <path d="M64 166L69 174L78 176L71 182L72 191L64 186L55 190L58 181L52 174L61 174L64 166Z" fill="#A887FF"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="82" y="54" width="120" height="138" rx="18" fill="#FFFFFF"/>
+    <rect x="82" y="54" width="120" height="138" rx="18" stroke="url(#cardGradient)" stroke-width="8"/>
+    <rect x="114" y="37" width="56" height="26" rx="13" fill="url(#cardGradient)"/>
+    <circle cx="116" cy="96" r="11" fill="#EFE7FF"/>
+    <path d="M110 97L115 102L124 91" stroke="#7E50F2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="137" y="88" width="42" height="10" rx="5" fill="#C8B4FF"/>
+    <circle cx="116" cy="128" r="11" fill="#EAF3FF"/>
+    <path d="M111 128H121" stroke="#2D8FFF" stroke-width="4" stroke-linecap="round"/>
+    <path d="M116 123V133" stroke="#2D8FFF" stroke-width="4" stroke-linecap="round"/>
+    <rect x="137" y="120" width="36" height="10" rx="5" fill="#B8D9FF"/>
+    <circle cx="116" cy="160" r="11" fill="#F2E9FF"/>
+    <path d="M111 164L116 154L121 164" stroke="#8C57F4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M113 161H119" stroke="#8C57F4" stroke-width="3" stroke-linecap="round"/>
+    <rect x="137" y="152" width="45" height="10" rx="5" fill="#C8B4FF"/>
+  </g>
+
+  <g>
+    <rect x="45" y="113" width="66" height="46" rx="13" fill="#FFFFFF" stroke="#E6DEFF" stroke-width="3"/>
+    <text x="78" y="143" text-anchor="middle" font-family="Arial, sans-serif" font-size="23" font-weight="800" fill="#7E50F2">ABC</text>
+  </g>
+  <g>
+    <rect x="192" y="105" width="58" height="42" rx="12" fill="#FFFFFF" stroke="#DDEBFF" stroke-width="3"/>
+    <text x="221" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="800" fill="#2D8FFF">EN</text>
+  </g>
+  <g>
+    <rect x="207" y="151" width="52" height="38" rx="12" fill="#FFFFFF" stroke="#E6DEFF" stroke-width="3"/>
+    <text x="233" y="176" text-anchor="middle" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#8C57F4">TE</text>
+  </g>
+
+  <path d="M236 151C244 139 251 130 262 126C264 141 256 154 241 164L236 151Z" fill="url(#greenGradient)"/>
+  <path d="M235 153C226 141 220 130 210 125C207 140 214 154 230 165L235 153Z" fill="url(#greenGradient)"/>
+  <rect x="217" y="166" width="43" height="33" rx="12" fill="url(#cardGradient)"/>
+</svg>
