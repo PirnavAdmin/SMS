@@ -17,13 +17,20 @@ import SuperAdminDashboard from './SUPER ADMIN/SuperAdminDashboard';
 import TeacherDashboard from './TEACHER/TeacherDashboard';
 import TransportManagerDashboard from './TRANSPORT MANAGER/TransportManagerDashboard';
 import Unauthorized from './Unauthorized';
-import { AuthProvider } from './AuthContext';
+import { AuthProvider, useAuth } from './AuthContext';
+
+function LoginRoute() {
+  const { user, roles } = useAuth();
+  const role = roles.find((item) => item.id === user?.role);
+
+  return role ? <Navigate to={role.route} replace /> : <Login />;
+}
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Login />} />
-      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<LoginRoute />} />
+      <Route path="/login" element={<LoginRoute />} />
       <Route path="/unauthorized" element={<Unauthorized />} />
       <Route
         path="/super-admin-dashboard"

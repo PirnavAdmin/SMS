@@ -50,12 +50,15 @@ function BackIcon({ className = '' }) {
 
 function Login() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, roles } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [showCredentials, setShowCredentials] = useState(false);
+  const matchedRole = roles.find(
+    (role) => role.email === email.trim().toLowerCase()
+  );
 
   const handleCloseCredentials = () => {
     setShowCredentials(false);
@@ -120,17 +123,30 @@ function Login() {
                   <input
                     type="email"
                     value={email}
-                    onChange={(event) => setEmail(event.target.value)}
+                    onChange={(event) => {
+                      setEmail(event.target.value);
+                      setError('');
+                    }}
                     autoComplete="email"
+                    placeholder="name@sms.com"
                   />
                 </label>
+
+                {matchedRole && (
+                  <p className="matched-role" aria-live="polite">
+                    Signing in as <strong>{matchedRole.label}</strong>
+                  </p>
+                )}
 
                 <label>
                   Password
                   <input
                     type="password"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setError('');
+                    }}
                     autoComplete="current-password"
                   />
                 </label>

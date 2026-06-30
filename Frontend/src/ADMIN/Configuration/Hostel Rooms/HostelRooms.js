@@ -601,14 +601,17 @@ function HostelRooms() {
   return (
     <div className="hostel-container">
       <div className="hostel-header">
-        <h2>Hostel Rooms</h2>
+        <div className="hostel-title">
+          <span className="hostel-title-icon"><Hotel size={19} /></span>
+          <h2>Configuration / Hostel Rooms</h2>
+        </div>
 
         <div className="header-actions">
-          <div className="search-box-wrapper">
-            <Search className="search-icon" size={18} />
+          <div className="hostel-search-wrapper">
+            <Search className="hostel-search-icon" size={18} />
             <input
               type="text"
-              className="search-box"
+              className="hostel-search-box"
               placeholder="Search Student / Parent / Room / Block"
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
@@ -616,11 +619,11 @@ function HostelRooms() {
           </div>
 
           <button className="primary-btn" type="button" onClick={openRoomForm}>
-            <PlusCircle size={18} /> 
+            <PlusCircle size={18} /> Add Room
           </button>
 
           <button className="primary-btn" type="button" onClick={openStudentForm}>
-            <UserPlus size={18} />
+            <UserPlus size={18} /> Allocate Student
           </button>
         </div>
       </div>
