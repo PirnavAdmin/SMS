@@ -11,6 +11,7 @@
 .ay-field{display:flex;min-width:0;flex-direction:column;gap:6px}
 .ay-field span,.ay-checkbox-field span,.ay-show-control,.ay-search-control{color:#283354;font-size:13px;font-weight:700}
 .ay-field input,.ay-show-control select,.ay-search-control input{min-height:36px;border:1px solid #dfe3f5;border-radius:6px;padding:0 12px;background:#fff;color:#303b5e;font:inherit;outline:none;box-shadow:0 4px 12px rgba(92,105,190,.08);transition:.2s}
+.ay-field input::placeholder,.ay-search-control input::placeholder{color:#a7aec3;opacity:1;font-weight:400}
 .ay-field input:focus,.ay-show-control select:focus,.ay-search-control input:focus{border-color:#7968ef;box-shadow:0 0 0 3px rgba(121,104,239,.16)}
 .ay-checkbox-field{min-height:36px;display:flex;align-items:center;gap:9px;cursor:pointer}
 .ay-checkbox-field input{width:17px;height:17px;margin:0;accent-color:#7968ef}

@@ -880,3 +880,87 @@
     display: none;
   }
 }
+
+/* Keep saved section rows and their actions fully visible. */
+.section-panel:last-child {
+  min-height: 340px;
+  overflow: visible;
+}
+
+.section-table-wrap {
+  flex: 1 1 auto;
+  min-height: 190px;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.section-table {
+  min-width: 760px;
+}
+
+.section-table th:last-child,
+.section-table td:last-child {
+  width: 210px;
+}
+
+.section-action-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.section-edit-btn,
+.section-delete-btn {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.section-edit-btn {
+  min-width: 82px;
+}
+
+.section-delete-btn {
+  min-width: 96px;
+}
+
+.section-edit-btn .section-button-icon,
+.section-delete-btn .section-button-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 901px) {
+  .section-table {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .section-panel:last-child {
+    min-height: 0;
+  }
+
+  .section-table-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .section-search-control,
+  .section-search-control input {
+    width: 100%;
+  }
+}
+
+.section-search-control input::placeholder {
+  color: #a7aec3;
+  opacity: 1;
+  font-weight: 400;
+}

@@ -25,6 +25,7 @@ function BankTable({
       <div className="bank-section-title">
         <BankDetailsIcon />
         <h3>Bank Details</h3>
+        <span className="bank-record-count">{totalEntries}</span>
       </div>
 
       <div className="bank-table-tools">
@@ -41,7 +42,11 @@ function BankTable({
 
         <label className="bank-search-control">
           <span>Search:</span>
-          <input value={search} onChange={(event) => onSearchChange(event.target.value)} />
+          <input
+            placeholder="Search..."
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
         </label>
       </div>
 

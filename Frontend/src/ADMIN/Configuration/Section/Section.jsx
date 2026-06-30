@@ -154,7 +154,7 @@ function Section() {
 
           <label className="section-search-control">
             <span>Search:</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} />
+            <input placeholder="Search..." value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
         </div>
 

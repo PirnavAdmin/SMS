@@ -9,14 +9,11 @@ const UniformSettingList = ({
   onDelete,
 }) => {
   return (
-    <>
-      {/* Header */}
-      <div className="section-header">
-        <FaUser />
-        <span>Uniform Settings Details</span>
-      </div>
-
-      <div className="uniform-card">
+      <section className="uniform-card uniform-settings-details-card">
+        <div className="section-header">
+          <FaUser />
+          <h3>Uniform Settings Details</h3>
+        </div>
         {/* Table Controls */}
         <div className="table-top">
           <div>
@@ -45,6 +42,7 @@ const UniformSettingList = ({
         </div>
 
         {/* Table */}
+        <div className="uniform-settings-table-wrap">
         <table className="uniform-table">
           <thead>
             <tr>
@@ -108,6 +106,7 @@ const UniformSettingList = ({
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination */}
         <div className="pagination-section">
@@ -130,8 +129,7 @@ const UniformSettingList = ({
             </button>
           </div>
         </div>
-      </div>
-    </>
+      </section>
   );
 };
 

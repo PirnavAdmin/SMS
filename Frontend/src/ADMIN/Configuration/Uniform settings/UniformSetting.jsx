@@ -69,7 +69,7 @@ const UniformSetting = () => {
   });
 
   return (
-    <div className="uniform-fee-page">
+    <div className="uniform-settings-page">
       <AddUniformSettings onSave={handleSave} editData={editData} />
 
       <UniformSettingList

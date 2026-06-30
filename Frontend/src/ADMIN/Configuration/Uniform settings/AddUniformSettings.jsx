@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { FaTshirt } from "react-icons/fa";
 
 const AddUniformSettings = ({ onSave, editData }) => {
   const [academicYear, setAcademicYear] = useState("2024-2025");
@@ -86,10 +87,20 @@ const AddUniformSettings = ({ onSave, editData }) => {
   };
 
   return (
-    <>
-      <div className="section-header">Uniform Settings</div>
+      <section className="uniform-card uniform-settings-form-card">
+        <div className="section-header">
+          <FaTshirt />
+          <h3>Uniform Settings</h3>
+        </div>
 
-      <div className="uniform-card">
+        <div className="uniform-settings-hero-art" aria-hidden="true">
+          <div className="uniform-art-shirt">
+            <FaTshirt />
+          </div>
+          <span className="uniform-art-card uniform-art-card-one" />
+          <span className="uniform-art-card uniform-art-card-two" />
+        </div>
+
         <div className="form-row">
           {/* Academic Year */}
           <div className="form-group academic-year-group">
@@ -182,8 +193,7 @@ const AddUniformSettings = ({ onSave, editData }) => {
             </button>
           </div>
         </div>
-      </div>
-    </>
+      </section>
   );
 };
 

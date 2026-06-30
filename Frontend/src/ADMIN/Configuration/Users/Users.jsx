@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaEdit, FaEnvelope, FaTrash, FaUser, FaSearch, FaSave, FaEraser, FaArrowLeft, FaArrowRight } from "react-icons/fa";
+import { FaEdit, FaEnvelope, FaTrash, FaUser, FaUsers, FaSearch, FaSave, FaEraser, FaArrowLeft, FaArrowRight } from "react-icons/fa";
 import '../../Configuration/Users/users.css'
 
 const Users = () => {
@@ -131,17 +131,23 @@ const Users = () => {
     );
 
     return (
-        <div style={styles.container}>
+        <div className="users-page" style={styles.container}>
             {showForm && (
-                <div style={styles.card}>
-                    <div style={styles.header}>
+                <div className="users-card users-form-card" style={styles.card}>
+                    <div className="users-section-title" style={styles.header}>
                         <div style={styles.headerIcon}>
                             <FaUser style={styles.icon} />
                         </div>
-                        <span> Dashboard / Configuration / Users</span>
+                        <span>User Details</span>
                     </div>
 
-                    <div style={styles.grid}>
+                    <div className="users-hero-art" aria-hidden="true">
+                        <div className="users-art-avatar"><FaUser /></div>
+                        <div className="users-art-avatar users-art-avatar-small"><FaUser /></div>
+                        <FaUsers className="users-art-group" />
+                    </div>
+
+                    <div className="users-form-grid" style={styles.grid}>
                         <div style={styles.field}>
                             <label style={styles.label}>
                                 Role ID: <span style={{ color: "red" }}>*</span>
@@ -284,7 +290,7 @@ const Users = () => {
                         </div>
                     </div>
 
-                    <div style={styles.buttonContainer}>
+                    <div className="users-form-actions" style={styles.buttonContainer}>
                         <button className="btn" style={styles.saveBtn} onClick={handleSave}>
                             <FaSave />
                             Save
@@ -312,13 +318,13 @@ const Users = () => {
                     </div>
                 </div>
             )}
-            <div style={styles.card}>
-                <div style={styles.userHeader}>
+            <div className="users-card users-list-card" style={styles.card}>
+                <div className="users-list-header" style={styles.userHeader}>
                     <div style={styles.leftHeader}>
                         <div style={styles.headerIcon}>
                             <FaUser style={styles.icon} />
                         </div>
-                        <span>User Details</span>
+                        <span>Users List</span>
                     </div>
 
                     <button
@@ -330,7 +336,7 @@ const Users = () => {
                     </button>
                 </div>
 
-                <div style={styles.tableControls}>
+                <div className="users-table-controls" style={styles.tableControls}>
                     <div style={styles.leftControls}>
                         <label>Show </label>
                         <select
@@ -363,8 +369,9 @@ const Users = () => {
                     </div>
                 </div>
 
-                <div style={{ padding: 10 }}>
-                    <table style={styles.table}>
+                <div className="users-table-area" style={{ padding: 10 }}>
+                    <div className="users-table-wrap">
+                    <table className="users-table" style={styles.table}>
                         <thead>
                             <tr>
                                 <th style={styles.th}>Name</th>
@@ -390,25 +397,28 @@ const Users = () => {
                                         <td style={styles.td}>{user.role}</td>
                                         <td style={styles.td}>{user.mobile}</td>
                                         <td style={styles.td}>
-                                            <button className="btn" style={styles.editBtn}><FaEdit /></button>
+                                            <div className="users-row-actions">
+                                            <button className="btn users-edit-btn" style={styles.editBtn}><FaEdit /> Edit</button>
                                             <button
-                                                className="btn"
+                                                className="btn users-delete-btn"
                                                 style={styles.deleteBtn}
                                                 onClick={() =>
                                                     handleDelete(indexOfFirstUser + index)
                                                 }
                                             >
-                                                <FaTrash />
+                                                <FaTrash /> Delete
                                             </button>
-                                            <button className="btn" style={styles.loginBtn}>
-                                                <FaEnvelope />
+                                            <button className="btn users-email-btn" style={styles.loginBtn}>
+                                                <FaEnvelope /> Email
                                             </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
+                    </div>
                     {filteredUsers.length > 0 && (
                         <div style={styles.paginationContainer}>
                             <button
