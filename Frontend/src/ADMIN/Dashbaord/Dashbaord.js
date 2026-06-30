@@ -2,10 +2,11 @@ import React from 'react';
 
 function Dashbaord() {
   return (
-    <div style={{ padding: '20px' }}>
-      <h3>Dashboard</h3>
-      <p>Welcome to the School Manager Dashboard.</p>
-    </div>
+    <section className="dashboard-welcome">
+      <span className="dashboard-welcome-label">School Manager</span>
+      <h3>Admin Dashboard</h3>
+      <p>Welcome to the School Manager Admin Hub.</p>
+    </section>
   );
 }
 

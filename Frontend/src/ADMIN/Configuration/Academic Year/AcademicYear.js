@@ -89,7 +89,7 @@ export default function AcademicYear() {
 
         <form className="ay-form" onSubmit={handleSubmit}>
           <label className="ay-field">
-            <span>Academic Year *</span>
+            <span>Academic Year <b className="ay-required">*</b></span>
             <input value={academicYear} onChange={(event) => setAcademicYear(event.target.value)} placeholder="e.g., 2025-2026" required />
           </label>
 

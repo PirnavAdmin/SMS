@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import '../App.css';
@@ -65,6 +65,14 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [configExpanded, setConfigExpanded] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notifications] = useState([]);
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => localStorage.getItem('admin-theme') === 'dark'
+  );
+
+  useEffect(() => {
+    localStorage.setItem('admin-theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   const handleNavClick = (item) => {
     if (item.isDropdown) {
@@ -122,7 +130,7 @@ const configComponents = {
   };
 
   return (
-    <div className="admin-layout">
+    <div className={`admin-layout${isDarkMode ? ' theme-dark' : ''}`}>
       <aside className="sidebar">
         <div className="brand-block">
           <div className="brand-badge">SM</div>
@@ -171,31 +179,6 @@ const configComponents = {
           })}
         </nav>
 
-        <div className="profile-block">
-          <div className="profile-info" onClick={() => setProfileMenuOpen(!profileMenuOpen)}>
-            <div className="profile-avatar">AR</div>
-            <div className="profile-details">
-              <strong>Anita Rao</strong>
-              <span>Admin</span>
-            </div>
-          </div>
-          {profileMenuOpen && (
-            <div className="profile-dropdown">
-              <button 
-                type="button" 
-                onClick={() => { setActiveTab('Settings'); setProfileMenuOpen(false); }}
-              >
-                Settings
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { logout(); setProfileMenuOpen(false); navigate('/login', { replace: true }); }}
-              >
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
       </aside>
 
       <main className="dashboard-main">
@@ -205,18 +188,87 @@ const configComponents = {
           </div>
           <div className="tab-actions">
             <div className="top-search-box">
-              <span className="top-search-icon" aria-hidden="true">⌕</span>
+              <svg className="top-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
               <input type="search" placeholder="Search..." aria-label="Search admin portal" />
             </div>
-            <button type="button" className="icon-button" onClick={() => alert('Notifications')}>🔔</button>
+            <button
+              type="button"
+              className="icon-button notification-button"
+              aria-label={notifications.length ? `${notifications.length} notifications` : 'No new notifications'}
+              onClick={() => alert(notifications.length ? notifications.join('\n') : 'No new notifications')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                <path d="M10 21h4" />
+              </svg>
+              {notifications.length > 0 && (
+                <span className="notification-count">
+                  {notifications.length > 99 ? '99+' : notifications.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              className="icon-button theme-toggle-button"
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDarkMode ? 'Light mode' : 'Dark mode'}
+              onClick={() => setIsDarkMode((current) => !current)}
+            >
+              {isDarkMode ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" />
+                </svg>
+              )}
+            </button>
+            <div className="profile-block top-profile-block">
+              <button
+                type="button"
+                className="profile-info"
+                aria-expanded={profileMenuOpen}
+                aria-label="Open administrator menu"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              >
+                <div className="profile-avatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+                  </svg>
+                </div>
+                <div className="profile-details">
+                  <strong>Admin</strong>
+                  <span>Administrator</span>
+                </div>
+                <svg className="profile-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="m7 10 5 5 5-5" />
+                </svg>
+              </button>
+              {profileMenuOpen && (
+                <div className="profile-dropdown">
+                  <button type="button" onClick={() => { setActiveTab('Settings'); setProfileMenuOpen(false); }}>
+                    Settings
+                  </button>
+                  <button type="button" onClick={() => { logout(); setProfileMenuOpen(false); navigate('/login', { replace: true }); }}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
-        {renderActiveView()}
+        <div className="dashboard-content">
+          {renderActiveView()}
+        </div>
       </main>
     </div>
   );
 }
 
 export default AdminDashboard;
-
-
