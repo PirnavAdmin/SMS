@@ -16,7 +16,6 @@ const UniformFee = () => {
       );
 
       setEditData(null);
-      alert("Updated Successfully");
     } else {
       setFeeData([
         ...feeData,
@@ -26,13 +25,12 @@ const UniformFee = () => {
         },
       ]);
 
-      alert("Saved Successfully");
     }
   };
 
   return (
     <div className="uniform-fee-page">
-      <AddUniformFee onSave={handleSave} editData={editData} />
+      <AddUniformFee onSave={handleSave} editData={editData} onCancelEdit={() => setEditData(null)} />
 
       <UniformFeeList
         data={feeData}

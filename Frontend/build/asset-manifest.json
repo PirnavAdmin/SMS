@@ -1,0 +1,17 @@
+{
+  "files": {
+    "main.css": "/static/css/main.ff195cb0.css",
+    "main.js": "/static/js/main.ea31cb70.js",
+    "static/js/453.ddca7e5e.chunk.js": "/static/js/453.ddca7e5e.chunk.js",
+    "static/media/school-campus-bg.jpg": "/static/media/school-campus-bg.394105d43e5c2e3168d9.jpg",
+    "static/media/medium-reference.svg": "/static/media/medium-reference.a6db992e9ed75e5765049ca6d86c3ebe.svg",
+    "index.html": "/index.html",
+    "main.ff195cb0.css.map": "/static/css/main.ff195cb0.css.map",
+    "main.ea31cb70.js.map": "/static/js/main.ea31cb70.js.map",
+    "453.ddca7e5e.chunk.js.map": "/static/js/453.ddca7e5e.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.ff195cb0.css",
+    "static/js/main.ea31cb70.js"
+  ]
+}

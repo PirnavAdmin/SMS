@@ -2,7 +2,9 @@ import React from 'react';
 import AcademicYear from './Academic Year/AcademicYear';
 import BankAccount from './Bank Account Details';
 import BookeFee from './Books Fee/BookeFee';
+import Class from './Class/Class';
 import FeeMaster from './Fee Master/FeeMaster';
+import Medium from './Medium/Medium';
 import Section from './Section';
 import SyllabusTypes from './Syllabus types';
 import UniformFee from './Uniform Fee/UniformFee';
@@ -20,6 +22,10 @@ function ConfigSubViewer({ category }) {
       return <BookeFee />;
     case 'Fee Master':
       return <FeeMaster />;
+    case 'Medium':
+      return <Medium />;
+    case 'Class':
+      return <Class />;
     case 'Section':
       return <Section />;
     case 'Syllabus types':

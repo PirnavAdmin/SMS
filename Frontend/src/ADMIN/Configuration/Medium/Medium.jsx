@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './Medium.css';
 import mediumReferenceImage from './medium-reference.svg';
 
@@ -32,12 +32,10 @@ const blankForm = {
 
 function MediumIcon({ name }) {
   const icons = {
-    document: (
+    language: (
       <>
-        <path d="M7 3h7l4 4v14H7z" />
-        <path d="M14 3v5h5" />
-        <path d="M10 12h6" />
-        <path d="M10 16h6" />
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9M12 3c-3 3-4 6-4 9s1 6 4 9" />
       </>
     ),
     save: (
@@ -67,6 +65,7 @@ function MediumIcon({ name }) {
       </>
     ),
     filter: <path d="M4 5h16l-6 7v6l-4 2v-8z" />,
+    search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
     chevronLeft: <path d="M15 18l-6-6 6-6" />,
     chevronRight: <path d="M9 6l6 6-6 6" />,
   };
@@ -92,6 +91,7 @@ function Medium() {
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesCount, setEntriesCount] = useState('10');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredMediums = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -112,7 +112,13 @@ function Medium() {
     );
   }, [mediums, searchTerm]);
 
-  const visibleMediums = filteredMediums.slice(0, Number(entriesCount));
+  const entriesPerPage = Number(entriesCount);
+  const totalPages = Math.max(1, Math.ceil(filteredMediums.length / entriesPerPage));
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const visibleMediums = filteredMediums.slice(startIndex, startIndex + entriesPerPage);
+  const firstEntry = filteredMediums.length ? startIndex + 1 : 0;
+  const lastEntry = Math.min(startIndex + entriesPerPage, filteredMediums.length);
+  useEffect(() => setCurrentPage((page) => Math.min(page, totalPages)), [totalPages]);
 
   const handleChange = (event) => {
     const { name, type, checked, value } = event.target;
@@ -182,23 +188,13 @@ function Medium() {
 
   return (
     <div className="medium-page">
-      <header className="medium-page-head">
-        <h2>Medium</h2>
-        <nav aria-label="Breadcrumb">
-          <span>Dashboard</span>
-          <span>&gt;</span>
-          <span>Configuration</span>
-          <span>&gt;</span>
-          <strong>Medium</strong>
-        </nav>
-      </header>
-
       <section className="medium-card medium-form-card" aria-labelledby="medium-form-title">
+        <MediumIllustration />
         <div className="medium-section-title">
           <span className="medium-title-icon">
-            <MediumIcon name="document" />
+            <MediumIcon name="language" />
           </span>
-          <h3 id="medium-form-title">{editingId ? 'Update Medium' : 'Add New Medium'}</h3>
+          <h3 id="medium-form-title">Configuration / Medium</h3>
         </div>
 
         <div className="medium-form-layout">
@@ -258,14 +254,13 @@ function Medium() {
             </div>
           </form>
 
-          <MediumIllustration />
         </div>
       </section>
 
       <section className="medium-card medium-details-card" aria-labelledby="medium-details-title">
         <div className="medium-section-title">
           <span className="medium-title-icon">
-            <MediumIcon name="document" />
+            <MediumIcon name="language" />
           </span>
           <h3 id="medium-details-title">Medium Details</h3>
         </div>
@@ -273,7 +268,7 @@ function Medium() {
         <div className="medium-toolbar">
           <label className="medium-show">
             <span>Show</span>
-            <select value={entriesCount} onChange={(event) => setEntriesCount(event.target.value)}>
+            <select value={entriesCount} onChange={(event) => { setEntriesCount(event.target.value); setCurrentPage(1); }}>
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
@@ -282,16 +277,13 @@ function Medium() {
             <span>entries</span>
           </label>
 
-          <div className="medium-table-tools">
+          <div className="medium-table-tools"><span className="medium-search-icon"><MediumIcon name="search" /></span>
             <input
               type="search"
-              placeholder="Search medium..."
+              placeholder="Search..."
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
             />
-            <button type="button" className="medium-filter" aria-label="Filter medium">
-              <MediumIcon name="filter" />
-            </button>
           </div>
         </div>
 
@@ -312,7 +304,7 @@ function Medium() {
               {visibleMediums.length > 0 ? (
                 visibleMediums.map((medium, index) => (
                   <tr key={medium.id}>
-                    <td>{index + 1}</td>
+                    <td>{startIndex + index + 1}</td>
                     <td>{medium.name}</td>
                     <td>{medium.code}</td>
                     <td>
@@ -357,14 +349,14 @@ function Medium() {
 
         <div className="medium-table-footer">
           <span>
-            Showing 1 to {visibleMediums.length} of {filteredMediums.length} entries
+            Showing {firstEntry} to {lastEntry} of {filteredMediums.length} entries
           </span>
           <div className="medium-pagination">
-            <button type="button" aria-label="Previous page">
+            <button type="button" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}>
               <MediumIcon name="chevronLeft" />
             </button>
-            <button type="button" className="active">1</button>
-            <button type="button" aria-label="Next page">
+            <button type="button" className="active">{currentPage}</button>
+            <button type="button" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => page + 1)}>
               <MediumIcon name="chevronRight" />
             </button>
           </div>

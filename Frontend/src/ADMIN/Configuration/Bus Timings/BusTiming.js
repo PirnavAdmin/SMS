@@ -93,7 +93,7 @@ export default function BusTiming() {
         <div className="bt-section-title"><span className="bt-heading-icon"><BusIcon type="clock" /></span><h3>Bus Timing Details</h3></div>
         <div className="bt-table-tools">
           <label className="bt-show-control">Show <select value={entries} onChange={(event) => { setEntries(event.target.value); setCurrentPage(1); }}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label>
-          <label className="bt-search-control">Search: <input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label>
+          <label className="bt-search-control">Search: <input placeholder="Search..." value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label>
         </div>
 
         <div className="bt-table-wrap"><table className="bt-table">
