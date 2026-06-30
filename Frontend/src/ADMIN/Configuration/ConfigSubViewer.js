@@ -1,58 +1,43 @@
-import React from "react";
-import AcademicYear from "./Academic Year/AcademicYear";
-import BankAccount from "./Bank Account Details";
-import BookeFee from "./Books Fee/BookeFee";
-import Section from "./Section";
-import SyllabusTypes from "./Syllabus types";
-import Users from './Users/Users';
+import React from 'react';
+import AcademicYear from './Academic Year/AcademicYear';
+import BankAccount from './Bank Account Details';
+import BookeFee from './Books Fee/BookeFee';
 import FeeMaster from './Fee Master/FeeMaster';
-<<<<<<< HEAD
-import UniformSetting from "./Uniform settings/UniformSetting";
-import UniformFee from "./Uniform Fee/UniformFee";
-=======
-import "./ConfigSubViewer.css";
->>>>>>> 0dcab9e0d081e5de380c972e5251bdb8124d7e38
+import Section from './Section';
+import SyllabusTypes from './Syllabus types';
+import UniformFee from './Uniform Fee/UniformFee';
+import UniformSetting from './Uniform settings/UniformSetting';
+import Users from './Users/Users';
+import './ConfigSubViewer.css';
 
 function ConfigSubViewer({ category }) {
   switch (category) {
-    case "Academic Year":
+    case 'Academic Year':
       return <AcademicYear />;
-    case "Bank Account Details":
+    case 'Bank Account Details':
       return <BankAccount />;
-    case "Books Fee":
+    case 'Books Fee':
       return <BookeFee />;
-    case "Syllabus types":
-      return <SyllabusTypes />;
-    case "Section":
-      return <Section />;
-    case 'Users':
-      return <Users />;
     case 'Fee Master':
       return <FeeMaster />;
-<<<<<<< HEAD
-    case "Uniform settings":
-      return <UniformSetting />;
-    case "Uniform Fee":
+    case 'Section':
+      return <Section />;
+    case 'Syllabus types':
+      return <SyllabusTypes />;
+    case 'Uniform Fee':
       return <UniformFee />;
-    default:
-      return (
-        <div style={{ padding: "20px" }}>
-          <h3>{category}</h3>
-          <p>No module created yet.</p>
-=======
+    case 'Uniform settings':
+      return <UniformSetting />;
+    case 'Users':
+      return <Users />;
     default:
       return (
         <div className="config-placeholder">
           <h3>Configuration: {category}</h3>
           <p>Configure settings and details for {category}.</p>
->>>>>>> 0dcab9e0d081e5de380c972e5251bdb8124d7e38
         </div>
       );
   }
 }
 
-<<<<<<< HEAD
 export default ConfigSubViewer;
-=======
-export default ConfigSubViewer;
->>>>>>> 0dcab9e0d081e5de380c972e5251bdb8124d7e38
