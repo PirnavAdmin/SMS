@@ -334,7 +334,7 @@ function BookeFee() {
     <BooksFeeIcon name="search" className="books-fee-search-icon" />
     <input
       type="search"
-      placeholder="Search books fee..."
+      placeholder="Search..."
       value={searchTerm}
       onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
     />

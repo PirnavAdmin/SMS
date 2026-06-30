@@ -6,6 +6,9 @@ import Section from "./Section";
 import SyllabusTypes from "./Syllabus types";
 import Users from './Users/Users';
 import FeeMaster from './Fee Master/FeeMaster';
+import Medium from './Medium/Medium';
+import UniformFee from './Uniform Fee/UniformFee';
+import UniformSetting from './Uniform settings/UniformSetting';
 import "./ConfigSubViewer.css";
 
 function ConfigSubViewer({ category }) {
@@ -24,6 +27,12 @@ function ConfigSubViewer({ category }) {
       return <Users />;
     case 'Fee Master':
       return <FeeMaster />;
+    case 'Medium':
+      return <Medium />;
+    case 'Uniform Fee':
+      return <UniformFee />;
+    case 'Uniform settings':
+      return <UniformSetting />;
     default:
       return (
         <div className="config-placeholder">

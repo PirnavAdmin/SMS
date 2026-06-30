@@ -612,7 +612,7 @@ function HostelRooms() {
             <input
               type="text"
               className="hostel-search-box"
-              placeholder="Search Student / Parent / Room / Block"
+              placeholder="Search..."
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
