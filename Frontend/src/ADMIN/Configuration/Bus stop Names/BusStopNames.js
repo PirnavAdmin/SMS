@@ -58,10 +58,18 @@ export default function BusStopNames() {
       <div className="bs-watermark" aria-hidden="true"><span className="bs-watermark-route" /><span className="bs-watermark-pin"><StopIcon type="stop" /></span><span className="bs-watermark-bus"><i /><i /></span></div>
       <div className="bs-section-title"><span className="bs-heading-icon"><StopIcon type="stop" /></span><h3>Configuration / Bus Stop Names</h3></div>
       <form className="bs-form" onSubmit={handleSubmit}>
-        <label className="bs-field"><span>Route Name *</span><select name="routeName" value={formData.routeName} onChange={handleChange} required><option value="">Select Route</option>{routeList.map((route) => <option key={route} value={route}>{route}</option>)}</select></label>
-        <label className="bs-field"><span>Bus Reg. No *</span><select name="busRegNo" value={formData.busRegNo} onChange={handleChange} required><option value="">Select Bus</option>{busList.map((bus) => <option key={bus} value={bus}>{bus}</option>)}</select></label>
-        <label className="bs-field"><span>Stop Name *</span><input name="stopName" value={formData.stopName} onChange={handleChange} placeholder="Enter Stop Name" required /></label>
-        <label className="bs-field"><span>Distance (km) *</span><input type="number" min="0" step="0.01" name="distance" value={formData.distance} onChange={handleChange} placeholder="Enter Distance" required /></label>
+        <label className="bs-field"><span>
+  Route Name <span className="required-star">*</span>
+</span><select name="routeName" value={formData.routeName} onChange={handleChange} required><option value="">Select Route</option>{routeList.map((route) => <option key={route} value={route}>{route}</option>)}</select></label>
+        <label className="bs-field"><span>
+  Bus Reg. No <span className="required-star">*</span>
+</span><select name="busRegNo" value={formData.busRegNo} onChange={handleChange} required><option value="">Select Bus</option>{busList.map((bus) => <option key={bus} value={bus}>{bus}</option>)}</select></label>
+        <label className="bs-field"><span>
+  Stop Name <span className="required-star">*</span>
+</span><input name="stopName" value={formData.stopName} onChange={handleChange} placeholder="Enter Stop Name" required /></label>
+        <label className="bs-field"><span>
+  Distance (km) <span className="required-star">*</span>
+</span><input type="number" min="0" step="0.01" name="distance" value={formData.distance} onChange={handleChange} placeholder="Enter Distance" required /></label>
         <label className="bs-checkbox-field"><input type="checkbox" name="active" checked={formData.active} onChange={handleChange} /><span>Is Active?</span></label>
         <div className="bs-form-actions"><button className="bs-save-button" type="submit"><StopIcon type="save" />{editingId !== null ? "Update Stop" : "Save Stop"}</button><button className="bs-clear-button" type="button" onClick={resetForm}><StopIcon type="clear" />Clear</button></div>
       </form>
