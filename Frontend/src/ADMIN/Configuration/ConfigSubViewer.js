@@ -9,6 +9,8 @@ import FeeMaster from './Fee Master/FeeMaster';
 import Medium from './Medium/Medium';
 import UniformFee from './Uniform Fee/UniformFee';
 import UniformSetting from './Uniform settings/UniformSetting';
+import HolidayManagement from './Holiday/HolidayManagement';
+import Orientation from './Orientation/Orientation';
 import "./ConfigSubViewer.css";
 
 function ConfigSubViewer({ category }) {
@@ -33,6 +35,10 @@ function ConfigSubViewer({ category }) {
       return <UniformFee />;
     case 'Uniform settings':
       return <UniformSetting />;
+    case 'Holiday':
+      return <HolidayManagement />;
+    case 'Orientation':
+      return <Orientation />;
     default:
       return (
         <div className="config-placeholder">
