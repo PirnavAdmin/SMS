@@ -156,10 +156,10 @@ const studentComponents = {
       const category = activeTab.substring(7);
       const component = configComponents[category];
       if (component) {
-        return React.createElement(component);
+        return <div className="configuration-view">{React.createElement(component)}</div>;
       }
 
-      return <ConfigSubViewer category={category} />;
+      return <div className="configuration-view"><ConfigSubViewer category={category} /></div>;
     }
 
 

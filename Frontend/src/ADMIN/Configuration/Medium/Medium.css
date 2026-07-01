@@ -5,3 +5,5 @@
 .medium-field input::placeholder,
 .medium-field textarea::placeholder,
 .medium-table-tools input::placeholder { color:#a7aec3; opacity:1; font-weight:400; }
+/* Shared Configuration table theme */
+.medium-table thead,.medium-table thead tr{color:#fff!important;background:linear-gradient(90deg,#c333d8,#2678ec)!important}.medium-table thead th{border-color:transparent!important;color:#fff!important;background:transparent!important;font-size:13px;font-weight:800;letter-spacing:.02em}.medium-table tbody tr{border-bottom-color:#eef1fb!important}.medium-table tbody tr:nth-child(even),.medium-table tbody tr:nth-child(even)>td{background:#fbfcff!important}.medium-table tbody tr:hover,.medium-table tbody tr:hover>td{background:#f4f1ff!important}.medium-table tbody td{border-color:#eef1fb!important}.medium-table-wrap{scrollbar-color:#b7a8ff #f4f6ff}.theme-dark .medium-table tbody tr:nth-child(even),.theme-dark .medium-table tbody tr:nth-child(even)>td{background:#273149!important}.theme-dark .medium-table tbody tr:hover,.theme-dark .medium-table tbody tr:hover>td{background:#312d55!important}
