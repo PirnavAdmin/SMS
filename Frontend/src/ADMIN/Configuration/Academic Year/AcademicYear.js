@@ -89,7 +89,7 @@ export default function AcademicYear() {
 
         <form className="ay-form" onSubmit={handleSubmit}>
           <label className="ay-field">
-            <span>Academic Year *</span>
+            <span>Academic Year <b className="ay-required">*</b></span>
             <input value={academicYear} onChange={(event) => setAcademicYear(event.target.value)} placeholder="e.g., 2025-2026" required />
           </label>
 
@@ -110,7 +110,7 @@ export default function AcademicYear() {
 
         <div className="ay-table-tools">
           <label className="ay-show-control">Show <select value={entries} onChange={(event) => { setEntries(event.target.value); setCurrentPage(1); }}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label>
-          <label className="ay-search-control">Search: <input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label>
+          <label className="ay-search-control">Search: <input placeholder="Search..." value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label>
         </div>
 
         <div className="ay-table-wrap">
@@ -141,4 +141,3 @@ export default function AcademicYear() {
     </div>
   );
 }
-

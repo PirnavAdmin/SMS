@@ -58,17 +58,25 @@ export default function BusStopNames() {
       <div className="bs-watermark" aria-hidden="true"><span className="bs-watermark-route" /><span className="bs-watermark-pin"><StopIcon type="stop" /></span><span className="bs-watermark-bus"><i /><i /></span></div>
       <div className="bs-section-title"><span className="bs-heading-icon"><StopIcon type="stop" /></span><h3>Configuration / Bus Stop Names</h3></div>
       <form className="bs-form" onSubmit={handleSubmit}>
-        <label className="bs-field"><span>Route Name *</span><select name="routeName" value={formData.routeName} onChange={handleChange} required><option value="">Select Route</option>{routeList.map((route) => <option key={route} value={route}>{route}</option>)}</select></label>
-        <label className="bs-field"><span>Bus Reg. No *</span><select name="busRegNo" value={formData.busRegNo} onChange={handleChange} required><option value="">Select Bus</option>{busList.map((bus) => <option key={bus} value={bus}>{bus}</option>)}</select></label>
-        <label className="bs-field"><span>Stop Name *</span><input name="stopName" value={formData.stopName} onChange={handleChange} placeholder="Enter Stop Name" required /></label>
-        <label className="bs-field"><span>Distance (km) *</span><input type="number" min="0" step="0.01" name="distance" value={formData.distance} onChange={handleChange} placeholder="Enter Distance" required /></label>
+        <label className="bs-field"><span>
+  Route Name <span className="required-star">*</span>
+</span><select name="routeName" value={formData.routeName} onChange={handleChange} required><option value="">Select Route</option>{routeList.map((route) => <option key={route} value={route}>{route}</option>)}</select></label>
+        <label className="bs-field"><span>
+  Bus Reg. No <span className="required-star">*</span>
+</span><select name="busRegNo" value={formData.busRegNo} onChange={handleChange} required><option value="">Select Bus</option>{busList.map((bus) => <option key={bus} value={bus}>{bus}</option>)}</select></label>
+        <label className="bs-field"><span>
+  Stop Name <span className="required-star">*</span>
+</span><input name="stopName" value={formData.stopName} onChange={handleChange} placeholder="Enter Stop Name" required /></label>
+        <label className="bs-field"><span>
+  Distance (km) <span className="required-star">*</span>
+</span><input type="number" min="0" step="0.01" name="distance" value={formData.distance} onChange={handleChange} placeholder="Enter Distance" required /></label>
         <label className="bs-checkbox-field"><input type="checkbox" name="active" checked={formData.active} onChange={handleChange} /><span>Is Active?</span></label>
         <div className="bs-form-actions"><button className="bs-save-button" type="submit"><StopIcon type="save" />{editingId !== null ? "Update Stop" : "Save Stop"}</button><button className="bs-clear-button" type="button" onClick={resetForm}><StopIcon type="clear" />Clear</button></div>
       </form>
     </section>
     <section className="bs-card bs-details-card">
       <div className="bs-section-title"><span className="bs-heading-icon"><StopIcon type="route" /></span><h3>Bus Stop Details</h3></div>
-      <div className="bs-table-tools"><label className="bs-show-control">Show <select value={entries} onChange={(event) => { setEntries(event.target.value); setCurrentPage(1); }}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label><label className="bs-search-control">Search: <input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label></div>
+      <div className="bs-table-tools"><label className="bs-show-control">Show <select value={entries} onChange={(event) => { setEntries(event.target.value); setCurrentPage(1); }}><option value="10">10</option><option value="25">25</option><option value="50">50</option><option value="100">100</option></select> entries</label><label className="bs-search-control">Search: <input placeholder="Search..." value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} /></label></div>
       <div className="bs-table-wrap"><table className="bs-table"><thead><tr><th>Route Name</th><th>Bus Reg. No</th><th>Stop Name</th><th>Distance</th><th>Status</th><th>Created By</th><th className="bs-action-column">Action</th></tr></thead><tbody>{visibleStops.length ? visibleStops.map((row) => <tr key={row.id}><td>{row.routeName}</td><td>{row.busRegNo}</td><td>{row.stopName}</td><td>{row.distance} km</td><td><span className={row.status === "Active" ? "bs-status-active" : "bs-status-inactive"}>{row.status}</span></td><td>{row.createdBy}</td><td><div className="bs-action-buttons"><button className="bs-edit-button" type="button" onClick={() => handleEdit(row)}><StopIcon type="edit" />Edit</button><button className="bs-delete-button" type="button" onClick={() => handleDelete(row.id)}><StopIcon type="delete" />Delete</button></div></td></tr>) : <tr><td className="bs-empty" colSpan="7">No bus stops found.</td></tr>}</tbody></table></div>
       <div className="bs-pagination-bar"><p>Showing {firstEntry} to {lastEntry} of {filteredStops.length} entries</p><div className="bs-pagination-actions"><button className="bs-page-button" type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}>Prev</button><button className="bs-page-button bs-page-current" type="button">{currentPage}</button><button className="bs-page-button" type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Next</button></div></div>
     </section>

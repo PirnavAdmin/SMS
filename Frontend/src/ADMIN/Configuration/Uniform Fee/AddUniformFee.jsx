@@ -1,234 +1,42 @@
 import React, { useEffect, useState } from "react";
+import { Eraser, Save, Shirt } from "lucide-react";
 
-const AddUniformFee = ({ onSave, editData }) => {
-  const [academicYear, setAcademicYear] = useState("2024-2025");
-  const [uniformName, setUniformName] = useState("");
-  const [size, setSize] = useState("");
-  const [gender, setGender] = useState("Male");
-  const [fee, setFee] = useState("");
+const emptyForm = { academicYear: "2024-2025", uniformName: "", size: "", gender: "Male", fee: "" };
 
-  const [errors, setErrors] = useState({
-    academicYear: "",
-    uniformName: "",
-    size: "",
-    fee: "",
-  });
+export default function AddUniformFee({ onSave, editData, onCancelEdit }) {
+  const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (editData) {
-      setAcademicYear(editData.academicYear);
-      setUniformName(editData.uniformName);
-      setSize(editData.size);
-      setGender(editData.gender);
-      setFee(editData.fee);
-
-      setErrors({
-        academicYear: "",
-        uniformName: "",
-        size: "",
-        fee: "",
-      });
-    }
+    setForm(editData ? { academicYear: editData.academicYear, uniformName: editData.uniformName, size: editData.size, gender: editData.gender, fee: editData.fee } : emptyForm);
+    setErrors({});
   }, [editData]);
 
-  const resetForm = () => {
-    setAcademicYear("2024-2025");
-    setUniformName("");
-    setSize("");
-    setGender("Male");
-    setFee("");
-
-    setErrors({
-      academicYear: "",
-      uniformName: "",
-      size: "",
-      fee: "",
-    });
+  const update = (name, value) => { setForm((current) => ({ ...current, [name]: value })); setErrors((current) => ({ ...current, [name]: "" })); };
+  const clear = () => { setForm(emptyForm); setErrors({}); onCancelEdit(); };
+  const submit = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    if (!form.academicYear) nextErrors.academicYear = "Academic Year is required";
+    if (!form.uniformName) nextErrors.uniformName = "Uniform Name is required";
+    if (!form.size) nextErrors.size = "Size / Quantity is required";
+    if (!form.fee) nextErrors.fee = "Fee is required";
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+    onSave({ ...form, createdBy: "admin@gmail.com" });
+    setForm(emptyForm);
   };
 
-  const handleSubmit = () => {
-    let newErrors = {};
-
-    if (!academicYear) {
-      newErrors.academicYear = "Academic Year is required";
-    }
-
-    if (!uniformName) {
-      newErrors.uniformName = "Uniform Name is required";
-    }
-
-    if (!size) {
-      newErrors.size = "Size / Quantity is required";
-    }
-
-    if (!fee) {
-      newErrors.fee = "Fee is required";
-    }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) {
-      return;
-    }
-
-    onSave({
-      academicYear,
-      uniformName,
-      size,
-      gender,
-      fee,
-      createdBy: "admin@gmail.com",
-    });
-
-    resetForm();
-  };
-
-  return (
-    <>
-      <div className="section-header"> Student Uniform Fee Configuration</div>
-
-      <div className="uniform-card">
-        <div className="fee-form-grid">
-          {/* Academic Year */}
-          <div className="form-group fee-academic-group">
-            <label>
-              Academic Year <span className="required">*</span>
-            </label>
-
-            <select
-              className={errors.academicYear ? "error" : ""}
-              value={academicYear}
-              onChange={(e) => {
-                setAcademicYear(e.target.value);
-
-                setErrors((prev) => ({
-                  ...prev,
-                  academicYear: "",
-                }));
-              }}
-            >
-              <option value="2024-2025">2024-2025</option>
-              <option value="2025-2026">2025-2026</option>
-            </select>
-
-            {errors.academicYear && (
-              <span className="error-text">{errors.academicYear}</span>
-            )}
-          </div>
-
-          {/* Uniform Name */}
-          <div className="form-group fee-name-group">
-            <label>
-              Name <span className="required">*</span>
-            </label>
-
-            <select
-              className={errors.uniformName ? "error" : ""}
-              value={uniformName}
-              onChange={(e) => {
-                setUniformName(e.target.value);
-
-                setErrors((prev) => ({
-                  ...prev,
-                  uniformName: "",
-                }));
-              }}
-            >
-              <option value="">--- Select Name ---</option>
-              <option value="Boys Dongri">Boys Dongri</option>
-              <option value="Girls Dongri">Girls Dongri</option>
-            </select>
-
-            {errors.uniformName && (
-              <span className="error-text">{errors.uniformName}</span>
-            )}
-          </div>
-
-          {/* Size */}
-          <div className="form-group fee-size-group">
-            <label>
-              Size / Quantity <span className="required">*</span>
-            </label>
-
-            <select
-              className={errors.size ? "error" : ""}
-              value={size}
-              onChange={(e) => {
-                setSize(e.target.value);
-
-                setErrors((prev) => ({
-                  ...prev,
-                  size: "",
-                }));
-              }}
-            >
-              <option value="">--- Select Size ---</option>
-              <option value="10">10</option>
-              <option value="12">12</option>
-              <option value="14">14</option>
-            </select>
-
-            {errors.size && <span className="error-text">{errors.size}</span>}
-          </div>
-
-          {/* Gender */}
-          <div className="gender-group fee-gender-group">
-            <label>
-              <input
-                type="radio"
-                checked={gender === "Male"}
-                onChange={() => setGender("Male")}
-              />
-              Male
-            </label>
-
-            <label>
-              <input
-                type="radio"
-                checked={gender === "Female"}
-                onChange={() => setGender("Female")}
-              />
-              Female
-            </label>
-          </div>
-
-          {/* Fee */}
-          <div className="form-group fee-amount-group">
-            <label>
-              Fee <span className="required">*</span>
-            </label>
-
-            <input
-              type="number"
-              className={errors.fee ? "error" : ""}
-              value={fee}
-              onChange={(e) => {
-                setFee(e.target.value);
-
-                setErrors((prev) => ({
-                  ...prev,
-                  fee: "",
-                }));
-              }}
-            />
-
-            {errors.fee && <span className="error-text">{errors.fee}</span>}
-          </div>
-
-          {/* Buttons */}
-          <div className="button-group fee-button-group">
-            <button type="button" className="save-btn" onClick={handleSubmit}>
-              {editData ? "Update" : "Save"}
-            </button>
-
-            <button type="button" className="clear-btn" onClick={resetForm}>
-              Clear
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-};
-
-export default AddUniformFee;
+  return <section className="uf-card uf-form-card">
+    <div className="uf-watermark" aria-hidden="true"><Shirt /></div>
+    <div className="uf-section-title"><span className="uf-heading-icon"><Shirt /></span><h3>Configuration / Uniform Fee</h3></div>
+    <form className="uf-form" onSubmit={submit}>
+      <label className="uf-field"><span>Academic Year *</span><select value={form.academicYear} onChange={(e) => update("academicYear", e.target.value)}><option>2024-2025</option><option>2025-2026</option></select>{errors.academicYear && <small>{errors.academicYear}</small>}</label>
+      <label className="uf-field"><span>Uniform Name *</span><select value={form.uniformName} onChange={(e) => update("uniformName", e.target.value)}><option value="">Select Name</option><option>Boys Dongri</option><option>Girls Dongri</option></select>{errors.uniformName && <small>{errors.uniformName}</small>}</label>
+      <label className="uf-field"><span>Size / Quantity *</span><select value={form.size} onChange={(e) => update("size", e.target.value)}><option value="">Select Size</option><option>10</option><option>12</option><option>14</option></select>{errors.size && <small>{errors.size}</small>}</label>
+      <label className="uf-field"><span>Fee *</span><input type="number" min="0" value={form.fee} onChange={(e) => update("fee", e.target.value)} placeholder="Enter Fee" />{errors.fee && <small>{errors.fee}</small>}</label>
+      <div className="uf-gender"><span>Gender</span><label><input type="radio" checked={form.gender === "Male"} onChange={() => update("gender", "Male")} /> Male</label><label><input type="radio" checked={form.gender === "Female"} onChange={() => update("gender", "Female")} /> Female</label></div>
+      <div className="uf-form-actions"><button className="uf-save" type="submit"><Save />{editData ? "Update Fee" : "Save Fee"}</button><button className="uf-clear" type="button" onClick={clear}><Eraser />Clear</button></div>
+    </form>
+  </section>;
+}

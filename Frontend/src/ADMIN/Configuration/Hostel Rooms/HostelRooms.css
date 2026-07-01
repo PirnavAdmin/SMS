@@ -1198,3 +1198,133 @@
     min-height: 28px;
   }
 }
+
+/* One continuous header gradient, matching Hostel Block Details. */
+.hostel-container .hostel-table thead,
+.hostel-container .hostel-table thead tr {
+  background: linear-gradient(90deg, #9868e8 0%, #735fe9 50%, #438cf0 100%);
+}
+
+.hostel-container .hostel-table thead th {
+  border: 0;
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+}
+
+.hostel-container .hostel-table thead th:first-child {
+  border-radius: 7px 0 0 0;
+}
+
+.hostel-container .hostel-table thead th:last-child {
+  border-radius: 0 7px 0 0;
+}
+
+/* Equal navigation padding and consistent section/table dimensions. */
+.hostel-container .tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  gap: 10px;
+  padding: 6px;
+  border: 1px solid rgba(154, 140, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hostel-container .tab {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 18px;
+  margin: 0;
+}
+
+.hostel-container > .table-container,
+.hostel-container > .report-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 0 18px;
+}
+
+.hostel-container .table-container,
+.hostel-container .report-table-card,
+.hostel-container .room-students-card {
+  width: 100%;
+  padding: 18px 20px;
+}
+
+.hostel-container .report-container {
+  display: grid;
+  gap: 18px;
+}
+
+.hostel-container .report-container .table-container {
+  margin: 0;
+}
+
+.hostel-container .hostel-table,
+.hostel-container .report-table {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .hostel-container .tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .hostel-container .table-container,
+  .hostel-container .report-table-card,
+  .hostel-container .room-students-card {
+    padding: 14px 10px;
+  }
+}
+
+/* Uniform dimensions for Room, Student, and Occupancy table cards. */
+.hostel-container > .table-container,
+.hostel-container .report-container > .report-table-card {
+  display: flex;
+  width: 100% !important;
+  min-width: 0;
+  max-width: 100% !important;
+  min-height: 250px;
+  flex-direction: column;
+  justify-self: stretch;
+  box-sizing: border-box;
+}
+
+.hostel-container > .table-container > .hostel-table,
+.hostel-container .report-table-card > .hostel-table {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 132px;
+  table-layout: fixed !important;
+  box-sizing: border-box;
+}
+
+.hostel-container > .table-container > .pagination,
+.hostel-container .report-table-card > .pagination {
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+.hostel-container .report-table-card .section-heading {
+  min-height: 34px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 640px) {
+  .hostel-container > .table-container,
+  .hostel-container .report-container > .report-table-card {
+    min-height: 230px;
+  }
+}
+
+.hostel-search-box::placeholder,
+.hostel-container .form-card input::placeholder,
+.hostel-container .form-card textarea::placeholder {
+  color: #a7aec3;
+  opacity: 1;
+  font-weight: 400;
+}

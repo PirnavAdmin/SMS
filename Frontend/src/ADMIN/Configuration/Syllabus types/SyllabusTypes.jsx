@@ -119,6 +119,12 @@ function SyllabusTypes() {
           <h3>Configuration / Syllabus Types</h3>
         </div>
 
+        <div className="syllabus-hero-art" aria-hidden="true">
+          <span className="syllabus-art-book syllabus-art-book-one" />
+          <span className="syllabus-art-book syllabus-art-book-two" />
+          <span className="syllabus-art-page" />
+        </div>
+
         <form className="syllabus-form" onSubmit={handleSubmit}>
           <label className="syllabus-field">
             <span>
@@ -199,7 +205,7 @@ function SyllabusTypes() {
 
           <label className="syllabus-search-control">
             <span>Search:</span>
-            <input value={search} onChange={(event) => setSearch(event.target.value)} />
+            <input placeholder="Search..." value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
         </div>
 

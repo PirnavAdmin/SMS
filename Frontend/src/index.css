@@ -17,9 +17,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background:
-    radial-gradient(circle at top left, rgba(240, 187, 104, 0.35), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(31, 143, 136, 0.18), transparent 26%),
-    linear-gradient(135deg, #f5ede2 0%, #eef2f2 55%, #e6efe9 100%);
+    radial-gradient(circle at top left, rgba(152, 104, 232, 0.18), transparent 30%),
+    radial-gradient(circle at bottom right, rgba(67, 140, 240, 0.16), transparent 28%),
+    linear-gradient(135deg, #f5f2ff 0%, #eef3ff 54%, #f7f9ff 100%);
 }
 
 html::-webkit-scrollbar,
