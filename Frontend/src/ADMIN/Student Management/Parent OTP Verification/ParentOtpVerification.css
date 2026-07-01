@@ -1,5 +1,5 @@
+@import "../StudentManagementPage.css";
 
-@import '../StudentManagementPage.css';
 * {
   box-sizing: border-box;
 }
@@ -17,6 +17,11 @@
   background: #ffffff;
   border: 1px solid #cfd8e3;
   margin-bottom: 18px;
+  transition: all 0.25s ease;
+}
+
+.otpCard:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
 }
 
 .otpCardHeader {
@@ -60,6 +65,7 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
 .otpInputGroup {
   width: 100%;
   height: 34px;
@@ -67,6 +73,11 @@
   align-items: center;
   border: 1px solid #b8c2cc;
   background: #ffffff;
+}
+
+.otpInputGroup:hover,
+.otpInputGroup:focus-within {
+  border-color: #6f42c1;
 }
 
 .otpInputIcon {
@@ -89,10 +100,7 @@
   font-size: 14px;
   background: #ffffff;
   color: #333333;
-}
-
-.otpInputGroup:focus-within {
-  border-color: #6f42c1;
+  cursor: pointer;
 }
 
 .otpButtonRow {
@@ -100,7 +108,6 @@
   align-items: center;
   gap: 8px;
   margin-top: 24px;
-  margin-left: 0;
 }
 
 .getStudentBtn,
@@ -112,6 +119,7 @@
   color: #ffffff;
   font-size: 14px;
   cursor: pointer;
+  transition: all 0.25s ease;
 }
 
 .getStudentBtn {
@@ -124,14 +132,13 @@
 
 .getStudentBtn:hover {
   background: #0b5ed7;
+  transform: translateY(-1px);
 }
 
 .cancelBtn:hover {
   background: #5c636a;
+  transform: translateY(-1px);
 }
-/* ==========================================
-   RESULT SECTION
-========================================== */
 
 .otpResultBody {
   min-height: 260px;
@@ -149,59 +156,22 @@
   text-align: center;
 }
 
-/* ==========================================
-   INPUT HOVER
-========================================== */
-
-.otpInputGroup:hover {
-  border-color: #6f42c1;
+select:focus,
+button:focus {
+  outline: none;
 }
 
-.otpInputGroup select:hover {
-  cursor: pointer;
+html {
+  scroll-behavior: smooth;
 }
-
-/* ==========================================
-   BUTTON EFFECTS
-========================================== */
-
-.getStudentBtn,
-.cancelBtn {
-  transition: all 0.25s ease;
-}
-
-.getStudentBtn:hover,
-.cancelBtn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* ==========================================
-   CARD EFFECT
-========================================== */
-
-.otpCard {
-  transition: all 0.25s ease;
-}
-
-.otpCard:hover {
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-}
-
-/* ==========================================
-   RESPONSIVE
-========================================== */
 
 @media screen and (max-width: 1200px) {
-
   .otpFormRow {
     grid-template-columns: repeat(2, 1fr);
   }
-
 }
 
 @media screen and (max-width: 768px) {
-
   .otpPage {
     padding: 12px;
   }
@@ -228,11 +198,9 @@
   .cancelBtn {
     width: 100%;
   }
-
 }
 
 @media screen and (max-width: 480px) {
-
   .otpCardHeader {
     font-size: 14px;
   }
@@ -253,37 +221,4 @@
     font-size: 14px;
     padding: 20px;
   }
-
 }
-
-/* ==========================================
-   REMOVE DEFAULT OUTLINE
-========================================== */
-
-select:focus,
-button:focus {
-  outline: none;
-}
-
-/* ==========================================
-   SMOOTH PAGE
-========================================== */
-
-html {
-  scroll-behavior: smooth;
-}
-.parent-otp-page{display:grid;gap:18px;width:100%;padding:2px;color:#202a52}
-.parent-otp-card{position:relative;overflow:hidden;padding:22px 24px;border:1px solid rgba(154,140,255,.28);border-radius:8px;background:#fff;box-shadow:0 14px 32px rgba(92,105,190,.13)}
-.parent-otp-title{position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:20px}
-.parent-otp-title span{display:grid;width:36px;height:36px;place-items:center;border-radius:50%;color:#7b5cff;background:#f1edff}
-.parent-otp-title svg{width:19px}
-.parent-otp-title h3{margin:0;font-size:18px}
-.parent-otp-form{position:relative;z-index:1;display:grid;width:min(820px,calc(100% - 280px));grid-template-columns:1fr max-content 1fr max-content;align-items:end;gap:14px}
-.parent-otp-form label{display:grid;gap:7px;font-size:13px;font-weight:700}
-.parent-otp-form input,
-.parent-otp-form select{height:38px;border:1px solid #e2e5f3;border-radius:6px;padding:0 12px;background:#fff;outline:none}
-.parent-otp-form button{height:38px;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:6px;padding:0 14px;color:#fff;background:linear-gradient(135deg,#c333d8,#2678ec);font-weight:700;cursor:pointer}
-.parent-otp-form button:disabled{opacity:.45}
-.parent-otp-form button svg{width:14px}
-.parent-otp-message{position:relative;z-index:1;margin:16px 0 0;color:#247258;font-size:13px;font-weight:700}
-.parent-otp-art{position:absolute;right:55px;top:28px;display:grid;width:145px;height:145px;place-items:center;border-radius:50%;color:#7b5cff;background:linear-gradient(135deg,rgba(197,51,216,.16),rgba(68,226,202,.3))}.parent-otp-art svg{width:68px;height：68px}.parent-otp-table{overflow:auto;border:1px solid #eef1fb;border-radius:7px}.parent-otp-table table{width:100%;min-width:650px;border-collapse:collapse}.parent-otp-table thead{color:#fff;background:linear-gradient(90deg,#c333d8,#2678ec)}.parent-otp-table th,.parent-otp-table td{padding：12px 9px;border-bottom：1px solid #eef1fb;text-align:center;font-size：13px}.parent-otp-table tbody tr:nth-child(even){background：#fbfcff}.parent-otp-table tbody tr:hover{background：#f4f１ff}.parent-otp-table td span{padding：5px 9px;border-radius：999 px;font-size：１１ px;font-weight：８００}.parent-otp-table .verified{color：#１６８２６３;background：#ｅ７ｆ８ｆ１}.parent-otp-table .pending{color：#９８６ａ１６;background：#ｗｆｆ６ｄｃ}@media(max-width：１０５０ px){.parent-otp-art{display：none}.parent-otp-form{width：１００％；grid-template-columns：１fr max-content}}@media(max-width：６５０ px){.parent-otp-form{grid-template-columns：１fr}.parent-otp-form button{justify-content：center}}
