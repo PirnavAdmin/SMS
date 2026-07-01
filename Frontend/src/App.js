@@ -1,22 +1,34 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
-import AccountantDashboard from './ACCOUNTANT/AccountantDashboard';
-import AdminDashboard from './ADMIN/AdminDashboard';
-import HODDashboard from './HOD/HODDashboard';
-import HostelWardenDashboard from './HOSTEL WARDEN/HostelWardenDashboard';
-import HRDashboard from './HR/HRDashboard';
-import LibrarianDashboard from './LIBRARIAN/LibrarianDashboard';
 import Login from './Login';
-import ParentDashboard from './PARENT/ParentDashboard';
-import PrincipalDashboard from './PRINCIPAL/PrincipalDashboard';
 import ProtectedRoute from './ProtectedRoute';
-import StudentDashboard from './STUDENT/StudentDashboard';
-import SuperAdminDashboard from './SUPER ADMIN/SuperAdminDashboard';
-import TeacherDashboard from './TEACHER/TeacherDashboard';
-import TransportManagerDashboard from './TRANSPORT MANAGER/TransportManagerDashboard';
 import Unauthorized from './Unauthorized';
 import { AuthProvider, useAuth } from './AuthContext';
+
+const AccountantDashboard = React.lazy(() => import('./ACCOUNTANT/AccountantDashboard'));
+const AdminDashboard = React.lazy(() => import('./ADMIN/AdminDashboard'));
+const HODDashboard = React.lazy(() => import('./HOD/HODDashboard'));
+const HostelWardenDashboard = React.lazy(() => import('./HOSTEL WARDEN/HostelWardenDashboard'));
+const HRDashboard = React.lazy(() => import('./HR/HRDashboard'));
+const LibrarianDashboard = React.lazy(() => import('./LIBRARIAN/LibrarianDashboard'));
+const ParentDashboard = React.lazy(() => import('./PARENT/ParentDashboard'));
+const PrincipalDashboard = React.lazy(() => import('./PRINCIPAL/PrincipalDashboard'));
+const StudentDashboard = React.lazy(() => import('./STUDENT/StudentDashboard'));
+const SuperAdminDashboard = React.lazy(() => import('./SUPER ADMIN/SuperAdminDashboard'));
+const TeacherDashboard = React.lazy(() => import('./TEACHER/TeacherDashboard'));
+const TransportManagerDashboard = React.lazy(() => import('./TRANSPORT MANAGER/TransportManagerDashboard'));
+
+function LoadingScreen() {
+  return (
+    <main className="auth-screen">
+      <section className="login-panel unauthorized-panel">
+        <span className="auth-kicker">School Management System</span>
+        <h1>Loading...</h1>
+      </section>
+    </main>
+  );
+}
 
 function LoginRoute() {
   const { user, roles } = useAuth();
@@ -136,7 +148,9 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <Suspense fallback={<LoadingScreen />}>
+          <AppRoutes />
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

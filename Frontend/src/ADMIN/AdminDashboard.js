@@ -20,6 +20,14 @@ import HostelRooms from './Configuration/Hostel Rooms/HostelRooms';
 import BusTimings from './Configuration/Bus Timings/BusTiming';
 import BusStopNames from "./Configuration/Bus stop Names/BusStopNames";
 
+const getStorage = () => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
   { name: 'Admissions', key: 'Admissions', badge: '12' },
@@ -67,11 +75,11 @@ function AdminDashboard() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notifications] = useState([]);
   const [isDarkMode, setIsDarkMode] = useState(
-    () => localStorage.getItem('admin-theme') === 'dark'
+    () => getStorage()?.getItem('admin-theme') === 'dark'
   );
 
   useEffect(() => {
-    localStorage.setItem('admin-theme', isDarkMode ? 'dark' : 'light');
+    getStorage()?.setItem('admin-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   const handleNavClick = (item) => {
