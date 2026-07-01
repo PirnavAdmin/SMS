@@ -1,357 +1,216 @@
-import React, { useState } from "react";
-import "./class.css";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-    FaUser,
-    FaEdit,
-    FaTrash,
-    FaSave,
-    FaEraser,
-    FaArrowLeft,
-    FaArrowRight,
+  FaArrowLeft,
+  FaArrowRight,
+  FaChalkboardTeacher,
+  FaEdit,
+  FaEraser,
+  FaSave,
+  FaTrash,
 } from "react-icons/fa";
+import "./class.css";
 
-const Class = () => {
-    const [classList, setClassList] = useState([
-        {
-            id: 1,
-            name: "10th Class",
-            description: "Secondary",
-            code: "C10",
-            isActive: true,
-            createdBy: "admin@gmail.com",
-        },
-        {
-            id: 2,
-            name: "1st Class",
-            description: "Primary",
-            code: "C01",
-            isActive: true,
-            createdBy: "admin@gmail.com",
-        },
-    ]);
-
-    const emptyForm = {
-        id: null,
-        name: "",
-        description: "",
-        code: "",
-        isActive: true,
-    };
-
-    const [formData, setFormData] = useState(emptyForm);
-    const [errors, setErrors] = useState({});
-    const [search, setSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [entries, setEntries] = useState(5);
-    const [editMode, setEditMode] = useState(false);
-
-    const REQUIRED_MSG = "This field is required";
-
-    const validate = () => {
-        let err = {};
-
-        if (!formData.name.trim()) err.name = REQUIRED_MSG;
-        if (!formData.description.trim()) err.description = REQUIRED_MSG;
-        if (!formData.code.trim()) err.code = REQUIRED_MSG;
-
-        setErrors(err);
-
-        return Object.keys(err).length === 0;
-    };
-
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
-
-        setFormData({
-            ...formData,
-            [name]: type === "checkbox" ? checked : value,
-        });
-
-        setErrors({
-            ...errors,
-            [name]: "",
-        });
-    };
-
-    const handleSave = (e) => {
-        e.preventDefault();
-
-        if (!validate()) return;
-
-        if (editMode) {
-            setClassList(
-                classList.map((item) =>
-                    item.id === formData.id
-                        ? {
-                            ...formData,
-                            createdBy: item.createdBy,
-                        }
-                        : item
-                )
-            );
-
-            setEditMode(false);
-        } else {
-            setClassList([
-                ...classList,
-                {
-                    ...formData,
-                    id: Date.now(),
-                    createdBy: "admin@gmail.com",
-                },
-            ]);
-        }
-
-        setFormData(emptyForm);
-        setErrors({});
-    };
-
-    const handleEdit = (item) => {
-        setFormData(item);
-        setEditMode(true);
-
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth",
-        });
-    };
-
-    const handleDelete = (id) => {
-        if (window.confirm("Delete this class?")) {
-            setClassList(classList.filter((item) => item.id !== id));
-        }
-    };
-
-    const handleClear = () => {
-        setFormData(emptyForm);
-        setErrors({});
-        setEditMode(false);
-    };
-
-    const filteredData = classList.filter((item) => {
-        const keyword = search.toLowerCase();
-
-        return (
-            item.name.toLowerCase().includes(keyword) ||
-            item.code.toLowerCase().includes(keyword) ||
-            item.createdBy.toLowerCase().includes(keyword)
-        );
-    });
-
-    const indexOfLast = currentPage * entries;
-    const indexOfFirst = indexOfLast - entries;
-
-    const currentData = filteredData.slice(
-        indexOfFirst,
-        indexOfLast
-    );
-
-    const totalPages = Math.ceil(
-        filteredData.length / entries
-    );
-
-    return (
-        <div>
-            <div style={{ backgroundColor: "#fff" }}>
-                <div className="fm-section-title" style={{ paddingTop: 10 }}>
-                    <span className="fm-heading-icon">
-                        <FaUser />
-                    </span>
-                    <h4>Dashboard / Configuration / Class</h4>
-                </div>
-                <form className="class-form">
-                    <div className="left-side">
-                        <div className="form-group">
-                            <label>
-                                Name <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleChange}
-                                className={errors.name ? "error-input" : ""}
-                            />
-                            {errors.name && (
-                                <small style={{ color: "red" }}>{errors.name}</small>
-                            )}
-                        </div>
-                        <div className="form-group">
-                            <label>
-                                Description <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <textarea
-                                rows="3"
-                                name="description"
-                                value={formData.description}
-                                onChange={handleChange}
-                                className={errors.name ? "error-input" : ""}
-                            />
-                            {errors.description && (
-                                <small style={{ color: "red" }}>{errors.description}</small>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="right-side">
-                        <div className="form-group">
-                            <label>
-                                Code <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="code"
-                                value={formData.code}
-                                onChange={handleChange}
-                                className={errors.name ? "error-input" : ""}
-                            />
-                            {errors.code && (
-                                <small style={{ color: "red" }}>{errors.code}</small>
-                            )}
-                        </div>
-                        <label className="checkbox-group">
-                            <input
-                                type="checkbox"
-                                name="isActive"
-                                checked={formData.isActive}
-                                onChange={handleChange}
-                            />
-                            Is Active?
-                        </label>
-                    </div>
-
-                    <div className="button-row">
-                        <button type="submit" onClick={handleSave}>
-                            <FaSave />
-                            {editMode ? " Update" : " Save"}
-                        </button>
-                        <button type="button" onClick={handleClear}>
-                            <FaEraser /> Clear
-                        </button>
-                    </div>
-                </form>
-            </div>
-            <div className="table-section">
-                <div className="fm-section-title">
-                    <span className="fm-heading-icon">
-                        <FaUser />
-                    </span>
-                    <h4>Class Details</h4>
-                </div>
-                <div className="table-controls">
-                    <div className="show-entry">
-                        Show
-                        <select
-                            value={entries}
-                            onChange={(e) => {
-                                setEntries(Number(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                        </select>
-                        entries
-                    </div>
-
-                    <div className="search-box">
-                        Search:
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                        />
-                    </div>
-                </div>
-
-                <div className="table-responsive">
-                    <table className="class-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Description</th>
-                                <th>Code</th>
-                                <th>Status</th>
-                                <th>Created By</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            {currentData.length > 0 ? (
-                                currentData.map((item) => (
-                                    <tr key={item.id}>
-                                        <td>{item.name}</td>
-                                        <td>{item.description}</td>
-                                        <td>{item.code}</td>
-                                        <td>{item.isActive ? "Active" : "Inactive"}</td>
-                                        <td>{item.createdBy}</td>
-                                        <td>
-                                            <button
-                                                className="edit-btn"
-                                                onClick={() => handleEdit(item)}
-                                            >
-                                                <FaEdit /> Edit
-                                            </button>
-                                            <button
-                                                className="delete-btn"
-                                                onClick={() => handleDelete(item.id)}
-                                            >
-                                                <FaTrash /> Delete
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="6" className="no-record">
-                                        No Records Found
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {filteredData.length > 0 && (
-                    <div className="pagination">
-                        <button
-                            disabled={currentPage === 1}
-                            onClick={() => setCurrentPage(currentPage - 1)}
-                        >
-                            <FaArrowLeft />
-                        </button>
-                        {[...Array(totalPages)].map((_, index) => (
-                            <button
-                                key={index}
-                                className={
-                                    currentPage === index + 1 ? "active-page" : ""
-                                }
-                                onClick={() => setCurrentPage(index + 1)}
-                            >
-                                {index + 1}
-                            </button>
-
-                        ))}
-
-                        <button
-                            disabled={currentPage === totalPages}
-                            onClick={() => setCurrentPage(currentPage + 1)}
-                        >
-                            <FaArrowRight />
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-
+const emptyForm = {
+  id: null,
+  name: "",
+  description: "",
+  code: "",
+  isActive: true,
 };
+
+const initialClasses = [
+  { id: 1, name: "10th Class", description: "Secondary", code: "C10", isActive: true, createdBy: "admin@gmail.com" },
+  { id: 2, name: "1st Class", description: "Primary", code: "C01", isActive: true, createdBy: "admin@gmail.com" },
+];
+
+function ClassArtwork() {
+  return (
+    <div className="class-artwork" aria-hidden="true">
+      <span className="class-art-board">
+        <i /><i /><i />
+      </span>
+      <span className="class-art-desk" />
+      <span className="class-art-book" />
+    </div>
+  );
+}
+
+function Class() {
+  const [classList, setClassList] = useState(initialClasses);
+  const [formData, setFormData] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [entries, setEntries] = useState(5);
+  const [editingId, setEditingId] = useState(null);
+
+  const filteredData = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return keyword
+      ? classList.filter((item) =>
+          [item.name, item.description, item.code, item.createdBy]
+            .join(" ")
+            .toLowerCase()
+            .includes(keyword)
+        )
+      : classList;
+  }, [classList, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / entries));
+  const startIndex = (currentPage - 1) * entries;
+  const currentData = filteredData.slice(startIndex, startIndex + entries);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const handleChange = ({ target }) => {
+    const { name, value, type, checked } = target;
+    setFormData((current) => ({
+      ...current,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+    setErrors((current) => ({ ...current, [name]: "" }));
+  };
+
+  const resetForm = () => {
+    setFormData(emptyForm);
+    setErrors({});
+    setEditingId(null);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    const nextErrors = {};
+    ["name", "description", "code"].forEach((key) => {
+      if (!formData[key].trim()) nextErrors[key] = "This field is required";
+    });
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
+    if (editingId !== null) {
+      setClassList((current) =>
+        current.map((item) =>
+          item.id === editingId
+            ? { ...formData, id: editingId, createdBy: item.createdBy }
+            : item
+        )
+      );
+    } else {
+      setClassList((current) => [
+        ...current,
+        { ...formData, id: Date.now(), createdBy: "admin@gmail.com" },
+      ]);
+    }
+    resetForm();
+  };
+
+  const handleEdit = (item) => {
+    setEditingId(item.id);
+    setFormData(item);
+    setErrors({});
+  };
+
+  const firstEntry = filteredData.length ? startIndex + 1 : 0;
+  const lastEntry = Math.min(startIndex + entries, filteredData.length);
+
+  return (
+    <div className="class-page">
+      <section className="class-card class-form-card">
+        <ClassArtwork />
+
+        <div className="class-section-title">
+          <span className="class-heading-icon"><FaChalkboardTeacher /></span>
+          <h3>Configuration / Class</h3>
+        </div>
+
+        <form className="class-form" onSubmit={handleSubmit}>
+          <label className="class-field">
+            <span>Name <b>*</b></span>
+            <input name="name" value={formData.name} onChange={handleChange} placeholder="Enter class name" className={errors.name ? "class-input-error" : ""} />
+            <small>{errors.name}</small>
+          </label>
+
+          <label className="class-field">
+            <span>Code <b>*</b></span>
+            <input name="code" value={formData.code} onChange={handleChange} placeholder="Enter class code" className={errors.code ? "class-input-error" : ""} />
+            <small>{errors.code}</small>
+          </label>
+
+          <label className="class-field class-description-field">
+            <span>Description <b>*</b></span>
+            <textarea name="description" value={formData.description} onChange={handleChange} placeholder="Enter class description" className={errors.description ? "class-input-error" : ""} />
+            <small>{errors.description}</small>
+          </label>
+
+          <label className="class-checkbox-field">
+            <input name="isActive" type="checkbox" checked={formData.isActive} onChange={handleChange} />
+            <span>Is Active?</span>
+          </label>
+
+          <div className="class-form-actions">
+            <button className="class-save-button" type="submit"><FaSave />{editingId !== null ? "Update Class" : "Save Class"}</button>
+            <button className="class-clear-button" type="button" onClick={resetForm}><FaEraser />Clear</button>
+          </div>
+        </form>
+      </section>
+
+      <section className="class-card class-details-card">
+        <div className="class-section-title">
+          <span className="class-heading-icon"><FaChalkboardTeacher /></span>
+          <h3>Class Details</h3>
+          <span className="class-record-count">{filteredData.length}</span>
+        </div>
+
+        <div className="class-table-tools">
+          <label className="class-show-control">
+            <span>Show</span>
+            <select value={entries} onChange={(event) => { setEntries(Number(event.target.value)); setCurrentPage(1); }}>
+              <option value={5}>5</option><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option>
+            </select>
+            <span>entries</span>
+          </label>
+
+          <label className="class-search-control">
+            <span>Search:</span>
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search..." />
+          </label>
+        </div>
+
+        <div className="class-table-wrap">
+          <table className="class-table">
+            <thead>
+              <tr><th>Name</th><th>Description</th><th>Code</th><th>Status</th><th>Created By</th><th className="class-action-column">Action</th></tr>
+            </thead>
+            <tbody>
+              {currentData.length ? currentData.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td><td>{item.description}</td><td>{item.code}</td>
+                  <td><span className={item.isActive ? "class-status-active" : "class-status-inactive"}>{item.isActive ? "Active" : "Inactive"}</span></td>
+                  <td>{item.createdBy}</td>
+                  <td className="class-action-column">
+                    <div className="class-action-buttons">
+                      <button className="class-edit-button" type="button" onClick={() => handleEdit(item)}><FaEdit />Edit</button>
+                      <button className="class-delete-button" type="button" onClick={() => setClassList((current) => current.filter(({ id }) => id !== item.id))}><FaTrash />Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              )) : <tr><td className="class-empty" colSpan="6">No class details found.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="class-pagination-bar">
+          <p>Showing {firstEntry} to {lastEntry} of {filteredData.length} entries</p>
+          <div className="class-pagination-actions">
+            <button className="class-page-button" type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)}><FaArrowLeft /> Prev</button>
+            <button className="class-page-button class-page-current" type="button">{currentPage}</button>
+            <button className="class-page-button" type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Next <FaArrowRight /></button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
 
 export default Class;

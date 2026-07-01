@@ -4,3 +4,4 @@
 
 .fm-field input::placeholder,
 .fm-search-control input::placeholder { color:#a7aec3; opacity:1; font-weight:400; }
+.fm-required{color:#e53935;font-size:15px;font-weight:900}
