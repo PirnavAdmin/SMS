@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import './DetaineeStudents.css';
-import { initialStudents } from '../StudentManagement';
+import { initialStudents } from '../studentData';
 
 const defaultDetaineeReasons = [
   { rollNo: 'STD-101', reason: 'Missing classes without permission' },
