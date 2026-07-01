@@ -1,16 +1,3 @@
-<<<<<<< HEAD
-import React from "react";
-import AcademicYear from "./Academic Year/AcademicYear";
-import BankAccount from "./Bank Account Details";
-import BookeFee from "./Books Fee/BookeFee";
-import Section from "./Section";
-import SyllabusTypes from "./Syllabus types";
-import Users from "./Users/Users";
-import FeeMaster from "./Fee Master/FeeMaster";
-import UniformSetting from "./Uniform settings/UniformSetting";
-import UniformFee from "./Uniform Fee/UniformFee";
-import "./ConfigSubViewer.css";
-=======
 import React from 'react';
 import AcademicYear from './Academic Year/AcademicYear';
 import BankAccount from './Bank Account Details';
@@ -26,7 +13,6 @@ import HolidayManagement from './Holiday/HolidayManagement';
 import Orientation from './Orientation/Orientation';
 import Users from './Users/Users';
 import './ConfigSubViewer.css';
->>>>>>> 2cb885d2efb89518fb994b27bee4de8d30b78538
 
 function ConfigSubViewer({ category }) {
   switch (category) {
@@ -36,20 +22,6 @@ function ConfigSubViewer({ category }) {
       return <BankAccount />;
     case 'Books Fee':
       return <BookeFee />;
-<<<<<<< HEAD
-    case "Syllabus types":
-      return <SyllabusTypes />;
-    case "Section":
-      return <Section />;
-    case "Users":
-      return <Users />;
-    case "Fee Master":
-      return <FeeMaster />;
-    case "Uniform settings":
-      return <UniformSetting />;
-    case "Uniform Fee":
-      return <UniformFee />;
-=======
     case 'Fee Master':
       return <FeeMaster />;
     case 'Medium':
@@ -70,7 +42,6 @@ function ConfigSubViewer({ category }) {
       return <Orientation />;
     case 'Users':
       return <Users />;
->>>>>>> 2cb885d2efb89518fb994b27bee4de8d30b78538
     default:
       return (
         <div className="config-placeholder">
