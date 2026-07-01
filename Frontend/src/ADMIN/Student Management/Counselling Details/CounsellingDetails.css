@@ -1,1 +1,258 @@
-@import '../StudentManagementPage.css';
+.counselling-details-page {
+  width: 100%;
+  min-width: 0;
+  padding: 2px;
+  color: #111827;
+}
+
+.counselling-panel {
+  width: 100%;
+  min-height: 78px;
+  border: 1px solid #c7dcff;
+  background: #fff;
+}
+
+.counselling-title-bar {
+  min-height: 29px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 15px;
+  color: #fff;
+  background: linear-gradient(90deg, #743dd5 0%, #225fb7 100%);
+}
+
+.counselling-title-bar svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.counselling-title-bar h3 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.counselling-form {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 39px;
+  padding: 8px 18px;
+}
+
+.counselling-field {
+  display: flex;
+  align-items: center;
+  gap: 19px;
+  min-width: 0;
+  color: #111827;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.counselling-field input {
+  width: 327px;
+  max-width: 52vw;
+  height: 28px;
+  border: 1px solid #e0e5ef;
+  border-radius: 0;
+  padding: 0 10px;
+  color: #5f6678;
+  background: #fff;
+  font: inherit;
+  font-style: italic;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.counselling-field input::placeholder {
+  color: #a7aec3;
+  opacity: 1;
+}
+
+.counselling-field input::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.counselling-field input:focus {
+  border-color: #7462e8;
+  box-shadow: 0 0 0 3px rgba(116, 98, 232, .14);
+}
+
+.counselling-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.counselling-get-student,
+.counselling-cancel {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.counselling-get-student {
+  gap: 4px;
+  padding: 0 13px;
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(135deg, #713ed6 0%, #1265b9 100%);
+}
+
+.counselling-get-student:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.counselling-get-student svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+
+.counselling-cancel {
+  padding: 0;
+  color: #2f3138;
+}
+
+.counselling-student-card {
+  margin: 0 18px 18px;
+  border: 1px solid #e3e9f7;
+  background: #fbfcff;
+}
+
+.counselling-student-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e3e9f7;
+  background: #fff;
+}
+
+.counselling-student-header h4,
+.counselling-student-header p {
+  margin: 0;
+}
+
+.counselling-student-header h4 {
+  color: #202a52;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.counselling-student-header p {
+  margin-top: 4px;
+  color: #64708a;
+  font-size: 12px;
+}
+
+.counselling-status {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #2457a6;
+  background: #eaf2ff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.counselling-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+}
+
+.counselling-details-grid div {
+  min-width: 0;
+  padding: 12px 14px;
+  border-right: 1px solid #e3e9f7;
+  border-bottom: 1px solid #e3e9f7;
+}
+
+.counselling-details-grid div:nth-child(2n) {
+  border-right: 0;
+}
+
+.counselling-details-grid div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.counselling-details-grid dt {
+  margin: 0 0 5px;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.counselling-details-grid dd {
+  margin: 0;
+  color: #26304f;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+@media (max-width: 760px) {
+  .counselling-form {
+    justify-content: flex-start;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .counselling-field {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .counselling-field input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .counselling-actions {
+    justify-content: flex-start;
+  }
+
+  .counselling-student-card {
+    margin: 0 14px 14px;
+  }
+
+  .counselling-student-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .counselling-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .counselling-details-grid div,
+  .counselling-details-grid div:nth-child(2n),
+  .counselling-details-grid div:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid #e3e9f7;
+  }
+
+  .counselling-details-grid div:last-child {
+    border-bottom: 0;
+  }
+}
