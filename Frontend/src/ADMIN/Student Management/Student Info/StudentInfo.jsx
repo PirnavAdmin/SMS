@@ -1,31 +1,90 @@
-import React, { useMemo, useState } from 'react';
-import { Edit2, Search, UserRound } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, GraduationCap, Menu } from 'lucide-react';
+import { initialStudents } from '../studentData';
 import './StudentInfo.css';
 
-const students = [
-  { id: 'STD-101', name: 'Aarav Mehta', className: '10', section: 'A', gender: 'Male', phone: '+91 90123 45678', status: 'Active' },
-  { id: 'STD-102', name: 'Isha Nair', className: '10', section: 'B', gender: 'Female', phone: '+91 91234 56789', status: 'Active' },
-  { id: 'STD-103', name: 'Kabir Sen', className: '11', section: 'A', gender: 'Male', phone: '+91 92345 67890', status: 'Inactive' },
-  { id: 'STD-104', name: 'Meera Rao', className: '12', section: 'A', gender: 'Female', phone: '+91 93456 78901', status: 'Active' },
-];
+const defaultFilters = {
+  academicYear: '2024-2025',
+  orientation: 'State',
+  className: 'All',
+  section: 'A',
+  syllabus: 'SSC',
+  medium: 'English',
+  campus: 'Non AC',
+};
+
+const SelectField = ({ label, name, value, options, onChange }) => (
+  <label className="student-details-field">
+    <span>{label}</span>
+    <div className="student-details-select-wrap">
+      <span className="student-details-select-icon" aria-hidden="true"><GraduationCap /></span>
+      <select name={name} value={value} onChange={onChange}>
+        {options.map((option) => <option key={option} value={option}>{option === 'All' ? '-- Select All --' : option}</option>)}
+      </select>
+    </div>
+  </label>
+);
 
 function StudentInfo() {
-  const [search, setSearch] = useState('');
-  const [classFilter, setClassFilter] = useState('All');
-  const visible = useMemo(() => students.filter((student) =>
-    `${student.id} ${student.name} ${student.phone}`.toLowerCase().includes(search.toLowerCase()) &&
-    (classFilter === 'All' || student.className === classFilter)
-  ), [search, classFilter]);
+  const [filters, setFilters] = useState(defaultFilters);
+  const [showResults, setShowResults] = useState(false);
+
+  const handleChange = (event) => {
+    setFilters((current) => ({ ...current, [event.target.name]: event.target.value }));
+    setShowResults(false);
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    setShowResults(true);
+  };
+
+  const handleCancel = () => {
+    setFilters(defaultFilters);
+    setShowResults(false);
+  };
+
+  const visibleStudents = initialStudents.filter((student) => {
+    const matchesClass = filters.className === 'All' || student.grade === `Grade ${filters.className}`;
+    return matchesClass && student.section === filters.section;
+  });
 
   return (
-    <div className="student-info-page"><section className="student-info-card">
-      <div className="student-info-title"><span><UserRound /></span><h3>Student Management / Student Info</h3></div>
-      <div className="student-info-tools"><label>Class<select value={classFilter} onChange={(event) => setClassFilter(event.target.value)}><option>All</option><option>10</option><option>11</option><option>12</option></select></label><label className="student-info-search"><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search student..." /></label></div>
-      <div className="student-info-table-wrap"><table><thead><tr><th>Admission No</th><th>Student Name</th><th>Class</th><th>Section</th><th>Gender</th><th>Mobile</th><th>Status</th><th>Action</th></tr></thead><tbody>
-        {visible.map((student) => <tr key={student.id}><td>{student.id}</td><td>{student.name}</td><td>{student.className}</td><td>{student.section}</td><td>{student.gender}</td><td>{student.phone}</td><td><span className={`student-info-status ${student.status.toLowerCase()}`}>{student.status}</span></td><td><button type="button"><Edit2 />Edit</button></td></tr>)}
-        {!visible.length && <tr><td className="student-info-empty" colSpan="8">No students found.</td></tr>}
-      </tbody></table></div><p className="student-info-count">Showing {visible.length} of {students.length} students</p>
-    </section></div>
+    <div className="student-details-page">
+      <section className="student-details-panel" aria-labelledby="student-details-title">
+        <div className="student-details-header">
+          <Menu aria-hidden="true" />
+          <h3 id="student-details-title">Student Details</h3>
+        </div>
+
+        <form className="student-details-form" onSubmit={handleSubmit}>
+          <div className="student-details-grid">
+            <SelectField label="Academic" name="academicYear" value={filters.academicYear} options={['2024-2025', '2025-2026', '2026-2027']} onChange={handleChange} />
+            <SelectField label="Orientation" name="orientation" value={filters.orientation} options={['State', 'CBSE', 'ICSE']} onChange={handleChange} />
+            <SelectField label="Class" name="className" value={filters.className} options={['All', '9', '10', '11', '12']} onChange={handleChange} />
+            <SelectField label="Section" name="section" value={filters.section} options={['A', 'B', 'C']} onChange={handleChange} />
+            <SelectField label="Syllabus" name="syllabus" value={filters.syllabus} options={['SSC', 'CBSE', 'ICSE']} onChange={handleChange} />
+            <SelectField label="Medium" name="medium" value={filters.medium} options={['English', 'Hindi', 'Telugu']} onChange={handleChange} />
+            <SelectField label="Campus" name="campus" value={filters.campus} options={['Non AC', 'AC']} onChange={handleChange} />
+          </div>
+
+          <div className="student-details-actions">
+            <button className="student-details-submit" type="submit"><Check />Get Student Data</button>
+            <button className="student-details-cancel" type="button" onClick={handleCancel}>Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      {showResults && (
+        <section className="student-details-results">
+          <div className="student-details-results-header"><GraduationCap /><h3>Student List</h3><span>{visibleStudents.length}</span></div>
+          <div className="student-details-table-wrap"><table><thead><tr><th>Admission No</th><th>Student Name</th><th>Class</th><th>Section</th><th>Contact</th><th>Status</th></tr></thead><tbody>
+            {visibleStudents.map((student) => <tr key={student.rollNo}><td>{student.rollNo}</td><td>{student.name}</td><td>{student.grade}</td><td>{student.section}</td><td>{student.contact}</td><td>{student.status}</td></tr>)}
+            {!visibleStudents.length && <tr><td className="student-details-empty" colSpan="6">There is no data to display.</td></tr>}
+          </tbody></table></div>
+        </section>
+      )}
+    </div>
   );
 }
 

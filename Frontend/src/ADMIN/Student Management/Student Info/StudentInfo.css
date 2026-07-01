@@ -1,1 +1,167 @@
-.student-info-page{width:100%;min-width:0;padding:2px;color:#202a52}.student-info-card{padding:22px 24px;border:1px solid rgba(154,140,255,.28);border-radius:8px;background:#fff;box-shadow:0 14px 32px rgba(92,105,190,.13)}.student-info-title{display:flex;align-items:center;gap:12px;margin-bottom:20px}.student-info-title>span{display:grid;width:36px;height:36px;place-items:center;border-radius:50%;color:#7b5cff;background:#f1edff}.student-info-title svg{width:19px}.student-info-title h3{margin:0;font-size:18px}.student-info-tools{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:14px}.student-info-tools label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}.student-info-tools input,.student-info-tools select{height:38px;border:1px solid #e2e5f3;border-radius:6px;padding:0 12px;outline:none;box-shadow:0 4px 12px rgba(91,103,168,.08)}.student-info-search svg{width:16px}.student-info-table-wrap{overflow:auto;border:1px solid #eef1fb;border-radius:7px}.student-info-table-wrap table{width:100%;min-width:880px;border-collapse:collapse}.student-info-table-wrap thead{color:#fff;background:linear-gradient(90deg,#c333d8,#2678ec)}.student-info-table-wrap th,.student-info-table-wrap td{padding:12px 9px;border-bottom:1px solid #eef1fb;text-align:center;font-size:13px}.student-info-table-wrap tbody tr:nth-child(even){background:#fbfcff}.student-info-table-wrap tbody tr:hover{background:#f4f1ff}.student-info-table-wrap button{display:inline-flex;align-items:center;gap:5px;border:0;border-radius:6px;padding:7px 10px;color:#fff;background:linear-gradient(135deg,#7b5cff,#543bd7);cursor:pointer}.student-info-table-wrap button svg{width:13px;height:13px}.student-info-status{padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800}.student-info-status.active{color:#168263;background:#e7f8f1}.student-info-status.inactive{color:#d3455b;background:#fff0f3}.student-info-empty{text-align:center!important;color:#69758e}.student-info-count{margin:14px 0 0;color:#59657d;font-size:13px}@media(max-width:700px){.student-info-tools{align-items:stretch;flex-direction:column}.student-info-tools label,.student-info-tools input,.student-info-tools select{width:100%}}
+.student-details-page {
+  width: 100%;
+  min-width: 0;
+  min-height: 560px;
+  color: #17171c;
+}
+
+.student-details-panel,
+.student-details-results {
+  width: 100%;
+  border: 1px solid #b9d3ff;
+  background: #fff;
+}
+
+.student-details-header {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  color: #fff;
+  background: linear-gradient(90deg, #713ed6 0%, #1265b9 100%);
+}
+
+.student-details-header svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.student-details-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.student-details-form {
+  padding: 14px 10px 10px;
+}
+
+.student-details-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 16px 28px;
+}
+
+.student-details-field {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.student-details-select-wrap {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  height: 34px;
+}
+
+.student-details-select-icon {
+  display: grid;
+  place-items: center;
+  color: #9a9a9a;
+  background: #ededed;
+}
+
+.student-details-select-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.student-details-select-wrap select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #dde4ef;
+  border-left: 0;
+  border-radius: 0;
+  padding: 0 8px;
+  color: #606778;
+  background: #fff;
+  font: inherit;
+  outline: none;
+}
+
+.student-details-select-wrap select:focus {
+  border-color: #7462e8;
+  box-shadow: 0 0 0 2px rgba(116, 98, 232, .12);
+}
+
+.student-details-actions {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 26px;
+}
+
+.student-details-actions button {
+  min-height: 34px;
+  border: 0;
+  border-radius: 3px;
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.student-details-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  background: linear-gradient(135deg, #713ed6, #1265b9);
+}
+
+.student-details-submit svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 3;
+}
+
+.student-details-cancel {
+  color: #333;
+  background: #f0f0f0;
+}
+
+.student-details-results {
+  margin-top: 18px;
+}
+
+.student-details-results-header {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: #fff;
+  background: linear-gradient(90deg, #713ed6, #1265b9);
+}
+
+.student-details-results-header svg { width: 16px; }
+.student-details-results-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.student-details-results-header span { margin-left: auto; padding: 2px 7px; border-radius: 999px; background: rgba(255,255,255,.2); font-size: 11px; }
+.student-details-table-wrap { overflow-x: auto; }
+.student-details-table-wrap table { width: 100%; min-width: 700px; border-collapse: collapse; }
+.student-details-table-wrap th,.student-details-table-wrap td { padding: 11px 9px; border-bottom: 1px solid #e6ebf4; text-align: center; font-size: 12px; }
+.student-details-table-wrap th { color: #fff; background: linear-gradient(90deg, #c333d8, #2678ec); }
+.student-details-table-wrap tbody tr:nth-child(even) { background: #fbfcff; }
+.student-details-table-wrap tbody tr:hover { background: #f4f1ff; }
+.student-details-empty { padding: 28px !important; color: #747b8b; }
+
+@media (max-width: 1180px) {
+  .student-details-grid { grid-template-columns: repeat(3, minmax(190px, 1fr)); }
+}
+
+@media (max-width: 860px) {
+  .student-details-grid { grid-template-columns: repeat(2, minmax(190px, 1fr)); }
+}
+
+@media (max-width: 560px) {
+  .student-details-grid { grid-template-columns: 1fr; }
+  .student-details-field { grid-template-columns: 82px minmax(0, 1fr); }
+  .student-details-actions { align-items: stretch; flex-direction: column; }
+  .student-details-actions button { justify-content: center; width: 100%; }
+}
