@@ -673,48 +673,47 @@ function HostelRooms() {
               <button className="close-icon-btn" onClick={closeRoomForm}><X size={20} /></button>
             </div>
 
-            <input
-              type="text"
-              placeholder="Room Number"
-              value={roomForm.roomNo}
-              onChange={(event) => updateRoomForm("roomNo", event.target.value)}
-            />
+            <label className="hostel-required-field">
+              <span>Room Number <b className="hostel-required">*</b></span>
+              <input
+                type="text"
+                placeholder="Room Number"
+                value={roomForm.roomNo}
+                onChange={(event) => updateRoomForm("roomNo", event.target.value)}
+              />
+            </label>
 
-            <select
-              value={roomForm.block}
-              onChange={(event) => updateRoomForm("block", event.target.value)}
-            >
-              <option value="">Select Block</option>
-              {HOSTEL_BLOCKS.map((block) => (
-                <option key={block} value={block}>
-                  {block}
-                </option>
-              ))}
-            </select>
+            <label className="hostel-required-field">
+              <span>Hostel Block <b className="hostel-required">*</b></span>
+              <select value={roomForm.block} onChange={(event) => updateRoomForm("block", event.target.value)}>
+                <option value="">Select Block</option>
+                {HOSTEL_BLOCKS.map((block) => <option key={block} value={block}>{block}</option>)}
+              </select>
+            </label>
 
-            <select
-              value={roomForm.floor}
-              onChange={(event) => updateRoomForm("floor", event.target.value)}
-            >
+            <label className="hostel-required-field">
+              <span>Floor <b className="hostel-required">*</b></span>
+              <select value={roomForm.floor} onChange={(event) => updateRoomForm("floor", event.target.value)}>
               <option value="">Select Floor</option>
               {FLOORS.map((floor) => (
                 <option key={floor} value={floor}>
                   Floor {floor}
                 </option>
               ))}
-            </select>
+              </select>
+            </label>
 
-            <select
-              value={roomForm.capacity}
-              onChange={(event) => updateRoomForm("capacity", event.target.value)}
-            >
+            <label className="hostel-required-field">
+              <span>Capacity <b className="hostel-required">*</b></span>
+              <select value={roomForm.capacity} onChange={(event) => updateRoomForm("capacity", event.target.value)}>
               <option value="">Select Capacity</option>
               {CAPACITIES.map((capacity) => (
                 <option key={capacity} value={capacity}>
                   {capacity}
                 </option>
               ))}
-            </select>
+              </select>
+            </label>
 
             <div className="form-actions">
               <button className="save-btn" type="button" onClick={handleSaveRoom}>
@@ -736,30 +735,26 @@ function HostelRooms() {
               <button className="close-icon-btn" onClick={closeStudentForm}><X size={20} /></button>
             </div>
 
-            <input
-              type="text"
-              placeholder="Admission Number"
-              value={studentForm.admissionNo}
-              onChange={(event) => updateStudentForm("admissionNo", event.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Student Name"
-              value={studentForm.studentName}
-              onChange={(event) => updateStudentForm("studentName", event.target.value)}
-            />
+            <label className="hostel-required-field">
+              <span>Admission Number <b className="hostel-required">*</b></span>
+              <input type="text" placeholder="Admission Number" value={studentForm.admissionNo} onChange={(event) => updateStudentForm("admissionNo", event.target.value)} />
+            </label>
+            <label className="hostel-required-field">
+              <span>Student Name <b className="hostel-required">*</b></span>
+              <input type="text" placeholder="Student Name" value={studentForm.studentName} onChange={(event) => updateStudentForm("studentName", event.target.value)} />
+            </label>
 
-            <select
-              value={studentForm.className}
-              onChange={(event) => updateStudentForm("className", event.target.value)}
-            >
+            <label className="hostel-required-field">
+              <span>Class <b className="hostel-required">*</b></span>
+              <select value={studentForm.className} onChange={(event) => updateStudentForm("className", event.target.value)}>
               <option value="">Select Class</option>
               {CLASSES.map((className) => (
                 <option key={className} value={className}>
                   Class {className}
                 </option>
               ))}
-            </select>
+              </select>
+            </label>
 
             <select
               value={studentForm.section}
@@ -804,22 +799,21 @@ function HostelRooms() {
               onChange={(event) => updateStudentForm("emergencyPhone", event.target.value)}
             />
 
-            <select
-              value={studentForm.block}
-              onChange={(event) => updateStudentForm("block", event.target.value)}
-            >
+            <label className="hostel-required-field">
+              <span>Hostel Block <b className="hostel-required">*</b></span>
+              <select value={studentForm.block} onChange={(event) => updateStudentForm("block", event.target.value)}>
               <option value="">Select Hostel Block</option>
               {hostelBlocks.map((block) => (
                 <option key={block} value={block}>
                   {block}
                 </option>
               ))}
-            </select>
+              </select>
+            </label>
 
-            <select
-              value={studentForm.roomNo}
-              onChange={(event) => updateStudentForm("roomNo", event.target.value)}
-            >
+            <label className="hostel-required-field">
+              <span>Room <b className="hostel-required">*</b></span>
+              <select value={studentForm.roomNo} onChange={(event) => updateStudentForm("roomNo", event.target.value)}>
               <option value="">Select Room</option>
               {rooms
                 .filter((room) => room.block === studentForm.block)
@@ -828,7 +822,8 @@ function HostelRooms() {
                     {room.roomNo} ({room.capacity - room.occupied} Beds Left)
                   </option>
                 ))}
-            </select>
+              </select>
+            </label>
 
             <select
               value={studentForm.bedNo}

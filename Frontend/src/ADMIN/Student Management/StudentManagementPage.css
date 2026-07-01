@@ -1,0 +1,4 @@
+.student-management-page { min-height: 320px; padding: 2rem; border: 1px solid #e4e0f5; border-radius: 18px; background: #fff; box-shadow: 0 12px 30px rgba(55, 43, 116, 0.08); }
+.student-management-page__eyebrow { margin: 0 0 .45rem; color: #6b55c9; font-size: .72rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+.student-management-page h2 { margin: 0; color: #2f2852; font-size: 1.65rem; }
+.student-management-page__empty { display: grid; min-height: 210px; margin-top: 1.5rem; place-items: center; border: 1px dashed #cfc6ee; border-radius: 14px; color: #746d8a; background: #faf9ff; }

@@ -115,8 +115,21 @@ const USER_KEY = 'sms.authUser';
 
 const AuthContext = createContext(null);
 
+const getStorage = () => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
+
 const readStoredUser = () => {
-  const value = localStorage.getItem(USER_KEY);
+  const storage = getStorage();
+  if (!storage) {
+    return null;
+  }
+
+  const value = storage.getItem(USER_KEY);
   if (!value) {
     return null;
   }
@@ -128,13 +141,13 @@ const readStoredUser = () => {
     );
 
     if (!role) {
-      localStorage.removeItem(USER_KEY);
+      storage.removeItem(USER_KEY);
       return null;
     }
 
     return storedUser;
   } catch {
-    localStorage.removeItem(USER_KEY);
+    storage.removeItem(USER_KEY);
     return null;
   }
 };
@@ -159,13 +172,21 @@ export function AuthProvider({ children }) {
       roleLabel: matchedRole.label,
     };
 
-    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    const storage = getStorage();
+    if (storage) {
+      storage.setItem(USER_KEY, JSON.stringify(nextUser));
+    }
+
     setUser(nextUser);
     return { ok: true, user: nextUser, route: matchedRole.route };
   };
 
   const logout = () => {
-    localStorage.removeItem(USER_KEY);
+    const storage = getStorage();
+    if (storage) {
+      storage.removeItem(USER_KEY);
+    }
+
     setUser(null);
   };
 

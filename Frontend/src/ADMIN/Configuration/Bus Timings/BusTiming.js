@@ -83,7 +83,22 @@ export default function BusTiming() {
         <div className="bt-section-title"><span className="bt-heading-icon"><BusIcon type="bus" /></span><h3>Configuration / Bus Timings</h3></div>
 
         <form className="bt-form" onSubmit={handleSubmit}>
-          <label className="bt-field"><span>Bus Time *</span><input type="time" value={formData.busTime} onChange={(event) => setFormData((current) => ({ ...current, busTime: event.target.value }))} required /></label>
+          <label className="bt-field">
+  <span>
+    Bus Time <span className="required-star">*</span>
+  </span>
+  <input
+    type="time"
+    value={formData.busTime}
+    onChange={(event) =>
+      setFormData((current) => ({
+        ...current,
+        busTime: event.target.value,
+      }))
+    }
+    required
+  />
+</label>
           <label className="bt-checkbox-field"><input type="checkbox" checked={formData.active} onChange={(event) => setFormData((current) => ({ ...current, active: event.target.checked }))} /><span>Is Active?</span></label>
           <div className="bt-form-actions"><button className="bt-save-button" type="submit"><BusIcon type="save" />{editingId !== null ? "Update Timing" : "Save Timing"}</button><button className="bt-clear-button" type="button" onClick={resetForm}><BusIcon type="clear" />Clear</button></div>
         </form>

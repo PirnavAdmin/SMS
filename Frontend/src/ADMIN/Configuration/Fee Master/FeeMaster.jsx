@@ -58,7 +58,7 @@ export default function FeeMaster() {
       <div className="fm-watermark" aria-hidden="true"><span className="fm-watermark-receipt"><i /><i /><i /></span><span className="fm-watermark-coin">₹</span><span className="fm-watermark-coin fm-watermark-coin-small">₹</span></div>
       <div className="fm-section-title"><span className="fm-heading-icon"><FeeIcon type="rupee" /></span><h3>Configuration / Fee Master</h3></div>
       <form className="fm-form" onSubmit={handleSubmit}>
-        <label className="fm-field"><span>Fee Type Name *</span><input value={feeType} onChange={(event) => { setFeeType(event.target.value); setError(""); }} placeholder="Enter Fee Type Name" aria-invalid={Boolean(error)} required />{error && <small className="fm-error">{error}</small>}</label>
+        <label className="fm-field"><span>Fee Type Name <b className="fm-required">*</b></span><input value={feeType} onChange={(event) => { setFeeType(event.target.value); setError(""); }} placeholder="Enter Fee Type Name" aria-invalid={Boolean(error)} required />{error && <small className="fm-error">{error}</small>}</label>
         <div className="fm-form-actions"><button className="fm-save-button" type="submit"><FeeIcon type="save" />{editingId !== null ? "Update Fee" : "Save Fee"}</button><button className="fm-clear-button" type="button" onClick={resetForm}><FeeIcon type="clear" />Clear</button></div>
       </form>
     </section>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
 import '../App.css';
@@ -19,11 +19,29 @@ import HostelBlocks from './Configuration/Hostel Blocks/HostelBlocks';
 import HostelRooms from './Configuration/Hostel Rooms/HostelRooms';
 import BusTimings from './Configuration/Bus Timings/BusTiming';
 import BusStopNames from "./Configuration/Bus stop Names/BusStopNames";
+import StudentInfo from './Student Management/Student Info/StudentInfo';
+import Student360 from './Student Management/Student 360/Student360';
+import DetainedStudentsList from './Student Management/Detained Students List/DetainedStudentsList';
+import AssignCounsellor from './Student Management/Assign Counsellor/AssignCounsellor';
+import ParentOtpVerification from './Student Management/Parent OTP Verification/ParentOtpVerification';
+import CounsellingDetails from './Student Management/Counselling Details/CounsellingDetails';
+import DetaineeStudents from './Student Management/Detainee Students/DetaineeStudents';
+
+const getStorage = () => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
 
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
   { name: 'Admissions', key: 'Admissions', badge: '12' },
-  { name: 'Student Management', key: 'Student Management', badge: '128' },
+  {
+    name: 'Student Management', key: 'Student Management', badge: '128', isDropdown: true,
+    subItems: ['Student Info', 'Student 360', 'Detained Students List', 'Assign Counsellor', 'Parent OTP Verification', 'Counselling Details', 'Detainee Students']
+  },
   { name: 'Faculty Management', key: 'Faculty Management', badge: '18' },
   { name: 'Attendance', key: 'Attendance', badge: '09' },
   { name: 'Fee', key: 'Fee', badge: '07' },
@@ -64,13 +82,52 @@ function AdminDashboard() {
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [configExpanded, setConfigExpanded] = useState(false);
+  const [studentExpanded, setStudentExpanded] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notifications] = useState([]);
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => getStorage()?.getItem('admin-theme') === 'dark'
+  );
+
+  useEffect(() => {
+    getStorage()?.setItem('admin-theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   const handleNavClick = (item) => {
-    if (item.isDropdown) {
+    if (item.key === 'Student Management') {
+      setStudentExpanded((current) => !current);
+      setActiveTab('Student Management');
+    } else if (item.isDropdown) {
       setConfigExpanded(!configExpanded);
     } else {
       setActiveTab(item.key);
+    }
+  };
+
+  const handleInvalidField = (event) => {
+    event.preventDefault();
+    const field = event.target;
+    field.classList.add('configuration-invalid');
+    field.setAttribute('aria-invalid', 'true');
+    const label = field.closest('label');
+    if (label) {
+      label.classList.add('configuration-validation-field');
+      label.dataset.validationMessage = field.validity?.valueMissing
+        ? 'This field is required'
+        : 'Please enter a valid value';
+    }
+  };
+
+  const clearInvalidField = (event) => {
+    const field = event.target;
+    if (field.validity?.valid) {
+      field.classList.remove('configuration-invalid');
+      field.removeAttribute('aria-invalid');
+      const label = field.closest('label');
+      if (label) {
+        label.classList.remove('configuration-validation-field');
+        delete label.dataset.validationMessage;
+      }
     }
   };
 const configComponents = {
@@ -79,8 +136,22 @@ const configComponents = {
   "Bus stop Names": BusStopNames,
   "Bus Timings": BusTimings,
 };
+const studentComponents = {
+  'Student Info': StudentInfo,
+  'Student 360': Student360,
+  'Detained Students List': DetainedStudentsList,
+  'Assign Counsellor': AssignCounsellor,
+  'Parent OTP Verification': ParentOtpVerification,
+  'Counselling Details': CounsellingDetails,
+  'Detainee Students': DetaineeStudents,
+};
 
   const renderActiveView = () => {
+    if (activeTab.startsWith('Student:')) {
+      const component = studentComponents[activeTab.substring(8)];
+      return component ? React.createElement(component) : <StudentManagement />;
+    }
+
     if (activeTab.startsWith('Config:')) {
       const category = activeTab.substring(7);
       const component = configComponents[category];
@@ -122,7 +193,7 @@ const configComponents = {
   };
 
   return (
-    <div className="admin-layout">
+    <div className={`admin-layout${isDarkMode ? ' theme-dark' : ''}`}>
       <aside className="sidebar">
         <div className="brand-block">
           <div className="brand-badge">SM</div>
@@ -135,7 +206,9 @@ const configComponents = {
         <nav className="nav-list" aria-label="Admin menu">
           {navigationItems.map((item) => {
             const isConfigActive = activeTab.startsWith('Config:') && item.key === 'Configuration';
-            const isActive = activeTab === item.key || isConfigActive;
+            const isStudentActive = activeTab.startsWith('Student:') && item.key === 'Student Management';
+            const isActive = activeTab === item.key || isConfigActive || isStudentActive;
+            const isExpanded = item.key === 'Student Management' ? studentExpanded : configExpanded;
             return (
               <div key={item.key} className="nav-group">
                 <button
@@ -145,20 +218,21 @@ const configComponents = {
                 >
                   <span>{item.name}</span>
                   <span className="nav-badge">
-                    {item.isDropdown && configExpanded ? '▲' : item.badge}
+                    {item.isDropdown && isExpanded ? '▲' : item.badge}
                   </span>
                 </button>
                 
-                {item.isDropdown && configExpanded && (
+                {item.isDropdown && isExpanded && (
                   <div className="nav-submenu">
                     {item.subItems.map((sub) => {
-                      const isSubActive = activeTab === `Config:${sub}`;
+                      const prefix = item.key === 'Student Management' ? 'Student:' : 'Config:';
+                      const isSubActive = activeTab === `${prefix}${sub}`;
                       return (
                         <button
                           key={sub}
                           type="button"
                           className={`nav-subitem${isSubActive ? ' active' : ''}`}
-                          onClick={() => setActiveTab(`Config:${sub}`)}
+                          onClick={() => setActiveTab(`${prefix}${sub}`)}
                         >
                           {sub}
                         </button>
@@ -171,52 +245,101 @@ const configComponents = {
           })}
         </nav>
 
-        <div className="profile-block">
-          <div className="profile-info" onClick={() => setProfileMenuOpen(!profileMenuOpen)}>
-            <div className="profile-avatar">AR</div>
-            <div className="profile-details">
-              <strong>Anita Rao</strong>
-              <span>Admin</span>
-            </div>
-          </div>
-          {profileMenuOpen && (
-            <div className="profile-dropdown">
-              <button 
-                type="button" 
-                onClick={() => { setActiveTab('Settings'); setProfileMenuOpen(false); }}
-              >
-                Settings
-              </button>
-              <button 
-                type="button" 
-                onClick={() => { logout(); setProfileMenuOpen(false); navigate('/login', { replace: true }); }}
-              >
-                Logout
-              </button>
-            </div>
-          )}
-        </div>
       </aside>
 
       <main className="dashboard-main">
         <header className="top-tab-bar">
           <div className="tab-title">
-            <h2>{activeTab.startsWith('Config:') ? activeTab.substring(7) : activeTab}</h2>
+            <h2>{activeTab.includes(':') ? activeTab.substring(activeTab.indexOf(':') + 1) : activeTab}</h2>
           </div>
           <div className="tab-actions">
             <div className="top-search-box">
-              <span className="top-search-icon" aria-hidden="true">⌕</span>
+              <svg className="top-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-4-4" />
+              </svg>
               <input type="search" placeholder="Search..." aria-label="Search admin portal" />
             </div>
-            <button type="button" className="icon-button" onClick={() => alert('Notifications')}>🔔</button>
+            <button
+              type="button"
+              className="icon-button notification-button"
+              aria-label={notifications.length ? `${notifications.length} notifications` : 'No new notifications'}
+              onClick={() => alert(notifications.length ? notifications.join('\n') : 'No new notifications')}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                <path d="M10 21h4" />
+              </svg>
+              {notifications.length > 0 && (
+                <span className="notification-count">
+                  {notifications.length > 99 ? '99+' : notifications.length}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              className="icon-button theme-toggle-button"
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDarkMode ? 'Light mode' : 'Dark mode'}
+              onClick={() => setIsDarkMode((current) => !current)}
+            >
+              {isDarkMode ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" />
+                </svg>
+              )}
+            </button>
+            <div className="profile-block top-profile-block">
+              <button
+                type="button"
+                className="profile-info"
+                aria-expanded={profileMenuOpen}
+                aria-label="Open administrator menu"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              >
+                <div className="profile-avatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+                  </svg>
+                </div>
+                <div className="profile-details">
+                  <strong>Admin</strong>
+                  <span>Administrator</span>
+                </div>
+                <svg className="profile-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="m7 10 5 5 5-5" />
+                </svg>
+              </button>
+              {profileMenuOpen && (
+                <div className="profile-dropdown">
+                  <button type="button" onClick={() => { setActiveTab('Settings'); setProfileMenuOpen(false); }}>
+                    Settings
+                  </button>
+                  <button type="button" onClick={() => { logout(); setProfileMenuOpen(false); navigate('/login', { replace: true }); }}>
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
-        {renderActiveView()}
+        <div
+          className="dashboard-content"
+          onInvalidCapture={handleInvalidField}
+          onInputCapture={clearInvalidField}
+          onChangeCapture={clearInvalidField}
+        >
+          {renderActiveView()}
+        </div>
       </main>
     </div>
   );
 }
 
 export default AdminDashboard;
-
-
