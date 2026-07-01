@@ -384,3 +384,5 @@
     justify-content: center;
   }
 }
+/* Shared Configuration table theme */
+.holiday-table thead,.holiday-table thead tr{color:#fff!important;background:linear-gradient(90deg,#c333d8,#2678ec)!important}.holiday-table thead th{border-color:transparent!important;color:#fff!important;background:transparent!important;font-size:13px;font-weight:800;letter-spacing:.02em}.holiday-table tbody tr{border-bottom-color:#eef1fb!important}.holiday-table tbody tr:nth-child(even),.holiday-table tbody tr:nth-child(even)>td{background:#fbfcff!important}.holiday-table tbody tr:hover,.holiday-table tbody tr:hover>td{background:#f4f1ff!important}.holiday-table tbody td{border-color:#eef1fb!important}.holiday-table-wrap{scrollbar-color:#b7a8ff #f4f6ff}.theme-dark .holiday-table tbody tr:nth-child(even),.theme-dark .holiday-table tbody tr:nth-child(even)>td{background:#273149!important}.theme-dark .holiday-table tbody tr:hover,.theme-dark .holiday-table tbody tr:hover>td{background:#312d55!important}

@@ -8,3 +8,5 @@
   opacity: 1;
   font-weight: 400;
 }
+/* Shared Configuration table theme */
+.books-fee-table thead,.books-fee-table thead tr{color:#fff!important;background:linear-gradient(90deg,#c333d8,#2678ec)!important}.books-fee-table thead th{border-color:transparent!important;color:#fff!important;background:transparent!important;font-size:13px;font-weight:800;line-height:1.25;letter-spacing:.02em}.books-fee-table tbody tr{border-bottom-color:#eef1fb!important}.books-fee-table tbody tr:nth-child(even),.books-fee-table tbody tr:nth-child(even)>td{background-color:#fbfcff!important}.books-fee-table tbody tr:hover,.books-fee-table tbody tr:hover>td{background-color:#f4f1ff!important}.books-fee-table tbody td{border-color:#eef1fb!important}.books-fee-table-wrap{scrollbar-color:#b7a8ff #f4f6ff}.theme-dark .books-fee-table tbody tr:nth-child(even),.theme-dark .books-fee-table tbody tr:nth-child(even)>td{background-color:#273149!important}.theme-dark .books-fee-table tbody tr:hover,.theme-dark .books-fee-table tbody tr:hover>td{background-color:#312d55!important}

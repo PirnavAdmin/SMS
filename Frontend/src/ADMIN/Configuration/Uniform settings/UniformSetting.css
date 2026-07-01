@@ -756,3 +756,5 @@
   opacity: 1;
   font-weight: 400;
 }
+/* Shared Configuration table theme */
+.uniform-table thead,.uniform-table thead tr{color:#fff!important;background:linear-gradient(90deg,#c333d8,#2678ec)!important}.uniform-table thead th{border-color:transparent!important;color:#fff!important;background:transparent!important;font-size:13px;font-weight:800;letter-spacing:.02em}.uniform-table tbody tr{border-bottom-color:#eef1fb!important}.uniform-table tbody tr:nth-child(even),.uniform-table tbody tr:nth-child(even)>td{background:#fbfcff!important}.uniform-table tbody tr:hover,.uniform-table tbody tr:hover>td{background:#f4f1ff!important}.uniform-table tbody td{border-color:#eef1fb!important}.uniform-settings-table-wrap{scrollbar-color:#b7a8ff #f4f6ff}.theme-dark .uniform-table tbody tr:nth-child(even),.theme-dark .uniform-table tbody tr:nth-child(even)>td{background:#273149!important}.theme-dark .uniform-table tbody tr:hover,.theme-dark .uniform-table tbody tr:hover>td{background:#312d55!important}
