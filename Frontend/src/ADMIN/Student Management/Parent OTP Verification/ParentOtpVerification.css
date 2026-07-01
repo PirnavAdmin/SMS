@@ -1,1 +1,273 @@
 @import '../StudentManagementPage.css';
+* {
+  box-sizing: border-box;
+}
+
+.otpPage {
+  width: 100%;
+  min-height: 100vh;
+  background: #ffffff;
+  padding: 22px 14px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.otpCard {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cfd8e3;
+  margin-bottom: 18px;
+}
+
+.otpCardHeader {
+  height: 34px;
+  background: linear-gradient(to right, #7142c7, #0867b8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.otpHeaderIcon {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.otpCardBody {
+  padding: 24px 8px 8px 8px;
+}
+
+.otpFormRow {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr 1fr;
+  gap: 22px;
+  align-items: center;
+}
+
+.otpField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.otpField label {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.otpInputGroup {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #b8c2cc;
+  background: #ffffff;
+}
+
+.otpInputIcon {
+  width: 34px;
+  height: 32px;
+  background: #eeeeee;
+  border-right: 1px solid #b8c2cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.otpInputGroup select {
+  width: 100%;
+  height: 32px;
+  border: none;
+  outline: none;
+  padding: 0 8px;
+  font-size: 14px;
+  background: #ffffff;
+  color: #333333;
+}
+
+.otpInputGroup:focus-within {
+  border-color: #6f42c1;
+}
+
+.otpButtonRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  margin-left: 0;
+}
+
+.getStudentBtn,
+.cancelBtn {
+  height: 34px;
+  border: none;
+  border-radius: 2px;
+  padding: 0 16px;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.getStudentBtn {
+  background: #0d6efd;
+}
+
+.cancelBtn {
+  background: #6c757d;
+}
+
+.getStudentBtn:hover {
+  background: #0b5ed7;
+}
+
+.cancelBtn:hover {
+  background: #5c636a;
+}
+/* ==========================================
+   RESULT SECTION
+========================================== */
+
+.otpResultBody {
+  min-height: 260px;
+  background: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid #e6e6e6;
+}
+
+.noDataMessage {
+  color: #666666;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+}
+
+/* ==========================================
+   INPUT HOVER
+========================================== */
+
+.otpInputGroup:hover {
+  border-color: #6f42c1;
+}
+
+.otpInputGroup select:hover {
+  cursor: pointer;
+}
+
+/* ==========================================
+   BUTTON EFFECTS
+========================================== */
+
+.getStudentBtn,
+.cancelBtn {
+  transition: all 0.25s ease;
+}
+
+.getStudentBtn:hover,
+.cancelBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ==========================================
+   CARD EFFECT
+========================================== */
+
+.otpCard {
+  transition: all 0.25s ease;
+}
+
+.otpCard:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+}
+
+/* ==========================================
+   RESPONSIVE
+========================================== */
+
+@media screen and (max-width: 1200px) {
+
+  .otpFormRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+}
+
+@media screen and (max-width: 768px) {
+
+  .otpPage {
+    padding: 12px;
+  }
+
+  .otpFormRow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .otpField {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .otpField label {
+    margin-bottom: 5px;
+  }
+
+  .otpButtonRow {
+    flex-wrap: wrap;
+  }
+
+  .getStudentBtn,
+  .cancelBtn {
+    width: 100%;
+  }
+
+}
+
+@media screen and (max-width: 480px) {
+
+  .otpCardHeader {
+    font-size: 14px;
+  }
+
+  .otpHeaderIcon {
+    font-size: 13px;
+  }
+
+  .otpInputGroup {
+    width: 100%;
+  }
+
+  .otpInputGroup select {
+    font-size: 13px;
+  }
+
+  .noDataMessage {
+    font-size: 14px;
+    padding: 20px;
+  }
+
+}
+
+/* ==========================================
+   REMOVE DEFAULT OUTLINE
+========================================== */
+
+select:focus,
+button:focus {
+  outline: none;
+}
+
+/* ==========================================
+   SMOOTH PAGE
+========================================== */
+
+html {
+  scroll-behavior: smooth;
+}
