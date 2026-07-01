@@ -197,7 +197,7 @@ function HostelBlocks() {
         </div>
         <form className="hb-form" onSubmit={handleSubmit}>
           <label className="hb-field">
-            <span>Block ID *</span>
+            <span>Block ID <b className="hb-required">*</b></span>
             <input
               name="blockId"
               value={formData.blockId}
@@ -207,7 +207,7 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Block Name *</span>
+            <span>Block Name <b className="hb-required">*</b></span>
             <input
               name="name"
               value={formData.name}
@@ -217,7 +217,7 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Number of Floors *</span>
+            <span>Number of Floors <b className="hb-required">*</b></span>
             <input
               type="number"
               min="1"
@@ -229,7 +229,7 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Number of Rooms *</span>
+            <span>Number of Rooms <b className="hb-required">*</b></span>
             <input
               type="number"
               min="1"
@@ -241,7 +241,7 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Total Capacity *</span>
+            <span>Total Capacity <b className="hb-required">*</b></span>
             <input
               type="number"
               min="1"
@@ -253,7 +253,7 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Warden Name *</span>
+            <span>Warden Name <b className="hb-required">*</b></span>
             <input
               name="warden"
               value={formData.warden}

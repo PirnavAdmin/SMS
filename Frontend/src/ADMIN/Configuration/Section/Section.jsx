@@ -102,7 +102,7 @@ function Section() {
 
         <form className="section-form" onSubmit={handleSubmit}>
           <label className="section-field">
-            <span>Section Name</span>
+            <span>Section Name <b className="section-required">*</b></span>
             <input
               name="sectionName"
               value={formData.sectionName}

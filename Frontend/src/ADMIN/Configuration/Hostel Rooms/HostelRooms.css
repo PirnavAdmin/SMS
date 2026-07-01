@@ -1328,3 +1328,4 @@
   opacity: 1;
   font-weight: 400;
 }
+.hostel-required-field{display:flex;min-width:0;flex-direction:column;gap:6px}.hostel-required-field>span{color:#283354;font-size:13px;font-weight:700}.hostel-required{color:#e53935!important;font-size:15px;font-weight:900}
