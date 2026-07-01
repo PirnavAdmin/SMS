@@ -1,706 +1,253 @@
-import React, { useState } from "react";
-import { FaEdit, FaEnvelope, FaTrash, FaUser, FaUsers, FaSearch, FaSave, FaEraser, FaArrowLeft, FaArrowRight } from "react-icons/fa";
-import '../../Configuration/Users/users.css'
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  FaArrowLeft,
+  FaArrowRight,
+  FaEdit,
+  FaEnvelope,
+  FaEraser,
+  FaPlus,
+  FaSave,
+  FaSearch,
+  FaTimes,
+  FaTrash,
+  FaUser,
+  FaUsers,
+} from "react-icons/fa";
+import "./users.css";
 
-const Users = () => {
-    const [formData, setFormData] = useState({
-        role: "",
-        userName: "",
-        password: "",
-        email: "",
-        mobile: "",
-        altEmail: "",
-        altMobile: "",
-        address: "",
-        isActive: false,
-    });
-    const [users, setUsers] = useState([]);
-    const [showForm, setShowForm] = useState(false);
-    const [search, setSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const [usersPerPage, setUsersPerPage] = useState(5);
-    const [errors, setErrors] = useState({});
+const emptyForm = {
+  role: "",
+  userName: "",
+  password: "",
+  email: "",
+  mobile: "",
+  altEmail: "",
+  altMobile: "",
+  address: "",
+  isActive: true,
+};
 
-    const validateForm = () => {
-        let newErrors = {};
+const initialUsers = [
+  { id: 1, role: "Admin", userName: "Anita Rao", password: "admin123", email: "anita.rao@school.com", mobile: "9876543210", altEmail: "", altMobile: "", address: "Bengaluru", isActive: true },
+  { id: 2, role: "Principal", userName: "Ravi Kumar", password: "principal123", email: "ravi.kumar@school.com", mobile: "9876501234", altEmail: "", altMobile: "", address: "Mysuru", isActive: true },
+  { id: 3, role: "Teacher", userName: "Meera Shah", password: "teacher123", email: "meera.shah@school.com", mobile: "9876512340", altEmail: "", altMobile: "", address: "Hubballi", isActive: false },
+];
 
-        if (!formData.role.trim()) {
-            newErrors.role = "Please select Role ID";
-        }
+function Users() {
+  const [users, setUsers] = useState(initialUsers);
+  const [formData, setFormData] = useState(emptyForm);
+  const [editingId, setEditingId] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [usersPerPage, setUsersPerPage] = useState(100);
+  const [errors, setErrors] = useState({});
 
-        if (!formData.userName.trim()) {
-            newErrors.userName = "Please enter Username";
-        }
+  const filteredUsers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return query
+      ? users.filter((user) =>
+          [user.userName, user.email, user.role, user.mobile, user.address]
+            .join(" ")
+            .toLowerCase()
+            .includes(query)
+        )
+      : users;
+  }, [search, users]);
 
-        if (!formData.password.trim()) {
-            newErrors.password = "Please enter Password";
-        }
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / usersPerPage));
+  const startIndex = (currentPage - 1) * usersPerPage;
+  const currentUsers = filteredUsers.slice(startIndex, startIndex + usersPerPage);
 
-        if (!formData.email.trim()) {
-            newErrors.email = "Please enter Email";
-        } else if (
-            !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)
-        ) {
-            newErrors.email = "Please enter a valid Email";
-        }
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
 
-        if (!formData.mobile.trim()) {
-            newErrors.mobile = "Please enter Mobile Number";
-        } else if (!/^\d{10}$/.test(formData.mobile)) {
-            newErrors.mobile = "Mobile Number must be 10 digits";
-        }
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData(emptyForm);
+    setErrors({});
+  };
 
-        setErrors(newErrors);
+  const openAddForm = () => {
+    setEditingId(null);
+    setFormData(emptyForm);
+    setErrors({});
+    setShowForm(true);
+  };
 
-        return Object.keys(newErrors).length === 0;
-    };
+  const openEditForm = (user) => {
+    setEditingId(user.id);
+    setFormData({ ...user });
+    setErrors({});
+    setShowForm(true);
+  };
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
+  const handleChange = ({ target }) => {
+    const { name, value, type, checked } = target;
+    setFormData((current) => ({ ...current, [name]: type === "checkbox" ? checked : value }));
+    setErrors((current) => ({ ...current, [name]: "" }));
+  };
 
-        setFormData({
-            ...formData,
-            [name]: type === "checkbox" ? checked : value,
-        });
+  const validateForm = () => {
+    const nextErrors = {};
+    if (!formData.role) nextErrors.role = "Role is required";
+    if (!formData.userName.trim()) nextErrors.userName = "User name is required";
+    if (!formData.password.trim()) nextErrors.password = "Password is required";
+    if (!formData.email.trim()) nextErrors.email = "Email is required";
+    else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(formData.email)) nextErrors.email = "Enter a valid email";
+    if (!formData.mobile.trim()) nextErrors.mobile = "Mobile number is required";
+    else if (!/^\d{10}$/.test(formData.mobile)) nextErrors.mobile = "Mobile number must be 10 digits";
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
-        setErrors({
-            ...errors,
-            [name]: "",
-        });
-    };
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    if (!validateForm()) return;
 
-    const handleSave = () => {
-        if (!validateForm()) {
-            return;
-        }
-        if (
-            !formData.role ||
-            !formData.userName ||
-            !formData.password ||
-            !formData.email
-        ) {
-            alert("Please fill required fields");
-            return;
-        }
+    if (editingId !== null) {
+      setUsers((current) => current.map((user) => user.id === editingId ? { ...formData, id: editingId } : user));
+    } else {
+      setUsers((current) => [...current, { ...formData, id: Date.now() }]);
+    }
+    closeForm();
+  };
 
-        setUsers([...users, formData]);
-        setFormData({
-            role: "",
-            userName: "",
-            password: "",
-            email: "",
-            mobile: "",
-            altEmail: "",
-            altMobile: "",
-            address: "",
-            isActive: true,
-        });
-        setErrors({});
-        setShowForm(false);
-    };
+  const handleDelete = (id) => {
+    if (!window.confirm("Delete this user permanently?")) return;
+    setUsers((current) => current.filter((user) => user.id !== id));
+    if (selectedUser?.id === id) setSelectedUser(null);
+  };
 
-    const handleDelete = (index) => {
-        const updatedUsers = users.filter((_, i) => i !== index);
+  const firstEntry = filteredUsers.length ? startIndex + 1 : 0;
+  const lastEntry = Math.min(startIndex + usersPerPage, filteredUsers.length);
 
-        setUsers(updatedUsers);
-
-        const newTotalPages = Math.ceil(updatedUsers.length / usersPerPage);
-
-        if (currentPage > newTotalPages && currentPage > 1) {
-            setCurrentPage(currentPage - 1);
-        }
-    };
-
-    const filteredUsers = users.filter((user) =>
-        user.userName.toLowerCase().includes(search.toLowerCase()) ||
-        user.email.toLowerCase().includes(search.toLowerCase()) ||
-        user.role.toLowerCase().includes(search.toLowerCase()) ||
-        user.mobile.includes(search)
-    );
-
-    const indexOfLastUser = currentPage * usersPerPage;
-    const indexOfFirstUser = indexOfLastUser - usersPerPage;
-
-    const currentUsers = filteredUsers.slice(
-        indexOfFirstUser,
-        indexOfLastUser
-    );
-
-    const totalPages = Math.ceil(
-        filteredUsers.length / usersPerPage
-    );
-
-    return (
-        <div className="users-page" style={styles.container}>
-            {showForm && (
-                <div className="users-card users-form-card" style={styles.card}>
-                    <div className="users-section-title" style={styles.header}>
-                        <div style={styles.headerIcon}>
-                            <FaUser style={styles.icon} />
-                        </div>
-                        <span>User Details</span>
-                    </div>
-
-                    <div className="users-hero-art" aria-hidden="true">
-                        <div className="users-art-avatar"><FaUser /></div>
-                        <div className="users-art-avatar users-art-avatar-small"><FaUser /></div>
-                        <FaUsers className="users-art-group" />
-                    </div>
-
-                    <div className="users-form-grid" style={styles.grid}>
-                        <div style={styles.field}>
-                            <label style={styles.label}>
-                                Role ID: <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <select
-                                name="role"
-                                value={formData.role}
-                                onChange={handleChange}
-                                style={{
-                                    ...styles.input,
-                                    ...(errors.role ? styles.errorInput : {}),
-                                }}
-                            >
-                                <option value="">--Select--</option>
-                                <option>Admin</option>
-                                <option>Principal</option>
-                                <option>Student</option>
-                            </select>
-                            {errors.role && (
-                                <span style={styles.errorText}>{errors.role}</span>
-                            )}
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>
-                                User Name: <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="userName"
-                                value={formData.userName}
-                                onChange={handleChange}
-                                style={{
-                                    ...styles.input,
-                                    ...(errors.userName ? styles.errorInput : {}),
-                                }}
-                            />
-                            {errors.userName && (
-                                <span style={styles.errorText}>{errors.userName}</span>
-                            )}
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>
-                                Password: <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <input
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
-                                style={{
-                                    ...styles.input,
-                                    ...(errors.password ? styles.errorInput : {}),
-                                }}
-                            />
-                            {errors.password && (
-                                <span style={styles.errorText}>{errors.password}</span>
-                            )}
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>
-                                Email: <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                onChange={handleChange}
-                                style={{
-                                    ...styles.input,
-                                    ...(errors.email ? styles.errorInput : {}),
-                                }}
-                            />
-                            {errors.email && (
-                                <span style={styles.errorText}>{errors.email}</span>
-                            )}
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>
-                                Mobile No: <span style={{ color: "red" }}>*</span>
-                            </label>
-                            <input
-                                type="text"
-                                name="mobile"
-                                value={formData.mobile}
-                                onChange={handleChange}
-                                style={{
-                                    ...styles.input,
-                                    ...(errors.mobile ? styles.errorInput : {}),
-                                }}
-                            />
-                            {errors.mobile && (
-                                <span style={styles.errorText}>{errors.mobile}</span>
-                            )}
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>Alt Mobile:</label>
-                            <input
-                                type="text"
-                                name="altMobile"
-                                value={formData.altMobile}
-                                onChange={handleChange}
-                                style={styles.input}
-                            />
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>Alt Email:</label>
-                            <input
-                                type="email"
-                                name="altEmail"
-                                value={formData.altEmail}
-                                onChange={handleChange}
-                                style={styles.input}
-                            />
-                        </div>
-
-                        <div style={styles.field}>
-                            <label style={styles.label}>Address:</label>
-                            <textarea
-                                name="address"
-                                value={formData.address}
-                                onChange={handleChange}
-                                style={styles.textarea}
-                            />
-                        </div>
-
-                        <div style={styles.checkboxWrap}>
-                            <input
-                                type="checkbox"
-                                name="isActive"
-                                checked={formData.isActive}
-                                onChange={handleChange}
-                            />
-                            <span>Is Active?</span>
-                        </div>
-                    </div>
-
-                    <div className="users-form-actions" style={styles.buttonContainer}>
-                        <button className="btn" style={styles.saveBtn} onClick={handleSave}>
-                            <FaSave />
-                            Save
-                        </button>
-                        <button
-                            className="btn"
-                            style={styles.clearBtn}
-                            onClick={() =>
-                                setFormData({
-                                    role: "",
-                                    userName: "",
-                                    password: "",
-                                    email: "",
-                                    mobile: "",
-                                    altEmail: "",
-                                    altMobile: "",
-                                    address: "",
-                                    isActive: true,
-                                })
-                            }
-                        >
-                            <FaEraser />
-                            Clear
-                        </button>
-                    </div>
-                </div>
-            )}
-            <div className="users-card users-list-card" style={styles.card}>
-                <div className="users-list-header" style={styles.userHeader}>
-                    <div style={styles.leftHeader}>
-                        <div style={styles.headerIcon}>
-                            <FaUser style={styles.icon} />
-                        </div>
-                        <span>Users List</span>
-                    </div>
-
-                    <button
-                        className="btn"
-                        style={styles.addUserBtn}
-                        onClick={() => setShowForm(true)}
-                    >
-                        Add User
-                    </button>
-                </div>
-
-                <div className="users-table-controls" style={styles.tableControls}>
-                    <div style={styles.leftControls}>
-                        <label>Show </label>
-                        <select
-                            style={styles.selectBox}
-                            value={usersPerPage}
-                            onChange={(e) => {
-                                setUsersPerPage(Number(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                        >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                        </select>
-                        <label> entries</label>
-                    </div>
-                    <div style={styles.searchContainer}>
-                        <input
-                            type="text"
-                            placeholder="Search..."
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            style={styles.searchBox}
-                        />
-                        <FaSearch style={styles.searchIcon} />
-                    </div>
-                </div>
-
-                <div className="users-table-area" style={{ padding: 10 }}>
-                    <div className="users-table-wrap">
-                    <table className="users-table" style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>Name</th>
-                                <th style={styles.th}>Email</th>
-                                <th style={styles.th}>Role</th>
-                                <th style={styles.th}>Mobile</th>
-                                <th style={styles.th}>Action</th>
-                            </tr>
-                        </thead>
-
-                        <tbody style={{ textAlign: 'center' }}>
-                            {filteredUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" style={styles.noData}>
-                                        No Users Added
-                                    </td>
-                                </tr>
-                            ) : (
-                                currentUsers.map((user, index) => (
-                                    <tr key={index}>
-                                        <td style={styles.td}>{user.userName}</td>
-                                        <td style={styles.td}>{user.email}</td>
-                                        <td style={styles.td}>{user.role}</td>
-                                        <td style={styles.td}>{user.mobile}</td>
-                                        <td style={styles.td}>
-                                            <div className="users-row-actions">
-                                            <button className="btn users-edit-btn" style={styles.editBtn}><FaEdit /> Edit</button>
-                                            <button
-                                                className="btn users-delete-btn"
-                                                style={styles.deleteBtn}
-                                                onClick={() =>
-                                                    handleDelete(indexOfFirstUser + index)
-                                                }
-                                            >
-                                                <FaTrash /> Delete
-                                            </button>
-                                            <button className="btn users-email-btn" style={styles.loginBtn}>
-                                                <FaEnvelope /> Email
-                                            </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                    </div>
-                    {filteredUsers.length > 0 && (
-                        <div style={styles.paginationContainer}>
-                            <button
-                                className="btn"
-                                style={styles.pageBtn}
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage(currentPage - 1)}
-                            >
-                                <FaArrowLeft size={12} />
-                            </button>
-
-                            {[...Array(totalPages)].map((_, index) => (
-                                <button
-                                    key={index}
-                                    className="btn"
-                                    style={{
-                                        ...styles.pageBtn,
-                                        background:
-                                            currentPage === index + 1
-                                                ? "linear-gradient(to right,#8e44ad,#3f51b5)"
-                                                : "#fff",
-                                        color:
-                                            currentPage === index + 1
-                                                ? "#fff"
-                                                : "#000",
-                                    }}
-                                    onClick={() => setCurrentPage(index + 1)}
-                                >
-                                    {index + 1}
-                                </button>
-                            ))}
-                            <button
-                                className="btn"
-                                style={styles.pageBtn}
-                                disabled={
-                                    currentPage === totalPages || totalPages === 0
-                                }
-                                onClick={() => setCurrentPage(currentPage + 1)}
-                            >
-                                <FaArrowRight size={12} />
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
+  return (
+    <div className="users-page">
+      <section className="users-card users-list-card">
+        <div className="users-list-header">
+          <div className="users-title">
+            <span className="users-heading-icon"><FaUsers /></span>
+            <div><h3>User Details</h3><p>Manage school portal accounts and access roles.</p></div>
+          </div>
+          <button className="users-add-button" type="button" onClick={openAddForm}><FaPlus /> Add User</button>
         </div>
-    );
-};
 
-const styles = {
-    container: {
-        fontFamily: "Arial, sans-serif",
-    },
-    icon: {
-        fontSize: "14px",
-    },
-    roleRows: {
-        display: "grid",
-        gridTemplateColumns: "repeat(3,1fr)",
-        gap: "15px",
-        padding: "20px",
-    },
-    card: {
-        borderRadius: "5px",
-        overflow: "hidden",
-        marginBottom: "15px",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-        background: "#fff"
-    },
-    header: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        padding: "10px 14px",
-        borderBottom: "1px solid #f0f0f0",
-        background: "#fff",
-        fontSize: "16px",
-        fontWeight: "600",
-    },
-    headerIcon: {
-        width: "35px",
-        height: "35px",
-        borderRadius: "20px",
-        background: "linear-gradient(135deg,#8e44ad,#3f51b5)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "white",
-        boxShadow: "0 4px 10px rgba(142,68,173,0.25)",
-    },
-    grid: {
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: "15px",
-        padding: "20px",
-    },
-    field: {
-        display: "flex",
-        flexDirection: "column",
-    },
-    label: {
-        marginBottom: "6px",
-        fontSize: "14px",
-        fontWeight: "700",
-    },
-    input: {
-        height: "32px",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-        padding: "0 5px",
-    },
-    textarea: {
-        height: "auto",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-    },
-    checkboxWrap: {
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        marginTop: "30px",
-    },
-    buttonContainer: {
-        padding: "13px",
-        display: "flex",
-        justifyContent: "flex-start",
-        gap: "10px",
-        marginLeft: "5px"
-    },
-    saveBtn: {
-        background: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        color: "#fff",
-        border: "none",
-        padding: "8px 10px",
-        borderRadius: "4px",
-        cursor: "pointer",
-        marginRight: "10px",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-    },
-    clearBtn: {
-        background: "white",
-        border: "none",
-        padding: "8px 10px",
-        borderRadius: "4px",
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "8px",
-    },
-    table: {
-        width: "100%",
-        borderCollapse: "collapse",
-        border: "1px solid #ebe0e0",
-    },
-    th: {
-        background: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        color: "#fff",
-        padding: "10px",
-        textAlign: "left",
-        border: "1px solid #ebe0e0",
-    },
-    td: {
-        padding: "10px",
-        border: "1px solid #ebe0e0",
-    },
-    noData: {
-        textAlign: "center",
-        padding: "20px",
-    },
-    tableControls: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "10px 15px",
-    },
-    leftControls: {
-        display: "flex",
-        alignItems: "center",
-        gap: "5px",
-    },
-    selectBox: {
-        padding: "5px",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-    },
-    searchContainer: {
-        position: "relative",
-        display: "inline-block",
-    },
-    searchBox: {
-        width: "220px",
-        height: "36px",
-        padding: "0 35px 0 10px",
-        border: "1px solid #ccc",
-        borderRadius: "4px",
-        outline: "none",
-    },
-    searchIcon: {
-        position: "absolute",
-        right: "10px",
-        top: "50%",
-        transform: "translateY(-50%)",
-        color: "#3b23a8",
-        fontSize: "14px",
-        pointerEvents: "none",
-    },
-    editBtn: {
-        background: "linear-gradient(to right,#8e44ad,#3f51b5)",
-        color: "#fff",
-        border: "none",
-        padding: "5px 10px",
-        borderRadius: "4px",
-        marginRight: "5px",
-        cursor: "pointer",
-    },
-    loginBtn: {
-        background: "#1976d2",
-        color: "#fff",
-        border: "none",
-        padding: "5px 10px",
-        borderRadius: "4px",
-        marginLeft: "5px",
-        cursor: "pointer",
-        marginTop: "5px"
-    },
-    deleteBtn: {
-        background: "#e53935",
-        color: "#fff",
-        border: "none",
-        padding: "5px 12px",
-        borderRadius: "4px",
-        cursor: "pointer",
-    },
-    userHeader: {
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "10px 14px",
-        borderBottom: "1px solid #f0f0f0",
-        fontWeight: "600",
-        fontSize: "16px",
-    },
-    leftHeader: {
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-    },
-    addUserBtn: {
-        background: "#0c9e30",
-        color: "#ecf1f1",
-        border: "none",
-        padding: "8px 14px",
-        borderRadius: "4px",
-        cursor: "pointer",
-        fontWeight: "600",
-    },
-    paginationContainer: {
-        display: "flex",
-        justifyContent: "flex-end",
-        gap: "5px",
-        padding: "8px",
-        marginTop: 10
-    },
-    pageBtn: {
-        padding: "4px 10px",
-        border: "1px solid lightgray",
-        cursor: "pointer",
-        color: "black"
-    },
-    errorInput: {
-        border: "1px solid red",
-    },
-    errorText: {
-        color: "red",
-        fontSize: "12px",
-        marginTop: "4px",
-    },
-};
+        <div className="users-summary">
+          <article><strong>{users.length}</strong><span>Total Users</span></article>
+          <article><strong>{new Set(users.map((user) => user.role)).size}</strong><span>Assigned Roles</span></article>
+        </div>
 
+        <div className="users-table-controls">
+          <label className="users-show-control">
+            <span>Show</span>
+            <select value={usersPerPage} onChange={(event) => { setUsersPerPage(Number(event.target.value)); setCurrentPage(1); }}>
+              <option value={10}>10</option><option value={25}>25</option><option value={50}>50</option><option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </label>
+          <label className="users-search-control">
+            <FaSearch />
+            <input value={search} onChange={(event) => { setSearch(event.target.value); setCurrentPage(1); }} placeholder="Search users..." />
+          </label>
+        </div>
+
+        <div className="users-table-wrap">
+          <table className="users-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Mobile</th><th className="users-action-column">Action</th></tr></thead>
+            <tbody>
+              {currentUsers.length ? currentUsers.map((user) => (
+                <tr key={user.id}>
+                  <td><button className="users-name-button" type="button" onClick={() => setSelectedUser(user)}>{user.userName}</button></td>
+                  <td>{user.email}</td><td>{user.role}</td><td>{user.mobile}</td>
+                  <td className="users-action-column">
+                    <div className="users-row-actions">
+                      <div>
+                        <button className="users-edit-btn" type="button" onClick={() => openEditForm(user)} title="Edit user"><FaEdit /> Edit</button>
+                        <button className="users-delete-btn" type="button" onClick={() => handleDelete(user.id)} title="Delete user"><FaTrash /> Delete</button>
+                      </div>
+                      <button
+                        className="users-login-details-btn"
+                        type="button"
+                        onClick={() => window.alert(`Login details sent to ${user.email}`)}
+                      >
+                        <FaEnvelope /> Send Login Details
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )) : <tr><td className="users-empty" colSpan="5">No users found.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="users-pagination-bar">
+          <p>Showing {firstEntry} to {lastEntry} of {filteredUsers.length} entries</p>
+          <div>
+            <button type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)}><FaArrowLeft /> Prev</button>
+            <span>{currentPage}</span>
+            <button type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Next <FaArrowRight /></button>
+          </div>
+        </div>
+      </section>
+
+      {showForm && (
+        <div className="users-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && closeForm()}>
+          <section className="users-modal users-form-modal" role="dialog" aria-modal="true" aria-labelledby="users-form-title">
+            <header className="users-modal-header">
+              <div className="users-title"><span className="users-heading-icon"><FaUser /></span><h3 id="users-form-title">{editingId !== null ? "Edit User" : "Add New User"}</h3></div>
+              <button className="users-modal-close" type="button" onClick={closeForm} aria-label="Close"><FaTimes /></button>
+            </header>
+
+            <form className="users-form-grid" onSubmit={handleSubmit}>
+              <label className="users-field"><span>Role <b className="users-required">*</b></span><select name="role" value={formData.role} onChange={handleChange}><option value="">Select role</option><option>Admin</option><option>Principal</option><option>Teacher</option><option>Student</option><option>Parent</option></select><small>{errors.role}</small></label>
+              <label className="users-field"><span>User Name <b className="users-required">*</b></span><input name="userName" value={formData.userName} onChange={handleChange} placeholder="Enter user name" /><small>{errors.userName}</small></label>
+              <label className="users-field"><span>Password <b className="users-required">*</b></span><input name="password" type="password" value={formData.password} onChange={handleChange} placeholder="Enter password" /><small>{errors.password}</small></label>
+              <label className="users-field"><span>Email <b className="users-required">*</b></span><input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="Enter email" /><small>{errors.email}</small></label>
+              <label className="users-field"><span>Mobile No. <b className="users-required">*</b></span><input name="mobile" value={formData.mobile} onChange={handleChange} placeholder="10-digit mobile number" maxLength="10" /><small>{errors.mobile}</small></label>
+              <label className="users-field"><span>Alternate Mobile</span><input name="altMobile" value={formData.altMobile} onChange={handleChange} placeholder="Alternate mobile" /></label>
+              <label className="users-field"><span>Alternate Email</span><input name="altEmail" type="email" value={formData.altEmail} onChange={handleChange} placeholder="Alternate email" /></label>
+              <label className="users-field"><span>Address</span><textarea name="address" value={formData.address} onChange={handleChange} placeholder="Enter address" /></label>
+              <label className="users-checkbox-field"><input name="isActive" type="checkbox" checked={formData.isActive} onChange={handleChange} /><span>Is Active?</span></label>
+
+              <div className="users-form-actions">
+                <button className="users-save-button" type="submit"><FaSave /> {editingId !== null ? "Update User" : "Save User"}</button>
+                <button className="users-clear-button" type="button" onClick={() => { setFormData(emptyForm); setErrors({}); }}><FaEraser /> Clear</button>
+                <button className="users-cancel-button" type="button" onClick={closeForm}><FaTimes /> Cancel</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {selectedUser && (
+        <div className="users-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSelectedUser(null)}>
+          <section className="users-modal users-profile-modal" role="dialog" aria-modal="true" aria-labelledby="user-profile-title">
+            <header className="users-profile-header">
+              <span className="users-profile-avatar"><FaUser /></span>
+              <div><h3 id="user-profile-title">{selectedUser.userName}</h3><p>{selectedUser.role}</p></div>
+              <button className="users-modal-close" type="button" onClick={() => setSelectedUser(null)} aria-label="Close"><FaTimes /></button>
+            </header>
+            <div className="users-profile-grid">
+              <div><span>Email</span><strong>{selectedUser.email}</strong></div>
+              <div><span>Mobile</span><strong>{selectedUser.mobile}</strong></div>
+              <div><span>Alternate Email</span><strong>{selectedUser.altEmail || "—"}</strong></div>
+              <div><span>Alternate Mobile</span><strong>{selectedUser.altMobile || "—"}</strong></div>
+              <div className="users-profile-wide"><span>Address</span><strong>{selectedUser.address || "—"}</strong></div>
+              <div><span>Status</span><strong className={selectedUser.isActive ? "users-profile-active" : "users-profile-inactive"}>{selectedUser.isActive ? "Active" : "Inactive"}</strong></div>
+            </div>
+            <footer className="users-profile-footer">
+              <button className="users-edit-btn" type="button" onClick={() => { setSelectedUser(null); openEditForm(selectedUser); }}><FaEdit /> Edit User</button>
+              <button className="users-close-button" type="button" onClick={() => setSelectedUser(null)}>Close</button>
+            </footer>
+          </section>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default Users;

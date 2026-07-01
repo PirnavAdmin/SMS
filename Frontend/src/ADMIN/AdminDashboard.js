@@ -19,11 +19,29 @@ import HostelBlocks from './Configuration/Hostel Blocks/HostelBlocks';
 import HostelRooms from './Configuration/Hostel Rooms/HostelRooms';
 import BusTimings from './Configuration/Bus Timings/BusTiming';
 import BusStopNames from "./Configuration/Bus stop Names/BusStopNames";
+import StudentInfo from './Student Management/Student Info/StudentInfo';
+import Student360 from './Student Management/Student 360/Student360';
+import DetainedStudentsList from './Student Management/Detained Students List/DetainedStudentsList';
+import AssignCounsellor from './Student Management/Assign Counsellor/AssignCounsellor';
+import ParentOtpVerification from './Student Management/Parent OTP Verification/ParentOtpVerification';
+import CounsellingDetails from './Student Management/Counselling Details/CounsellingDetails';
+import DetaineeStudents from './Student Management/Detainee Students/DetaineeStudents';
+
+const getStorage = () => {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+};
 
 const navigationItems = [
   { name: 'Dashboard', key: 'Dashboard', badge: '04' },
   { name: 'Admissions', key: 'Admissions', badge: '12' },
-  { name: 'Student Management', key: 'Student Management', badge: '128' },
+  {
+    name: 'Student Management', key: 'Student Management', badge: '128', isDropdown: true,
+    subItems: ['Student Info', 'Student 360', 'Detained Students List', 'Assign Counsellor', 'Parent OTP Verification', 'Counselling Details', 'Detainee Students']
+  },
   { name: 'Faculty Management', key: 'Faculty Management', badge: '18' },
   { name: 'Attendance', key: 'Attendance', badge: '09' },
   { name: 'Fee', key: 'Fee', badge: '07' },
@@ -64,21 +82,52 @@ function AdminDashboard() {
   const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [configExpanded, setConfigExpanded] = useState(false);
+  const [studentExpanded, setStudentExpanded] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notifications] = useState([]);
   const [isDarkMode, setIsDarkMode] = useState(
-    () => localStorage.getItem('admin-theme') === 'dark'
+    () => getStorage()?.getItem('admin-theme') === 'dark'
   );
 
   useEffect(() => {
-    localStorage.setItem('admin-theme', isDarkMode ? 'dark' : 'light');
+    getStorage()?.setItem('admin-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
   const handleNavClick = (item) => {
-    if (item.isDropdown) {
+    if (item.key === 'Student Management') {
+      setStudentExpanded((current) => !current);
+      setActiveTab('Student Management');
+    } else if (item.isDropdown) {
       setConfigExpanded(!configExpanded);
     } else {
       setActiveTab(item.key);
+    }
+  };
+
+  const handleInvalidField = (event) => {
+    event.preventDefault();
+    const field = event.target;
+    field.classList.add('configuration-invalid');
+    field.setAttribute('aria-invalid', 'true');
+    const label = field.closest('label');
+    if (label) {
+      label.classList.add('configuration-validation-field');
+      label.dataset.validationMessage = field.validity?.valueMissing
+        ? 'This field is required'
+        : 'Please enter a valid value';
+    }
+  };
+
+  const clearInvalidField = (event) => {
+    const field = event.target;
+    if (field.validity?.valid) {
+      field.classList.remove('configuration-invalid');
+      field.removeAttribute('aria-invalid');
+      const label = field.closest('label');
+      if (label) {
+        label.classList.remove('configuration-validation-field');
+        delete label.dataset.validationMessage;
+      }
     }
   };
 const configComponents = {
@@ -87,8 +136,22 @@ const configComponents = {
   "Bus stop Names": BusStopNames,
   "Bus Timings": BusTimings,
 };
+const studentComponents = {
+  'Student Info': StudentInfo,
+  'Student 360': Student360,
+  'Detained Students List': DetainedStudentsList,
+  'Assign Counsellor': AssignCounsellor,
+  'Parent OTP Verification': ParentOtpVerification,
+  'Counselling Details': CounsellingDetails,
+  'Detainee Students': DetaineeStudents,
+};
 
   const renderActiveView = () => {
+    if (activeTab.startsWith('Student:')) {
+      const component = studentComponents[activeTab.substring(8)];
+      return component ? React.createElement(component) : <StudentManagement />;
+    }
+
     if (activeTab.startsWith('Config:')) {
       const category = activeTab.substring(7);
       const component = configComponents[category];
@@ -143,7 +206,9 @@ const configComponents = {
         <nav className="nav-list" aria-label="Admin menu">
           {navigationItems.map((item) => {
             const isConfigActive = activeTab.startsWith('Config:') && item.key === 'Configuration';
-            const isActive = activeTab === item.key || isConfigActive;
+            const isStudentActive = activeTab.startsWith('Student:') && item.key === 'Student Management';
+            const isActive = activeTab === item.key || isConfigActive || isStudentActive;
+            const isExpanded = item.key === 'Student Management' ? studentExpanded : configExpanded;
             return (
               <div key={item.key} className="nav-group">
                 <button
@@ -153,20 +218,21 @@ const configComponents = {
                 >
                   <span>{item.name}</span>
                   <span className="nav-badge">
-                    {item.isDropdown && configExpanded ? '▲' : item.badge}
+                    {item.isDropdown && isExpanded ? '▲' : item.badge}
                   </span>
                 </button>
                 
-                {item.isDropdown && configExpanded && (
+                {item.isDropdown && isExpanded && (
                   <div className="nav-submenu">
                     {item.subItems.map((sub) => {
-                      const isSubActive = activeTab === `Config:${sub}`;
+                      const prefix = item.key === 'Student Management' ? 'Student:' : 'Config:';
+                      const isSubActive = activeTab === `${prefix}${sub}`;
                       return (
                         <button
                           key={sub}
                           type="button"
                           className={`nav-subitem${isSubActive ? ' active' : ''}`}
-                          onClick={() => setActiveTab(`Config:${sub}`)}
+                          onClick={() => setActiveTab(`${prefix}${sub}`)}
                         >
                           {sub}
                         </button>
@@ -184,7 +250,7 @@ const configComponents = {
       <main className="dashboard-main">
         <header className="top-tab-bar">
           <div className="tab-title">
-            <h2>{activeTab.startsWith('Config:') ? activeTab.substring(7) : activeTab}</h2>
+            <h2>{activeTab.includes(':') ? activeTab.substring(activeTab.indexOf(':') + 1) : activeTab}</h2>
           </div>
           <div className="tab-actions">
             <div className="top-search-box">
@@ -263,7 +329,12 @@ const configComponents = {
             </div>
           </div>
         </header>
-        <div className="dashboard-content">
+        <div
+          className="dashboard-content"
+          onInvalidCapture={handleInvalidField}
+          onInputCapture={clearInvalidField}
+          onChangeCapture={clearInvalidField}
+        >
           {renderActiveView()}
         </div>
       </main>

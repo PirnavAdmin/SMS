@@ -19,7 +19,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
 
       <form className="bank-form" onSubmit={onSubmit}>
         <label className="bank-field">
-          <span>Bank Name *</span>
+          <span>Bank Name <b className="bank-required">*</b></span>
           <input
             name="bankName"
             value={formData.bankName}
@@ -30,7 +30,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
         </label>
 
         <label className="bank-field">
-          <span>Branch Name *</span>
+          <span>Branch Name <b className="bank-required">*</b></span>
           <input
             name="branchName"
             value={formData.branchName}
@@ -41,7 +41,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
         </label>
 
         <label className="bank-field">
-          <span>A/c Holder *</span>
+          <span>A/c Holder <b className="bank-required">*</b></span>
           <input
             name="accountHolder"
             value={formData.accountHolder}
@@ -52,7 +52,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
         </label>
 
         <label className="bank-field">
-          <span>A/c Number *</span>
+          <span>A/c Number <b className="bank-required">*</b></span>
           <input
             name="accountNumber"
             value={formData.accountNumber}
@@ -63,7 +63,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
         </label>
 
         <label className="bank-field">
-          <span>Institute Name *</span>
+          <span>Institute Name <b className="bank-required">*</b></span>
           <input
             name="instituteName"
             value={formData.instituteName}
@@ -74,7 +74,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
         </label>
 
         <label className="bank-field">
-          <span>IFSC Code *</span>
+          <span>IFSC Code <b className="bank-required">*</b></span>
           <input
             name="ifscCode"
             value={formData.ifscCode}
@@ -85,7 +85,7 @@ function BankForm({ formData, isEditing, onChange, onCancel, onSubmit }) {
         </label>
 
         <label className="bank-field">
-          <span>Fee Type *</span>
+          <span>Fee Type <b className="bank-required">*</b></span>
           <select
             name="feeType"
             value={formData.feeType}

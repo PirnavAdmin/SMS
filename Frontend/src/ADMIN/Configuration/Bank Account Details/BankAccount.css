@@ -90,6 +90,8 @@
   color:#11254a;
 }
 
+.bank-required{color:#e53935;font-size:15px;font-weight:900}
+
 .bank-field input,
 .bank-field select{
   width:100%;
