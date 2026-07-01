@@ -122,7 +122,17 @@ const readStoredUser = () => {
   }
 
   try {
-    return JSON.parse(value);
+    const storedUser = JSON.parse(value);
+    const role = ROLES.find(
+      (item) => item.id === storedUser?.role && item.email === storedUser?.email
+    );
+
+    if (!role) {
+      localStorage.removeItem(USER_KEY);
+      return null;
+    }
+
+    return storedUser;
   } catch {
     localStorage.removeItem(USER_KEY);
     return null;
@@ -139,7 +149,7 @@ export function AuthProvider({ children }) {
     if (!matchedRole || password !== matchedRole.password) {
       return {
         ok: false,
-        message: 'FakeAuth detected: the credentials do not match any registered SMS portal user.',
+        message: 'Invalid email or password.',
       };
     }
 

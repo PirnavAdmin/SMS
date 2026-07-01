@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './BookeFee.css';
 
 const academicYears = ['2024-2025', '2023-2024', '2022-2023'];
@@ -86,6 +86,7 @@ function BooksFeeIcon({ name }) {
         <path d="M4 5h16l-6 7v6l-4 2v-8z" />
       </>
     ),
+    search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
     chevronLeft: <path d="M15 18l-6-6 6-6" />,
     chevronRight: <path d="M9 6l6 6-6 6" />,
   };
@@ -128,6 +129,7 @@ function BookeFee() {
   const [editingId, setEditingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesCount, setEntriesCount] = useState('10');
+  const [currentPage, setCurrentPage] = useState(1);
 
   const filteredRows = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -148,7 +150,14 @@ function BookeFee() {
     );
   }, [rows, searchTerm]);
 
-  const visibleRows = filteredRows.slice(0, Number(entriesCount));
+  const entriesPerPage = Number(entriesCount);
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / entriesPerPage));
+  const startIndex = (currentPage - 1) * entriesPerPage;
+  const visibleRows = filteredRows.slice(startIndex, startIndex + entriesPerPage);
+  const firstEntry = filteredRows.length ? startIndex + 1 : 0;
+  const lastEntry = Math.min(startIndex + entriesPerPage, filteredRows.length);
+
+  useEffect(() => setCurrentPage((page) => Math.min(page, totalPages)), [totalPages]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -216,23 +225,13 @@ function BookeFee() {
 
   return (
     <div className="books-fee-page">
-      <header className="books-fee-page-head">
-        <h2>Books Fee</h2>
-        <nav aria-label="Breadcrumb">
-          <span>Dashboard</span>
-          <span>&gt;</span>
-          <span>Configuration</span>
-          <span>&gt;</span>
-          <strong>Books Fee</strong>
-        </nav>
-      </header>
-
       <section className="books-fee-card books-fee-form-card" aria-labelledby="books-fee-form-title">
+        <BooksFeeIllustration />
         <div className="books-fee-section-title">
           <span className="books-fee-title-icon">
             <BooksFeeIcon name="document" />
           </span>
-          <h3 id="books-fee-form-title">{editingId ? 'Update Books Fee' : 'Add New Books Fee'}</h3>
+          <h3 id="books-fee-form-title">Configuration / Books Fee</h3>
         </div>
 
         <div className="books-fee-form-layout">
@@ -307,7 +306,6 @@ function BookeFee() {
             </div>
           </form>
 
-          <BooksFeeIllustration />
         </div>
       </section>
 
@@ -322,7 +320,7 @@ function BookeFee() {
         <div className="books-fee-table-toolbar">
           <label className="books-fee-show">
             <span>Show</span>
-            <select value={entriesCount} onChange={(event) => setEntriesCount(event.target.value)}>
+            <select value={entriesCount} onChange={(event) => { setEntriesCount(event.target.value); setCurrentPage(1); }}>
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
@@ -338,13 +336,10 @@ function BookeFee() {
       type="search"
       placeholder="Search books fee..."
       value={searchTerm}
-      onChange={(event) => setSearchTerm(event.target.value)}
+      onChange={(event) => { setSearchTerm(event.target.value); setCurrentPage(1); }}
     />
   </div>
 
-            <button type="button" className="books-fee-filter" aria-label="Filter books fee">
-              <BooksFeeIcon name="filter" />
-            </button>
           </div>
         </div>
 
@@ -366,7 +361,7 @@ function BookeFee() {
               {visibleRows.length > 0 ? (
                 visibleRows.map((row, index) => (
                   <tr key={row.id}>
-                    <td>{index + 1}</td>
+                    <td>{startIndex + index + 1}</td>
                     <td>{row.academicYear}</td>
                     <td>{row.className}</td>
                     <td>{row.price}</td>
@@ -408,14 +403,14 @@ function BookeFee() {
 
         <div className="books-fee-table-footer">
           <span>
-            Showing 1 to {visibleRows.length} of {filteredRows.length} entries
+            Showing {firstEntry} to {lastEntry} of {filteredRows.length} entries
           </span>
           <div className="books-fee-pagination">
-            <button type="button" aria-label="Previous page">
+            <button type="button" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setCurrentPage((page) => page - 1)}>
               <BooksFeeIcon name="chevronLeft" />
             </button>
-            <button type="button" className="active">1</button>
-            <button type="button" aria-label="Next page">
+            <button type="button" className="active">{currentPage}</button>
+            <button type="button" aria-label="Next page" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((page) => page + 1)}>
               <BooksFeeIcon name="chevronRight" />
             </button>
           </div>
