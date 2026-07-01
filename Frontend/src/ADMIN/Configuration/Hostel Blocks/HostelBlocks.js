@@ -1,42 +1,15 @@
-<<<<<<< HEAD
-// import React, { useEffect, useMemo, useState } from 'react';
-// import './HostelBlocks.css';
+import React, { useEffect, useMemo, useState } from 'react';
+import './HostelBlocks.css';
 
-// const emptyForm = {
-//   blockId: '',
-//   name: '',
-//   floors: '',
-//   rooms: '',
-//   capacity: '',
-//   warden: '',
-//   active: true,
-// };
-
-
-// function HostelBlocks() {
-//   const [blocks, setBlocks] = useState([
-//     {
-//       id: "HB001",
-//       name: "Boys Hostel A",
-//       floors: 4,
-//       roomsPerFloor: 20,
-//       rooms: 80,
-//       bedsPerRoom: 4,
-//       capacity: 320,
-//       warden: "Mr. Kumar",
-//       status: "Active",
-//     },
-//     {
-//       id: "HB002",
-//       name: "Girls Hostel A",
-//       floors: 3,
-//       roomsPerFloor: 20,
-//       rooms: 60,
-//       bedsPerRoom: 4,
-//       capacity: 240,
-//       warden: "Mrs. Priya",
-//       status: "Active",
-//     },
+const emptyForm = {
+  blockId: '',
+  name: '',
+  floors: '',
+  rooms: '',
+  capacity: '',
+  warden: '',
+  active: true,
+};
 //   ]);
 
 //   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -288,27 +261,6 @@
 //   );
 
 // export default HostelBlocks;
-
-
-import React, { useEffect, useMemo, useState } from "react";
-import "./HostelBlocks.css";
-
-const emptyForm = { blockId: "", name: "", floors: "", rooms: "", capacity: "", warden: "", active: true };
-=======
-import React, { useEffect, useMemo, useState } from "react";
-import "./HostelBlocks.css";
-
-const emptyForm = {
-  blockId: "",
-  name: "",
-  floors: "",
-  rooms: "",
-  capacity: "",
-  warden: "",
-  active: true,
-};
-
->>>>>>> 76110ffdd0f08559b92a1416f9e25b0cd0633058
 const initialBlocks = [
   {
     id: 1,
