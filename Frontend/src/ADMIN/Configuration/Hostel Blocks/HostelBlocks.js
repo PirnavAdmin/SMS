@@ -95,14 +95,11 @@ function HostelBlocks() {
 
   const filteredBlocks = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) {
-      return blocks;
-    }
-
+    if (!query) return blocks;
     return blocks.filter((block) =>
       `${block.blockId} ${block.name} ${block.floors} ${block.rooms} ${block.capacity} ${block.warden} ${block.status}`
         .toLowerCase()
-        .includes(query)
+        .includes(query),
     );
   }, [blocks, search]);
 
@@ -113,16 +110,11 @@ function HostelBlocks() {
   const firstEntry = filteredBlocks.length ? startIndex + 1 : 0;
   const lastEntry = Math.min(startIndex + entriesPerPage, filteredBlocks.length);
 
-  useEffect(() => {
-    setCurrentPage((page) => Math.min(page, totalPages));
-  }, [totalPages]);
+  useEffect(() => setCurrentPage((p) => Math.min(p, totalPages)), [totalPages]);
 
-  const handleChange = (event) => {
-    const { name, value, checked, type } = event.target;
-    setFormData((current) => ({
-      ...current,
-      [name]: type === 'checkbox' ? checked : value,
-    }));
+  const handleChange = (e) => {
+    const { name, value, checked, type } = e.target;
+    setFormData((c) => ({ ...c, [name]: type === 'checkbox' ? checked : value }));
   };
 
   const resetForm = () => {
@@ -143,9 +135,7 @@ function HostelBlocks() {
     };
 
     if (editingId !== null) {
-      setBlocks((current) =>
-        current.map((block) => (block.id === editingId ? { ...block, ...values } : block))
-      );
+      setBlocks((current) => current.map((b) => (b.id === editingId ? { ...b, ...values } : b)));
     } else {
       setBlocks((current) => [...current, { id: Date.now(), ...values }]);
     }
@@ -154,23 +144,13 @@ function HostelBlocks() {
   };
 
   const handleEdit = (block) => {
-    setFormData({
-      blockId: block.blockId,
-      name: block.name,
-      floors: block.floors,
-      rooms: block.rooms,
-      capacity: block.capacity,
-      warden: block.warden,
-      active: block.status === 'Active',
-    });
+    setFormData({ blockId: block.blockId, name: block.name, floors: block.floors, rooms: block.rooms, capacity: block.capacity, warden: block.warden, active: block.status === 'Active' });
     setEditingId(block.id);
   };
 
   const handleDelete = (id) => {
-    setBlocks((current) => current.filter((block) => block.id !== id));
-    if (editingId === id) {
-      resetForm();
-    }
+    setBlocks((current) => current.filter((b) => b.id !== id));
+    if (editingId === id) resetForm();
   };
 
   return (
@@ -198,104 +178,47 @@ function HostelBlocks() {
         <form className="hb-form" onSubmit={handleSubmit}>
           <label className="hb-field">
             <span>Block ID <b className="hb-required">*</b></span>
-            <input
-              name="blockId"
-              value={formData.blockId}
-              onChange={handleChange}
-              placeholder="e.g., HB003"
-              required
-            />
+            <input name="blockId" value={formData.blockId} onChange={handleChange} placeholder="e.g., HB003" required />
           </label>
           <label className="hb-field">
             <span>Block Name <b className="hb-required">*</b></span>
-            <input
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter Block Name"
-              required
-            />
+            <input name="name" value={formData.name} onChange={handleChange} placeholder="Enter Block Name" required />
           </label>
           <label className="hb-field">
             <span>Number of Floors <b className="hb-required">*</b></span>
-            <input
-              type="number"
-              min="1"
-              name="floors"
-              value={formData.floors}
-              onChange={handleChange}
-              placeholder="Enter Floors"
-              required
-            />
+            <input type="number" min="1" name="floors" value={formData.floors} onChange={handleChange} placeholder="Enter Floors" required />
           </label>
           <label className="hb-field">
             <span>Number of Rooms <b className="hb-required">*</b></span>
-            <input
-              type="number"
-              min="1"
-              name="rooms"
-              value={formData.rooms}
-              onChange={handleChange}
-              placeholder="Enter Rooms"
-              required
-            />
+            <input type="number" min="1" name="rooms" value={formData.rooms} onChange={handleChange} placeholder="Enter Rooms" required />
           </label>
           <label className="hb-field">
             <span>Total Capacity <b className="hb-required">*</b></span>
-            <input
-              type="number"
-              min="1"
-              name="capacity"
-              value={formData.capacity}
-              onChange={handleChange}
-              placeholder="Enter Capacity"
-              required
-            />
+            <input type="number" min="1" name="capacity" value={formData.capacity} onChange={handleChange} placeholder="Enter Capacity" required />
           </label>
           <label className="hb-field">
             <span>Warden Name <b className="hb-required">*</b></span>
-            <input
-              name="warden"
-              value={formData.warden}
-              onChange={handleChange}
-              placeholder="Enter Warden Name"
-              required
-            />
+            <input name="warden" value={formData.warden} onChange={handleChange} placeholder="Enter Warden Name" required />
           </label>
           <label className="hb-checkbox-field">
             <input type="checkbox" name="active" checked={formData.active} onChange={handleChange} />
             <span>Is Active?</span>
           </label>
           <div className="hb-form-actions">
-            <button className="hb-save-button" type="submit">
-              <HostelIcon type="save" />
-              {editingId !== null ? 'Update Block' : 'Save Block'}
-            </button>
-            <button className="hb-clear-button" type="button" onClick={resetForm}>
-              <HostelIcon type="clear" />
-              Clear
-            </button>
+            <button className="hb-save-button" type="submit"><HostelIcon type="save" />{editingId !== null ? 'Update Block' : 'Save Block'}</button>
+            <button className="hb-clear-button" type="button" onClick={resetForm}><HostelIcon type="clear" />Clear</button>
           </div>
         </form>
       </section>
 
       <section className="hb-card hb-details-card">
         <div className="hb-section-title">
-          <span className="hb-heading-icon">
-            <HostelIcon type="rooms" />
-          </span>
+          <span className="hb-heading-icon"><HostelIcon type="rooms" /></span>
           <h3>Hostel Block Details</h3>
         </div>
         <div className="hb-table-tools">
-          <label className="hb-show-control">
-            Show
-            <select
-              value={entries}
-              onChange={(event) => {
-                setEntries(event.target.value);
-                setCurrentPage(1);
-              }}
-            >
+          <label className="hb-show-control">Show
+            <select value={entries} onChange={(e) => { setEntries(e.target.value); setCurrentPage(1); }}>
               <option value="10">10</option>
               <option value="25">25</option>
               <option value="50">50</option>
@@ -303,15 +226,8 @@ function HostelBlocks() {
             </select>
             entries
           </label>
-          <label className="hb-search-control">
-            Search:
-            <input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setCurrentPage(1);
-              }}
-            />
+          <label className="hb-search-control">Search:
+            <input value={search} onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }} />
           </label>
         </div>
         <div className="hb-table-wrap">
@@ -329,68 +245,34 @@ function HostelBlocks() {
               </tr>
             </thead>
             <tbody>
-              {visibleBlocks.length ? (
-                visibleBlocks.map((block) => (
-                  <tr key={block.id}>
-                    <td>{block.blockId}</td>
-                    <td>{block.name}</td>
-                    <td>{block.floors}</td>
-                    <td>{block.rooms}</td>
-                    <td>{block.capacity}</td>
-                    <td>{block.warden}</td>
-                    <td>
-                      <span className={block.status === 'Active' ? 'hb-status-active' : 'hb-status-inactive'}>
-                        {block.status}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="hb-action-buttons">
-                        <button className="hb-edit-button" type="button" onClick={() => handleEdit(block)}>
-                          <HostelIcon type="edit" />
-                          Edit
-                        </button>
-                        <button className="hb-delete-button" type="button" onClick={() => handleDelete(block.id)}>
-                          <HostelIcon type="delete" />
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td className="hb-empty" colSpan="8">
-                    No hostel blocks found.
+              {visibleBlocks.length ? visibleBlocks.map((block) => (
+                <tr key={block.id}>
+                  <td>{block.blockId}</td>
+                  <td>{block.name}</td>
+                  <td>{block.floors}</td>
+                  <td>{block.rooms}</td>
+                  <td>{block.capacity}</td>
+                  <td>{block.warden}</td>
+                  <td><span className={block.status === 'Active' ? 'hb-status-active' : 'hb-status-inactive'}>{block.status}</span></td>
+                  <td>
+                    <div className="hb-action-buttons">
+                      <button className="hb-edit-button" type="button" onClick={() => handleEdit(block)}><HostelIcon type="edit" />Edit</button>
+                      <button className="hb-delete-button" type="button" onClick={() => handleDelete(block.id)}><HostelIcon type="delete" />Delete</button>
+                    </div>
                   </td>
                 </tr>
+              )) : (
+                <tr><td className="hb-empty" colSpan="8">No hostel blocks found.</td></tr>
               )}
             </tbody>
           </table>
         </div>
         <div className="hb-pagination-bar">
-          <p>
-            Showing {firstEntry} to {lastEntry} of {filteredBlocks.length} entries
-          </p>
+          <p>Showing {firstEntry} to {lastEntry} of {filteredBlocks.length} entries</p>
           <div className="hb-pagination-actions">
-            <button
-              className="hb-page-button"
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((page) => page - 1)}
-            >
-              Prev
-            </button>
-            <button className="hb-page-button hb-page-current" type="button">
-              {currentPage}
-            </button>
-            <button
-              className="hb-page-button"
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((page) => page + 1)}
-            >
-              Next
-            </button>
+            <button className="hb-page-button" type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
+            <button className="hb-page-button hb-page-current" type="button">{currentPage}</button>
+            <button className="hb-page-button" type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
           </div>
         </div>
       </section>

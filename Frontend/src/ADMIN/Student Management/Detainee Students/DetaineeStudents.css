@@ -1,4 +1,39 @@
-@import '../StudentManagementPage.css';
+.detainee-students-page {
+  width: 100%;
+  min-height: 520px;
+  padding: 22px 24px;
+  border: 1px solid rgba(154, 140, 255, .28);
+  border-radius: 8px;
+  color: #202a52;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(92, 105, 190, .13);
+}
+
+.detainee-students-page .student-management-page__eyebrow {
+  margin: 0 0 6px;
+  color: #7b5cff;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.detainee-students-page > h2 {
+  margin: 0;
+  color: #202a52;
+  font-size: 20px;
+}
+
+.detainee-students-page .student-management-page__empty {
+  display: grid;
+  min-height: 130px;
+  margin-top: 16px;
+  place-items: center;
+  border: 1px dashed #d5cdf4;
+  border-radius: 8px;
+  color: #746d8a;
+  background: #faf9ff;
+}
 
 .detainee-students-page .detainee-actions-card {
   margin-top: 1.5rem;
@@ -102,10 +137,18 @@
 }
 
 .detainee-table th {
-  background: #faf8ff;
-  color: #5b4c8a;
+  color: #fff;
+  background: transparent;
   font-weight: 700;
 }
+
+.detainee-table thead {
+  color: #fff;
+  background: linear-gradient(90deg, #c333d8, #2678ec);
+}
+
+.detainee-table tbody tr:nth-child(even) { background: #fbfcff; }
+.detainee-table tbody tr:hover { background: #f4f1ff; }
 
 .table-action-button {
   margin-right: 0.5rem;

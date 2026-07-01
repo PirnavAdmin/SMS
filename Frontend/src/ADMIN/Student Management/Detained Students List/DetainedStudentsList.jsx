@@ -1,4 +1,35 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
+import { ListChecks, Search } from 'lucide-react';
 import './DetainedStudentsList.css';
-const DetainedStudentsList = () => <section className="student-management-page"><p className="student-management-page__eyebrow">Student Management</p><h2>Detained Students List</h2><div className="student-management-page__empty">Detained students list content goes here.</div></section>;
+
+const records = [
+  { id: 'STD-103', name: 'Kabir Sen', className: '11-A', reason: 'Attendance below requirement', date: '25 Jun 2026', status: 'Under Review' },
+  { id: 'STD-108', name: 'Riya Das', className: '9-C', reason: 'Academic performance review', date: '22 Jun 2026', status: 'Detained' },
+  { id: 'STD-112', name: 'Nikhil Roy', className: '10-B', reason: 'Disciplinary committee decision', date: '18 Jun 2026', status: 'Detained' },
+];
+
+function DetainedStudentsList() {
+  const [search, setSearch] = useState('');
+  const visible = useMemo(() => records.filter((record) =>
+    `${record.id} ${record.name} ${record.reason}`.toLowerCase().includes(search.toLowerCase())
+  ), [search]);
+
+  return (
+    <div className="detained-list-page">
+      <section className="detained-list-card">
+        <div className="detained-list-title"><span><ListChecks /></span><h3>Detained Students List</h3></div>
+        <div className="detained-list-tools">
+          <label>Show<select defaultValue="10"><option>10</option><option>25</option><option>50</option></select>entries</label>
+          <label><Search /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." /></label>
+        </div>
+        <div className="detained-list-wrap"><table><thead><tr><th>Admission No</th><th>Student Name</th><th>Class</th><th>Reason</th><th>Detained Date</th><th>Status</th></tr></thead><tbody>
+          {visible.map((record) => <tr key={record.id}><td>{record.id}</td><td>{record.name}</td><td>{record.className}</td><td>{record.reason}</td><td>{record.date}</td><td><span className={record.status === 'Detained' ? 'detained' : 'review'}>{record.status}</span></td></tr>)}
+          {!visible.length && <tr><td colSpan="6" className="detained-list-empty">No detained students found.</td></tr>}
+        </tbody></table></div>
+        <p>Showing {visible.length} of {records.length} entries</p>
+      </section>
+    </div>
+  );
+}
+
 export default DetainedStudentsList;
