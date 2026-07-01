@@ -2,7 +2,7 @@ import React from 'react';
 import AcademicYear from './Academic Year/AcademicYear';
 import BankAccount from './Bank Account Details';
 import BookeFee from './Books Fee/BookeFee';
-import Class from './Class/Class';
+import ClassComp from './Class/Class';
 import FeeMaster from './Fee Master/FeeMaster';
 import HolidayManagement from './Holiday/HolidayManagement';
 import Medium from './Medium/Medium';
@@ -19,17 +19,17 @@ const configurationComponents = {
   'Academic Year': AcademicYear,
   'Bank Account Details': BankAccount,
   'Books Fee': BookeFee,
-  Class,
+  Class: ClassComp,
   'Fee Master': FeeMaster,
   Holiday: HolidayManagement,
-  Medium,
-  Orientation,
-  Roles,
-  Section,
+  Medium: Medium,
+  Orientation: Orientation,
+  Roles: Roles,
+  Section: Section,
   'Syllabus types': SyllabusTypes,
   'Uniform Fee': UniformFee,
   'Uniform settings': UniformSetting,
-  Users,
+  Users: Users,
 };
 
 function ConfigSubViewer({ category }) {
