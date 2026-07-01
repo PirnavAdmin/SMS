@@ -8,3 +8,7 @@
   opacity: 1;
   font-weight: 400;
 }
+.required-star {
+  color: #ff0000 !important;
+  margin-left: 3px;
+}
