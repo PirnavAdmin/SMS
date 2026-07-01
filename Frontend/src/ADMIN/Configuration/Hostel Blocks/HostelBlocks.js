@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // import React, { useEffect, useMemo, useState } from 'react';
 // import './HostelBlocks.css';
 
@@ -293,26 +294,41 @@ import React, { useEffect, useMemo, useState } from "react";
 import "./HostelBlocks.css";
 
 const emptyForm = { blockId: "", name: "", floors: "", rooms: "", capacity: "", warden: "", active: true };
+=======
+import React, { useEffect, useMemo, useState } from "react";
+import "./HostelBlocks.css";
+
+const emptyForm = {
+  blockId: "",
+  name: "",
+  floors: "",
+  rooms: "",
+  capacity: "",
+  warden: "",
+  active: true,
+};
+
+>>>>>>> 76110ffdd0f08559b92a1416f9e25b0cd0633058
 const initialBlocks = [
   {
     id: 1,
-    blockId: 'HB001',
-    name: 'Boys Hostel A',
-    floors: '4',
-    rooms: '80',
-    capacity: '320',
-    warden: 'Mr. Kumar',
-    status: 'Active',
+    blockId: "HB001",
+    name: "Boys Hostel A",
+    floors: "4",
+    rooms: "80",
+    capacity: "320",
+    warden: "Mr. Kumar",
+    status: "Active",
   },
   {
     id: 2,
-    blockId: 'HB002',
-    name: 'Girls Hostel A',
-    floors: '3',
-    rooms: '60',
-    capacity: '240',
-    warden: 'Mrs. Priya',
-    status: 'Active',
+    blockId: "HB002",
+    name: "Girls Hostel A",
+    floors: "3",
+    rooms: "60",
+    capacity: "240",
+    warden: "Mrs. Priya",
+    status: "Active",
   },
 ];
 
@@ -371,8 +387,8 @@ function HostelBlocks() {
   const [formData, setFormData] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [blocks, setBlocks] = useState(initialBlocks);
-  const [search, setSearch] = useState('');
-  const [entries, setEntries] = useState('10');
+  const [search, setSearch] = useState("");
+  const [entries, setEntries] = useState("10");
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredBlocks = useMemo(() => {
@@ -384,16 +400,25 @@ function HostelBlocks() {
     return blocks.filter((block) =>
       `${block.blockId} ${block.name} ${block.floors} ${block.rooms} ${block.capacity} ${block.warden} ${block.status}`
         .toLowerCase()
-        .includes(query)
+        .includes(query),
     );
   }, [blocks, search]);
 
   const entriesPerPage = Number(entries);
-  const totalPages = Math.max(1, Math.ceil(filteredBlocks.length / entriesPerPage));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredBlocks.length / entriesPerPage),
+  );
   const startIndex = (currentPage - 1) * entriesPerPage;
-  const visibleBlocks = filteredBlocks.slice(startIndex, startIndex + entriesPerPage);
+  const visibleBlocks = filteredBlocks.slice(
+    startIndex,
+    startIndex + entriesPerPage,
+  );
   const firstEntry = filteredBlocks.length ? startIndex + 1 : 0;
-  const lastEntry = Math.min(startIndex + entriesPerPage, filteredBlocks.length);
+  const lastEntry = Math.min(
+    startIndex + entriesPerPage,
+    filteredBlocks.length,
+  );
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -403,7 +428,7 @@ function HostelBlocks() {
     const { name, value, checked, type } = event.target;
     setFormData((current) => ({
       ...current,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === "checkbox" ? checked : value,
     }));
   };
 
@@ -421,12 +446,14 @@ function HostelBlocks() {
       rooms: formData.rooms,
       capacity: formData.capacity,
       warden: formData.warden.trim(),
-      status: formData.active ? 'Active' : 'Inactive',
+      status: formData.active ? "Active" : "Inactive",
     };
 
     if (editingId !== null) {
       setBlocks((current) =>
-        current.map((block) => (block.id === editingId ? { ...block, ...values } : block))
+        current.map((block) =>
+          block.id === editingId ? { ...block, ...values } : block,
+        ),
       );
     } else {
       setBlocks((current) => [...current, { id: Date.now(), ...values }]);
@@ -443,7 +470,7 @@ function HostelBlocks() {
       rooms: block.rooms,
       capacity: block.capacity,
       warden: block.warden,
-      active: block.status === 'Active',
+      active: block.status === "Active",
     });
     setEditingId(block.id);
   };
@@ -479,7 +506,9 @@ function HostelBlocks() {
         </div>
         <form className="hb-form" onSubmit={handleSubmit}>
           <label className="hb-field">
-            <span>Block ID <b className="hb-required">*</b></span>
+            <span>
+              Block ID <b className="hb-required">*</b>
+            </span>
             <input
               name="blockId"
               value={formData.blockId}
@@ -489,7 +518,9 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Block Name <b className="hb-required">*</b></span>
+            <span>
+              Block Name <b className="hb-required">*</b>
+            </span>
             <input
               name="name"
               value={formData.name}
@@ -499,7 +530,9 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Number of Floors <b className="hb-required">*</b></span>
+            <span>
+              Number of Floors <b className="hb-required">*</b>
+            </span>
             <input
               type="number"
               min="1"
@@ -511,7 +544,9 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Number of Rooms <b className="hb-required">*</b></span>
+            <span>
+              Number of Rooms <b className="hb-required">*</b>
+            </span>
             <input
               type="number"
               min="1"
@@ -523,7 +558,9 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Total Capacity <b className="hb-required">*</b></span>
+            <span>
+              Total Capacity <b className="hb-required">*</b>
+            </span>
             <input
               type="number"
               min="1"
@@ -535,7 +572,9 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-field">
-            <span>Warden Name <b className="hb-required">*</b></span>
+            <span>
+              Warden Name <b className="hb-required">*</b>
+            </span>
             <input
               name="warden"
               value={formData.warden}
@@ -545,15 +584,24 @@ function HostelBlocks() {
             />
           </label>
           <label className="hb-checkbox-field">
-            <input type="checkbox" name="active" checked={formData.active} onChange={handleChange} />
+            <input
+              type="checkbox"
+              name="active"
+              checked={formData.active}
+              onChange={handleChange}
+            />
             <span>Is Active?</span>
           </label>
           <div className="hb-form-actions">
             <button className="hb-save-button" type="submit">
               <HostelIcon type="save" />
-              {editingId !== null ? 'Update Block' : 'Save Block'}
+              {editingId !== null ? "Update Block" : "Save Block"}
             </button>
-            <button className="hb-clear-button" type="button" onClick={resetForm}>
+            <button
+              className="hb-clear-button"
+              type="button"
+              onClick={resetForm}
+            >
               <HostelIcon type="clear" />
               Clear
             </button>
@@ -621,17 +669,31 @@ function HostelBlocks() {
                     <td>{block.capacity}</td>
                     <td>{block.warden}</td>
                     <td>
-                      <span className={block.status === 'Active' ? 'hb-status-active' : 'hb-status-inactive'}>
+                      <span
+                        className={
+                          block.status === "Active"
+                            ? "hb-status-active"
+                            : "hb-status-inactive"
+                        }
+                      >
                         {block.status}
                       </span>
                     </td>
                     <td>
                       <div className="hb-action-buttons">
-                        <button className="hb-edit-button" type="button" onClick={() => handleEdit(block)}>
+                        <button
+                          className="hb-edit-button"
+                          type="button"
+                          onClick={() => handleEdit(block)}
+                        >
                           <HostelIcon type="edit" />
                           Edit
                         </button>
-                        <button className="hb-delete-button" type="button" onClick={() => handleDelete(block.id)}>
+                        <button
+                          className="hb-delete-button"
+                          type="button"
+                          onClick={() => handleDelete(block.id)}
+                        >
                           <HostelIcon type="delete" />
                           Delete
                         </button>
@@ -651,7 +713,8 @@ function HostelBlocks() {
         </div>
         <div className="hb-pagination-bar">
           <p>
-            Showing {firstEntry} to {lastEntry} of {filteredBlocks.length} entries
+            Showing {firstEntry} to {lastEntry} of {filteredBlocks.length}{" "}
+            entries
           </p>
           <div className="hb-pagination-actions">
             <button
