@@ -1,4 +1,126 @@
-import React,{useState}from'react';import{Save,Trash2,UserCheck}from'lucide-react';import'./AssignCounsellor.css';
-const starting=[{id:1,student:'Aarav Mehta',roll:'STD-101',className:'10-A',counsellor:'Ms. Kavitha Rao',date:'01 Jul 2026'},{id:2,student:'Isha Nair',roll:'STD-102',className:'10-B',counsellor:'Mr. Naveen Kumar',date:'28 Jun 2026'}];
-function AssignCounsellor(){const[rows,setRows]=useState(starting);const[form,setForm]=useState({student:'',counsellor:''});const save=e=>{e.preventDefault();if(!form.student||!form.counsellor)return;const[roll,student,className]=form.student.split('|');setRows(v=>[...v,{id:Date.now(),roll,student,className,counsellor:form.counsellor,date:'01 Jul 2026'}]);setForm({student:'',counsellor:''})};return <div className="assign-counsellor-page"><section className="assign-counsellor-card assign-counsellor-form-card"><div className="assign-counsellor-title"><span><UserCheck/></span><h3>Student Management / Assign Counsellor</h3></div><form onSubmit={save}><label>Student <b>*</b><select value={form.student} onChange={e=>setForm({...form,student:e.target.value})} required><option value="">Select Student</option><option value="STD-103|Kabir Sen|11-A">STD-103 - Kabir Sen</option><option value="STD-104|Meera Rao|12-A">STD-104 - Meera Rao</option></select></label><label>Counsellor <b>*</b><select value={form.counsellor} onChange={e=>setForm({...form,counsellor:e.target.value})} required><option value="">Select Counsellor</option><option>Ms. Kavitha Rao</option><option>Mr. Naveen Kumar</option><option>Ms. Asha Menon</option></select></label><div><button type="submit"><Save/>Assign Counsellor</button><button className="clear" type="button" onClick={()=>setForm({student:'',counsellor:''})}>Clear</button></div></form><div className="assign-counsellor-art" aria-hidden="true"><UserCheck/></div></section><section className="assign-counsellor-card"><div className="assign-counsellor-title"><span><UserCheck/></span><h3>Counsellor Assignments</h3></div><div className="assign-counsellor-table"><table><thead><tr><th>Admission No</th><th>Student</th><th>Class</th><th>Counsellor</th><th>Assigned Date</th><th>Action</th></tr></thead><tbody>{rows.map(r=><tr key={r.id}><td>{r.roll}</td><td>{r.student}</td><td>{r.className}</td><td>{r.counsellor}</td><td>{r.date}</td><td><button onClick={()=>setRows(v=>v.filter(x=>x.id!==r.id))}><Trash2/>Remove</button></td></tr>)}</tbody></table></div></section></div>}
+import React, { useState } from "react";
+import "./AssignCounsellor.css";
+
+function AssignCounsellor() {
+  const academicYears = ["2024-2025", "2025-2026"];
+
+  const classList = [
+    "LKG", "UKG", "1st Class", "2nd Class", "3rd Class",
+    "4th Class", "5th Class", "6th Class", "7th Class",
+    "8th Class", "9th Class", "10th Class"
+  ];
+
+  const sectionList = ["A", "B", "C"];
+
+  const [formData, setFormData] = useState({
+    academicYear: "2024-2025",
+    className: "",
+    section: "",
+  });
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleCancel = () => {
+    setFormData({
+      academicYear: "2024-2025",
+      className: "",
+      section: "",
+    });
+  };
+
+  return (
+    <div className="assignPage">
+      <div className="assignCard">
+        <div className="assignHeader">
+          <span className="assignIcon">☰</span>
+          <span>Student Details</span>
+        </div>
+
+        <div className="assignBody">
+          <div className="assignFormRow">
+            <div className="assignField">
+              <label>Academic</label>
+              <div className="assignInputGroup">
+                <span className="assignInputIcon">🎓</span>
+                <select
+                  name="academicYear"
+                  value={formData.academicYear}
+                  onChange={handleChange}
+                >
+                  {academicYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="assignField">
+              <label>Class</label>
+              <div className="assignInputGroup">
+                <span className="assignInputIcon">🎓</span>
+                <select
+                  name="className"
+                  value={formData.className}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Class --</option>
+                  {classList.map((cls) => (
+                    <option key={cls} value={cls}>
+                      {cls}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="assignField">
+              <label>Section</label>
+              <div className="assignInputGroup">
+                <span className="assignInputIcon">🎓</span>
+                <select
+                  name="section"
+                  value={formData.section}
+                  onChange={handleChange}
+                >
+                  <option value="">-- Section --</option>
+                  {sectionList.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="assignButtonRow">
+            <button className="getStudentBtn">✓ Get Student Data</button>
+            <button className="cancelBtn" onClick={handleCancel}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="assignCard">
+        <div className="assignHeader">
+          <span className="assignIcon">☑</span>
+          <span>Assign Students to Counsellor</span>
+        </div>
+
+        <div className="assignResultBody">
+          <p>There is no data to display</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default AssignCounsellor;

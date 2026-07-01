@@ -1,1 +1,158 @@
-.assign-counsellor-page{display:grid;gap:18px;width:100%;padding:2px;color:#202a52}.assign-counsellor-card{position:relative;overflow:hidden;padding:22px 24px;border:1px solid rgba(154,140,255,.28);border-radius:8px;background:#fff;box-shadow:0 14px 32px rgba(92,105,190,.13)}.assign-counsellor-form-card{min-height:250px}.assign-counsellor-title{position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:20px}.assign-counsellor-title span{display:grid;width:36px;height:36px;place-items:center;border-radius:50%;color:#7b5cff;background:#f1edff}.assign-counsellor-title svg{width:19px}.assign-counsellor-title h3{margin:0;font-size:18px}.assign-counsellor-form-card form{position:relative;z-index:1;display:grid;width:min(760px,calc(100% - 300px));grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.assign-counsellor-form-card label{display:grid;gap:7px;font-size:13px;font-weight:700}.assign-counsellor-form-card b{color:#e5485d}.assign-counsellor-form-card select{height:38px;border:1px solid #e2e5f3;border-radius:6px;padding:0 12px;background:#fff;outline:none;box-shadow:0 4px 12px rgba(91,103,168,.08)}.assign-counsellor-form-card form>div{grid-column:1/-1;display:flex;gap:12px}.assign-counsellor-form-card button,.assign-counsellor-table button{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:6px;padding:10px 15px;color:#fff;background:linear-gradient(135deg,#c333d8,#2678ec);font-weight:700;cursor:pointer}.assign-counsellor-form-card button svg,.assign-counsellor-table button svg{width:14px;height:14px}.assign-counsellor-form-card .clear{color:#746f8c;background:#fff;box-shadow:0 8px 16px rgba(91,103,168,.12)}.assign-counsellor-art{position:absolute;right:55px;top:42px;display:grid;width:150px;height:150px;place-items:center;border-radius:48% 52% 42% 58%;color:#7b5cff;background:linear-gradient(135deg,rgba(197,51,216,.16),rgba(68,226,202,.3))}.assign-counsellor-art svg{width:76px;height:76px}.assign-counsellor-table{overflow:auto;border:1px solid #eef1fb;border-radius:7px}.assign-counsellor-table table{width:100%;min-width:760px;border-collapse:collapse}.assign-counsellor-table thead{color:#fff;background:linear-gradient(90deg,#c333d8,#2678ec)}.assign-counsellor-table th,.assign-counsellor-table td{padding:12px 9px;border-bottom:1px solid #eef1fb;text-align:center;font-size:13px}.assign-counsellor-table tbody tr:nth-child(even){background:#fbfcff}.assign-counsellor-table tbody tr:hover{background:#f4f1ff}.assign-counsellor-table button{padding:7px 10px;background:linear-gradient(135deg,#ff4d6d,#f13755)}@media(max-width:900px){.assign-counsellor-art{display:none}.assign-counsellor-form-card form{width:100%}}@media(max-width:650px){.assign-counsellor-form-card form{grid-template-columns:1fr}.assign-counsellor-form-card form>div{grid-column:auto;flex-direction:column}}
+@import "../StudentManagementPage.css";
+
+* {
+  box-sizing: border-box;
+}
+
+.assignPage {
+  width: 100%;
+  min-height: 100vh;
+  background: #ffffff;
+  padding: 22px 14px;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.assignCard {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #cfd8e3;
+  margin-bottom: 18px;
+}
+
+.assignHeader {
+  height: 34px;
+  background: linear-gradient(to right, #7142c7, #0867b8);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 13px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.assignIcon {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.assignBody {
+  padding: 24px 8px 8px 8px;
+}
+
+.assignFormRow {
+  width: 72%;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr;
+  gap: 82px;
+  align-items: center;
+}
+
+.assignField {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assignField label {
+  color: #111111;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.assignInputGroup {
+  width: 100%;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  border: 1px solid #b8c2cc;
+  background: #ffffff;
+}
+
+.assignInputIcon {
+  width: 34px;
+  height: 32px;
+  background: #eeeeee;
+  border-right: 1px solid #b8c2cc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.assignInputGroup select {
+  width: 100%;
+  height: 32px;
+  border: none;
+  outline: none;
+  padding: 0 8px;
+  font-size: 14px;
+  background: #ffffff;
+  color: #333333;
+  cursor: pointer;
+}
+
+.assignButtonRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  margin-left: 38%;
+}
+
+.getStudentBtn,
+.cancelBtn {
+  height: 34px;
+  border: none;
+  border-radius: 2px;
+  padding: 0 16px;
+  color: #ffffff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.getStudentBtn {
+  background: #0d6efd;
+}
+
+.cancelBtn {
+  background: #6c757d;
+}
+
+.assignResultBody {
+  height: 70px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.assignResultBody p {
+  margin: 0;
+  color: red;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+select:focus,
+button:focus {
+  outline: none;
+}
+
+@media screen and (max-width: 1000px) {
+  .assignFormRow {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .assignField {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .assignButtonRow {
+    margin-left: 0;
+  }
+}
