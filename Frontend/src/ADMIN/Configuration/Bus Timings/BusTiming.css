@@ -12,3 +12,5 @@
   color: #ff0000 !important;
   margin-left: 3px;
 }
+/* Shared Configuration table theme */
+.bt-table thead,.bt-table thead tr{color:#fff!important;background:linear-gradient(90deg,#c333d8,#2678ec)!important}.bt-table thead th{border-color:transparent!important;color:#fff!important;background:transparent!important;font-size:13px;font-weight:800;letter-spacing:.02em}.bt-table tbody tr{border-bottom-color:#eef1fb!important}.bt-table tbody tr:nth-child(even),.bt-table tbody tr:nth-child(even)>td{background:#fbfcff!important}.bt-table tbody tr:hover,.bt-table tbody tr:hover>td{background:#f4f1ff!important}.bt-table tbody td{border-color:#eef1fb!important}.bt-table-wrap{scrollbar-color:#b7a8ff #f4f6ff}.theme-dark .bt-table tbody tr:nth-child(even),.theme-dark .bt-table tbody tr:nth-child(even)>td{background:#273149!important}.theme-dark .bt-table tbody tr:hover,.theme-dark .bt-table tbody tr:hover>td{background:#312d55!important}

@@ -1073,3 +1073,5 @@
     display: none;
   }
 }
+/* Shared Configuration table theme */
+.syllabus-table thead,.syllabus-table thead tr{color:#fff!important;background:linear-gradient(90deg,#c333d8,#2678ec)!important}.syllabus-table thead th{border-color:transparent!important;color:#fff!important;background:transparent!important;font-size:13px;font-weight:800;letter-spacing:.02em}.syllabus-table tbody tr{border-bottom-color:#eef1fb!important}.syllabus-table tbody tr:nth-child(even),.syllabus-table tbody tr:nth-child(even)>td{background:#fbfcff!important}.syllabus-table tbody tr:hover,.syllabus-table tbody tr:hover>td{background:#f4f1ff!important}.syllabus-table tbody td{border-color:#eef1fb!important}.syllabus-table-wrap{scrollbar-color:#b7a8ff #f4f6ff}.theme-dark .syllabus-table tbody tr:nth-child(even),.theme-dark .syllabus-table tbody tr:nth-child(even)>td{background:#273149!important}.theme-dark .syllabus-table tbody tr:hover,.theme-dark .syllabus-table tbody tr:hover>td{background:#312d55!important}
