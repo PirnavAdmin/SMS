@@ -251,23 +251,6 @@
 //                 <input type="text" name="warden" value={newBlock.warden} onChange={handleInputChange} placeholder="Enter warden name" required />
 //               </div>
               
-<<<<<<< HEAD
-              <div className="form-actions-end">
-                <button type="button" className="btn-secondary-icon" title="Cancel" onClick={() => setIsModalOpen(false)}>
-                  <X size={16} />
-                </button>
-                <button type="submit" className="btn-primary-icon" title="Save Block">
-                  <Save size={16} />
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-=======
 //               <div className="form-actions-end">
 //                 <button type="button" className="btn-secondary-icon" title="Cancel" onClick={() => setIsModalOpen(false)}>
 //                   <X size={16} />
@@ -282,11 +265,10 @@
 //       )}
 //     </div>
 //   );
->>>>>>> 75b375507e78de8a260fcc8a240557e3976b85b1
 
-export default HostelBlocks;
+// export default HostelBlocks;
 
-/*
+
 import React, { useEffect, useMemo, useState } from "react";
 import "./HostelBlocks.css";
 
@@ -364,4 +346,4 @@ export default function HostelBlocks() {
     </section>
   </div>;
 }
-*/
+
