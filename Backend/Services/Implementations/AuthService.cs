@@ -1,13 +1,16 @@
 namespace SMS.Api.Services.Implementations;
 
+using System;
+using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Net;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using SMS.Api.Dtos.Auth;
-using SMS.Api.Dtos.Otp;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
@@ -29,7 +32,7 @@ public class AuthService : IAuthService
         if (await _userRepository.ExistsAsync(dto.MobileNumber, dto.Email))
             throw new AppException("User with provided Email or Mobile Number already exists.", HttpStatusCode.Conflict);
 
-        var role = await _userRepository.GetRoleByIdAsync(dto.RoleId) 
+        var role = await _userRepository.GetRoleByIdAsync(dto.RoleId)
             ?? throw new AppException("Invalid Role ID specified.", HttpStatusCode.BadRequest);
 
         var user = new User
@@ -38,14 +41,14 @@ public class AuthService : IAuthService
             Email = dto.Email,
             MobileNumber = dto.MobileNumber,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            UserType = role.RoleName // Sets UserType based on chosen role
+            UserType = role.RoleName
         };
 
         user.Roles.Add(role);
         await _userRepository.AddAsync(user);
         await _userRepository.SaveChangesAsync();
 
-        var rolesList = user.Roles.Select(r => r.RoleName).ToList();
+        var rolesList = GetUserRolesList(user);
         var token = GenerateJwtToken(user, rolesList);
 
         return new AuthResponseDto(user.UserId, user.FullName, token, rolesList);
@@ -53,14 +56,33 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
     {
-        var user = await _userRepository.GetByIdentifierAsync(dto.Identifier);
+        var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone);
         if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
             throw new AppException("Invalid credentials.", HttpStatusCode.Unauthorized);
 
-        var rolesList = user.Roles.Select(r => r.RoleName).ToList();
+        var rolesList = GetUserRolesList(user);
         var token = GenerateJwtToken(user, rolesList);
 
         return new AuthResponseDto(user.UserId, user.FullName, token, rolesList);
+    }
+
+    private List<string> GetUserRolesList(User user)
+    {
+        var rolesList = new List<string>();
+
+        // 1. Check Roles collection
+        if (user.Roles != null && user.Roles.Any())
+        {
+            rolesList.AddRange(user.Roles.Select(r => r.RoleName));
+        }
+
+        // 2. Fallback to UserType property
+        if (!rolesList.Any() && !string.IsNullOrEmpty(user.UserType))
+        {
+            rolesList.Add(user.UserType);
+        }
+
+        return rolesList.Distinct().ToList();
     }
 
     private string GenerateJwtToken(User user, List<string> roles)
@@ -92,4 +114,3 @@ public class AuthService : IAuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
-

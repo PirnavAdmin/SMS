@@ -2,6 +2,7 @@ namespace SMS.Api.Services.Implementations;
 
 using System;
 using System.Net;
+using System.Net.Http;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
@@ -28,28 +29,25 @@ public class OtpService : IOtpService
 
     public async Task<SendOtpResponseDto> SendOtpAsync(SendOtpRequestDto dto)
     {
-        var user = await _userRepository.GetByIdentifierAsync(dto.Identifier)
+        // 1. Fetch user by email or mobile via sp_GetUserForLogin
+        var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone)
             ?? throw new Exception("User not found.");
 
-        // Generate 6-digit random plain OTP
+        // 2. Generate 6-digit plain OTP
         var rawOtpCode = new Random().Next(100000, 999999).ToString();
 
-        // Invalidate previous active OTPs
-        await _otpRepository.InvalidateExistingOtpsAsync(user.UserId, dto.Purpose);
-
-        // Save OTP using your exact model properties
+        // 3. Save OTP via sp_SaveOtp (handles invalidating older active OTPs automatically)
         await _otpRepository.SaveOtpAsync(new OtpVerification
         {
             UserId = user.UserId,
-            OtpCodeHash = BCrypt.Net.BCrypt.HashPassword(rawOtpCode), // Hashed for DB security
+            OtpCodeHash = BCrypt.Net.BCrypt.HashPassword(rawOtpCode),
             Purpose = dto.Purpose,
             DeliveryMethod = dto.DeliveryMethod,
             ExpiryTime = DateTime.UtcNow.AddMinutes(5),
             CreatedAt = DateTime.UtcNow
         });
-        await _otpRepository.SaveChangesAsync();
 
-        // Dispatch plain OTP to Email/SMS
+        // 4. Dispatch plain OTP code via Email or SMS
         if (dto.DeliveryMethod.Equals("Email", StringComparison.OrdinalIgnoreCase))
         {
             await SendEmailAsync(user.Email!, rawOtpCode);
@@ -68,31 +66,21 @@ public class OtpService : IOtpService
 
     public async Task<bool> VerifyOtpAsync(VerifyOtpRequestDto dto)
     {
+        // 1. Fetch latest active OTP record to compare hashed code via BCrypt
         var latestOtp = await _otpRepository.GetLatestActiveOtpAsync(dto.UserId, dto.Purpose);
 
-        if (latestOtp == null || latestOtp.IsUsed || latestOtp.ExpiryTime < DateTime.UtcNow)
+        if (latestOtp == null)
         {
             return false;
         }
 
-        // Verify plain OTP against the hashed value in DB
-        bool isValid = BCrypt.Net.BCrypt.Verify(dto.OtpCode, latestOtp.OtpCodeHash);
-
-        if (!isValid)
-        {
-            latestOtp.AttemptCount += 1;
-            await _otpRepository.SaveChangesAsync();
-            return false;
-        }
-
-        latestOtp.IsUsed = true;
-        await _otpRepository.SaveChangesAsync();
-        return true;
+        // 2. Delegate validation, expiry checks, and attempt counter to sp_ValidateOtp
+        return await _otpRepository.ValidateOtpAsync(dto.UserId, latestOtp.OtpCodeHash, dto.Purpose);
     }
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
     {
-        // Pass positional arguments: (UserId, OtpCode, Purpose)
+        // 1. Verify OTP eligibility
         var isVerified = await VerifyOtpAsync(new VerifyOtpRequestDto(
             dto.UserId,
             dto.OtpCode,
@@ -104,11 +92,10 @@ public class OtpService : IOtpService
             return false;
         }
 
-        var user = await _userRepository.GetByIdAsync(dto.UserId)
-            ?? throw new Exception("User not found.");
+        // 2. Hash new password and update directly via sp_ResetPassword
+        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        await _userRepository.UpdatePasswordAsync(dto.UserId, newPasswordHash);
 
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
-        await _userRepository.SaveChangesAsync();
         return true;
     }
 
@@ -129,7 +116,7 @@ public class OtpService : IOtpService
         var mailMessage = new MailMessage
         {
             From = new MailAddress(senderEmail!, "Pirnav School Management"),
-            Subject = $"{plainOtp} is your verification code", // Clear subject with code
+            Subject = $"{plainOtp} is your verification code",
             IsBodyHtml = true,
             Body = $@"
             <!DOCTYPE html>
@@ -164,7 +151,6 @@ public class OtpService : IOtpService
         {
             using var client = new HttpClient();
 
-            // Fast2SMS OTP Route URL
             var requestUrl = $"https://www.fast2sms.com/dev/bulkV2?authorization={apiKey}&route=otp&variables_values={plainOtp}&numbers={mobileNumber}";
 
             var response = await client.GetAsync(requestUrl);
