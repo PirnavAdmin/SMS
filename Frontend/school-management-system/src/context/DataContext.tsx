@@ -10,7 +10,7 @@ import {
   HostelMaster, StudentHostel, Refund, FinanceSettings, FeeStructureItem,
   RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, VehicleMaintenance,
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
-  RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig
+  RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -67,12 +67,6 @@ export interface StudentCalculationResult {
   paidAmount: number;
   dueBalance: number;
   paymentHistory: FeePayment[];
-  scholarshipId?: string;
-  scholarshipName?: string;
-  scholarshipDescription?: string;
-  discountId?: string;
-  discountName?: string;
-  discountDescription?: string;
 }
 
 export interface CapacityCheckResult {
@@ -221,6 +215,10 @@ interface DataContextType {
   updateStudentHostelAssignment: (id: string, updates: Partial<StudentHostelAssignment>) => void;
   deleteStudentHostelAssignment: (id: string) => void;
 
+  hostelVisitorLogs: HostelVisitorLog[];
+  addHostelVisitorLog: (vl: Omit<HostelVisitorLog, 'id'>) => void;
+  updateHostelVisitorLogStatus: (id: string, status: 'In' | 'Out', outTime?: string) => void;
+
   hostelAttendanceLogs: HostelAttendanceLog[];
   recordHostelAttendance: (att: Omit<HostelAttendanceLog, 'id'>) => void;
 
@@ -248,14 +246,11 @@ interface DataContextType {
 
   // STUDENT PERMANENT FEE LEDGER ENGINE
   studentFeeLedgers: StudentFeeLedger[];
-  generateStudentFeeLedger: (studentId: string, studentOverride?: Student) => StudentFeeLedger;
+  generateStudentFeeLedger: (studentId: string) => StudentFeeLedger;
   recalculateStudentFeeLedger: (studentId: string) => StudentFeeLedger;
   getStudentFeeLedger: (studentId: string) => StudentFeeLedger | null;
+
   calculateStudentPayableFee: (studentId: string) => StudentCalculationResult | null;
-  applyScholarshipToStudent: (studentId: string, scholarshipId: string) => StudentFeeLedger;
-  removeScholarshipFromStudent: (studentId: string) => StudentFeeLedger;
-  applyDiscountToStudent: (studentId: string, discountId: string) => StudentFeeLedger;
-  removeDiscountFromStudent: (studentId: string) => StudentFeeLedger;
 
   // TRANSPORT ERP MODULE ADDITIONS
   routeMasters: RouteMaster[];
@@ -395,6 +390,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [roomTypeMasters, setRoomTypeMasters] = useState<RoomTypeMaster[]>(() => getStored('room_type_masters', initialRoomTypeMasters));
   const [roomMasters, setRoomMasters] = useState<RoomMaster[]>(() => getStored('room_masters', initialRoomMasters));
   const [studentHostelAssignments, setStudentHostelAssignments] = useState<StudentHostelAssignment[]>(() => getStored('student_hostel_assignments', initialStudentHostelAssignments));
+  const [hostelVisitorLogs, setHostelVisitorLogs] = useState<HostelVisitorLog[]>(() => getStored('hostel_visitor_logs', initialHostelVisitorLogs));
   const [hostelAttendanceLogs, setHostelAttendanceLogs] = useState<HostelAttendanceLog[]>(() => getStored('hostel_attendance_logs', initialHostelAttendanceLogs));
 
   // Finance -> Hostel Pricing Configuration Master State
@@ -435,6 +431,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_room_type_masters', JSON.stringify(roomTypeMasters)); }, [roomTypeMasters]);
   useEffect(() => { localStorage.setItem('edu_db_room_masters', JSON.stringify(roomMasters)); }, [roomMasters]);
   useEffect(() => { localStorage.setItem('edu_db_student_hostel_assignments', JSON.stringify(studentHostelAssignments)); }, [studentHostelAssignments]);
+  useEffect(() => { localStorage.setItem('edu_db_hostel_visitor_logs', JSON.stringify(hostelVisitorLogs)); }, [hostelVisitorLogs]);
   useEffect(() => { localStorage.setItem('edu_db_hostel_attendance_logs', JSON.stringify(hostelAttendanceLogs)); }, [hostelAttendanceLogs]);
   useEffect(() => { localStorage.setItem('edu_db_finance_hostel_configs', JSON.stringify(financeHostelConfigs)); }, [financeHostelConfigs]);
   useEffect(() => { localStorage.setItem('edu_db_student_hostels', JSON.stringify(studentHostels)); }, [studentHostels]);
@@ -452,6 +449,63 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Finance Transport Config & Ledger Effects
   useEffect(() => { localStorage.setItem('edu_db_finance_transport_configs', JSON.stringify(financeTransportConfigs)); }, [financeTransportConfigs]);
   useEffect(() => { localStorage.setItem('edu_db_student_fee_ledgers', JSON.stringify(studentFeeLedgers)); }, [studentFeeLedgers]);
+
+  const fetchAdmissions = async () => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+    try {
+      const res = await fetch('/api/SchoolManagement/admissions', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      console.log('Admissions API response status:', res);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          const mappedAdmissions: AdmissionApplication[] = json.data.map((item: any) => ({
+            id: item.applicationId.toString(),
+            applicationNo: item.registrationNo,
+            registrationNo: item.registrationNo,
+            applicantName: item.applicantFullName,
+            appliedClass: item.appliedClass,
+            gender: item.gender,
+            dob: item.dob ? item.dob.split('T')[0] : '',
+            bloodGroup: item.bloodGroup,
+            religion: item.religion,
+            casteCategory: item.casteCategory,
+            parentName: item.fatherFullName,
+            motherName: item.motherFullName,
+            phone: item.fatherMobileNo,
+            email: '',
+            addressHouseNo: item.houseNo,
+            addressStreet: item.street,
+            addressArea: item.areaLocality,
+            addressCity: item.city,
+            addressDistrict: item.district,
+            addressState: item.state,
+            addressPinCode: item.pinCode,
+            siblingsCount: item.numberOfSiblings,
+            studentType: item.studentType,
+            transportRequired: item.transportRequired,
+            transportType: item.transportType,
+            busRoute: item.busRoute,
+            pickupPoint: item.pickupPoint,
+            dropPoint: item.dropPoint,
+            hostelBlock: item.hostelBlock,
+            hostelBed: item.allocatedBedId,
+            status: item.status,
+            applicationDate: item.createdAt,
+          }));
+          setAdmissions(mappedAdmissions);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching admissions', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmissions();
+  }, []);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
     const newLog: AuditLog = {
@@ -568,12 +622,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Admission CRUD
-  const addAdmission = (appData: Omit<AdmissionApplication, 'id' | 'applicationNo'>) => {
-    const id = 'APP-' + Math.floor(100 + Math.random() * 900);
-    const applicationNo = 'REG-' + Math.floor(1000 + Math.random() * 9000);
-    const newApp: AdmissionApplication = { ...appData, id, applicationNo };
-    setAdmissions(prev => [newApp, ...prev]);
-    logActivity('New Admission Application', `Received application from ${newApp.applicantName}`);
+  const addAdmission = async (appData: Omit<AdmissionApplication, 'id' | 'applicationNo'>) => {
+    const token = localStorage.getItem('auth_token');
+    try {
+      let isoDob = new Date().toISOString();
+      if (appData.dob) {
+        if (appData.dob.includes('/')) {
+          const parts = appData.dob.split('/');
+          if (parts.length === 3) {
+            const parsed = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
+            if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+          }
+        } else {
+          const parsed = new Date(appData.dob);
+          if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+        }
+      }
+
+      const payload = {
+        applicantFullName: appData.applicantName || "",
+        appliedClass: appData.appliedClass || "",
+        gender: appData.gender || "",
+        dob: isoDob,
+        bloodGroup: appData.bloodGroup || "O+",
+        religion: appData.religion || "General",
+        casteCategory: appData.casteCategory || "General",
+        fatherFullName: appData.parentName || "",
+        motherFullName: appData.motherName || "",
+        fatherMobileNo: appData.phone || "",
+        houseNo: appData.addressHouseNo || "",
+        street: appData.addressStreet || "",
+        areaLocality: appData.addressArea || "",
+        city: appData.addressCity || "",
+        district: appData.addressDistrict || "",
+        state: appData.addressState || "",
+        pinCode: appData.addressPinCode || "",
+        numberOfSiblings: appData.siblingsCount || 0,
+        siblingStudentId: "N/A",
+        studentType: appData.studentType || "Day Scholar",
+        transportRequired: !!appData.transportRequired,
+        transportType: appData.transportType || "N/A",
+        busRoute: appData.busRoute || "N/A",
+        pickupPoint: appData.pickupPoint || "N/A",
+        dropPoint: appData.dropPoint || "N/A",
+        hostelBlock: appData.hostelBlock || "N/A",
+        floorLevel: "N/A",
+        allocatedBedId: appData.hostelBed || "N/A"
+      };
+
+      const res = await fetch('/api/SchoolManagement/admissions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        logActivity('New Admission Application', `Received application from ${appData.applicantName}`);
+        fetchAdmissions();
+      } else {
+        console.error("Failed to add admission");
+      }
+    } catch (err) {
+      console.error('Error adding admission', err);
+    }
   };
 
   const updateAdmission = (id: string, updates: Partial<AdmissionApplication>) => {
@@ -586,136 +700,154 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('Deleted Admission Record', `Removed application ID ${id}`);
   };
 
-  const updateAdmissionStatus = (id: string, status: AdmissionApplication['status']) => {
+  const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
     const app = admissions.find(a => a.id === id);
+    if (!app) return;
 
-    if (status === 'Enrolled' && app) {
-      const addressParts = [
-        app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
-        app.addressStreet,
-        app.addressArea,
-        app.addressCity,
-        app.addressDistrict,
-        app.addressState,
-        app.addressPinCode ? `PIN: ${app.addressPinCode}` : ''
-      ].filter(Boolean);
-      const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Main Campus Area';
+    const registrationNo = (app as any).registrationNo || app.applicationNo;
+    const token = localStorage.getItem('auth_token');
 
-      const newStudent = addStudent({
-        admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
-        rollNo: '20' + Math.floor(10 + Math.random() * 90),
-        firstName: app.firstName || app.applicantName.split(' ')[0] || 'Enrolled',
-        lastName: app.lastName || app.applicantName.slice(app.applicantName.indexOf(' ') + 1) || 'Student',
-        gender: app.gender || 'Male',
-        dob: app.dob || '15/08/2012',
-        bloodGroup: app.bloodGroup || 'O+',
-        religion: app.religion || 'General',
-        casteCategory: app.casteCategory || 'General',
-        className: app.appliedClass || 'Class 10',
-        section: 'A',
-        category: app.casteCategory || 'General',
-        status: 'Active',
-        avatar: app.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
-        joiningDate: new Date().toISOString().split('T')[0],
-        branch: app.branch || 'Main Campus',
-        studentType: app.studentType || 'Day Scholar',
-        transportRequired: app.transportRequired,
-        routeId: app.routeId,
-        busRoute: app.busRoute || 'Route A - North Suburbs',
-        transportType: app.transportType || 'AC',
-        pickupPointId: app.pickupPointId,
-        pickupPoint: app.pickupPoint || '',
-        dropPoint: app.dropPoint || '',
-        hostelBlock: app.hostelBlock || '',
-        hostelRoom: app.hostelRoom || '',
-        hostelBed: app.hostelBed || '',
-        boardType: 'CBSE',
-        fatherName: app.parentName || 'Father Name',
-        fatherPhone: app.phone || '9876543210',
-        fatherOccupation: 'Business',
-        motherName: app.motherName || 'Mother Name',
-        motherPhone: app.phone || '9876543210',
-        email: app.email,
-        phone: app.phone,
-        alternatePhone: app.alternatePhone,
-        address: fullAddress,
-        siblingsCount: app.siblingsCount || 0,
-        scholarshipId: app.scholarshipId,
-        discountId: app.discountId,
-        totalFee: 36500,
-        paidFee: 0,
-        dueFee: 36500,
-        attendancePct: 100.0,
-        gpa: 4.0
+    try {
+      const res = await fetch(`/api/SchoolManagement/admissions/${registrationNo}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
       });
 
-      // Auto-assign transport facility if Day Scholar opted for transport
-      if (app.studentType === 'Day Scholar' && app.transportRequired) {
-        const rObj = routeMasters.find(r => r.id === app.routeId || r.routeName === app.busRoute);
-        const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
-        const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
+      if (res.ok) {
+        if (status === 'Enrolled' && app) {
+          const addressParts = [
+            app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
+            app.addressStreet,
+            app.addressArea,
+            app.addressCity,
+            app.addressDistrict,
+            app.addressState,
+            app.addressPinCode ? `PIN: ${app.addressPinCode}` : ''
+          ].filter(Boolean);
+          const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Main Campus Area';
 
-        const trpFee = ftc ? ftc.feeAmount : 5500;
-        assignStudentTransport({
-          studentId: newStudent.id,
-          studentName: `${newStudent.firstName} ${newStudent.lastName}`,
-          admissionNo: newStudent.admissionNo,
-          routeId: rObj?.id || 'RM-01',
-          routeName: rObj?.routeName || app.busRoute || 'Route A',
-          pickupPoint: pObj?.pickupName || app.pickupPoint || 'Miyapur Junction',
-          feePlan: (ftc?.feePlan || 'Quarterly') as any,
-          feeAmount: trpFee,
-          effectiveFrom: new Date().toISOString().split('T')[0],
-          status: 'Active'
-        });
+          const newStudent = addStudent({
+            admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
+            rollNo: '20' + Math.floor(10 + Math.random() * 90),
+            firstName: app.firstName || app.applicantName.split(' ')[0] || 'Enrolled',
+            lastName: app.lastName || app.applicantName.slice(app.applicantName.indexOf(' ') + 1) || 'Student',
+            gender: app.gender || 'Male',
+            dob: app.dob || '15/08/2012',
+            bloodGroup: app.bloodGroup || 'O+',
+            religion: app.religion || 'General',
+            casteCategory: app.casteCategory || 'General',
+            className: app.appliedClass || 'Class 10',
+            section: 'A',
+            category: app.casteCategory || 'General',
+            status: 'Active',
+            avatar: app.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+            joiningDate: new Date().toISOString().split('T')[0],
+            branch: app.branch || 'Main Campus',
+            studentType: app.studentType || 'Day Scholar',
+            transportRequired: app.transportRequired,
+            routeId: app.routeId,
+            busRoute: app.busRoute || 'Route A - North Suburbs',
+            transportType: app.transportType || 'AC',
+            pickupPointId: app.pickupPointId,
+            pickupPoint: app.pickupPoint || '',
+            dropPoint: app.dropPoint || '',
+            hostelBlock: app.hostelBlock || '',
+            hostelRoom: app.hostelRoom || '',
+            hostelBed: app.hostelBed || '',
+            boardType: 'CBSE',
+            fatherName: app.parentName || 'Father Name',
+            fatherPhone: app.phone || '9876543210',
+            fatherOccupation: 'Business',
+            motherName: app.motherName || 'Mother Name',
+            motherPhone: app.phone || '9876543210',
+            email: app.email,
+            phone: app.phone,
+            alternatePhone: app.alternatePhone,
+            address: fullAddress,
+            siblingsCount: app.siblingsCount || 0,
+            totalFee: 36500,
+            paidFee: 0,
+            dueFee: 36500,
+            attendancePct: 100.0,
+            gpa: 4.0
+          });
+
+          // Auto-assign transport facility if Day Scholar opted for transport
+          if (app.studentType === 'Day Scholar' && app.transportRequired) {
+            const rObj = routeMasters.find(r => r.id === app.routeId || r.routeName === app.busRoute);
+            const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
+            const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
+
+            const trpFee = ftc ? ftc.feeAmount : 5500;
+            assignStudentTransport({
+              studentId: newStudent.id,
+              studentName: `${newStudent.firstName} ${newStudent.lastName}`,
+              admissionNo: newStudent.admissionNo,
+              routeId: rObj?.id || 'RM-01',
+              routeName: rObj?.routeName || app.busRoute || 'Route A',
+              pickupPoint: pObj?.pickupName || app.pickupPoint || 'Miyapur Junction',
+              feePlan: (ftc?.feePlan || 'Quarterly') as any,
+              feeAmount: trpFee,
+              effectiveFrom: new Date().toISOString().split('T')[0],
+              status: 'Active'
+            });
+          }
+
+          // Auto-assign hostel facility if Hosteller
+          if (app.studentType === 'Hosteller' && app.hostelBed) {
+            const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
+            const rObj = roomMasters.find(r => r.id === app.hostelRoom) || roomMasters[0];
+            const fhc = financeHostelConfigs.find(
+              c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active'
+            ) || financeHostelConfigs[0];
+            const hstFee = fhc ? fhc.hostelFee : 40000;
+
+            const hostelBlockId = hObj?.id || 'HM-01';
+            const hostelBlockName = hObj?.hostelName || 'Boys Hostel';
+            const roomNumberStr = rObj?.roomNumber || '101';
+
+            assignStudentHostel({
+              studentId: newStudent.id,
+              studentName: `${newStudent.firstName} ${newStudent.lastName}`,
+              admissionNo: newStudent.admissionNo,
+              hostelId: hostelBlockId,
+              hostelName: hostelBlockName,
+              roomNo: roomNumberStr,
+              bedNo: app.hostelBed || 'BED-1',
+              feeAmount: hstFee,
+              effectiveFrom: new Date().toISOString().split('T')[0],
+              status: 'Active'
+            });
+
+            assignStudentHostelRoom({
+              studentId: newStudent.id,
+              studentName: `${newStudent.firstName} ${newStudent.lastName}`,
+              admissionNo: newStudent.admissionNo,
+              hostelId: hostelBlockId,
+              hostelName: hostelBlockName,
+              roomId: rObj?.id || 'RM-01',
+              roomNo: roomNumberStr,
+              bedNo: app.hostelBed || 'BED-1',
+              joiningDate: new Date().toISOString().split('T')[0],
+              status: 'Active'
+            });
+          }
+
+          // Automatically generate Student Fee Ledger for newly enrolled student
+          setTimeout(() => generateStudentFeeLedger(newStudent.id), 50);
+        }
+
+        setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+        logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
+        fetchAdmissions();
       }
-
-      // Auto-assign hostel facility if Hosteller
-      if (app.studentType === 'Hosteller' && app.hostelBed) {
-        const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
-        const rObj = roomMasters.find(r => r.id === app.hostelRoom) || roomMasters[0];
-        const fhc = financeHostelConfigs.find(
-          c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active'
-        ) || financeHostelConfigs[0];
-        const hstFee = fhc ? fhc.hostelFee : 40000;
-
-        const hostelBlockId = hObj?.id || 'HM-01';
-        const hostelBlockName = hObj?.hostelName || 'Boys Hostel';
-        const roomNumberStr = rObj?.roomNumber || '101';
-
-        assignStudentHostel({
-          studentId: newStudent.id,
-          studentName: `${newStudent.firstName} ${newStudent.lastName}`,
-          admissionNo: newStudent.admissionNo,
-          hostelId: hostelBlockId,
-          hostelName: hostelBlockName,
-          roomNo: roomNumberStr,
-          bedNo: app.hostelBed || 'BED-1',
-          feeAmount: hstFee,
-          effectiveFrom: new Date().toISOString().split('T')[0],
-          status: 'Active'
-        });
-
-        assignStudentHostelRoom({
-          studentId: newStudent.id,
-          studentName: `${newStudent.firstName} ${newStudent.lastName}`,
-          admissionNo: newStudent.admissionNo,
-          hostelId: hostelBlockId,
-          hostelName: hostelBlockName,
-          roomId: rObj?.id || 'RM-01',
-          roomNo: roomNumberStr,
-          bedNo: app.hostelBed || 'BED-1',
-          joiningDate: new Date().toISOString().split('T')[0],
-          status: 'Active'
-        });
-      }
-
-      // Automatically generate Student Fee Ledger for newly enrolled student
-      setTimeout(() => generateStudentFeeLedger(newStudent.id), 50);
+    } catch (err) {
+      console.error('Error updating admission status', err);
     }
-
-    setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-    logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
   };
 
   // Academic Classes CRUD
@@ -1166,6 +1298,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStudentHostelAssignments(prev => prev.filter(sha => sha.id !== id));
   };
 
+  // Visitor Log CRUD
+  const addHostelVisitorLog = (vlData: Omit<HostelVisitorLog, 'id'>) => {
+    const id = 'HVL-' + Math.floor(100 + Math.random() * 900);
+    const newVl: HostelVisitorLog = { ...vlData, id };
+    setHostelVisitorLogs(prev => [newVl, ...prev]);
+    logActivity('Added Hostel Visitor Log', `Visitor ${newVl.visitorName} checked in for ${newVl.studentName}`);
+  };
+
+  const updateHostelVisitorLogStatus = (id: string, status: 'In' | 'Out', outTime?: string) => {
+    setHostelVisitorLogs(prev => prev.map(vl => vl.id === id ? { ...vl, status, outTime: outTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } : vl));
+  };
+
   // Attendance Log
   const recordHostelAttendance = (attData: Omit<HostelAttendanceLog, 'id'>) => {
     const id = 'HAL-' + Math.floor(100 + Math.random() * 900);
@@ -1246,8 +1390,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // PERMANENT STUDENT FEE LEDGER GENERATOR & RECALCULATOR
   // ==========================================
 
-  const generateStudentFeeLedger = (studentId: string, studentOverride?: Student): StudentFeeLedger => {
-    const student = studentOverride || students.find(s => s.id === studentId);
+  const generateStudentFeeLedger = (studentId: string): StudentFeeLedger => {
+    const student = students.find(s => s.id === studentId);
     const stType: 'Day Scholar' | 'Hosteller' = (student?.studentType === 'Hosteller') ? 'Hosteller' : 'Day Scholar';
     const clsName = student?.className || 'Class 10';
     const secName = student?.section || 'A';
@@ -1324,7 +1468,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
 
-    // Hostel Fee & Security Deposit: Applicable ONLY for Hostellers
+    // Hostel Fee, Mess Fee & Security Deposit: Applicable ONLY for Hostellers
     const hostelAssign = studentHostelAssignments.find(h => h.studentId === studentId && h.status === 'Active') ||
                          studentHostels.find(h => h.studentId === studentId && h.status === 'Active');
 
@@ -1337,6 +1481,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ) || financeHostelConfigs[0];
 
       const hstFee = fhc ? fhc.hostelFee : 40000;
+      const messFee = fhc ? fhc.messFee : 18000;
       const secDep = fhc ? fhc.securityDeposit : 5000;
 
       ledgerItems.push({
@@ -1351,6 +1496,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isApplicable: true,
         status: 'Pending'
       });
+
+      if (messFee > 0) {
+        ledgerItems.push({
+          headId: 'FH-HST-MESS',
+          headName: 'Hostel Mess Charges',
+          category: 'Mess Fee',
+          originalAmount: messFee,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: messFee,
+          isApplicable: true,
+          status: 'Pending'
+        });
+      }
 
       if (secDep > 0) {
         ledgerItems.push({
@@ -1369,7 +1529,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       ledgerItems.push({
         headId: 'FH-HST',
-        headName: 'Hostel Fee',
+        headName: 'Hostel Rent & Mess Charges',
         category: 'Hostel Fee',
         originalAmount: 0,
         scholarshipDeduction: 0,
@@ -1383,79 +1543,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 3. Deductions: Scholarships & Discounts
-    const appliedSchs = [...studentScholarships.filter(s => s.studentId === studentId && s.status === 'Active')];
-    if (student?.scholarshipId) {
-      const sObj = scholarships.find(s => s.id === student.scholarshipId);
-      if (sObj && sObj.status === 'Active' && !appliedSchs.some(s => s.id === sObj.id)) {
-        appliedSchs.push({
-          id: sObj.id,
-          studentId,
-          studentName: stName,
-          admissionNo: admNo,
-          scholarshipName: sObj.name,
-          discountType: sObj.discountType,
-          discountValue: sObj.discountType === 'Percentage' ? (sObj.percentage || 0) : (sObj.fixedAmount || 0),
-          status: 'Active'
-        } as any);
-      }
-    }
-
-    const tuitionItem = ledgerItems.find(i => i.category === 'Tuition Fee') || ledgerItems[0];
-    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
-
+    const appliedSchs = studentScholarships.filter(s => s.studentId === studentId && s.status === 'Active');
     let totalSchDeduction = 0;
-    let scholarshipId = '';
-    let scholarshipName = '';
-    let scholarshipDescription = '';
-
     appliedSchs.forEach(sch => {
-      const sObj = scholarships.find(s => s.id === sch.scholarshipId);
-      scholarshipId = sch.scholarshipId;
-      scholarshipName = sch.scholarshipName || sObj?.name || 'Scholarship';
-      scholarshipDescription = sObj?.description || 'Applied Scholarship Concession';
-      
-      const deductionVal = sch.discountType === 'Percentage' 
-        ? (tuitionAmount * sch.discountValue) / 100 
-        : sch.discountValue;
-      totalSchDeduction += deductionVal;
+      totalSchDeduction += sch.discountType === 'Percentage' ? (25000 * sch.discountValue) / 100 : sch.discountValue;
     });
 
-    const remainingTuitionForDiscount = Math.max(0, tuitionAmount - totalSchDeduction);
-
-    const appliedDiscs = [...studentDiscounts.filter(d => d.studentId === studentId)];
-    if (student?.discountId) {
-      if (!appliedDiscs.some(d => d.discountId === student.discountId)) {
-        const dObj = discounts.find(d => d.id === student.discountId);
-        appliedDiscs.push({
-          id: 'SD-' + Math.floor(100 + Math.random() * 900),
-          studentId,
-          studentName: stName,
-          discountId: student.discountId,
-          discountName: dObj?.name || 'Discount',
-          appliedDate: new Date().toISOString().split('T')[0]
-        } as any);
-      }
-    }
-
+    const appliedDiscs = studentDiscounts.filter(d => d.studentId === studentId);
     let totalDiscDeduction = 0;
-    let discountId = '';
-    let discountName = '';
-    let discountDescription = '';
-
     appliedDiscs.forEach(sd => {
       const dObj = discounts.find(d => d.id === sd.discountId);
       if (dObj && dObj.status === 'Active') {
-        discountId = dObj.id;
-        discountName = dObj.name;
-        discountDescription = dObj.description || 'Applied Discount Concession';
-        
-        const deductionVal = dObj.mode === 'Percentage' 
-          ? (tuitionAmount * dObj.value) / 100 
-          : dObj.value;
-        totalDiscDeduction += deductionVal;
+        totalDiscDeduction += dObj.mode === 'Percentage' ? (25000 * dObj.value) / 100 : dObj.value;
       }
     });
 
+    const tuitionItem = ledgerItems.find(i => i.category === 'Tuition Fee') || ledgerItems[0];
     if (tuitionItem) {
       tuitionItem.scholarshipDeduction = totalSchDeduction;
       tuitionItem.discountDeduction = totalDiscDeduction;
@@ -1480,7 +1583,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       academicYear: financeSettings.academicYear || '2025-2026',
       feeItems: ledgerItems,
       totalOriginalAmount: totalOriginal,
-      grossAmount: totalOriginal,
       totalScholarship: totalSchDeduction,
       totalDiscount: totalDiscDeduction,
       totalFine: 0,
@@ -1488,17 +1590,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       paidAmount: paidAmt,
       dueBalance: dueBal,
       createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0],
-      scholarshipId: scholarshipId || undefined,
-      scholarshipName: scholarshipName || undefined,
-      scholarshipDescription: scholarshipDescription || undefined,
-      scholarshipAmount: totalSchDeduction,
-      discountId: discountId || undefined,
-      discountName: discountName || undefined,
-      discountDescription: discountDescription || undefined,
-      discountAmount: totalDiscDeduction,
-      fineAmount: 0,
-      previousDue: student?.dueFee || 0
+      updatedAt: new Date().toISOString().split('T')[0]
     };
 
     setStudentFeeLedgers(prev => [...prev.filter(l => l.studentId !== studentId), newLedger]);
@@ -1508,170 +1600,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const recalculateStudentFeeLedger = (studentId: string): StudentFeeLedger => {
     return generateStudentFeeLedger(studentId);
-  };
-
-  const applyScholarshipToStudent = (studentId: string, scholarshipId: string) => {
-    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error('Fee Ledger not found for student.');
-    }
-    if (ledger.scholarshipId) {
-      throw new Error('Scholarship has already been applied.');
-    }
-
-    const sch = scholarships.find(s => s.id === scholarshipId);
-    if (!sch) {
-      throw new Error('Scholarship not found.');
-    }
-
-    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
-    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
-    const scholarshipAmount = sch.discountType === 'Percentage'
-      ? (tuitionAmount * (sch.percentage || 0)) / 100
-      : (sch.fixedAmount || 0);
-
-    const updatedLedger = {
-      ...ledger,
-      scholarshipId,
-      scholarshipName: sch.name,
-      scholarshipDescription: sch.description || 'Applied Scholarship Concession',
-      scholarshipAmount,
-      totalScholarship: scholarshipAmount,
-      feeItems: ledger.feeItems.map(item => {
-        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
-          const finalAmt = Math.max(0, item.originalAmount - scholarshipAmount - ledger.discountAmount);
-          return {
-            ...item,
-            scholarshipDeduction: scholarshipAmount,
-            finalAmount: finalAmt
-          };
-        }
-        return item;
-      })
-    };
-
-    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
-    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
-
-    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
-    return updatedLedger;
-  };
-
-  const removeScholarshipFromStudent = (studentId: string) => {
-    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error('Fee Ledger not found for student.');
-    }
-
-    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
-
-    const updatedLedger = {
-      ...ledger,
-      scholarshipId: undefined,
-      scholarshipName: '',
-      scholarshipDescription: '',
-      scholarshipAmount: 0,
-      totalScholarship: 0,
-      feeItems: ledger.feeItems.map(item => {
-        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
-          const finalAmt = Math.max(0, item.originalAmount - ledger.discountAmount);
-          return {
-            ...item,
-            scholarshipDeduction: 0,
-            finalAmount: finalAmt
-          };
-        }
-        return item;
-      })
-    };
-
-    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
-    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
-
-    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
-    return updatedLedger;
-  };
-
-  const applyDiscountToStudent = (studentId: string, discountId: string) => {
-    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error('Fee Ledger not found for student.');
-    }
-    if (ledger.discountId) {
-      throw new Error('Discount has already been applied.');
-    }
-
-    const disc = discounts.find(d => d.id === discountId);
-    if (!disc) {
-      throw new Error('Discount not found.');
-    }
-
-    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
-    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
-    const discountAmount = disc.mode === 'Percentage'
-      ? (tuitionAmount * disc.value) / 100
-      : disc.value;
-
-    const updatedLedger = {
-      ...ledger,
-      discountId,
-      discountName: disc.name,
-      discountDescription: disc.description || 'Applied Discount Concession',
-      discountAmount,
-      totalDiscount: discountAmount,
-      feeItems: ledger.feeItems.map(item => {
-        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
-          const finalAmt = Math.max(0, item.originalAmount - ledger.scholarshipAmount - discountAmount);
-          return {
-            ...item,
-            discountDeduction: discountAmount,
-            finalAmount: finalAmt
-          };
-        }
-        return item;
-      })
-    };
-
-    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
-    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
-
-    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
-    return updatedLedger;
-  };
-
-  const removeDiscountFromStudent = (studentId: string) => {
-    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
-    if (!ledger) {
-      throw new Error('Fee Ledger not found for student.');
-    }
-
-    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
-
-    const updatedLedger = {
-      ...ledger,
-      discountId: undefined,
-      discountName: '',
-      discountDescription: '',
-      discountAmount: 0,
-      totalDiscount: 0,
-      feeItems: ledger.feeItems.map(item => {
-        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
-          const finalAmt = Math.max(0, item.originalAmount - ledger.scholarshipAmount);
-          return {
-            ...item,
-            discountDeduction: 0,
-            finalAmount: finalAmt
-          };
-        }
-        return item;
-      })
-    };
-
-    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
-    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
-
-    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
-    return updatedLedger;
   };
 
   const getStudentFeeLedger = (studentId: string): StudentFeeLedger | null => {
@@ -1810,55 +1738,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const hostelAssign = studentHostels.find(h => h.studentId === studentId && h.status === 'Active');
-    const hostelFee = (student.studentType === 'Hosteller' && studentHostels.find(h => h.studentId === studentId && h.status === 'Active')) ? (studentHostels.find(h => h.studentId === studentId && h.status === 'Active')!.feeAmount) : 0;
+    const hostelFee = (student.studentType === 'Hosteller' && hostelAssign) ? hostelAssign.feeAmount : 0;
 
     const previousDue = Math.max(0, student.dueFee || 0);
 
     const appliedScholarships = studentScholarships.filter(s => s.studentId === studentId && s.status === 'Active');
+    let scholarshipDeduction = ledger ? ledger.totalScholarship : 0;
+
     const appliedDiscounts = studentDiscounts.filter(d => d.studentId === studentId);
-
-    let scholarshipDeduction = 0;
-    let scholarshipId: string | undefined = undefined;
-    let scholarshipName = '';
-    let scholarshipDescription = '';
-    
-    let discountDeduction = 0;
-    let discountId: string | undefined = undefined;
-    let discountName = '';
-    let discountDescription = '';
-    
-    let baseFeeVal = baseFee;
-    let prevDueVal = previousDue;
-
-    if (ledger) {
-      baseFeeVal = ledger.grossAmount;
-      prevDueVal = ledger.previousDue || 0;
-      scholarshipId = ledger.scholarshipId;
-      scholarshipName = ledger.scholarshipName || '';
-      scholarshipDescription = ledger.scholarshipDescription || '';
-      scholarshipDeduction = ledger.scholarshipAmount || 0;
-      discountId = ledger.discountId;
-      discountName = ledger.discountName || '';
-      discountDescription = ledger.discountDescription || '';
-      discountDeduction = ledger.discountAmount || 0;
-    } else {
-      const studentScholarshipId = student.scholarshipId || appliedScholarships[0]?.scholarshipId;
-      const sObj = studentScholarshipId ? scholarships.find(s => s.id === studentScholarshipId) : undefined;
-      scholarshipId = studentScholarshipId;
-      scholarshipName = sObj?.name || '';
-      scholarshipDescription = sObj?.description || '';
-      
-      const tuitionItem = assignedFeeHeads.find(i => i.category === 'Tuition Fee') || assignedFeeHeads[0];
-      const tuitionAmount = tuitionItem ? tuitionItem.amount : 25000;
-      scholarshipDeduction = sObj ? (sObj.discountType === 'Percentage' ? (tuitionAmount * (sObj.percentage || 0)) / 100 : (sObj.fixedAmount || 0)) : 0;
-
-      const studentDiscountId = student.discountId || appliedDiscounts[0]?.discountId;
-      const dObj = studentDiscountId ? discounts.find(d => d.id === studentDiscountId) : undefined;
-      discountId = studentDiscountId;
-      discountName = dObj?.name || '';
-      discountDescription = dObj?.description || '';
-      discountDeduction = dObj ? (dObj.mode === 'Percentage' ? (tuitionAmount * dObj.value) / 100 : dObj.value) : 0;
-    }
+    let discountDeduction = ledger ? ledger.totalDiscount : 0;
 
     let fineAmount = 0;
     let fineDetails: { ruleName: string; daysOverdue: number; amount: number } | undefined;
@@ -1886,7 +1774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    const totalPayable = Math.max(0, baseFeeVal - scholarshipDeduction - discountDeduction + fineAmount + prevDueVal);
+    const totalPayable = ledger ? (ledger.totalPayable + fineAmount) : Math.max(0, baseFee + transportFee + hostelFee + previousDue + fineAmount - scholarshipDeduction - discountDeduction);
     const studentPaymentItems = feePayments.filter(p => p.studentId === studentId);
     const paidAmount = studentPaymentItems.reduce((acc, p) => acc + p.amountPaid, 0);
     const dueBalance = Math.max(0, totalPayable - paidAmount);
@@ -1910,13 +1798,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalPayable,
       paidAmount,
       dueBalance,
-      paymentHistory: studentPaymentItems,
-      scholarshipId,
-      scholarshipName,
-      scholarshipDescription,
-      discountId,
-      discountName,
-      discountDescription
+      paymentHistory: studentPaymentItems
     };
   };
 
@@ -2079,6 +1961,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         roomTypeMasters, addRoomTypeMaster, updateRoomTypeMaster, deleteRoomTypeMaster,
         roomMasters, addRoomMaster, updateRoomMaster, deleteRoomMaster,
         studentHostelAssignments, assignStudentHostelRoom, updateStudentHostelAssignment, deleteStudentHostelAssignment,
+        hostelVisitorLogs, addHostelVisitorLog, updateHostelVisitorLogStatus,
         hostelAttendanceLogs, recordHostelAttendance,
         financeHostelConfigs, addFinanceHostelConfig, updateFinanceHostelConfig, deleteFinanceHostelConfig,
         studentHostels, assignStudentHostel, removeStudentHostel,
@@ -2087,8 +1970,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         financeTransportConfigs, addFinanceTransportConfig, updateFinanceTransportConfig, deleteFinanceTransportConfig,
         studentFeeLedgers, generateStudentFeeLedger, recalculateStudentFeeLedger, getStudentFeeLedger,
         calculateStudentPayableFee,
-        applyScholarshipToStudent, removeScholarshipFromStudent,
-        applyDiscountToStudent, removeDiscountFromStudent,
         routeMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster,
         pickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
         vehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,

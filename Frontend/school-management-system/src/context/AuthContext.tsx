@@ -8,11 +8,13 @@ interface AuthContextType {
   isAuthenticated: boolean;
   selectedBranch: string;
   setSelectedBranch: (branch: string) => void;
-  login: (email: string, role?: UserRole) => Promise<boolean>;
+  login: (emailOrPhone: string, password?: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
   setRole: (role: UserRole) => void;
   changePassword: (oldPass: string, newPass: string) => Promise<boolean>;
-  forgotPassword: (email: string) => Promise<boolean>;
+  sendOtp: (emailOrPhone: string) => Promise<{ userId: number }>;
+  verifyOtp: (userId: number, otpCode: string) => Promise<boolean>;
+  resetPasswordWithOtp: (userId: number, otpCode: string, newPassword: string) => Promise<boolean>;
 }
 
 const defaultAdminUser: User = {
@@ -60,27 +62,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (email: string, chosenRole: UserRole = 'Admin'): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const mockToken = 'mock-jwt-token-' + Math.random().toString(36).substring(2);
+  const login = async (emailOrPhone: string, password?: string, chosenRole: UserRole = 'Admin'): Promise<boolean> => {
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailOrPhone, password })
+      });
 
-    const loggedUser: User = {
-      id: 'USR-' + Math.floor(100 + Math.random() * 900),
-      name: email.split('@')[0].replace('.', ' ').toUpperCase(),
-      email: email,
-      role: chosenRole,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      lastLogin: new Date().toLocaleString(),
-      status: 'Active'
-    };
+      if (!response.ok) {
+        throw new Error('Authentication failed');
+      }
 
-    setUser(loggedUser);
-    setRoleState(chosenRole);
-    setToken(mockToken);
+      const data = await response.json();
 
-    localStorage.setItem('auth_user', JSON.stringify(loggedUser));
-    localStorage.setItem('auth_token', mockToken);
-    return true;
+      const loggedUser: User = {
+        id: data.userId.toString(),
+        name: data.fullName,
+        email: emailOrPhone,
+        role: (data.roles && data.roles.length > 0) ? data.roles[0] : chosenRole,
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+        lastLogin: new Date().toLocaleString(),
+        status: 'Active'
+      };
+
+      setUser(loggedUser);
+      setRoleState(loggedUser.role);
+      setToken(data.token);
+
+      localStorage.setItem('auth_user', JSON.stringify(loggedUser));
+      localStorage.setItem('auth_token', data.token);
+      return true;
+    } catch (err) {
+      console.error('Login error:', err);
+      throw err;
+    }
   };
 
   const logout = () => {
@@ -95,8 +111,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const forgotPassword = async (_email: string): Promise<boolean> => {
-    await new Promise(resolve => setTimeout(resolve, 600));
+  const sendOtp = async (emailOrPhone: string): Promise<{ userId: number }> => {
+    const res = await fetch('/api/auth/otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emailOrPhone, deliveryMethod: 'email', purpose: 'PasswordReset' })
+    });
+    if (!res.ok) throw new Error('Failed to send OTP');
+    // If the API doesn't return JSON or misses userId, default to 0 as fallback
+    try {
+      const data = await res.json();
+      return { userId: data.userId || 0 };
+    } catch {
+      return { userId: 0 };
+    }
+  };
+
+  const verifyOtp = async (userId: number, otpCode: string): Promise<boolean> => {
+    const res = await fetch('/api/auth/otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, otpCode, purpose: 'PasswordReset' })
+    });
+    if (!res.ok) throw new Error('Invalid OTP');
+    return true;
+  };
+
+  const resetPasswordWithOtp = async (userId: number, otpCode: string, newPassword: string): Promise<boolean> => {
+    const res = await fetch('/api/auth/otp/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, otpCode, newPassword })
+    });
+    if (!res.ok) throw new Error('Failed to reset password');
     return true;
   };
 
@@ -113,7 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         setRole,
         changePassword,
-        forgotPassword
+        sendOtp,
+        verifyOtp,
+        resetPasswordWithOtp
       }}
     >
       {children}
