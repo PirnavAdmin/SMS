@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SMS.Api.Data;
-using SMS.Api.Middlewares;
+using SMS.Api.Middleware;
 using SMS.Api.Repositories.Implementations;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Implementations;
@@ -22,6 +22,10 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+
+// Academic Management Repositories & Services
+builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
+builder.Services.AddScoped<ISchoolService, SchoolService>();
 
 // 3. Configure JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -96,5 +100,20 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+// =========================================================
+// ONE-TIME SEED REPAIR: Ensure admin has a valid BCrypt hash
+// =========================================================
+//using (var scope = app.Services.CreateScope())
+//{
+//    var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+//    var adminUser = context.Users.FirstOrDefault(u => u.Email == "admin@pirnavschools.com");
+//    if (adminUser != null)
+//    {
+//        adminUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin1234");
+//        context.SaveChanges();
+//    }
+//}
+
+
 
 app.Run();

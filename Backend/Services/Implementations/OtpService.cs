@@ -1,6 +1,7 @@
 namespace SMS.Api.Services.Implementations;
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mail;
@@ -29,14 +30,19 @@ public class OtpService : IOtpService
 
     public async Task<SendOtpResponseDto> SendOtpAsync(SendOtpRequestDto dto)
     {
-        // 1. Fetch user by email or mobile via sp_GetUserForLogin
+        // 1. Fetch user by email or mobile
         var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone)
             ?? throw new Exception("User not found.");
 
         // 2. Generate 6-digit plain OTP
         var rawOtpCode = new Random().Next(100000, 999999).ToString();
 
-        // 3. Save OTP via sp_SaveOtp (handles invalidating older active OTPs automatically)
+        // DEV LOG: Always log generated OTP in terminal for immediate testing
+        Console.WriteLine("=================================================");
+        Console.WriteLine($"[DEV DEBUG] Generated OTP for {dto.EmailOrPhone}: {rawOtpCode}");
+        Console.WriteLine("=================================================");
+
+        // 3. Save OTP (hashed via BCrypt)
         await _otpRepository.SaveOtpAsync(new OtpVerification
         {
             UserId = user.UserId,
@@ -66,7 +72,7 @@ public class OtpService : IOtpService
 
     public async Task<bool> VerifyOtpAsync(VerifyOtpRequestDto dto)
     {
-        // 1. Fetch latest active OTP record to compare hashed code via BCrypt
+        // 1. Fetch latest active OTP record
         var latestOtp = await _otpRepository.GetLatestActiveOtpAsync(dto.UserId, dto.Purpose);
 
         if (latestOtp == null)
@@ -74,8 +80,23 @@ public class OtpService : IOtpService
             return false;
         }
 
-        // 2. Delegate validation, expiry checks, and attempt counter to sp_ValidateOtp
-        return await _otpRepository.ValidateOtpAsync(dto.UserId, latestOtp.OtpCodeHash, dto.Purpose);
+        // 2. Check expiration
+        if (latestOtp.ExpiryTime <= DateTime.UtcNow)
+        {
+            return false;
+        }
+
+        // 3. Compare user's plain OTP input with stored BCrypt hash
+        bool isValid = BCrypt.Net.BCrypt.Verify(dto.OtpCode, latestOtp.OtpCodeHash);
+
+        if (isValid)
+        {
+            // Mark OTP as used
+            latestOtp.IsUsed = true;
+            await _otpRepository.SaveChangesAsync();
+        }
+
+        return isValid;
     }
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
@@ -92,7 +113,7 @@ public class OtpService : IOtpService
             return false;
         }
 
-        // 2. Hash new password and update directly via sp_ResetPassword
+        // 2. Hash new password and update user
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         await _userRepository.UpdatePasswordAsync(dto.UserId, newPasswordHash);
 
@@ -151,19 +172,24 @@ public class OtpService : IOtpService
         {
             using var client = new HttpClient();
 
-            var requestUrl = $"https://www.fast2sms.com/dev/bulkV2?authorization={apiKey}&route=otp&variables_values={plainOtp}&numbers={mobileNumber}";
+            // Fast2SMS Header-based authorization
+            client.DefaultRequestHeaders.Add("authorization", apiKey);
+
+            // Clean mobile number (keep last 10 digits)
+            var cleanMobile = new string(mobileNumber.Where(char.IsDigit).ToArray());
+            if (cleanMobile.Length > 10)
+            {
+                cleanMobile = cleanMobile.Substring(cleanMobile.Length - 10);
+            }
+
+            // Using route=q (Quick SMS) to bypass Status 996 (DLT/Website verification requirements)
+            var messageText = Uri.EscapeDataString($"Your verification code is {plainOtp}. Valid for 5 minutes.");
+            var requestUrl = $"https://www.fast2sms.com/dev/bulkV2?route=q&message={messageText}&flash=0&numbers={cleanMobile}";
 
             var response = await client.GetAsync(requestUrl);
             var responseString = await response.Content.ReadAsStringAsync();
 
-            if (response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"[SMS SUCCESS] OTP successfully sent to {mobileNumber}. Gateway Response: {responseString}");
-            }
-            else
-            {
-                Console.WriteLine($"[SMS ERROR] Fast2SMS Gateway returned an error: {responseString}");
-            }
+            Console.WriteLine($"[SMS GATEWAY RESPONSE]: Status: {response.StatusCode} | Body: {responseString}");
         }
         catch (Exception ex)
         {

@@ -1,77 +1,107 @@
-namespace SMS.Api.Repositories.Implementations;
-
 using Microsoft.EntityFrameworkCore;
-using MySqlConnector;
 using SMS.Api.Data;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
 
-public class OtpRepository : IOtpRepository
+namespace SMS.Api.Repositories.Implementations
 {
-    private readonly AppDbContext _context;
-
-    public OtpRepository(AppDbContext context)
+    public class OtpRepository : IOtpRepository
     {
-        _context = context;
-    }
+        private readonly AppDbContext _context;
 
-    // Call sp_SaveOtp (it handles invalidating old OTPs internally before inserting the new one)
-    public async Task SaveOtpAsync(OtpVerification otp)
-    {
-        // Default expiry to 5 minutes if not explicitly set
-        int expiryMinutes = (int)(otp.ExpiryTime - DateTime.UtcNow).TotalMinutes;
-        if (expiryMinutes <= 0) expiryMinutes = 5;
-
-        await _context.Database.ExecuteSqlRawAsync(
-            "CALL sp_SaveOtp({0}, {1}, {2}, {3}, {4})",
-            otp.UserId,
-            otp.OtpCodeHash,
-            otp.DeliveryMethod,
-            otp.Purpose,
-            expiryMinutes
-        );
-    }
-
-    // Invalidate existing OTPs explicitly if called separately
-    public async Task InvalidateExistingOtpsAsync(int userId, string purpose)
-    {
-        await _context.Database.ExecuteSqlRawAsync(
-            "UPDATE OtpVerifications SET IsUsed = TRUE WHERE UserId = {0} AND Purpose = {1} AND IsUsed = FALSE",
-            userId,
-            purpose
-        );
-    }
-
-    // Call sp_ValidateOtp to handle validation, expiration check, and attempt counts
-    public async Task<bool> ValidateOtpAsync(int userId, string otpCodeHash, string purpose)
-    {
-        try
+        public OtpRepository(AppDbContext context)
         {
-            await _context.Database.ExecuteSqlRawAsync(
-                "CALL sp_ValidateOtp({0}, {1}, {2})",
-                userId,
-                otpCodeHash,
-                purpose
-            );
-
-            return true; // Execution completed without SQL error (valid OTP)
+            _context = context;
         }
-        catch (MySqlException ex) when (ex.Number == 1644) // Catches SIGNAL SQLSTATE '45000'
+
+        // Replaces CALL sp_SaveOtp
+        public async Task SaveOtpAsync(OtpVerification otp)
         {
-            // Catches procedure errors (e.g. 'Invalid OTP code', 'OTP expired', or attempt limit exceeded)
-            Console.WriteLine($"[OTP VALIDATION FAILED]: {ex.Message}");
-            return false;
+            // 1. Invalidate any active/unused OTPs for this user and purpose
+            await InvalidateExistingOtpsAsync(otp.UserId, otp.Purpose);
+
+            // 2. Set default expiry (5 minutes) if ExpiryTime is not explicitly set
+            if (otp.ExpiryTime <= DateTime.UtcNow)
+            {
+                otp.ExpiryTime = DateTime.UtcNow.AddMinutes(5);
+            }
+
+            // 3. Add the new OTP record via EF Core
+            await _context.OtpVerifications.AddAsync(otp);
+            await _context.SaveChangesAsync();
         }
-    }
 
-    // Fetch latest active OTP record if needed by service
-    public async Task<OtpVerification?> GetLatestActiveOtpAsync(int userId, string purpose)
-    {
-        return await _context.OtpVerifications
-            .Where(o => o.UserId == userId && o.Purpose == purpose && !o.IsUsed)
-            .OrderByDescending(o => o.CreatedAt)
-            .FirstOrDefaultAsync();
-    }
+        // Invalidate active OTPs for user/purpose
+        public async Task InvalidateExistingOtpsAsync(int userId, string purpose)
+        {
+            var activeOtps = await _context.OtpVerifications
+                .Where(o => o.UserId == userId && o.Purpose == purpose && !o.IsUsed)
+                .ToListAsync();
 
-    public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+            foreach (var existingOtp in activeOtps)
+            {
+                existingOtp.IsUsed = true;
+            }
+
+            if (activeOtps.Any())
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        // Replaces CALL sp_ValidateOtp
+        public async Task<bool> ValidateOtpAsync(int userId, string otpCodeHash, string purpose)
+        {
+            // Fetch the latest active (unused) OTP record
+            var activeOtp = await GetLatestActiveOtpAsync(userId, purpose);
+
+            if (activeOtp == null)
+            {
+                return false; // No active OTP found
+            }
+
+            // 1. Check if expired
+            if (activeOtp.ExpiryTime <= DateTime.UtcNow)
+            {
+                activeOtp.IsUsed = true; // Mark expired OTP as used/invalid
+                await _context.SaveChangesAsync();
+                return false;
+            }
+
+            // 2. Check maximum attempts (e.g., limit to 3 attempts)
+            if (activeOtp.AttemptCount >= 3)
+            {
+                activeOtp.IsUsed = true; // Lock OTP due to too many attempts
+                await _context.SaveChangesAsync();
+                return false;
+            }
+
+            // 3. Increment attempt count
+            activeOtp.AttemptCount++;
+
+            // 4. Verify code hash
+            if (activeOtp.OtpCodeHash != otpCodeHash)
+            {
+                await _context.SaveChangesAsync();
+                return false;
+            }
+
+            // 5. Success: Mark OTP as used
+            activeOtp.IsUsed = true;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        // Fetch latest active OTP record
+        public async Task<OtpVerification?> GetLatestActiveOtpAsync(int userId, string purpose)
+        {
+            return await _context.OtpVerifications
+                .Where(o => o.UserId == userId && o.Purpose == purpose && !o.IsUsed)
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
+    }
 }
