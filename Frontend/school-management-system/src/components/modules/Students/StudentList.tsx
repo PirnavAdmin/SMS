@@ -86,61 +86,56 @@ export const StudentList: React.FC = () => {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-slate-400">Branch:</span>
+        <div className="flex flex-nowrap items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+          <div className="flex items-center">
             <select
               value={filterBranch}
               onChange={e => setFilterBranch(e.target.value)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Branches</option>
-              {BRANCHES.map(b => (
+              {Array.from(new Set(students.map(s => s.branch || 'Main Campus'))).sort().map(b => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-slate-400">Class:</span>
+          <div className="flex items-center">
             <select
               value={filterClass}
               onChange={e => setFilterClass(e.target.value)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Classes</option>
-              {academicClasses.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
+              {Array.from(new Set(students.map(s => s.className))).sort().map(c => (
+                <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-slate-400">Section:</span>
+          <div className="flex items-center">
             <select
               value={filterSection}
               onChange={e => setFilterSection(e.target.value)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Sec</option>
-              {availableSections.map(sec => (
+              {Array.from(new Set(students.map(s => s.section))).sort().map(sec => (
                 <option key={sec} value={sec}>Sec {sec}</option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-slate-400">Status:</span>
+          <div className="flex items-center">
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Promoted">Promoted</option>
-              <option value="Transferred">Transferred</option>
+              {Array.from(new Set(students.map(s => s.status))).sort().map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
             </select>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { School, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import { School, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, Shield, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { UserRole } from '../../../types';
@@ -23,6 +23,9 @@ export const LoginView: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
+  // High quality school campus image
+  const bgImageUrl = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2000&auto=format&fit=crop';
+  
   const handleLoginSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!identifier || !password) {
@@ -93,50 +96,99 @@ export const LoginView: React.FC = () => {
     }
   };
 
-
-
   return (
-    <div className="min-h-screen w-full bg-slate-50 dark:bg-[#0a0f1c] flex items-center justify-center p-4 relative overflow-hidden font-sans transition-colors duration-500">
-      {/* Dynamic Background */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-400/20 dark:bg-indigo-600/30 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '4s' }} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-400/20 dark:bg-violet-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '6s' }} />
-        <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] bg-blue-400/20 dark:bg-blue-600/20 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '5s' }} />
+    <div className="min-h-screen w-full flex bg-white dark:bg-[#0B1120] font-sans">
+      
+      {/* LEFT SIDE: Visual Showcase (Hidden on Mobile) */}
+      <div className="hidden lg:flex flex-1 relative bg-brand-950 items-center justify-center p-12 overflow-hidden">
+        {/* Background Image with Parallax-like subtle scale */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-70 animate-in fade-in zoom-in-105 duration-[2000ms]"
+          style={{ backgroundImage: `url(${bgImageUrl})` }}
+        />
+        
+        {/* Deep Gradient Overlays for premium feel */}
+        <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 via-brand-900/60 to-indigo-900/80 z-10" />
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/40 rounded-full blur-[120px] z-10 pointer-events-none" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/40 rounded-full blur-[100px] z-10 pointer-events-none" />
+
+        {/* Content Wrapper */}
+        <div className="relative z-20 w-full max-w-2xl text-white space-y-12">
+          <div>
+            <div className="inline-flex p-3 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl mb-8">
+              <School className="w-12 h-12 text-white" />
+            </div>
+            <h1 className="text-5xl xl:text-6xl font-black tracking-tight leading-[1.1] mb-6">
+              Empowering the <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-emerald-300">Next Generation</span>
+            </h1>
+            <p className="text-lg xl:text-xl text-brand-100 font-medium leading-relaxed max-w-xl">
+              Pirnav Educational Institution provides a world-class digital campus experience. Manage academics, admissions, and administration effortlessly.
+            </p>
+          </div>
+
+          {/* Floating Feature Cards */}
+          <div className="grid grid-cols-2 gap-4 pt-8">
+            <div className="p-5 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-xl flex items-start gap-4 transform hover:-translate-y-1 transition-transform duration-300">
+              <div className="p-3 rounded-xl bg-blue-500/20 text-blue-300 shrink-0">
+                <GraduationCap className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-lg">Academic Excellence</h3>
+                <p className="text-sm text-brand-200 mt-1">Structured curriculum and live analytics.</p>
+              </div>
+            </div>
+            <div className="p-5 rounded-2xl bg-white/10 backdrop-blur-lg border border-white/10 shadow-xl flex items-start gap-4 transform hover:-translate-y-1 transition-transform duration-300 delay-100">
+              <div className="p-3 rounded-xl bg-emerald-500/20 text-emerald-300 shrink-0">
+                <Shield className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-lg">Secure & Reliable</h3>
+                <p className="text-sm text-brand-200 mt-1">Enterprise-grade security for your data.</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="relative z-10 w-full max-w-[420px] perspective-1000 transition-all duration-500">
-        <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-2xl border border-slate-200/50 dark:border-white/10 rounded-3xl p-8 shadow-2xl shadow-indigo-900/5 dark:shadow-indigo-900/20 transition-all duration-500 transform hover:shadow-indigo-500/10 dark:hover:shadow-indigo-500/20">
+      {/* RIGHT SIDE: Authentication Form */}
+      <div className="w-full lg:w-[500px] xl:w-[600px] flex flex-col justify-center relative bg-slate-50 dark:bg-[#0B1120] z-20 shadow-2xl border-l border-slate-200 dark:border-slate-800/50">
+        {/* Mobile background (visible only on small screens) */}
+        <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none z-0">
+           <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[50%] bg-brand-400/10 dark:bg-brand-600/10 rounded-full blur-[100px]" />
+           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-purple-400/10 dark:bg-purple-600/10 rounded-full blur-[100px]" />
+        </div>
+
+        <div className="relative z-10 w-full max-w-[480px] mx-auto px-6 sm:px-12 flex flex-col justify-center min-h-screen py-12">
           
-          {/* Header */}
-          <div className="text-center space-y-4 mb-8">
-            <div className="inline-flex p-4 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white shadow-xl shadow-indigo-500/30 transform transition-transform duration-300 hover:scale-110 hover:rotate-3">
-              <School className="w-10 h-10" />
+          <div className="bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-[2rem] border-2 border-black/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
+            {/* Minimalist Universal Header */}
+          <div className="mb-8">
+            <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 shadow-xl shadow-brand-500/30 mb-5">
+              <School className="w-6 h-6 text-white" />
             </div>
-            <div>
-              <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400 tracking-tight">
-                Pirnav Educational Institution
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 font-medium">Secure Access Portal</p>
-            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+              Sign In
+            </h2>
           </div>
 
           {error && (
-            <div className="mb-6 flex items-center gap-3 p-4 rounded-xl bg-rose-100 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-600 dark:text-rose-400 text-sm font-medium animate-in slide-in-from-top-2 fade-in">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <span>{error}</span>
+            <div className="mb-8 flex items-start gap-3 p-4 rounded-2xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 text-sm font-semibold animate-in slide-in-from-top-2 fade-in">
+              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{error}</span>
             </div>
           )}
 
           {/* LOGIN FORM */}
           {mode === 'login' && (
-            <form onSubmit={handleLoginSubmit} className="space-y-5 animate-in fade-in zoom-in-95 duration-300">
-              <div className="space-y-4">
+            <form onSubmit={handleLoginSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-5">
                 {/* Identifier */}
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Email or Phone Number</label>
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Email or Phone Number</label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Mail className="w-5 h-5 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors" />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
                     </div>
                     <input
                       type="text"
@@ -144,26 +196,26 @@ export const LoginView: React.FC = () => {
                       onChange={e => setIdentifier(e.target.value)}
                       placeholder="Enter your email or phone"
                       required
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium"
                     />
                   </div>
                 </div>
 
                 {/* Password */}
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Password</label>
+                    <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Password</label>
                     <button
                       type="button"
                       onClick={() => setMode('forgot')}
-                      className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors hover:underline decoration-indigo-400/50 underline-offset-4"
+                      className="text-sm text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 font-bold transition-colors hover:underline decoration-brand-400/50 underline-offset-4"
                     >
                       Forgot password?
                     </button>
                   </div>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="w-5 h-5 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors" />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
                     </div>
                     <input
                       type="password"
@@ -171,77 +223,75 @@ export const LoginView: React.FC = () => {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium tracking-wider"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-2">
+              <div className="pt-4">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] disabled:opacity-70"
+                  className="group w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-slate-900 dark:bg-brand-600 hover:bg-slate-800 dark:hover:bg-brand-500 text-white font-bold text-sm sm:text-base shadow-xl shadow-slate-900/10 dark:shadow-brand-600/20 transition-all active:scale-[0.98] disabled:opacity-70"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
                       Sign In
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
                     </>
                   )}
                 </button>
-                
-
               </div>
+              
             </form>
           )}
 
-
-
           {/* FORGOT PASSWORD FORM */}
           {mode === 'forgot' && (
-            <form onSubmit={handleForgotSubmit} className="space-y-5 animate-in fade-in slide-in-from-left-4 duration-500">
-              <div className="text-center space-y-2">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Reset Password</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
+            <form onSubmit={handleForgotSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-2 mb-6">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Reset Password</h3>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">
                   Enter your email or phone number to receive recovery instructions.
                 </p>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Email or Phone</label>
                 <div className="relative group">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                    <Mail className="w-5 h-5 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 dark:group-focus-within:text-indigo-400 transition-colors" />
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="w-5 h-5 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
                   </div>
                   <input
                     type="text"
                     value={forgotIdentifier}
                     onChange={e => setForgotIdentifier(e.target.value)}
-                    placeholder="Email or Phone Number"
+                    placeholder="Enter email or phone"
                     required
-                    className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                    className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 pt-4">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center items-center"
+                  className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-brand-600 hover:bg-slate-800 dark:hover:bg-brand-500 text-white font-bold text-base shadow-xl shadow-slate-900/10 dark:shadow-brand-600/20 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center items-center gap-2"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    'Send OTP Code'
+                    <>Send OTP Code <ArrowRight className="w-4 h-4" /></>
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="w-full py-3.5 rounded-xl bg-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-all"
+                  className="w-full py-4 rounded-2xl bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-bold transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-800"
                 >
                   Back to Login
                 </button>
@@ -251,40 +301,41 @@ export const LoginView: React.FC = () => {
 
           {/* VERIFY OTP FORM */}
           {mode === 'verify-otp' && (
-            <form onSubmit={handleVerifyOtpSubmit} className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="text-center space-y-2">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verify OTP</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Enter the code we sent to <span className="font-semibold text-slate-800 dark:text-slate-200">{forgotIdentifier}</span>
+            <form onSubmit={handleVerifyOtpSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-2 mb-6">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Verify Code</h3>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">
+                  We've sent a 6-digit code to <span className="font-bold text-slate-800 dark:text-slate-200">{forgotIdentifier}</span>
                 </p>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
+                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Verification Code</label>
                 <div className="relative group">
                   <input
                     type="text"
                     value={otp}
                     onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Enter 6-digit code"
+                    placeholder="Enter OTP"
                     required
                     maxLength={6}
-                    className="w-full px-4 py-4 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-100 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                    className="w-full px-4 py-4 text-center tracking-[0.75em] placeholder:tracking-normal text-3xl font-black rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all"
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-4 pt-4">
                 <button
                   type="submit"
                   disabled={loading || otp.length < 6}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center items-center"
+                  className="w-full py-4 rounded-2xl bg-slate-900 dark:bg-brand-600 hover:bg-slate-800 dark:hover:bg-brand-500 text-white font-bold text-base shadow-xl shadow-slate-900/10 dark:shadow-brand-600/20 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center items-center gap-2"
                 >
-                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Verify Code'}
+                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Verify & Continue <CheckCircle2 className="w-5 h-5" /></>}
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode('login')}
-                  className="w-full py-3.5 rounded-xl bg-transparent hover:bg-slate-100 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-all"
+                  className="w-full py-4 rounded-2xl bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-sm font-bold transition-all border border-transparent hover:border-slate-200 dark:hover:border-slate-800"
                 >
                   Cancel
                 </button>
@@ -294,20 +345,20 @@ export const LoginView: React.FC = () => {
 
           {/* RESET PASSWORD FORM */}
           {mode === 'reset-password' && (
-            <form onSubmit={handleResetPasswordSubmit} className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="text-center space-y-2 mb-6">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Set New Password</h3>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  Choose a new strong password for your account.
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-2 mb-6">
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">New Password</h3>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">
+                  Create a new, strong password for your account.
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">New Password</label>
+              <div className="space-y-5">
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">New Password</label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="w-5 h-5 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                     </div>
                     <input
                       type="password"
@@ -315,16 +366,16 @@ export const LoginView: React.FC = () => {
                       onChange={e => setNewPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-medium tracking-wider"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">Confirm Password</label>
+                <div className="space-y-2">
+                  <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Confirm Password</label>
                   <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                      <Lock className="w-5 h-5 text-slate-400 dark:text-slate-500 group-focus-within:text-indigo-500 transition-colors" />
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
                     </div>
                     <input
                       type="password"
@@ -332,31 +383,32 @@ export const LoginView: React.FC = () => {
                       onChange={e => setConfirmNewPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all font-medium tracking-wider"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 pt-2">
+              <div className="pt-4">
                 <button
                   type="submit"
                   disabled={loading || !newPassword || !confirmNewPassword}
-                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center items-center"
+                  className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-base shadow-xl shadow-emerald-600/20 transition-all active:scale-[0.98] disabled:opacity-70 flex justify-center items-center gap-2"
                 >
-                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Save Password & Login'}
+                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>Save & Login <CheckCircle2 className="w-5 h-5" /></>}
                 </button>
               </div>
             </form>
           )}
+          
+          </div>
 
-        </div>
-        
-        {/* Footer */}
-        <div className="mt-8 text-center">
-          <p className="text-xs text-slate-500 font-medium tracking-wide">
-            &copy; {new Date().getFullYear()} Pirnav Educational Institution. All rights reserved.
-          </p>
+          {/* Footer */}
+          <div className="mt-8 pb-4">
+            <p className="text-xs text-center text-slate-400 font-medium">
+              &copy; {new Date().getFullYear()} Pirnav Educational Institution.
+            </p>
+          </div>
         </div>
       </div>
     </div>
