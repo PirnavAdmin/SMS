@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Bus, UserPlus, Search, Trash2, CheckCircle, AlertTriangle, Users, ShieldAlert } from 'lucide-react';
 import { StudentTransport, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -209,7 +210,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-200">{st.pickupPoint}</td>
                   <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{st.vehicleNumber || 'BUS-101'}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{st.feePlan}</td>
-                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {st.feeAmount.toLocaleString()}</td>
+                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(st.feeAmount)}</td>
                   <td className="py-3 px-4"><Badge variant={st.status === 'Active' ? 'success' : 'neutral'}>{st.status}</Badge></td>
                   <td className="py-3 px-4 text-right">
                     <button onClick={() => setDeletingAssignment(st)} className="p-1 rounded hover:bg-rose-50 text-rose-600 ml-auto flex items-center gap-1 font-bold">
@@ -263,7 +264,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Pickup Point (Stop) *</label>
                 <select value={pickupPointId} onChange={e => setPickupPointId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {availablePickupPoints.map(p => (
-                    <option key={p.id} value={p.id}>{p.pickupName} (Stop #{p.sequenceNumber} • INR {p.monthlyFee}/mo)</option>
+                    <option key={p.id} value={p.id}>{p.pickupName} (Stop #{p.sequenceNumber} • {formatCurrency(p.monthlyFee || 0)}/mo)</option>
                   ))}
                 </select>
               </div>

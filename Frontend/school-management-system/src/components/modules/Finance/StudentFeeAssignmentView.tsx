@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { UserPlus, Search, CheckSquare, Square, CheckCircle, ArrowRight } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -108,7 +109,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           >
             {dynamicFeeStructures.map(dfs => (
               <option key={dfs.id} value={dfs.id}>
-                {dfs.className} - INR {dfs.totalAmount.toLocaleString()} ({dfs.studentCategory})
+                {dfs.className} - {formatCurrency(dfs.totalAmount)} ({dfs.studentCategory})
               </option>
             ))}
           </select>
@@ -176,7 +177,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">
-                      INR {(assignment ? assignment.baseFeeTotal : st.totalFee || 0).toLocaleString()}
+                      {formatCurrency(assignment ? assignment.baseFeeTotal : st.totalFee || 0)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button

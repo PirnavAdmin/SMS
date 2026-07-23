@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Route, Plus, Search, Edit, Trash2, Bus } from 'lucide-react';
 import { TransportRoute } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -138,10 +139,10 @@ export const TransportConfigView: React.FC = () => {
             </div>
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-4 gap-2 text-[11px] text-center">
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Monthly</p><p className="font-bold text-sky-600">INR {r.monthlyFee}</p></div>
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Quarterly</p><p className="font-bold text-sky-600">INR {r.quarterlyFee}</p></div>
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Half-Yr</p><p className="font-bold text-sky-600">INR {r.halfYearlyFee}</p></div>
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Annual</p><p className="font-bold text-sky-600">INR {r.annualFee}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Monthly</p><p className="font-bold text-sky-600">{formatCurrency(r.monthlyFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Quarterly</p><p className="font-bold text-sky-600">{formatCurrency(r.quarterlyFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Half-Yr</p><p className="font-bold text-sky-600">{formatCurrency(r.halfYearlyFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Annual</p><p className="font-bold text-sky-600">{formatCurrency(r.annualFee)}</p></div>
             </div>
           </div>
         ))}
@@ -204,10 +205,10 @@ export const TransportConfigView: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <div><label className="block font-semibold mb-0.5">Monthly Fee (INR)</label><input type="number" value={formData.monthlyFee} onChange={e => setFormData({ ...formData, monthlyFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
-                <div><label className="block font-semibold mb-0.5">Quarterly Fee (INR)</label><input type="number" value={formData.quarterlyFee} onChange={e => setFormData({ ...formData, quarterlyFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
-                <div><label className="block font-semibold mb-0.5">Half Yearly (INR)</label><input type="number" value={formData.halfYearlyFee} onChange={e => setFormData({ ...formData, halfYearlyFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
-                <div><label className="block font-semibold mb-0.5">Annual Fee (INR)</label><input type="number" value={formData.annualFee} onChange={e => setFormData({ ...formData, annualFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
+                <div><label className="block font-semibold mb-0.5">Monthly Fee (₹)</label><input type="number" value={formData.monthlyFee} onChange={e => setFormData({ ...formData, monthlyFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
+                <div><label className="block font-semibold mb-0.5">Quarterly Fee (₹)</label><input type="number" value={formData.quarterlyFee} onChange={e => setFormData({ ...formData, quarterlyFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
+                <div><label className="block font-semibold mb-0.5">Half Yearly (₹)</label><input type="number" value={formData.halfYearlyFee} onChange={e => setFormData({ ...formData, halfYearlyFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
+                <div><label className="block font-semibold mb-0.5">Annual Fee (₹)</label><input type="number" value={formData.annualFee} onChange={e => setFormData({ ...formData, annualFee: Number(e.target.value) })} className="w-full px-2 py-1 rounded border" /></div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

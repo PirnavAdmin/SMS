@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Receipt, Search, Printer, CheckCircle, Eye, Download, Mail } from 'lucide-react';
 import { FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -68,7 +69,7 @@ export const FeeReceiptsView: React.FC = () => {
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{p.className}</td>
                   <td className="py-3 px-4 text-slate-500">{p.paymentDate}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{p.paymentMode}</td>
-                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {p.amountPaid.toLocaleString()}</td>
+                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.amountPaid)}</td>
                   <td className="py-3 px-4"><Badge variant="success">{p.status}</Badge></td>
                   <td className="py-3 px-4 text-right">
                     <button

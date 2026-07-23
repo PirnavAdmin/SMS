@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Bus, Route as RouteIcon, Users, DollarSign, CheckCircle, AlertCircle, TrendingUp, BarChart2, PieChart } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 
@@ -82,7 +83,7 @@ export const TransportDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Monthly Collection</p>
-            <h4 className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">INR {monthlyCollection.toLocaleString()}</h4>
+            <h4 className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(monthlyCollection)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"><DollarSign className="w-5 h-5" /></div>
         </div>
@@ -90,7 +91,7 @@ export const TransportDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Pending Dues</p>
-            <h4 className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">INR {pendingFees.toLocaleString()}</h4>
+            <h4 className="text-lg font-black text-rose-600 dark:text-rose-400 mt-0.5">{formatCurrency(pendingFees)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400"><AlertCircle className="w-5 h-5" /></div>
         </div>

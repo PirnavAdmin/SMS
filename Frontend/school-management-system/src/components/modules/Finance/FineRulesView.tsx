@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { AlertTriangle, Plus, Edit, Trash2, CheckCircle2, Calendar } from 'lucide-react';
 import { FineRule } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -103,11 +104,11 @@ export const FineRulesView: React.FC = () => {
               <div className="flex justify-between"><span>Grace Days:</span><span className="font-semibold text-sky-600">{r.graceDays} Days</span></div>
               <div className="flex justify-between"><span>Fine Type:</span><span className="font-semibold">{r.fineType}</span></div>
               {r.fineType === 'Daily Fine' ? (
-                <div className="flex justify-between"><span>Daily Rate:</span><span className="font-bold text-rose-500">INR {r.dailyFine}/day</span></div>
+                <div className="flex justify-between"><span>Daily Rate:</span><span className="font-bold text-rose-500">{formatCurrency(r.dailyFine || 0)}/day</span></div>
               ) : (
-                <div className="flex justify-between"><span>Fixed Rate:</span><span className="font-bold text-rose-500">INR {r.fixedFine}</span></div>
+                <div className="flex justify-between"><span>Fixed Rate:</span><span className="font-bold text-rose-500">{formatCurrency(r.fixedFine || 0)}</span></div>
               )}
-              <div className="flex justify-between"><span>Maximum Fine Cap:</span><span className="font-bold text-slate-900 dark:text-white">INR {r.maximumFine}</span></div>
+              <div className="flex justify-between"><span>Maximum Fine Cap:</span><span className="font-bold text-slate-900 dark:text-white">{formatCurrency(r.maximumFine || 0)}</span></div>
             </div>
           </div>
         ))}
@@ -150,15 +151,15 @@ export const FineRulesView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Max Fine Limit (INR)</label>
+                  <label className="block font-semibold mb-1">Max Fine Limit (₹)</label>
                   <input type="number" value={formData.maximumFine} onChange={e => setFormData({ ...formData, maximumFine: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" />
                 </div>
               </div>
 
               {formData.fineType === 'Daily Fine' ? (
-                <div><label className="block font-semibold mb-1">Daily Fine Amount (INR/day)</label><input type="number" value={formData.dailyFine} onChange={e => setFormData({ ...formData, dailyFine: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" /></div>
+                <div><label className="block font-semibold mb-1">Daily Fine Amount (₹/day)</label><input type="number" value={formData.dailyFine} onChange={e => setFormData({ ...formData, dailyFine: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" /></div>
               ) : (
-                <div><label className="block font-semibold mb-1">Fixed Fine Amount (INR)</label><input type="number" value={formData.fixedFine} onChange={e => setFormData({ ...formData, fixedFine: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" /></div>
+                <div><label className="block font-semibold mb-1">Fixed Fine Amount (₹)</label><input type="number" value={formData.fixedFine} onChange={e => setFormData({ ...formData, fixedFine: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" /></div>
               )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

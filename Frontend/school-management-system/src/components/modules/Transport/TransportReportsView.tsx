@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { FileSpreadsheet, Printer, BarChart3, Bus, Download } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
@@ -293,7 +294,7 @@ export const TransportReportsView: React.FC = () => {
                     <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       {Object.values(row).map((val: any, valIdx) => (
                         <td key={valIdx} className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                          {typeof val === 'number' ? `INR ${val.toLocaleString()}` : String(val)}
+                          {typeof val === 'number' ? formatCurrency(val) : String(val)}
                         </td>
                       ))}
                     </tr>

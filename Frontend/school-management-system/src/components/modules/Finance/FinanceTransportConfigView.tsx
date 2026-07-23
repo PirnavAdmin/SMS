@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Route as RouteIcon, Plus, Search, Edit, Trash2, Bus, User, MapPin, DollarSign, Calendar } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { Route as RouteIcon, Plus, Search, Edit, Trash2, Bus, User, MapPin, IndianRupee, Calendar } from 'lucide-react';
 import { FinanceTransportConfig } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -100,7 +101,7 @@ export const FinanceTransportConfigView: React.FC = () => {
       addToast('success', 'Transport Fee Config Updated', `Updated pricing for ${form.pickupName}`);
     } else {
       addFinanceTransportConfig(payload);
-      addToast('success', 'Transport Fee Config Saved', `Configured ${form.feePlan} fee of INR ${form.feeAmount} for ${form.pickupName}`);
+      addToast('success', 'Transport Fee Config Saved', `Configured ${form.feePlan} fee of ${formatCurrency(form.feeAmount)} for ${form.pickupName}`);
     }
     setIsModalOpen(false);
   };
@@ -190,7 +191,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                     </span>
                   </td>
                   <td className="py-3 px-4 font-black text-emerald-600 dark:text-emerald-400 text-sm">
-                    INR {c.feeAmount.toLocaleString()}
+                    {formatCurrency(c.feeAmount)}
                   </td>
                   <td className="py-3 px-4 font-mono text-slate-500">{c.effectiveFrom}</td>
                   <td className="py-3 px-4"><Badge variant={c.status === 'Active' ? 'success' : 'neutral'}>{c.status}</Badge></td>
@@ -213,7 +214,7 @@ export const FinanceTransportConfigView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <DollarSign className="w-5 h-5 text-emerald-500" />
+                <IndianRupee className="w-5 h-5 text-emerald-500" />
                 {editingConfig ? 'Edit Transport Pricing Configuration' : 'Configure Transport Fee Slab'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
@@ -285,7 +286,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Fee Amount (INR) *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Fee Amount (₹) *</label>
                   <input
                     type="number"
                     required

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import {
   X, User, Users, BookOpen, DollarSign, Calendar, Award, FileText,
   Phone, Mail, MapPin, Bus, Camera, Trash2, CheckCircle, Shield,
@@ -303,7 +304,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Fee Ledger & Receipts</h3>
-                <span className="text-xs font-bold text-rose-500">Outstanding Due: INR {student.dueFee}</span>
+                <span className="text-xs font-bold text-rose-500">Outstanding Due: {formatCurrency(student.dueFee)}</span>
               </div>
               <div className="space-y-2">
                 {studentPayments.map(p => (
@@ -313,7 +314,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       <p className="text-slate-500">{p.paymentDate} • {p.paymentMode}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-extrabold text-emerald-600">INR {p.amountPaid}</p>
+                      <p className="font-extrabold text-emerald-600">{formatCurrency(p.amountPaid)}</p>
                       <Badge variant="success" size="sm">{p.status}</Badge>
                     </div>
                   </div>

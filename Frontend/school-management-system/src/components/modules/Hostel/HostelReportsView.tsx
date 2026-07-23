@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import {
   FileSpreadsheet, Download, Printer, Search, Building2, Home, Users, DollarSign, Filter, RotateCcw, HelpCircle, Calendar, AlertCircle
 } from 'lucide-react';
@@ -562,7 +563,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Total Collection</p>
-                  <h3 className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">INR {totalPaid.toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(totalPaid)}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 dark:bg-emerald-950 flex items-center justify-center">
                   <DollarSign className="w-5 h-5" />
@@ -571,7 +572,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Pending Dues</p>
-                  <h3 className="text-lg font-black text-rose-600 mt-0.5">INR {totalPending.toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-rose-600 mt-0.5">{formatCurrency(totalPending)}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 dark:bg-rose-950 flex items-center justify-center">
                   <AlertCircle className="w-5 h-5" />
@@ -609,7 +610,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Total Due Amount</p>
-                  <h3 className="text-lg font-black text-rose-600 mt-0.5">INR {totalPending.toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-rose-600 mt-0.5">{formatCurrency(totalPending)}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-500 dark:bg-rose-950 flex items-center justify-center">
                   <AlertCircle className="w-5 h-5" />
@@ -627,7 +628,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Average Due Balance</p>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">INR {avgDues.toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(avgDues)}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 dark:bg-indigo-950 flex items-center justify-center">
                   <DollarSign className="w-5 h-5" />
@@ -653,7 +654,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Projected Monthly Revenue</p>
-                  <h3 className="text-lg font-black text-emerald-600 mt-0.5">INR {mRev.toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-emerald-600 mt-0.5">{formatCurrency(mRev)}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-500 dark:bg-emerald-950 flex items-center justify-center">
                   <DollarSign className="w-5 h-5" />
@@ -662,7 +663,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Projected Annual Revenue</p>
-                  <h3 className="text-lg font-black text-emerald-600 mt-0.5">INR {(mRev * 12).toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-emerald-600 mt-0.5">{formatCurrency(mRev * 12)}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 dark:bg-indigo-950 flex items-center justify-center">
                   <Building2 className="w-5 h-5" />
@@ -680,7 +681,7 @@ export const HostelReportsView: React.FC = () => {
               <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-sm">
                 <div>
                   <p className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider">Average Monthly Rent</p>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">INR {Math.round(mRev / (financeHostelConfigs.length || 1)).toLocaleString()}</h3>
+                  <h3 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(Math.round(mRev / (financeHostelConfigs.length || 1)))}</h3>
                 </div>
                 <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-500 dark:bg-sky-950 flex items-center justify-center">
                   <Users className="w-5 h-5" />
@@ -914,8 +915,8 @@ export const HostelReportsView: React.FC = () => {
                         <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{p.studentName}</td>
                         <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400">{st?.hostelBlock || 'Girls Excellence Block'}</td>
                         <td className="py-3 px-4 font-semibold text-sky-600 uppercase">Monthly</td>
-                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">INR {p.amountPaid.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-right font-bold text-slate-500">INR {dueAmt.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(p.amountPaid)}</td>
+                        <td className="py-3 px-4 text-right font-bold text-slate-500">{formatCurrency(dueAmt)}</td>
                         <td className="py-3 px-4 font-mono">{p.paymentDate}</td>
                       </tr>
                     );
@@ -939,7 +940,7 @@ export const HostelReportsView: React.FC = () => {
                       <tr key={l.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                         <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{l.studentName}</td>
                         <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400">{stObj?.hostelBlock || 'Boys Central Block A'}</td>
-                        <td className="py-3 px-4 text-right font-black text-rose-600">INR {dueAmt.toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-black text-rose-600">{formatCurrency(dueAmt)}</td>
                         <td className="py-3 px-4 font-mono">2026-07-01</td>
                         <td className="py-3 px-4 text-right font-bold text-rose-500">21 Days</td>
                       </tr>
@@ -970,8 +971,8 @@ export const HostelReportsView: React.FC = () => {
                     return (
                       <tr key={h.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                         <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{h.hostelName}</td>
-                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">INR {mRev.toLocaleString()}</td>
-                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">INR {(mRev * 12).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(mRev)}</td>
+                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(mRev * 12)}</td>
                         <td className="py-3 px-4 text-right font-bold text-indigo-600 dark:text-indigo-400">{pct}%</td>
                       </tr>
                     );

@@ -11,6 +11,7 @@ import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 import { validateDOB } from '../../../utils/dateValidation';
+import { formatCurrency } from '../../../utils/currency';
 
 interface AdmissionsViewProps {
   onSelectStudentProfile?: (student: Student) => void;
@@ -925,7 +926,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                       <option value="">None</option>
                       {scholarships.map(s => (
                         <option key={s.id} value={s.id}>
-                          {s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `INR ${s.fixedAmount}`})
+                          {s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : formatCurrency(s.fixedAmount || 0)})
                         </option>
                       ))}
                     </select>
@@ -940,7 +941,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                       <option value="">None</option>
                       {discounts.map(d => (
                         <option key={d.id} value={d.id}>
-                          {d.name} ({d.mode === 'Percentage' ? `${d.value}%` : `INR ${d.value}`})
+                          {d.name} ({d.mode === 'Percentage' ? `${d.value}%` : formatCurrency(d.value)})
                         </option>
                       ))}
                     </select>
@@ -1005,7 +1006,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                       <span className="truncate max-w-[170px]">{item.name}</span>
                     </span>
                     <span className={item.isApplicable ? 'font-black text-white' : 'text-[10px] italic text-slate-500'}>
-                      {item.isApplicable ? `INR ${item.amount.toLocaleString()}` : (item.remarks || 'Not Applicable')}
+                      {item.isApplicable ? formatCurrency(item.amount) : (item.remarks || 'Not Applicable')}
                     </span>
                   </div>
                 ))}
@@ -1014,7 +1015,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
               {/* Total Summary */}
               <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800/60 space-y-1">
                 <p className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Total Estimated Payable</p>
-                <h4 className="text-2xl font-black text-emerald-300">INR {liveFee.totalPayable.toLocaleString()}</h4>
+                <h4 className="text-2xl font-black text-emerald-300">{formatCurrency(liveFee.totalPayable)}</h4>
                 <p className="text-[10px] text-slate-400">Permanent Student Fee Ledger will be generated upon admission enrollment.</p>
               </div>
             </div>
@@ -1358,7 +1359,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                       <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {item.headName}
                       </span>
-                      <span className="font-black text-slate-900 dark:text-white">INR {item.originalAmount.toLocaleString()}</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatCurrency(item.originalAmount)}</span>
                     </div>
                   ))}
                 </div>
@@ -1386,18 +1387,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                 {ledger.totalScholarship > 0 && (
                   <div className="flex justify-between text-emerald-800 dark:text-emerald-300 font-semibold">
                     <span>Scholarship Deduction:</span>
-                    <span>- INR {ledger.totalScholarship.toLocaleString()}</span>
+                    <span>- {formatCurrency(ledger.totalScholarship)}</span>
                   </div>
                 )}
                 {ledger.totalDiscount > 0 && (
                   <div className="flex justify-between text-emerald-800 dark:text-emerald-300 font-semibold">
                     <span>Discount / Concession:</span>
-                    <span>- INR {ledger.totalDiscount.toLocaleString()}</span>
+                    <span>- {formatCurrency(ledger.totalDiscount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 border-t border-emerald-200 dark:border-emerald-800">
                   <span className="text-sm font-black text-emerald-950 dark:text-emerald-100 uppercase">Total Payable</span>
-                  <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">INR {ledger.totalPayable.toLocaleString()}</span>
+                  <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(ledger.totalPayable)}</span>
                 </div>
               </div>
 
@@ -1411,7 +1412,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                 </button>
                 <button
                   onClick={() => {
-                    const text = `STUDENT FEE SUMMARY\nName: ${ledger.studentName}\nAdm No: ${ledger.admissionNo}\nClass: ${ledger.className}-${ledger.section}\nStudent Type: ${ledger.studentType}\nTotal Payable: INR ${ledger.totalPayable}`;
+                    const text = `STUDENT FEE SUMMARY\nName: ${ledger.studentName}\nAdm No: ${ledger.admissionNo}\nClass: ${ledger.className}-${ledger.section}\nStudent Type: ${ledger.studentType}\nTotal Payable: ${formatCurrency(ledger.totalPayable)}`;
                     const blob = new Blob([text], { type: 'text/plain' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');

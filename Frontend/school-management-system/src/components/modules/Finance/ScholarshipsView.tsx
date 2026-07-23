@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Gift, Plus, Search, Edit, Trash2, CheckCircle2, UserPlus, X } from 'lucide-react';
 import { Scholarship, ScholarshipType, StudentScholarship } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -188,7 +189,7 @@ export const ScholarshipsView: React.FC = () => {
                 <div className="flex justify-between">
                   <span>Discount Value:</span>
                   <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {s.discountType === 'Percentage' ? `${s.percentage}% Fee Waiver` : `INR ${s.fixedAmount} Grant`}
+                    {s.discountType === 'Percentage' ? `${s.percentage}% Fee Waiver` : `${formatCurrency(s.fixedAmount || 0)} Grant`}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -226,7 +227,7 @@ export const ScholarshipsView: React.FC = () => {
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{ss.studentName}</td>
                     <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{ss.scholarshipName}</td>
                     <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
-                      {ss.discountType === 'Percentage' ? `${ss.discountValue}% Waiver` : `INR ${ss.discountValue} Off`}
+                      {ss.discountType === 'Percentage' ? `${ss.discountValue}% Waiver` : `${formatCurrency(ss.discountValue)} Off`}
                     </td>
                     <td className="py-3 px-4 text-slate-500">{ss.appliedDate}</td>
                     <td className="py-3 px-4 text-right">
@@ -276,7 +277,7 @@ export const ScholarshipsView: React.FC = () => {
                   <label className="block font-semibold mb-1">Discount Mode</label>
                   <select value={formData.discountType} onChange={e => setFormData({ ...formData, discountType: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
                     <option value="Percentage">Percentage (%)</option>
-                    <option value="Fixed Amount">Fixed Amount (INR)</option>
+                    <option value="Fixed Amount">Fixed Amount (₹)</option>
                   </select>
                 </div>
               </div>
@@ -284,7 +285,7 @@ export const ScholarshipsView: React.FC = () => {
               {formData.discountType === 'Percentage' ? (
                 <div><label className="block font-semibold mb-1">Percentage Waiver (%)</label><input type="number" value={formData.percentage} onChange={e => setFormData({ ...formData, percentage: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
               ) : (
-                <div><label className="block font-semibold mb-1">Fixed Grant Amount (INR)</label><input type="number" value={formData.fixedAmount} onChange={e => setFormData({ ...formData, fixedAmount: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
+                <div><label className="block font-semibold mb-1">Fixed Grant Amount (₹)</label><input type="number" value={formData.fixedAmount} onChange={e => setFormData({ ...formData, fixedAmount: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
               )}
 
               <div>
@@ -325,7 +326,7 @@ export const ScholarshipsView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Scholarship Scheme *</label>
                 <select value={allocScholarshipId} onChange={e => setAllocScholarshipId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {scholarships.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `INR ${s.fixedAmount}`})</option>
+                    <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `${formatCurrency(s.fixedAmount || 0)}`})</option>
                   ))}
                 </select>
               </div>

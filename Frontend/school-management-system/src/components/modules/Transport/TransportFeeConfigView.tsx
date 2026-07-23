@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { DollarSign, Edit, Search, Save } from 'lucide-react';
 import { PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -96,28 +97,28 @@ export const TransportFeeConfigView: React.FC = () => {
                       {isEditing ? (
                         <input type="number" value={editForm.monthlyFee} onChange={e => setEditForm({ ...editForm, monthlyFee: Number(e.target.value) })} className="w-24 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border font-bold" />
                       ) : (
-                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400">INR {(p.monthlyFee || 0).toLocaleString()}</span>
+                        <span className="font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.monthlyFee || 0)}</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
                       {isEditing ? (
                         <input type="number" value={editForm.quarterlyFee} onChange={e => setEditForm({ ...editForm, quarterlyFee: Number(e.target.value) })} className="w-24 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border font-bold" />
                       ) : (
-                        <span className="font-bold text-slate-800 dark:text-slate-200">INR {(p.quarterlyFee || 0).toLocaleString()}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(p.quarterlyFee || 0)}</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
                       {isEditing ? (
                         <input type="number" value={editForm.halfYearlyFee} onChange={e => setEditForm({ ...editForm, halfYearlyFee: Number(e.target.value) })} className="w-24 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border font-bold" />
                       ) : (
-                        <span className="font-bold text-slate-800 dark:text-slate-200">INR {(p.halfYearlyFee || 0).toLocaleString()}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{formatCurrency(p.halfYearlyFee || 0)}</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
                       {isEditing ? (
                         <input type="number" value={editForm.annualFee} onChange={e => setEditForm({ ...editForm, annualFee: Number(e.target.value) })} className="w-24 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border font-bold" />
                       ) : (
-                        <span className="font-extrabold text-indigo-600 dark:text-indigo-400">INR {(p.annualFee || 0).toLocaleString()}</span>
+                        <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(p.annualFee || 0)}</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-right">

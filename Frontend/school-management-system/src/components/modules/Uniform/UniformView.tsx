@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Shirt, Plus, Search, Filter, Edit, Trash2, X } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -134,7 +135,7 @@ export const UniformView: React.FC = () => {
             <div className="space-y-1 text-xs">
               <div className="flex justify-between"><span className="text-slate-400">Target Class:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.className}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Color Spec:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.color}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Unit Price:</span><span className="font-extrabold text-emerald-600">${u.price}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">Unit Price:</span><span className="font-extrabold text-emerald-600">{formatCurrency(u.price)}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Stock Available:</span><span className="font-bold text-slate-900 dark:text-white">{u.availableStock} Units</span></div>
             </div>
           </div>
@@ -201,7 +202,7 @@ export const UniformView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Unit Price ($)</label>
+                  <label className="block font-semibold mb-1">Unit Price (₹)</label>
                   <input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>

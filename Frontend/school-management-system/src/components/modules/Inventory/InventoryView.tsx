@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Package, Plus, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -62,7 +63,7 @@ export const InventoryView: React.FC = () => {
                 <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{item.itemName}</td>
                 <td className="py-3 px-4 text-slate-500">{item.category}</td>
                 <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">{item.quantity} units</td>
-                <td className="py-3 px-4 text-emerald-600 font-bold">${item.unitPrice}</td>
+                <td className="py-3 px-4 text-emerald-600 font-bold">{formatCurrency(item.unitPrice)}</td>
                 <td className="py-3 px-4 text-slate-500">{item.location}</td>
                 <td className="py-3 px-4">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -92,7 +93,7 @@ export const InventoryView: React.FC = () => {
                   <input type="number" value={newItem.quantity} onChange={e => setNewItem({ ...newItem, quantity: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Unit Price ($)</label>
+                  <label className="block font-semibold mb-1">Unit Price (₹)</label>
                   <input type="number" value={newItem.unitPrice} onChange={e => setNewItem({ ...newItem, unitPrice: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
               </div>

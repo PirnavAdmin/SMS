@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Clock, Search, AlertCircle, DollarSign } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { Clock, Search, AlertCircle, IndianRupee } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
@@ -47,7 +48,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
       <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500">
         <div>
           <p className="text-xs font-semibold text-slate-500 uppercase">Total System Outstanding Dues</p>
-          <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">INR {totalOutstanding.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalOutstanding)}</h3>
         </div>
         <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
           <AlertCircle className="w-6 h-6" />
@@ -100,23 +101,23 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
                   <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
                   <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                    INR {(calc?.transportFee || 0).toLocaleString()}
+                    {formatCurrency(calc?.transportFee || 0)}
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                    INR {(calc?.hostelFee || 0).toLocaleString()}
+                    {formatCurrency(calc?.hostelFee || 0)}
                   </td>
                   <td className="py-3 px-4 font-semibold text-rose-500">
-                    INR {(calc?.fineAmount || 0).toLocaleString()}
+                    {formatCurrency(calc?.fineAmount || 0)}
                   </td>
                   <td className="py-3 px-4 font-black text-rose-600 dark:text-rose-400">
-                    INR {(calc ? calc.dueBalance : st.dueFee).toLocaleString()}
+                    {formatCurrency(calc ? calc.dueBalance : st.dueFee)}
                   </td>
                   <td className="py-3 px-4 text-right">
                     <button
                       onClick={() => onCollectStudentFee(st)}
                       className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto"
                     >
-                      <DollarSign className="w-3.5 h-3.5" /> Collect
+                      <IndianRupee className="w-3.5 h-3.5" /> Collect
                     </button>
                   </td>
                 </tr>

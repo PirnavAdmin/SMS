@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Home, Building2, Bed, Users, DollarSign, TrendingUp, ShieldCheck, PieChart, Layers } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 
@@ -109,7 +110,7 @@ export const HostelDashboardView: React.FC = () => {
         <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md flex items-center justify-between">
           <div>
             <p className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Est. Monthly Revenue</p>
-            <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">INR {Math.round(totalMonthlyRevenue).toLocaleString()}</h3>
+            <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{formatCurrency(Math.round(totalMonthlyRevenue))}</h3>
             <p className="text-[10px] text-emerald-600 font-bold mt-1">Hostel Billing</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-500">
@@ -175,7 +176,7 @@ export const HostelDashboardView: React.FC = () => {
                     <p className="text-[10px] text-slate-400">Total Rooms: {countRooms} | Bed Cap: {rt.capacity}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-extrabold text-indigo-600 dark:text-indigo-400">INR {(configPricing?.hostelFee || 40000).toLocaleString()}</p>
+                    <p className="font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(configPricing?.hostelFee || 40000)}</p>
                     <p className="text-[10px] text-slate-400">Configured Fee</p>
                   </div>
                 </div>

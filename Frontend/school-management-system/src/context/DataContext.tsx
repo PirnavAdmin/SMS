@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { formatCurrency } from '../utils/currency';
 import {
   Student, Staff, StaffDocument, BankDetails, AdmissionApplication, FeeStructure, FeePayment,
   DailyAttendance, ExamSetup, ExamMark, TimetableSlot, Homework,
@@ -1015,7 +1016,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return ledger;
     }));
 
-    logActivity('Collected Fee', `Processed payment of INR ${newPayment.amountPaid} for ${newPayment.studentName}`);
+    logActivity('Collected Fee', `Processed payment of ${formatCurrency(newPayment.amountPaid)} for ${newPayment.studentName}`);
     return newPayment;
   };
 
@@ -1357,7 +1358,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const refundNo = 'RF-2026-' + Math.floor(1000 + Math.random() * 9000);
     const newRefund: Refund = { ...r, id, refundNo };
     setRefunds(prev => [newRefund, ...prev]);
-    logActivity('Requested Refund', `Created refund request ${refundNo} for INR ${r.amount}`);
+    logActivity('Requested Refund', `Created refund request ${refundNo} for ${formatCurrency(r.amount)}`);
   };
 
   const updateRefundStatus = (id: string, status: Refund['status'], approvedBy = 'Admin User') => {
@@ -1375,7 +1376,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const id = 'FTC-' + Math.floor(100 + Math.random() * 900);
     const newConfig: FinanceTransportConfig = { ...c, id };
     setFinanceTransportConfigs(prev => [...prev, newConfig]);
-    logActivity('Created Transport Pricing Config', `Set ${newConfig.feePlan} fee INR ${newConfig.feeAmount} for ${newConfig.pickupName}`);
+    logActivity('Created Transport Pricing Config', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
   };
 
   const updateFinanceTransportConfig = (id: string, updates: Partial<FinanceTransportConfig>) => {

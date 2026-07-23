@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { DollarSign, Search, Receipt, CheckCircle, AlertCircle, Calculator, History, ArrowRight } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { IndianRupee, Search, Receipt, CheckCircle, AlertCircle, Calculator, History, ArrowRight } from 'lucide-react';
 import { Student, FeePayment, StudentFeeLedger } from '../../../types';
 import { useData, StudentCalculationResult } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -178,7 +179,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       previousDue: calcResult.previousDue
     });
 
-    addToast('success', 'Payment Processed', `Issued receipt ${payment.receiptNo} for INR ${amountPaying}`);
+    addToast('success', 'Payment Processed', `Issued receipt ${payment.receiptNo} for ${formatCurrency(amountPaying)}`);
     onPrintReceipt(payment);
 
     // Refresh calculation engine
@@ -197,7 +198,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <DollarSign className="w-6 h-6 text-emerald-500" /> Dynamic Fee Collection Counter
+          <IndianRupee className="w-6 h-6 text-emerald-500" /> Dynamic Fee Collection Counter
         </h2>
         <p className="text-xs text-slate-500">Zero manual fee entry — automatic computation of Base Fee, Transport, Hostel, Scholarships, Concessions & Late Fines</p>
       </div>
@@ -261,7 +262,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
 
                     <div className="text-right">
                       <p className="text-[10px] uppercase font-bold text-sky-400">Net Due Balance</p>
-                      <h4 className="text-2xl font-black text-emerald-400">INR {remainingDue.toLocaleString()}</h4>
+                      <h4 className="text-2xl font-black text-emerald-400">{formatCurrency(remainingDue)}</h4>
                     </div>
                   </div>
 
@@ -269,19 +270,19 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
                   <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
                     <p className="text-[10px] text-slate-400 font-semibold uppercase">Base Structure Fee</p>
-                    <p className="font-bold text-white mt-0.5">INR {calcResult.baseFee.toLocaleString()}</p>
+                    <p className="font-bold text-white mt-0.5">{formatCurrency(calcResult.baseFee)}</p>
                   </div>
                   <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
                     <p className="text-[10px] text-slate-400 font-semibold uppercase">Transport Fee</p>
-                    <p className="font-bold text-sky-400 mt-0.5">+INR {calcResult.transportFee.toLocaleString()}</p>
+                    <p className="font-bold text-sky-400 mt-0.5">+{formatCurrency(calcResult.transportFee)}</p>
                   </div>
                   <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
                     <p className="text-[10px] text-slate-400 font-semibold uppercase">Hostel Fee</p>
-                    <p className="font-bold text-sky-400 mt-0.5">+INR {calcResult.hostelFee.toLocaleString()}</p>
+                    <p className="font-bold text-sky-400 mt-0.5">+{formatCurrency(calcResult.hostelFee)}</p>
                   </div>
                   <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
                     <p className="text-[10px] text-slate-400 font-semibold uppercase">Scholarships & Concessions</p>
-                    <p className="font-bold text-emerald-400 mt-0.5">-INR {(calcResult.scholarshipDeduction + calcResult.discountDeduction).toLocaleString()}</p>
+                    <p className="font-bold text-emerald-400 mt-0.5">-{formatCurrency(calcResult.scholarshipDeduction + calcResult.discountDeduction)}</p>
                   </div>
                 </div>
               </div>
@@ -313,7 +314,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                             {fh.headName}
                           </span>
                           <span className="font-black text-slate-900 dark:text-white">
-                            INR {fh.originalAmount.toLocaleString()}
+                            {formatCurrency(fh.originalAmount)}
                           </span>
                         </div>
                       ));
@@ -342,11 +343,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                           </div>
                           <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 border-t border-slate-200/50 dark:border-slate-800/50 pt-2">
                             <span>Applied Amount:</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-black">-INR {calcResult.scholarshipDeduction.toLocaleString()}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-black">-{formatCurrency(calcResult.scholarshipDeduction)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                             <span>Remaining Payable:</span>
-                            <span className="text-slate-900 dark:text-white font-extrabold">INR {netPayable.toLocaleString()}</span>
+                            <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(netPayable)}</span>
                           </div>
                         </div>
                         <button
@@ -369,7 +370,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                           >
                             <option value="">Select Scholarship...</option>
                             {scholarships.filter(s => s.status === 'Active').map(s => (
-                              <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `INR ${s.fixedAmount}`})</option>
+                              <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `${formatCurrency(s.fixedAmount || 0)}`})</option>
                             ))}
                           </select>
                           <button
@@ -413,11 +414,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                           </div>
                           <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 border-t border-slate-200/50 dark:border-slate-800/50 pt-2">
                             <span>Applied Amount:</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-black">-INR {calcResult.discountDeduction.toLocaleString()}</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-black">-{formatCurrency(calcResult.discountDeduction)}</span>
                           </div>
                           <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                             <span>Remaining Payable:</span>
-                            <span className="text-slate-900 dark:text-white font-extrabold">INR {netPayable.toLocaleString()}</span>
+                            <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(netPayable)}</span>
                           </div>
                         </div>
                         <button
@@ -440,7 +441,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                           >
                             <option value="">Select Discount...</option>
                             {discounts.filter(d => d.status === 'Active').map(d => (
-                              <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : `INR ${d.value}`})</option>
+                              <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : `${formatCurrency(d.value)}`})</option>
                             ))}
                           </select>
                           <button
@@ -470,36 +471,36 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                   <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-2xl">
                     <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400">
                       <span>Gross Amount:</span>
-                      <span className="text-slate-900 dark:text-white font-extrabold">INR {grossAmount.toLocaleString()}</span>
+                      <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(grossAmount)}</span>
                     </div>
                     {calcResult.scholarshipDeduction > 0 && (
                       <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
                         <span>Scholarship:</span>
-                        <span>-INR {calcResult.scholarshipDeduction.toLocaleString()}</span>
+                        <span>-{formatCurrency(calcResult.scholarshipDeduction)}</span>
                       </div>
                     )}
                     {calcResult.discountDeduction > 0 && (
                       <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
                         <span>Discount:</span>
-                        <span>-INR {calcResult.discountDeduction.toLocaleString()}</span>
+                        <span>-{formatCurrency(calcResult.discountDeduction)}</span>
                       </div>
                     )}
                     {calcResult.fineAmount > 0 && (
                       <div className="flex justify-between font-bold text-rose-500">
                         <span>Late Payment Fine ({calcResult.fineDetails?.daysOverdue} days overdue):</span>
-                        <span>+INR {calcResult.fineAmount.toLocaleString()}</span>
+                        <span>+{formatCurrency(calcResult.fineAmount)}</span>
                       </div>
                     )}
                     {calcResult.previousDue > 0 && (
                       <div className="flex justify-between font-bold text-rose-600">
                         <span>Previous Unpaid Outstanding Due:</span>
-                        <span>+INR {calcResult.previousDue.toLocaleString()}</span>
+                        <span>+{formatCurrency(calcResult.previousDue)}</span>
                       </div>
                     )}
                     {calcResult.paidAmount > 0 && (
                       <div className="flex justify-between font-bold text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1.5 mt-1.5">
                         <span>Total Paid Till Date:</span>
-                        <span>INR {calcResult.paidAmount.toLocaleString()}</span>
+                        <span>{formatCurrency(calcResult.paidAmount)}</span>
                       </div>
                     )}
                   </div>
@@ -509,7 +510,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                   {/* Total Net Payable Row */}
                   <div className="flex justify-between items-center py-1 font-black text-slate-900 dark:text-white text-sm">
                     <span className="uppercase tracking-wider">Total Payable</span>
-                    <span className="text-base text-indigo-600 dark:text-indigo-400">INR {netPayable.toLocaleString()}</span>
+                    <span className="text-base text-indigo-600 dark:text-indigo-400">{formatCurrency(netPayable)}</span>
                   </div>
                 </div>
               </div>
@@ -523,7 +524,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                 <form onSubmit={handleSubmitPayment} className="space-y-3 text-xs">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount to Collect (INR) *</label>
+                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount to Collect (₹) *</label>
                       <input
                         type="number"
                         required

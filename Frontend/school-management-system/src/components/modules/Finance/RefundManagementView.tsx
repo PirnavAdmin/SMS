@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { RotateCcw, Plus, Search, CheckCircle, XCircle } from 'lucide-react';
 import { Refund } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -110,7 +111,7 @@ export const RefundManagementView: React.FC = () => {
                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{r.reason}</td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{r.refundMode}</td>
-                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {r.amount.toLocaleString()}</td>
+                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(r.amount)}</td>
                   <td className="py-3 px-4 text-slate-500">{r.approvedBy}</td>
                   <td className="py-3 px-4">
                     <Badge variant={r.status === 'Approved' ? 'success' : r.status === 'Pending' ? 'warning' : 'danger'}>{r.status}</Badge>
@@ -168,7 +169,7 @@ export const RefundManagementView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Receipt Ref No</label><input type="text" value={receiptNo} onChange={e => setReceiptNo(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">Refund Amount (INR) *</label><input type="number" required value={amount} onChange={e => setAmount(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
+                <div><label className="block font-semibold mb-1">Refund Amount (₹) *</label><input type="number" required value={amount} onChange={e => setAmount(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

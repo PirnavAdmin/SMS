@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Percent, Plus, Search, Edit, Trash2, UserPlus } from 'lucide-react';
 import { Discount, DiscountType, StudentDiscount } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -152,7 +153,7 @@ export const DiscountsView: React.FC = () => {
                 </span>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">{d.name}</h3>
                 <p className="text-xs font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
-                  {d.mode === 'Percentage' ? `${d.value}% Concession` : `INR ${d.value} Flat Off`}
+                  {d.mode === 'Percentage' ? `${d.value}% Concession` : `${formatCurrency(d.value)} Flat Off`}
                 </p>
               </div>
 
@@ -231,13 +232,13 @@ export const DiscountsView: React.FC = () => {
                   <label className="block font-semibold mb-1">Mode</label>
                   <select value={formData.mode} onChange={e => setFormData({ ...formData, mode: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
                     <option value="Percentage">Percentage (%)</option>
-                    <option value="Fixed Amount">Fixed Amount (INR)</option>
+                    <option value="Fixed Amount">Fixed Amount (₹)</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Value ({formData.mode === 'Percentage' ? '%' : 'INR'}) *</label>
+                <label className="block font-semibold mb-1">Value ({formData.mode === 'Percentage' ? '%' : '₹'}) *</label>
                 <input type="number" required value={formData.value} onChange={e => setFormData({ ...formData, value: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" />
               </div>
 
@@ -274,7 +275,7 @@ export const DiscountsView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Discount Rule *</label>
                 <select value={allocDiscountId} onChange={e => setAllocDiscountId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {discounts.map(d => (
-                    <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : `INR ${d.value}`})</option>
+                    <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : formatCurrency(d.value)})</option>
                   ))}
                 </select>
               </div>

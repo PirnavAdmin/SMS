@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Bus, Plus, Search, Trash2, CheckCircle2 } from 'lucide-react';
 import { StudentTransport } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -112,7 +113,7 @@ export const StudentTransportView: React.FC = () => {
                 <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{st.routeName}</td>
                 <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{st.pickupPoint} ➔ {st.dropPoint}</td>
                 <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{st.feePlan}</td>
-                <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {st.feeAmount.toLocaleString()}</td>
+                <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(st.feeAmount)}</td>
                 <td className="py-3 px-4 text-right">
                   <button onClick={() => setDeletingAssign(st)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
                     <Trash2 className="w-3.5 h-3.5" />
@@ -148,7 +149,7 @@ export const StudentTransportView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Transport Route *</label>
                 <select value={routeId} onChange={e => setRouteId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
                   {erpTransportRoutes.map(rt => (
-                    <option key={rt.id} value={rt.id}>{rt.routeName} ({rt.pickupPoint} • INR {rt.quarterlyFee}/qtr)</option>
+                    <option key={rt.id} value={rt.id}>{rt.routeName} ({rt.pickupPoint} • {formatCurrency(rt.quarterlyFee)}/qtr)</option>
                   ))}
                 </select>
               </div>

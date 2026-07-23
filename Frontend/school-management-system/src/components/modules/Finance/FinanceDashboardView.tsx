@@ -1,5 +1,6 @@
 import React from 'react';
-import { DollarSign, AlertCircle, CheckCircle, Bus, Home, Gift, AlertTriangle, TrendingUp, PieChart, BarChart2 } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { IndianRupee, AlertCircle, CheckCircle, Bus, Home, Gift, AlertTriangle, TrendingUp, PieChart, BarChart2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 
 export const FinanceDashboardView: React.FC = () => {
@@ -32,9 +33,9 @@ export const FinanceDashboardView: React.FC = () => {
         <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">Total Expected Collection</span>
-            <DollarSign className="w-5 h-5 text-sky-500" />
+            <IndianRupee className="w-5 h-5 text-sky-500" />
           </div>
-          <h3 className="text-2xl font-black text-slate-900 dark:text-white">INR {totalExpected.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-slate-900 dark:text-white">{formatCurrency(totalExpected)}</h3>
           <p className="text-[10px] text-slate-400">Target baseline revenue</p>
         </div>
 
@@ -43,7 +44,7 @@ export const FinanceDashboardView: React.FC = () => {
             <span className="text-xs font-bold text-slate-500 uppercase">Total Collected</span>
             <CheckCircle className="w-5 h-5 text-emerald-500" />
           </div>
-          <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">INR {totalCollected.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(totalCollected)}</h3>
           <p className="text-[10px] text-emerald-500 font-semibold">Realized revenue</p>
         </div>
 
@@ -52,7 +53,7 @@ export const FinanceDashboardView: React.FC = () => {
             <span className="text-xs font-bold text-slate-500 uppercase">Total Pending Dues</span>
             <AlertCircle className="w-5 h-5 text-rose-500" />
           </div>
-          <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">INR {totalPending.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">{formatCurrency(totalPending)}</h3>
           <p className="text-[10px] text-rose-500 font-semibold">Action required</p>
         </div>
 
@@ -61,7 +62,7 @@ export const FinanceDashboardView: React.FC = () => {
             <span className="text-xs font-bold text-slate-500 uppercase">Today's Collection</span>
             <TrendingUp className="w-5 h-5 text-indigo-500" />
           </div>
-          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400">INR {todaysCollection.toLocaleString()}</h3>
+          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(todaysCollection)}</h3>
           <p className="text-[10px] text-slate-400">Daily receipt total</p>
         </div>
       </div>
@@ -71,7 +72,7 @@ export const FinanceDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Transport Revenue</p>
-            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">INR {transportCollection.toLocaleString()}</h4>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(transportCollection)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400"><Bus className="w-5 h-5" /></div>
         </div>
@@ -79,7 +80,7 @@ export const FinanceDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Hostel Revenue</p>
-            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">INR {hostelCollection.toLocaleString()}</h4>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(hostelCollection)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400"><Home className="w-5 h-5" /></div>
         </div>
@@ -87,7 +88,7 @@ export const FinanceDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Scholarships Granted</p>
-            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">INR {scholarshipAmount.toLocaleString()}</h4>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(scholarshipAmount)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"><Gift className="w-5 h-5" /></div>
         </div>
@@ -95,7 +96,7 @@ export const FinanceDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Fine Collected</p>
-            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">INR {fineCollection.toLocaleString()}</h4>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(fineCollection)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400"><AlertTriangle className="w-5 h-5" /></div>
         </div>
@@ -119,7 +120,7 @@ export const FinanceDashboardView: React.FC = () => {
                 <div key={c.id} className="space-y-1">
                   <div className="flex justify-between text-xs font-bold">
                     <span className="text-slate-900 dark:text-white">{c.name}</span>
-                    <span className="text-slate-500">INR {classPaid.toLocaleString()} / INR {classTotal.toLocaleString()} ({pct}%)</span>
+                    <span className="text-slate-500">{formatCurrency(classPaid)} / {formatCurrency(classTotal)} ({pct}%)</span>
                   </div>
                   <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
                     <div className="bg-sky-500 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />

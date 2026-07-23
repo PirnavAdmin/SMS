@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Layers, Plus, Search, Edit, Trash2, Calculator, CheckCircle } from 'lucide-react';
 import { DynamicFeeStructure, FeeStructureItem } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -194,14 +195,14 @@ export const FeeStructuresView: React.FC = () => {
               {s.items.map(item => (
                 <div key={item.feeHeadId} className="flex justify-between text-slate-600 dark:text-slate-300">
                   <span>{item.feeHeadName}:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">INR {item.amount.toLocaleString()}</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(item.amount)}</span>
                 </div>
               ))}
             </div>
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
               <span>Total Standard Base Fee:</span>
-              <span className="text-emerald-600 dark:text-emerald-400">INR {s.totalAmount.toLocaleString()}</span>
+              <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(s.totalAmount)}</span>
             </div>
           </div>
         ))}
@@ -281,7 +282,7 @@ export const FeeStructuresView: React.FC = () => {
 
                       {isSelected && (
                         <div className="flex items-center gap-1">
-                          <span className="font-bold text-slate-400">INR</span>
+                          <span className="font-bold text-slate-400">₹</span>
                           <input
                             type="number"
                             value={selectedHeadItems[head.id] || 0}
@@ -299,7 +300,7 @@ export const FeeStructuresView: React.FC = () => {
                 <span className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
                   <Calculator className="w-4 h-4" /> Total Auto-Calculated Fee:
                 </span>
-                <span className="font-extrabold text-base text-emerald-600 dark:text-emerald-400">INR {totalCalculated.toLocaleString()}</span>
+                <span className="font-extrabold text-base text-emerald-600 dark:text-emerald-400">{formatCurrency(totalCalculated)}</span>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

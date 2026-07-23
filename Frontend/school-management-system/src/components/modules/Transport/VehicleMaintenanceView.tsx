@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Wrench, Plus, Search, Calendar, AlertCircle, Trash2 } from 'lucide-react';
 import { VehicleMaintenance } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -97,7 +98,7 @@ export const VehicleMaintenanceView: React.FC = () => {
                 <th className="py-3.5 px-4">Service Type</th>
                 <th className="py-3.5 px-4">Service Date</th>
                 <th className="py-3.5 px-4">Vendor</th>
-                <th className="py-3.5 px-4">Cost (INR)</th>
+                <th className="py-3.5 px-4">Cost (₹)</th>
                 <th className="py-3.5 px-4">Next Service Due</th>
                 <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
@@ -110,7 +111,7 @@ export const VehicleMaintenanceView: React.FC = () => {
                   <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{m.serviceType}</td>
                   <td className="py-3 px-4 text-slate-500">{m.serviceDate}</td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{m.vendor}</td>
-                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {m.cost.toLocaleString()}</td>
+                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(m.cost)}</td>
                   <td className="py-3 px-4 font-bold text-rose-500">{m.nextServiceDue}</td>
                   <td className="py-3 px-4"><Badge variant={m.status === 'Completed' ? 'success' : m.status === 'Scheduled' ? 'warning' : 'danger'}>{m.status}</Badge></td>
                   <td className="py-3 px-4 text-right">
@@ -151,7 +152,7 @@ export const VehicleMaintenanceView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Service Date</label><input type="date" value={serviceDate} onChange={e => setServiceDate(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Cost (INR) *</label><input type="number" required value={cost} onChange={e => setCost(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
+                <div><label className="block font-semibold mb-1">Cost (₹) *</label><input type="number" required value={cost} onChange={e => setCost(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

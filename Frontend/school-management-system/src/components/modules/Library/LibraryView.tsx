@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Library, BookOpen, Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -138,7 +139,7 @@ export const LibraryView: React.FC = () => {
                 <th className="py-3 px-4">Borrower</th>
                 <th className="py-3 px-4">Issue Date</th>
                 <th className="py-3 px-4">Due Date</th>
-                <th className="py-3 px-4">Fine ($)</th>
+                <th className="py-3 px-4">Fine (₹)</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
@@ -150,7 +151,7 @@ export const LibraryView: React.FC = () => {
                   <td className="py-3 px-4">{iss.borrowerName} ({iss.borrowerRole})</td>
                   <td className="py-3 px-4 text-slate-500">{iss.issueDate}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{iss.dueDate}</td>
-                  <td className="py-3 px-4 text-rose-500 font-bold">${iss.fineAmount}</td>
+                  <td className="py-3 px-4 text-rose-500 font-bold">{formatCurrency(iss.fineAmount)}</td>
                   <td className="py-3 px-4"><Badge variant={iss.status === 'Returned' ? 'success' : 'danger'}>{iss.status}</Badge></td>
                   <td className="py-3 px-4 text-right">
                     {iss.status !== 'Returned' && (

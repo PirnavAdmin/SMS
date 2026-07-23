@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, DollarSign, Receipt } from 'lucide-react';
+import { X, IndianRupee, Receipt } from 'lucide-react';
 import { Student, FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { formatCurrency } from '../../../utils/currency';
 
 interface FeeCollectModalProps {
   isOpen: boolean;
@@ -52,7 +53,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
       remarks
     });
 
-    addToast('success', 'Fee Collected', `Issued receipt ${payment.receiptNo} for INR ${netPayment}`);
+    addToast('success', 'Fee Collected', `Issued receipt ${payment.receiptNo} for ${formatCurrency(netPayment)}`);
     onReceiptGenerated(payment);
     onClose();
   };
@@ -63,7 +64,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
             <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">
-              <DollarSign className="w-5 h-5" />
+              <IndianRupee className="w-5 h-5" />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Fee Collection Counter</h3>
@@ -78,12 +79,12 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 space-y-1">
             <p className="font-bold text-slate-900 dark:text-white">{student.firstName} {student.lastName}</p>
-            <p className="text-slate-500">Class: {student.className}-{student.section} • Current Outstanding Due: <span className="font-bold text-rose-500">INR {student.dueFee}</span></p>
+            <p className="text-slate-500">Class: {student.className}-{student.section} • Current Outstanding Due: <span className="font-bold text-rose-500">{formatCurrency(student.dueFee)}</span></p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Base Amount (INR) *</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Base Amount (₹) *</label>
               <input
                 type="number"
                 required
@@ -109,7 +110,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Discount Grant (INR)</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Discount Grant (₹)</label>
               <input
                 type="number"
                 value={discount}
@@ -118,7 +119,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
               />
             </div>
             <div>
-              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Late Fine (INR)</label>
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Late Fine (₹)</label>
               <input
                 type="number"
                 value={fine}
@@ -153,7 +154,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={onClose} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
             <button type="submit" className="px-5 py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5">
-              <Receipt className="w-4 h-4" /> Issue Receipt (INR {amountPaid - discount + fine})
+              <Receipt className="w-4 h-4" /> Issue Receipt ({formatCurrency(amountPaid - discount + fine)})
             </button>
           </div>
         </form>

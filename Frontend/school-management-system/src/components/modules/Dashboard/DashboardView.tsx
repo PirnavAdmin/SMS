@@ -1,11 +1,11 @@
-import React from 'react';
 import {
-  UserCheck, Users, DollarSign, AlertCircle, Calendar, Cake,
+  UserCheck, Users, IndianRupee, AlertCircle, Calendar, Cake,
   Megaphone, ArrowRight, Activity, Receipt, Sparkles
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
+import { formatCurrency } from '../../../utils/currency';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
@@ -60,7 +60,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               onClick={() => onNavigate('fees')}
               className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-md text-xs font-bold transition-all flex items-center gap-2"
             >
-              <DollarSign className="w-4 h-4" /> Collect Fee
+              <IndianRupee className="w-4 h-4" /> Collect Fee
             </button>
           </div>
         </div>
@@ -70,8 +70,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Total Students" value={totalStudents} subtitle="Enrolled active students" change="+12% vs last term" isPositive={true} icon={UserCheck} color="indigo" />
         <StatCard title="Total Staff" value={totalStaff} subtitle="Faculty & administration" change="100% active" isPositive={true} icon={Users} color="emerald" />
-        <StatCard title="Fee Collected" value={`INR ${feeCollected.toLocaleString()}`} subtitle="Total revenue processed" change="+18.5% growth" isPositive={true} icon={DollarSign} color="sky" />
-        <StatCard title="Fee Outstandings" value={`INR ${feeDue.toLocaleString()}`} subtitle="Pending student dues" change="Action required" isPositive={false} icon={AlertCircle} color="rose" />
+        <StatCard title="Fee Collected" value={formatCurrency(feeCollected)} subtitle="Total revenue processed" change="+18.5% growth" isPositive={true} icon={IndianRupee} color="sky" />
+        <StatCard title="Fee Outstandings" value={formatCurrency(feeDue)} subtitle="Pending student dues" change="Action required" isPositive={false} icon={AlertCircle} color="rose" />
       </div>
 
       {/* Recent Transactions Widget */}
@@ -106,7 +106,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{p.studentName}</td>
                   <td className="py-3 px-4 font-mono font-semibold text-slate-600 dark:text-slate-300">{p.receiptNo}</td>
-                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {p.amountPaid}</td>
+                  <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.amountPaid)}</td>
                   <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{p.paymentMode}</td>
                   <td className="py-3 px-4 text-slate-500">{p.paymentDate}</td>
                   <td className="py-3 px-4"><Badge variant="success" size="sm">{p.status}</Badge></td>

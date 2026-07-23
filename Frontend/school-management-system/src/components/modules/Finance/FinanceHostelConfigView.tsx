@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import { Home, Plus, Edit, Trash2, Search, Building2, Layers, CheckCircle2, XCircle } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -178,9 +179,9 @@ export const FinanceHostelConfigView: React.FC = () => {
                           {c.feePlan}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-extrabold text-indigo-600 dark:text-indigo-400">INR {(c.hostelFee || 0).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right font-bold text-slate-600 dark:text-slate-400">INR {(c.securityDeposit || 0).toLocaleString()}</td>
-                      <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">INR {total.toLocaleString()}</td>
+                      <td className="py-3 px-4 text-right font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(c.hostelFee || 0)}</td>
+                      <td className="py-3 px-4 text-right font-bold text-slate-600 dark:text-slate-400">{formatCurrency(c.securityDeposit || 0)}</td>
+                      <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(total)}</td>
                       <td className="py-3 px-4">
                         {c.status === 'Active' ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px] flex items-center gap-1 w-max">
@@ -270,7 +271,7 @@ export const FinanceHostelConfigView: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Rent Fee (INR) *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Rent Fee (₹) *</label>
                   <input
                     type="number"
                     required

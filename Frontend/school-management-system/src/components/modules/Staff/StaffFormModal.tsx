@@ -207,7 +207,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({ isOpen, onClose,
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Monthly Salary ($)</label>
+              <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Monthly Salary (₹)</label>
               <input type="number" value={formData.salary} onChange={e => setFormData({ ...formData, salary: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
             </div>
             <div>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, DollarSign, CreditCard, Calendar, CheckCircle2, Printer } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { X, IndianRupee, CreditCard, Calendar, CheckCircle2, Printer } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useToast } from '../../../context/ToastContext';
 
@@ -23,7 +24,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   const accountNumber = staff.bankDetails?.accountNumber || 'N/A';
 
   const handleProcessPayroll = () => {
-    addToast('success', 'Payroll Processed', `Disbursed net salary of $${netSalary.toLocaleString()} to ${accountNumber}`);
+    addToast('success', 'Payroll Processed', `Disbursed net salary of ${formatCurrency(netSalary)} to ${accountNumber}`);
   };
 
   return (
@@ -48,16 +49,16 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
           {/* Salary Breakdown Card */}
           <div className="glass-card p-5 rounded-2xl space-y-3">
             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-emerald-600" /> Monthly Salary Breakdown
+              <IndianRupee className="w-4 h-4 text-emerald-600" /> Monthly Salary Breakdown
             </h3>
             <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
-              <div className="flex justify-between"><span className="text-slate-500">Basic Salary:</span><span className="font-semibold text-slate-800 dark:text-slate-200">${basicSalary.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">House Rent Allowance (HRA 20%):</span><span className="font-semibold text-emerald-600">+${hra.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Dearness Allowance (DA 10%):</span><span className="font-semibold text-emerald-600">+${da.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Provident Fund Deduction (PF 8%):</span><span className="font-semibold text-rose-500">-${pfDeduction.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Basic Salary:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(basicSalary)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">House Rent Allowance (HRA 20%):</span><span className="font-semibold text-emerald-600">+{formatCurrency(hra)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Dearness Allowance (DA 10%):</span><span className="font-semibold text-emerald-600">+{formatCurrency(da)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Provident Fund Deduction (PF 8%):</span><span className="font-semibold text-rose-500">-{formatCurrency(pfDeduction)}</span></div>
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-black">
                 <span className="text-slate-900 dark:text-white">Net Salary Disbursal:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">${netSalary.toLocaleString()}</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(netSalary)}</span>
               </div>
             </div>
           </div>

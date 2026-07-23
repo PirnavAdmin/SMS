@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { DollarSign, Search, Plus, Receipt, AlertCircle, CheckCircle, Trash2, Edit, X } from 'lucide-react';
+import { IndianRupee, Search, Plus, Receipt, AlertCircle, CheckCircle, Trash2, Edit, X } from 'lucide-react';
 import { Student, FeePayment, FeeStructure, FeeTerm } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
+import { formatCurrency } from '../../../utils/currency';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { FeeCollectModal } from './FeeCollectModal';
@@ -91,7 +92,7 @@ export const FeeManagementView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <DollarSign className="w-6 h-6 text-sky-500" /> Fee Management & Collection
+            <IndianRupee className="w-6 h-6 text-sky-500" /> Fee Management & Collection
           </h2>
           <p className="text-xs text-slate-500">Configure class fee structures by term (Monthly/Quarterly/Annual), record payments & print receipts</p>
         </div>
@@ -112,7 +113,7 @@ export const FeeManagementView: React.FC = () => {
         <div className="glass-card p-5 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase">Total Collected</p>
-            <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">INR {totalCollected.toLocaleString()}</h3>
+            <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">{formatCurrency(totalCollected)}</h3>
           </div>
           <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400"><CheckCircle className="w-6 h-6" /></div>
         </div>
@@ -120,7 +121,7 @@ export const FeeManagementView: React.FC = () => {
         <div className="glass-card p-5 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase">Total Outstanding Due</p>
-            <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">INR {totalDues.toLocaleString()}</h3>
+            <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalDues)}</h3>
           </div>
           <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400"><AlertCircle className="w-6 h-6" /></div>
         </div>
@@ -201,7 +202,7 @@ export const FeeManagementView: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{p.paymentDate}</td>
                     <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{p.paymentMode}</td>
-                    <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">INR {p.amountPaid}</td>
+                    <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(p.amountPaid)}</td>
                     <td className="py-3 px-4"><Badge variant="success">{p.status}</Badge></td>
                     <td className="py-3 px-4 text-right">
                       <button
@@ -229,14 +230,14 @@ export const FeeManagementView: React.FC = () => {
                 <div>
                   <p className="font-bold text-slate-900 dark:text-white text-sm">{s.firstName} {s.lastName}</p>
                   <p className="text-xs text-slate-500">{s.className}-{s.section} • Adm: {s.admissionNo}</p>
-                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">Due: INR {s.dueFee}</p>
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">Due: {formatCurrency(s.dueFee)}</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedStudentForCollect(s)}
                 className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5"
               >
-                <DollarSign className="w-4 h-4" /> Collect Fee
+                <IndianRupee className="w-4 h-4" /> Collect Fee
               </button>
             </div>
           ))}
@@ -263,18 +264,18 @@ export const FeeManagementView: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex justify-between text-slate-500"><span>Tuition:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.tuitionFee}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Transport:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.transportFee || 0}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Hostel:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.hostelFee || 0}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Uniform:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.uniformFee || 0}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Books:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.booksFee || 0}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Lab & Science:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.labFee || 0}</span></div>
-                  <div className="flex justify-between text-slate-500"><span>Misc Fee:</span><span className="font-semibold text-slate-800 dark:text-slate-200">INR {f.miscFee || 0}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Tuition:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.tuitionFee)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Transport:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.transportFee || 0)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Hostel:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.hostelFee || 0)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Uniform:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.uniformFee || 0)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Books:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.booksFee || 0)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Lab & Science:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.labFee || 0)}</span></div>
+                  <div className="flex justify-between text-slate-500"><span>Misc Fee:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(f.miscFee || 0)}</span></div>
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
                   <span>Total Term Fee:</span>
-                  <span className="text-emerald-600">INR {totalTermFee}</span>
+                  <span className="text-emerald-600">{formatCurrency(totalTermFee)}</span>
                 </div>
               </div>
             );
@@ -323,12 +324,12 @@ export const FeeManagementView: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="block font-semibold mb-0.5">Tuition (INR)</label><input type="number" value={structForm.tuitionFee} onChange={e => setStructForm({ ...structForm, tuitionFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-0.5">Transport (INR)</label><input type="number" value={structForm.transportFee} onChange={e => setStructForm({ ...structForm, transportFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-0.5">Hostel (INR)</label><input type="number" value={structForm.hostelFee} onChange={e => setStructForm({ ...structForm, hostelFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-0.5">Uniform (INR)</label><input type="number" value={structForm.uniformFee} onChange={e => setStructForm({ ...structForm, uniformFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-0.5">Books (INR)</label><input type="number" value={structForm.booksFee} onChange={e => setStructForm({ ...structForm, booksFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-0.5">Lab Fee (INR)</label><input type="number" value={structForm.labFee} onChange={e => setStructForm({ ...structForm, labFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-0.5">Tuition (₹)</label><input type="number" value={structForm.tuitionFee} onChange={e => setStructForm({ ...structForm, tuitionFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-0.5">Transport (₹)</label><input type="number" value={structForm.transportFee} onChange={e => setStructForm({ ...structForm, transportFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-0.5">Hostel (₹)</label><input type="number" value={structForm.hostelFee} onChange={e => setStructForm({ ...structForm, hostelFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-0.5">Uniform (₹)</label><input type="number" value={structForm.uniformFee} onChange={e => setStructForm({ ...structForm, uniformFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-0.5">Books (₹)</label><input type="number" value={structForm.booksFee} onChange={e => setStructForm({ ...structForm, booksFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-0.5">Lab Fee (₹)</label><input type="number" value={structForm.labFee} onChange={e => setStructForm({ ...structForm, labFee: Number(e.target.value) })} className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border" /></div>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

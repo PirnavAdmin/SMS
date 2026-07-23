@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import {
   Users, Search, Filter, Plus, Edit, Trash2, Eye,
-  DollarSign, CheckCircle, XCircle, ChevronLeft, ChevronRight
+  IndianRupee, CheckCircle, XCircle, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -151,7 +152,7 @@ export const StaffList: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                      ${st.salary}/mo
+                      {formatCurrency(st.salary)}/mo
                     </td>
                     <td className="py-3 px-4">
                       <button onClick={() => toggleStatus(st)}>
@@ -174,7 +175,7 @@ export const StaffList: React.FC = () => {
                           className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-600"
                           title="Payroll & Payslip"
                         >
-                          <DollarSign className="w-4 h-4" />
+                          <IndianRupee className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => { setStaffToEdit(st); setIsAddOpen(true); }}

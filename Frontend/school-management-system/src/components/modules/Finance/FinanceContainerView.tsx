@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Tag, Layers, UserPlus, Gift, Percent, AlertTriangle, Route, Bus,
-  Home, Bed, DollarSign, Receipt, Clock, RotateCcw, FileSpreadsheet, SlidersHorizontal
+  Home, Bed, IndianRupee, Receipt, Clock, RotateCcw, FileSpreadsheet, SlidersHorizontal
 } from 'lucide-react';
 import { Student, FeePayment } from '../../../types';
 
@@ -50,7 +50,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     { id: 'transport-config', label: 'Transport Config', icon: Route },
     { id: 'student-transport', label: 'Student Transport', icon: Bus },
     { id: 'hostel-config', label: 'Hostel Config', icon: Home },
-    { id: 'fee-collection', label: 'Fee Collection', icon: DollarSign },
+    { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee },
     { id: 'fee-receipts', label: 'Fee Receipts', icon: Receipt },
     { id: 'due-fees', label: 'Due Fees', icon: Clock },
     { id: 'refund-management', label: 'Refunds', icon: RotateCcw },

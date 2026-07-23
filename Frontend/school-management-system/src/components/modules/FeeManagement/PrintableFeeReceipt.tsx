@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Printer, CheckCircle2 } from 'lucide-react';
 import { FeePayment } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { formatCurrency } from '../../../utils/currency';
 
 interface PrintableFeeReceiptProps {
   payment: FeePayment | null;
@@ -81,13 +82,13 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
             <thead>
               <tr className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold uppercase">
                 <th className="p-2.5 border border-slate-200 dark:border-slate-700">Description</th>
-                <th className="p-2.5 border border-slate-200 dark:border-slate-700 text-right">Amount (INR)</th>
+                <th className="p-2.5 border border-slate-200 dark:border-slate-700 text-right">Amount (₹)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td className="p-2.5 border border-slate-200 dark:border-slate-700 font-medium">Gross Amount (Fee Structure & Opted Services)</td>
-                <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">INR {gross.toLocaleString()}</td>
+                <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">{formatCurrency(gross)}</td>
               </tr>
               {payment.scholarshipAmount && payment.scholarshipAmount > 0 ? (
                 <tr className="text-emerald-600 dark:text-emerald-400">
@@ -97,7 +98,7 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{payment.scholarshipDescription}</p>
                     )}
                   </td>
-                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">-INR {payment.scholarshipAmount.toLocaleString()}</td>
+                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">-{formatCurrency(payment.scholarshipAmount)}</td>
                 </tr>
               ) : null}
               {payment.discountAmount && payment.discountAmount > 0 ? (
@@ -108,30 +109,30 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                       <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{payment.discountDescription}</p>
                     )}
                   </td>
-                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">-INR {payment.discountAmount.toLocaleString()}</td>
+                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">-{formatCurrency(payment.discountAmount)}</td>
                 </tr>
               ) : null}
               {!payment.scholarshipAmount && !payment.discountAmount && payment.discount && payment.discount > 0 ? (
                 <tr className="text-emerald-600 dark:text-emerald-400">
                   <td className="p-2.5 border border-slate-200 dark:border-slate-700 font-medium">Scholarship / Merit Discount</td>
-                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">-INR {payment.discount.toLocaleString()}</td>
+                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">-{formatCurrency(payment.discount)}</td>
                 </tr>
               ) : null}
               {payment.fine && payment.fine > 0 ? (
                 <tr className="text-rose-500">
                   <td className="p-2.5 border border-slate-200 dark:border-slate-700 font-medium">Late Payment Fine</td>
-                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">+INR {payment.fine.toLocaleString()}</td>
+                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">+{formatCurrency(payment.fine)}</td>
                 </tr>
               ) : null}
               {payment.previousDue && payment.previousDue > 0 ? (
                 <tr className="text-rose-600">
                   <td className="p-2.5 border border-slate-200 dark:border-slate-700 font-medium">Previous Outstanding Due</td>
-                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">+INR {payment.previousDue.toLocaleString()}</td>
+                  <td className="p-2.5 border border-slate-200 dark:border-slate-700 text-right font-bold">+{formatCurrency(payment.previousDue)}</td>
                 </tr>
               ) : null}
               <tr className="bg-slate-50 dark:bg-slate-800 font-extrabold text-sm">
                 <td className="p-3 border border-slate-200 dark:border-slate-700">Total Net Amount Paid</td>
-                <td className="p-3 border border-slate-200 dark:border-slate-700 text-right text-emerald-600 dark:text-emerald-400">INR {payment.amountPaid.toLocaleString()}</td>
+                <td className="p-3 border border-slate-200 dark:border-slate-700 text-right text-emerald-600 dark:text-emerald-400">{formatCurrency(payment.amountPaid)}</td>
               </tr>
             </tbody>
           </table>

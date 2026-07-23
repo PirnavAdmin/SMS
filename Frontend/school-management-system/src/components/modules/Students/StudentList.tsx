@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { formatCurrency } from '../../../utils/currency';
 import {
   UserCheck, Search, Filter, Edit, Trash2, ArrowUpRight, ArrowRightLeft,
   Eye, Building2, ChevronLeft, ChevronRight
@@ -190,7 +191,7 @@ export const StudentList: React.FC = () => {
                     </td>
                     <td className="py-3 px-4">
                       <span className={`font-bold ${st.dueFee > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        INR {st.dueFee}
+                        {formatCurrency(st.dueFee)}
                       </span>
                     </td>
                     <td className="py-3 px-4">
