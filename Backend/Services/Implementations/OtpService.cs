@@ -1,12 +1,14 @@
 namespace SMS.Api.Services.Implementations;
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using SMS.Api.Dtos.Otp;
+using SMS.Api.Dtos;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Interfaces;
@@ -29,25 +31,30 @@ public class OtpService : IOtpService
 
     public async Task<SendOtpResponseDto> SendOtpAsync(SendOtpRequestDto dto)
     {
-        // 1. Fetch user by email or mobile via sp_GetUserForLogin
+        // 1. Resolve User
         var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone)
             ?? throw new Exception("User not found.");
 
-        // 2. Generate 6-digit plain OTP
+        // 2. Generate 6-digit OTP
         var rawOtpCode = new Random().Next(100000, 999999).ToString();
 
-        // 3. Save OTP via sp_SaveOtp (handles invalidating older active OTPs automatically)
+        Console.WriteLine("=================================================");
+        Console.WriteLine($"[DEV DEBUG] Generated OTP for {dto.EmailOrPhone} (UserId: {user.UserId}): {rawOtpCode}");
+        Console.WriteLine($"[DEV DEBUG] Delivery Method: {dto.DeliveryMethod}");
+        Console.WriteLine("=================================================");
+
+        // 3. Save OTP in DB
         await _otpRepository.SaveOtpAsync(new OtpVerification
         {
             UserId = user.UserId,
             OtpCodeHash = BCrypt.Net.BCrypt.HashPassword(rawOtpCode),
-            Purpose = dto.Purpose,
+            Purpose = "General",
             DeliveryMethod = dto.DeliveryMethod,
             ExpiryTime = DateTime.UtcNow.AddMinutes(5),
             CreatedAt = DateTime.UtcNow
         });
 
-        // 4. Dispatch plain OTP code via Email or SMS
+        // 4. Send plain code via Email or SMS
         if (dto.DeliveryMethod.Equals("Email", StringComparison.OrdinalIgnoreCase))
         {
             await SendEmailAsync(user.Email!, rawOtpCode);
@@ -66,36 +73,93 @@ public class OtpService : IOtpService
 
     public async Task<bool> VerifyOtpAsync(VerifyOtpRequestDto dto)
     {
-        // 1. Fetch latest active OTP record to compare hashed code via BCrypt
-        var latestOtp = await _otpRepository.GetLatestActiveOtpAsync(dto.UserId, dto.Purpose);
-
-        if (latestOtp == null)
+        var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone);
+        if (user == null)
         {
+            Console.WriteLine($"[OTP VERIFY FAILED] User not found: {dto.EmailOrPhone}");
             return false;
         }
 
-        // 2. Delegate validation, expiry checks, and attempt counter to sp_ValidateOtp
-        return await _otpRepository.ValidateOtpAsync(dto.UserId, latestOtp.OtpCodeHash, dto.Purpose);
+        var latestOtp = await _otpRepository.GetLatestActiveOtpAsync(user.UserId, "General");
+
+        if (latestOtp == null)
+        {
+            Console.WriteLine($"[OTP VERIFY FAILED] No active OTP found for UserId: {user.UserId}");
+            return false;
+        }
+
+        if (latestOtp.ExpiryTime <= DateTime.UtcNow)
+        {
+            Console.WriteLine($"[OTP VERIFY FAILED] OTP expired for UserId: {user.UserId}");
+            return false;
+        }
+
+        bool isValid = BCrypt.Net.BCrypt.Verify(dto.OtpCode, latestOtp.OtpCodeHash);
+
+        if (isValid)
+        {
+            Console.WriteLine($"[OTP VERIFY SUCCESS] OTP validated for: {dto.EmailOrPhone}");
+        }
+        else
+        {
+            Console.WriteLine($"[OTP VERIFY FAILED] Invalid OTP code for: {dto.EmailOrPhone}");
+        }
+
+        return isValid;
     }
 
     public async Task<bool> ResetPasswordAsync(ResetPasswordDto dto)
     {
-        // 1. Verify OTP eligibility
-        var isVerified = await VerifyOtpAsync(new VerifyOtpRequestDto(
-            dto.UserId,
-            dto.OtpCode,
-            "ForgotPassword"
-        ));
-
-        if (!isVerified)
+        var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone);
+        if (user == null)
         {
-            return false;
+            Console.WriteLine($"[RESET FAILED] User not found: {dto.EmailOrPhone}");
+            throw new Exception("User not found.");
         }
 
-        // 2. Hash new password and update directly via sp_ResetPassword
-        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
-        await _userRepository.UpdatePasswordAsync(dto.UserId, newPasswordHash);
+        bool isAuthorized = false;
 
+        // Option A: Old Password Verification
+        if (!string.IsNullOrWhiteSpace(dto.OldPassword))
+        {
+            isAuthorized = BCrypt.Net.BCrypt.Verify(dto.OldPassword, user.PasswordHash);
+            if (!isAuthorized)
+            {
+                Console.WriteLine($"[RESET FAILED] Incorrect old password for: {dto.EmailOrPhone}");
+                throw new Exception("Incorrect old password.");
+            }
+        }
+        // Option B: OTP Verification
+        else if (!string.IsNullOrWhiteSpace(dto.OtpCode))
+        {
+            isAuthorized = await VerifyOtpAsync(new VerifyOtpRequestDto(
+                dto.EmailOrPhone,
+                dto.OtpCode
+            ));
+
+            if (!isAuthorized)
+            {
+                Console.WriteLine($"[RESET FAILED] Invalid or expired OTP for: {dto.EmailOrPhone}");
+                throw new Exception("Invalid or expired OTP code.");
+            }
+
+            var latestOtp = await _otpRepository.GetLatestActiveOtpAsync(user.UserId, "General");
+            if (latestOtp != null)
+            {
+                latestOtp.IsUsed = true;
+                await _otpRepository.SaveChangesAsync();
+            }
+        }
+        else
+        {
+            throw new Exception("Please provide either your Old Password or an OTP code to reset your password.");
+        }
+
+        // Hash new password & save to DB
+        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+        await _userRepository.UpdatePasswordAsync(user.UserId, newPasswordHash);
+
+        Console.WriteLine($"[RESET SUCCESS] Password updated in DB for: {dto.EmailOrPhone}");
         return true;
     }
 
@@ -150,20 +214,21 @@ public class OtpService : IOtpService
         try
         {
             using var client = new HttpClient();
+            client.DefaultRequestHeaders.Add("authorization", apiKey);
 
-            var requestUrl = $"https://www.fast2sms.com/dev/bulkV2?authorization={apiKey}&route=otp&variables_values={plainOtp}&numbers={mobileNumber}";
+            var cleanMobile = new string(mobileNumber.Where(char.IsDigit).ToArray());
+            if (cleanMobile.Length > 10)
+            {
+                cleanMobile = cleanMobile.Substring(cleanMobile.Length - 10);
+            }
+
+            var messageText = Uri.EscapeDataString($"Your verification code is {plainOtp}. Valid for 5 minutes.");
+            var requestUrl = $"https://www.fast2sms.com/dev/bulkV2?route=q&message={messageText}&flash=0&numbers={cleanMobile}";
 
             var response = await client.GetAsync(requestUrl);
             var responseString = await response.Content.ReadAsStringAsync();
 
-            if (response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"[SMS SUCCESS] OTP successfully sent to {mobileNumber}. Gateway Response: {responseString}");
-            }
-            else
-            {
-                Console.WriteLine($"[SMS ERROR] Fast2SMS Gateway returned an error: {responseString}");
-            }
+            Console.WriteLine($"[SMS GATEWAY RESPONSE]: Status: {response.StatusCode} | Body: {responseString}");
         }
         catch (Exception ex)
         {

@@ -1,8 +1,12 @@
+using System;
 using System.Net;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using SMS.Api.Exceptions;
 
-namespace SMS.Api.Middlewares;
+namespace SMS.Api.Middleware;
 
 public class ExceptionMiddleware
 {
@@ -25,6 +29,7 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unhandled Exception: {Message}", ex.Message);
             _logger.LogError(
                 ex,
                 "Exception: {Message}",
@@ -53,6 +58,15 @@ public class ExceptionMiddleware
 
         var response = new
         {
+            success = false,
+            statusCode = (int)statusCode,
+            message = message,
+            timestamp = DateTime.UtcNow
+        };
+
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
             StatusCode = context.Response.StatusCode,
             Message = message,
             InnerException = exception.InnerException?.Message,
@@ -60,6 +74,7 @@ public class ExceptionMiddleware
             Timestamp = DateTime.UtcNow
         };
 
+        return context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
         return context.Response.WriteAsync(
             JsonSerializer.Serialize(response));
     }
