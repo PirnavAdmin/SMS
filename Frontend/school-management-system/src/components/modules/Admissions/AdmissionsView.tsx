@@ -181,7 +181,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
   };
 
   const handleRemovePhoto = () => {
-    setAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+    setAvatar('');
   };
 
   const handlePhoneChange = (val: string) => {
@@ -432,12 +432,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
 
             {/* Profile Photo Upload & Delete Section */}
             <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex flex-col sm:flex-row items-center gap-5">
-              <div className="relative">
-                <img
-                  src={avatar}
-                  alt="Applicant Photo Preview"
-                  className="w-24 h-24 rounded-2xl object-cover ring-4 ring-brand-500/20 shadow-md"
-                />
+              <div className="relative shrink-0">
+                {avatar ? (
+                  <img
+                    src={avatar}
+                    alt="Applicant Photo Preview"
+                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-brand-500/20 shadow-md"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-2xl bg-slate-200 dark:bg-slate-700/50 ring-4 ring-slate-100 dark:ring-slate-800 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                    <User className="w-8 h-8 mb-1" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">No Photo</span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 text-center sm:text-left">
@@ -534,7 +541,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD/MM/YYYY) *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth *</label>
                   <input
                     type="text"
                     required
@@ -613,7 +620,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                   <input
                     type="text"
                     required
-                    placeholder="9876543210"
+                    placeholder="Enter mobile number"
                     value={formData.phone}
                     onChange={e => handlePhoneChange(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
@@ -627,7 +634,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">2. Mother Mobile Number</label>
                   <input
                     type="text"
-                    placeholder="9876543211"
+                    placeholder="Enter mobile number"
                     value={formData.motherPhone || ''}
                     onChange={e => setFormData({ ...formData, motherPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
@@ -635,10 +642,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alternate Mobile (Optional)</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alternate Mobile</label>
                   <input
                     type="text"
-                    placeholder="9876543212"
+                    placeholder="Enter mobile number"
                     value={formData.alternatePhone || ''}
                     onChange={e => handleAltPhoneChange(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
@@ -1115,7 +1122,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                 <th className="py-3.5 px-4">Applied Class</th>
                 <th className="py-3.5 px-4">Branch & Type</th>
                 <th className="py-3.5 px-4">Father Contact</th>
-                <th className="py-3.5 px-4 text-right">Actions & Enrollment</th>
+                <th className="py-3.5 px-4 text-center">Actions & Enrollment</th>
               </tr>
             </thead>
             <tbody className="font-medium">
@@ -1127,10 +1134,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                     <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{app.applicationNo}</td>
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <img src={app.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'} alt="" className="w-8 h-8 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700" />
+                        {app.avatar ? (
+                          <img src={app.avatar} alt="" className="w-8 h-8 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-xl bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center text-slate-500 shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                        )}
                         <div>
                           <p className="font-bold text-slate-900 dark:text-white">{app.applicantName}</p>
-                          <p className="text-[10px] text-slate-400">DOB: {app.dob} • {app.gender}</p>
                         </div>
                       </div>
                     </td>
@@ -1143,8 +1155,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                       <p className="text-slate-800 dark:text-slate-200">{app.parentName}</p>
                       <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 font-mono">{app.phone}</p>
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => setSelectedAppForView(app)}
                           className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"

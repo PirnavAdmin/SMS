@@ -111,14 +111,14 @@ export const TimetableView: React.FC = () => {
   };
 
   return (
-    <div className="animate-in fade-in h-full bg-white dark:bg-[#0B1121] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-slate-200 dark:border-slate-800/50 gap-4">
+    <div className="space-y-6 animate-in fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-brand-500/10 dark:bg-brand-500/20 rounded-lg hidden sm:block">
             <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Timetable Management</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Timetable Management</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Manage daily schedules for all classes</p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export const TimetableView: React.FC = () => {
             <select
               value={selectedClass}
               onChange={e => setSelectedClass(e.target.value)}
-              className="appearance-none pr-10 pl-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow cursor-pointer min-w-[140px]"
+              className="appearance-none pr-10 pl-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow cursor-pointer min-w-[140px] shadow-sm"
             >
               {academicClasses.map(c => (
                 <option key={c.id} value={c.name}>{c.name}</option>
@@ -138,15 +138,16 @@ export const TimetableView: React.FC = () => {
 
           <button
             onClick={() => handleOpenAdd()}
-            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-sm whitespace-nowrap flex-shrink-0"
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto flex-shrink-0"
           >
             <Plus className="w-4 h-4 inline-block mr-1" /> Add Slot
           </button>
         </div>
       </div>
 
-      <div className="w-full px-6 flex-1">
-        <div className="overflow-x-auto py-2">
+      <div className="glass-card bg-white dark:bg-[#0B1121] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col">
+        <div className="w-full px-6 flex-1 py-4">
+          <div className="overflow-x-auto py-2">
           <table className="w-full text-left border-collapse text-[13px]">
             <thead>
               <tr className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800/50">
@@ -203,8 +204,9 @@ export const TimetableView: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
 
-      {/* Add / Edit Modal */}
+    {/* Add / Edit Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-6 text-slate-900 dark:text-slate-100">
