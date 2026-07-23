@@ -128,8 +128,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'students', label: 'Students', icon: UserCheck, roles: ['Admin', 'Principal', 'Teacher', 'Accountant'] },
         { id: 'staff', label: 'Staff & HR', icon: Users, roles: ['Admin', 'Principal'] },
         { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined, roles: ['Admin', 'Principal'] },
-        { id: 'academics', label: 'Academics', icon: BookOpen, roles: ['Admin', 'Principal', 'Teacher'] },
-        { id: 'attendance', label: 'Attendance', icon: Calendar, roles: ['Admin', 'Teacher'] },
+      ]
+    },
+    {
+      title: 'Academics & Operations',
+      items: [
+        { id: 'academics', label: 'Academics', icon: School, roles: ['Admin', 'Principal', 'Teacher'] },
+        { id: 'subjects', label: 'Subjects', icon: BookOpen, roles: ['Admin', 'Principal', 'Teacher'] },
+        { id: 'attendance', label: 'Attendance', icon: CalendarCheck, roles: ['Admin', 'Teacher'] },
+        { id: 'timetable', label: 'Timetable', icon: Clock, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
         { id: 'examination', label: 'Examinations', icon: Award, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
         { id: 'homework', label: 'Homework', icon: FileText, roles: ['Admin', 'Teacher', 'Student', 'Parent'] },
       ]

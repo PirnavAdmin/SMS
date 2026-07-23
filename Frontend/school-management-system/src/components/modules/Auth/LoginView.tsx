@@ -97,7 +97,7 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-full flex bg-white dark:bg-[#0B1120] font-sans">
+    <div className="h-screen w-full flex bg-white dark:bg-[#0B1120] font-sans overflow-hidden">
       
       {/* LEFT SIDE: Visual Showcase (Hidden on Mobile) */}
       <div className="hidden lg:flex flex-1 relative bg-brand-950 items-center justify-center p-12 overflow-hidden">
@@ -152,14 +152,14 @@ export const LoginView: React.FC = () => {
       </div>
 
       {/* RIGHT SIDE: Authentication Form */}
-      <div className="w-full lg:w-[500px] xl:w-[600px] flex flex-col justify-center relative bg-slate-50 dark:bg-[#0B1120] z-20 shadow-2xl border-l border-slate-200 dark:border-slate-800/50">
+      <div className="w-full lg:w-[500px] xl:w-[600px] flex flex-col relative bg-slate-50 dark:bg-[#0B1120] z-20 shadow-2xl border-l border-slate-200 dark:border-slate-800/50 overflow-y-auto">
         {/* Mobile background (visible only on small screens) */}
         <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none z-0">
            <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[50%] bg-brand-400/10 dark:bg-brand-600/10 rounded-full blur-[100px]" />
            <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-purple-400/10 dark:bg-purple-600/10 rounded-full blur-[100px]" />
         </div>
 
-        <div className="relative z-10 w-full max-w-[480px] mx-auto px-6 sm:px-12 flex flex-col justify-center min-h-screen py-12">
+        <div className="relative z-10 w-full max-w-[480px] mx-auto px-6 sm:px-12 flex flex-col justify-center min-h-full py-8 my-auto">
           
           <div className="bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-[2rem] border-2 border-black/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
             {/* Minimalist Universal Header */}
