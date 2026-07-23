@@ -29,10 +29,9 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled Exception: {Message}", ex.Message);
             _logger.LogError(
                 ex,
-                "Exception: {Message}",
+                "Unhandled exception: {Message}",
                 ex.Message);
 
             await HandleExceptionAsync(context, ex);
@@ -48,10 +47,10 @@ public class ExceptionMiddleware
         var statusCode = HttpStatusCode.InternalServerError;
         var message = exception.Message;
 
-        if (exception is AppException appEx)
+        if (exception is AppException appException)
         {
-            statusCode = appEx.StatusCode;
-            message = appEx.Message;
+            statusCode = appException.StatusCode;
+            message = appException.Message;
         }
 
         context.Response.StatusCode = (int)statusCode;
@@ -59,23 +58,19 @@ public class ExceptionMiddleware
         var response = new
         {
             success = false,
-            statusCode = (int)statusCode,
-            message = message,
+            statusCode = context.Response.StatusCode,
+            message,
+            innerException = exception.InnerException?.Message,
             timestamp = DateTime.UtcNow
         };
 
         var jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            StatusCode = context.Response.StatusCode,
-            Message = message,
-            InnerException = exception.InnerException?.Message,
-            StackTrace = exception.StackTrace,
-            Timestamp = DateTime.UtcNow
         };
 
-        return context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
-        return context.Response.WriteAsync(
-            JsonSerializer.Serialize(response));
+        var json = JsonSerializer.Serialize(response, jsonOptions);
+
+        return context.Response.WriteAsync(json);
     }
 }

@@ -17,50 +17,88 @@ namespace SMS.Api.Controllers
 
         // GET: api/v1/transport/pickup-points
         [HttpGet]
-        public async Task<IActionResult> GetAll([FromQuery] PickupPointFilterDto filter)
+        public async Task<IActionResult> GetAll(
+            [FromQuery] PickupPointFilterDto filter)
         {
             var result = await _service.GetAllAsync(filter);
-            return Ok(result);
+
+            return Ok(new
+            {
+                success = true,
+                data = result
+            });
         }
 
         // GET: api/v1/transport/pickup-points/5
         [HttpGet("{id:long}")]
         public async Task<IActionResult> GetById(long id)
         {
-            var result = await _service.GetByIdAsync(id);
+            var pickupPoint = await _service.GetByIdAsync(id);
 
-            if (result == null)
-                return NotFound();
+            if (pickupPoint == null)
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Pickup Point not found."
+                });
+            }
 
-            return Ok(result);
+            return Ok(new
+            {
+                success = true,
+                data = pickupPoint
+            });
         }
 
         // POST: api/v1/transport/pickup-points
         [HttpPost]
-        public async Task<IActionResult> Create(CreatePickupPointDto dto)
+        public async Task<IActionResult> Create(
+            [FromBody] CreatePickupPointDto dto)
         {
-            var id = await _service.CreateAsync(dto, null);
+            var pickupPointId =
+                await _service.CreateAsync(dto, null);
+
+            var createdPickupPoint =
+                await _service.GetByIdAsync(pickupPointId);
 
             return CreatedAtAction(
                 nameof(GetById),
-                new { id },
-                new { PickupPointId = id });
+                new { id = pickupPointId },
+                new
+                {
+                    success = true,
+                    message = "Pickup Point created successfully.",
+                    data = createdPickupPoint
+                });
         }
 
         // PUT: api/v1/transport/pickup-points/5
         [HttpPut("{id:long}")]
         public async Task<IActionResult> Update(
             long id,
-            UpdatePickupPointDto dto)
+            [FromBody] UpdatePickupPointDto dto)
         {
-            var updated = await _service.UpdateAsync(id, dto, null);
+            var updated =
+                await _service.UpdateAsync(id, dto, null);
 
             if (!updated)
-                return NotFound();
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Pickup Point not found."
+                });
+            }
+
+            var updatedPickupPoint =
+                await _service.GetByIdAsync(id);
 
             return Ok(new
             {
-                Message = "Pickup Point updated successfully."
+                success = true,
+                message = "Pickup Point updated successfully.",
+                data = updatedPickupPoint
             });
         }
 
@@ -68,14 +106,22 @@ namespace SMS.Api.Controllers
         [HttpDelete("{id:long}")]
         public async Task<IActionResult> Delete(long id)
         {
-            var deleted = await _service.DeleteAsync(id, null);
+            var deleted =
+                await _service.DeleteAsync(id, null);
 
             if (!deleted)
-                return NotFound();
+            {
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Pickup Point not found."
+                });
+            }
 
             return Ok(new
             {
-                Message = "Pickup Point deleted successfully."
+                success = true,
+                message = "Pickup Point deleted successfully."
             });
         }
     }
