@@ -116,9 +116,14 @@ export const SubjectsView: React.FC = () => {
   return (
     <div className="animate-in fade-in h-full bg-white dark:bg-[#0B1121] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-slate-200 dark:border-slate-800/50 gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Subjects Management</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Manage all academic subjects and course codes</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-brand-500/10 dark:bg-brand-500/20 rounded-lg hidden sm:block">
+            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Subjects Management</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Manage all academic subjects and course codes</p>
+          </div>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">

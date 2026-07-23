@@ -5,7 +5,7 @@ import {
   Bus, Home, Package, Megaphone, Calendar, BarChart3, ShieldCheck,
   Settings, ChevronRight, School, Shirt, Layers, Tag, UserPlus,
   Gift, Percent, AlertTriangle, Route, Bed, Receipt, RotateCcw,
-  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2
+  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, Presentation
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -133,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'Academics & Operations',
       items: [
-        { id: 'academics', label: 'Academics', icon: School, roles: ['Admin', 'Principal', 'Teacher'] },
+        { id: 'academics', label: 'Classes', icon: Presentation, roles: ['Admin', 'Principal', 'Teacher'] },
         { id: 'subjects', label: 'Subjects', icon: BookOpen, roles: ['Admin', 'Principal', 'Teacher'] },
         { id: 'attendance', label: 'Attendance', icon: CalendarCheck, roles: ['Admin', 'Teacher'] },
         { id: 'timetable', label: 'Timetable', icon: Clock, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },

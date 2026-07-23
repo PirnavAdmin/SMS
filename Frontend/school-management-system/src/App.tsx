@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -45,6 +45,12 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setActiveModule('dashboard');
+    }
+  }, [isAuthenticated]);
 
   if (!isAuthenticated) {
     return <LoginView />;
