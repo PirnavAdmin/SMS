@@ -52,7 +52,7 @@ export const ExaminationView: React.FC = () => {
     setIsExamFormOpen(true);
   };
 
-  const handleExamSubmit = (e: React.FormEvent) => {
+  const handleExamSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!examFormData.name) return;
 

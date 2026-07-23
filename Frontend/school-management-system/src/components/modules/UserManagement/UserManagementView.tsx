@@ -57,7 +57,7 @@ export const UserManagementView: React.FC = () => {
     setIsRoleModalOpen(true);
   };
 
-  const handleRoleSubmit = (e: React.FormEvent) => {
+  const handleRoleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!roleForm.name) return;
 

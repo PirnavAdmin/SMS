@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import { User, UserRole } from '../types';
+import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi } from '../api/login';
 
 interface AuthContextType {
   user: User | null;
@@ -12,9 +13,9 @@ interface AuthContextType {
   logout: () => void;
   setRole: (role: UserRole) => void;
   changePassword: (oldPass: string, newPass: string) => Promise<boolean>;
-  sendOtp: (emailOrPhone: string) => Promise<{ userId: number }>;
-  verifyOtp: (userId: number, otpCode: string) => Promise<boolean>;
-  resetPasswordWithOtp: (userId: number, otpCode: string, newPassword: string) => Promise<boolean>;
+  sendOtp: (emailOrPhone: string) => Promise<boolean>;
+  verifyOtp: (emailOrPhone: string, otpCode: string) => Promise<boolean>;
+  resetPasswordWithOtp: (emailOrPhone: string, otpCode: string, newPassword: string) => Promise<boolean>;
 }
 
 const defaultAdminUser: User = {
@@ -33,7 +34,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('auth_user');
-    return saved ? JSON.parse(saved) : defaultAdminUser;
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
@@ -41,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || 'mock-jwt-token-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    return localStorage.getItem('auth_token');
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -64,23 +65,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrPhone: string, password?: string, chosenRole: UserRole = 'Admin'): Promise<boolean> => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailOrPhone, password })
-      });
+      const data = await loginApi(emailOrPhone, password);
+      console.log('Login API Response:', data);
 
-      if (!response.ok) {
-        throw new Error('Authentication failed');
+      // Extract token depending on backend structure
+      const actualToken = data?.token || data?.data?.token || data?.accessToken;
+      
+      if (!actualToken) {
+        throw new Error('Authentication failed: No token received from server');
       }
 
-      const data = await response.json();
+      const userId = data?.userId || data?.data?.userId || 'USR-001';
+      const fullName = data?.fullName || data?.data?.fullName || 'User';
+      const roles = data?.roles || data?.data?.roles || [];
 
       const loggedUser: User = {
-        id: data.userId.toString(),
-        name: data.fullName,
+        id: userId.toString(),
+        name: fullName,
         email: emailOrPhone,
-        role: (data.roles && data.roles.length > 0) ? data.roles[0] : chosenRole,
+        role: (roles && roles.length > 0) ? roles[0] : chosenRole,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
         lastLogin: new Date().toLocaleString(),
         status: 'Active'
@@ -88,13 +91,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setUser(loggedUser);
       setRoleState(loggedUser.role);
-      setToken(data.token);
+      setToken(actualToken);
 
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
-      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_token', actualToken);
       return true;
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
+      // Clean up any stale data just in case
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
       throw err;
     }
   };
@@ -111,39 +117,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
-  const sendOtp = async (emailOrPhone: string): Promise<{ userId: number }> => {
-    const res = await fetch('/api/auth/otp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ emailOrPhone, deliveryMethod: 'email', purpose: 'PasswordReset' })
-    });
-    if (!res.ok) throw new Error('Failed to send OTP');
-    // If the API doesn't return JSON or misses userId, default to 0 as fallback
+  const sendOtp = async (emailOrPhone: string): Promise<boolean> => {
     try {
-      const data = await res.json();
-      return { userId: data.userId || 0 };
+      await sendOtpApi(emailOrPhone);
+      return true;
     } catch {
-      return { userId: 0 };
+      return false;
     }
   };
 
-  const verifyOtp = async (userId: number, otpCode: string): Promise<boolean> => {
-    const res = await fetch('/api/auth/otp/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, otpCode, purpose: 'PasswordReset' })
-    });
-    if (!res.ok) throw new Error('Invalid OTP');
+  const verifyOtp = async (emailOrPhone: string, otpCode: string): Promise<boolean> => {
+    await verifyOtpApi(emailOrPhone, otpCode);
     return true;
   };
 
-  const resetPasswordWithOtp = async (userId: number, otpCode: string, newPassword: string): Promise<boolean> => {
-    const res = await fetch('/api/auth/otp/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, otpCode, newPassword })
-    });
-    if (!res.ok) throw new Error('Failed to reset password');
+  const resetPasswordWithOtp = async (emailOrPhone: string, otpCode: string, newPassword: string): Promise<boolean> => {
+    await resetPasswordWithOtpApi(emailOrPhone, otpCode, newPassword);
     return true;
   };
 

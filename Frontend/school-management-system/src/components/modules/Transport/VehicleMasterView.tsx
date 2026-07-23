@@ -61,7 +61,7 @@ export const VehicleMasterView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.vehicleNumber || !form.registrationNumber) return;
 

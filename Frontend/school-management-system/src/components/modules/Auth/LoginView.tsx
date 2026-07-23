@@ -8,8 +8,8 @@ export const LoginView: React.FC = () => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
 
-  const [identifier, setIdentifier] = useState('21jr1a4364@gmail.com');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('javvadivenkat999@gmail.com');
+  const [password, setPassword] = useState('venkat');
   const [role] = useState<UserRole>('Admin');
   
   const [loading, setLoading] = useState(false);
@@ -19,12 +19,11 @@ export const LoginView: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'forgot' | 'verify-otp' | 'reset-password'>('login');
   
   const [forgotIdentifier, setForgotIdentifier] = useState('');
-  const [forgotUserId, setForgotUserId] = useState(0);
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!identifier || !password) {
       setError('Please fill in both fields.');
@@ -41,13 +40,12 @@ export const LoginView: React.FC = () => {
     }
   };
 
-  const handleForgotSubmit = async (e: React.FormEvent) => {
+  const handleForgotSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!forgotIdentifier) return;
     setLoading(true);
     try {
-      const { userId } = await sendOtp(forgotIdentifier);
-      setForgotUserId(userId);
+      await sendOtp(forgotIdentifier);
       addToast('info', 'OTP Sent', `We sent a verification code to ${forgotIdentifier}.`);
       setMode('verify-otp');
     } catch (err) {
@@ -57,12 +55,12 @@ export const LoginView: React.FC = () => {
     }
   };
 
-  const handleVerifyOtpSubmit = async (e: React.FormEvent) => {
+  const handleVerifyOtpSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!otp) return;
     setLoading(true);
     try {
-      await verifyOtp(forgotUserId, otp);
+      await verifyOtp(forgotIdentifier, otp);
       addToast('success', 'OTP Verified', 'Please enter your new password.');
       setMode('reset-password');
     } catch (err) {
@@ -72,7 +70,7 @@ export const LoginView: React.FC = () => {
     }
   };
 
-  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+  const handleResetPasswordSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
       setError('Passwords do not match.');
@@ -81,14 +79,13 @@ export const LoginView: React.FC = () => {
     setError('');
     setLoading(true);
     try {
-      await resetPasswordWithOtp(forgotUserId, otp, newPassword);
+      await resetPasswordWithOtp(forgotIdentifier, otp, newPassword);
       addToast('success', 'Password Reset Successful', 'You can now login with your new password.');
       setMode('login');
       setOtp('');
       setNewPassword('');
       setConfirmNewPassword('');
       setForgotIdentifier('');
-      setForgotUserId(0);
     } catch (err) {
       setError('Failed to reset password.');
     } finally {

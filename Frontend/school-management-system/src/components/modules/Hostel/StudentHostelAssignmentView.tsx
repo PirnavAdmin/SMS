@@ -58,7 +58,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.studentId || !form.hostelId || !form.roomId) {
       addToast('error', 'Validation Error', 'Please select student, hostel, and room');

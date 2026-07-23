@@ -25,7 +25,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   if (!isOpen) return null;
 
   const variantBtn = {
-    danger: 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/20',
+    danger: 'bg-red-600 hover:bg-red-700 text-white shadow-red-500/20',
     warning: 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-500/20',
     info: 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
   };
@@ -53,7 +53,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 text-sm font-bold text-white bg-sky-600 rounded-xl hover:bg-sky-700 shadow-md transition-colors"
           >
             {cancelLabel}
           </button>

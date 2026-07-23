@@ -49,7 +49,7 @@ export const RoomMasterView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.hostelId || !form.roomNumber) {
       addToast('error', 'Validation Error', 'Please select hostel and enter room number');

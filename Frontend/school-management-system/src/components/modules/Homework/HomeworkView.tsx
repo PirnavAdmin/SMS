@@ -88,7 +88,7 @@ export const HomeworkView: React.FC = () => {
     setNewAttName('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.description) return;
 

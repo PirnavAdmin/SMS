@@ -14,7 +14,7 @@ export const CommunicationView: React.FC = () => {
   const [sendSMS, setSendSMS] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
 
-  const handleBroadcast = (e: React.FormEvent) => {
+  const handleBroadcast = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!title || !content) return;
 

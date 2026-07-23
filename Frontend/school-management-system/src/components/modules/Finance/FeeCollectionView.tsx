@@ -139,7 +139,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
     }
   };
 
-  const handleSubmitPayment = (e: React.FormEvent) => {
+  const handleSubmitPayment = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!selectedStudent || !calcResult) return;
 

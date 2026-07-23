@@ -23,7 +23,7 @@ export const StudentTransportView: React.FC = () => {
     st.studentName.toLowerCase().includes(query.toLowerCase()) || st.admissionNo.toLowerCase().includes(query.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const st = students.find(s => s.id === studentId);
     const rt = erpTransportRoutes.find(r => r.id === routeId);

@@ -9,7 +9,7 @@ export const FinanceSettingsView: React.FC = () => {
 
   const [form, setForm] = useState(financeSettings);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     updateFinanceSettings(form);
     addToast('success', 'Settings Saved', 'Updated global finance configuration.');

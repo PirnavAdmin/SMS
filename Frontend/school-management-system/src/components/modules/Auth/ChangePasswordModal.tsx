@@ -19,7 +19,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (newPass !== confirmPass) {
       addToast('error', 'Password Mismatch', 'New password and confirmation do not match.');

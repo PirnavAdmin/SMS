@@ -204,7 +204,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!firstName || !lastName || !formData.parentName) {
       addToast('warning', 'Missing Required Fields', 'First name, last name, and father name are required.');
@@ -447,7 +447,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                 </div>
 
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                  <label className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-md transition-all">
+                  <label className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-md transition-all">
                     <Camera className="w-4 h-4" /> Upload Photo
                     <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                   </label>
@@ -961,7 +961,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
               </button>
               <button
                 type="submit"
-                className="px-6 py-2.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all"
+                className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all"
               >
                 {editingApp ? 'Save Application Changes' : 'Submit Admission Application'}
               </button>
@@ -1040,7 +1040,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
 
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Submit Application
         </button>

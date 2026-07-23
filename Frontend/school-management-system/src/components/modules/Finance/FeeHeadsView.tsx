@@ -75,7 +75,7 @@ export const FeeHeadsView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
       addToast('warning', 'Validation Error', 'Fee head name and code are required.');

@@ -101,7 +101,7 @@ export const HostelReportsView: React.FC = () => {
     });
   }, [reportType]);
 
-  const handleApplyFilters = (e: React.FormEvent) => {
+  const handleApplyFilters = (e: React.SyntheticEvent) => {
     e.preventDefault();
     setAppliedFilters({
       hostel: filterHostel,

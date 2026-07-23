@@ -10,7 +10,7 @@ export const SettingsView: React.FC = () => {
   const [profileForm, setProfileForm] = useState(schoolProfile);
   const [activeTab, setActiveTab] = useState<'profile' | 'backup' | 'audit'>('profile');
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = (e: React.SyntheticEvent) => {
     e.preventDefault();
     updateSchoolProfile(profileForm);
     addToast('success', 'Settings Saved', 'School profile updated successfully');

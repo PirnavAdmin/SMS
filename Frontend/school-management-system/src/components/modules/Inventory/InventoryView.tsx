@@ -19,7 +19,7 @@ export const InventoryView: React.FC = () => {
     status: 'In Stock' as const
   });
 
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!newItem.itemName) return;
     addInventoryItem(newItem);

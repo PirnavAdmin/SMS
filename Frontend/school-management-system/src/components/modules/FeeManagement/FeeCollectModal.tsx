@@ -30,7 +30,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
 
   if (!isOpen || !student) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (amountPaid <= 0) {
       addToast('warning', 'Invalid Amount', 'Paid amount must be greater than zero.');

@@ -87,7 +87,7 @@ export const FeeStructuresView: React.FC = () => {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const itemsList: FeeStructureItem[] = Object.entries(selectedHeadItems)
       .filter(([_, amt]) => amt > 0)

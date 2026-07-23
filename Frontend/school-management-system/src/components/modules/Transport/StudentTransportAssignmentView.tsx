@@ -56,7 +56,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const st = students.find(s => s.id === studentId);
     const rt = routeMasters.find(r => r.id === routeId);

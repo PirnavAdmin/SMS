@@ -72,7 +72,7 @@ export const FeeManagementView: React.FC = () => {
     setIsStructFormOpen(true);
   };
 
-  const handleStructSubmit = (e: React.FormEvent) => {
+  const handleStructSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!structForm.className) return;
 

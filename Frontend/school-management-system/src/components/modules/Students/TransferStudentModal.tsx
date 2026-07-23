@@ -17,7 +17,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({ stud
 
   if (!isOpen || !student) return null;
 
-  const handleTransfer = (e: React.FormEvent) => {
+  const handleTransfer = (e: React.SyntheticEvent) => {
     e.preventDefault();
     transferStudent(student.id, reason);
     addToast('info', 'Transfer Certificate Issued', `Issued TC for ${student.firstName} ${student.lastName}`);

@@ -30,7 +30,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   const targetClassModel = academicClasses.find(c => c.name === targetClass);
   const availableSections = targetClassModel?.sections || ['A', 'B', 'C'];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     promoteStudent(
       student.id,

@@ -59,7 +59,7 @@ export const FinanceHostelConfigView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.hostelId || !form.hostelFee) {
       addToast('error', 'Validation Error', 'Please select a hostel and enter a valid hostel fee');

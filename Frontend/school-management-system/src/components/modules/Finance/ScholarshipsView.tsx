@@ -77,7 +77,7 @@ export const ScholarshipsView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
       addToast('warning', 'Validation Error', 'Scholarship name and code are required.');
@@ -94,7 +94,7 @@ export const ScholarshipsView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const handleAllocSubmit = (e: React.FormEvent) => {
+  const handleAllocSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!allocStudentId || !allocScholarshipId) {
       addToast('warning', 'Selection Required', 'Select both student and scholarship.');

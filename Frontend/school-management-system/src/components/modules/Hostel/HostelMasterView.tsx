@@ -57,7 +57,7 @@ export const HostelMasterView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.hostelName || !form.hostelCode) {
       addToast('error', 'Validation Error', 'Please enter hostel name and code');

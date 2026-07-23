@@ -128,7 +128,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.firstName || !formData.lastName || !formData.fatherName) {
       addToast('warning', 'Missing Fields', 'First name, last name, and father name are required.');
@@ -204,7 +204,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <button
                   type="button"
                   onClick={handleRemovePhoto}
-                  className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 text-xs font-bold flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-red-600 text-white hover:bg-red-700 text-xs font-bold flex items-center gap-1 shadow-md"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete Photo
                 </button>
@@ -497,13 +497,13 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl"
+              className="px-4 py-2 font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-xl shadow-md transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-lg"
+              className="px-5 py-2 font-bold text-white bg-green-600 hover:bg-green-700 rounded-xl shadow-lg transition-colors"
             >
               {studentToEdit ? 'Save Changes' : 'Confirm Registration'}
             </button>

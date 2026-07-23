@@ -19,7 +19,7 @@ export const AssignClassSubjectModal: React.FC<AssignClassSubjectModalProps> = (
 
   if (!isOpen || !staff) return null;
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const assignedClasses = classesStr.split(',').map(s => s.trim()).filter(Boolean);
     const assignedSubjects = subjectsStr.split(',').map(s => s.trim()).filter(Boolean);

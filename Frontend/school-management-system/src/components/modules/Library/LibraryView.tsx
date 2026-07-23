@@ -30,7 +30,7 @@ export const LibraryView: React.FC = () => {
     dueDate: '2026-08-01'
   });
 
-  const handleAddBook = (e: React.FormEvent) => {
+  const handleAddBook = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!newBook.title || !newBook.author) return;
     addBook(newBook);
@@ -38,7 +38,7 @@ export const LibraryView: React.FC = () => {
     setIsAddBookOpen(false);
   };
 
-  const handleIssueBook = (e: React.FormEvent) => {
+  const handleIssueBook = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const bk = books.find(b => b.id === newIssue.bookId);
     if (!bk || bk.availableCopies <= 0) {

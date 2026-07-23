@@ -55,7 +55,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
     addToast('info', 'Photo Removed');
   };
 
-  const handleAddDocSubmit = (e: React.FormEvent) => {
+  const handleAddDocSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!docTitle) return;
 
@@ -70,7 +70,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
     setDocTitle('');
   };
 
-  const handleBankSubmit = (e: React.FormEvent) => {
+  const handleBankSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!bankForm.accountNumber || !bankForm.bankName) return;
 

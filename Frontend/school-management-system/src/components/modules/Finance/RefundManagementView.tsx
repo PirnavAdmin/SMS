@@ -25,7 +25,7 @@ export const RefundManagementView: React.FC = () => {
     r.refundNo.toLowerCase().includes(query.toLowerCase()) || r.studentName.toLowerCase().includes(query.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const st = students.find(s => s.id === studentId);
     if (!st) {

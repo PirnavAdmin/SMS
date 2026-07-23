@@ -31,7 +31,7 @@ export const VehicleMaintenanceView: React.FC = () => {
     m.vendor.toLowerCase().includes(query.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     const veh = vehicleMasters.find(v => v.id === vehicleId);
     if (!veh) return;

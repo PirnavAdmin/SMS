@@ -31,6 +31,8 @@ import {
   initialRoomTypeMasters, initialRoomMasters, initialStudentHostelAssignments,
   initialHostelVisitorLogs, initialHostelAttendanceLogs, initialFinanceHostelConfigs
 } from '../services/mockData';
+import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import { useToast } from './ToastContext';
 
 export interface AcademicClass {
   id: string;
@@ -330,6 +332,8 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { addToast } = useToast();
+
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
     return saved ? JSON.parse(saved) : initial;
@@ -452,55 +456,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_student_fee_ledgers', JSON.stringify(studentFeeLedgers)); }, [studentFeeLedgers]);
 
   const fetchAdmissions = async () => {
-    const token = localStorage.getItem('auth_token');
-    if (!token) return;
     try {
-      const res = await fetch('/api/SchoolManagement/admissions', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      console.log('Admissions API response status:', res);
-      if (res.ok) {
-        const json = await res.json();
-        if (json.success && json.data) {
-          const mappedAdmissions: AdmissionApplication[] = json.data.map((item: any) => ({
-            id: item.applicationId.toString(),
-            applicationNo: item.registrationNo,
-            registrationNo: item.registrationNo,
-            applicantName: item.applicantFullName,
-            appliedClass: item.appliedClass,
-            gender: item.gender,
-            dob: item.dob ? item.dob.split('T')[0] : '',
-            bloodGroup: item.bloodGroup,
-            religion: item.religion,
-            casteCategory: item.casteCategory,
-            parentName: item.fatherFullName,
-            motherName: item.motherFullName,
-            phone: item.fatherMobileNo,
-            email: '',
-            addressHouseNo: item.houseNo,
-            addressStreet: item.street,
-            addressArea: item.areaLocality,
-            addressCity: item.city,
-            addressDistrict: item.district,
-            addressState: item.state,
-            addressPinCode: item.pinCode,
-            siblingsCount: item.numberOfSiblings,
-            studentType: item.studentType,
-            transportRequired: item.transportRequired,
-            transportType: item.transportType,
-            busRoute: item.busRoute,
-            pickupPoint: item.pickupPoint,
-            dropPoint: item.dropPoint,
-            hostelBlock: item.hostelBlock,
-            hostelBed: item.allocatedBedId,
-            status: item.status,
-            applicationDate: item.createdAt,
-          }));
-          setAdmissions(mappedAdmissions);
+      const json = await fetchAdmissionsApi();
+      console.log('Admissions API response:', json);
+      if (json && json.success && json.data) {
+        if (json.data.length === 0) {
+          addToast('info', 'No Records Found', 'There are currently no admission applications available.');
         }
+        const mappedAdmissions: AdmissionApplication[] = json.data.map((item: any) => ({
+          id: item.applicationId.toString(),
+          applicationNo: item.registrationNo,
+          registrationNo: item.registrationNo,
+          applicantName: item.applicantFullName,
+          appliedClass: item.appliedClass,
+          gender: item.gender,
+          dob: item.dob ? item.dob.split('T')[0] : '',
+          bloodGroup: item.bloodGroup,
+          religion: item.religion,
+          casteCategory: item.casteCategory,
+          parentName: item.fatherFullName,
+          motherName: item.motherFullName,
+          phone: item.fatherMobileNo,
+          email: '',
+          addressHouseNo: item.houseNo,
+          addressStreet: item.street,
+          addressArea: item.areaLocality,
+          addressCity: item.city,
+          addressDistrict: item.district,
+          addressState: item.state,
+          addressPinCode: item.pinCode,
+          siblingsCount: item.numberOfSiblings,
+          studentType: item.studentType,
+          transportRequired: item.transportRequired,
+          transportType: item.transportType,
+          busRoute: item.busRoute,
+          pickupPoint: item.pickupPoint,
+          dropPoint: item.dropPoint,
+          hostelBlock: item.hostelBlock,
+          hostelBed: item.allocatedBedId,
+          status: item.status,
+          applicationDate: item.createdAt,
+        }));
+        setAdmissions(mappedAdmissions);
+      } else {
+        addToast('error', 'API Error', json?.message || 'Failed to fetch admission records.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching admissions', err);
+      // Don't show toast for 404 errors as it might just mean the backend endpoint isn't ready
+      if (err.status !== 404) {
+        addToast('error', 'Network Error', err.message || 'Unable to connect to the server. Please try again later.');
+      }
     }
   };
 
@@ -624,7 +630,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Admission CRUD
   const addAdmission = async (appData: Omit<AdmissionApplication, 'id' | 'applicationNo'>) => {
-    const token = localStorage.getItem('auth_token');
     try {
       let isoDob = new Date().toISOString();
       if (appData.dob) {
@@ -671,23 +676,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         allocatedBedId: appData.hostelBed || "N/A"
       };
 
-      const res = await fetch('/api/SchoolManagement/admissions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
+      const json = await createAdmissionApi(payload);
 
-      if (res.ok) {
+      if (json && json.success !== false) {
         logActivity('New Admission Application', `Received application from ${appData.applicantName}`);
+        addToast('success', 'Application Submitted', 'New admission application has been registered.');
         fetchAdmissions();
       } else {
+        addToast('error', 'Failed to Add', json?.message || 'Failed to submit admission application.');
         console.error("Failed to add admission");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error adding admission', err);
+      addToast('error', 'Network Error', err.message || 'Unable to submit application.');
     }
   };
 
@@ -706,19 +707,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!app) return;
 
     const registrationNo = (app as any).registrationNo || app.applicationNo;
-    const token = localStorage.getItem('auth_token');
 
     try {
-      const res = await fetch(`/api/SchoolManagement/admissions/${registrationNo}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status })
-      });
+      const json = await updateAdmissionStatusApi(registrationNo, status);
 
-      if (res.ok) {
+      if (json && json.success !== false) {
         if (status === 'Enrolled' && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
@@ -842,12 +835,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setTimeout(() => generateStudentFeeLedger(newStudent.id), 50);
         }
 
-        setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-        logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
-        fetchAdmissions();
+          // Update state to match API success
+          setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+          logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
+          try {
+            await fetchAdmissions();
+          } catch (fetchErr) {
+            console.error("Failed to refresh admissions list", fetchErr);
+          }
+      } else {
+        addToast('error', 'Update Failed', json?.message || `Failed to update status to ${status}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating admission status', err);
+      addToast('error', 'Network Error', err.message || 'Failed to update application status.');
     }
   };
 

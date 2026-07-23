@@ -57,7 +57,7 @@ export const DiscountsView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
       addToast('warning', 'Validation Error', 'Name and code are required.');
@@ -74,7 +74,7 @@ export const DiscountsView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  const handleAllocSubmit = (e: React.FormEvent) => {
+  const handleAllocSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!allocStudentId || !allocDiscountId) return;
     assignDiscountToStudent(allocStudentId, allocDiscountId);

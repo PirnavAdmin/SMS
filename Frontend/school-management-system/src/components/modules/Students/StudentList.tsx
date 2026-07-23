@@ -210,7 +210,7 @@ export const StudentList: React.FC = () => {
                         </button>
                         <button
                           onClick={() => { setStudentToEdit(st); setIsEditOpen(true); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600 dark:text-brand-400"
+                          className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/30 text-sky-600 dark:text-sky-400"
                           title="Edit Details"
                         >
                           <Edit className="w-4 h-4" />
@@ -231,7 +231,7 @@ export const StudentList: React.FC = () => {
                         </button>
                         <button
                           onClick={() => setStudentToDelete(st)}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400"
+                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400"
                           title="Delete Record"
                         >
                           <Trash2 className="w-4 h-4" />

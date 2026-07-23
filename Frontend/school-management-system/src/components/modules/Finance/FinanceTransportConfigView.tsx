@@ -87,7 +87,7 @@ export const FinanceTransportConfigView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.routeId || !form.pickupPointId || !form.feeAmount) {
       addToast('warning', 'Missing Fields', 'Please select Route, Pickup Point and specify Fee Amount.');

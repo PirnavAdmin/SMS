@@ -57,7 +57,7 @@ export const SubjectsView: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.subjectId) {
       addToast('warning', 'Required Fields', 'Subject ID and Subject Name are required.');

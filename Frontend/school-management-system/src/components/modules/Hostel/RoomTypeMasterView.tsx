@@ -43,7 +43,7 @@ export const RoomTypeMasterView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     // 1. Trim leading/trailing spaces
