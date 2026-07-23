@@ -11,7 +11,9 @@ import {
   HostelMaster, StudentHostel, Refund, FinanceSettings, FeeStructureItem,
   RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, VehicleMaintenance,
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
-  RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig
+  RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
+  UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
+  AcademicYear, StudentEnrollment
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -29,9 +31,12 @@ import {
   initialVehicleAssignments, initialVehicleMaintenances,
   initialFinanceTransportConfigs, initialStudentFeeLedgers,
   initialRoomTypeMasters, initialRoomMasters, initialStudentHostelAssignments,
-  initialHostelVisitorLogs, initialHostelAttendanceLogs, initialFinanceHostelConfigs
+  initialHostelVisitorLogs, initialHostelAttendanceLogs, initialFinanceHostelConfigs,
+  initialUniformCategories, initialUniformSizes, initialUniformSuppliers, initialUniformInventory,
+  initialStudentUniformIssues, initialFinanceUniformConfigs, initialAcademicYears
 } from '../services/mockData';
-import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, deleteAdmissionApi, rejectAdmissionApi, enrollAdmissionApi } from '../api/admission';
+import { fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi, fetchClassesApi, createClassApi, updateClassApi, deleteClassApi } from '../api/academic';
 import { useToast } from './ToastContext';
 
 export interface AcademicClass {
@@ -70,6 +75,12 @@ export interface StudentCalculationResult {
   paidAmount: number;
   dueBalance: number;
   paymentHistory: FeePayment[];
+  scholarshipId?: string;
+  scholarshipName?: string;
+  scholarshipDescription?: string;
+  discountId?: string;
+  discountName?: string;
+  discountDescription?: string;
 }
 
 export interface CapacityCheckResult {
@@ -254,6 +265,10 @@ interface DataContextType {
   getStudentFeeLedger: (studentId: string) => StudentFeeLedger | null;
 
   calculateStudentPayableFee: (studentId: string) => StudentCalculationResult | null;
+  applyScholarshipToStudent: (studentId: string, scholarshipId: string) => StudentFeeLedger;
+  removeScholarshipFromStudent: (studentId: string) => StudentFeeLedger;
+  applyDiscountToStudent: (studentId: string, discountId: string) => StudentFeeLedger;
+  removeDiscountFromStudent: (studentId: string) => StudentFeeLedger;
 
   // TRANSPORT ERP MODULE ADDITIONS
   routeMasters: RouteMaster[];
@@ -327,6 +342,69 @@ interface DataContextType {
   birthdays: Birthday[];
   auditLogs: AuditLog[];
   logActivity: (action: string, details: string, userName?: string, role?: string) => void;
+
+  // UNIFORM ERP ADDITIONS
+  uniformCategories: UniformCategory[];
+  addUniformCategory: (c: Omit<UniformCategory, 'id'>) => void;
+  updateUniformCategory: (id: string, updates: Partial<UniformCategory>) => void;
+  deleteUniformCategory: (id: string) => void;
+
+  uniformSizes: UniformSize[];
+  addUniformSize: (s: Omit<UniformSize, 'id'>) => void;
+  updateUniformSize: (id: string, updates: Partial<UniformSize>) => void;
+  deleteUniformSize: (id: string) => void;
+
+  uniformSuppliers: UniformSupplier[];
+  addUniformSupplier: (s: Omit<UniformSupplier, 'id'>) => void;
+  updateUniformSupplier: (id: string, updates: Partial<UniformSupplier>) => void;
+  deleteUniformSupplier: (id: string) => void;
+
+  uniformInventory: UniformInventoryItem[];
+  addUniformInventory: (i: Omit<UniformInventoryItem, 'id'>) => void;
+  updateUniformInventory: (id: string, updates: Partial<UniformInventoryItem>) => void;
+  deleteUniformInventory: (id: string) => void;
+
+  studentUniformIssues: StudentUniformIssue[];
+  addStudentUniformIssue: (issue: Omit<StudentUniformIssue, 'id'>) => void;
+  updateStudentUniformIssue: (id: string, updates: Partial<StudentUniformIssue>) => void;
+  deleteStudentUniformIssue: (id: string) => void;
+
+  financeUniformConfigs: FinanceUniformConfig[];
+  addFinanceUniformConfig: (c: Omit<FinanceUniformConfig, 'id'>) => void;
+  updateFinanceUniformConfig: (id: string, updates: Partial<FinanceUniformConfig>) => void;
+  deleteFinanceUniformConfig: (id: string) => void;
+
+  // ACADEMIC YEAR & PROMOTION ADDITIONS
+  academicYears: AcademicYear[];
+  addAcademicYear: (ay: Omit<AcademicYear, 'id'>) => void;
+  updateAcademicYear: (id: string, updates: Partial<AcademicYear>) => void;
+  deleteAcademicYear: (id: string) => void;
+  activateAcademicYear: (id: string) => void;
+  closeAcademicYear: (id: string) => void;
+
+  studentEnrollments: StudentEnrollment[];
+  addStudentEnrollment: (se: Omit<StudentEnrollment, 'id'>) => void;
+  updateStudentEnrollment: (id: string, updates: Partial<StudentEnrollment>) => void;
+  deleteStudentEnrollment: (id: string) => void;
+
+  promoteStudents: (
+    studentIds: string[],
+    fromYear: string,
+    toYear: string,
+    toClass: string,
+    toSection: string,
+    options: {
+      transport: 'copy' | 'new' | 'none';
+      hostel: 'copy' | 'new' | 'none';
+      newRouteId?: string;
+      newPickupPointId?: string;
+      newHostelId?: string;
+      newRoomTypeId?: string;
+      newRoomId?: string;
+    }
+  ) => void;
+
+  graduateStudents: (studentIds: string[], notes?: string) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -366,6 +444,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [holidays] = useState<Holiday[]>(() => getStored('holidays', initialHolidays));
   const [birthdays] = useState<Birthday[]>(() => getStored('birthdays', initialBirthdays));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getStored('audit_logs', initialAuditLogs));
+
+  // Uniform ERP States
+  const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(() => getStored('uniform_categories', initialUniformCategories));
+  const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => getStored('uniform_sizes', initialUniformSizes));
+  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(() => getStored('uniform_suppliers', initialUniformSuppliers));
+  const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>(() => getStored('uniform_inventory', initialUniformInventory));
+  const [studentUniformIssues, setStudentUniformIssues] = useState<StudentUniformIssue[]>(() => getStored('student_uniform_issues', initialStudentUniformIssues));
+  const [financeUniformConfigs, setFinanceUniformConfigs] = useState<FinanceUniformConfig[]>(() => getStored('finance_uniform_configs', initialFinanceUniformConfigs));
+
+  // Academic Year & Student Promotion States
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>(() => getStored('academic_years', initialAcademicYears));
+  const [studentEnrollments, setStudentEnrollments] = useState<StudentEnrollment[]>(() => {
+    const saved = localStorage.getItem('edu_db_student_enrollments');
+    if (saved) return JSON.parse(saved);
+    return students.map(student => ({
+      id: `ENR-${student.id}-${student.academicYear || '2025-2026'}`,
+      studentId: student.id,
+      studentName: `${student.firstName} ${student.lastName}`,
+      admissionNo: student.admissionNo,
+      academicYear: student.academicYear || '2025-2026',
+      branch: student.branch || 'Main Campus',
+      className: student.className || 'Class 10',
+      section: student.section || 'A',
+      rollNo: student.rollNo || '1',
+      status: (student as any).status === 'Graduated' ? 'Graduated' as const : 'Active' as const,
+      resultStatus: 'N/A' as const
+    }));
+  });
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => getStored('fee_heads', initialFeeHeads));
@@ -407,6 +513,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Permanent Student Fee Ledger State
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<StudentFeeLedger[]>(() => getStored('student_fee_ledgers', initialStudentFeeLedgers));
 
+  const checkSessionClosed = (): boolean => {
+    const activeYearObj = academicYears.find(ay => ay.name === (financeSettings.academicYear || '2025-2026'));
+    if (activeYearObj && activeYearObj.status === 'Closed') {
+      addToast('error', 'Academic Year Closed', 'This academic session has been closed. Historical data is read-only.');
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => { localStorage.setItem('edu_db_profile', JSON.stringify(schoolProfile)); }, [schoolProfile]);
   useEffect(() => { localStorage.setItem('edu_db_students', JSON.stringify(students)); }, [students]);
   useEffect(() => { localStorage.setItem('edu_db_staff', JSON.stringify(staff)); }, [staff]);
@@ -442,6 +557,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_student_hostels', JSON.stringify(studentHostels)); }, [studentHostels]);
   useEffect(() => { localStorage.setItem('edu_db_refunds', JSON.stringify(refunds)); }, [refunds]);
   useEffect(() => { localStorage.setItem('edu_db_finance_settings', JSON.stringify(financeSettings)); }, [financeSettings]);
+
+  // Uniform ERP Effects
+  useEffect(() => { localStorage.setItem('edu_db_uniform_categories', JSON.stringify(uniformCategories)); }, [uniformCategories]);
+  useEffect(() => { localStorage.setItem('edu_db_uniform_sizes', JSON.stringify(uniformSizes)); }, [uniformSizes]);
+  useEffect(() => { localStorage.setItem('edu_db_uniform_suppliers', JSON.stringify(uniformSuppliers)); }, [uniformSuppliers]);
+  useEffect(() => { localStorage.setItem('edu_db_uniform_inventory', JSON.stringify(uniformInventory)); }, [uniformInventory]);
+  useEffect(() => { localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(studentUniformIssues)); }, [studentUniformIssues]);
+  useEffect(() => { localStorage.setItem('edu_db_finance_uniform_configs', JSON.stringify(financeUniformConfigs)); }, [financeUniformConfigs]);
+
+  // Academic Year & Promotion Effects
+  useEffect(() => { localStorage.setItem('edu_db_academic_years', JSON.stringify(academicYears)); }, [academicYears]);
+  useEffect(() => { localStorage.setItem('edu_db_student_enrollments', JSON.stringify(studentEnrollments)); }, [studentEnrollments]);
 
   // Transport ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_route_masters', JSON.stringify(routeMasters)); }, [routeMasters]);
@@ -510,8 +637,74 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const json = await fetchSubjectsApi();
+      console.log('Subjects API response:', json);
+      if (Array.isArray(json)) {
+        const mappedSubjects = json.map((item: any) => ({
+          id: item.subjectId.toString(),
+          subjectId: item.subjectCode,
+          name: item.subjectName,
+          code: item.courseCode
+        }));
+        setSubjects(mappedSubjects);
+      } else if (json && json.data && Array.isArray(json.data)) {
+        const mappedSubjects = json.data.map((item: any) => ({
+          id: item.subjectId.toString(),
+          subjectId: item.subjectCode,
+          name: item.subjectName,
+          code: item.courseCode
+        }));
+        setSubjects(mappedSubjects);
+      } else if (json && json.length === 0) {
+        setSubjects([]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching subjects', err);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const json = await fetchClassesApi();
+      console.log('Classes API response:', json);
+      
+      let classesArray = [];
+      if (Array.isArray(json)) {
+        classesArray = json;
+      } else if (json && json.data && Array.isArray(json.data)) {
+        classesArray = json.data;
+      } else if (json && json.length === 0) {
+        classesArray = [];
+      }
+
+      const mapped = classesArray.map((item: any) => {
+        const sections = item.sections?.map((s: any) => s.sectionName) || [];
+        const sectionTeachers: Record<string, string> = {};
+        item.sections?.forEach((s: any) => {
+           sectionTeachers[s.sectionName] = s.classTeacherName || '';
+        });
+        const mappedSubjects = item.curriculumSubjects?.map((sub: any) => sub.subjectName || sub.name) || [];
+        return {
+          id: (item.classId || item.id || Math.random().toString()).toString(),
+          name: item.className || item.name || 'Unnamed Class',
+          sections,
+          sectionTeachers,
+          teacher: sections.length > 0 ? sectionTeachers[sections[0]] : '',
+          subjects: mappedSubjects
+        };
+      });
+      setAcademicClasses(mapped);
+    } catch (err: any) {
+      console.error('Error fetching classes', err);
+    }
+  };
+
   useEffect(() => {
     fetchAdmissions();
+    fetchSubjects();
+    fetchClasses();
   }, []);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
@@ -692,26 +885,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateAdmission = (id: string, updates: Partial<AdmissionApplication>) => {
-    setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-    logActivity('Updated Admission Record', `Updated application ID ${id}`);
+  const updateAdmission = async (id: string, updates: Partial<AdmissionApplication>) => {
+    try {
+      await updateAdmissionApi(parseInt(id), updates);
+      fetchAdmissions();
+      logActivity('Updated Admission Record', `Updated application ID ${id}`);
+    } catch (err: any) {
+      console.error('Error updating admission', err);
+      addToast('error', 'API Error', 'Failed to update admission application.');
+    }
   };
 
-  const deleteAdmission = (id: string) => {
-    setAdmissions(prev => prev.filter(a => a.id !== id));
-    logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+  const deleteAdmission = async (id: string) => {
+    try {
+      await deleteAdmissionApi(parseInt(id));
+      fetchAdmissions();
+      logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+    } catch (err: any) {
+      console.error('Error deleting admission', err);
+      addToast('error', 'API Error', 'Failed to delete admission application.');
+    }
   };
 
   const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
     const app = admissions.find(a => a.id === id);
     if (!app) return;
 
-    const registrationNo = (app as any).registrationNo || app.applicationNo;
-
     try {
-      const json = await updateAdmissionStatusApi(registrationNo, status);
+      let success = true;
+      if (status === 'Rejected') {
+        const res = await rejectAdmissionApi(parseInt(id));
+        if (res && res.success === false) success = false;
+      } else if (status === 'Enrolled') {
+        const res = await enrollAdmissionApi(parseInt(id));
+        if (res && res.success === false) success = false;
+      }
+      
+      if (success) {
+        fetchAdmissions();
 
-      if (json && json.success !== false) {
         if (status === 'Enrolled' && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
@@ -837,59 +1049,147 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Update state to match API success
           setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-          logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
-          try {
-            await fetchAdmissions();
-          } catch (fetchErr) {
-            console.error("Failed to refresh admissions list", fetchErr);
-          }
+          logActivity('Admission Status Updated', `Application ${id} status changed to ${status}`);
+          addToast('success', 'Status Updated', `Application successfully marked as ${status}`);
       } else {
-        addToast('error', 'Update Failed', json?.message || `Failed to update status to ${status}`);
+        addToast('error', 'Update Failed', 'Failed to update admission status. Please try again.');
       }
     } catch (err: any) {
-      console.error('Error updating admission status', err);
-      addToast('error', 'Network Error', err.message || 'Failed to update application status.');
+      console.error('Error updating status', err);
+      addToast('error', 'API Error', err.message || 'Failed to update admission status.');
     }
   };
 
   // Academic Classes CRUD
-  const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
-    const id = 'CL-' + Math.floor(10 + Math.random() * 90);
-    const newCls: AcademicClass = { ...clsData, id };
-    setAcademicClasses(prev => [...prev, newCls]);
-    logActivity('Created Academic Class', `Added ${newCls.name}`);
+  const addAcademicClass = async (clsData: Omit<AcademicClass, 'id'>) => {
+    try {
+      const mappedSections = (clsData.sections || []).map(sec => {
+        const teacherName = clsData.sectionTeachers?.[sec];
+        const teacher = staff.find(s => `${s.firstName} ${s.lastName}` === teacherName);
+        let classTeacherEmpId = null;
+        // The backend expects a valid employee ID or null.
+        // Since we are using mock staff data without real backend employee IDs, we must pass null to avoid 500 FK constraint errors.
+        return {
+          sectionName: sec,
+          classTeacherEmpId
+        };
+      });
+
+      const subjectIds = (clsData.subjects || []).map(subName => {
+        const sub = subjects.find(s => s.name === subName);
+        return sub ? parseInt(sub.id) : null;
+      }).filter(Boolean);
+
+      const payload = {
+        className: clsData.name,
+        sections: mappedSections,
+        subjectIds
+      };
+      
+      await createClassApi(payload);
+      fetchClasses();
+      logActivity('Created Academic Class', `Added ${clsData.name}`);
+    } catch (err: any) {
+      console.error('Error adding class', err);
+      addToast('error', 'API Error', 'Failed to create class.');
+    }
   };
 
-  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
-    setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-    logActivity('Updated Academic Class', `Updated class ID ${id}`);
+  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
+    try {
+      const existing = academicClasses.find(c => c.id === id);
+      if (!existing) return;
+      
+      const merged = { ...existing, ...updates };
+      
+      const mappedSections = (merged.sections || []).map(sec => {
+        const teacherName = merged.sectionTeachers?.[sec];
+        const teacher = staff.find(s => `${s.firstName} ${s.lastName}` === teacherName);
+        let classTeacherEmpId = null;
+        // Same as above, passing null to prevent 500 FK constraint errors
+        return {
+          sectionName: sec,
+          classTeacherEmpId
+        };
+      });
+
+      const subjectIds = (merged.subjects || []).map(subName => {
+        const sub = subjects.find(s => s.name === subName);
+        return sub ? parseInt(sub.id) : null;
+      }).filter(Boolean);
+
+      const payload = {
+        className: merged.name,
+        sections: mappedSections,
+        subjectIds
+      };
+
+      await updateClassApi(parseInt(id), payload);
+      fetchClasses();
+      logActivity('Updated Academic Class', `Updated class ID ${id}`);
+    } catch (err: any) {
+      console.error('Error updating class', err);
+      addToast('error', 'API Error', 'Failed to update class.');
+    }
   };
 
-  const deleteAcademicClass = (id: string) => {
-    setAcademicClasses(prev => prev.filter(c => c.id !== id));
-    logActivity('Deleted Academic Class', `Removed class ID ${id}`);
+  const deleteAcademicClass = async (id: string) => {
+    try {
+      await deleteClassApi(parseInt(id));
+      fetchClasses();
+      logActivity('Deleted Academic Class', `Removed class ID ${id}`);
+    } catch (err: any) {
+      console.error('Error deleting class', err);
+      addToast('error', 'API Error', 'Failed to delete class.');
+    }
   };
 
   // Subjects CRUD
-  const addSubject = (subjectData: Omit<SubjectItem, 'id'>) => {
-    const id = 'SUB-' + Math.floor(100 + Math.random() * 900);
-    const newSub: SubjectItem = {
-      ...subjectData,
-      id,
-      code: subjectData.code || subjectData.subjectId
-    };
-    setSubjects(prev => [...prev, newSub]);
-    logActivity('Created Subject', `Added subject ${newSub.name} (${newSub.subjectId})`);
+  const addSubject = async (subjectData: Omit<SubjectItem, 'id'>) => {
+    try {
+      const payload = {
+        subjectCode: subjectData.subjectId,
+        subjectName: subjectData.name,
+        courseCode: subjectData.code || subjectData.subjectId
+      };
+      await createSubjectApi(payload);
+      fetchSubjects();
+      logActivity('Created Subject', `Added subject ${subjectData.name} (${subjectData.subjectId})`);
+    } catch (err: any) {
+      console.error('Error adding subject', err);
+      addToast('error', 'API Error', 'Failed to create subject.');
+    }
   };
 
-  const updateSubject = (id: string, updates: Partial<SubjectItem>) => {
-    setSubjects(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-    logActivity('Updated Subject', `Updated subject ID ${id}`);
+  const updateSubject = async (id: string, updates: Partial<SubjectItem>) => {
+    try {
+      const existing = subjects.find(s => s.id === id);
+      if (!existing) return;
+      const payload = {
+        subjectCode: updates.subjectId || existing.subjectId,
+        subjectName: updates.name || existing.name,
+        courseCode: updates.code || existing.code || existing.subjectId
+      };
+      await updateSubjectApi(parseInt(id), payload);
+      fetchSubjects();
+      fetchClasses(); // Refresh classes to sync any renamed subjects
+      logActivity('Updated Subject', `Updated subject ID ${id}`);
+    } catch (err: any) {
+      console.error('Error updating subject', err);
+      addToast('error', 'API Error', 'Failed to update subject.');
+    }
   };
 
-  const deleteSubject = (id: string) => {
-    setSubjects(prev => prev.filter(s => s.id !== id));
-    logActivity('Deleted Subject', `Removed subject ID ${id}`);
+  const deleteSubject = async (id: string) => {
+    try {
+      await deleteSubjectApi(parseInt(id));
+      fetchSubjects();
+      fetchClasses(); // Refresh classes to remove the deleted subject from curriculum
+      logActivity('Deleted Subject', `Removed subject ID ${id}`);
+    } catch (err: any) {
+      console.error('Error deleting subject', err);
+      addToast('error', 'API Error', 'Failed to delete subject.');
+    }
   };
 
   // Bus CRUD
@@ -988,6 +1288,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fee Payments CRUD with Student Fee Ledger Update
   const addFeePayment = (paymentData: Omit<FeePayment, 'id' | 'receiptNo'>): FeePayment => {
+    if (checkSessionClosed()) {
+      return {
+        id: 'dummy',
+        receiptNo: 'dummy',
+        studentId: paymentData.studentId,
+        studentName: paymentData.studentName,
+        className: paymentData.className || '',
+        amountPaid: 0,
+        discount: 0,
+        fine: 0,
+        paymentMode: paymentData.paymentMode,
+        paymentDate: paymentData.paymentDate,
+        status: 'Pending'
+      };
+    }
     const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
     const receiptNo = financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
     const newPayment: FeePayment = { ...paymentData, id, receiptNo };
@@ -1400,6 +1715,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const admNo = student?.admissionNo || 'ADM-2026-000';
     const stName = student ? `${student.firstName} ${student.lastName}` : 'Student';
 
+    // Uniform Fee configuration lookup
+    const uniformConfig = financeUniformConfigs.find(
+      c => c.status === 'Active' &&
+           c.academicYear === (financeSettings.academicYear || '2025-2026') &&
+           c.className === clsName &&
+           (c.gender === 'Unisex' || c.gender === (student?.gender || 'Male'))
+    );
+    const uniformAmount = uniformConfig ? uniformConfig.feeAmount : 3500;
+
     // 1. Base Fee Structure
     const assignment = studentFeeAssignments.find(a => a.studentId === studentId && a.status === 'Active');
     const baseFeeHeads = assignment ? assignment.assignedFeeHeads : [];
@@ -1426,10 +1750,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         { headId: 'FH-01', headName: 'Tuition Fee', category: 'Tuition Fee', originalAmount: 25000, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 25000, isApplicable: true, status: 'Pending' },
         { headId: 'FH-02', headName: 'Admission Fee', category: 'Admission Fee', originalAmount: 5000, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 5000, isApplicable: true, status: 'Pending' },
         { headId: 'FH-03', headName: 'Books & Stationery Fee', category: 'Books Fee', originalAmount: 4500, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 4500, isApplicable: true, status: 'Pending' },
-        { headId: 'FH-04', headName: 'Uniform & Sports Kit Fee', category: 'Uniform Fee', originalAmount: 3500, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 3500, isApplicable: true, status: 'Pending' },
+        { headId: 'FH-04', headName: 'Uniform & Sports Kit Fee', category: 'Uniform Fee', originalAmount: uniformAmount, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: uniformAmount, isApplicable: true, status: 'Pending' },
         { headId: 'FH-05', headName: 'Science & Computer Lab Fee', category: 'Lab Fee', originalAmount: 2500, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 2500, isApplicable: true, status: 'Pending' }
       ];
     }
+
+    // Ensure Uniform Fee category amount matches config lookup
+    ledgerItems = ledgerItems.map(item => {
+      if (item.category === 'Uniform Fee') {
+        return {
+          ...item,
+          originalAmount: uniformAmount,
+          finalAmount: Math.max(0, uniformAmount - item.scholarshipDeduction - item.discountDeduction)
+        };
+      }
+      return item;
+    });
 
     // 2. Day Scholar vs Hosteller Fee Rules
     // Transport Fee: Applicable ONLY for Day Scholar
@@ -1483,7 +1819,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ) || financeHostelConfigs[0];
 
       const hstFee = fhc ? fhc.hostelFee : 40000;
-      const messFee = fhc ? fhc.messFee : 18000;
+      const messFee = fhc ? (fhc.messFee || 0) : 18000;
       const secDep = fhc ? fhc.securityDeposit : 5000;
 
       ledgerItems.push({
@@ -1592,7 +1928,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       paidAmount: paidAmt,
       dueBalance: dueBal,
       createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0]
+      updatedAt: new Date().toISOString().split('T')[0],
+      grossAmount: totalOriginal,
+      scholarshipAmount: totalSchDeduction,
+      discountAmount: totalDiscDeduction,
+      fineAmount: 0,
+      previousDue: student?.dueFee || 0
     };
 
     setStudentFeeLedgers(prev => [...prev.filter(l => l.studentId !== studentId), newLedger]);
@@ -1750,6 +2091,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const appliedDiscounts = studentDiscounts.filter(d => d.studentId === studentId);
     let discountDeduction = ledger ? ledger.totalDiscount : 0;
 
+    let scholarshipId: string | undefined = undefined;
+    let scholarshipName = '';
+    let scholarshipDescription = '';
+    
+    let discountId: string | undefined = undefined;
+    let discountName = '';
+    let discountDescription = '';
+
+    if (ledger) {
+      scholarshipId = ledger.scholarshipId;
+      scholarshipName = ledger.scholarshipName || '';
+      scholarshipDescription = ledger.scholarshipDescription || '';
+      discountId = ledger.discountId;
+      discountName = ledger.discountName || '';
+      discountDescription = ledger.discountDescription || '';
+    } else {
+      const studentScholarshipId = student.scholarshipId || appliedScholarships[0]?.scholarshipId;
+      const sObj = studentScholarshipId ? scholarships.find(s => s.id === studentScholarshipId) : undefined;
+      scholarshipId = studentScholarshipId;
+      scholarshipName = sObj?.name || '';
+      scholarshipDescription = sObj?.description || '';
+      
+      const studentDiscountId = student.discountId || appliedDiscounts[0]?.discountId;
+      const dObj = studentDiscountId ? discounts.find(d => d.id === studentDiscountId) : undefined;
+      discountId = studentDiscountId;
+      discountName = dObj?.name || '';
+      discountDescription = dObj?.description || '';
+    }
+
     let fineAmount = 0;
     let fineDetails: { ruleName: string; daysOverdue: number; amount: number } | undefined;
 
@@ -1800,11 +2170,180 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       totalPayable,
       paidAmount,
       dueBalance,
-      paymentHistory: studentPaymentItems
+      paymentHistory: studentPaymentItems,
+      scholarshipId,
+      scholarshipName,
+      scholarshipDescription,
+      discountId,
+      discountName,
+      discountDescription
     };
   };
 
+  const applyScholarshipToStudent = (studentId: string, scholarshipId: string) => {
+    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
+    if (!ledger) {
+      throw new Error('Fee Ledger not found for student.');
+    }
+    const sch = scholarships.find(s => s.id === scholarshipId);
+    if (!sch) {
+      throw new Error('Scholarship not found.');
+    }
+    
+    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
+    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
+    const waiver = sch.discountType === 'Percentage' ? (tuitionAmount * (sch.percentage || 0)) / 100 : (sch.fixedAmount || 0);
+
+    const updatedLedger: StudentFeeLedger = {
+      ...ledger,
+      scholarshipId: sch.id,
+      scholarshipName: sch.name,
+      scholarshipDescription: sch.description,
+      scholarshipAmount: waiver,
+      totalScholarship: waiver,
+      feeItems: ledger.feeItems.map(item => {
+        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
+          const finalAmt = Math.max(0, item.originalAmount - waiver - item.discountDeduction);
+          return {
+            ...item,
+            scholarshipDeduction: waiver,
+            finalAmount: finalAmt
+          };
+        }
+        return item;
+      })
+    };
+
+    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
+    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
+
+    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
+    assignScholarshipToStudent(studentId, scholarshipId);
+    return updatedLedger;
+  };
+
+  const removeScholarshipFromStudent = (studentId: string) => {
+    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
+    if (!ledger) {
+      throw new Error('Fee Ledger not found for student.');
+    }
+
+    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
+
+    const updatedLedger: StudentFeeLedger = {
+      ...ledger,
+      scholarshipId: undefined,
+      scholarshipName: '',
+      scholarshipDescription: '',
+      scholarshipAmount: 0,
+      totalScholarship: 0,
+      feeItems: ledger.feeItems.map(item => {
+        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
+          const finalAmt = Math.max(0, item.originalAmount - item.discountDeduction);
+          return {
+            ...item,
+            scholarshipDeduction: 0,
+            finalAmount: finalAmt
+          };
+        }
+        return item;
+      })
+    };
+
+    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
+    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
+
+    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
+    const currentSch = studentScholarships.find(s => s.studentId === studentId && s.scholarshipId === ledger.scholarshipId);
+    if (currentSch) {
+      revokeStudentScholarship(currentSch.id);
+    }
+    return updatedLedger;
+  };
+
+  const applyDiscountToStudent = (studentId: string, discountId: string) => {
+    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
+    if (!ledger) {
+      throw new Error('Fee Ledger not found for student.');
+    }
+    const d = discounts.find(x => x.id === discountId);
+    if (!d) {
+      throw new Error('Discount not found.');
+    }
+
+    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
+    const tuitionAmount = tuitionItem ? tuitionItem.originalAmount : 25000;
+    const discountAmount = d.mode === 'Percentage' ? (tuitionAmount * d.value) / 100 : d.value;
+
+    const updatedLedger: StudentFeeLedger = {
+      ...ledger,
+      discountId: d.id,
+      discountName: d.name,
+      discountDescription: d.description,
+      discountAmount: discountAmount,
+      totalDiscount: discountAmount,
+      feeItems: ledger.feeItems.map(item => {
+        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
+          const finalAmt = Math.max(0, item.originalAmount - ledger.scholarshipAmount - discountAmount);
+          return {
+            ...item,
+            discountDeduction: discountAmount,
+            finalAmount: finalAmt
+          };
+        }
+        return item;
+      })
+    };
+
+    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
+    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
+
+    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
+    assignDiscountToStudent(studentId, discountId);
+    return updatedLedger;
+  };
+
+  const removeDiscountFromStudent = (studentId: string) => {
+    const ledger = studentFeeLedgers.find(l => l.studentId === studentId);
+    if (!ledger) {
+      throw new Error('Fee Ledger not found for student.');
+    }
+
+    const tuitionItem = ledger.feeItems.find(i => i.category === 'Tuition Fee') || ledger.feeItems[0];
+
+    const updatedLedger: StudentFeeLedger = {
+      ...ledger,
+      discountId: undefined,
+      discountName: '',
+      discountDescription: '',
+      discountAmount: 0,
+      totalDiscount: 0,
+      feeItems: ledger.feeItems.map(item => {
+        if (item.category === 'Tuition Fee' || item.headId === (tuitionItem?.headId || '')) {
+          const finalAmt = Math.max(0, item.originalAmount - item.scholarshipDeduction);
+          return {
+            ...item,
+            discountDeduction: 0,
+            finalAmount: finalAmt
+          };
+        }
+        return item;
+      })
+    };
+
+    updatedLedger.totalPayable = Math.max(0, updatedLedger.grossAmount - updatedLedger.scholarshipAmount - updatedLedger.discountAmount + updatedLedger.fineAmount + updatedLedger.previousDue);
+    updatedLedger.dueBalance = Math.max(0, updatedLedger.totalPayable - updatedLedger.paidAmount);
+
+    setStudentFeeLedgers(prev => prev.map(l => l.studentId === studentId ? updatedLedger : l));
+    const currentDisc = studentDiscounts.find(d => d.studentId === studentId && d.discountId === ledger.discountId);
+    if (currentDisc) {
+      removeStudentDiscount(currentDisc.id);
+    }
+    return updatedLedger;
+  };
+
   const markAttendance = (records: DailyAttendance[]) => {
+    if (checkSessionClosed()) return;
     setAttendance(prev => {
       const filterDates = records.map(r => `${r.entityId}_${r.date}`);
       const updated = prev.filter(r => !filterDates.includes(`${r.entityId}_${r.date}`));
@@ -1814,6 +2353,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addExam = (examData: Omit<ExamSetup, 'id'>) => {
+    if (checkSessionClosed()) return;
     const id = 'EXM-' + Math.floor(10 + Math.random() * 90);
     const newExam: ExamSetup = { ...examData, id };
     setExams(prev => [...prev, newExam]);
@@ -1821,16 +2361,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateExam = (id: string, updates: Partial<ExamSetup>) => {
+    if (checkSessionClosed()) return;
     setExams(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
     logActivity('Updated Examination', `Updated exam ID ${id}`);
   };
 
   const deleteExam = (id: string) => {
+    if (checkSessionClosed()) return;
     setExams(prev => prev.filter(e => e.id !== id));
     logActivity('Deleted Examination', `Removed exam ID ${id}`);
   };
 
   const saveMarks = (marksData: Omit<ExamMark, 'id'>[]) => {
+    if (checkSessionClosed()) return;
     const newMarks: ExamMark[] = marksData.map(m => ({
       ...m,
       id: 'MRK-' + Math.floor(1000 + Math.random() * 9000)
@@ -1845,16 +2388,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addTimetableSlot = (slotData: Omit<TimetableSlot, 'id'>) => {
+    if (checkSessionClosed()) return;
     const id = 'TT-' + Math.floor(100 + Math.random() * 900);
     const newSlot: TimetableSlot = { ...slotData, id };
     setTimetable(prev => [...prev, newSlot]);
   };
 
   const updateTimetableSlot = (id: string, updates: Partial<TimetableSlot>) => {
+    if (checkSessionClosed()) return;
     setTimetable(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const deleteTimetableSlot = (id: string) => {
+    if (checkSessionClosed()) return;
     setTimetable(prev => prev.filter(t => t.id !== id));
   };
 
@@ -1933,6 +2479,329 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('Published Announcement', `Posted: ${newAnn.title}`);
   };
 
+  // Uniform category CRUD
+  const addUniformCategory = (cData: Omit<UniformCategory, 'id'>) => {
+    const id = 'UC-' + Math.floor(10 + Math.random() * 90);
+    setUniformCategories(prev => [...prev, { ...cData, id }]);
+  };
+  const updateUniformCategory = (id: string, updates: Partial<UniformCategory>) => {
+    setUniformCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+  const deleteUniformCategory = (id: string) => {
+    setUniformCategories(prev => prev.filter(c => c.id !== id));
+  };
+
+  // Uniform sizes CRUD
+  const addUniformSize = (sData: Omit<UniformSize, 'id'>) => {
+    const id = 'US-' + Math.floor(10 + Math.random() * 90);
+    setUniformSizes(prev => [...prev, { ...sData, id }]);
+  };
+  const updateUniformSize = (id: string, updates: Partial<UniformSize>) => {
+    setUniformSizes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+  const deleteUniformSize = (id: string) => {
+    setUniformSizes(prev => prev.filter(s => s.id !== id));
+  };
+
+  // Uniform suppliers CRUD
+  const addUniformSupplier = (sData: Omit<UniformSupplier, 'id'>) => {
+    const id = 'SUP-' + Math.floor(10 + Math.random() * 90);
+    setUniformSuppliers(prev => [...prev, { ...sData, id }]);
+  };
+  const updateUniformSupplier = (id: string, updates: Partial<UniformSupplier>) => {
+    setUniformSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+  const deleteUniformSupplier = (id: string) => {
+    setUniformSuppliers(prev => prev.filter(s => s.id !== id));
+  };
+
+  // Uniform inventory CRUD
+  const addUniformInventory = (iData: Omit<UniformInventoryItem, 'id'>) => {
+    const id = 'UINV-' + Math.floor(10 + Math.random() * 90);
+    setUniformInventory(prev => [...prev, { ...iData, id }]);
+  };
+  const updateUniformInventory = (id: string, updates: Partial<UniformInventoryItem>) => {
+    setUniformInventory(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+  };
+  const deleteUniformInventory = (id: string) => {
+    setUniformInventory(prev => prev.filter(i => i.id !== id));
+  };
+
+  // Student Uniform issues CRUD
+  const addStudentUniformIssue = (issueData: Omit<StudentUniformIssue, 'id'>) => {
+    const id = 'UIS-' + Math.floor(10 + Math.random() * 90);
+    setStudentUniformIssues(prev => [...prev, { ...issueData, id }]);
+
+    // Reduce stock if issued
+    if (issueData.status === 'Issued' || issueData.status === 'Replaced') {
+      setUniformInventory(prev => prev.map(item => {
+        if (item.itemId === issueData.itemId || item.itemName === issueData.itemName) {
+          const newStock = Math.max(0, item.currentStock - issueData.quantity);
+          const newStatus = newStock === 0 ? 'Out of Stock' : (newStock <= item.minimumStock ? 'Low Stock' : 'In Stock');
+          return { ...item, currentStock: newStock, status: newStatus };
+        }
+        return item;
+      }));
+    }
+  };
+  const updateStudentUniformIssue = (id: string, updates: Partial<StudentUniformIssue>) => {
+    setStudentUniformIssues(prev => prev.map(issue => {
+      if (issue.id === id) {
+        if (updates.status === 'Returned' && issue.status !== 'Returned') {
+          setUniformInventory(prevInv => prevInv.map(item => {
+            if (item.itemId === issue.itemId || item.itemName === issue.itemName) {
+              const newStock = item.currentStock + issue.quantity;
+              const newStatus = newStock === 0 ? 'Out of Stock' : (newStock <= item.minimumStock ? 'Low Stock' : 'In Stock');
+              return { ...item, currentStock: newStock, status: newStatus };
+            }
+            return item;
+          }));
+        }
+        return { ...issue, ...updates };
+      }
+      return issue;
+    }));
+  };
+  const deleteStudentUniformIssue = (id: string) => {
+    setStudentUniformIssues(prev => prev.filter(issue => issue.id !== id));
+  };
+
+  // Finance Uniform configurations CRUD
+  const addFinanceUniformConfig = (cData: Omit<FinanceUniformConfig, 'id'>) => {
+    const id = 'FUC-' + Math.floor(10 + Math.random() * 90);
+    setFinanceUniformConfigs(prev => [...prev, { ...cData, id }]);
+  };
+  const updateFinanceUniformConfig = (id: string, updates: Partial<FinanceUniformConfig>) => {
+    setFinanceUniformConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+  const deleteFinanceUniformConfig = (id: string) => {
+    setFinanceUniformConfigs(prev => prev.filter(c => c.id !== id));
+  };
+
+  // Academic Year CRUD
+  const addAcademicYear = (ayData: Omit<AcademicYear, 'id'>) => {
+    const id = 'AY-' + Math.floor(10 + Math.random() * 90);
+    setAcademicYears(prev => [...prev, { ...ayData, id }]);
+  };
+  const updateAcademicYear = (id: string, updates: Partial<AcademicYear>) => {
+    setAcademicYears(prev => prev.map(ay => ay.id === id ? { ...ay, ...updates } : ay));
+  };
+  const deleteAcademicYear = (id: string) => {
+    setAcademicYears(prev => prev.filter(ay => ay.id !== id));
+  };
+  const activateAcademicYear = (id: string) => {
+    const target = academicYears.find(ay => ay.id === id);
+    if (!target) return;
+    setAcademicYears(prev => prev.map(ay => {
+      if (ay.id === id) return { ...ay, status: 'Active' };
+      if (ay.status === 'Active') return { ...ay, status: 'Closed' };
+      return ay;
+    }));
+    updateFinanceSettings({ academicYear: target.name });
+    logActivity('Activated Academic Year', `Activated academic year ${target.name}`);
+  };
+  const closeAcademicYear = (id: string) => {
+    const target = academicYears.find(ay => ay.id === id);
+    if (!target) return;
+    setAcademicYears(prev => prev.map(ay => ay.id === id ? { ...ay, status: 'Closed' } : ay));
+    logActivity('Closed Academic Year', `Closed academic session ${target.name}`);
+  };
+
+  // Student Enrollment CRUD
+  const addStudentEnrollment = (seData: Omit<StudentEnrollment, 'id'>) => {
+    const id = 'ENR-' + Math.floor(100 + Math.random() * 900);
+    setStudentEnrollments(prev => [...prev, { ...seData, id }]);
+  };
+  const updateStudentEnrollment = (id: string, updates: Partial<StudentEnrollment>) => {
+    setStudentEnrollments(prev => prev.map(se => se.id === id ? { ...se, ...updates } : se));
+  };
+  const deleteStudentEnrollment = (id: string) => {
+    setStudentEnrollments(prev => prev.filter(se => se.id !== id));
+  };
+
+  // Student Promotion Process
+  const promoteStudents = (
+    studentIds: string[],
+    fromYear: string,
+    toYear: string,
+    toClass: string,
+    toSection: string,
+    options: {
+      transport: 'copy' | 'new' | 'none';
+      hostel: 'copy' | 'new' | 'none';
+      newRouteId?: string;
+      newPickupPointId?: string;
+      newHostelId?: string;
+      newRoomTypeId?: string;
+      newRoomId?: string;
+    }
+  ) => {
+    studentIds.forEach(studentId => {
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      // 1. Avoid duplicate promotion
+      setStudentEnrollments(prev => {
+        const exists = prev.some(enr => enr.studentId === studentId && enr.academicYear === toYear);
+        if (exists) return prev;
+
+        const updatedPrev = prev.map(enr =>
+          (enr.studentId === studentId && enr.academicYear === fromYear)
+            ? { ...enr, status: 'Completed' as const, resultStatus: 'Promoted' as const }
+            : enr
+        );
+
+        const newEnrollmentId = `ENR-${studentId}-${toYear}`;
+        const newEnrollment: StudentEnrollment = {
+          id: newEnrollmentId,
+          studentId: studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          admissionNo: student.admissionNo,
+          academicYear: toYear,
+          branch: student.branch || 'Main Campus',
+          className: toClass,
+          section: toSection,
+          rollNo: student.rollNo || '1',
+          status: 'Active',
+          resultStatus: 'N/A',
+          promotionDate: new Date().toISOString().split('T')[0]
+        };
+
+        return [...updatedPrev, newEnrollment];
+      });
+
+      // 2. Transport Assignment copy/new
+      if (options.transport === 'copy') {
+        const prevTransport = studentTransports.find(t => t.studentId === studentId && t.status === 'Active');
+        if (prevTransport) {
+          assignStudentTransport({
+            studentId,
+            studentName: `${student.firstName} ${student.lastName}`,
+            admissionNo: student.admissionNo,
+            routeId: prevTransport.routeId,
+            routeName: prevTransport.routeName,
+            pickupPoint: prevTransport.pickupPoint,
+            feePlan: prevTransport.feePlan || 'Annual',
+            feeAmount: prevTransport.feeAmount || 0,
+            effectiveFrom: new Date().toISOString().split('T')[0],
+            status: 'Active'
+          });
+        }
+      } else if (options.transport === 'new' && options.newRouteId) {
+        const route = routeMasters.find(r => r.id === options.newRouteId);
+        const pickup = pickupPoints.find(p => p.id === options.newPickupPointId);
+        const transportConfig = financeTransportConfigs.find(
+          c => c.routeId === options.newRouteId &&
+               c.pickupPointId === options.newPickupPointId &&
+               c.status === 'Active'
+        );
+        assignStudentTransport({
+          studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          admissionNo: student.admissionNo,
+          routeId: options.newRouteId,
+          routeName: route?.routeName || 'New Route',
+          pickupPoint: pickup?.pickupName || 'New Pickup Point',
+          feePlan: 'Annual',
+          feeAmount: transportConfig?.feeAmount || 0,
+          effectiveFrom: new Date().toISOString().split('T')[0],
+          status: 'Active'
+        });
+      }
+
+      // 3. Hostel Assignment copy/new
+      if (options.hostel === 'copy') {
+        const prevHostel = studentHostelAssignments.find(h => h.studentId === studentId && h.status === 'Active');
+        if (prevHostel) {
+          assignStudentHostelRoom({
+            studentId,
+            studentName: `${student.firstName} ${student.lastName}`,
+            admissionNo: student.admissionNo,
+            hostelId: prevHostel.hostelId,
+            hostelName: prevHostel.hostelName,
+            roomId: prevHostel.roomId,
+            roomNo: prevHostel.roomNo,
+            bedNo: prevHostel.bedNo,
+            joiningDate: new Date().toISOString().split('T')[0],
+            status: 'Active'
+          });
+        }
+      } else if (options.hostel === 'new' && options.newHostelId && options.newRoomId) {
+        const hostelObj = hostelMasters.find(h => h.id === options.newHostelId);
+        const roomObj = roomMasters.find(r => r.id === options.newRoomId);
+        assignStudentHostelRoom({
+          studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          admissionNo: student.admissionNo,
+          hostelId: options.newHostelId,
+          hostelName: hostelObj?.hostelName || 'New Hostel',
+          roomId: options.newRoomId,
+          roomNo: roomObj?.roomNumber || 'New Room',
+          bedNo: 'Bed A',
+          joiningDate: new Date().toISOString().split('T')[0],
+          status: 'Active'
+        });
+      }
+
+      // 4. Update core Student record active fields
+      setStudents(prev => prev.map(s => {
+        if (s.id === studentId) {
+          const history = s.promotionHistory || [];
+          const histItem: PromotionHistoryItem = {
+            id: 'PH-' + Math.floor(100 + Math.random() * 900),
+            academicYear: fromYear,
+            fromClass: s.className || 'Class 10',
+            toClass: toClass,
+            fromSection: s.section || 'A',
+            toSection: toSection,
+            fromBranch: s.branch || 'Main Campus',
+            toBranch: s.branch || 'Main Campus',
+            date: new Date().toISOString().split('T')[0]
+          };
+          return {
+            ...s,
+            className: toClass,
+            section: toSection,
+            academicYear: toYear,
+            promotionHistory: [...history, histItem]
+          };
+         }
+         return s;
+      }));
+
+      // 5. Generate New Term Fee Ledger
+      setTimeout(() => generateStudentFeeLedger(studentId), 100);
+    });
+
+    logActivity('Promoted Students', `Promoted ${studentIds.length} students from ${fromYear} to ${toYear}`);
+  };
+
+  const graduateStudents = (studentIds: string[], notes = 'Graduated Course Completion') => {
+    studentIds.forEach(studentId => {
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      setStudentEnrollments(prev => prev.map(enr =>
+        (enr.studentId === studentId && enr.status === 'Active')
+          ? { ...enr, status: 'Graduated' as const, resultStatus: 'Passed' as const }
+          : enr
+      ));
+
+      setStudents(prev => prev.map(s => {
+        if (s.id === studentId) {
+          return {
+            ...s,
+            status: 'Graduated' as any,
+            remarks: notes
+          };
+        }
+        return s;
+      }));
+    });
+
+    logActivity('Graduated Students', `Graduated ${studentIds.length} student cohorts to alumni registry`);
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -1972,6 +2841,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         financeTransportConfigs, addFinanceTransportConfig, updateFinanceTransportConfig, deleteFinanceTransportConfig,
         studentFeeLedgers, generateStudentFeeLedger, recalculateStudentFeeLedger, getStudentFeeLedger,
         calculateStudentPayableFee,
+        applyScholarshipToStudent, removeScholarshipFromStudent,
+        applyDiscountToStudent, removeDiscountFromStudent,
         routeMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster,
         pickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
         vehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,
@@ -1987,7 +2858,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         transportRoutes, addTransportRoute,
         hostelRooms, inventory, addInventoryItem,
         announcements, addAnnouncement,
-        holidays, birthdays, auditLogs, logActivity
+        holidays, birthdays, auditLogs, logActivity,
+
+        // UNIFORM ERP MAPPINGS
+        uniformCategories, addUniformCategory, updateUniformCategory, deleteUniformCategory,
+        uniformSizes, addUniformSize, updateUniformSize, deleteUniformSize,
+        uniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier,
+        uniformInventory, addUniformInventory, updateUniformInventory, deleteUniformInventory,
+        studentUniformIssues, addStudentUniformIssue, updateStudentUniformIssue, deleteStudentUniformIssue,
+        financeUniformConfigs, addFinanceUniformConfig, updateFinanceUniformConfig, deleteFinanceUniformConfig,
+
+        // ACADEMIC YEAR & PROMOTION MAPPINGS
+        academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, activateAcademicYear, closeAcademicYear,
+        studentEnrollments, addStudentEnrollment, updateStudentEnrollment, deleteStudentEnrollment, promoteStudents, graduateStudents
       }}
     >
       {children}

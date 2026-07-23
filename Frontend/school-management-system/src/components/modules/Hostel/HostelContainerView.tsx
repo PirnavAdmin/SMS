@@ -4,11 +4,8 @@ import {
 } from 'lucide-react';
 
 import { HostelDashboardView } from './HostelDashboardView';
-import { HostelMasterView } from './HostelMasterView';
-import { RoomTypeMasterView } from './RoomTypeMasterView';
-import { RoomMasterView } from './RoomMasterView';
-import { StudentHostelAssignmentView } from './StudentHostelAssignmentView';
-import { HostelAttendanceView } from './HostelAttendanceView';
+import { HostelMastersView } from './HostelMastersView';
+import { StudentHostelContainerView } from './StudentHostelContainerView';
 import { HostelReportsView } from './HostelReportsView';
 
 interface HostelContainerViewProps {
@@ -26,11 +23,8 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'master', label: 'Hostel Master', icon: Building2 },
-    { id: 'room-type', label: 'Room Type Master', icon: Layers },
-    { id: 'room-master', label: 'Room Master', icon: Home },
-    { id: 'student-assignment', label: 'Student Assignment', icon: UserPlus },
-    { id: 'attendance', label: 'Hostel Attendance', icon: UserCheck },
+    { id: 'masters', label: 'Hostel Masters', icon: Building2 },
+    { id: 'student-hostel', label: 'Student Hostel', icon: UserPlus },
     { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
@@ -38,19 +32,18 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
     switch (activeTab) {
       case 'dashboard':
         return <HostelDashboardView />;
+      case 'masters':
       case 'master':
       case 'blocks':
-        return <HostelMasterView />;
       case 'room-type':
-        return <RoomTypeMasterView />;
       case 'room-master':
       case 'rooms':
-        return <RoomMasterView />;
+        return <HostelMastersView />;
+      case 'student-hostel':
       case 'student-assignment':
       case 'beds':
-        return <StudentHostelAssignmentView />;
       case 'attendance':
-        return <HostelAttendanceView />;
+        return <StudentHostelContainerView />;
       case 'reports':
         return <HostelReportsView />;
       default:

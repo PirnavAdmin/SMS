@@ -5,15 +5,9 @@ import {
 } from 'lucide-react';
 
 import { TransportDashboardView } from './TransportDashboardView';
-import { RouteMasterView } from './RouteMasterView';
-import { PickupPointsView } from './PickupPointsView';
-import { VehicleMasterView } from './VehicleMasterView';
-import { DriverMasterView } from './DriverMasterView';
-import { VehicleAssignmentView } from './VehicleAssignmentView';
+import { TransportMastersView } from './TransportMastersView';
 import { StudentTransportAssignmentView } from './StudentTransportAssignmentView';
-import { VehicleMaintenanceView } from './VehicleMaintenanceView';
 import { TransportReportsView } from './TransportReportsView';
-import { TransportGPSTrackingView } from './TransportGPSTrackingView';
 
 interface TransportContainerViewProps {
   initialTab?: string;
@@ -30,39 +24,21 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
 
   const tabs = [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transport-route-master', label: 'Route Master', icon: Route },
-    { id: 'transport-pickup-points', label: 'Pickup Points', icon: MapPin },
-    { id: 'transport-vehicle-master', label: 'Vehicle Master', icon: Bus },
-    { id: 'transport-driver-master', label: 'Driver Master', icon: Users },
-    { id: 'transport-vehicle-assignment', label: 'Vehicle Assignment', icon: Layers },
-    { id: 'transport-student-assignment', label: 'Student Assignment', icon: UserPlus },
-    { id: 'transport-vehicle-maintenance', label: 'Vehicle Maintenance', icon: Wrench },
+    { id: 'transport-masters', label: 'Transport Masters', icon: Route },
+    { id: 'transport-student-assignment', label: 'Student Transport', icon: UserPlus },
     { id: 'transport-reports', label: 'Reports', icon: FileSpreadsheet },
-    { id: 'transport-gps-tracking', label: 'GPS Tracking', icon: Navigation },
   ];
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'transport-dashboard':
         return <TransportDashboardView />;
-      case 'transport-route-master':
-        return <RouteMasterView />;
-      case 'transport-pickup-points':
-        return <PickupPointsView />;
-      case 'transport-vehicle-master':
-        return <VehicleMasterView />;
-      case 'transport-driver-master':
-        return <DriverMasterView />;
-      case 'transport-vehicle-assignment':
-        return <VehicleAssignmentView />;
+      case 'transport-masters':
+        return <TransportMastersView />;
       case 'transport-student-assignment':
         return <StudentTransportAssignmentView />;
-      case 'transport-vehicle-maintenance':
-        return <VehicleMaintenanceView />;
       case 'transport-reports':
         return <TransportReportsView />;
-      case 'transport-gps-tracking':
-        return <TransportGPSTrackingView />;
       default:
         return <TransportDashboardView />;
     }
