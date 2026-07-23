@@ -22,7 +22,7 @@ import { ExaminationView } from './components/modules/Examination/ExaminationVie
 import { HomeworkView } from './components/modules/Homework/HomeworkView';
 import { FeeManagementView } from './components/modules/FeeManagement/FeeManagementView';
 import { FinanceContainerView } from './components/modules/Finance/FinanceContainerView';
-import { UniformView } from './components/modules/Uniform/UniformView';
+import { UniformContainerView } from './components/modules/Uniform/UniformContainerView';
 import { LibraryView } from './components/modules/Library/LibraryView';
 import { TransportView } from './components/modules/Transport/TransportView';
 import { TransportContainerView } from './components/modules/Transport/TransportContainerView';
@@ -34,6 +34,7 @@ import { EventsView } from './components/modules/Events/EventsView';
 import { ReportsView } from './components/modules/Reports/ReportsView';
 import { UserManagementView } from './components/modules/UserManagement/UserManagementView';
 import { SettingsView } from './components/modules/Settings/SettingsView';
+import { AcademicYearContainerView } from './components/modules/Settings/AcademicYearContainerView';
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -57,6 +58,14 @@ const MainLayout: React.FC = () => {
 
     if (activeModule.startsWith('hostel-')) {
       return <HostelContainerView initialTab={activeModule} />;
+    }
+
+    if (activeModule.startsWith('uniform-')) {
+      return <UniformContainerView initialTab={activeModule} />;
+    }
+
+    if (activeModule.startsWith('acad-')) {
+      return <AcademicYearContainerView initialTab={activeModule} />;
     }
 
     switch (activeModule) {
@@ -83,7 +92,7 @@ const MainLayout: React.FC = () => {
       case 'fees':
         return <FinanceContainerView initialTab="fee-collection" />;
       case 'uniforms':
-        return <UniformView />;
+        return <UniformContainerView initialTab="uniform-dashboard" />;
       case 'library':
         return <LibraryView />;
       case 'transport':

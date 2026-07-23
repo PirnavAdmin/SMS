@@ -10,7 +10,9 @@ import {
   StudentHostel, Refund, FinanceSettings,
   RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, VehicleMaintenance,
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
-  RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig
+  RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig,
+  UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
+  AcademicYear, StudentEnrollment
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
@@ -933,6 +935,61 @@ export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [
     effectiveFrom: '2026-06-01',
     status: 'Active'
   }
+];
+
+export const initialUniformCategories: UniformCategory[] = [
+  { id: 'UC-01', name: 'Shirt', description: 'Regular school uniform shirts' },
+  { id: 'UC-02', name: 'Pant', description: 'Regular school uniform trousers' },
+  { id: 'UC-03', name: 'Skirt', description: 'Regular school uniform skirts' },
+  { id: 'UC-04', name: 'Tie', description: 'School uniform neckties' },
+  { id: 'UC-05', name: 'Belt', description: 'School uniform belts' },
+  { id: 'UC-06', name: 'Blazer', description: 'Winter uniform blazers' },
+  { id: 'UC-07', name: 'Shoes', description: 'Black formal shoes' },
+  { id: 'UC-08', name: 'Socks', description: 'School logo socks' },
+  { id: 'UC-09', name: 'Sports Uniform', description: 'House wise sports tracksuits' },
+  { id: 'UC-10', name: 'Winter Uniform', description: 'Woolen sweaters and jackets' }
+];
+
+export const initialUniformSizes: UniformSize[] = [
+  { id: 'US-01', sizeName: 'S', chest: '36"', waist: '30"', height: '160cm', ageGroup: '11-13 yrs', gender: 'Unisex' },
+  { id: 'US-02', sizeName: 'M', chest: '38"', waist: '32"', height: '170cm', ageGroup: '13-15 yrs', gender: 'Unisex' },
+  { id: 'US-03', sizeName: 'L', chest: '40"', waist: '34"', height: '175cm', ageGroup: '15-17 yrs', gender: 'Unisex' },
+  { id: 'US-04', sizeName: 'XL', chest: '42"', waist: '36"', height: '180cm', ageGroup: '17+ yrs', gender: 'Unisex' }
+];
+
+export const initialUniformSuppliers: UniformSupplier[] = [
+  { id: 'SUP-01', supplierName: 'Apex Apparel Group', contactPerson: 'John Miller', mobile: '9876543210', email: 'apex@apparel.com', gstNumber: '29AAAAA1111A1Z1', address: '12 Industrial Area, Phase 1, New Delhi', status: 'Active' },
+  { id: 'SUP-02', supplierName: 'Elite Uniforms Ltd', contactPerson: 'Sarah Davis', mobile: '8765432109', email: 'sales@eliteuniforms.com', gstNumber: '29BBBBB2222B2Z2', address: '45 Textile Hub, Surat, Gujarat', status: 'Active' }
+];
+
+export const initialUniformInventory: UniformInventoryItem[] = [
+  { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'M', openingStock: 200, currentStock: 120, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
+  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Winter Blazer', category: 'Blazer', size: 'L', openingStock: 50, currentStock: 45, minimumStock: 10, reorderLevel: 15, status: 'In Stock' }
+];
+
+export const initialStudentUniformIssues: StudentUniformIssue[] = [
+  { id: 'UIS-01', studentId: 'STU-001', studentName: 'Alexander Wright', admissionNo: 'ADM-2026-000', className: 'Class 10', section: 'A', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', size: 'M', quantity: 2, issueDate: '2026-06-15', status: 'Issued', academicYear: '2025-2026' }
+];
+
+export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [
+  {
+    id: 'FUC-01',
+    academicYear: '2025-2026',
+    branch: 'Main Campus',
+    className: 'Class 10',
+    gender: 'Unisex',
+    uniformPackage: 'Full Kit',
+    feePlan: 'Annual',
+    feeAmount: 3500,
+    effectiveFrom: '2026-06-01',
+    status: 'Active'
+  }
+];
+
+export const initialAcademicYears: AcademicYear[] = [
+  { id: 'AY-01', name: '2025-2026', startDate: '2025-06-01', endDate: '2026-04-30', status: 'Active' },
+  { id: 'AY-02', name: '2026-2027', startDate: '2026-06-01', endDate: '2027-04-30', status: 'Upcoming' },
+  { id: 'AY-03', name: '2024-2025', startDate: '2024-06-01', endDate: '2025-04-30', status: 'Closed' }
 ];
 
 

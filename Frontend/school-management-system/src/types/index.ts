@@ -78,6 +78,7 @@ export interface Student {
 
   // Global Multi-branch & Facility Allocation
   branch?: string; // e.g. "Main Campus", "North Branch", "West Campus", "Hyderabad"
+  academicYear?: string;
   studentType?: StudentType; // Day Scholar vs Hosteller
   busRoute?: string;
   transportType?: 'AC' | 'Non-AC';
@@ -920,7 +921,129 @@ export interface FinanceHostelConfig {
   effectiveFrom: string;
   effectiveTo?: string;
   status: 'Active' | 'Inactive';
+  messFee?: number;
 }
+
+export interface HostelVisitorLog {
+  id: string;
+  visitorName: string;
+  studentName: string;
+  relation?: string;
+  purpose?: string;
+  inTime?: string;
+  outTime?: string;
+  status: 'In' | 'Out';
+  date?: string;
+  studentId?: string;
+}
+
+// ==========================================
+// UNIFORM STORE ERP DATA MODELS
+// ==========================================
+
+export interface UniformCategory {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface UniformSize {
+  id: string;
+  sizeName: string;
+  chest?: string;
+  waist?: string;
+  height?: string;
+  ageGroup?: string;
+  gender: 'Male' | 'Female' | 'Unisex';
+}
+
+export interface UniformSupplier {
+  id: string;
+  supplierName: string;
+  contactPerson: string;
+  mobile: string;
+  email?: string;
+  gstNumber?: string;
+  address: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface UniformInventoryItem {
+  id: string;
+  itemId: string;
+  itemName: string;
+  category: string;
+  size: string;
+  openingStock: number;
+  currentStock: number;
+  minimumStock: number;
+  reorderLevel: number;
+  status: 'In Stock' | 'Low Stock' | 'Out of Stock';
+}
+
+export interface StudentUniformIssue {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  className: string;
+  section: string;
+  itemId: string;
+  itemName: string;
+  size: string;
+  quantity: number;
+  issueDate: string;
+  status: 'Issued' | 'Returned' | 'Replaced';
+  returnDate?: string;
+  replacementDate?: string;
+  academicYear: string;
+  branch?: string;
+  notes?: string;
+}
+
+export interface FinanceUniformConfig {
+  id: string;
+  academicYear: string;
+  branch: string;
+  className: string;
+  gender: 'Male' | 'Female' | 'Unisex';
+  uniformPackage: string;
+  feePlan: 'Monthly' | 'Quarterly' | 'Half Yearly' | 'Annual';
+  feeAmount: number;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  status: 'Active' | 'Inactive';
+}
+
+// ==========================================
+// ACADEMIC YEAR & STUDENT PROMOTION MODELS
+// ==========================================
+
+export interface AcademicYear {
+  id: string;
+  name: string; // e.g. "2025-2026", "2026-2027"
+  startDate: string;
+  endDate: string;
+  status: 'Upcoming' | 'Active' | 'Closed';
+}
+
+export interface StudentEnrollment {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  academicYear: string;
+  branch: string;
+  className: string;
+  section: string;
+  rollNo: string;
+  status: 'Active' | 'Completed' | 'Graduated' | 'Alumni';
+  resultStatus?: 'Promoted' | 'Failed' | 'Passed' | 'N/A';
+  promotionDate?: string;
+}
+
+
+
 
 
 

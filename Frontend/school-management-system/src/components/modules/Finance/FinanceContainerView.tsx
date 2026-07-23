@@ -6,23 +6,9 @@ import {
 import { Student, FeePayment } from '../../../types';
 
 import { FinanceDashboardView } from './FinanceDashboardView';
-import { FeeHeadsView } from './FeeHeadsView';
-import { FeeStructuresView } from './FeeStructuresView';
-import { StudentFeeAssignmentView } from './StudentFeeAssignmentView';
-import { ScholarshipsView } from './ScholarshipsView';
-import { DiscountsView } from './DiscountsView';
-import { FineRulesView } from './FineRulesView';
-import { TransportConfigView } from './TransportConfigView';
-import { FinanceTransportConfigView } from './FinanceTransportConfigView';
-import { FinanceHostelConfigView } from './FinanceHostelConfigView';
-import { StudentTransportView } from './StudentTransportView';
-import { HostelConfigView } from './HostelConfigView';
-import { FeeCollectionView } from './FeeCollectionView';
-import { FeeReceiptsView } from './FeeReceiptsView';
-import { DueFeesView } from './DueFeesView';
-import { RefundManagementView } from './RefundManagementView';
+import { FinanceMastersView } from './FinanceMastersView';
+import { FeeCollectionContainerView } from './FeeCollectionContainerView';
 import { FinanceReportsView } from './FinanceReportsView';
-import { FinanceSettingsView } from './FinanceSettingsView';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 
 interface FinanceContainerViewProps {
@@ -41,21 +27,9 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'fee-heads', label: 'Fee Heads', icon: Tag },
-    { id: 'fee-structure', label: 'Fee Structure', icon: Layers },
-    { id: 'student-fee-assignment', label: 'Assignment', icon: UserPlus },
-    { id: 'scholarships', label: 'Scholarships', icon: Gift },
-    { id: 'discounts', label: 'Discounts', icon: Percent },
-    { id: 'fine-rules', label: 'Fine Rules', icon: AlertTriangle },
-    { id: 'transport-config', label: 'Transport Config', icon: Route },
-    { id: 'student-transport', label: 'Student Transport', icon: Bus },
-    { id: 'hostel-config', label: 'Hostel Config', icon: Home },
+    { id: 'masters', label: 'Finance Masters', icon: SlidersHorizontal },
     { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'fee-receipts', label: 'Fee Receipts', icon: Receipt },
-    { id: 'due-fees', label: 'Due Fees', icon: Clock },
-    { id: 'refund-management', label: 'Refunds', icon: RotateCcw },
     { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
-    { id: 'settings', label: 'Settings', icon: SlidersHorizontal },
   ];
 
   const handleCollectStudentFee = (student: Student) => {
@@ -66,40 +40,27 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     switch (activeTab) {
       case 'dashboard':
         return <FinanceDashboardView />;
+      case 'masters':
       case 'fee-heads':
-        return <FeeHeadsView />;
       case 'fee-structure':
-        return <FeeStructuresView />;
       case 'student-fee-assignment':
-        return <StudentFeeAssignmentView />;
       case 'scholarships':
-        return <ScholarshipsView />;
       case 'discounts':
-        return <DiscountsView />;
       case 'fine-rules':
-        return <FineRulesView />;
       case 'transport-config':
-        return <FinanceTransportConfigView />;
       case 'student-transport':
-        return <StudentTransportView />;
       case 'hostel-config':
-        return <FinanceHostelConfigView />;
       case 'student-hostel':
-        return <HostelConfigView />;
+      case 'refund-management':
+      case 'settings':
+        return <FinanceMastersView />;
       case 'fee-collection':
       case 'fees':
-        return <FeeCollectionView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
       case 'fee-receipts':
-        return <FeeReceiptsView />;
       case 'due-fees':
-        return <DueFeesView onCollectStudentFee={handleCollectStudentFee} />;
-      case 'refund-management':
-      case 'refunds':
-        return <RefundManagementView />;
+        return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
       case 'reports':
         return <FinanceReportsView />;
-      case 'settings':
-        return <FinanceSettingsView />;
       default:
         return <FinanceDashboardView />;
     }

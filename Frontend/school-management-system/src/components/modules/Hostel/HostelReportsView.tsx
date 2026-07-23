@@ -120,14 +120,14 @@ export const HostelReportsView: React.FC = () => {
 
   // Determine showing filter elements
   const showHostel = true;
-  const showBlock = ['Hostel Student List', 'Room Occupancy', 'Available Beds'].includes(reportType);
-  const showFloor = ['Hostel Student List', 'Room Occupancy', 'Available Beds'].includes(reportType);
-  const showRoomType = ['Room Occupancy', 'Available Beds'].includes(reportType);
-  const showRoomNumber = ['Hostel Student List', 'Available Beds'].includes(reportType);
-  const showAcademicYear = ['Hostel Fee Collection', 'Pending Hostel Fees', 'Hostel Revenue'].includes(reportType);
-  const showDateRange = ['Hostel Fee Collection'].includes(reportType);
-  const showStatus = ['Hostel Student List'].includes(reportType);
-  const showSearch = ['Hostel Student List', 'Hostel Fee Collection', 'Pending Hostel Fees'].includes(reportType);
+  const showBlock = ['Hostel Student List', 'Room-wise Students', 'Vacant Rooms', 'Room Occupancy', 'Available Beds', 'Hostel Occupancy', 'Hostel Utilization'].includes(reportType);
+  const showFloor = ['Hostel Student List', 'Room-wise Students', 'Vacant Rooms', 'Room Occupancy', 'Available Beds'].includes(reportType);
+  const showRoomType = ['Room Occupancy', 'Available Beds', 'Vacant Rooms'].includes(reportType);
+  const showRoomNumber = ['Hostel Student List', 'Room-wise Students', 'Available Beds', 'Vacant Rooms'].includes(reportType);
+  const showAcademicYear = ['Hostel Student List', 'Room-wise Students', 'Hostel Fee Collection', 'Pending Hostel Fees', 'Hostel Occupancy', 'Hostel Utilization'].includes(reportType);
+  const showDateRange = ['Hostel Fee Collection', 'Pending Hostel Fees'].includes(reportType);
+  const showStatus = ['Hostel Student List', 'Room-wise Students'].includes(reportType);
+  const showSearch = ['Hostel Student List', 'Room-wise Students', 'Hostel Fee Collection', 'Pending Hostel Fees'].includes(reportType);
 
   // Dynamic filter drop-downs lists
   const uniqueFloors = Array.from(new Set(roomMasters.map(r => r.floor))).sort();
@@ -210,17 +210,32 @@ export const HostelReportsView: React.FC = () => {
     return true;
   });
 
+  const displayedStudentList = reportType === 'Room-wise Students'
+    ? [...filteredStudentList].sort((a, b) => a.roomNo.localeCompare(b.roomNo))
+    : filteredStudentList;
+
+  const displayedRooms = reportType === 'Vacant Rooms'
+    ? filteredRooms.filter(r => {
+        const rtObj = roomTypeMasters.find(rt => rt.id === r.roomTypeId);
+        const rCap = rtObj ? rtObj.capacity : (r.capacity || 2);
+        const occupiedCount = studentHostelAssignments.filter(
+          a => (a.roomId === r.id || a.roomNo === r.roomNumber) && a.status === 'Active'
+        ).length;
+        return occupiedCount === 0;
+      })
+    : filteredRooms;
+
   // Export CSV function
   const handleExportCSV = () => {
     let headers = '';
     let rows = '';
 
-    if (reportType === 'Hostel Student List') {
+    if (['Hostel Student List', 'Room-wise Students'].includes(reportType)) {
       headers = 'Admission No,Student Name,Hostel,Room,Bed,Joining Date,Status\n';
-      rows = filteredStudentList.map(a => `"${a.admissionNo}","${a.studentName}","${a.hostelName}","${a.roomNo}","${a.bedNo}","${a.joiningDate}","${a.status}"`).join('\n');
-    } else if (reportType === 'Room Occupancy') {
+      rows = displayedStudentList.map(a => `"${a.admissionNo}","${a.studentName}","${a.hostelName}","${a.roomNo}","${a.bedNo}","${a.joiningDate}","${a.status}"`).join('\n');
+    } else if (['Room Occupancy', 'Vacant Rooms'].includes(reportType)) {
       headers = 'Hostel Block,Room,Room Type,Capacity,Occupied,Available,Status\n';
-      rows = filteredRooms.map(r => {
+      rows = displayedRooms.map(r => {
         const rtObj = roomTypeMasters.find(rt => rt.id === r.roomTypeId);
         const rCap = rtObj ? rtObj.capacity : (r.capacity || 2);
         const rName = rtObj ? rtObj.roomTypeName : (r.roomTypeName || 'Standard Room');
@@ -252,9 +267,20 @@ export const HostelReportsView: React.FC = () => {
         const dueAmt = hostelItem ? hostelItem.finalAmount : 0;
         return `"${l.admissionNo}","${l.studentName}","${st?.hostelBlock || ''}",${dueAmt},"${l.academicYear}"`;
       }).join('\n');
-    } else if (reportType === 'Hostel Revenue') {
-      headers = 'Hostel Block,Room Type,Fee Plan,Rent Fee,Deposit\n';
-      rows = financeHostelConfigs.map(c => `"${c.hostelName}","${c.roomTypeName}","${c.feePlan}",${c.hostelFee},${c.securityDeposit}`).join('\n');
+    } else if (['Hostel Occupancy', 'Hostel Utilization', 'Hostel Revenue'].includes(reportType)) {
+      headers = 'Hostel Block,Rent Fee,Deposit,Beds Capacity,Occupied Beds\n';
+      rows = filteredRevenue.map(h => {
+        const rooms = roomMasters.filter(r => r.hostelId === h.id);
+        const cap = rooms.reduce((acc, r) => {
+          const rtObj = roomTypeMasters.find(rt => rt.id === r.roomTypeId);
+          return acc + (rtObj ? rtObj.capacity : (r.capacity || 2));
+        }, 0);
+        const occ = studentHostelAssignments.filter(a => a.hostelId === h.id && a.status === 'Active').length;
+        return `"${h.hostelName}",${cap},${occ}`;
+      }).join('\n');
+    } else if (reportType === 'Warden Assignment') {
+      headers = 'Hostel Block,Warden Name,Mobile,Email\n';
+      rows = filteredRevenue.map(h => `"${h.hostelName}","${h.wardenName}","${h.wardenMobile}","${h.wardenEmail}"`).join('\n');
     }
 
     const blob = new Blob([headers + rows], { type: 'text/csv' });
@@ -302,14 +328,27 @@ export const HostelReportsView: React.FC = () => {
             <select
               value={reportType}
               onChange={e => setReportType(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-900 dark:text-indigo-200 font-extrabold outline-none"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-900 dark:text-indigo-200 font-extrabold outline-none cursor-pointer"
             >
-              <option value="Hostel Student List">Hostel Student List</option>
-              <option value="Room Occupancy">Room Occupancy Report</option>
-              <option value="Available Beds">Available Beds Report</option>
-              <option value="Hostel Fee Collection">Hostel Fee Collection</option>
-              <option value="Pending Hostel Fees">Pending Hostel Fees</option>
-              <option value="Hostel Revenue">Hostel Revenue Config</option>
+              <optgroup label="Occupancy Reports">
+                <option value="Hostel Occupancy">Hostel Occupancy</option>
+                <option value="Room Occupancy">Room Occupancy</option>
+                <option value="Available Beds">Available Beds</option>
+              </optgroup>
+              <optgroup label="Student Reports">
+                <option value="Hostel Student List">Hostel Student List</option>
+                <option value="Room-wise Students">Room-wise Students</option>
+                <option value="Vacant Rooms">Vacant Rooms</option>
+              </optgroup>
+              <optgroup label="Finance Reports">
+                <option value="Hostel Fee Collection">Hostel Fee Collection</option>
+                <option value="Pending Hostel Fees">Pending Hostel Fees</option>
+              </optgroup>
+              <optgroup label="Administrative Reports">
+                <option value="Warden Assignment">Warden Assignment</option>
+                <option value="Hostel Utilization">Hostel Utilization</option>
+                <option value="Hostel Revenue">Hostel Revenue Config</option>
+              </optgroup>
             </select>
           </div>
 
@@ -742,12 +781,12 @@ export const HostelReportsView: React.FC = () => {
         }
       })()}
 
-      {/* Dynamic Report Table Area */}
+{/* Dynamic Report Table Area */}
       <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
             <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
-              {reportType === 'Hostel Student List' ? (
+              {['Hostel Student List', 'Room-wise Students'].includes(reportType) ? (
                 <tr>
                   <th className="py-3 px-4">Admission No</th>
                   <th className="py-3 px-4">Student</th>
@@ -758,7 +797,7 @@ export const HostelReportsView: React.FC = () => {
                   <th className="py-3 px-4">Bed</th>
                   <th className="py-3 px-4">Status</th>
                 </tr>
-              ) : reportType === 'Room Occupancy' ? (
+              ) : ['Room Occupancy', 'Vacant Rooms'].includes(reportType) ? (
                 <tr>
                   <th className="py-3 px-4">Hostel</th>
                   <th className="py-3 px-4">Block</th>
@@ -794,25 +833,46 @@ export const HostelReportsView: React.FC = () => {
                   <th className="py-3 px-4 font-mono">Due Date</th>
                   <th className="py-3 px-4 text-right">Days Overdue</th>
                 </tr>
+              ) : ['Hostel Occupancy', 'Hostel Utilization', 'Hostel Revenue'].includes(reportType) ? (
+                reportType === 'Hostel Revenue' ? (
+                  <tr>
+                    <th className="py-3 px-4">Hostel Block Name</th>
+                    <th className="py-3 px-4 text-right">Monthly Rent</th>
+                    <th className="py-3 px-4 text-right">Annual Rent</th>
+                    <th className="py-3 px-4 text-right">Occupancy %</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th className="py-3 px-4">Hostel Block</th>
+                    <th className="py-3 px-4">Hostel Code</th>
+                    <th className="py-3 px-4">Warden Name</th>
+                    <th className="py-3 px-4 text-right">Capacity (Beds)</th>
+                    <th className="py-3 px-4 text-right">Occupied Beds</th>
+                    <th className="py-3 px-4 text-right">Available Beds</th>
+                    <th className="py-3 px-4 text-right">Occupancy Rate</th>
+                  </tr>
+                )
               ) : (
-                /* Hostel Revenue */
+                /* Warden Assignment */
                 <tr>
-                  <th className="py-3 px-4">Hostel Block Name</th>
-                  <th className="py-3 px-4 text-right">Monthly Projected</th>
-                  <th className="py-3 px-4 text-right">Yearly Projected</th>
-                  <th className="py-3 px-4 text-right">Occupancy %</th>
+                  <th className="py-3 px-4">Warden Name</th>
+                  <th className="py-3 px-4">Mobile Number</th>
+                  <th className="py-3 px-4">Alternate Mobile</th>
+                  <th className="py-3 px-4">Email</th>
+                  <th className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400">Assigned Hostel Block</th>
+                  <th className="py-3 px-4">Status</th>
                 </tr>
               )}
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {/* RENDER HOSTEL STUDENT LIST */}
-              {reportType === 'Hostel Student List' && (
-                filteredStudentList.length === 0 ? (
+              {/* RENDER STUDENT LISTS */}
+              {['Hostel Student List', 'Room-wise Students'].includes(reportType) && (
+                displayedStudentList.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-slate-400">No student lodging records match selected filters.</td>
                   </tr>
                 ) : (
-                  filteredStudentList.map(a => {
+                  displayedStudentList.map(a => {
                     const roomObj = roomMasters.find(r => r.id === a.roomId || r.roomNumber === a.roomNo);
                     return (
                       <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
@@ -824,7 +884,9 @@ export const HostelReportsView: React.FC = () => {
                         <td className="py-3 px-4 font-black">Room #{a.roomNo}</td>
                         <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">{a.bedNo}</td>
                         <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
+                          <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                            a.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800'
+                          }`}>
                             {a.status}
                           </span>
                         </td>
@@ -834,14 +896,14 @@ export const HostelReportsView: React.FC = () => {
                 )
               )}
 
-              {/* RENDER ROOM OCCUPANCY */}
-              {reportType === 'Room Occupancy' && (
-                filteredRooms.length === 0 ? (
+              {/* RENDER ROOM OCCUPANCY / VACANT ROOMS */}
+              {['Room Occupancy', 'Vacant Rooms'].includes(reportType) && (
+                displayedRooms.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400">No rooms match selected filters.</td>
                   </tr>
                 ) : (
-                   filteredRooms.map(r => {
+                   displayedRooms.map(r => {
                     const rtObj = roomTypeMasters.find(rt => rt.id === r.roomTypeId);
                     const rCap = rtObj ? rtObj.capacity : (r.capacity || 2);
                     const occupiedCount = studentHostelAssignments.filter(
@@ -949,11 +1011,11 @@ export const HostelReportsView: React.FC = () => {
                 )
               )}
 
-              {/* RENDER HOSTEL REVENUE */}
-              {reportType === 'Hostel Revenue' && (
+              {/* RENDER HOSTEL OCCUPANCY / UTILIZATION / REVENUE */}
+              {['Hostel Occupancy', 'Hostel Utilization', 'Hostel Revenue'].includes(reportType) && (
                 filteredRevenue.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-8 text-center text-slate-400">No revenue data matches criteria.</td>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">No hostels match selected criteria.</td>
                   </tr>
                 ) : (
                   filteredRevenue.map(h => {
@@ -963,20 +1025,61 @@ export const HostelReportsView: React.FC = () => {
                       return acc + (rtObj ? rtObj.capacity : (r.capacity || 2));
                     }, 0);
                     const occ = studentHostelAssignments.filter(a => a.hostelId === h.id && a.status === 'Active').length;
+                    const available = Math.max(0, cap - occ);
                     const pct = cap > 0 ? Math.round((occ / cap) * 100) : 0;
 
                     const blockConfigs = financeHostelConfigs.filter(c => c.hostelId === h.id && c.status === 'Active');
                     const mRev = blockConfigs.reduce((sum, c) => sum + c.hostelFee, 0);
 
+                    if (reportType === 'Hostel Revenue') {
+                      return (
+                        <tr key={h.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                          <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{h.hostelName}</td>
+                          <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(mRev)}</td>
+                          <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(mRev * 12)}</td>
+                          <td className="py-3 px-4 text-right font-bold text-indigo-600 dark:text-indigo-400">{pct}%</td>
+                        </tr>
+                      );
+                    }
+
                     return (
                       <tr key={h.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                         <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{h.hostelName}</td>
-                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(mRev)}</td>
-                        <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(mRev * 12)}</td>
-                        <td className="py-3 px-4 text-right font-bold text-indigo-600 dark:text-indigo-400">{pct}%</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500">{h.hostelCode}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{h.wardenName || 'N/A'}</td>
+                        <td className="py-3 px-4 text-right font-bold">{cap}</td>
+                        <td className="py-3 px-4 text-right font-bold text-indigo-600">{occ}</td>
+                        <td className="py-3 px-4 text-right font-bold text-emerald-600">{available}</td>
+                        <td className="py-3 px-4 text-right font-black text-indigo-600">{pct}%</td>
                       </tr>
                     );
                   })
+                )
+              )}
+
+              {/* RENDER WARDEN ASSIGNMENT */}
+              {reportType === 'Warden Assignment' && (
+                filteredRevenue.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400 font-bold">No hostels match criteria.</td>
+                  </tr>
+                ) : (
+                  filteredRevenue.map(h => (
+                    <tr key={h.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{h.wardenName || 'N/A'}</td>
+                      <td className="py-3 px-4 font-mono font-bold text-slate-500">{h.wardenMobile || 'N/A'}</td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{h.wardenAlternateMobile || 'N/A'}</td>
+                      <td className="py-3 px-4">{h.wardenEmail || 'N/A'}</td>
+                      <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400">{h.hostelName}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          h.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {h.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
                 )
               )}
             </tbody>

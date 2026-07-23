@@ -23,6 +23,8 @@ export const TransportReportsView: React.FC = () => {
     studentTransports, 
     vehicleMasters, 
     driverMasters, 
+    routeMasters,
+    pickupPoints,
     vehicleAssignments, 
     vehicleMaintenances, 
     feePayments,
@@ -32,6 +34,14 @@ export const TransportReportsView: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<string>('Vehicle-wise Transport Report');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
 
+  const [filterAcademicYear, setFilterAcademicYear] = useState('All');
+  const [filterRouteId, setFilterRouteId] = useState('All');
+  const [filterVehicleId, setFilterVehicleId] = useState('All');
+  const [filterDriverId, setFilterDriverId] = useState('All');
+  const [filterPickupName, setFilterPickupName] = useState('All');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+
   // Set default vehicle ID when vehicleMasters load
   useEffect(() => {
     if (vehicleMasters.length > 0 && !selectedVehicleId) {
@@ -39,9 +49,11 @@ export const TransportReportsView: React.FC = () => {
     }
   }, [vehicleMasters, selectedVehicleId]);
 
+  const vehicleIdToUse = filterVehicleId !== 'All' ? filterVehicleId : selectedVehicleId;
+
   // Calculations for Vehicle-wise Transport Report
-  const selectedVehicleObj = vehicleMasters.find(v => v.id === selectedVehicleId);
-  const activeAssignment = vehicleAssignments.find(a => a.vehicleId === selectedVehicleId);
+  const selectedVehicleObj = vehicleMasters.find(v => v.id === vehicleIdToUse);
+  const activeAssignment = vehicleAssignments.find(a => a.vehicleId === vehicleIdToUse);
   
   const vehicleRouteName = activeAssignment ? activeAssignment.routeName : 'Unassigned';
   const vehicleDriverName = activeAssignment ? activeAssignment.driverName : 'Unassigned';
@@ -50,6 +62,8 @@ export const TransportReportsView: React.FC = () => {
   // Filter students assigned to this route/vehicle
   const assignedStudents = studentTransports.filter(st => {
     if (st.status !== 'Active') return false;
+    if (filterRouteId !== 'All' && st.routeId !== filterRouteId) return false;
+    if (filterPickupName !== 'All' && st.pickupPoint !== filterPickupName) return false;
     if (activeAssignment) {
       return st.routeId === activeAssignment.routeId || st.routeName === activeAssignment.routeName;
     }
@@ -75,6 +89,61 @@ export const TransportReportsView: React.FC = () => {
   });
 
   const getReportData = (): any[] => {
+    const filteredStudentTransports = studentTransports.filter(st => {
+      if (filterRouteId !== 'All' && st.routeId !== filterRouteId) return false;
+      if (filterVehicleId !== 'All' && st.vehicleId !== filterVehicleId) return false;
+      if (filterPickupName !== 'All' && st.pickupPoint !== filterPickupName) return false;
+      return true;
+    });
+
+    const filteredVehicleAssignments = vehicleAssignments.filter(va => {
+      if (filterRouteId !== 'All' && va.routeId !== filterRouteId) return false;
+      if (filterVehicleId !== 'All' && va.vehicleId !== filterVehicleId) return false;
+      if (filterDriverId !== 'All' && va.driverId !== filterDriverId) return false;
+      if (filterStartDate) {
+        if (new Date(va.effectiveFrom) < new Date(filterStartDate)) return false;
+      }
+      if (filterEndDate) {
+        if (new Date(va.effectiveFrom) > new Date(filterEndDate)) return false;
+      }
+      return true;
+    });
+
+    const filteredVehicleMasters = vehicleMasters.filter(v => {
+      if (filterVehicleId !== 'All' && v.id !== filterVehicleId) return false;
+      return true;
+    });
+
+    const filteredFeePayments = feePayments.filter(p => {
+      if (!(p.transportFee && p.transportFee > 0)) return false;
+      const st = studentTransports.find(x => x.studentId === p.studentId);
+      if (st) {
+        if (filterRouteId !== 'All' && st.routeId !== filterRouteId) return false;
+        if (filterVehicleId !== 'All' && st.vehicleId !== filterVehicleId) return false;
+        if (filterPickupName !== 'All' && st.pickupPoint !== filterPickupName) return false;
+      } else if (filterRouteId !== 'All' || filterVehicleId !== 'All' || filterPickupName !== 'All') {
+        return false;
+      }
+      if (filterStartDate) {
+        if (new Date(p.paymentDate) < new Date(filterStartDate)) return false;
+      }
+      if (filterEndDate) {
+        if (new Date(p.paymentDate) > new Date(filterEndDate)) return false;
+      }
+      return true;
+    });
+
+    const filteredVehicleMaintenances = vehicleMaintenances.filter(m => {
+      if (filterVehicleId !== 'All' && m.vehicleId !== filterVehicleId) return false;
+      if (filterStartDate) {
+        if (new Date(m.serviceDate) < new Date(filterStartDate)) return false;
+      }
+      if (filterEndDate) {
+        if (new Date(m.serviceDate) > new Date(filterEndDate)) return false;
+      }
+      return true;
+    });
+
     switch (selectedReport) {
       case 'Vehicle-wise Transport Report':
         return vehicleStudentsList.map(s => ({
@@ -84,26 +153,26 @@ export const TransportReportsView: React.FC = () => {
           pickupPoint: s.pickupPoint
         }));
       case 'Route-wise Student List':
-        return studentTransports.map(st => ({ student: st.studentName, admNo: st.admissionNo, route: st.routeName, stop: st.pickupPoint, feePlan: st.feePlan }));
+        return filteredStudentTransports.map(st => ({ student: st.studentName, admNo: st.admissionNo, route: st.routeName, stop: st.pickupPoint, feePlan: st.feePlan }));
       case 'Pickup Point-wise Students':
-        return studentTransports.map(st => ({ stop: st.pickupPoint, route: st.routeName, student: st.studentName, admNo: st.admissionNo }));
+        return filteredStudentTransports.map(st => ({ stop: st.pickupPoint, route: st.routeName, student: st.studentName, admNo: st.admissionNo }));
       case 'Vehicle-wise Students':
-        return studentTransports.map(st => ({ vehicle: st.vehicleNumber || 'BUS-101', route: st.routeName, student: st.studentName, stop: st.pickupPoint }));
+        return filteredStudentTransports.map(st => ({ vehicle: st.vehicleNumber || 'BUS-101', route: st.routeName, student: st.studentName, stop: st.pickupPoint }));
       case 'Driver-wise Vehicles':
-        return vehicleAssignments.map(va => ({ driver: va.driverName, vehicle: va.vehicleNumber, route: va.routeName, effectiveFrom: va.effectiveFrom }));
+        return filteredVehicleAssignments.map(va => ({ driver: va.driverName, vehicle: va.vehicleNumber, route: va.routeName, effectiveFrom: va.effectiveFrom }));
       case 'Seat Occupancy Report':
-        return vehicleMasters.map(v => {
+        return filteredVehicleMasters.map(v => {
           const assigned = studentTransports.filter(st => st.vehicleId === v.id && st.status === 'Active').length;
           return { vehicle: v.vehicleNumber, type: v.vehicleType, capacity: v.capacity, assignedStudents: assigned, availableSeats: Math.max(0, v.capacity - assigned), occupancyRate: `${Math.round((assigned / v.capacity) * 100)}%` };
         });
       case 'Transport Fee Collection':
-        return feePayments.map(p => ({ receiptNo: p.receiptNo, student: p.studentName, transportAmount: p.transportFee || 0, date: p.paymentDate }));
+        return filteredFeePayments.map(p => ({ receiptNo: p.receiptNo, student: p.studentName, transportAmount: p.transportFee || 0, date: p.paymentDate }));
       case 'Pending Transport Fees':
-        return studentTransports.map(st => ({ student: st.studentName, route: st.routeName, feePlan: st.feePlan, feeAmount: st.feeAmount, status: 'Payment Due' }));
+        return filteredStudentTransports.map(st => ({ student: st.studentName, route: st.routeName, feePlan: st.feePlan, feeAmount: st.feeAmount, status: 'Payment Due' }));
       case 'Vehicle Maintenance Report':
-        return vehicleMaintenances.map(m => ({ vehicle: m.vehicleNumber, serviceType: m.serviceType, vendor: m.vendor, cost: m.cost, serviceDate: m.serviceDate, nextDue: m.nextServiceDue }));
+        return filteredVehicleMaintenances.map(m => ({ vehicle: m.vehicleNumber, serviceType: m.serviceType, vendor: m.vendor, cost: m.cost, serviceDate: m.serviceDate, nextDue: m.nextServiceDue }));
       default:
-        return studentTransports.map(st => ({ student: st.studentName, route: st.routeName, stop: st.pickupPoint, fee: st.feeAmount }));
+        return filteredStudentTransports.map(st => ({ student: st.studentName, route: st.routeName, stop: st.pickupPoint, fee: st.feeAmount }));
     }
   };
 
@@ -143,6 +212,107 @@ export const TransportReportsView: React.FC = () => {
             {rt}
           </button>
         ))}
+      </div>
+
+      {/* Report Filters */}
+      <div className="glass-card p-5 rounded-3xl space-y-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Report Filters</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* Academic Year */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">Academic Year</label>
+            <select
+              value={filterAcademicYear}
+              onChange={e => setFilterAcademicYear(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="All">All Years</option>
+              <option value="2025-2026">2025-2026</option>
+            </select>
+          </div>
+
+          {/* Route */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">Route</label>
+            <select
+              value={filterRouteId}
+              onChange={e => setFilterRouteId(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="All">All Routes</option>
+              {routeMasters.map(r => (
+                <option key={r.id} value={r.id}>{r.routeName}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Vehicle */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">Vehicle</label>
+            <select
+              value={filterVehicleId}
+              onChange={e => setFilterVehicleId(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="All">All Vehicles</option>
+              {vehicleMasters.map(v => (
+                <option key={v.id} value={v.id}>{v.vehicleNumber}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Driver */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">Driver</label>
+            <select
+              value={filterDriverId}
+              onChange={e => setFilterDriverId(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="All">All Drivers</option>
+              {driverMasters.map(d => (
+                <option key={d.id} value={d.id}>{d.driverName}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Pickup Point */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1">Pickup Stop</label>
+            <select
+              value={filterPickupName}
+              onChange={e => setFilterPickupName(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+            >
+              <option value="All">All Stops</option>
+              {Array.from(new Set(pickupPoints.map(p => p.pickupName))).map(stop => (
+                <option key={stop} value={stop}>{stop}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date Range Start & End */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">Start Date</label>
+              <input
+                type="date"
+                value={filterStartDate}
+                onChange={e => setFilterStartDate(e.target.value)}
+                className="w-full px-1.5 py-1.5 text-[11px] rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 mb-1">End Date</label>
+              <input
+                type="date"
+                value={filterEndDate}
+                onChange={e => setFilterEndDate(e.target.value)}
+                className="w-full px-1.5 py-1.5 text-[11px] rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Report Render */}
