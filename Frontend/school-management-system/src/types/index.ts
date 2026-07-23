@@ -78,7 +78,6 @@ export interface Student {
 
   // Global Multi-branch & Facility Allocation
   branch?: string; // e.g. "Main Campus", "North Branch", "West Campus", "Hyderabad"
-  academicYear?: string;
   studentType?: StudentType; // Day Scholar vs Hosteller
   busRoute?: string;
   transportType?: 'AC' | 'Non-AC';
@@ -135,6 +134,8 @@ export interface BankDetails {
 export interface Staff {
   id: string;
   empId: string;
+  employeeCategory?: 'Teacher' | 'Staff';
+  branch?: string;
   firstName: string;
   lastName: string;
   designation: string;
@@ -423,7 +424,9 @@ export interface Holiday {
   name: string;
   startDate: string;
   endDate: string;
-  type: 'Gazetted' | 'Restricted' | 'Vacation';
+  type: 'Gazetted' | 'Restricted' | 'Vacation' | 'National' | 'School' | 'Festival' | 'Branch';
+  branch?: string;
+  description?: string;
 }
 
 export interface Birthday {
@@ -1016,30 +1019,60 @@ export interface FinanceUniformConfig {
 }
 
 // ==========================================
-// ACADEMIC YEAR & STUDENT PROMOTION MODELS
+// LEAVE & PAYROLL MANAGEMENT DATA MODELS
 // ==========================================
 
-export interface AcademicYear {
+export interface LeaveType {
   id: string;
-  name: string; // e.g. "2025-2026", "2026-2027"
-  startDate: string;
-  endDate: string;
-  status: 'Upcoming' | 'Active' | 'Closed';
+  name: string;
+  code: string;
+  annualAllowance: number;
+  carryForward: boolean;
+  maxConsecutiveDays: number;
+  requiresAttachment: boolean;
+  isPaid: boolean;
+  status: 'Active' | 'Inactive';
 }
 
-export interface StudentEnrollment {
+export interface LeaveApplication {
   id: string;
-  studentId: string;
-  studentName: string;
-  admissionNo: string;
-  academicYear: string;
+  employeeId: string;
+  employeeName: string;
+  empId: string;
+  department: string;
+  designation: string;
   branch: string;
-  className: string;
-  section: string;
-  rollNo: string;
-  status: 'Active' | 'Completed' | 'Graduated' | 'Alumni';
-  resultStatus?: 'Promoted' | 'Failed' | 'Passed' | 'N/A';
-  promotionDate?: string;
+  employeeCategory: 'Teacher' | 'Staff';
+  leaveTypeId: string;
+  leaveTypeName: string;
+  fromDate: string;
+  toDate: string;
+  isHalfDay: boolean;
+  halfDayPeriod?: 'First Half' | 'Second Half';
+  numberOfDays: number;
+  reason: string;
+  attachments: string[];
+  status: 'Pending' | 'Approved' | 'Rejected' | 'Sent Back';
+  appliedDate: string;
+  approverRemarks?: string;
+  approvedBy?: string;
+}
+
+export interface Payslip {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  empId: string;
+  month: string;
+  basicSalary: number;
+  hra: number;
+  da: number;
+  pfDeduction: number;
+  lopDeduction: number;
+  netSalary: number;
+  bankAccount: string;
+  disbursedDate: string;
+  status: 'Paid';
 }
 
 

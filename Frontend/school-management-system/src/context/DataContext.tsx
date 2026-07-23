@@ -13,7 +13,7 @@ import {
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
-  AcademicYear, StudentEnrollment
+  LeaveType, LeaveApplication, Payslip
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -33,11 +33,12 @@ import {
   initialRoomTypeMasters, initialRoomMasters, initialStudentHostelAssignments,
   initialHostelVisitorLogs, initialHostelAttendanceLogs, initialFinanceHostelConfigs,
   initialUniformCategories, initialUniformSizes, initialUniformSuppliers, initialUniformInventory,
-  initialStudentUniformIssues, initialFinanceUniformConfigs, initialAcademicYears
+  initialStudentUniformIssues, initialFinanceUniformConfigs,
+  initialLeaveTypes, initialLeaveApplications, initialPayslips
 } from '../services/mockData';
-import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, deleteAdmissionApi, rejectAdmissionApi, enrollAdmissionApi } from '../api/admission';
-import { fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi, fetchClassesApi, createClassApi, updateClassApi, deleteClassApi } from '../api/academic';
+import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 export interface AcademicClass {
   id: string;
@@ -374,43 +375,31 @@ interface DataContextType {
   updateFinanceUniformConfig: (id: string, updates: Partial<FinanceUniformConfig>) => void;
   deleteFinanceUniformConfig: (id: string) => void;
 
-  // ACADEMIC YEAR & PROMOTION ADDITIONS
-  academicYears: AcademicYear[];
-  addAcademicYear: (ay: Omit<AcademicYear, 'id'>) => void;
-  updateAcademicYear: (id: string, updates: Partial<AcademicYear>) => void;
-  deleteAcademicYear: (id: string) => void;
-  activateAcademicYear: (id: string) => void;
-  closeAcademicYear: (id: string) => void;
+  // LEAVE MANAGEMENT ERP ADDITIONS
+  leaveTypes: LeaveType[];
+  addLeaveType: (t: Omit<LeaveType, 'id'>) => void;
+  updateLeaveType: (id: string, updates: Partial<LeaveType>) => void;
+  deleteLeaveType: (id: string) => void;
 
-  studentEnrollments: StudentEnrollment[];
-  addStudentEnrollment: (se: Omit<StudentEnrollment, 'id'>) => void;
-  updateStudentEnrollment: (id: string, updates: Partial<StudentEnrollment>) => void;
-  deleteStudentEnrollment: (id: string) => void;
+  leaveApplications: LeaveApplication[];
+  addLeaveApplication: (app: Omit<LeaveApplication, 'id'>) => void;
+  updateLeaveApplication: (id: string, updates: Partial<LeaveApplication>) => void;
+  deleteLeaveApplication: (id: string) => void;
+  updateLeaveApplicationStatus: (id: string, status: LeaveApplication['status'], remarks?: string, approvedBy?: string) => void;
 
-  promoteStudents: (
-    studentIds: string[],
-    fromYear: string,
-    toYear: string,
-    toClass: string,
-    toSection: string,
-    options: {
-      transport: 'copy' | 'new' | 'none';
-      hostel: 'copy' | 'new' | 'none';
-      newRouteId?: string;
-      newPickupPointId?: string;
-      newHostelId?: string;
-      newRoomTypeId?: string;
-      newRoomId?: string;
-    }
-  ) => void;
+  addHoliday: (h: Omit<Holiday, 'id'>) => void;
+  updateHoliday: (id: string, updates: Partial<Holiday>) => void;
+  deleteHoliday: (id: string) => void;
 
-  graduateStudents: (studentIds: string[], notes?: string) => void;
+  payslips: Payslip[];
+  disburseSalary: (payslip: Omit<Payslip, 'id'>) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
+  const { selectedBranch } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
@@ -441,9 +430,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [hostelRooms] = useState<HostelRoom[]>(() => getStored('hostel', initialHostelRooms));
   const [inventory, setInventory] = useState<InventoryItem[]>(() => getStored('inventory', initialInventory));
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => getStored('announcements', initialAnnouncements));
-  const [holidays] = useState<Holiday[]>(() => getStored('holidays', initialHolidays));
+  const [holidays, setHolidays] = useState<Holiday[]>(() => getStored('holidays', initialHolidays));
   const [birthdays] = useState<Birthday[]>(() => getStored('birthdays', initialBirthdays));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getStored('audit_logs', initialAuditLogs));
+
+  // Leave Management ERP States
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() => getStored('leave_types', initialLeaveTypes));
+  const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>(() => getStored('leave_applications', initialLeaveApplications));
+  const [payslips, setPayslips] = useState<Payslip[]>(() => getStored('payslips', initialPayslips));
 
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(() => getStored('uniform_categories', initialUniformCategories));
@@ -452,26 +446,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>(() => getStored('uniform_inventory', initialUniformInventory));
   const [studentUniformIssues, setStudentUniformIssues] = useState<StudentUniformIssue[]>(() => getStored('student_uniform_issues', initialStudentUniformIssues));
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<FinanceUniformConfig[]>(() => getStored('finance_uniform_configs', initialFinanceUniformConfigs));
-
-  // Academic Year & Student Promotion States
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>(() => getStored('academic_years', initialAcademicYears));
-  const [studentEnrollments, setStudentEnrollments] = useState<StudentEnrollment[]>(() => {
-    const saved = localStorage.getItem('edu_db_student_enrollments');
-    if (saved) return JSON.parse(saved);
-    return students.map(student => ({
-      id: `ENR-${student.id}-${student.academicYear || '2025-2026'}`,
-      studentId: student.id,
-      studentName: `${student.firstName} ${student.lastName}`,
-      admissionNo: student.admissionNo,
-      academicYear: student.academicYear || '2025-2026',
-      branch: student.branch || 'Main Campus',
-      className: student.className || 'Class 10',
-      section: student.section || 'A',
-      rollNo: student.rollNo || '1',
-      status: (student as any).status === 'Graduated' ? 'Graduated' as const : 'Active' as const,
-      resultStatus: 'N/A' as const
-    }));
-  });
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => getStored('fee_heads', initialFeeHeads));
@@ -512,15 +486,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Permanent Student Fee Ledger State
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<StudentFeeLedger[]>(() => getStored('student_fee_ledgers', initialStudentFeeLedgers));
-
-  const checkSessionClosed = (): boolean => {
-    const activeYearObj = academicYears.find(ay => ay.name === (financeSettings.academicYear || '2025-2026'));
-    if (activeYearObj && activeYearObj.status === 'Closed') {
-      addToast('error', 'Academic Year Closed', 'This academic session has been closed. Historical data is read-only.');
-      return true;
-    }
-    return false;
-  };
 
   useEffect(() => { localStorage.setItem('edu_db_profile', JSON.stringify(schoolProfile)); }, [schoolProfile]);
   useEffect(() => { localStorage.setItem('edu_db_students', JSON.stringify(students)); }, [students]);
@@ -566,10 +531,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(studentUniformIssues)); }, [studentUniformIssues]);
   useEffect(() => { localStorage.setItem('edu_db_finance_uniform_configs', JSON.stringify(financeUniformConfigs)); }, [financeUniformConfigs]);
 
-  // Academic Year & Promotion Effects
-  useEffect(() => { localStorage.setItem('edu_db_academic_years', JSON.stringify(academicYears)); }, [academicYears]);
-  useEffect(() => { localStorage.setItem('edu_db_student_enrollments', JSON.stringify(studentEnrollments)); }, [studentEnrollments]);
-
   // Transport ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_route_masters', JSON.stringify(routeMasters)); }, [routeMasters]);
   useEffect(() => { localStorage.setItem('edu_db_pickup_points', JSON.stringify(pickupPoints)); }, [pickupPoints]);
@@ -581,6 +542,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Finance Transport Config & Ledger Effects
   useEffect(() => { localStorage.setItem('edu_db_finance_transport_configs', JSON.stringify(financeTransportConfigs)); }, [financeTransportConfigs]);
   useEffect(() => { localStorage.setItem('edu_db_student_fee_ledgers', JSON.stringify(studentFeeLedgers)); }, [studentFeeLedgers]);
+
+  // Leave & Payroll System Effects
+  useEffect(() => { localStorage.setItem('edu_db_holidays', JSON.stringify(holidays)); }, [holidays]);
+  useEffect(() => { localStorage.setItem('edu_db_leave_types', JSON.stringify(leaveTypes)); }, [leaveTypes]);
+  useEffect(() => { localStorage.setItem('edu_db_leave_applications', JSON.stringify(leaveApplications)); }, [leaveApplications]);
+  useEffect(() => { localStorage.setItem('edu_db_payslips', JSON.stringify(payslips)); }, [payslips]);
 
   const fetchAdmissions = async () => {
     try {
@@ -623,6 +590,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           hostelBed: item.allocatedBedId,
           status: item.status,
           applicationDate: item.createdAt,
+          branch: item.branch || 'Main Campus',
         }));
         setAdmissions(mappedAdmissions);
       } else {
@@ -637,74 +605,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const fetchSubjects = async () => {
-    try {
-      const json = await fetchSubjectsApi();
-      console.log('Subjects API response:', json);
-      if (Array.isArray(json)) {
-        const mappedSubjects = json.map((item: any) => ({
-          id: item.subjectId.toString(),
-          subjectId: item.subjectCode,
-          name: item.subjectName,
-          code: item.courseCode
-        }));
-        setSubjects(mappedSubjects);
-      } else if (json && json.data && Array.isArray(json.data)) {
-        const mappedSubjects = json.data.map((item: any) => ({
-          id: item.subjectId.toString(),
-          subjectId: item.subjectCode,
-          name: item.subjectName,
-          code: item.courseCode
-        }));
-        setSubjects(mappedSubjects);
-      } else if (json && json.length === 0) {
-        setSubjects([]);
-      }
-    } catch (err: any) {
-      console.error('Error fetching subjects', err);
-    }
-  };
-
-  const fetchClasses = async () => {
-    try {
-      const json = await fetchClassesApi();
-      console.log('Classes API response:', json);
-      
-      let classesArray = [];
-      if (Array.isArray(json)) {
-        classesArray = json;
-      } else if (json && json.data && Array.isArray(json.data)) {
-        classesArray = json.data;
-      } else if (json && json.length === 0) {
-        classesArray = [];
-      }
-
-      const mapped = classesArray.map((item: any) => {
-        const sections = item.sections?.map((s: any) => s.sectionName) || [];
-        const sectionTeachers: Record<string, string> = {};
-        item.sections?.forEach((s: any) => {
-           sectionTeachers[s.sectionName] = s.classTeacherName || '';
-        });
-        const mappedSubjects = item.curriculumSubjects?.map((sub: any) => sub.subjectName || sub.name) || [];
-        return {
-          id: (item.classId || item.id || Math.random().toString()).toString(),
-          name: item.className || item.name || 'Unnamed Class',
-          sections,
-          sectionTeachers,
-          teacher: sections.length > 0 ? sectionTeachers[sections[0]] : '',
-          subjects: mappedSubjects
-        };
-      });
-      setAcademicClasses(mapped);
-    } catch (err: any) {
-      console.error('Error fetching classes', err);
-    }
-  };
-
   useEffect(() => {
     fetchAdmissions();
-    fetchSubjects();
-    fetchClasses();
   }, []);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
@@ -730,7 +632,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newStudent: Student = {
       ...stData,
       id,
-      branch: stData.branch || 'Main Campus',
+      branch: stData.branch || selectedBranch || 'Main Campus',
       studentType: stData.studentType || 'Day Scholar',
       promotionHistory: stData.promotionHistory || []
     };
@@ -793,7 +695,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Staff CRUD
   const addStaff = (staffData: Omit<Staff, 'id'>) => {
     const id = 'STF-' + Math.floor(100 + Math.random() * 900);
-    const newStaff: Staff = { ...staffData, id };
+    const newStaff: Staff = { ...staffData, id, branch: staffData.branch || selectedBranch || 'Main Campus' };
     setStaff(prev => [...prev, newStaff]);
     logActivity('Hired Staff Member', `Registered ${newStaff.firstName} ${newStaff.lastName}`);
   };
@@ -866,7 +768,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dropPoint: appData.dropPoint || "N/A",
         hostelBlock: appData.hostelBlock || "N/A",
         floorLevel: "N/A",
-        allocatedBedId: appData.hostelBed || "N/A"
+        allocatedBedId: appData.hostelBed || "N/A",
+        branch: appData.branch || selectedBranch || 'Main Campus'
       };
 
       const json = await createAdmissionApi(payload);
@@ -885,45 +788,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateAdmission = async (id: string, updates: Partial<AdmissionApplication>) => {
-    try {
-      await updateAdmissionApi(parseInt(id), updates);
-      fetchAdmissions();
-      logActivity('Updated Admission Record', `Updated application ID ${id}`);
-    } catch (err: any) {
-      console.error('Error updating admission', err);
-      addToast('error', 'API Error', 'Failed to update admission application.');
-    }
+  const updateAdmission = (id: string, updates: Partial<AdmissionApplication>) => {
+    setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    logActivity('Updated Admission Record', `Updated application ID ${id}`);
   };
 
-  const deleteAdmission = async (id: string) => {
-    try {
-      await deleteAdmissionApi(parseInt(id));
-      fetchAdmissions();
-      logActivity('Deleted Admission Record', `Removed application ID ${id}`);
-    } catch (err: any) {
-      console.error('Error deleting admission', err);
-      addToast('error', 'API Error', 'Failed to delete admission application.');
-    }
+  const deleteAdmission = (id: string) => {
+    setAdmissions(prev => prev.filter(a => a.id !== id));
+    logActivity('Deleted Admission Record', `Removed application ID ${id}`);
   };
 
   const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
     const app = admissions.find(a => a.id === id);
     if (!app) return;
 
-    try {
-      let success = true;
-      if (status === 'Rejected') {
-        const res = await rejectAdmissionApi(parseInt(id));
-        if (res && res.success === false) success = false;
-      } else if (status === 'Enrolled') {
-        const res = await enrollAdmissionApi(parseInt(id));
-        if (res && res.success === false) success = false;
-      }
-      
-      if (success) {
-        fetchAdmissions();
+    const registrationNo = (app as any).registrationNo || app.applicationNo;
 
+    try {
+      const json = await updateAdmissionStatusApi(registrationNo, status);
+
+      if (json && json.success !== false) {
         if (status === 'Enrolled' && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
@@ -1049,153 +933,65 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Update state to match API success
           setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-          logActivity('Admission Status Updated', `Application ${id} status changed to ${status}`);
-          addToast('success', 'Status Updated', `Application successfully marked as ${status}`);
+          logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
+          try {
+            await fetchAdmissions();
+          } catch (fetchErr) {
+            console.error("Failed to refresh admissions list", fetchErr);
+          }
       } else {
-        addToast('error', 'Update Failed', 'Failed to update admission status. Please try again.');
+        addToast('error', 'Update Failed', json?.message || `Failed to update status to ${status}`);
       }
     } catch (err: any) {
-      console.error('Error updating status', err);
-      addToast('error', 'API Error', err.message || 'Failed to update admission status.');
+      console.error('Error updating admission status', err);
+      addToast('error', 'Network Error', err.message || 'Failed to update application status.');
     }
   };
 
-  // Academic Classes CRUD
-  const addAcademicClass = async (clsData: Omit<AcademicClass, 'id'>) => {
-    try {
-      const mappedSections = (clsData.sections || []).map(sec => {
-        const teacherName = clsData.sectionTeachers?.[sec];
-        const teacher = staff.find(s => `${s.firstName} ${s.lastName}` === teacherName);
-        let classTeacherEmpId = null;
-        // The backend expects a valid employee ID or null.
-        // Since we are using mock staff data without real backend employee IDs, we must pass null to avoid 500 FK constraint errors.
-        return {
-          sectionName: sec,
-          classTeacherEmpId
-        };
-      });
-
-      const subjectIds = (clsData.subjects || []).map(subName => {
-        const sub = subjects.find(s => s.name === subName);
-        return sub ? parseInt(sub.id) : null;
-      }).filter(Boolean);
-
-      const payload = {
-        className: clsData.name,
-        sections: mappedSections,
-        subjectIds
-      };
-      
-      await createClassApi(payload);
-      fetchClasses();
-      logActivity('Created Academic Class', `Added ${clsData.name}`);
-    } catch (err: any) {
-      console.error('Error adding class', err);
-      addToast('error', 'API Error', 'Failed to create class.');
-    }
+  const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
+    const id = 'CL-' + Math.floor(10 + Math.random() * 90);
+    const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
+    setAcademicClasses(prev => [...prev, newCls]);
+    logActivity('Created Academic Class', `Added ${newCls.name}`);
   };
 
-  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
-    try {
-      const existing = academicClasses.find(c => c.id === id);
-      if (!existing) return;
-      
-      const merged = { ...existing, ...updates };
-      
-      const mappedSections = (merged.sections || []).map(sec => {
-        const teacherName = merged.sectionTeachers?.[sec];
-        const teacher = staff.find(s => `${s.firstName} ${s.lastName}` === teacherName);
-        let classTeacherEmpId = null;
-        // Same as above, passing null to prevent 500 FK constraint errors
-        return {
-          sectionName: sec,
-          classTeacherEmpId
-        };
-      });
-
-      const subjectIds = (merged.subjects || []).map(subName => {
-        const sub = subjects.find(s => s.name === subName);
-        return sub ? parseInt(sub.id) : null;
-      }).filter(Boolean);
-
-      const payload = {
-        className: merged.name,
-        sections: mappedSections,
-        subjectIds
-      };
-
-      await updateClassApi(parseInt(id), payload);
-      fetchClasses();
-      logActivity('Updated Academic Class', `Updated class ID ${id}`);
-    } catch (err: any) {
-      console.error('Error updating class', err);
-      addToast('error', 'API Error', 'Failed to update class.');
-    }
+  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
+    setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    logActivity('Updated Academic Class', `Updated class ID ${id}`);
   };
 
-  const deleteAcademicClass = async (id: string) => {
-    try {
-      await deleteClassApi(parseInt(id));
-      fetchClasses();
-      logActivity('Deleted Academic Class', `Removed class ID ${id}`);
-    } catch (err: any) {
-      console.error('Error deleting class', err);
-      addToast('error', 'API Error', 'Failed to delete class.');
-    }
+  const deleteAcademicClass = (id: string) => {
+    setAcademicClasses(prev => prev.filter(c => c.id !== id));
+    logActivity('Deleted Academic Class', `Removed class ID ${id}`);
   };
 
   // Subjects CRUD
-  const addSubject = async (subjectData: Omit<SubjectItem, 'id'>) => {
-    try {
-      const payload = {
-        subjectCode: subjectData.subjectId,
-        subjectName: subjectData.name,
-        courseCode: subjectData.code || subjectData.subjectId
-      };
-      await createSubjectApi(payload);
-      fetchSubjects();
-      logActivity('Created Subject', `Added subject ${subjectData.name} (${subjectData.subjectId})`);
-    } catch (err: any) {
-      console.error('Error adding subject', err);
-      addToast('error', 'API Error', 'Failed to create subject.');
-    }
+  const addSubject = (subjectData: Omit<SubjectItem, 'id'>) => {
+    const id = 'SUB-' + Math.floor(100 + Math.random() * 900);
+    const newSub: SubjectItem = {
+      ...subjectData,
+      id,
+      code: subjectData.code || subjectData.subjectId,
+      branch: (subjectData as any).branch || selectedBranch || 'Main Campus'
+    } as any;
+    setSubjects(prev => [...prev, newSub]);
+    logActivity('Created Subject', `Added subject ${newSub.name} (${newSub.subjectId})`);
   };
 
-  const updateSubject = async (id: string, updates: Partial<SubjectItem>) => {
-    try {
-      const existing = subjects.find(s => s.id === id);
-      if (!existing) return;
-      const payload = {
-        subjectCode: updates.subjectId || existing.subjectId,
-        subjectName: updates.name || existing.name,
-        courseCode: updates.code || existing.code || existing.subjectId
-      };
-      await updateSubjectApi(parseInt(id), payload);
-      fetchSubjects();
-      fetchClasses(); // Refresh classes to sync any renamed subjects
-      logActivity('Updated Subject', `Updated subject ID ${id}`);
-    } catch (err: any) {
-      console.error('Error updating subject', err);
-      addToast('error', 'API Error', 'Failed to update subject.');
-    }
+  const updateSubject = (id: string, updates: Partial<SubjectItem>) => {
+    setSubjects(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    logActivity('Updated Subject', `Updated subject ID ${id}`);
   };
 
-  const deleteSubject = async (id: string) => {
-    try {
-      await deleteSubjectApi(parseInt(id));
-      fetchSubjects();
-      fetchClasses(); // Refresh classes to remove the deleted subject from curriculum
-      logActivity('Deleted Subject', `Removed subject ID ${id}`);
-    } catch (err: any) {
-      console.error('Error deleting subject', err);
-      addToast('error', 'API Error', 'Failed to delete subject.');
-    }
+  const deleteSubject = (id: string) => {
+    setSubjects(prev => prev.filter(s => s.id !== id));
+    logActivity('Deleted Subject', `Removed subject ID ${id}`);
   };
 
   // Bus CRUD
   const addBus = (busData: Omit<Bus, 'id'>) => {
     const id = 'BUS-' + Math.floor(10 + Math.random() * 90);
-    const newBus: Bus = { ...busData, id };
+    const newBus: Bus = { ...busData, id, branch: (busData as any).branch || selectedBranch || 'Main Campus' } as any;
     setBuses(prev => [...prev, newBus]);
     logActivity('Added Bus', `Registered Bus ${newBus.busNumber} (${newBus.routeName})`);
   };
@@ -1270,10 +1066,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCustomRoles(prev => prev.filter(r => r.id !== id));
   };
 
-  // Fee Structures CRUD
   const addFeeStructure = (feeStruct: Omit<FeeStructure, 'id'>) => {
     const id = 'FEE-' + Math.floor(100 + Math.random() * 900);
-    const newStruct: FeeStructure = { ...feeStruct, id };
+    const newStruct: FeeStructure = { ...feeStruct, id, branch: (feeStruct as any).branch || selectedBranch || 'Main Campus' } as any;
     setFeeStructures(prev => [...prev, newStruct]);
     logActivity('Configured Fee Structure', `Added fee structure for ${newStruct.className} (${newStruct.term})`);
   };
@@ -1288,24 +1083,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fee Payments CRUD with Student Fee Ledger Update
   const addFeePayment = (paymentData: Omit<FeePayment, 'id' | 'receiptNo'>): FeePayment => {
-    if (checkSessionClosed()) {
-      return {
-        id: 'dummy',
-        receiptNo: 'dummy',
-        studentId: paymentData.studentId,
-        studentName: paymentData.studentName,
-        className: paymentData.className || '',
-        amountPaid: 0,
-        discount: 0,
-        fine: 0,
-        paymentMode: paymentData.paymentMode,
-        paymentDate: paymentData.paymentDate,
-        status: 'Pending'
-      };
-    }
     const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
     const receiptNo = financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
-    const newPayment: FeePayment = { ...paymentData, id, receiptNo };
+    const newPayment: FeePayment = { ...paymentData, id, receiptNo, branch: (paymentData as any).branch || selectedBranch || 'Main Campus' } as any;
     setFeePayments(prev => [newPayment, ...prev]);
 
     setStudents(prev => prev.map(s => {
@@ -1343,7 +1123,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 1. Fee Heads CRUD
   const addFeeHead = (head: Omit<FeeHead, 'id'>) => {
     const id = 'FH-' + Math.floor(100 + Math.random() * 900);
-    const newHead: FeeHead = { ...head, id };
+    const newHead: FeeHead = {
+      ...head,
+      id,
+      applicableBranches: head.applicableBranches && head.applicableBranches.length > 0
+        ? head.applicableBranches
+        : [selectedBranch || 'Main Campus']
+    };
     setFeeHeads(prev => [...prev, newHead]);
     logActivity('Created Fee Head', `Added ${newHead.name} (${newHead.code})`);
   };
@@ -1365,7 +1151,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 2. Dynamic Fee Structures CRUD
   const addDynamicFeeStructure = (dfs: Omit<DynamicFeeStructure, 'id'>) => {
     const id = 'DFS-' + Math.floor(100 + Math.random() * 900);
-    const newDfs: DynamicFeeStructure = { ...dfs, id };
+    const newDfs: DynamicFeeStructure = { ...dfs, id, branch: dfs.branch || selectedBranch || 'Main Campus' };
     setDynamicFeeStructures(prev => [...prev, newDfs]);
     logActivity('Created Dynamic Fee Structure', `Added structure for ${newDfs.className}`);
   };
@@ -1392,7 +1178,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-      branch: st.branch || 'Main Campus',
+      branch: st.branch || selectedBranch || 'Main Campus',
       academicYear: dfs.academicYear,
       className: st.className,
       section: st.section,
@@ -1520,7 +1306,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 7. Transport Routes CRUD
   const addERPTransportRoute = (route: Omit<ERPTransportRoute, 'id'>) => {
     const id = 'TRP-' + Math.floor(100 + Math.random() * 900);
-    const newRoute: ERPTransportRoute = { ...route, id };
+    const newRoute: ERPTransportRoute = { ...route, id, branch: (route as any).branch || selectedBranch || 'Main Campus' } as any;
     setERPTransportRoutes(prev => [...prev, newRoute]);
   };
 
@@ -1535,7 +1321,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 8. Student Transport Assignment
   const assignStudentTransport = (st: Omit<StudentTransport, 'id'>) => {
     const id = 'STRP-' + Math.floor(100 + Math.random() * 900);
-    const newAssignment: StudentTransport = { ...st, id };
+    const newAssignment: StudentTransport = { ...st, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
     setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
     logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
 
@@ -1553,7 +1339,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 9. Hostel Masters CRUD
   const addHostelMaster = (h: Omit<HostelMaster, 'id'>) => {
     const id = 'HM-' + Math.floor(100 + Math.random() * 900);
-    const newHostel: HostelMaster = { ...h, id };
+    const newHostel: HostelMaster = { ...h, id, branch: (h as any).branch || selectedBranch || 'Main Campus' } as any;
     setHostelMasters(prev => [...prev, newHostel]);
     logActivity('Added Hostel Master', `Created hostel ${newHostel.hostelName}`);
   };
@@ -1585,7 +1371,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Room Master CRUD
   const addRoomMaster = (rmData: Omit<RoomMaster, 'id'>) => {
     const id = 'RM-' + Math.floor(100 + Math.random() * 900);
-    const newRm: RoomMaster = { ...rmData, id };
+    const newRm: RoomMaster = { ...rmData, id, branch: (rmData as any).branch || selectedBranch || 'Main Campus' } as any;
     setRoomMasters(prev => [newRm, ...prev]);
     logActivity('Added Room Master', `Created room #${newRm.roomNumber} in ${newRm.hostelName}`);
   };
@@ -1653,7 +1439,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 10. Student Hostel Assignment
   const assignStudentHostel = (sh: Omit<StudentHostel, 'id'>) => {
     const id = 'SHST-' + Math.floor(100 + Math.random() * 900);
-    const newAssignment: StudentHostel = { ...sh, id };
+    const newAssignment: StudentHostel = { ...sh, id, branch: (sh as any).branch || selectedBranch || 'Main Campus' } as any;
     setStudentHostels(prev => [...prev.filter(h => h.studentId !== sh.studentId), newAssignment]);
     logActivity('Assigned Hostel', `Assigned ${sh.hostelName} Room ${sh.roomNo} to ${sh.studentName}`);
 
@@ -1672,7 +1458,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addRefund = (r: Omit<Refund, 'id' | 'refundNo'>) => {
     const id = 'RFD-' + Math.floor(100 + Math.random() * 900);
     const refundNo = 'RF-2026-' + Math.floor(1000 + Math.random() * 9000);
-    const newRefund: Refund = { ...r, id, refundNo };
+    const newRefund: Refund = { ...r, id, refundNo, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
     setRefunds(prev => [newRefund, ...prev]);
     logActivity('Requested Refund', `Created refund request ${refundNo} for ${formatCurrency(r.amount)}`);
   };
@@ -1690,7 +1476,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 13. FINANCE -> TRANSPORT CONFIGURATION CRUD
   const addFinanceTransportConfig = (c: Omit<FinanceTransportConfig, 'id'>) => {
     const id = 'FTC-' + Math.floor(100 + Math.random() * 900);
-    const newConfig: FinanceTransportConfig = { ...c, id };
+    const newConfig: FinanceTransportConfig = { ...c, id, branch: (c as any).branch || selectedBranch || 'Main Campus' } as any;
     setFinanceTransportConfigs(prev => [...prev, newConfig]);
     logActivity('Created Transport Pricing Config', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
   };
@@ -1956,7 +1742,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addRouteMaster = (r: Omit<RouteMaster, 'id'>) => {
     const id = 'RM-' + Math.floor(100 + Math.random() * 900);
-    const newRoute: RouteMaster = { ...r, id };
+    const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
     setRouteMasters(prev => [...prev, newRoute]);
     logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
   };
@@ -1973,7 +1759,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addPickupPoint = (p: Omit<PickupPoint, 'id'>) => {
     const id = 'PP-' + Math.floor(100 + Math.random() * 900);
-    const newPt: PickupPoint = { ...p, id };
+    const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
     setPickupPoints(prev => [...prev, newPt]);
     logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
   };
@@ -1988,7 +1774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addVehicleMaster = (v: Omit<VehicleMaster, 'id'>) => {
     const id = 'VM-' + Math.floor(100 + Math.random() * 900);
-    const newVehicle: VehicleMaster = { ...v, id };
+    const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
     setVehicleMasters(prev => [...prev, newVehicle]);
     logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
   };
@@ -2003,7 +1789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addDriverMaster = (d: Omit<DriverMaster, 'id'>) => {
     const id = 'DRV-' + Math.floor(100 + Math.random() * 900);
-    const newDriver: DriverMaster = { ...d, id };
+    const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
     setDriverMasters(prev => [...prev, newDriver]);
     logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
   };
@@ -2018,7 +1804,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const assignVehicleRouteDriver = (va: Omit<VehicleAssignment, 'id'>) => {
     const id = 'VA-' + Math.floor(100 + Math.random() * 900);
-    const newAssign: VehicleAssignment = { ...va, id };
+    const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
     setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
     logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
   };
@@ -2029,7 +1815,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addVehicleMaintenance = (vm: Omit<VehicleMaintenance, 'id'>) => {
     const id = 'VMN-' + Math.floor(100 + Math.random() * 900);
-    const newMaint: VehicleMaintenance = { ...vm, id };
+    const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
     setVehicleMaintenances(prev => [newMaint, ...prev]);
     logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
   };
@@ -2343,7 +2129,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const markAttendance = (records: DailyAttendance[]) => {
-    if (checkSessionClosed()) return;
     setAttendance(prev => {
       const filterDates = records.map(r => `${r.entityId}_${r.date}`);
       const updated = prev.filter(r => !filterDates.includes(`${r.entityId}_${r.date}`));
@@ -2353,27 +2138,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addExam = (examData: Omit<ExamSetup, 'id'>) => {
-    if (checkSessionClosed()) return;
     const id = 'EXM-' + Math.floor(10 + Math.random() * 90);
-    const newExam: ExamSetup = { ...examData, id };
+    const newExam: ExamSetup = { ...examData, id, branch: (examData as any).branch || selectedBranch || 'Main Campus' } as any;
     setExams(prev => [...prev, newExam]);
     logActivity('Created Examination', `Scheduled ${newExam.name}`);
   };
 
   const updateExam = (id: string, updates: Partial<ExamSetup>) => {
-    if (checkSessionClosed()) return;
     setExams(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
     logActivity('Updated Examination', `Updated exam ID ${id}`);
   };
 
   const deleteExam = (id: string) => {
-    if (checkSessionClosed()) return;
     setExams(prev => prev.filter(e => e.id !== id));
     logActivity('Deleted Examination', `Removed exam ID ${id}`);
   };
 
   const saveMarks = (marksData: Omit<ExamMark, 'id'>[]) => {
-    if (checkSessionClosed()) return;
     const newMarks: ExamMark[] = marksData.map(m => ({
       ...m,
       id: 'MRK-' + Math.floor(1000 + Math.random() * 9000)
@@ -2388,25 +2169,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addTimetableSlot = (slotData: Omit<TimetableSlot, 'id'>) => {
-    if (checkSessionClosed()) return;
     const id = 'TT-' + Math.floor(100 + Math.random() * 900);
-    const newSlot: TimetableSlot = { ...slotData, id };
+    const newSlot: TimetableSlot = { ...slotData, id, branch: (slotData as any).branch || selectedBranch || 'Main Campus' } as any;
     setTimetable(prev => [...prev, newSlot]);
   };
 
   const updateTimetableSlot = (id: string, updates: Partial<TimetableSlot>) => {
-    if (checkSessionClosed()) return;
     setTimetable(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
   const deleteTimetableSlot = (id: string) => {
-    if (checkSessionClosed()) return;
     setTimetable(prev => prev.filter(t => t.id !== id));
   };
 
   const addHomework = (hwData: Omit<Homework, 'id'>) => {
     const id = 'HW-' + Math.floor(100 + Math.random() * 900);
-    const newHw: Homework = { ...hwData, id };
+    const newHw: Homework = { ...hwData, id, branch: (hwData as any).branch || selectedBranch || 'Main Campus' } as any;
     setHomework(prev => [newHw, ...prev]);
     logActivity('Posted Homework', `Assigned ${newHw.title} for ${newHw.className}`);
   };
@@ -2482,7 +2260,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform category CRUD
   const addUniformCategory = (cData: Omit<UniformCategory, 'id'>) => {
     const id = 'UC-' + Math.floor(10 + Math.random() * 90);
-    setUniformCategories(prev => [...prev, { ...cData, id }]);
+    setUniformCategories(prev => [...prev, { ...cData, id, branch: (cData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformCategory = (id: string, updates: Partial<UniformCategory>) => {
     setUniformCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
@@ -2494,7 +2272,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform sizes CRUD
   const addUniformSize = (sData: Omit<UniformSize, 'id'>) => {
     const id = 'US-' + Math.floor(10 + Math.random() * 90);
-    setUniformSizes(prev => [...prev, { ...sData, id }]);
+    setUniformSizes(prev => [...prev, { ...sData, id, branch: (sData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformSize = (id: string, updates: Partial<UniformSize>) => {
     setUniformSizes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
@@ -2506,7 +2284,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform suppliers CRUD
   const addUniformSupplier = (sData: Omit<UniformSupplier, 'id'>) => {
     const id = 'SUP-' + Math.floor(10 + Math.random() * 90);
-    setUniformSuppliers(prev => [...prev, { ...sData, id }]);
+    setUniformSuppliers(prev => [...prev, { ...sData, id, branch: (sData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformSupplier = (id: string, updates: Partial<UniformSupplier>) => {
     setUniformSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
@@ -2518,7 +2296,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform inventory CRUD
   const addUniformInventory = (iData: Omit<UniformInventoryItem, 'id'>) => {
     const id = 'UINV-' + Math.floor(10 + Math.random() * 90);
-    setUniformInventory(prev => [...prev, { ...iData, id }]);
+    setUniformInventory(prev => [...prev, { ...iData, id, branch: (iData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformInventory = (id: string, updates: Partial<UniformInventoryItem>) => {
     setUniformInventory(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
@@ -2530,7 +2308,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Student Uniform issues CRUD
   const addStudentUniformIssue = (issueData: Omit<StudentUniformIssue, 'id'>) => {
     const id = 'UIS-' + Math.floor(10 + Math.random() * 90);
-    setStudentUniformIssues(prev => [...prev, { ...issueData, id }]);
+    setStudentUniformIssues(prev => [...prev, { ...issueData, id, branch: issueData.branch || selectedBranch || 'Main Campus' }]);
 
     // Reduce stock if issued
     if (issueData.status === 'Issued' || issueData.status === 'Replaced') {
@@ -2569,7 +2347,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Finance Uniform configurations CRUD
   const addFinanceUniformConfig = (cData: Omit<FinanceUniformConfig, 'id'>) => {
     const id = 'FUC-' + Math.floor(10 + Math.random() * 90);
-    setFinanceUniformConfigs(prev => [...prev, { ...cData, id }]);
+    setFinanceUniformConfigs(prev => [...prev, { ...cData, id, branch: cData.branch || selectedBranch || 'Main Campus' }]);
   };
   const updateFinanceUniformConfig = (id: string, updates: Partial<FinanceUniformConfig>) => {
     setFinanceUniformConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
@@ -2578,299 +2356,256 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFinanceUniformConfigs(prev => prev.filter(c => c.id !== id));
   };
 
-  // Academic Year CRUD
-  const addAcademicYear = (ayData: Omit<AcademicYear, 'id'>) => {
-    const id = 'AY-' + Math.floor(10 + Math.random() * 90);
-    setAcademicYears(prev => [...prev, { ...ayData, id }]);
+  // Leave Types CRUD
+  const addLeaveType = (tData: Omit<LeaveType, 'id'>) => {
+    const id = 'LT-' + Math.floor(10 + Math.random() * 90);
+    setLeaveTypes(prev => [...prev, { ...tData, id }]);
   };
-  const updateAcademicYear = (id: string, updates: Partial<AcademicYear>) => {
-    setAcademicYears(prev => prev.map(ay => ay.id === id ? { ...ay, ...updates } : ay));
+  const updateLeaveType = (id: string, updates: Partial<LeaveType>) => {
+    setLeaveTypes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
-  const deleteAcademicYear = (id: string) => {
-    setAcademicYears(prev => prev.filter(ay => ay.id !== id));
-  };
-  const activateAcademicYear = (id: string) => {
-    const target = academicYears.find(ay => ay.id === id);
-    if (!target) return;
-    setAcademicYears(prev => prev.map(ay => {
-      if (ay.id === id) return { ...ay, status: 'Active' };
-      if (ay.status === 'Active') return { ...ay, status: 'Closed' };
-      return ay;
-    }));
-    updateFinanceSettings({ academicYear: target.name });
-    logActivity('Activated Academic Year', `Activated academic year ${target.name}`);
-  };
-  const closeAcademicYear = (id: string) => {
-    const target = academicYears.find(ay => ay.id === id);
-    if (!target) return;
-    setAcademicYears(prev => prev.map(ay => ay.id === id ? { ...ay, status: 'Closed' } : ay));
-    logActivity('Closed Academic Year', `Closed academic session ${target.name}`);
+  const deleteLeaveType = (id: string) => {
+    setLeaveTypes(prev => prev.filter(t => t.id !== id));
   };
 
-  // Student Enrollment CRUD
-  const addStudentEnrollment = (seData: Omit<StudentEnrollment, 'id'>) => {
-    const id = 'ENR-' + Math.floor(100 + Math.random() * 900);
-    setStudentEnrollments(prev => [...prev, { ...seData, id }]);
+  // Leave Applications CRUD
+  const addLeaveApplication = (appData: Omit<LeaveApplication, 'id'>) => {
+    const id = 'LAP-' + Math.floor(10 + Math.random() * 90);
+    setLeaveApplications(prev => [...prev, { ...appData, id, branch: appData.branch || selectedBranch || 'Main Campus' }]);
   };
-  const updateStudentEnrollment = (id: string, updates: Partial<StudentEnrollment>) => {
-    setStudentEnrollments(prev => prev.map(se => se.id === id ? { ...se, ...updates } : se));
+  const updateLeaveApplication = (id: string, updates: Partial<LeaveApplication>) => {
+    setLeaveApplications(prev => prev.map(app => app.id === id ? { ...app, ...updates } : app));
   };
-  const deleteStudentEnrollment = (id: string) => {
-    setStudentEnrollments(prev => prev.filter(se => se.id !== id));
+  const deleteLeaveApplication = (id: string) => {
+    setLeaveApplications(prev => prev.filter(app => app.id !== id));
   };
 
-  // Student Promotion Process
-  const promoteStudents = (
-    studentIds: string[],
-    fromYear: string,
-    toYear: string,
-    toClass: string,
-    toSection: string,
-    options: {
-      transport: 'copy' | 'new' | 'none';
-      hostel: 'copy' | 'new' | 'none';
-      newRouteId?: string;
-      newPickupPointId?: string;
-      newHostelId?: string;
-      newRoomTypeId?: string;
-      newRoomId?: string;
-    }
+  // Holiday CRUD
+  const addHoliday = (hData: Omit<Holiday, 'id'>) => {
+    const id = 'HOL-' + Math.floor(100 + Math.random() * 900);
+    setHolidays(prev => [...prev, { ...hData, id, branch: hData.branch || selectedBranch || 'Main Campus' }]);
+  };
+  const updateHoliday = (id: string, updates: Partial<Holiday>) => {
+    setHolidays(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h));
+  };
+  const deleteHoliday = (id: string) => {
+    setHolidays(prev => prev.filter(h => h.id !== id));
+  };
+
+  // Payslip handler
+  const disburseSalary = (pData: Omit<Payslip, 'id'>) => {
+    const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
+    setPayslips(prev => [...prev, { ...pData, id, branch: (pData as any).branch || selectedBranch || 'Main Campus' } as any]);
+  };
+
+  // Leave Application Status Engine
+  const updateLeaveApplicationStatus = (
+    id: string,
+    status: LeaveApplication['status'],
+    remarks?: string,
+    approvedBy?: string
   ) => {
-    studentIds.forEach(studentId => {
-      const student = students.find(s => s.id === studentId);
-      if (!student) return;
+    setLeaveApplications(prev => prev.map(app => {
+      if (app.id === id) {
+        const updatedApp = { ...app, status, approverRemarks: remarks, approvedBy };
+        
+        if (status === 'Approved') {
+          // 1. Deduct balance from employee
+          setStaff(prevStaff => prevStaff.map(s => {
+            if (s.id === app.employeeId) {
+              const currentBalance = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
+              const code = app.leaveTypeName.toLowerCase();
+              let updatedBalance = { ...currentBalance };
+              
+              if (code.includes('casual')) {
+                updatedBalance.casual = Math.max(0, currentBalance.casual - app.numberOfDays);
+              } else if (code.includes('sick')) {
+                updatedBalance.sick = Math.max(0, currentBalance.sick - app.numberOfDays);
+              } else if (code.includes('earned') || code.includes('paid')) {
+                updatedBalance.paid = Math.max(0, currentBalance.paid - app.numberOfDays);
+              }
+              return { ...s, leaveBalance: updatedBalance };
+            }
+            return s;
+          }));
 
-      // 1. Avoid duplicate promotion
-      setStudentEnrollments(prev => {
-        const exists = prev.some(enr => enr.studentId === studentId && enr.academicYear === toYear);
-        if (exists) return prev;
+          // 2. Automatically update Staff Attendance
+          const start = new Date(app.fromDate);
+          const end = new Date(app.toDate);
+          const newAttendanceRecords: DailyAttendance[] = [];
 
-        const updatedPrev = prev.map(enr =>
-          (enr.studentId === studentId && enr.academicYear === fromYear)
-            ? { ...enr, status: 'Completed' as const, resultStatus: 'Promoted' as const }
-            : enr
-        );
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const dateStr = d.toISOString().split('T')[0];
+            newAttendanceRecords.push({
+              id: 'SATT-' + Math.floor(1000 + Math.random() * 9000),
+              date: dateStr,
+              entityType: 'Staff',
+              entityId: app.employeeId,
+              status: app.isHalfDay ? 'HalfDay' : 'Leave',
+              remarks: `Approved Leave: ${app.leaveTypeName}. ${remarks || ''}`
+            });
+          }
 
-        const newEnrollmentId = `ENR-${studentId}-${toYear}`;
-        const newEnrollment: StudentEnrollment = {
-          id: newEnrollmentId,
-          studentId: studentId,
-          studentName: `${student.firstName} ${student.lastName}`,
-          admissionNo: student.admissionNo,
-          academicYear: toYear,
-          branch: student.branch || 'Main Campus',
-          className: toClass,
-          section: toSection,
-          rollNo: student.rollNo || '1',
-          status: 'Active',
-          resultStatus: 'N/A',
-          promotionDate: new Date().toISOString().split('T')[0]
-        };
-
-        return [...updatedPrev, newEnrollment];
-      });
-
-      // 2. Transport Assignment copy/new
-      if (options.transport === 'copy') {
-        const prevTransport = studentTransports.find(t => t.studentId === studentId && t.status === 'Active');
-        if (prevTransport) {
-          assignStudentTransport({
-            studentId,
-            studentName: `${student.firstName} ${student.lastName}`,
-            admissionNo: student.admissionNo,
-            routeId: prevTransport.routeId,
-            routeName: prevTransport.routeName,
-            pickupPoint: prevTransport.pickupPoint,
-            feePlan: prevTransport.feePlan || 'Annual',
-            feeAmount: prevTransport.feeAmount || 0,
-            effectiveFrom: new Date().toISOString().split('T')[0],
-            status: 'Active'
+          setAttendance(prevAtt => {
+            const dateStrings = newAttendanceRecords.map(r => r.date);
+            const filteredPrev = prevAtt.filter(r => 
+              !(r.entityType === 'Staff' && r.entityId === app.employeeId && dateStrings.includes(r.date))
+            );
+            return [...filteredPrev, ...newAttendanceRecords];
           });
+
+          addToast('success', 'Leave Approved', `${app.employeeName}'s ${app.leaveTypeName} is approved.`);
+        } else if (status === 'Rejected') {
+          addToast('info', 'Leave Rejected', `${app.employeeName}'s ${app.leaveTypeName} was rejected.`);
+        } else if (status === 'Sent Back') {
+          addToast('warning', 'Leave Sent Back', `${app.employeeName}'s request was sent back.`);
         }
-      } else if (options.transport === 'new' && options.newRouteId) {
-        const route = routeMasters.find(r => r.id === options.newRouteId);
-        const pickup = pickupPoints.find(p => p.id === options.newPickupPointId);
-        const transportConfig = financeTransportConfigs.find(
-          c => c.routeId === options.newRouteId &&
-               c.pickupPointId === options.newPickupPointId &&
-               c.status === 'Active'
-        );
-        assignStudentTransport({
-          studentId,
-          studentName: `${student.firstName} ${student.lastName}`,
-          admissionNo: student.admissionNo,
-          routeId: options.newRouteId,
-          routeName: route?.routeName || 'New Route',
-          pickupPoint: pickup?.pickupName || 'New Pickup Point',
-          feePlan: 'Annual',
-          feeAmount: transportConfig?.feeAmount || 0,
-          effectiveFrom: new Date().toISOString().split('T')[0],
-          status: 'Active'
-        });
+
+        return updatedApp;
       }
-
-      // 3. Hostel Assignment copy/new
-      if (options.hostel === 'copy') {
-        const prevHostel = studentHostelAssignments.find(h => h.studentId === studentId && h.status === 'Active');
-        if (prevHostel) {
-          assignStudentHostelRoom({
-            studentId,
-            studentName: `${student.firstName} ${student.lastName}`,
-            admissionNo: student.admissionNo,
-            hostelId: prevHostel.hostelId,
-            hostelName: prevHostel.hostelName,
-            roomId: prevHostel.roomId,
-            roomNo: prevHostel.roomNo,
-            bedNo: prevHostel.bedNo,
-            joiningDate: new Date().toISOString().split('T')[0],
-            status: 'Active'
-          });
-        }
-      } else if (options.hostel === 'new' && options.newHostelId && options.newRoomId) {
-        const hostelObj = hostelMasters.find(h => h.id === options.newHostelId);
-        const roomObj = roomMasters.find(r => r.id === options.newRoomId);
-        assignStudentHostelRoom({
-          studentId,
-          studentName: `${student.firstName} ${student.lastName}`,
-          admissionNo: student.admissionNo,
-          hostelId: options.newHostelId,
-          hostelName: hostelObj?.hostelName || 'New Hostel',
-          roomId: options.newRoomId,
-          roomNo: roomObj?.roomNumber || 'New Room',
-          bedNo: 'Bed A',
-          joiningDate: new Date().toISOString().split('T')[0],
-          status: 'Active'
-        });
-      }
-
-      // 4. Update core Student record active fields
-      setStudents(prev => prev.map(s => {
-        if (s.id === studentId) {
-          const history = s.promotionHistory || [];
-          const histItem: PromotionHistoryItem = {
-            id: 'PH-' + Math.floor(100 + Math.random() * 900),
-            academicYear: fromYear,
-            fromClass: s.className || 'Class 10',
-            toClass: toClass,
-            fromSection: s.section || 'A',
-            toSection: toSection,
-            fromBranch: s.branch || 'Main Campus',
-            toBranch: s.branch || 'Main Campus',
-            date: new Date().toISOString().split('T')[0]
-          };
-          return {
-            ...s,
-            className: toClass,
-            section: toSection,
-            academicYear: toYear,
-            promotionHistory: [...history, histItem]
-          };
-         }
-         return s;
-      }));
-
-      // 5. Generate New Term Fee Ledger
-      setTimeout(() => generateStudentFeeLedger(studentId), 100);
-    });
-
-    logActivity('Promoted Students', `Promoted ${studentIds.length} students from ${fromYear} to ${toYear}`);
+      return app;
+    }));
   };
 
-  const graduateStudents = (studentIds: string[], notes = 'Graduated Course Completion') => {
-    studentIds.forEach(studentId => {
-      const student = students.find(s => s.id === studentId);
-      if (!student) return;
-
-      setStudentEnrollments(prev => prev.map(enr =>
-        (enr.studentId === studentId && enr.status === 'Active')
-          ? { ...enr, status: 'Graduated' as const, resultStatus: 'Passed' as const }
-          : enr
-      ));
-
-      setStudents(prev => prev.map(s => {
-        if (s.id === studentId) {
-          return {
-            ...s,
-            status: 'Graduated' as any,
-            remarks: notes
-          };
-        }
-        return s;
-      }));
+  const filterByBranch = <T,>(items: T[]): T[] => {
+    if (!selectedBranch) return items;
+    return items.filter(item => {
+      const anyItem = item as any;
+      if (anyItem.applicableBranches) {
+        return anyItem.applicableBranches.includes(selectedBranch);
+      }
+      if (!anyItem.branch || anyItem.branch === 'All Branches') return true;
+      return anyItem.branch === selectedBranch;
     });
-
-    logActivity('Graduated Students', `Graduated ${studentIds.length} student cohorts to alumni registry`);
   };
+
+  const filteredStudents = filterByBranch(students);
+  const filteredStaff = filterByBranch(staff);
+  const filteredAdmissions = filterByBranch(admissions);
+  const filteredClasses = filterByBranch(academicClasses);
+  const filteredSubjects = filterByBranch(subjects);
+  const filteredExams = filterByBranch(exams);
+  const filteredTimetable = filterByBranch(timetable);
+  const filteredHomework = filterByBranch(homework);
+  const filteredFeeStructures = filterByBranch(feeStructures);
+  const filteredFeePayments = filterByBranch(feePayments);
+  const filteredFeeHeads = filterByBranch(feeHeads);
+  const filteredDynamicFeeStructures = filterByBranch(dynamicFeeStructures);
+  const filteredStudentFeeAssignments = filterByBranch(studentFeeAssignments);
+  const filteredERPTransportRoutes = filterByBranch(erpTransportRoutes);
+  const filteredStudentTransports = filterByBranch(studentTransports);
+  const filteredHostelMasters = filterByBranch(hostelMasters);
+  const filteredStudentHostels = filterByBranch(studentHostels);
+  const filteredRefunds = filterByBranch(refunds);
+  const filteredRouteMasters = filterByBranch(routeMasters);
+  const filteredPickupPoints = filterByBranch(pickupPoints);
+  const filteredVehicleMasters = filterByBranch(vehicleMasters);
+  const filteredDriverMasters = filterByBranch(driverMasters);
+  const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
+  const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
+  const filteredUniformCategories = filterByBranch(uniformCategories);
+  const filteredUniformSizes = filterByBranch(uniformSizes);
+  const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
+  const filteredUniformInventory = filterByBranch(uniformInventory);
+  const filteredStudentUniformIssues = filterByBranch(studentUniformIssues);
+  const filteredFinanceUniformConfigs = filterByBranch(financeUniformConfigs);
+  const filteredLeaveApplications = filterByBranch(leaveApplications);
+  const filteredHolidays = filterByBranch(holidays);
+  const filteredPayslips = filterByBranch(payslips);
+
+  const filteredAttendance = attendance.filter(a => {
+    if (!selectedBranch) return true;
+    if (a.entityType === 'Student') {
+      const stud = students.find(s => s.id === a.entityId);
+      return stud ? stud.branch === selectedBranch : true;
+    } else {
+      const st = staff.find(s => s.id === a.entityId);
+      return st ? st.branch === selectedBranch : true;
+    }
+  });
+
+  const filteredBookIssues = bookIssues.filter(bi => {
+    if (!selectedBranch) return true;
+    if (bi.borrowerRole === 'Student') {
+      const stud = students.find(s => s.id === bi.borrowerId);
+      return stud ? stud.branch === selectedBranch : true;
+    } else {
+      const st = staff.find(s => s.id === bi.borrowerId);
+      return st ? st.branch === selectedBranch : true;
+    }
+  });
 
   return (
     <DataContext.Provider
       value={{
         schoolProfile, updateSchoolProfile,
-        students, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
-        staff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
-        admissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
-        academicClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
-        subjects, addSubject, updateSubject, deleteSubject,
+        students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
+        staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
+        admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
+        academicClasses: filteredClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
+        subjects: filteredSubjects, addSubject, updateSubject, deleteSubject,
         buses, addBus, updateBus, deleteBus,
         hostelBlocks, addHostelBlock, updateHostelBlock, deleteHostelBlock,
         hostelBeds, addHostelBed, updateHostelBed, deleteHostelBed,
         uniforms, addUniform, updateUniform, deleteUniform,
         customRoles, addCustomRole, updateCustomRole, deleteCustomRole,
-        feeStructures, addFeeStructure, updateFeeStructure, deleteFeeStructure,
-        feePayments, addFeePayment,
-        feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus,
-        dynamicFeeStructures, addDynamicFeeStructure, updateDynamicFeeStructure, deleteDynamicFeeStructure,
-        studentFeeAssignments, assignFeeStructure, bulkAssignFeeStructure, updateStudentFeeAssignment, removeStudentFeeAssignment,
+        feeStructures: filteredFeeStructures, addFeeStructure, updateFeeStructure, deleteFeeStructure,
+        feePayments: filteredFeePayments, addFeePayment,
+        feeHeads: filteredFeeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus,
+        dynamicFeeStructures: filteredDynamicFeeStructures, addDynamicFeeStructure, updateDynamicFeeStructure, deleteDynamicFeeStructure,
+        studentFeeAssignments: filteredStudentFeeAssignments, assignFeeStructure, bulkAssignFeeStructure, updateStudentFeeAssignment, removeStudentFeeAssignment,
         scholarships, addScholarship, updateScholarship, deleteScholarship,
         studentScholarships, assignScholarshipToStudent, revokeStudentScholarship,
         discounts, addDiscount, updateDiscount, deleteDiscount,
         studentDiscounts, assignDiscountToStudent, removeStudentDiscount,
         fineRules, addFineRule, updateFineRule, deleteFineRule,
-        erpTransportRoutes, addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute,
-        studentTransports, assignStudentTransport, removeStudentTransport,
-        hostelMasters, addHostelMaster, updateHostelMaster, deleteHostelMaster,
+        erpTransportRoutes: filteredERPTransportRoutes, addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute,
+        studentTransports: filteredStudentTransports, assignStudentTransport, removeStudentTransport,
+        hostelMasters: filteredHostelMasters, addHostelMaster, updateHostelMaster, deleteHostelMaster,
         roomTypeMasters, addRoomTypeMaster, updateRoomTypeMaster, deleteRoomTypeMaster,
         roomMasters, addRoomMaster, updateRoomMaster, deleteRoomMaster,
         studentHostelAssignments, assignStudentHostelRoom, updateStudentHostelAssignment, deleteStudentHostelAssignment,
         hostelVisitorLogs, addHostelVisitorLog, updateHostelVisitorLogStatus,
         hostelAttendanceLogs, recordHostelAttendance,
         financeHostelConfigs, addFinanceHostelConfig, updateFinanceHostelConfig, deleteFinanceHostelConfig,
-        studentHostels, assignStudentHostel, removeStudentHostel,
-        refunds, addRefund, updateRefundStatus,
+        studentHostels: filteredStudentHostels, assignStudentHostel, removeStudentHostel,
+        refunds: filteredRefunds, addRefund, updateRefundStatus,
         financeSettings, updateFinanceSettings,
         financeTransportConfigs, addFinanceTransportConfig, updateFinanceTransportConfig, deleteFinanceTransportConfig,
         studentFeeLedgers, generateStudentFeeLedger, recalculateStudentFeeLedger, getStudentFeeLedger,
         calculateStudentPayableFee,
         applyScholarshipToStudent, removeScholarshipFromStudent,
         applyDiscountToStudent, removeDiscountFromStudent,
-        routeMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster,
-        pickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
-        vehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,
-        driverMasters, addDriverMaster, updateDriverMaster, deleteDriverMaster,
-        vehicleAssignments, assignVehicleRouteDriver, removeVehicleAssignment,
-        vehicleMaintenances, addVehicleMaintenance, updateVehicleMaintenance, deleteVehicleMaintenance,
+        routeMasters: filteredRouteMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster,
+        pickupPoints: filteredPickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
+        vehicleMasters: filteredVehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,
+        driverMasters: filteredDriverMasters, addDriverMaster, updateDriverMaster, deleteDriverMaster,
+        vehicleAssignments: filteredVehicleAssignments, assignVehicleRouteDriver, removeVehicleAssignment,
+        vehicleMaintenances: filteredVehicleMaintenances, addVehicleMaintenance, updateVehicleMaintenance, deleteVehicleMaintenance,
         checkVehicleCapacity,
-        attendance, markAttendance,
-        exams, examMarks, addExam, updateExam, deleteExam, saveMarks,
-        timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
-        homework, addHomework, updateHomework, deleteHomework,
-        books, bookIssues, addBook, issueBook, returnBook,
+        attendance: filteredAttendance, markAttendance,
+        exams: filteredExams, examMarks, addExam, updateExam, deleteExam, saveMarks,
+        timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
+        homework: filteredHomework, addHomework, updateHomework, deleteHomework,
+        books, bookIssues: filteredBookIssues, addBook, issueBook, returnBook,
         transportRoutes, addTransportRoute,
         hostelRooms, inventory, addInventoryItem,
         announcements, addAnnouncement,
-        holidays, birthdays, auditLogs, logActivity,
+        holidays: filteredHolidays, birthdays, auditLogs, logActivity,
 
         // UNIFORM ERP MAPPINGS
-        uniformCategories, addUniformCategory, updateUniformCategory, deleteUniformCategory,
-        uniformSizes, addUniformSize, updateUniformSize, deleteUniformSize,
-        uniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier,
-        uniformInventory, addUniformInventory, updateUniformInventory, deleteUniformInventory,
-        studentUniformIssues, addStudentUniformIssue, updateStudentUniformIssue, deleteStudentUniformIssue,
-        financeUniformConfigs, addFinanceUniformConfig, updateFinanceUniformConfig, deleteFinanceUniformConfig,
+        uniformCategories: filteredUniformCategories, addUniformCategory, updateUniformCategory, deleteUniformCategory,
+        uniformSizes: filteredUniformSizes, addUniformSize, updateUniformSize, deleteUniformSize,
+        uniformSuppliers: filteredUniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier,
+        uniformInventory: filteredUniformInventory, addUniformInventory, updateUniformInventory, deleteUniformInventory,
+        studentUniformIssues: filteredStudentUniformIssues, addStudentUniformIssue, updateStudentUniformIssue, deleteStudentUniformIssue,
+        financeUniformConfigs: filteredFinanceUniformConfigs, addFinanceUniformConfig, updateFinanceUniformConfig, deleteFinanceUniformConfig,
 
-        // ACADEMIC YEAR & PROMOTION MAPPINGS
-        academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, activateAcademicYear, closeAcademicYear,
-        studentEnrollments, addStudentEnrollment, updateStudentEnrollment, deleteStudentEnrollment, promoteStudents, graduateStudents
+        // LEAVE MANAGEMENT ERP MAPPINGS
+        leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType,
+        leaveApplications: filteredLeaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
+        addHoliday, updateHoliday, deleteHoliday,
+        payslips: filteredPayslips, disburseSalary
       }}
     >
       {children}

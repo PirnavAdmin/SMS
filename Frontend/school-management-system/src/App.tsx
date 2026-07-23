@@ -13,6 +13,10 @@ import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordMod
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
 import { StaffList } from './components/modules/Staff/StaffList';
+import { LeaveManagementView } from './components/modules/Staff/LeaveManagementView';
+import { StaffAttendanceView } from './components/modules/Staff/StaffAttendanceView';
+import { StaffPayrollView } from './components/modules/Staff/StaffPayrollView';
+import { StaffPayslipView } from './components/modules/Staff/StaffPayslipView';
 import { AdmissionsView } from './components/modules/Admissions/AdmissionsView';
 import { AcademicsView } from './components/modules/Academics/AcademicsView';
 import { SubjectsView } from './components/modules/Academics/SubjectsView';
@@ -34,7 +38,6 @@ import { EventsView } from './components/modules/Events/EventsView';
 import { ReportsView } from './components/modules/Reports/ReportsView';
 import { UserManagementView } from './components/modules/UserManagement/UserManagementView';
 import { SettingsView } from './components/modules/Settings/SettingsView';
-import { AcademicYearContainerView } from './components/modules/Settings/AcademicYearContainerView';
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -64,10 +67,6 @@ const MainLayout: React.FC = () => {
       return <UniformContainerView initialTab={activeModule} />;
     }
 
-    if (activeModule.startsWith('acad-')) {
-      return <AcademicYearContainerView initialTab={activeModule} />;
-    }
-
     switch (activeModule) {
       case 'dashboard':
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
@@ -75,6 +74,18 @@ const MainLayout: React.FC = () => {
         return <StudentList />;
       case 'staff':
         return <StaffList />;
+      case 'staff-teachers':
+        return <StaffList key="teachers" initialCategory="Teacher" />;
+      case 'staff-directory':
+        return <StaffList key="staff" initialCategory="Staff" />;
+      case 'staff-attendance':
+        return <StaffAttendanceView />;
+      case 'staff-leave':
+        return <LeaveManagementView />;
+      case 'staff-payroll':
+        return <StaffPayrollView />;
+      case 'staff-payslips':
+        return <StaffPayslipView />;
       case 'admissions':
         return <AdmissionsView />;
       case 'academics':
