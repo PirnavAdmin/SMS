@@ -1,8 +1,9 @@
 import React from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { X, IndianRupee, CreditCard, Calendar, CheckCircle2, Printer } from 'lucide-react';
+import { X, IndianRupee, CreditCard, Calendar, CheckCircle2 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useToast } from '../../../context/ToastContext';
+import { useData } from '../../../context/DataContext';
 
 interface PayrollDrawerProps {
   staff: Staff | null;
@@ -12,6 +13,7 @@ interface PayrollDrawerProps {
 
 export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onClose }) => {
   const { addToast } = useToast();
+  const { leaveApplications } = useData();
 
   if (!isOpen || !staff) return null;
 
@@ -19,7 +21,15 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   const hra = Math.round(basicSalary * 0.2);
   const da = Math.round(basicSalary * 0.1);
   const pfDeduction = Math.round(basicSalary * 0.08);
-  const netSalary = basicSalary + hra + da - pfDeduction;
+
+  const lopApplications = (leaveApplications || []).filter(
+    app => app.employeeId === staff.id && app.status === 'Approved' && app.leaveTypeName === 'Loss of Pay'
+  );
+  const lopDays = lopApplications.reduce((sum, app) => sum + app.numberOfDays, 0);
+  const dailyWage = Math.round(basicSalary / 30);
+  const lopDeduction = lopDays * dailyWage;
+
+  const netSalary = Math.max(0, basicSalary + hra + da - pfDeduction - lopDeduction);
 
   const accountNumber = staff.bankDetails?.accountNumber || 'N/A';
 
@@ -56,6 +66,9 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
               <div className="flex justify-between"><span className="text-slate-500">House Rent Allowance (HRA 20%):</span><span className="font-semibold text-emerald-600">+{formatCurrency(hra)}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Dearness Allowance (DA 10%):</span><span className="font-semibold text-emerald-600">+{formatCurrency(da)}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Provident Fund Deduction (PF 8%):</span><span className="font-semibold text-rose-500">-{formatCurrency(pfDeduction)}</span></div>
+              {lopDays > 0 && (
+                <div className="flex justify-between"><span className="text-rose-500 font-semibold">Loss of Pay Deduction ({lopDays} days):</span><span className="font-semibold text-rose-500">-{formatCurrency(lopDeduction)}</span></div>
+              )}
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-black">
                 <span className="text-slate-900 dark:text-white">Net Salary Disbursal:</span>
                 <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(netSalary)}</span>
