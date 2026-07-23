@@ -109,12 +109,19 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Ensure database schema is up to date (Rename legacy 'UserType' column to 'Role' if present)
+    // Check if legacy 'UserType' column exists before attempting to rename it to 'Role'
     try
     {
-        context.Database.ExecuteSqlRaw("ALTER TABLE Users CHANGE COLUMN UserType Role VARCHAR(255) NOT NULL DEFAULT 'Admin';");
+        var hasUserTypeColumn = context.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS Value FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'Users' AND column_name = 'UserType'"
+        ).AsEnumerable().FirstOrDefault() > 0;
+
+        if (hasUserTypeColumn)
+        {
+            context.Database.ExecuteSqlRaw("ALTER TABLE Users CHANGE COLUMN UserType Role VARCHAR(255) NOT NULL DEFAULT 'Admin';");
+        }
     }
-    catch { /* Column already named 'Role' or fresh database */ }
+    catch { /* Ignore */ }
 
     context.Database.EnsureCreated();
 
