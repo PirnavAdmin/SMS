@@ -1,103 +1,119 @@
+namespace SMS.Api.Repositories.Implementations;
+
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-namespace SMS.Api.Repositories.Implementations
+public class SchoolRepository : ISchoolRepository
 {
-    public class SchoolRepository : ISchoolRepository
-    {
-        private readonly AppDbContext _context;
+	private readonly AppDbContext _context;
 
-        public SchoolRepository(AppDbContext context)
-        {
-            _context = context;
-        }
+	public SchoolRepository(AppDbContext context)
+	{
+		_context = context;
+	}
 
-        public async Task<IEnumerable<Subject>> GetAllSubjectsAsync() =>
-            await _context.Subjects.OrderByDescending(s => s.CreatedAt).ToListAsync();
+	// --- STAFF ---
+	public async Task<List<Staff>> GetAllStaffAsync(string? search, string? department)
+	{
+		var query = _context.Staff.AsNoTracking().AsQueryable();
 
-        public async Task<Subject?> GetSubjectByIdAsync(string id) =>
-            await _context.Subjects.FindAsync(id);
+		if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
+			query = query.Where(s => s.Department.ToLower() == department.ToLower());
 
-        public async Task AddSubjectAsync(Subject subject) =>
-            await _context.Subjects.AddAsync(subject);
+		if (!string.IsNullOrWhiteSpace(search))
+			query = query.Where(s => s.FirstName.Contains(search) || s.LastName.Contains(search) || s.EmployeeId.Contains(search));
 
-        public async Task UpdateSubjectAsync(Subject subject) =>
-            await Task.FromResult(_context.Subjects.Update(subject));
+		return await query.ToListAsync();
+	}
 
-        public async Task<IEnumerable<Staff>> GetStaffAsync(string? search, string? department)
-        {
-            var query = _context.Staff.AsQueryable();
+	public async Task<Staff?> GetStaffByIdAsync(int id) => await _context.Staff.FindAsync(id);
 
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(s => s.FirstName.Contains(search) || s.LastName.Contains(search) || s.EmpId.Contains(search));
-            }
+	public async Task<List<Staff>> GetTeachersForDropdownAsync(string? search)
+	{
+		var query = _context.Staff.AsNoTracking().Where(s => s.IsActive).AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(department) && department != "All Departments")
-            {
-                query = query.Where(s => s.Department == department);
-            }
+		if (!string.IsNullOrWhiteSpace(search))
+			query = query.Where(s => s.FirstName.Contains(search) || s.LastName.Contains(search) || s.EmployeeId.Contains(search));
 
-            return await query.OrderByDescending(s => s.CreatedAt).ToListAsync();
-        }
+		return await query.ToListAsync();
+	}
 
-        public async Task<Staff?> GetStaffByEmpIdAsync(string empId) =>
-            await _context.Staff.FindAsync(empId);
+	public async Task AddStaffAsync(Staff staff) => await _context.Staff.AddAsync(staff);
 
-        public async Task AddStaffAsync(Staff staff) =>
-            await _context.Staff.AddAsync(staff);
+	public void RemoveStaff(Staff staff) => _context.Staff.Remove(staff);
 
-        public async Task<IEnumerable<ClassGrade>> GetClassesWithDetailsAsync() =>
-            await _context.Classes
-                .Include(c => c.Sections)
-                    .ThenInclude(s => s.ClassTeacher)
-                .Include(c => c.CurriculumSubjects)
-                    .ThenInclude(cs => cs.Subject)
-                .ToListAsync();
+	// --- SUBJECTS ---
+	public async Task<List<Subject>> GetAllSubjectsAsync(string? search)
+	{
+		var query = _context.Subjects.AsNoTracking().AsQueryable();
 
-        public async Task AddClassGradeAsync(ClassGrade classGrade) =>
-            await _context.Classes.AddAsync(classGrade);
+		if (!string.IsNullOrWhiteSpace(search))
+			query = query.Where(s => s.SubjectName.Contains(search) || s.SubjectCode.Contains(search) || s.CourseCode.Contains(search));
 
-        public async Task AddSectionsAsync(IEnumerable<ClassSection> sections) =>
-            await _context.ClassSections.AddRangeAsync(sections);
+		return await query.ToListAsync();
+	}
 
-        public async Task AddCurriculumSubjectsAsync(IEnumerable<ClassCurriculumSubject> curriculumSubjects) =>
-            await _context.ClassCurriculumSubjects.AddRangeAsync(curriculumSubjects);
+	public async Task<Subject?> GetSubjectByIdAsync(int id) => await _context.Subjects.FindAsync(id);
 
-        public async Task<IEnumerable<AdmissionApplication>> GetAdmissionsAsync(string? search, string? status, string? appliedClass)
-        {
-            var query = _context.AdmissionApplications.AsQueryable();
+	public async Task AddSubjectAsync(Subject subject) => await _context.Subjects.AddAsync(subject);
 
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                query = query.Where(a => a.RegistrationNo.Contains(search) || a.ApplicantFullName.Contains(search) || a.FatherFullName.Contains(search));
-            }
+	public void RemoveSubject(Subject subject) => _context.Subjects.Remove(subject);
 
-            if (!string.IsNullOrWhiteSpace(status) && status != "All Status")
-            {
-                query = query.Where(a => a.Status == status);
-            }
+	// --- CLASS GRADES & SECTIONS ---
+	public async Task<List<ClassGrade>> GetAllClassGradesAsync()
+	{
+		return await _context.Classes
+			.AsNoTracking()
+			.Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
+			.Include(c => c.CurriculumSubjects).ThenInclude(cs => cs.Subject)
+			.ToListAsync();
+	}
 
-            if (!string.IsNullOrWhiteSpace(appliedClass) && appliedClass != "All Classes")
-            {
-                query = query.Where(a => a.AppliedClass == appliedClass);
-            }
+	public async Task<ClassGrade?> GetClassGradeByIdAsync(int id) =>
+		await _context.Classes
+			.Include(c => c.Sections)
+			.Include(c => c.CurriculumSubjects)
+			.FirstOrDefaultAsync(c => c.ClassId == id);
 
-            return await query.OrderByDescending(a => a.CreatedAt).ToListAsync();
-        }
+	public async Task AddClassGradeAsync(ClassGrade classGrade) => await _context.Classes.AddAsync(classGrade);
 
-        public async Task<AdmissionApplication?> GetAdmissionByRegistrationNoAsync(string registrationNo) =>
-            await _context.AdmissionApplications.FirstOrDefaultAsync(a => a.RegistrationNo == registrationNo);
+	public void RemoveClassGrade(ClassGrade classGrade) => _context.Classes.Remove(classGrade);
 
-        public async Task AddAdmissionApplicationAsync(AdmissionApplication application) =>
-            await _context.AdmissionApplications.AddAsync(application);
+	// --- ADMISSIONS ---
+	public async Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status)
+	{
+		var query = _context.AdmissionApplications
+			.AsNoTracking()
+			.Include(a => a.AppliedClass)
+			.AsQueryable();
 
-        public async Task UpdateAdmissionStatusAsync(AdmissionApplication application) =>
-            await Task.FromResult(_context.AdmissionApplications.Update(application));
+		if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
+			query = query.Where(a => a.BranchName.ToLower() == branch.ToLower());
 
-        public async Task<bool> SaveChangesAsync() =>
-            (await _context.SaveChangesAsync()) > 0;
-    }
+		if (classId.HasValue && classId.Value > 0)
+			query = query.Where(a => a.AppliedClassId == classId.Value);
+
+		if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All Status", System.StringComparison.OrdinalIgnoreCase))
+			query = query.Where(a => a.Status.ToLower() == status.ToLower());
+
+		if (!string.IsNullOrWhiteSpace(search))
+			query = query.Where(a => a.FirstName.Contains(search) || a.LastName.Contains(search) || a.RegistrationNo.Contains(search) || a.FatherName.Contains(search));
+
+		return await query.ToListAsync();
+	}
+
+	public async Task<AdmissionApplication?> GetApplicationByIdAsync(int id) =>
+		await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == id);
+
+	public async Task AddApplicationAsync(AdmissionApplication application) =>
+		await _context.AdmissionApplications.AddAsync(application);
+
+	public void RemoveApplication(AdmissionApplication application) => _context.AdmissionApplications.Remove(application);
+
+	public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 }

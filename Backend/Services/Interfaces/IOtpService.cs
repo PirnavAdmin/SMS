@@ -1,6 +1,7 @@
 namespace SMS.Api.Services.Interfaces;
 
 using SMS.Api.Dtos.Otp;
+using SMS.Api.Dtos;
 
 public interface IOtpService
 {

@@ -1,18 +1,20 @@
+namespace SMS.Api.Models;
+
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace SMS.Api.Models
+public class Subject
 {
-    public class Subject
-    {
-        [Key]
-        public string SubjectId { get; set; } = string.Empty;
+    [Key]
+    public int SubjectId { get; set; } // Changed to match SubjectId in bridge table
 
-        public string SubjectName { get; set; } = string.Empty;
-        public string? CourseCode { get; set; }
-        public bool Status { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    [Required]
+    public string SubjectCode { get; set; } = string.Empty;
 
-        public ICollection<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = new List<ClassCurriculumSubject>();
-    }
+    [Required]
+    public string SubjectName { get; set; } = string.Empty;
+
+    public string CourseCode { get; set; } = string.Empty;
+
+    public ICollection<ClassCurriculumSubject> CurriculumSubjects { get; set; } = new List<ClassCurriculumSubject>();
 }

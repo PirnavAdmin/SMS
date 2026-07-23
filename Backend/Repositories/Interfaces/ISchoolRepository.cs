@@ -1,28 +1,35 @@
+namespace SMS.Api.Repositories.Interfaces;
+
 using SMS.Api.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace SMS.Api.Repositories.Interfaces
+public interface ISchoolRepository
 {
-    public interface ISchoolRepository
-    {
-        Task<IEnumerable<Subject>> GetAllSubjectsAsync();
-        Task<Subject?> GetSubjectByIdAsync(string id);
-        Task AddSubjectAsync(Subject subject);
-        Task UpdateSubjectAsync(Subject subject);
+    // Staff Operations
+    Task<List<Staff>> GetAllStaffAsync(string? search, string? department);
+    Task<Staff?> GetStaffByIdAsync(int id);
+    Task<List<Staff>> GetTeachersForDropdownAsync(string? search);
+    Task AddStaffAsync(Staff staff);
+    void RemoveStaff(Staff staff);
 
-        Task<IEnumerable<Staff>> GetStaffAsync(string? search, string? department);
-        Task<Staff?> GetStaffByEmpIdAsync(string empId);
-        Task AddStaffAsync(Staff staff);
+    // Subject Operations
+    Task<List<Subject>> GetAllSubjectsAsync(string? search);
+    Task<Subject?> GetSubjectByIdAsync(int id);
+    Task AddSubjectAsync(Subject subject);
+    void RemoveSubject(Subject subject);
 
-        Task<IEnumerable<ClassGrade>> GetClassesWithDetailsAsync();
-        Task AddClassGradeAsync(ClassGrade classGrade);
-        Task AddSectionsAsync(IEnumerable<ClassSection> sections);
-        Task AddCurriculumSubjectsAsync(IEnumerable<ClassCurriculumSubject> curriculumSubjects);
+    // Class Grade & Section Operations
+    Task<List<ClassGrade>> GetAllClassGradesAsync();
+    Task<ClassGrade?> GetClassGradeByIdAsync(int id);
+    Task AddClassGradeAsync(ClassGrade classGrade);
+    void RemoveClassGrade(ClassGrade classGrade);
 
-        Task<IEnumerable<AdmissionApplication>> GetAdmissionsAsync(string? search, string? status, string? appliedClass);
-        Task<AdmissionApplication?> GetAdmissionByRegistrationNoAsync(string registrationNo);
-        Task AddAdmissionApplicationAsync(AdmissionApplication application);
-        Task UpdateAdmissionStatusAsync(AdmissionApplication application);
+    // Admissions Operations
+    Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status);
+    Task<AdmissionApplication?> GetApplicationByIdAsync(int id);
+    Task AddApplicationAsync(AdmissionApplication application);
+    void RemoveApplication(AdmissionApplication application);
 
-        Task<bool> SaveChangesAsync();
-    }
+    Task SaveChangesAsync();
 }

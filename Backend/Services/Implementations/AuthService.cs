@@ -41,7 +41,7 @@ namespace SMS.Api.Services.Implementations
                 Email = dto.Email,
                 MobileNumber = dto.MobileNumber,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                UserType = role.RoleName
+                Role = role.RoleName
             };
 
             user.Roles.Add(role);
@@ -71,16 +71,14 @@ namespace SMS.Api.Services.Implementations
         {
             var rolesList = new List<string>();
 
-            // 1. Check Roles collection
             if (user.Roles != null && user.Roles.Any())
             {
                 rolesList.AddRange(user.Roles.Select(r => r.RoleName));
             }
 
-            // 2. Fallback to UserType property
-            if (!rolesList.Any() && !string.IsNullOrEmpty(user.UserType))
+            if (!string.IsNullOrEmpty(user.Role))
             {
-                rolesList.Add(user.UserType);
+                rolesList.Add(user.Role);
             }
 
             return rolesList.Distinct().ToList();

@@ -2,6 +2,8 @@ namespace SMS.Api.Controllers.Auth;
 
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.Otp;
+using SMS.Api.Dtos;
+
 using SMS.Api.Services.Interfaces;
 
 [ApiController]

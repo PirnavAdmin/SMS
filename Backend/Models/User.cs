@@ -1,5 +1,8 @@
 namespace SMS.Api.Models;
 
+using System;
+using System.Collections.Generic;
+
 public class User
 {
     public int UserId { get; set; }
@@ -7,7 +10,7 @@ public class User
     public string? Email { get; set; }
     public string MobileNumber { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-    public string UserType { get; set; } = "General"; // Default value
+    public string Role { get; set; } = "Admin";
     public bool IsEmailVerified { get; set; } = false;
     public bool IsMobileVerified { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.Now;

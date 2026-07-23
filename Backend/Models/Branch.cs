@@ -1,15 +1,12 @@
+namespace SMS.Api.Models;
+
 using System.ComponentModel.DataAnnotations;
 
-namespace SMS.Api.Models
+public class Branch
 {
-	public class Branch
-	{
-		[Key]
-		public long BranchId { get; set; }
+	[Key]
+	public int BranchId { get; set; }
 
-		public string BranchCode { get; set; } = string.Empty;
-		public string BranchName { get; set; } = string.Empty;
-		public bool Status { get; set; } = true;
-		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-	}
+	[Required]
+	public string BranchName { get; set; } = string.Empty; // e.g., "Main Campus"
 }

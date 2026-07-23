@@ -1,56 +1,65 @@
+using System;
 using System.Net;
 using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using SMS.Api.Exceptions;
 
-namespace SMS.Api.Middleware
+namespace SMS.Api.Middleware;
+
+public class ExceptionMiddleware
 {
-    public class ExceptionMiddleware
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ExceptionMiddleware> _logger;
+
+    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
     {
-        private readonly RequestDelegate _next;
-        private readonly ILogger<ExceptionMiddleware> _logger;
+        _next = next;
+        _logger = logger;
+    }
 
-        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
         {
-            _next = next;
-            _logger = logger;
+            await _next(context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unhandled Exception: {Message}", ex.Message);
+            await HandleExceptionAsync(context, ex);
+        }
+    }
+
+    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    {
+        context.Response.ContentType = "application/json";
+
+        var statusCode = HttpStatusCode.InternalServerError;
+        var message = "An internal server error occurred.";
+
+        if (exception is AppException appEx)
+        {
+            statusCode = appEx.StatusCode;
+            message = appEx.Message;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        context.Response.StatusCode = (int)statusCode;
+
+        var response = new
         {
-            try
-            {
-                await _next(context);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Exception: {Message}", ex.Message);
-                await HandleExceptionAsync(context, ex);
-            }
-        }
+            success = false,
+            statusCode = (int)statusCode,
+            message = message,
+            timestamp = DateTime.UtcNow
+        };
 
-        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+        var jsonOptions = new JsonSerializerOptions
         {
-            context.Response.ContentType = "application/json";
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
 
-            var statusCode = HttpStatusCode.InternalServerError;
-            var message = "An internal server error occurred.";
-
-            if (exception is AppException appEx)
-            {
-                statusCode = appEx.StatusCode;
-                message = appEx.Message;
-            }
-
-            context.Response.StatusCode = (int)statusCode;
-
-            var response = new
-            {
-                StatusCode = context.Response.StatusCode,
-                Message = message,
-                Timestamp = DateTime.UtcNow
-            };
-
-            return context.Response.WriteAsync(JsonSerializer.Serialize(response));
-        }
+        return context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
     }
 }

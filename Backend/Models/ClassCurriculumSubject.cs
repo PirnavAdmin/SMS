@@ -1,17 +1,10 @@
-using System.ComponentModel.DataAnnotations.Schema;
+namespace SMS.Api.Models;
 
-namespace SMS.Api.Models
+public class ClassCurriculumSubject
 {
-    public class ClassCurriculumSubject
-    {
-        public long ClassId { get; set; }
-        public string SubjectId { get; set; } = string.Empty;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public int ClassId { get; set; }
+    public ClassGrade ClassGrade { get; set; } = null!;
 
-        [ForeignKey("ClassId")]
-        public ClassGrade? ClassGrade { get; set; }
-
-        [ForeignKey("SubjectId")]
-        public Subject? Subject { get; set; }
-    }
+    public int SubjectId { get; set; }
+    public Subject Subject { get; set; } = null!;
 }

@@ -1,22 +1,40 @@
+namespace SMS.Api.Services.Interfaces;
+
 using SMS.Api.Dtos;
-using SMS.Api.Models;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace SMS.Api.Services.Interfaces
+public interface ISchoolService
 {
-    public interface ISchoolService
-    {
-        Task<IEnumerable<Subject>> GetAllSubjectsAsync();
-        Task CreateSubjectAsync(CreateSubjectDto dto);
-        Task UpdateSubjectAsync(string id, UpdateSubjectDto dto);
+    // Staff Operations
+    Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department);
+    Task<StaffResponseDto> GetStaffByIdAsync(int id);
+    Task<List<StaffDropdownDto>> GetTeachersForDropdownAsync(string? search);
+    Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto);
+    Task<StaffResponseDto> UpdateStaffAsync(int id, StaffCreateDto dto);
+    Task<bool> DeleteStaffAsync(int id);
 
-        Task<IEnumerable<Staff>> GetStaffDirectoryAsync(string? search, string? department);
-        Task RegisterStaffAsync(RegisterStaffDto dto);
+    // Subject Operations
+    Task<List<SubjectDto>> GetAllSubjectsAsync(string? search);
+    Task<SubjectDto> GetSubjectByIdAsync(int id);
+    Task<List<SubjectDropdownDto>> GetSubjectsDropdownAsync(string? search);
+    Task<SubjectDto> CreateSubjectAsync(CreateSubjectDto dto);
+    Task<SubjectDto> UpdateSubjectAsync(int id, CreateSubjectDto dto);
+    Task<bool> DeleteSubjectAsync(int id);
 
-        Task<object> GetClassesOverviewAsync();
-        Task<long> CreateClassGradeAsync(CreateClassDto dto);
+    // Academic Class Operations
+    Task<List<ClassGradeResponseDto>> GetAllClassesAsync();
+    Task<ClassGradeResponseDto> GetClassByIdAsync(int id);
+    Task<bool> CreateClassGradeAsync(CreateClassGradeDto dto);
+    Task<bool> UpdateClassGradeAsync(int id, CreateClassGradeDto dto);
+    Task<bool> DeleteClassGradeAsync(int id);
 
-        Task<IEnumerable<AdmissionApplication>> GetAdmissionsAsync(string? search, string? status, string? appliedClass);
-        Task<string> SubmitAdmissionAsync(CreateAdmissionDto dto);
-        Task UpdateAdmissionStatusAsync(string registrationNo, string status);
-    }
+    // Admission Application Operations
+    Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status);
+    Task<AdmissionApplicationResponseDto> GetApplicationByIdAsync(int id);
+    Task<AdmissionApplicationResponseDto> SubmitApplicationAsync(SubmitAdmissionDto dto);
+    Task<AdmissionApplicationResponseDto> UpdateApplicationAsync(int id, SubmitAdmissionDto dto);
+    Task<bool> DeleteApplicationAsync(int id);
+    Task<bool> RejectApplicationAsync(int id);
+    Task<bool> EnrollStudentAsync(int id);
 }

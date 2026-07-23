@@ -17,15 +17,14 @@ namespace SMS.Api.Repositories.Implementations
             _context = context;
         }
 
-        // Replaces CALL sp_GetUserForLogin
         public async Task<User?> GetByIdentifierAsync(string identifier)
         {
             return await _context.Users
+                .AsNoTracking() // Bypasses EF Core local tracking cache
                 .Include(u => u.Roles)
                 .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
         }
 
-        // Replaces CALL sp_RegisterUser
         public async Task RegisterUserProcedureAsync(string fullName, string? email, string mobileNumber, string passwordHash, int roleId)
         {
             var role = await _context.Roles.FindAsync(roleId);
@@ -40,7 +39,7 @@ namespace SMS.Api.Repositories.Implementations
                 Email = email,
                 MobileNumber = mobileNumber,
                 PasswordHash = passwordHash,
-                UserType = role.RoleName,
+                Role = role.RoleName,
                 IsEmailVerified = false,
                 IsMobileVerified = false,
                 CreatedAt = DateTime.UtcNow
@@ -52,7 +51,6 @@ namespace SMS.Api.Repositories.Implementations
             await _context.SaveChangesAsync();
         }
 
-        // Replaces CALL sp_ResetPassword
         public async Task UpdatePasswordAsync(int userId, string newPasswordHash)
         {
             var user = await _context.Users.FindAsync(userId);
@@ -66,6 +64,7 @@ namespace SMS.Api.Repositories.Implementations
         public async Task<User?> GetByIdAsync(int userId)
         {
             return await _context.Users
+                .AsNoTracking()
                 .Include(u => u.Roles)
                 .FirstOrDefaultAsync(u => u.UserId == userId);
         }

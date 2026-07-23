@@ -1,21 +1,18 @@
+namespace SMS.Api.Models;
+
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SMS.Api.Models
+public class ClassGrade
 {
-	public class ClassGrade
-	{
-		[Key]
-		public long ClassId { get; set; }
+	[Key]
+	public int ClassId { get; set; }
 
-		public long? BranchId { get; set; }
-		public string ClassName { get; set; } = string.Empty;
-		public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	[Required]
+	public string ClassName { get; set; } = string.Empty;
 
-		[ForeignKey("BranchId")]
-		public Branch? Branch { get; set; }
-
-		public ICollection<ClassSection> Sections { get; set; } = new List<ClassSection>();
-		public ICollection<ClassCurriculumSubject> CurriculumSubjects { get; set; } = new List<ClassCurriculumSubject>();
-	}
+	// Navigation properties
+	public ICollection<ClassSection> Sections { get; set; } = new List<ClassSection>();
+	public ICollection<ClassCurriculumSubject> CurriculumSubjects { get; set; } = new List<ClassCurriculumSubject>();
+	public ICollection<AdmissionApplication> AdmissionApplications { get; set; } = new List<AdmissionApplication>();
 }
