@@ -135,6 +135,7 @@ export interface Staff {
   id: string;
   empId: string;
   employeeCategory?: 'Teacher' | 'Staff';
+  branch?: string;
   firstName: string;
   lastName: string;
   designation: string;

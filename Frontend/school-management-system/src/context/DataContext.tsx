@@ -38,6 +38,7 @@ import {
 } from '../services/mockData';
 import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 
 export interface AcademicClass {
   id: string;
@@ -398,6 +399,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
+  const { selectedBranch } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
@@ -588,6 +590,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           hostelBed: item.allocatedBedId,
           status: item.status,
           applicationDate: item.createdAt,
+          branch: item.branch || 'Main Campus',
         }));
         setAdmissions(mappedAdmissions);
       } else {
@@ -629,7 +632,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newStudent: Student = {
       ...stData,
       id,
-      branch: stData.branch || 'Main Campus',
+      branch: stData.branch || selectedBranch || 'Main Campus',
       studentType: stData.studentType || 'Day Scholar',
       promotionHistory: stData.promotionHistory || []
     };
@@ -692,7 +695,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Staff CRUD
   const addStaff = (staffData: Omit<Staff, 'id'>) => {
     const id = 'STF-' + Math.floor(100 + Math.random() * 900);
-    const newStaff: Staff = { ...staffData, id };
+    const newStaff: Staff = { ...staffData, id, branch: staffData.branch || selectedBranch || 'Main Campus' };
     setStaff(prev => [...prev, newStaff]);
     logActivity('Hired Staff Member', `Registered ${newStaff.firstName} ${newStaff.lastName}`);
   };
@@ -765,7 +768,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dropPoint: appData.dropPoint || "N/A",
         hostelBlock: appData.hostelBlock || "N/A",
         floorLevel: "N/A",
-        allocatedBedId: appData.hostelBed || "N/A"
+        allocatedBedId: appData.hostelBed || "N/A",
+        branch: appData.branch || selectedBranch || 'Main Campus'
       };
 
       const json = await createAdmissionApi(payload);
@@ -944,10 +948,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Academic Classes CRUD
   const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
     const id = 'CL-' + Math.floor(10 + Math.random() * 90);
-    const newCls: AcademicClass = { ...clsData, id };
+    const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
     setAcademicClasses(prev => [...prev, newCls]);
     logActivity('Created Academic Class', `Added ${newCls.name}`);
   };
@@ -968,8 +971,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const newSub: SubjectItem = {
       ...subjectData,
       id,
-      code: subjectData.code || subjectData.subjectId
-    };
+      code: subjectData.code || subjectData.subjectId,
+      branch: (subjectData as any).branch || selectedBranch || 'Main Campus'
+    } as any;
     setSubjects(prev => [...prev, newSub]);
     logActivity('Created Subject', `Added subject ${newSub.name} (${newSub.subjectId})`);
   };
@@ -987,7 +991,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Bus CRUD
   const addBus = (busData: Omit<Bus, 'id'>) => {
     const id = 'BUS-' + Math.floor(10 + Math.random() * 90);
-    const newBus: Bus = { ...busData, id };
+    const newBus: Bus = { ...busData, id, branch: (busData as any).branch || selectedBranch || 'Main Campus' } as any;
     setBuses(prev => [...prev, newBus]);
     logActivity('Added Bus', `Registered Bus ${newBus.busNumber} (${newBus.routeName})`);
   };
@@ -1062,10 +1066,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCustomRoles(prev => prev.filter(r => r.id !== id));
   };
 
-  // Fee Structures CRUD
   const addFeeStructure = (feeStruct: Omit<FeeStructure, 'id'>) => {
     const id = 'FEE-' + Math.floor(100 + Math.random() * 900);
-    const newStruct: FeeStructure = { ...feeStruct, id };
+    const newStruct: FeeStructure = { ...feeStruct, id, branch: (feeStruct as any).branch || selectedBranch || 'Main Campus' } as any;
     setFeeStructures(prev => [...prev, newStruct]);
     logActivity('Configured Fee Structure', `Added fee structure for ${newStruct.className} (${newStruct.term})`);
   };
@@ -1082,7 +1085,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addFeePayment = (paymentData: Omit<FeePayment, 'id' | 'receiptNo'>): FeePayment => {
     const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
     const receiptNo = financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
-    const newPayment: FeePayment = { ...paymentData, id, receiptNo };
+    const newPayment: FeePayment = { ...paymentData, id, receiptNo, branch: (paymentData as any).branch || selectedBranch || 'Main Campus' } as any;
     setFeePayments(prev => [newPayment, ...prev]);
 
     setStudents(prev => prev.map(s => {
@@ -1120,7 +1123,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 1. Fee Heads CRUD
   const addFeeHead = (head: Omit<FeeHead, 'id'>) => {
     const id = 'FH-' + Math.floor(100 + Math.random() * 900);
-    const newHead: FeeHead = { ...head, id };
+    const newHead: FeeHead = {
+      ...head,
+      id,
+      applicableBranches: head.applicableBranches && head.applicableBranches.length > 0
+        ? head.applicableBranches
+        : [selectedBranch || 'Main Campus']
+    };
     setFeeHeads(prev => [...prev, newHead]);
     logActivity('Created Fee Head', `Added ${newHead.name} (${newHead.code})`);
   };
@@ -1142,7 +1151,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 2. Dynamic Fee Structures CRUD
   const addDynamicFeeStructure = (dfs: Omit<DynamicFeeStructure, 'id'>) => {
     const id = 'DFS-' + Math.floor(100 + Math.random() * 900);
-    const newDfs: DynamicFeeStructure = { ...dfs, id };
+    const newDfs: DynamicFeeStructure = { ...dfs, id, branch: dfs.branch || selectedBranch || 'Main Campus' };
     setDynamicFeeStructures(prev => [...prev, newDfs]);
     logActivity('Created Dynamic Fee Structure', `Added structure for ${newDfs.className}`);
   };
@@ -1169,7 +1178,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       studentId: st.id,
       studentName: `${st.firstName} ${st.lastName}`,
       admissionNo: st.admissionNo,
-      branch: st.branch || 'Main Campus',
+      branch: st.branch || selectedBranch || 'Main Campus',
       academicYear: dfs.academicYear,
       className: st.className,
       section: st.section,
@@ -1297,7 +1306,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 7. Transport Routes CRUD
   const addERPTransportRoute = (route: Omit<ERPTransportRoute, 'id'>) => {
     const id = 'TRP-' + Math.floor(100 + Math.random() * 900);
-    const newRoute: ERPTransportRoute = { ...route, id };
+    const newRoute: ERPTransportRoute = { ...route, id, branch: (route as any).branch || selectedBranch || 'Main Campus' } as any;
     setERPTransportRoutes(prev => [...prev, newRoute]);
   };
 
@@ -1312,7 +1321,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 8. Student Transport Assignment
   const assignStudentTransport = (st: Omit<StudentTransport, 'id'>) => {
     const id = 'STRP-' + Math.floor(100 + Math.random() * 900);
-    const newAssignment: StudentTransport = { ...st, id };
+    const newAssignment: StudentTransport = { ...st, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
     setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
     logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
 
@@ -1330,7 +1339,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 9. Hostel Masters CRUD
   const addHostelMaster = (h: Omit<HostelMaster, 'id'>) => {
     const id = 'HM-' + Math.floor(100 + Math.random() * 900);
-    const newHostel: HostelMaster = { ...h, id };
+    const newHostel: HostelMaster = { ...h, id, branch: (h as any).branch || selectedBranch || 'Main Campus' } as any;
     setHostelMasters(prev => [...prev, newHostel]);
     logActivity('Added Hostel Master', `Created hostel ${newHostel.hostelName}`);
   };
@@ -1362,7 +1371,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Room Master CRUD
   const addRoomMaster = (rmData: Omit<RoomMaster, 'id'>) => {
     const id = 'RM-' + Math.floor(100 + Math.random() * 900);
-    const newRm: RoomMaster = { ...rmData, id };
+    const newRm: RoomMaster = { ...rmData, id, branch: (rmData as any).branch || selectedBranch || 'Main Campus' } as any;
     setRoomMasters(prev => [newRm, ...prev]);
     logActivity('Added Room Master', `Created room #${newRm.roomNumber} in ${newRm.hostelName}`);
   };
@@ -1430,7 +1439,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 10. Student Hostel Assignment
   const assignStudentHostel = (sh: Omit<StudentHostel, 'id'>) => {
     const id = 'SHST-' + Math.floor(100 + Math.random() * 900);
-    const newAssignment: StudentHostel = { ...sh, id };
+    const newAssignment: StudentHostel = { ...sh, id, branch: (sh as any).branch || selectedBranch || 'Main Campus' } as any;
     setStudentHostels(prev => [...prev.filter(h => h.studentId !== sh.studentId), newAssignment]);
     logActivity('Assigned Hostel', `Assigned ${sh.hostelName} Room ${sh.roomNo} to ${sh.studentName}`);
 
@@ -1449,7 +1458,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addRefund = (r: Omit<Refund, 'id' | 'refundNo'>) => {
     const id = 'RFD-' + Math.floor(100 + Math.random() * 900);
     const refundNo = 'RF-2026-' + Math.floor(1000 + Math.random() * 9000);
-    const newRefund: Refund = { ...r, id, refundNo };
+    const newRefund: Refund = { ...r, id, refundNo, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
     setRefunds(prev => [newRefund, ...prev]);
     logActivity('Requested Refund', `Created refund request ${refundNo} for ${formatCurrency(r.amount)}`);
   };
@@ -1467,7 +1476,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 13. FINANCE -> TRANSPORT CONFIGURATION CRUD
   const addFinanceTransportConfig = (c: Omit<FinanceTransportConfig, 'id'>) => {
     const id = 'FTC-' + Math.floor(100 + Math.random() * 900);
-    const newConfig: FinanceTransportConfig = { ...c, id };
+    const newConfig: FinanceTransportConfig = { ...c, id, branch: (c as any).branch || selectedBranch || 'Main Campus' } as any;
     setFinanceTransportConfigs(prev => [...prev, newConfig]);
     logActivity('Created Transport Pricing Config', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
   };
@@ -1733,7 +1742,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addRouteMaster = (r: Omit<RouteMaster, 'id'>) => {
     const id = 'RM-' + Math.floor(100 + Math.random() * 900);
-    const newRoute: RouteMaster = { ...r, id };
+    const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
     setRouteMasters(prev => [...prev, newRoute]);
     logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
   };
@@ -1750,7 +1759,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addPickupPoint = (p: Omit<PickupPoint, 'id'>) => {
     const id = 'PP-' + Math.floor(100 + Math.random() * 900);
-    const newPt: PickupPoint = { ...p, id };
+    const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
     setPickupPoints(prev => [...prev, newPt]);
     logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
   };
@@ -1765,7 +1774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addVehicleMaster = (v: Omit<VehicleMaster, 'id'>) => {
     const id = 'VM-' + Math.floor(100 + Math.random() * 900);
-    const newVehicle: VehicleMaster = { ...v, id };
+    const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
     setVehicleMasters(prev => [...prev, newVehicle]);
     logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
   };
@@ -1780,7 +1789,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addDriverMaster = (d: Omit<DriverMaster, 'id'>) => {
     const id = 'DRV-' + Math.floor(100 + Math.random() * 900);
-    const newDriver: DriverMaster = { ...d, id };
+    const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
     setDriverMasters(prev => [...prev, newDriver]);
     logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
   };
@@ -1795,7 +1804,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const assignVehicleRouteDriver = (va: Omit<VehicleAssignment, 'id'>) => {
     const id = 'VA-' + Math.floor(100 + Math.random() * 900);
-    const newAssign: VehicleAssignment = { ...va, id };
+    const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
     setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
     logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
   };
@@ -1806,7 +1815,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addVehicleMaintenance = (vm: Omit<VehicleMaintenance, 'id'>) => {
     const id = 'VMN-' + Math.floor(100 + Math.random() * 900);
-    const newMaint: VehicleMaintenance = { ...vm, id };
+    const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
     setVehicleMaintenances(prev => [newMaint, ...prev]);
     logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
   };
@@ -2130,7 +2139,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addExam = (examData: Omit<ExamSetup, 'id'>) => {
     const id = 'EXM-' + Math.floor(10 + Math.random() * 90);
-    const newExam: ExamSetup = { ...examData, id };
+    const newExam: ExamSetup = { ...examData, id, branch: (examData as any).branch || selectedBranch || 'Main Campus' } as any;
     setExams(prev => [...prev, newExam]);
     logActivity('Created Examination', `Scheduled ${newExam.name}`);
   };
@@ -2161,7 +2170,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addTimetableSlot = (slotData: Omit<TimetableSlot, 'id'>) => {
     const id = 'TT-' + Math.floor(100 + Math.random() * 900);
-    const newSlot: TimetableSlot = { ...slotData, id };
+    const newSlot: TimetableSlot = { ...slotData, id, branch: (slotData as any).branch || selectedBranch || 'Main Campus' } as any;
     setTimetable(prev => [...prev, newSlot]);
   };
 
@@ -2175,7 +2184,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addHomework = (hwData: Omit<Homework, 'id'>) => {
     const id = 'HW-' + Math.floor(100 + Math.random() * 900);
-    const newHw: Homework = { ...hwData, id };
+    const newHw: Homework = { ...hwData, id, branch: (hwData as any).branch || selectedBranch || 'Main Campus' } as any;
     setHomework(prev => [newHw, ...prev]);
     logActivity('Posted Homework', `Assigned ${newHw.title} for ${newHw.className}`);
   };
@@ -2251,7 +2260,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform category CRUD
   const addUniformCategory = (cData: Omit<UniformCategory, 'id'>) => {
     const id = 'UC-' + Math.floor(10 + Math.random() * 90);
-    setUniformCategories(prev => [...prev, { ...cData, id }]);
+    setUniformCategories(prev => [...prev, { ...cData, id, branch: (cData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformCategory = (id: string, updates: Partial<UniformCategory>) => {
     setUniformCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
@@ -2263,7 +2272,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform sizes CRUD
   const addUniformSize = (sData: Omit<UniformSize, 'id'>) => {
     const id = 'US-' + Math.floor(10 + Math.random() * 90);
-    setUniformSizes(prev => [...prev, { ...sData, id }]);
+    setUniformSizes(prev => [...prev, { ...sData, id, branch: (sData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformSize = (id: string, updates: Partial<UniformSize>) => {
     setUniformSizes(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
@@ -2275,7 +2284,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform suppliers CRUD
   const addUniformSupplier = (sData: Omit<UniformSupplier, 'id'>) => {
     const id = 'SUP-' + Math.floor(10 + Math.random() * 90);
-    setUniformSuppliers(prev => [...prev, { ...sData, id }]);
+    setUniformSuppliers(prev => [...prev, { ...sData, id, branch: (sData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformSupplier = (id: string, updates: Partial<UniformSupplier>) => {
     setUniformSuppliers(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
@@ -2287,7 +2296,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Uniform inventory CRUD
   const addUniformInventory = (iData: Omit<UniformInventoryItem, 'id'>) => {
     const id = 'UINV-' + Math.floor(10 + Math.random() * 90);
-    setUniformInventory(prev => [...prev, { ...iData, id }]);
+    setUniformInventory(prev => [...prev, { ...iData, id, branch: (iData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
   const updateUniformInventory = (id: string, updates: Partial<UniformInventoryItem>) => {
     setUniformInventory(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
@@ -2299,7 +2308,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Student Uniform issues CRUD
   const addStudentUniformIssue = (issueData: Omit<StudentUniformIssue, 'id'>) => {
     const id = 'UIS-' + Math.floor(10 + Math.random() * 90);
-    setStudentUniformIssues(prev => [...prev, { ...issueData, id }]);
+    setStudentUniformIssues(prev => [...prev, { ...issueData, id, branch: issueData.branch || selectedBranch || 'Main Campus' }]);
 
     // Reduce stock if issued
     if (issueData.status === 'Issued' || issueData.status === 'Replaced') {
@@ -2338,7 +2347,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Finance Uniform configurations CRUD
   const addFinanceUniformConfig = (cData: Omit<FinanceUniformConfig, 'id'>) => {
     const id = 'FUC-' + Math.floor(10 + Math.random() * 90);
-    setFinanceUniformConfigs(prev => [...prev, { ...cData, id }]);
+    setFinanceUniformConfigs(prev => [...prev, { ...cData, id, branch: cData.branch || selectedBranch || 'Main Campus' }]);
   };
   const updateFinanceUniformConfig = (id: string, updates: Partial<FinanceUniformConfig>) => {
     setFinanceUniformConfigs(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
@@ -2362,7 +2371,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Leave Applications CRUD
   const addLeaveApplication = (appData: Omit<LeaveApplication, 'id'>) => {
     const id = 'LAP-' + Math.floor(10 + Math.random() * 90);
-    setLeaveApplications(prev => [...prev, { ...appData, id }]);
+    setLeaveApplications(prev => [...prev, { ...appData, id, branch: appData.branch || selectedBranch || 'Main Campus' }]);
   };
   const updateLeaveApplication = (id: string, updates: Partial<LeaveApplication>) => {
     setLeaveApplications(prev => prev.map(app => app.id === id ? { ...app, ...updates } : app));
@@ -2374,7 +2383,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Holiday CRUD
   const addHoliday = (hData: Omit<Holiday, 'id'>) => {
     const id = 'HOL-' + Math.floor(100 + Math.random() * 900);
-    setHolidays(prev => [...prev, { ...hData, id }]);
+    setHolidays(prev => [...prev, { ...hData, id, branch: hData.branch || selectedBranch || 'Main Campus' }]);
   };
   const updateHoliday = (id: string, updates: Partial<Holiday>) => {
     setHolidays(prev => prev.map(h => h.id === id ? { ...h, ...updates } : h));
@@ -2386,7 +2395,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Payslip handler
   const disburseSalary = (pData: Omit<Payslip, 'id'>) => {
     const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
-    setPayslips(prev => [...prev, { ...pData, id }]);
+    setPayslips(prev => [...prev, { ...pData, id, branch: (pData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
 
   // Leave Application Status Engine
@@ -2458,77 +2467,145 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
   };
 
+  const filterByBranch = <T,>(items: T[]): T[] => {
+    if (!selectedBranch) return items;
+    return items.filter(item => {
+      const anyItem = item as any;
+      if (anyItem.applicableBranches) {
+        return anyItem.applicableBranches.includes(selectedBranch);
+      }
+      if (!anyItem.branch || anyItem.branch === 'All Branches') return true;
+      return anyItem.branch === selectedBranch;
+    });
+  };
+
+  const filteredStudents = filterByBranch(students);
+  const filteredStaff = filterByBranch(staff);
+  const filteredAdmissions = filterByBranch(admissions);
+  const filteredClasses = filterByBranch(academicClasses);
+  const filteredSubjects = filterByBranch(subjects);
+  const filteredExams = filterByBranch(exams);
+  const filteredTimetable = filterByBranch(timetable);
+  const filteredHomework = filterByBranch(homework);
+  const filteredFeeStructures = filterByBranch(feeStructures);
+  const filteredFeePayments = filterByBranch(feePayments);
+  const filteredFeeHeads = filterByBranch(feeHeads);
+  const filteredDynamicFeeStructures = filterByBranch(dynamicFeeStructures);
+  const filteredStudentFeeAssignments = filterByBranch(studentFeeAssignments);
+  const filteredERPTransportRoutes = filterByBranch(erpTransportRoutes);
+  const filteredStudentTransports = filterByBranch(studentTransports);
+  const filteredHostelMasters = filterByBranch(hostelMasters);
+  const filteredStudentHostels = filterByBranch(studentHostels);
+  const filteredRefunds = filterByBranch(refunds);
+  const filteredRouteMasters = filterByBranch(routeMasters);
+  const filteredPickupPoints = filterByBranch(pickupPoints);
+  const filteredVehicleMasters = filterByBranch(vehicleMasters);
+  const filteredDriverMasters = filterByBranch(driverMasters);
+  const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
+  const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
+  const filteredUniformCategories = filterByBranch(uniformCategories);
+  const filteredUniformSizes = filterByBranch(uniformSizes);
+  const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
+  const filteredUniformInventory = filterByBranch(uniformInventory);
+  const filteredStudentUniformIssues = filterByBranch(studentUniformIssues);
+  const filteredFinanceUniformConfigs = filterByBranch(financeUniformConfigs);
+  const filteredLeaveApplications = filterByBranch(leaveApplications);
+  const filteredHolidays = filterByBranch(holidays);
+  const filteredPayslips = filterByBranch(payslips);
+
+  const filteredAttendance = attendance.filter(a => {
+    if (!selectedBranch) return true;
+    if (a.entityType === 'Student') {
+      const stud = students.find(s => s.id === a.entityId);
+      return stud ? stud.branch === selectedBranch : true;
+    } else {
+      const st = staff.find(s => s.id === a.entityId);
+      return st ? st.branch === selectedBranch : true;
+    }
+  });
+
+  const filteredBookIssues = bookIssues.filter(bi => {
+    if (!selectedBranch) return true;
+    if (bi.borrowerRole === 'Student') {
+      const stud = students.find(s => s.id === bi.borrowerId);
+      return stud ? stud.branch === selectedBranch : true;
+    } else {
+      const st = staff.find(s => s.id === bi.borrowerId);
+      return st ? st.branch === selectedBranch : true;
+    }
+  });
+
   return (
     <DataContext.Provider
       value={{
         schoolProfile, updateSchoolProfile,
-        students, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
-        staff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
-        admissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
-        academicClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
-        subjects, addSubject, updateSubject, deleteSubject,
+        students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
+        staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
+        admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
+        academicClasses: filteredClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
+        subjects: filteredSubjects, addSubject, updateSubject, deleteSubject,
         buses, addBus, updateBus, deleteBus,
         hostelBlocks, addHostelBlock, updateHostelBlock, deleteHostelBlock,
         hostelBeds, addHostelBed, updateHostelBed, deleteHostelBed,
         uniforms, addUniform, updateUniform, deleteUniform,
         customRoles, addCustomRole, updateCustomRole, deleteCustomRole,
-        feeStructures, addFeeStructure, updateFeeStructure, deleteFeeStructure,
-        feePayments, addFeePayment,
-        feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus,
-        dynamicFeeStructures, addDynamicFeeStructure, updateDynamicFeeStructure, deleteDynamicFeeStructure,
-        studentFeeAssignments, assignFeeStructure, bulkAssignFeeStructure, updateStudentFeeAssignment, removeStudentFeeAssignment,
+        feeStructures: filteredFeeStructures, addFeeStructure, updateFeeStructure, deleteFeeStructure,
+        feePayments: filteredFeePayments, addFeePayment,
+        feeHeads: filteredFeeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus,
+        dynamicFeeStructures: filteredDynamicFeeStructures, addDynamicFeeStructure, updateDynamicFeeStructure, deleteDynamicFeeStructure,
+        studentFeeAssignments: filteredStudentFeeAssignments, assignFeeStructure, bulkAssignFeeStructure, updateStudentFeeAssignment, removeStudentFeeAssignment,
         scholarships, addScholarship, updateScholarship, deleteScholarship,
         studentScholarships, assignScholarshipToStudent, revokeStudentScholarship,
         discounts, addDiscount, updateDiscount, deleteDiscount,
         studentDiscounts, assignDiscountToStudent, removeStudentDiscount,
         fineRules, addFineRule, updateFineRule, deleteFineRule,
-        erpTransportRoutes, addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute,
-        studentTransports, assignStudentTransport, removeStudentTransport,
-        hostelMasters, addHostelMaster, updateHostelMaster, deleteHostelMaster,
+        erpTransportRoutes: filteredERPTransportRoutes, addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute,
+        studentTransports: filteredStudentTransports, assignStudentTransport, removeStudentTransport,
+        hostelMasters: filteredHostelMasters, addHostelMaster, updateHostelMaster, deleteHostelMaster,
         roomTypeMasters, addRoomTypeMaster, updateRoomTypeMaster, deleteRoomTypeMaster,
         roomMasters, addRoomMaster, updateRoomMaster, deleteRoomMaster,
         studentHostelAssignments, assignStudentHostelRoom, updateStudentHostelAssignment, deleteStudentHostelAssignment,
         hostelVisitorLogs, addHostelVisitorLog, updateHostelVisitorLogStatus,
         hostelAttendanceLogs, recordHostelAttendance,
         financeHostelConfigs, addFinanceHostelConfig, updateFinanceHostelConfig, deleteFinanceHostelConfig,
-        studentHostels, assignStudentHostel, removeStudentHostel,
-        refunds, addRefund, updateRefundStatus,
+        studentHostels: filteredStudentHostels, assignStudentHostel, removeStudentHostel,
+        refunds: filteredRefunds, addRefund, updateRefundStatus,
         financeSettings, updateFinanceSettings,
         financeTransportConfigs, addFinanceTransportConfig, updateFinanceTransportConfig, deleteFinanceTransportConfig,
         studentFeeLedgers, generateStudentFeeLedger, recalculateStudentFeeLedger, getStudentFeeLedger,
         calculateStudentPayableFee,
         applyScholarshipToStudent, removeScholarshipFromStudent,
         applyDiscountToStudent, removeDiscountFromStudent,
-        routeMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster,
-        pickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
-        vehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,
-        driverMasters, addDriverMaster, updateDriverMaster, deleteDriverMaster,
-        vehicleAssignments, assignVehicleRouteDriver, removeVehicleAssignment,
-        vehicleMaintenances, addVehicleMaintenance, updateVehicleMaintenance, deleteVehicleMaintenance,
+        routeMasters: filteredRouteMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster,
+        pickupPoints: filteredPickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
+        vehicleMasters: filteredVehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,
+        driverMasters: filteredDriverMasters, addDriverMaster, updateDriverMaster, deleteDriverMaster,
+        vehicleAssignments: filteredVehicleAssignments, assignVehicleRouteDriver, removeVehicleAssignment,
+        vehicleMaintenances: filteredVehicleMaintenances, addVehicleMaintenance, updateVehicleMaintenance, deleteVehicleMaintenance,
         checkVehicleCapacity,
-        attendance, markAttendance,
-        exams, examMarks, addExam, updateExam, deleteExam, saveMarks,
-        timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
-        homework, addHomework, updateHomework, deleteHomework,
-        books, bookIssues, addBook, issueBook, returnBook,
+        attendance: filteredAttendance, markAttendance,
+        exams: filteredExams, examMarks, addExam, updateExam, deleteExam, saveMarks,
+        timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
+        homework: filteredHomework, addHomework, updateHomework, deleteHomework,
+        books, bookIssues: filteredBookIssues, addBook, issueBook, returnBook,
         transportRoutes, addTransportRoute,
         hostelRooms, inventory, addInventoryItem,
         announcements, addAnnouncement,
-        holidays, birthdays, auditLogs, logActivity,
+        holidays: filteredHolidays, birthdays, auditLogs, logActivity,
 
         // UNIFORM ERP MAPPINGS
-        uniformCategories, addUniformCategory, updateUniformCategory, deleteUniformCategory,
-        uniformSizes, addUniformSize, updateUniformSize, deleteUniformSize,
-        uniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier,
-        uniformInventory, addUniformInventory, updateUniformInventory, deleteUniformInventory,
-        studentUniformIssues, addStudentUniformIssue, updateStudentUniformIssue, deleteStudentUniformIssue,
-        financeUniformConfigs, addFinanceUniformConfig, updateFinanceUniformConfig, deleteFinanceUniformConfig,
+        uniformCategories: filteredUniformCategories, addUniformCategory, updateUniformCategory, deleteUniformCategory,
+        uniformSizes: filteredUniformSizes, addUniformSize, updateUniformSize, deleteUniformSize,
+        uniformSuppliers: filteredUniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier,
+        uniformInventory: filteredUniformInventory, addUniformInventory, updateUniformInventory, deleteUniformInventory,
+        studentUniformIssues: filteredStudentUniformIssues, addStudentUniformIssue, updateStudentUniformIssue, deleteStudentUniformIssue,
+        financeUniformConfigs: filteredFinanceUniformConfigs, addFinanceUniformConfig, updateFinanceUniformConfig, deleteFinanceUniformConfig,
 
         // LEAVE MANAGEMENT ERP MAPPINGS
         leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType,
-        leaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
+        leaveApplications: filteredLeaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
         addHoliday, updateHoliday, deleteHoliday,
-        payslips, disburseSalary
+        payslips: filteredPayslips, disburseSalary
       }}
     >
       {children}
