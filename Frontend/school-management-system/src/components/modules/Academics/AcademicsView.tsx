@@ -26,7 +26,7 @@ const TeacherSearchSelect: React.FC<TeacherSearchSelectProps> = ({ value, onChan
   });
 
   return (
-    <div className="relative inline-block text-left w-full sm:w-64">
+    <div className="relative inline-block text-left w-full">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -426,24 +426,28 @@ export const AcademicsView: React.FC = () => {
                   return (
                     <div
                       key={s}
-                      className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex items-center justify-between gap-2 w-full text-xs"
                     >
                       {/* SINGLE Section Label */}
-                      <span className="px-3 py-1.5 rounded-xl bg-brand-600 text-white font-black text-xs shadow-sm w-max">
+                      <span className="px-3 py-1.5 rounded-xl bg-brand-600 text-white font-black text-xs shadow-sm whitespace-nowrap shrink-0">
                         Section {s}
                       </span>
 
                       {/* Dropdown Alignment & Searchable Teacher Select */}
-                      <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-                        <span className="text-[11px] font-bold text-slate-400 shrink-0 hidden sm:inline">Class Teacher:</span>
-                        <TeacherSearchSelect
-                          value={currentTeacher}
-                          onChange={teacherName => handleAssignSectionTeacher(cl.id, s, teacherName)}
-                          staff={staff}
-                        />
+                      <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 shrink-0 hidden 2xl:inline whitespace-nowrap">
+                          Class Teacher:
+                        </span>
+                        <div className="flex-1 max-w-[220px] min-w-[120px]">
+                          <TeacherSearchSelect
+                            value={currentTeacher}
+                            onChange={teacherName => handleAssignSectionTeacher(cl.id, s, teacherName)}
+                            staff={staff}
+                          />
+                        </div>
                         <button
                           onClick={() => handleDeleteSection(cl.id, s)}
-                          className="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors shrink-0"
+                          className="p-1.5 sm:p-2 rounded-xl text-rose-500 hover:bg-rose-100 dark:hover:bg-rose-950/60 transition-colors shrink-0"
                           title={`Delete Section ${s}`}
                         >
                           <Trash2 className="w-4 h-4" />

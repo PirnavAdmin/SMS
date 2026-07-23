@@ -41,11 +41,33 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenC
     'Teacher', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'
   ];
 
-  const branches = ['Main Campus', 'North Branch', 'West Campus'];
+  const getAuthorizedBranches = (currentRole: string, userBranch?: string) => {
+    if (currentRole === 'Super Admin' || currentRole === 'Admin') {
+      return ['Main Campus', 'North Branch', 'West Campus'];
+    }
+    if (currentRole === 'Principal') {
+      return [userBranch || 'North Branch'];
+    }
+    if (currentRole === 'Accountant') {
+      return ['Main Campus'];
+    }
+    if (currentRole === 'Teacher') {
+      return ['West Campus'];
+    }
+    return [userBranch || 'Main Campus'];
+  };
+
+  const authorizedBranches = getAuthorizedBranches(role, user?.branch);
+
+  useEffect(() => {
+    if (authorizedBranches.length > 0 && !authorizedBranches.includes(selectedBranch)) {
+      setSelectedBranch(authorizedBranches[0]);
+    }
+  }, [role, user?.branch, selectedBranch, authorizedBranches]);
 
   return (
     <header
-      className={`fixed top-0 right-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between px-4 sm:px-6 ${
+      className={`fixed top-0 right-0 z-50 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between px-4 sm:px-6 ${
         collapsed ? 'left-20' : 'left-64'
       }`}
     >
@@ -59,23 +81,35 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenC
           <span className="truncate">Search system (Ctrl+K)...</span>
         </button>
 
-        {/* Global Branch Selector for Admin / Principal */}
-        {(role === 'Admin' || role === 'Super Admin' || role === 'Principal') && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold">
+        {/* Global Branch Selector with Permissions */}
+        {authorizedBranches.length > 1 ? (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold animate-in fade-in">
             <Building2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Branch:</span>
             <select
               value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
+              onChange={e => {
+                const targetVal = e.target.value;
+                if (authorizedBranches.includes(targetVal)) {
+                  setSelectedBranch(targetVal);
+                }
+              }}
               className="bg-transparent border-none outline-none font-bold cursor-pointer text-indigo-900 dark:text-indigo-200 text-xs"
             >
-              {branches.map(b => (
+              {authorizedBranches.map(b => (
                 <option key={b} value={b} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
                   {b}
                 </option>
               ))}
             </select>
           </div>
+        ) : (
+          authorizedBranches.length === 1 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold animate-in fade-in">
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Branch: {authorizedBranches[0]}</span>
+            </div>
+          )
         )}
 
         {/* Real-time Clock */}

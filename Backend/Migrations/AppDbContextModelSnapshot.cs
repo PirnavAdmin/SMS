@@ -23,135 +23,246 @@ namespace Backend.Migrations
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("SMS.Api.Models.AcademicClass", b =>
+            modelBuilder.Entity("SMS.Api.Models.AcademicClassGrade", b =>
                 {
                     b.Property<int>("Id")
+                    b.Property<long>("ClassGradeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("class_grade_id");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("ClassGradeId"));
 
                     b.Property<string>("ClassName")
+                    b.Property<string>("ClassGradeName")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("class_grade_name");
 
                     b.HasKey("Id");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
 
                     b.ToTable("AcademicClass");
                 });
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
 
             modelBuilder.Entity("SMS.Api.Models.AdmissionApplication", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("display_order");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("AlternateMobileNumber")
                         .HasColumnType("longtext");
+                    b.Property<bool>("Status")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("status");
 
                     b.Property<int>("AppliedClassId")
                         .HasColumnType("int");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
 
                     b.Property<string>("AreaLocality")
                         .HasColumnType("longtext");
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
 
                     b.Property<string>("AvailableBed")
                         .HasColumnType("longtext");
+                    b.HasKey("ClassGradeId");
 
                     b.Property<string>("BloodGroup")
                         .HasColumnType("longtext");
+                    b.ToTable("academic_class_grades");
+                });
 
                     b.Property<string>("BranchName")
                         .IsRequired()
                         .HasColumnType("longtext");
+            modelBuilder.Entity("SMS.Api.Models.AcademicClassSubject", b =>
+                {
+                    b.Property<long>("ClassSubjectId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("class_subject_id");
 
                     b.Property<string>("BusRoute")
                         .HasColumnType("longtext");
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("ClassSubjectId"));
 
                     b.Property<string>("Caste")
                         .HasColumnType("longtext");
+                    b.Property<long>("ClassGradeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("class_grade_id");
 
                     b.Property<string>("City")
                         .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
 
                     b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("datetime(6)");
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
 
                     b.Property<string>("Discount")
                         .HasColumnType("longtext");
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("District")
                         .HasColumnType("longtext");
+                    b.Property<long>("SubjectId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("subject_id");
 
                     b.Property<string>("DropPoint")
                         .HasColumnType("longtext");
+                    b.HasKey("ClassSubjectId");
 
                     b.Property<string>("ExistingSiblingLookup")
                         .HasColumnType("longtext");
+                    b.HasIndex("ClassGradeId");
 
                     b.Property<string>("FatherContact")
                         .IsRequired()
                         .HasColumnType("longtext");
+                    b.ToTable("academic_class_subjects");
+                });
 
                     b.Property<string>("FatherName")
                         .IsRequired()
                         .HasColumnType("longtext");
+            modelBuilder.Entity("SMS.Api.Models.AcademicSection", b =>
+                {
+                    b.Property<long>("SectionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("section_id");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("longtext");
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("SectionId"));
 
                     b.Property<string>("FloorLevel")
                         .HasColumnType("longtext");
+                    b.Property<long>("ClassGradeId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("class_grade_id");
 
                     b.Property<string>("Gender")
                         .IsRequired()
                         .HasColumnType("longtext");
+                    b.Property<long>("ClassTeacherId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("class_teacher_id");
 
                     b.Property<string>("HostelBlock")
                         .HasColumnType("longtext");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
 
                     b.Property<string>("HostelRoom")
                         .HasColumnType("longtext");
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
 
                     b.Property<string>("HouseNo")
                         .HasColumnType("longtext");
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("display_order");
 
                     b.Property<string>("LastName")
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("SectionName")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("section_name");
 
                     b.Property<string>("MotherMobileNumber")
                         .HasColumnType("longtext");
+                    b.Property<bool>("Status")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("status");
 
                     b.Property<string>("MotherName")
                         .HasColumnType("longtext");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
 
                     b.Property<int>("NumberOfSiblings")
                         .HasColumnType("int");
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
 
                     b.Property<string>("ParentEmail")
                         .HasColumnType("longtext");
+                    b.HasKey("SectionId");
 
                     b.Property<string>("PickupPoint")
                         .HasColumnType("longtext");
+                    b.HasIndex("ClassGradeId");
 
                     b.Property<string>("PinCode")
                         .HasColumnType("longtext");
+                    b.ToTable("academic_sections");
+                });
 
                     b.Property<string>("ProfilePhotoUrl")
                         .HasColumnType("longtext");
+            modelBuilder.Entity("SMS.Api.Models.Admission", b =>
+                {
+                    b.Property<long>("AdmissionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("admission_id");
 
                     b.Property<string>("RegistrationNo")
                         .IsRequired()
                         .HasColumnType("longtext");
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("AdmissionId"));
 
                     b.Property<string>("Religion")
                         .HasColumnType("longtext");
+                    b.Property<string>("AdmissionType")
+                        .HasColumnType("longtext")
+                        .HasColumnName("admission_type");
 
                     b.Property<string>("Scholarship")
                         .HasColumnType("longtext");
@@ -160,110 +271,221 @@ namespace Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("Status")
+                    b.Property<string>("ApplicationNo")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasColumnType("longtext")
+                        .HasColumnName("application_no");
 
                     b.Property<string>("Street")
                         .HasColumnType("longtext");
+                    b.Property<string>("BloodGroup")
+                        .HasColumnType("longtext")
+                        .HasColumnName("blood_group");
 
                     b.Property<bool>("TransportRequired")
                         .HasColumnType("tinyint(1)");
+                    b.Property<long>("BranchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("branch_id");
 
                     b.Property<string>("TransportType")
                         .HasColumnType("longtext");
+                    b.Property<string>("Caste")
+                        .HasColumnType("longtext")
+                        .HasColumnName("caste");
 
                     b.HasKey("Id");
+                    b.Property<long>("ClassId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("class_id");
 
                     b.HasIndex("AppliedClassId");
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
 
                     b.ToTable("AdmissionApplications");
                 });
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_date");
 
             modelBuilder.Entity("SMS.Api.Models.Branch", b =>
                 {
                     b.Property<int>("BranchId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                    b.Property<DateTime?>("Dob")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("dob");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("BranchId"));
+                    b.Property<string>("FatherMobile")
+                        .HasColumnType("longtext")
+                        .HasColumnName("father_mobile");
 
                     b.Property<string>("BranchName")
                         .IsRequired()
                         .HasColumnType("longtext");
+                    b.Property<string>("FatherName")
+                        .HasColumnType("longtext")
+                        .HasColumnName("father_name");
 
                     b.HasKey("BranchId");
+                    b.Property<string>("Gender")
+                        .HasColumnType("longtext")
+                        .HasColumnName("gender");
 
                     b.ToTable("Branches");
                 });
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
 
             modelBuilder.Entity("SMS.Api.Models.ClassCurriculumSubject", b =>
                 {
                     b.Property<int>("ClassId")
                         .HasColumnType("int");
+                    b.Property<long?>("ModifiedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("modified_by");
 
                     b.Property<int>("SubjectId")
                         .HasColumnType("int");
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("modified_date");
 
                     b.Property<int>("ClassGradeClassId")
                         .HasColumnType("int");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("status");
 
                     b.HasKey("ClassId", "SubjectId");
+                    b.Property<string>("StudentName")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("student_name");
 
                     b.HasIndex("ClassGradeClassId");
+                    b.HasKey("AdmissionId");
 
                     b.HasIndex("SubjectId");
 
                     b.ToTable("ClassCurriculumSubjects");
+                    b.ToTable("admissions");
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassGrade", b =>
+            modelBuilder.Entity("SMS.Api.Models.Branch", b =>
                 {
                     b.Property<int>("ClassId")
+                    b.Property<long>("BranchId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("branch_id");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ClassId"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("BranchId"));
 
                     b.Property<string>("ClassName")
+                    b.Property<string>("Address")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("address");
 
                     b.HasKey("ClassId");
+                    b.Property<string>("BranchName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("branch_name");
 
                     b.ToTable("Classes");
                 });
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("city");
 
             modelBuilder.Entity("SMS.Api.Models.ClassSection", b =>
                 {
                     b.Property<int>("SectionId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                    b.Property<string>("ContactNumber")
+                        .IsRequired()
+                        .HasMaxLength(15)
+                        .HasColumnType("varchar(15)")
+                        .HasColumnName("contact_number");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("SectionId"));
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
 
                     b.Property<int>("ClassGradeClassId")
                         .HasColumnType("int");
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_date");
 
                     b.Property<int>("ClassId")
                         .HasColumnType("int");
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("email");
 
                     b.Property<int?>("ClassTeacherEmpId")
                         .HasColumnType("int");
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("SectionName")
                         .IsRequired()
                         .HasColumnType("varchar(255)");
+                    b.Property<long?>("ModifiedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("modified_by");
 
                     b.HasKey("SectionId");
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("modified_date");
 
                     b.HasIndex("ClassGradeClassId");
+                    b.Property<string>("Pincode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("pincode");
 
                     b.HasIndex("ClassTeacherEmpId");
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("state");
 
                     b.HasIndex("ClassId", "SectionName")
                         .IsUnique();
+                    b.Property<bool>("Status")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("status");
 
                     b.ToTable("ClassSections");
+                    b.HasKey("BranchId");
+
+                    b.ToTable("branches");
                 });
 
             modelBuilder.Entity("SMS.Api.Models.OtpVerification", b =>
@@ -308,6 +530,76 @@ namespace Backend.Migrations
                     b.ToTable("OtpVerifications");
                 });
 
+            modelBuilder.Entity("SMS.Api.Models.PickupPoint", b =>
+                {
+                    b.Property<long>("PickupPointId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("pickup_point_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("PickupPointId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<decimal>("DistanceFromStart")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("distance_from_start");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Landmark")
+                        .HasMaxLength(250)
+                        .HasColumnType("varchar(250)")
+                        .HasColumnName("landmark");
+
+                    b.Property<string>("PickupPointName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("pickup_point_name");
+
+                    b.Property<TimeSpan>("PickupTime")
+                        .HasColumnType("time(6)")
+                        .HasColumnName("pickup_time");
+
+                    b.Property<long>("RouteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("route_id");
+
+                    b.Property<int>("SequenceNo")
+                        .HasColumnType("int")
+                        .HasColumnName("sequence_no");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("PickupPointId");
+
+                    b.HasIndex("RouteId", "PickupPointName");
+
+                    b.HasIndex("RouteId", "SequenceNo");
+
+                    b.ToTable("transport_pickup_points", (string)null);
+                });
+
             modelBuilder.Entity("SMS.Api.Models.Role", b =>
                 {
                     b.Property<int>("RoleId")
@@ -329,109 +621,517 @@ namespace Backend.Migrations
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Section", b =>
+            modelBuilder.Entity("SMS.Api.Models.StudentTransportAssignment", b =>
                 {
                     b.Property<int>("SectionId")
+                    b.Property<long>("StudentTransportAssignmentId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("student_transport_assignment_id");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("SectionId"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("StudentTransportAssignmentId"));
 
                     b.Property<int>("AcademicClassId")
                         .HasColumnType("int");
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
 
                     b.Property<int?>("ClassTeacherId")
                         .HasColumnType("int");
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
 
                     b.Property<string>("SectionName")
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<long>("PickupPointId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("pickup_point_id");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("remarks");
+
+                    b.Property<long>("RouteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("route_id");
+
+                    b.Property<bool>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("status");
+
+                    b.Property<long>("StudentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("student_id");
+
+                    b.Property<string>("TransportType")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("transport_type");
 
                     b.HasKey("SectionId");
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
 
                     b.HasIndex("AcademicClassId");
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
 
                     b.HasIndex("ClassTeacherId");
+                    b.Property<long>("VehicleAssignmentId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("vehicle_assignment_id");
 
                     b.ToTable("Section");
+                    b.HasKey("StudentTransportAssignmentId");
+
+                    b.HasIndex("PickupPointId");
+
+                    b.HasIndex("RouteId");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("VehicleAssignmentId");
+
+                    b.HasIndex("StudentId", "EffectiveFrom", "EffectiveTo");
+
+                    b.HasIndex("RouteId", "PickupPointId", "VehicleAssignmentId", "Status", "IsDeleted");
+
+                    b.ToTable("student_transport_assignments");
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Staff", b =>
+            modelBuilder.Entity("SMS.Api.Models.TransportDriver", b =>
                 {
                     b.Property<int>("StaffId")
+                    b.Property<long>("DriverId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("driver_id");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("StaffId"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("DriverId"));
 
                     b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("datetime(6)");
+                    b.Property<string>("Address")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("address");
 
                     b.Property<string>("Department")
+                    b.Property<string>("AlternateMobileNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("alternate_mobile_number");
+
+                    b.Property<string>("BloodGroup")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("blood_group");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DriverName")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("driver_name");
+
+                    b.Property<string>("EmergencyContactName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("emergency_contact_name");
+
+                    b.Property<string>("EmergencyContactNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("emergency_contact_number");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<DateTime?>("LicenceExpiry")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("licence_expiry");
 
                     b.Property<string>("Designation")
+                    b.Property<string>("LicenceNumber")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("licence_number");
 
                     b.Property<string>("Email")
+                    b.Property<string>("MobileNumber")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("mobile_number");
+
+                    b.Property<bool>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("DriverId");
+
+                    b.HasIndex("LicenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("MobileNumber");
+
+                    b.ToTable("transport_drivers");
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.TransportRoute", b =>
+                {
+                    b.Property<long>("RouteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("route_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("RouteId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("description");
+
+                    b.Property<decimal>("DistanceKm")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("distance_km");
 
                     b.Property<string>("EmployeeId")
+                    b.Property<string>("EndLocation")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("end_location");
+
+                    b.Property<int>("EstimatedDurationMinutes")
+                        .HasColumnType("int")
+                        .HasColumnName("estimated_duration_minutes");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("FirstName")
+                    b.Property<string>("RouteCode")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(30)
+                        .HasColumnType("varchar(30)")
+                        .HasColumnName("route_code");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("tinyint(1)");
+                    b.Property<string>("RouteName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("route_name");
 
                     b.Property<string>("LastName")
+                    b.Property<string>("StartLocation")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("start_location");
+
+                    b.Property<bool>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("RouteId");
 
                     b.Property<decimal>("MonthlySalary")
                         .HasColumnType("decimal(65,30)");
+                    b.HasIndex("RouteCode")
+                        .IsUnique()
+                        .HasDatabaseName("ux_transport_routes_route_code");
 
                     b.Property<string>("Phone")
                         .HasColumnType("longtext");
+                    b.HasIndex("RouteName")
+                        .IsUnique()
+                        .HasDatabaseName("ux_transport_routes_route_name");
 
                     b.HasKey("StaffId");
+                    b.HasIndex("Status", "IsDeleted")
+                        .HasDatabaseName("ix_transport_routes_status_is_deleted");
 
                     b.ToTable("Staff");
+                    b.ToTable("transport_routes", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Subject", b =>
+            modelBuilder.Entity("SMS.Api.Models.TransportVehicle", b =>
                 {
                     b.Property<int>("SubjectId")
+                    b.Property<long>("VehicleId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+                        .HasColumnType("bigint")
+                        .HasColumnName("vehicle_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("VehicleId"));
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int")
+                        .HasColumnName("capacity");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("FitnessExpiry")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("fitness_expiry");
+
+                    b.Property<DateTime?>("InsuranceExpiry")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("insurance_expiry");
+
+                    b.Property<string>("InsuranceNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("insurance_number");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Manufacturer")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("manufacturer");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("model");
+
+                    b.Property<DateTime?>("PollutionExpiry")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("pollution_expiry");
+
+                    b.Property<string>("RegistrationNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("registration_number");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("status");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("SubjectId"));
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
 
                     b.Property<int?>("AcademicClassId")
                         .HasColumnType("int");
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
 
                     b.Property<string>("CourseCode")
+                    b.Property<string>("VehicleName")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("vehicle_name");
 
                     b.Property<string>("SubjectCode")
+                    b.Property<string>("VehicleNumber")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("vehicle_number");
 
                     b.Property<string>("SubjectName")
+                    b.Property<string>("VehicleType")
                         .IsRequired()
                         .HasColumnType("longtext");
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("vehicle_type");
+
+                    b.HasKey("VehicleId");
+
+                    b.HasIndex("RegistrationNumber")
+                        .IsUnique();
+
+                    b.HasIndex("VehicleNumber")
+                        .IsUnique();
+
+                    b.ToTable("transport_vehicles", (string)null);
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.TransportVehicleAssignment", b =>
+                {
+                    b.Property<long>("AssignmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("assignment_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("AssignmentId"));
+
+                    b.Property<DateTime>("AssignmentDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("assignment_date");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<long>("DriverId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("driver_id");
+
+                    b.Property<DateTime>("EffectiveFrom")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("effective_from");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("effective_to");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("remarks");
+
+                    b.Property<long>("RouteId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("route_id");
+
+                    b.Property<string>("Shift")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("shift");
+
+                    b.Property<bool>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long>("VehicleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("vehicle_id");
+
+                    b.HasKey("AssignmentId");
+
+                    b.HasIndex("DriverId");
+
+                    b.HasIndex("RouteId");
+
+                    b.HasIndex("VehicleId");
 
                     b.HasKey("SubjectId");
+                    b.HasIndex("RouteId", "VehicleId", "DriverId", "EffectiveFrom");
 
                     b.HasIndex("AcademicClassId");
+                    b.HasIndex("VehicleId", "DriverId", "RouteId", "Status", "IsDeleted");
 
                     b.ToTable("Subjects");
+                    b.ToTable("transport_vehicle_assignments");
                 });
 
             modelBuilder.Entity("SMS.Api.Models.User", b =>
@@ -478,6 +1178,131 @@ namespace Backend.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("SMS.Api.Models.VehicleMaintenance", b =>
+                {
+                    b.Property<long>("MaintenanceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("maintenance_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("MaintenanceId"));
+
+                    b.Property<decimal>("Cost")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(12, 2)
+                        .HasColumnType("decimal(12,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cost");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<DateTime?>("NextServiceDue")
+                        .HasColumnType("date")
+                        .HasColumnName("next_service_due");
+
+                    b.Property<string>("Remarks")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("remarks");
+
+                    b.Property<DateTime>("ServiceDate")
+                        .HasColumnType("date")
+                        .HasColumnName("service_date");
+
+                    b.Property<string>("ServiceType")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("service_type");
+
+                    b.Property<bool>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true)
+                        .HasColumnName("status");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint")
+                        .HasColumnName("updated_by");
+
+                    b.Property<long>("VehicleId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("vehicle_id");
+
+                    b.Property<string>("VendorCenter")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)")
+                        .HasColumnName("vendor_center");
+
+                    b.HasKey("MaintenanceId");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("IX_VehicleMaintenance_VehicleId");
+
+                    b.HasIndex("VehicleId", "ServiceDate", "IsDeleted")
+                        .HasDatabaseName("IX_VehMaint_Vehicle_ServiceDate_Deleted");
+
+                    b.ToTable("transport_vehicle_maintenance", (string)null);
+                });
+
+            modelBuilder.Entity("Subject", b =>
+                {
+                    b.Property<long>("SubjectId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("SubjectId"));
+
+                    b.Property<string>("CourseCode")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<long>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<long?>("ModifiedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("SubjectCode")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("SubjectName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("SubjectId");
+
+                    b.ToTable("Subjects");
+                });
+
             modelBuilder.Entity("UserRoles", b =>
                 {
                     b.Property<int>("RoleId")
@@ -505,6 +1330,7 @@ namespace Backend.Migrations
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassCurriculumSubject", b =>
+            modelBuilder.Entity("SMS.Api.Models.AcademicClassSubject", b =>
                 {
                     b.HasOne("SMS.Api.Models.ClassGrade", "ClassGrade")
                         .WithMany("CurriculumSubjects")
@@ -515,6 +1341,9 @@ namespace Backend.Migrations
                     b.HasOne("SMS.Api.Models.Subject", "Subject")
                         .WithMany("CurriculumSubjects")
                         .HasForeignKey("SubjectId")
+                    b.HasOne("SMS.Api.Models.AcademicClassGrade", "ClassGrade")
+                        .WithMany("ClassSubjects")
+                        .HasForeignKey("ClassGradeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -524,10 +1353,13 @@ namespace Backend.Migrations
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassSection", b =>
+            modelBuilder.Entity("SMS.Api.Models.AcademicSection", b =>
                 {
                     b.HasOne("SMS.Api.Models.ClassGrade", "ClassGrade")
+                    b.HasOne("SMS.Api.Models.AcademicClassGrade", "ClassGrade")
                         .WithMany("Sections")
                         .HasForeignKey("ClassGradeClassId")
+                        .HasForeignKey("ClassGradeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -553,27 +1385,93 @@ namespace Backend.Migrations
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Section", b =>
+            modelBuilder.Entity("SMS.Api.Models.PickupPoint", b =>
+                {
+                    b.HasOne("SMS.Api.Models.TransportRoute", "TransportRoute")
+                        .WithMany()
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TransportRoute");
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.StudentTransportAssignment", b =>
+                {
+                    b.HasOne("SMS.Api.Models.PickupPoint", "PickupPoint")
+                        .WithMany()
+                        .HasForeignKey("PickupPointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SMS.Api.Models.TransportRoute", "Route")
+                        .WithMany()
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SMS.Api.Models.TransportVehicleAssignment", "VehicleAssignment")
+                        .WithMany()
+                        .HasForeignKey("VehicleAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PickupPoint");
+
+                    b.Navigation("Route");
+
+                    b.Navigation("VehicleAssignment");
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.TransportVehicleAssignment", b =>
                 {
                     b.HasOne("SMS.Api.Models.AcademicClass", "AcademicClass")
                         .WithMany("Sections")
                         .HasForeignKey("AcademicClassId")
                         .OnDelete(DeleteBehavior.Cascade)
+                    b.HasOne("SMS.Api.Models.TransportDriver", "Driver")
+                        .WithMany()
+                        .HasForeignKey("DriverId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SMS.Api.Models.TransportRoute", "Route")
+                        .WithMany()
+                        .HasForeignKey("RouteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SMS.Api.Models.TransportVehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("SMS.Api.Models.Staff", "ClassTeacher")
                         .WithMany("SectionsTaught")
                         .HasForeignKey("ClassTeacherId");
+                    b.Navigation("Driver");
 
                     b.Navigation("AcademicClass");
+                    b.Navigation("Route");
 
                     b.Navigation("ClassTeacher");
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Subject", b =>
+            modelBuilder.Entity("SMS.Api.Models.VehicleMaintenance", b =>
                 {
                     b.HasOne("SMS.Api.Models.AcademicClass", null)
                         .WithMany("Subjects")
                         .HasForeignKey("AcademicClassId");
+                    b.HasOne("SMS.Api.Models.TransportVehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("UserRoles", b =>
@@ -599,10 +1497,12 @@ namespace Backend.Migrations
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassGrade", b =>
+            modelBuilder.Entity("SMS.Api.Models.AcademicClassGrade", b =>
                 {
                     b.Navigation("AdmissionApplications");
 
                     b.Navigation("CurriculumSubjects");
+                    b.Navigation("ClassSubjects");
 
                     b.Navigation("Sections");
                 });

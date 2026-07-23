@@ -12,7 +12,7 @@ import {
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
-  AcademicYear, StudentEnrollment
+  LeaveType, LeaveApplication, Payslip
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
@@ -115,6 +115,7 @@ export const initialStaff: Staff[] = [
   {
     id: "STF-001",
     empId: "EMP001",
+    employeeCategory: "Staff",
     firstName: "Dr. Eleanor",
     lastName: "Vance",
     designation: "Principal",
@@ -149,6 +150,7 @@ export const initialStaff: Staff[] = [
   {
     id: "STF-002",
     empId: "EMP002",
+    employeeCategory: "Teacher",
     firstName: "Jonathan",
     lastName: "Miller",
     designation: "Senior Teacher",
@@ -986,11 +988,39 @@ export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [
   }
 ];
 
-export const initialAcademicYears: AcademicYear[] = [
-  { id: 'AY-01', name: '2025-2026', startDate: '2025-06-01', endDate: '2026-04-30', status: 'Active' },
-  { id: 'AY-02', name: '2026-2027', startDate: '2026-06-01', endDate: '2027-04-30', status: 'Upcoming' },
-  { id: 'AY-03', name: '2024-2025', startDate: '2024-06-01', endDate: '2025-04-30', status: 'Closed' }
+export const initialLeaveTypes: LeaveType[] = [
+  { id: 'LT-01', name: 'Casual Leave', code: 'CL', annualAllowance: 10, carryForward: false, maxConsecutiveDays: 3, requiresAttachment: false, isPaid: true, status: 'Active' },
+  { id: 'LT-02', name: 'Sick Leave', code: 'SL', annualAllowance: 12, carryForward: true, maxConsecutiveDays: 5, requiresAttachment: true, isPaid: true, status: 'Active' },
+  { id: 'LT-03', name: 'Earned Leave', code: 'EL', annualAllowance: 15, carryForward: true, maxConsecutiveDays: 10, requiresAttachment: false, isPaid: true, status: 'Active' },
+  { id: 'LT-04', name: 'Maternity Leave', code: 'ML', annualAllowance: 90, carryForward: false, maxConsecutiveDays: 90, requiresAttachment: true, isPaid: true, status: 'Active' },
+  { id: 'LT-05', name: 'Paternity Leave', code: 'PL', annualAllowance: 15, carryForward: false, maxConsecutiveDays: 15, requiresAttachment: true, isPaid: true, status: 'Active' },
+  { id: 'LT-06', name: 'Loss of Pay', code: 'LOP', annualAllowance: 0, carryForward: false, maxConsecutiveDays: 30, requiresAttachment: false, isPaid: false, status: 'Active' }
 ];
+
+export const initialLeaveApplications: LeaveApplication[] = [
+  {
+    id: 'LAP-01',
+    employeeId: 'STF-002',
+    employeeName: 'Jonathan Miller',
+    empId: 'EMP002',
+    department: 'Mathematics',
+    designation: 'Senior Teacher',
+    branch: 'Main Campus',
+    employeeCategory: 'Teacher',
+    leaveTypeId: 'LT-01',
+    leaveTypeName: 'Casual Leave',
+    fromDate: '2026-07-28',
+    toDate: '2026-07-29',
+    isHalfDay: false,
+    numberOfDays: 2,
+    reason: 'Family function at hometown',
+    attachments: [],
+    status: 'Pending',
+    appliedDate: '2026-07-23'
+  }
+];
+
+export const initialPayslips: Payslip[] = [];
 
 
 

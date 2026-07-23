@@ -13,7 +13,9 @@ public class ExceptionMiddleware
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionMiddleware> _logger;
 
-    public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
+    public ExceptionMiddleware(
+        RequestDelegate next,
+        ILogger<ExceptionMiddleware> logger)
     {
         _next = next;
         _logger = logger;
@@ -28,16 +30,23 @@ public class ExceptionMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unhandled Exception: {Message}", ex.Message);
+            _logger.LogError(
+                ex,
+                "Exception: {Message}",
+                ex.Message);
+
             await HandleExceptionAsync(context, ex);
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private static Task HandleExceptionAsync(
+        HttpContext context,
+        Exception exception)
     {
         context.Response.ContentType = "application/json";
 
         var statusCode = HttpStatusCode.InternalServerError;
-        var message = "An internal server error occurred.";
+        var message = exception.Message;
 
         if (exception is AppException appEx)
         {
@@ -58,8 +67,15 @@ public class ExceptionMiddleware
         var jsonOptions = new JsonSerializerOptions
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            StatusCode = context.Response.StatusCode,
+            Message = message,
+            InnerException = exception.InnerException?.Message,
+            StackTrace = exception.StackTrace,
+            Timestamp = DateTime.UtcNow
         };
 
         return context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
+        return context.Response.WriteAsync(
+            JsonSerializer.Serialize(response));
     }
 }

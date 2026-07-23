@@ -4,25 +4,63 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SMS.Api.Data;
+using SMS.Api.Middlewares;
 using SMS.Api.Middleware;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Implementations;
 using SMS.Api.Repositories.Interfaces;
-using SMS.Api.Services.Implementations;
+using SMS.Api.Repositories.Implementations;
 using SMS.Api.Services.Interfaces;
-
+using SMS.Api.Services.Implementations;
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. MySQL Connection
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "DefaultConnection is missing in appsettings.json.");
 // 1. MySQL Database Connection
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseMySql(connectionString,ServerVersion.AutoDetect(connectionString)));
+// 2. Register Repositories and Services
 // 2. Dependency Injection Registration (Repositories & Services)
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+
+
+
+builder.Services.AddScoped< ITransportRouteRepository, TransportRouteRepository>();
+builder.Services.AddScoped<ITransportRouteService,TransportRouteService>();
+
+builder.Services.AddScoped<IPickupPointRepository, PickupPointRepository>();
+builder.Services.AddScoped<IPickupPointService, PickupPointService>();
+builder.Services.AddScoped<ITransportVehicleRepository, TransportVehicleRepository>();
+builder.Services.AddScoped<ITransportVehicleRepository, TransportVehicleRepository>();
+builder.Services.AddScoped<ITransportVehicleService, TransportVehicleService>();
+builder.Services.AddScoped<ITransportDriverRepository,TransportDriverRepository>();
+builder.Services.AddScoped<ITransportDriverService, TransportDriverService>();
+builder.Services.AddScoped<ITransportVehicleAssignmentRepository,TransportVehicleAssignmentRepository>();
+builder.Services.AddScoped<ITransportVehicleAssignmentService,TransportVehicleAssignmentService>();
+builder.Services.AddScoped<IStudentTransportAssignmentRepository,StudentTransportAssignmentRepository>();
+builder.Services.AddScoped<IStudentTransportAssignmentService,StudentTransportAssignmentService>();
+builder.Services.AddScoped<IVehicleMaintenanceRepository,VehicleMaintenanceRepository>();
+
+builder.Services.AddScoped<IVehicleMaintenanceService,VehicleMaintenanceService>();
+builder.Services.AddScoped<ITransportDashboardRepository,TransportDashboardRepository>();
+builder.Services.AddScoped<ITransportReportRepository,TransportReportRepository>();
+
+
+builder.Services.AddScoped<ITransportReportService,TransportReportService>();
+
+builder.Services.AddScoped<
+    ITransportDashboardService,
+    TransportDashboardService>();
 
 // Academic & School Management
 builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();

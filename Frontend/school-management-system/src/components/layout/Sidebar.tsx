@@ -5,7 +5,7 @@ import {
   Bus, Home, Package, Megaphone, Calendar, BarChart3, ShieldCheck,
   Settings, ChevronRight, School, Shirt, Layers, Tag, UserPlus,
   Gift, Percent, AlertTriangle, Route, Bed, Receipt, RotateCcw,
-  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, ArrowUpRight
+  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, Presentation
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -30,16 +30,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [hostelExpanded, setHostelExpanded] = useState(true);
   const [transportExpanded, setTransportExpanded] = useState(true);
   const [uniformExpanded, setUniformExpanded] = useState(true);
+  const [staffExpanded, setStaffExpanded] = useState(true);
 
   const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees';
   const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel';
   const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport';
   const isUniformActive = activeModule.startsWith('uniform-') || activeModule === 'uniforms';
-  const isAcadActive = activeModule.startsWith('acad-') || activeModule === 'academic-years';
+  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff';
 
-  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'acad' | 'other'>('other');
-
-  const [acadExpanded, setAcadExpanded] = useState(true);
+  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'other'>('other');
 
   React.useEffect(() => {
     if (isFinanceActive && lastActiveGroup !== 'finance') {
@@ -47,37 +46,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setStaffExpanded(false);
       setLastActiveGroup('finance');
     } else if (isHostelActive && lastActiveGroup !== 'hostel') {
       setHostelExpanded(true);
       setFinanceExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setStaffExpanded(false);
       setLastActiveGroup('hostel');
     } else if (isTransportActive && lastActiveGroup !== 'transport') {
       setTransportExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setUniformExpanded(false);
+      setStaffExpanded(false);
       setLastActiveGroup('transport');
     } else if (isUniformActive && lastActiveGroup !== 'uniform') {
       setUniformExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
-      setAcadExpanded(false);
+      setStaffExpanded(false);
       setLastActiveGroup('uniform');
-    } else if (isAcadActive && lastActiveGroup !== 'acad') {
-      setAcadExpanded(true);
+    } else if (isStaffActive && lastActiveGroup !== 'staff') {
+      setStaffExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
-      setLastActiveGroup('acad');
-    } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isAcadActive) {
+      setLastActiveGroup('staff');
+    } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isStaffActive) {
       setLastActiveGroup('other');
     }
-  }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isAcadActive, lastActiveGroup]);
+  }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isStaffActive, lastActiveGroup]);
 
   const pendingAdmissions = admissions.filter(a => a.status === 'Pending').length;
 
@@ -109,12 +111,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'uniform-reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
-  const acadSubItems = [
-    { id: 'acad-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'acad-years', label: 'Academic Years', icon: Calendar },
-    { id: 'acad-promotion', label: 'Student Promotion', icon: ArrowUpRight },
-    { id: 'acad-graduation', label: 'Graduation / Alumni', icon: GraduationCap },
-    { id: 'acad-reports', label: 'Reports', icon: FileSpreadsheet }
+  const staffSubItems = [
+    { id: 'staff-teachers', label: 'Teachers', icon: GraduationCap },
+    { id: 'staff-directory', label: 'Staff', icon: Users },
+    { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
+    { id: 'staff-leave', label: 'Leave Management', icon: FileText },
+    { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
+    { id: 'staff-payslips', label: 'Payslips', icon: Receipt },
   ];
 
   const menuGroups = [
@@ -130,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'Academics & Operations',
       items: [
-        { id: 'academics', label: 'Academics', icon: School, roles: ['Admin', 'Principal', 'Teacher'] },
+        { id: 'academics', label: 'Classes', icon: Presentation, roles: ['Admin', 'Principal', 'Teacher'] },
         { id: 'subjects', label: 'Subjects', icon: BookOpen, roles: ['Admin', 'Principal', 'Teacher'] },
         { id: 'attendance', label: 'Attendance', icon: CalendarCheck, roles: ['Admin', 'Teacher'] },
         { id: 'timetable', label: 'Timetable', icon: Clock, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
@@ -139,7 +142,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Finance & Logistics',
+      title: 'Finance & Operations',
       isFinanceSection: true,
       items: [
         { id: 'library', label: 'Library', icon: Library, roles: ['Admin', 'Librarian', 'Teacher', 'Student'] },
@@ -440,94 +443,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
 
               {visibleItems.map(item => {
+                if (item.id === 'staff') {
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <button
+                        onClick={() => {
+                          if (collapsed) {
+                            setCollapsed(false);
+                          }
+                          const newExpanded = !staffExpanded;
+                          setStaffExpanded(newExpanded);
+                          if (newExpanded) {
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                          }
+                          if (!isStaffActive) {
+                            setActiveModule('staff-teachers');
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isStaffActive
+                            ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-emerald-500'}`} />
+                          {!collapsed && <span className="font-bold">Staff & HR</span>}
+                        </div>
+                        {!collapsed && (
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? 'rotate-180' : ''}`} />
+                        )}
+                      </button>
+
+                      {!collapsed && staffExpanded && (
+                        <div className="pl-3 border-l-2 border-emerald-200 dark:border-emerald-950 ml-3 space-y-0.5 my-1">
+                          {staffSubItems.map(sub => {
+                            const SubIcon = sub.icon;
+                            const isSubActive = activeModule === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? 'bg-sky-600 text-white font-bold'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 const Icon = item.icon;
                 const isActive = activeModule === item.id;
 
                 return (
-                  <React.Fragment key={item.id}>
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveModule(item.id)}
-                      title={collapsed ? item.label : undefined}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isActive
-                          ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                        {!collapsed && <span className="truncate">{item.label}</span>}
-                      </div>
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveModule(item.id)}
+                    title={collapsed ? item.label : undefined}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                      isActive
+                        ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                      {!collapsed && <span className="truncate">{item.label}</span>}
+                    </div>
 
-                      {!collapsed && (item as any).badge && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isActive ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                        }`}>
-                          {(item as any).badge}
-                        </span>
-                      )}
-                    </button>
-
-                    {item.id === 'settings' && (role === 'Admin' || role === 'Principal') && (
-                      <div className="space-y-1 pt-1">
-                        <button
-                          onClick={() => {
-                            if (collapsed) {
-                              setCollapsed(false);
-                            }
-                            const newExpanded = !acadExpanded;
-                            setAcadExpanded(newExpanded);
-                            if (newExpanded) {
-                              setFinanceExpanded(false);
-                              setHostelExpanded(false);
-                              setTransportExpanded(false);
-                              setUniformExpanded(false);
-                            }
-                            if (!isAcadActive) {
-                              setActiveModule('acad-dashboard');
-                            }
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                            isAcadActive
-                              ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                              : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-3 truncate">
-                            <Calendar className={`w-4 h-4 shrink-0 ${isAcadActive ? 'text-white' : 'text-slate-400'}`} />
-                            {!collapsed && <span className="font-bold">Academic Year Management</span>}
-                          </div>
-                          {!collapsed && (
-                            <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${acadExpanded ? 'rotate-180' : ''}`} />
-                          )}
-                        </button>
-
-                        {!collapsed && acadExpanded && (
-                          <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
-                            {acadSubItems.map(sub => {
-                              const SubIcon = sub.icon;
-                              const isSubActive = activeModule === sub.id || (sub.id === 'acad-dashboard' && activeModule === 'academic-years');
-                              return (
-                                <button
-                                  key={sub.id}
-                                  onClick={() => setActiveModule(sub.id)}
-                                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                    isSubActive
-                                      ? 'bg-sky-600 text-white font-bold'
-                                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-850 dark:hover:text-slate-200'
-                                  }`}
-                                >
-                                  <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                                  <span className="truncate">{sub.label}</span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
+                    {!collapsed && (item as any).badge && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
+                      }`}>
+                        {(item as any).badge}
+                      </span>
                     )}
-                  </React.Fragment>
+                  </button>
                 );
               })}
             </div>

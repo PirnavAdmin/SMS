@@ -163,6 +163,13 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                 <div><span className="text-slate-400">Joining Date:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.joiningDate}</p></div>
                 <div><span className="text-slate-400">Qualification:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.qualification}</p></div>
                 <div><span className="text-slate-400">Experience:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.experienceYears} Years</p></div>
+                
+                {(staff.employeeCategory === 'Teacher' || staff.role === 'Teacher') && (
+                  <>
+                    <div className="col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400">Assigned Classes:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.assignedClasses?.join(', ') || 'None'}</p></div>
+                    <div className="col-span-2"><span className="text-slate-400">Assigned Subjects:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.assignedSubjects?.join(', ') || 'None'}</p></div>
+                  </>
+                )}
               </div>
             </div>
           )}
