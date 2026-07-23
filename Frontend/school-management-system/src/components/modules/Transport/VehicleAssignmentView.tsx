@@ -30,9 +30,9 @@ export const VehicleAssignmentView: React.FC = () => {
   );
 
   const handleOpenAdd = () => {
-    setVehicleId(vehicleMasters[0]?.id || '');
-    setRouteId(routeMasters[0]?.id || '');
-    setDriverId(driverMasters[0]?.id || '');
+    setVehicleId('');
+    setRouteId('');
+    setDriverId('');
     setIsModalOpen(true);
   };
 

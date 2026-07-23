@@ -66,9 +66,9 @@ export const SubjectsView: React.FC = () => {
     setEditingSubject(null);
     const nextNum = Math.floor(100 + subjects.length + 1);
     setFormData({
-      subjectId: `SUB-${nextNum}`,
+      subjectId: '',
       name: '',
-      code: `SUB-${nextNum}`
+      code: ''
     });
     setIsFormOpen(true);
   };
@@ -85,26 +85,28 @@ export const SubjectsView: React.FC = () => {
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.subjectId) {
-      addToast('warning', 'Required Fields', 'Subject ID and Subject Name are required.');
+    const finalSubjectId = formData.subjectId || `SUB-${Math.floor(100 + subjects.length + 1)}`;
+
+    if (!formData.name) {
+      addToast('warning', 'Required Fields', 'Subject Name is required.');
       return;
     }
 
     try {
       if (editingSubject) {
         await updateSubjectApi(editingSubject.id as any, {
-          subjectCode: formData.subjectId,
+          subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code
         });
         addToast('success', 'Subject Updated', `Updated subject ${formData.name}`);
       } else {
         await createSubjectApi({
-          subjectCode: formData.subjectId,
+          subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code
         });
-        addToast('success', 'Subject Created', `Added subject ${formData.name} (${formData.subjectId})`);
+        addToast('success', 'Subject Created', `Added subject ${formData.name}`);
       }
       setIsFormOpen(false);
       loadSubjects();
@@ -150,7 +152,7 @@ export const SubjectsView: React.FC = () => {
           <table className="w-full text-left border-collapse text-[13px]">
             <thead>
               <tr className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800/50">
-                <th className="py-4 px-2">Subject ID</th>
+                <th className="py-4 px-2">S.No</th>
                 <th className="py-4 px-2">Subject Name</th>
                 <th className="py-4 px-2">Course Code</th>
                 <th className="py-4 px-2 text-right">Actions</th>
@@ -162,9 +164,9 @@ export const SubjectsView: React.FC = () => {
               ) : paginated.length === 0 ? (
                 <tr><td colSpan={4} className="text-center py-8 text-slate-500">No subjects found.</td></tr>
               ) : (
-                paginated.map(sub => (
+                paginated.map((sub, index) => (
                   <tr key={sub.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <td className="py-4 px-2 font-bold">{sub.subjectId}</td>
+                    <td className="py-4 px-2 font-bold text-slate-500">{(currentPage - 1) * pageSize + index + 1}</td>
                     <td className="py-4 px-2 font-bold">{sub.name}</td>
                     <td className="py-4 px-2 text-slate-400 font-mono text-[12px]">{sub.code || sub.subjectId}</td>
                     <td className="py-4 px-2 text-right">
@@ -207,17 +209,7 @@ export const SubjectsView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5 text-[13px]">
-              <div>
-                <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Subject ID *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SUB-101"
-                  value={formData.subjectId}
-                  onChange={e => setFormData({ ...formData, subjectId: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white font-mono outline-none font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-              </div>
+              {/* Subject ID field removed per user request */}
 
               <div>
                 <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Subject Name *</label>

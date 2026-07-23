@@ -44,15 +44,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
   // Form Fields State
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [avatar, setAvatar] = useState('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+  const [avatar, setAvatar] = useState('');
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
-    appliedClass: 'Class 10',
-    gender: 'Male',
-    dob: '15/08/2012',
-    bloodGroup: 'O+',
-    religion: 'General',
-    casteCategory: 'General',
+    appliedClass: '',
+    gender: '',
+    dob: '',
+    bloodGroup: '',
+    religion: '',
+    casteCategory: '',
     parentName: '',
     motherName: '',
     email: '',
@@ -60,23 +60,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
     addressHouseNo: '',
     addressStreet: '',
     addressArea: '',
-    addressCity: 'New York',
-    addressDistrict: 'Knowledge City',
-    addressState: 'NY',
-    addressPinCode: '10001',
+    addressCity: '',
+    addressDistrict: '',
+    addressState: '',
+    addressPinCode: '',
     siblingsCount: 0,
     siblingStudentId: '',
-    studentType: 'Day Scholar',
-    transportRequired: true,
-    transportType: 'AC',
-    busRoute: transportRoutes[0]?.routeName || 'Route A - North Suburbs',
-    pickupPoint: 'North Suburbs Stop 4',
-    hostelBlock: hostelMasters[0]?.id || '',
-    floor: '1st Floor',
-    hostelRoom: roomMasters.filter(r => r.hostelId === hostelMasters[0]?.id)[0]?.id || '',
-    hostelBed: 'BED-1',
-    branch: 'Main Campus',
-    documentsSubmitted: ['Birth Certificate', 'Previous Report Card']
+    studentType: '',
+    transportRequired: false,
+    transportType: '',
+    busRoute: '',
+    pickupPoint: '',
+    hostelBlock: '',
+    floor: '',
+    hostelRoom: '',
+    hostelBed: '',
+    branch: '',
+    documentsSubmitted: []
   });
 
   const [phoneError, setPhoneError] = useState('');
@@ -118,12 +118,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
     setLastName('');
     setAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
     setFormData({
-      appliedClass: 'Class 10',
-      gender: 'Male',
-      dob: '15/08/2012',
-      bloodGroup: 'O+',
-      religion: 'General',
-      casteCategory: 'General',
+      appliedClass: '',
+      gender: '',
+      dob: '',
+      bloodGroup: '',
+      religion: '',
+      casteCategory: '',
       parentName: '',
       motherName: '',
       email: '',
@@ -131,25 +131,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
       addressHouseNo: '',
       addressStreet: '',
       addressArea: '',
-      addressCity: 'New York',
-      addressDistrict: 'Knowledge City',
-      addressState: 'NY',
-      addressPinCode: '10001',
+      addressCity: '',
+      addressDistrict: '',
+      addressState: '',
+      addressPinCode: '',
       siblingsCount: 0,
       siblingStudentId: '',
-      studentType: 'Day Scholar',
-      transportRequired: true,
-      transportType: 'AC',
-      busRoute: transportRoutes[0]?.routeName || 'Route A - North Suburbs',
-      pickupPoint: 'North Suburbs Stop 4',
-      hostelBlock: hostelMasters[0]?.id || '',
-      floor: '1st Floor',
-      hostelRoom: roomMasters.filter(r => r.hostelId === hostelMasters[0]?.id)[0]?.id || '',
-      hostelBed: 'BED-1',
-      branch: 'Main Campus',
+      studentType: '',
+      transportRequired: false,
+      transportType: '',
+      busRoute: '',
+      pickupPoint: '',
+      hostelBlock: '',
+      floor: '',
+      hostelRoom: '',
+      hostelBed: '',
+      branch: '',
       scholarshipId: '',
       discountId: '',
-      documentsSubmitted: ['Birth Certificate', 'Previous Report Card']
+      documentsSubmitted: []
     });
     setPhoneError('');
     setDobError('');
