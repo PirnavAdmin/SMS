@@ -27,18 +27,6 @@ builder.Services.AddScoped<IOtpService, OtpService>();
 
 
 
-builder.Services.AddScoped<IAdmissionRepository, AdmissionRepository>();
-builder.Services.AddScoped<IAdmissionService, AdmissionService>();
-
-builder.Services.AddScoped<IBranchRepository, BranchRepository>();
-builder.Services.AddScoped<IBranchService, BranchService>();
-
-builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
-builder.Services.AddScoped<ISubjectService, SubjectService>();
-builder.Services.AddScoped<IAcademicRepository,  AcademicRepository>();
-
-builder.Services.AddScoped<IAcademicService,AcademicService>();
-
 builder.Services.AddScoped< ITransportRouteRepository, TransportRouteRepository>();
 builder.Services.AddScoped<ITransportRouteService,TransportRouteService>();
 

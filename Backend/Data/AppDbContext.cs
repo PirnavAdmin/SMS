@@ -16,17 +16,7 @@ public class AppDbContext : DbContext
 
     public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
 
-    public DbSet<Branch> Branches { get; set; } = null!;
-
-    public DbSet<Admission> Admissions { get; set; } = null!;
-
-    public DbSet<Subject> Subjects { get; set; } = null!;
-
-    public DbSet<AcademicClassGrade> AcademicClassGrades =>Set<AcademicClassGrade>();
-
-    public DbSet<AcademicSection> AcademicSections =>Set<AcademicSection>();
-
-    public DbSet<AcademicClassSubject> AcademicClassSubjects => Set<AcademicClassSubject>();
+   
 
     public DbSet<TransportRoute> TransportRoutes =>Set<TransportRoute>();
     public DbSet<PickupPoint> PickupPoints => Set<PickupPoint>();
