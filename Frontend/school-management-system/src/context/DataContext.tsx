@@ -35,7 +35,7 @@ import {
   initialUniformCategories, initialUniformSizes, initialUniformSuppliers, initialUniformInventory,
   initialStudentUniformIssues, initialFinanceUniformConfigs, initialAcademicYears
 } from '../services/mockData';
-import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, deleteAdmissionApi, rejectAdmissionApi, enrollAdmissionApi } from '../api/admission';
 import { fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi, fetchClassesApi, createClassApi, updateClassApi, deleteClassApi } from '../api/academic';
 import { useToast } from './ToastContext';
 
@@ -885,26 +885,45 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateAdmission = (id: string, updates: Partial<AdmissionApplication>) => {
-    setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-    logActivity('Updated Admission Record', `Updated application ID ${id}`);
+  const updateAdmission = async (id: string, updates: Partial<AdmissionApplication>) => {
+    try {
+      await updateAdmissionApi(parseInt(id), updates);
+      fetchAdmissions();
+      logActivity('Updated Admission Record', `Updated application ID ${id}`);
+    } catch (err: any) {
+      console.error('Error updating admission', err);
+      addToast('error', 'API Error', 'Failed to update admission application.');
+    }
   };
 
-  const deleteAdmission = (id: string) => {
-    setAdmissions(prev => prev.filter(a => a.id !== id));
-    logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+  const deleteAdmission = async (id: string) => {
+    try {
+      await deleteAdmissionApi(parseInt(id));
+      fetchAdmissions();
+      logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+    } catch (err: any) {
+      console.error('Error deleting admission', err);
+      addToast('error', 'API Error', 'Failed to delete admission application.');
+    }
   };
 
   const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
     const app = admissions.find(a => a.id === id);
     if (!app) return;
 
-    const registrationNo = (app as any).registrationNo || app.applicationNo;
-
     try {
-      const json = await updateAdmissionStatusApi(registrationNo, status);
+      let success = true;
+      if (status === 'Rejected') {
+        const res = await rejectAdmissionApi(parseInt(id));
+        if (res && res.success === false) success = false;
+      } else if (status === 'Enrolled') {
+        const res = await enrollAdmissionApi(parseInt(id));
+        if (res && res.success === false) success = false;
+      }
+      
+      if (success) {
+        fetchAdmissions();
 
-      if (json && json.success !== false) {
         if (status === 'Enrolled' && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
@@ -1030,18 +1049,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           // Update state to match API success
           setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-          logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
-          try {
-            await fetchAdmissions();
-          } catch (fetchErr) {
-            console.error("Failed to refresh admissions list", fetchErr);
-          }
+          logActivity('Admission Status Updated', `Application ${id} status changed to ${status}`);
+          addToast('success', 'Status Updated', `Application successfully marked as ${status}`);
       } else {
-        addToast('error', 'Update Failed', json?.message || `Failed to update status to ${status}`);
+        addToast('error', 'Update Failed', 'Failed to update admission status. Please try again.');
       }
     } catch (err: any) {
-      console.error('Error updating admission status', err);
-      addToast('error', 'Network Error', err.message || 'Failed to update application status.');
+      console.error('Error updating status', err);
+      addToast('error', 'API Error', err.message || 'Failed to update admission status.');
     }
   };
 
@@ -1157,6 +1172,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
       await updateSubjectApi(parseInt(id), payload);
       fetchSubjects();
+      fetchClasses(); // Refresh classes to sync any renamed subjects
       logActivity('Updated Subject', `Updated subject ID ${id}`);
     } catch (err: any) {
       console.error('Error updating subject', err);
@@ -1168,6 +1184,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await deleteSubjectApi(parseInt(id));
       fetchSubjects();
+      fetchClasses(); // Refresh classes to remove the deleted subject from curriculum
       logActivity('Deleted Subject', `Removed subject ID ${id}`);
     } catch (err: any) {
       console.error('Error deleting subject', err);
