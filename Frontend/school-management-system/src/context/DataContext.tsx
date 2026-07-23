@@ -669,25 +669,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const json = await fetchClassesApi();
       console.log('Classes API response:', json);
+      
+      let classesArray = [];
       if (Array.isArray(json)) {
-        const mapped = json.map((item: any) => {
-          const sections = item.sections?.map((s: any) => s.sectionName) || [];
-          const sectionTeachers: Record<string, string> = {};
-          item.sections?.forEach((s: any) => {
-             sectionTeachers[s.sectionName] = s.classTeacherName || '';
-          });
-          const mappedSubjects = item.curriculumSubjects?.map((sub: any) => sub.subjectName || sub.name) || [];
-          return {
-            id: item.classId.toString(),
-            name: item.className,
-            sections,
-            sectionTeachers,
-            teacher: sections.length > 0 ? sectionTeachers[sections[0]] : '',
-            subjects: mappedSubjects
-          };
-        });
-        setAcademicClasses(mapped);
+        classesArray = json;
+      } else if (json && json.data && Array.isArray(json.data)) {
+        classesArray = json.data;
+      } else if (json && json.length === 0) {
+        classesArray = [];
       }
+
+      const mapped = classesArray.map((item: any) => {
+        const sections = item.sections?.map((s: any) => s.sectionName) || [];
+        const sectionTeachers: Record<string, string> = {};
+        item.sections?.forEach((s: any) => {
+           sectionTeachers[s.sectionName] = s.classTeacherName || '';
+        });
+        const mappedSubjects = item.curriculumSubjects?.map((sub: any) => sub.subjectName || sub.name) || [];
+        return {
+          id: (item.classId || item.id || Math.random().toString()).toString(),
+          name: item.className || item.name || 'Unnamed Class',
+          sections,
+          sectionTeachers,
+          teacher: sections.length > 0 ? sectionTeachers[sections[0]] : '',
+          subjects: mappedSubjects
+        };
+      });
+      setAcademicClasses(mapped);
     } catch (err: any) {
       console.error('Error fetching classes', err);
     }

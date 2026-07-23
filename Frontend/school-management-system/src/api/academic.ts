@@ -38,6 +38,12 @@ export const fetchClassesApi = async () => {
   });
 };
 
+export const fetchClassByIdApi = async (id: number) => {
+  return apiClient(`/api/classes/${id}`, {
+    method: 'GET'
+  });
+};
+
 export const createClassApi = async (payload: any) => {
   return apiClient('/api/classes', {
     method: 'POST',
