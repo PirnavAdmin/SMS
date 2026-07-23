@@ -36,6 +36,7 @@ import {
   initialStudentUniformIssues, initialFinanceUniformConfigs, initialAcademicYears
 } from '../services/mockData';
 import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import { fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi, fetchClassesApi, createClassApi, updateClassApi, deleteClassApi } from '../api/academic';
 import { useToast } from './ToastContext';
 
 export interface AcademicClass {
@@ -636,8 +637,66 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const json = await fetchSubjectsApi();
+      console.log('Subjects API response:', json);
+      if (Array.isArray(json)) {
+        const mappedSubjects = json.map((item: any) => ({
+          id: item.subjectId.toString(),
+          subjectId: item.subjectCode,
+          name: item.subjectName,
+          code: item.courseCode
+        }));
+        setSubjects(mappedSubjects);
+      } else if (json && json.data && Array.isArray(json.data)) {
+        const mappedSubjects = json.data.map((item: any) => ({
+          id: item.subjectId.toString(),
+          subjectId: item.subjectCode,
+          name: item.subjectName,
+          code: item.courseCode
+        }));
+        setSubjects(mappedSubjects);
+      } else if (json && json.length === 0) {
+        setSubjects([]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching subjects', err);
+    }
+  };
+
+  const fetchClasses = async () => {
+    try {
+      const json = await fetchClassesApi();
+      console.log('Classes API response:', json);
+      if (Array.isArray(json)) {
+        const mapped = json.map((item: any) => {
+          const sections = item.sections?.map((s: any) => s.sectionName) || [];
+          const sectionTeachers: Record<string, string> = {};
+          item.sections?.forEach((s: any) => {
+             sectionTeachers[s.sectionName] = s.classTeacherName || '';
+          });
+          const mappedSubjects = item.curriculumSubjects?.map((sub: any) => sub.subjectName || sub.name) || [];
+          return {
+            id: item.classId.toString(),
+            name: item.className,
+            sections,
+            sectionTeachers,
+            teacher: sections.length > 0 ? sectionTeachers[sections[0]] : '',
+            subjects: mappedSubjects
+          };
+        });
+        setAcademicClasses(mapped);
+      }
+    } catch (err: any) {
+      console.error('Error fetching classes', err);
+    }
+  };
+
   useEffect(() => {
     fetchAdmissions();
+    fetchSubjects();
+    fetchClasses();
   }, []);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
@@ -979,43 +1038,133 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Academic Classes CRUD
-  const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
-    const id = 'CL-' + Math.floor(10 + Math.random() * 90);
-    const newCls: AcademicClass = { ...clsData, id };
-    setAcademicClasses(prev => [...prev, newCls]);
-    logActivity('Created Academic Class', `Added ${newCls.name}`);
+  const addAcademicClass = async (clsData: Omit<AcademicClass, 'id'>) => {
+    try {
+      const mappedSections = (clsData.sections || []).map(sec => {
+        const teacherName = clsData.sectionTeachers?.[sec];
+        const teacher = staff.find(s => `${s.firstName} ${s.lastName}` === teacherName);
+        let classTeacherEmpId = null;
+        // The backend expects a valid employee ID or null.
+        // Since we are using mock staff data without real backend employee IDs, we must pass null to avoid 500 FK constraint errors.
+        return {
+          sectionName: sec,
+          classTeacherEmpId
+        };
+      });
+
+      const subjectIds = (clsData.subjects || []).map(subName => {
+        const sub = subjects.find(s => s.name === subName);
+        return sub ? parseInt(sub.id) : null;
+      }).filter(Boolean);
+
+      const payload = {
+        className: clsData.name,
+        sections: mappedSections,
+        subjectIds
+      };
+      
+      await createClassApi(payload);
+      fetchClasses();
+      logActivity('Created Academic Class', `Added ${clsData.name}`);
+    } catch (err: any) {
+      console.error('Error adding class', err);
+      addToast('error', 'API Error', 'Failed to create class.');
+    }
   };
 
-  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
-    setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-    logActivity('Updated Academic Class', `Updated class ID ${id}`);
+  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
+    try {
+      const existing = academicClasses.find(c => c.id === id);
+      if (!existing) return;
+      
+      const merged = { ...existing, ...updates };
+      
+      const mappedSections = (merged.sections || []).map(sec => {
+        const teacherName = merged.sectionTeachers?.[sec];
+        const teacher = staff.find(s => `${s.firstName} ${s.lastName}` === teacherName);
+        let classTeacherEmpId = null;
+        // Same as above, passing null to prevent 500 FK constraint errors
+        return {
+          sectionName: sec,
+          classTeacherEmpId
+        };
+      });
+
+      const subjectIds = (merged.subjects || []).map(subName => {
+        const sub = subjects.find(s => s.name === subName);
+        return sub ? parseInt(sub.id) : null;
+      }).filter(Boolean);
+
+      const payload = {
+        className: merged.name,
+        sections: mappedSections,
+        subjectIds
+      };
+
+      await updateClassApi(parseInt(id), payload);
+      fetchClasses();
+      logActivity('Updated Academic Class', `Updated class ID ${id}`);
+    } catch (err: any) {
+      console.error('Error updating class', err);
+      addToast('error', 'API Error', 'Failed to update class.');
+    }
   };
 
-  const deleteAcademicClass = (id: string) => {
-    setAcademicClasses(prev => prev.filter(c => c.id !== id));
-    logActivity('Deleted Academic Class', `Removed class ID ${id}`);
+  const deleteAcademicClass = async (id: string) => {
+    try {
+      await deleteClassApi(parseInt(id));
+      fetchClasses();
+      logActivity('Deleted Academic Class', `Removed class ID ${id}`);
+    } catch (err: any) {
+      console.error('Error deleting class', err);
+      addToast('error', 'API Error', 'Failed to delete class.');
+    }
   };
 
   // Subjects CRUD
-  const addSubject = (subjectData: Omit<SubjectItem, 'id'>) => {
-    const id = 'SUB-' + Math.floor(100 + Math.random() * 900);
-    const newSub: SubjectItem = {
-      ...subjectData,
-      id,
-      code: subjectData.code || subjectData.subjectId
-    };
-    setSubjects(prev => [...prev, newSub]);
-    logActivity('Created Subject', `Added subject ${newSub.name} (${newSub.subjectId})`);
+  const addSubject = async (subjectData: Omit<SubjectItem, 'id'>) => {
+    try {
+      const payload = {
+        subjectCode: subjectData.subjectId,
+        subjectName: subjectData.name,
+        courseCode: subjectData.code || subjectData.subjectId
+      };
+      await createSubjectApi(payload);
+      fetchSubjects();
+      logActivity('Created Subject', `Added subject ${subjectData.name} (${subjectData.subjectId})`);
+    } catch (err: any) {
+      console.error('Error adding subject', err);
+      addToast('error', 'API Error', 'Failed to create subject.');
+    }
   };
 
-  const updateSubject = (id: string, updates: Partial<SubjectItem>) => {
-    setSubjects(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-    logActivity('Updated Subject', `Updated subject ID ${id}`);
+  const updateSubject = async (id: string, updates: Partial<SubjectItem>) => {
+    try {
+      const existing = subjects.find(s => s.id === id);
+      if (!existing) return;
+      const payload = {
+        subjectCode: updates.subjectId || existing.subjectId,
+        subjectName: updates.name || existing.name,
+        courseCode: updates.code || existing.code || existing.subjectId
+      };
+      await updateSubjectApi(parseInt(id), payload);
+      fetchSubjects();
+      logActivity('Updated Subject', `Updated subject ID ${id}`);
+    } catch (err: any) {
+      console.error('Error updating subject', err);
+      addToast('error', 'API Error', 'Failed to update subject.');
+    }
   };
 
-  const deleteSubject = (id: string) => {
-    setSubjects(prev => prev.filter(s => s.id !== id));
-    logActivity('Deleted Subject', `Removed subject ID ${id}`);
+  const deleteSubject = async (id: string) => {
+    try {
+      await deleteSubjectApi(parseInt(id));
+      fetchSubjects();
+      logActivity('Deleted Subject', `Removed subject ID ${id}`);
+    } catch (err: any) {
+      console.error('Error deleting subject', err);
+      addToast('error', 'API Error', 'Failed to delete subject.');
+    }
   };
 
   // Bus CRUD
