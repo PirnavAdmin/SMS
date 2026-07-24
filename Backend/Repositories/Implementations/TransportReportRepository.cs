@@ -250,27 +250,19 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(assignment =>
-                    assignment.Driver.DriverName
-                        .ToLower()
-                        .Contains(search) ||
-
-                    assignment.Vehicle.VehicleNumber
-                        .ToLower()
-                        .Contains(search) ||
-
-                    assignment.Route.RouteName
-                        .ToLower()
-                        .Contains(search));
+                    (assignment.Driver != null && assignment.Driver.DriverName != null && assignment.Driver.DriverName.ToLower().Contains(search)) ||
+                    (assignment.Vehicle != null && assignment.Vehicle.VehicleNumber != null && assignment.Vehicle.VehicleNumber.ToLower().Contains(search)) ||
+                    (assignment.Route != null && assignment.Route.RouteName != null && assignment.Route.RouteName.ToLower().Contains(search)));
             }
 
             return await query
                 .Select(assignment => new DriverVehicleReportDto
                 {
                     DriverId = assignment.DriverId,
-                    DriverName = assignment.Driver.DriverName,
+                    DriverName = assignment.Driver != null ? assignment.Driver.DriverName : string.Empty,
                     VehicleNumber =
-                        assignment.Vehicle.VehicleNumber,
-                    RouteName = assignment.Route.RouteName
+                        (assignment.Vehicle != null && assignment.Vehicle.VehicleNumber != null) ? assignment.Vehicle.VehicleNumber : string.Empty,
+                    RouteName = (assignment.Route != null && assignment.Route.RouteName != null) ? assignment.Route.RouteName : string.Empty
                 })
                 .OrderBy(x => x.DriverName)
                 .ThenBy(x => x.VehicleNumber)
@@ -327,14 +319,8 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(maintenance =>
-                    maintenance.ServiceType
-                        .ToLower()
-                        .Contains(search) ||
-
-                    maintenance.Vehicle.VehicleNumber
-                        .ToLower()
-                        .Contains(search) ||
-
+                    (maintenance.ServiceType != null && maintenance.ServiceType.ToLower().Contains(search)) ||
+                    (maintenance.Vehicle != null && maintenance.Vehicle.VehicleNumber != null && maintenance.Vehicle.VehicleNumber.ToLower().Contains(search)) ||
                     (maintenance.VendorCenter != null &&
                      maintenance.VendorCenter
                          .ToLower()
@@ -348,11 +334,11 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     MaintenanceId = maintenance.MaintenanceId,
                     VehicleNumber =
-                        maintenance.Vehicle.VehicleNumber,
-                    ServiceType = maintenance.ServiceType,
+                        (maintenance.Vehicle != null && maintenance.Vehicle.VehicleNumber != null) ? maintenance.Vehicle.VehicleNumber : string.Empty,
+                    ServiceType = maintenance.ServiceType ?? string.Empty,
                     ServiceDate = maintenance.ServiceDate,
                     Cost = maintenance.Cost,
-                    VendorCenter = maintenance.VendorCenter
+                    VendorCenter = maintenance.VendorCenter ?? string.Empty
                 })
                 .ToListAsync();
         }

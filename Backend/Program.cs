@@ -326,19 +326,30 @@ using (var scope = app.Services.CreateScope())
 
                 if (!exists)
                 {
+#pragma warning disable EF1002
                     context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};");
+#pragma warning restore EF1002
                 }
             }
             catch { }
         }
 
         EnsureColumnExists("transport_routes", "VehicleId", "bigint NULL");
+        EnsureColumnExists("transport_routes", "PickupPoint", "varchar(255) NULL");
+        EnsureColumnExists("transport_routes", "DropPoint", "varchar(255) NULL");
         EnsureColumnExists("transport_drivers", "AssignedVehicleId", "bigint NULL");
         EnsureColumnExists("transport_vehicle_assignments", "Shift", "varchar(20) NULL");
         EnsureColumnExists("student_transport_assignments", "Remarks", "varchar(255) NULL");
         EnsureColumnExists("transport_vehicles", "ChassisNumber", "varchar(100) NULL");
         EnsureColumnExists("transport_vehicles", "EngineNumber", "varchar(100) NULL");
         EnsureColumnExists("transport_vehicles", "GpsDeviceId", "varchar(100) NULL");
+
+        try
+        {
+            context.Database.ExecuteSqlRaw("ALTER TABLE transport_routes MODIFY COLUMN DropPoint varchar(255) NULL;");
+            context.Database.ExecuteSqlRaw("ALTER TABLE transport_routes MODIFY COLUMN PickupPoint varchar(255) NULL;");
+        }
+        catch { }
 
         // DB Schema Audit Verification
         try

@@ -108,14 +108,19 @@ namespace SMS.Api.Repositories.Implementations
             CreateTransportRouteDto dto,
             long? userId)
         {
+            var startLoc = !string.IsNullOrWhiteSpace(dto.StartLocation) ? dto.StartLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteStart) ? dto.RouteStart.Trim() : "Start Location");
+            var endLoc = !string.IsNullOrWhiteSpace(dto.EndLocation) ? dto.EndLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteEnd) ? dto.RouteEnd.Trim() : "End Location");
+
             TransportRoute route = new()
             {
                 RouteCode = !string.IsNullOrWhiteSpace(dto.RouteCode) ? dto.RouteCode.Trim() : $"R-CODE-{Random.Shared.Next(100, 999)}",
                 RouteName = !string.IsNullOrWhiteSpace(dto.RouteName) ? dto.RouteName.Trim() : "New Route",
-                StartLocation = !string.IsNullOrWhiteSpace(dto.StartLocation) ? dto.StartLocation.Trim() : "Start Location",
-                EndLocation = !string.IsNullOrWhiteSpace(dto.EndLocation) ? dto.EndLocation.Trim() : "End Location",
-                DistanceKm = dto.DistanceKm,
-                EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : 30,
+                StartLocation = startLoc,
+                EndLocation = endLoc,
+                PickupPoint = startLoc,
+                DropPoint = endLoc,
+                DistanceKm = dto.DistanceKm > 0 ? dto.DistanceKm : (dto.TotalDistanceKm.HasValue ? dto.TotalDistanceKm.Value : 0),
+                EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : (dto.EstimatedTimeMinutes.HasValue ? dto.EstimatedTimeMinutes.Value : 30),
                 Description = dto.Description?.Trim() ?? string.Empty,
                 Status = dto.Status,
                 IsDeleted = false,
@@ -143,12 +148,17 @@ namespace SMS.Api.Repositories.Implementations
             if (route is null)
                 return false;
 
+            var startLoc = !string.IsNullOrWhiteSpace(dto.StartLocation) ? dto.StartLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteStart) ? dto.RouteStart.Trim() : route.StartLocation);
+            var endLoc = !string.IsNullOrWhiteSpace(dto.EndLocation) ? dto.EndLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteEnd) ? dto.RouteEnd.Trim() : route.EndLocation);
+
             if (!string.IsNullOrWhiteSpace(dto.RouteCode)) route.RouteCode = dto.RouteCode.Trim();
             if (!string.IsNullOrWhiteSpace(dto.RouteName)) route.RouteName = dto.RouteName.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.StartLocation)) route.StartLocation = dto.StartLocation.Trim();
-            if (!string.IsNullOrWhiteSpace(dto.EndLocation)) route.EndLocation = dto.EndLocation.Trim();
-            route.DistanceKm = dto.DistanceKm;
-            route.EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : route.EstimatedDurationMinutes;
+            route.StartLocation = startLoc;
+            route.EndLocation = endLoc;
+            route.PickupPoint = startLoc;
+            route.DropPoint = endLoc;
+            route.DistanceKm = dto.DistanceKm > 0 ? dto.DistanceKm : (dto.TotalDistanceKm.HasValue ? dto.TotalDistanceKm.Value : route.DistanceKm);
+            route.EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : (dto.EstimatedTimeMinutes.HasValue ? dto.EstimatedTimeMinutes.Value : route.EstimatedDurationMinutes);
             route.Description = dto.Description?.Trim() ?? string.Empty;
             route.Status = dto.Status;
             route.UpdatedBy = userId;

@@ -25,6 +25,7 @@ namespace SMS.Api.Models
 
         public DateTime? EffectiveTo { get; set; }
 
+        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         [MaxLength(20)]
         public string? Shift { get; set; }
 

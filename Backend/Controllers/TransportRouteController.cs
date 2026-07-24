@@ -7,7 +7,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/routes")]
-    [AllowAnonymous]
+    [Authorize(Roles = "Admin")]
     public class TransportRoutesController : ControllerBase
     {
         private readonly ITransportRouteService _service;
@@ -144,10 +144,11 @@ namespace SMS.Api.Controllers
             }
             else
             {
-                var paged = await _service.GetAllAsync(new TransportRouteFilterDto { PageSize = 1000 });
+                var paged = await _service.GetAllAsync(new TransportRouteFilterDto { Search = routeIdOrCode, PageSize = 1000 });
                 var found = paged.Items.FirstOrDefault(r => 
                     string.Equals(r.RouteCode, routeIdOrCode, StringComparison.OrdinalIgnoreCase) || 
-                    string.Equals(r.RouteId.ToString(), routeIdOrCode));
+                    string.Equals(r.RouteId.ToString(), routeIdOrCode) ||
+                    string.Equals(r.RouteName, routeIdOrCode, StringComparison.OrdinalIgnoreCase));
 
                 if (found != null)
                 {
@@ -157,13 +158,21 @@ namespace SMS.Api.Controllers
 
             if (targetRouteId.HasValue)
             {
-                await _service.DeleteAsync(targetRouteId.Value, userId: null);
+                bool deleted = await _service.DeleteAsync(targetRouteId.Value, userId: null);
+                if (deleted)
+                {
+                    return Ok(new
+                    {
+                        success = true,
+                        message = "Transport route deleted successfully."
+                    });
+                }
             }
 
-            return Ok(new
+            return NotFound(new
             {
-                success = true,
-                message = "Transport route deleted successfully."
+                success = false,
+                message = "Transport route not found."
             });
         }
     }

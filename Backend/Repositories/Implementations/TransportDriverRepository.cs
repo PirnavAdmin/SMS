@@ -82,8 +82,7 @@ namespace SMS.Api.Repositories.Implementations
                     Address = x.Address,
                     BloodGroup = x.BloodGroup,
                     EmergencyContactName = x.EmergencyContactName,
-                    EmergencyContactNumber = x.EmergencyContactNumber,
-                    Status = x.Status,
+                    Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     IsLicenceExpired =
                         x.LicenceExpiry.HasValue &&
@@ -120,7 +119,7 @@ namespace SMS.Api.Repositories.Implementations
                     BloodGroup = x.BloodGroup,
                     EmergencyContactName = x.EmergencyContactName,
                     EmergencyContactNumber = x.EmergencyContactNumber,
-                    Status = x.Status,
+                    Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     IsLicenceExpired =
                         x.LicenceExpiry.HasValue &&

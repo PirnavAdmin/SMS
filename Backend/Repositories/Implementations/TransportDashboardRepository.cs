@@ -206,7 +206,7 @@ namespace SMS.Api.Repositories.Implementations
                     return new VehicleOccupancyDto
                     {
                         VehicleId = x.VehicleId,
-                        VehicleNumber = x.VehicleNumber,
+                        VehicleNumber = x.VehicleNumber ?? string.Empty,
                         Capacity = x.Capacity,
                         AssignedStudents = x.AssignedStudents,
                         AvailableSeats = availableSeats,
@@ -234,7 +234,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     x.MaintenanceId,
                     x.VehicleId,
-                    VehicleNumber = x.Vehicle.VehicleNumber,
+                    VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
                     x.ServiceType,
                     NextServiceDue = x.NextServiceDue!.Value
                 })
@@ -245,7 +245,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     MaintenanceId = x.MaintenanceId,
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.VehicleNumber,
+                    VehicleNumber = x.VehicleNumber ?? string.Empty,
                     ServiceType = x.ServiceType,
                     NextServiceDue = x.NextServiceDue,
                     DaysRemaining = (x.NextServiceDue.Date - today).Days
