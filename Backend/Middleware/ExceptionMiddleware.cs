@@ -29,11 +29,15 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
+<<<<<<< HEAD
             _logger.LogError(
                 ex,
                 "Unhandled exception: {Message}",
                 ex.Message);
 
+=======
+            _logger.LogError(ex, "Unhandled Exception: {Message}", ex.Message);
+>>>>>>> eab1909434218961e513f516555570f0fed32a2c
             await HandleExceptionAsync(context, ex);
         }
     }
@@ -45,7 +49,7 @@ public class ExceptionMiddleware
         context.Response.ContentType = "application/json";
 
         var statusCode = HttpStatusCode.InternalServerError;
-        var message = exception.Message;
+        var message = "An internal server error occurred.";
 
         if (exception is AppException appException)
         {
@@ -69,8 +73,12 @@ public class ExceptionMiddleware
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
+<<<<<<< HEAD
         var json = JsonSerializer.Serialize(response, jsonOptions);
 
         return context.Response.WriteAsync(json);
+=======
+        return context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
+>>>>>>> eab1909434218961e513f516555570f0fed32a2c
     }
 }

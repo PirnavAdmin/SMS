@@ -6,8 +6,8 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers
 {
     [ApiController]
-    [Route("api/v1/transport-reports")]
-    [Authorize]
+    [Route("api/transport/reports")]
+    [Authorize(Roles = "Admin")]
     public class TransportReportController : ControllerBase
     {
         private readonly ITransportReportService _service;

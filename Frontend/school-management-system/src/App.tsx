@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -46,6 +46,16 @@ const MainLayout: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setActiveModule('dashboard');
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeModule]);
+
   if (!isAuthenticated) {
     return <LoginView />;
   }
@@ -84,6 +94,11 @@ const MainLayout: React.FC = () => {
         return <LeaveManagementView />;
       case 'staff-payroll':
         return <StaffPayrollView />;
+      case 'staff-payroll-config':
+      case 'staff-payroll-structures':
+      case 'staff-payroll-processing':
+      case 'staff-payroll-payslips':
+        return <StaffPayrollView initialTab={activeModule as any} />;
       case 'staff-payslips':
         return <StaffPayslipView />;
       case 'admissions':

@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenC
 
   return (
     <header
-      className={`fixed top-0 right-0 z-30 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between px-4 sm:px-6 ${
+      className={`fixed top-0 right-0 z-50 h-16 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between px-4 sm:px-6 ${
         collapsed ? 'left-20' : 'left-64'
       }`}
     >

@@ -1,10 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Services.Interfaces;
 
 namespace SMS.Api.Controllers
 {
     [ApiController]
-    [Route("api/v1/transport/lookups")]
+    [Route("api/transport/lookups")]
+    [Authorize(Roles = "Admin")]
     public class PickupLookupController : ControllerBase
     {
         private readonly IPickupPointService _service;

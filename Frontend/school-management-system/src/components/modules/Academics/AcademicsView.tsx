@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { School, Plus, Edit, Trash2, X, BookOpen, Search, ChevronDown, Check } from 'lucide-react';
 import { useData, AcademicClass } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -25,8 +25,20 @@ const TeacherSearchSelect: React.FC<TeacherSearchSelectProps> = ({ value, onChan
     return fullName.includes(query) || empId.includes(query) || designation.includes(query);
   });
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className="relative inline-block text-left w-full">
+    <div ref={dropdownRef} className="relative inline-block text-left w-full">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -133,8 +145,20 @@ const SubjectSearchMultiSelect: React.FC<SubjectSearchMultiSelectProps> = ({
     onChange(selectedSubjects.filter(s => s !== name));
   };
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div className="space-y-2">
+    <div ref={dropdownRef} className="space-y-2">
       {/* Selected Subject Pills */}
       <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
         {selectedSubjects.length === 0 ? (
@@ -201,7 +225,6 @@ const SubjectSearchMultiSelect: React.FC<SubjectSearchMultiSelectProps> = ({
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-[10px] text-brand-600 dark:text-brand-400 font-bold">{sub.subjectId}</span>
                         <span className="font-bold">{sub.name}</span>
                         {sub.code && <span className="text-[10px] text-slate-400 font-mono">({sub.code})</span>}
                       </div>

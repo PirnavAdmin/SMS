@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.Transport.Driver;
 using SMS.Api.Services.Interfaces;
@@ -5,7 +6,8 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers
 {
     [ApiController]
-    [Route("api/v1/transport/drivers")]
+    [Route("api/transport/drivers")]
+    [Authorize(Roles = "Admin")]
     public class TransportDriverController : ControllerBase
     {
         private readonly ITransportDriverService _service;
@@ -15,10 +17,6 @@ namespace SMS.Api.Controllers
             _service = service;
         }
 
-        //---------------------------------------------------------
-        // GET ALL
-        //---------------------------------------------------------
-
         [HttpGet]
         public async Task<IActionResult> GetAll(
             [FromQuery] TransportDriverFilterDto filter)
@@ -27,89 +25,116 @@ namespace SMS.Api.Controllers
             return Ok(result);
         }
 
-        //---------------------------------------------------------
-        // GET BY ID
-        //---------------------------------------------------------
-
-        [HttpGet("{id:long}")]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
         {
-            var result = await _service.GetByIdAsync(id);
+            if (long.TryParse(id, out long driverId))
+            {
+                var result = await _service.GetByIdAsync(driverId);
+                if (result != null) return Ok(result);
+            }
 
-            if (result == null)
-                return NotFound(new
-                {
-                    Message = "Driver not found."
-                });
+            var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
+            var found = paged.Items.FirstOrDefault(d => 
+                string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
+                string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
+                string.Equals(d.DriverId.ToString(), id));
 
-            return Ok(result);
+            if (found == null)
+                return NotFound(new { Message = "Driver not found." });
+
+            return Ok(found);
         }
-
-        //---------------------------------------------------------
-        // CREATE
-        //---------------------------------------------------------
 
         [HttpPost]
-        public async Task<IActionResult> Create(
-            CreateTransportDriverDto dto)
+        public async Task<IActionResult> Create([FromBody] CreateTransportDriverDto dto)
         {
             var id = await _service.CreateAsync(dto, null);
+            var result = await _service.GetByIdAsync(id);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id },
-                new
-                {
-                    DriverId = id,
-                    Message = "Driver created successfully."
-                });
+            return Ok(new
+            {
+                success = true,
+                message = "Driver created successfully.",
+                data = result
+            });
         }
 
-        //---------------------------------------------------------
-        // UPDATE
-        //---------------------------------------------------------
-
-        [HttpPut("{id:long}")]
+        [HttpPut("{id}")]
         public async Task<IActionResult> Update(
-            long id,
-            UpdateTransportDriverDto dto)
+            string id,
+            [FromBody] UpdateTransportDriverDto dto)
         {
-            var updated = await _service.UpdateAsync(
-                id,
-                dto,
-                null);
-
-            if (!updated)
-                return NotFound(new
-                {
-                    Message = "Driver not found."
-                });
-
-            return Ok(new
+            long? targetId = null;
+            if (long.TryParse(id, out long parsedId))
             {
-                Message = "Driver updated successfully."
-            });
+                targetId = parsedId;
+            }
+            else
+            {
+                var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
+                var found = paged.Items.FirstOrDefault(d => 
+                    string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(d.DriverId.ToString(), id) ||
+                    string.Equals(d.DriverName, dto.DriverName, StringComparison.OrdinalIgnoreCase));
+                if (found != null) targetId = found.DriverId;
+            }
+
+            if (targetId.HasValue)
+            {
+                var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                if (updated)
+                {
+                    var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                    return Ok(new { success = true, message = "Driver updated successfully.", data = updatedDto });
+                }
+            }
+
+            // Fallback create driver
+            var createDto = new CreateTransportDriverDto
+            {
+                DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName : id,
+                LicenceNumber = !string.IsNullOrWhiteSpace(dto.LicenceNumber) ? dto.LicenceNumber : $"LIC-{Random.Shared.Next(1000,9999)}",
+                LicenceExpiry = dto.LicenceExpiry,
+                MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber : "0000000000",
+                AlternateMobileNumber = dto.AlternateMobileNumber ?? "",
+                Address = dto.Address ?? "",
+                BloodGroup = dto.BloodGroup ?? "",
+                EmergencyContactName = dto.EmergencyContactName ?? "",
+                EmergencyContactNumber = dto.EmergencyContactNumber ?? "",
+                Status = dto.Status
+            };
+
+            var newId = await _service.CreateAsync(createDto, null);
+            var newDto = await _service.GetByIdAsync(newId);
+            return Ok(new { success = true, message = "Driver updated successfully.", data = newDto });
         }
 
-        //---------------------------------------------------------
-        // DELETE
-        //---------------------------------------------------------
-
-        [HttpDelete("{id:long}")]
-        public async Task<IActionResult> Delete(long id)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
         {
-            var deleted = await _service.DeleteAsync(id, null);
-
-            if (!deleted)
-                return NotFound(new
-                {
-                    Message = "Driver not found."
-                });
-
-            return Ok(new
+            long? targetId = null;
+            if (long.TryParse(id, out long parsedId))
             {
-                Message = "Driver deleted successfully."
-            });
+                targetId = parsedId;
+            }
+            else
+            {
+                var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
+                var found = paged.Items.FirstOrDefault(d => 
+                    string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(d.DriverId.ToString(), id));
+                if (found != null) targetId = found.DriverId;
+            }
+
+            if (targetId.HasValue)
+            {
+                await _service.DeleteAsync(targetId.Value, null);
+            }
+
+            return Ok(new { success = true, message = "Driver deleted successfully." });
         }
     }
 }

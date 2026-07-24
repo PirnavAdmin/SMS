@@ -56,7 +56,7 @@ namespace SMS.Api.Repositories.Implementations
             var totalCount = await query.CountAsync();
 
             var items = await query
-                .OrderByDescending(x => x.AssignmentDate)
+                .OrderByDescending(x => x.EffectiveFrom)
                 .Skip((filter.PageNumber - 1) * filter.PageSize)
                 .Take(filter.PageSize)
                 .Select(x => new TransportVehicleAssignmentDto

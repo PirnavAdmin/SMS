@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   UserCheck, Search, Filter, Edit, Trash2, ArrowUpRight, ArrowRightLeft,
-  Eye, Building2, ChevronLeft, ChevronRight
+  Eye, Building2, ChevronLeft, ChevronRight, User
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -164,7 +164,13 @@ export const StudentList: React.FC = () => {
                   <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
-                        <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover" />
+                        {st.avatar ? (
+                          <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-slate-200 dark:bg-slate-700/50 flex items-center justify-center text-slate-500 shrink-0">
+                            <User className="w-5 h-5" />
+                          </div>
+                        )}
                         <div>
                           <p className="font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</p>
                           <p className="text-[10px] text-slate-400 font-mono">Adm: {st.admissionNo}</p>

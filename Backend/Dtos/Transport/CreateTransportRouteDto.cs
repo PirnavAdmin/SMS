@@ -1,34 +1,93 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using SMS.Api.Common;
 
 namespace SMS.Api.Dtos.Transport
 {
-	public class CreateTransportRouteDto
-	{
-		[Required(ErrorMessage = "Route code is required.")]
-		[StringLength(30, ErrorMessage = "Route code cannot exceed 30 characters.")]
-		public string RouteCode { get; set; } = string.Empty;
+    public class CreateTransportRouteDto
+    {
+        private string _routeCode = string.Empty;
+        private string _routeName = string.Empty;
+        private string _startLocation = string.Empty;
+        private string _endLocation = string.Empty;
+        private decimal _distanceKm;
+        private int _estimatedDurationMinutes = 30;
 
-		[Required(ErrorMessage = "Route name is required.")]
-		[StringLength(150, ErrorMessage = "Route name cannot exceed 150 characters.")]
-		public string RouteName { get; set; } = string.Empty;
+        [JsonPropertyName("routeCode")]
+        public string RouteCode
+        {
+            get => !string.IsNullOrWhiteSpace(_routeCode) ? _routeCode : $"R-CODE-{Random.Shared.Next(100, 999)}";
+            set => _routeCode = value ?? string.Empty;
+        }
 
-		[Required(ErrorMessage = "Start location is required.")]
-		[StringLength(150)]
-		public string StartLocation { get; set; } = string.Empty;
+        [JsonPropertyName("routeName")]
+        public string RouteName
+        {
+            get => !string.IsNullOrWhiteSpace(_routeName) ? _routeName : (!string.IsNullOrWhiteSpace(_routeCode) ? _routeCode : "New Route");
+            set => _routeName = value ?? string.Empty;
+        }
 
-		[Required(ErrorMessage = "End location is required.")]
-		[StringLength(150)]
-		public string EndLocation { get; set; } = string.Empty;
+        [JsonPropertyName("startLocation")]
+        public string StartLocation
+        {
+            get => !string.IsNullOrWhiteSpace(_startLocation) ? _startLocation : (RouteStart ?? "Start Point");
+            set => _startLocation = value ?? string.Empty;
+        }
 
-		[Range(0, 999999, ErrorMessage = "Distance cannot be negative.")]
-		public decimal DistanceKm { get; set; }
+        [JsonPropertyName("routeStart")]
+        public string? RouteStart
+        {
+            get => _startLocation;
+            set { if (!string.IsNullOrWhiteSpace(value)) _startLocation = value; }
+        }
 
-		[Range(0, 10000, ErrorMessage = "Estimated duration cannot be negative.")]
-		public int EstimatedDurationMinutes { get; set; }
+        [JsonPropertyName("endLocation")]
+        public string EndLocation
+        {
+            get => !string.IsNullOrWhiteSpace(_endLocation) ? _endLocation : (RouteEnd ?? "End Point");
+            set => _endLocation = value ?? string.Empty;
+        }
 
-		[StringLength(500)]
-		public string? Description { get; set; }
+        [JsonPropertyName("routeEnd")]
+        public string? RouteEnd
+        {
+            get => _endLocation;
+            set { if (!string.IsNullOrWhiteSpace(value)) _endLocation = value; }
+        }
 
-		public bool Status { get; set; } = true;
-	}
+        [JsonPropertyName("distanceKm")]
+        public decimal DistanceKm
+        {
+            get => _distanceKm;
+            set => _distanceKm = value;
+        }
+
+        [JsonPropertyName("totalDistanceKm")]
+        public decimal? TotalDistanceKm
+        {
+            get => _distanceKm;
+            set { if (value.HasValue) _distanceKm = value.Value; }
+        }
+
+        [JsonPropertyName("estimatedDurationMinutes")]
+        public int EstimatedDurationMinutes
+        {
+            get => _estimatedDurationMinutes;
+            set => _estimatedDurationMinutes = value;
+        }
+
+        [JsonPropertyName("estimatedTimeMinutes")]
+        public int? EstimatedTimeMinutes
+        {
+            get => _estimatedDurationMinutes;
+            set { if (value.HasValue) _estimatedDurationMinutes = value.Value; }
+        }
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("status")]
+        [JsonConverter(typeof(FlexibleBoolConverter))]
+        public bool Status { get; set; } = true;
+    }
 }

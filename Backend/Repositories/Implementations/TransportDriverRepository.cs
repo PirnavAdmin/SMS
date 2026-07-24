@@ -136,20 +136,15 @@ namespace SMS.Api.Repositories.Implementations
         {
             var entity = new TransportDriver
             {
-                DriverName = dto.DriverName.Trim(),
-                MobileNumber = dto.MobileNumber.Trim(),
-                AlternateMobileNumber =
-                    string.IsNullOrWhiteSpace(dto.AlternateMobileNumber)
-                        ? null
-                        : dto.AlternateMobileNumber.Trim(),
-                LicenceNumber = dto.LicenceNumber.Trim(),
+                DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName.Trim() : "Driver",
+                MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber.Trim() : "0000000000",
+                AlternateMobileNumber = dto.AlternateMobileNumber?.Trim() ?? string.Empty,
+                LicenceNumber = !string.IsNullOrWhiteSpace(dto.LicenceNumber) ? dto.LicenceNumber.Trim() : $"LIC-{Random.Shared.Next(1000, 9999)}",
                 LicenceExpiry = dto.LicenceExpiry,
-                Address = dto.Address?.Trim(),
-                BloodGroup = dto.BloodGroup?.Trim(),
-                EmergencyContactName =
-                    dto.EmergencyContactName?.Trim(),
-                EmergencyContactNumber =
-                    dto.EmergencyContactNumber?.Trim(),
+                Address = dto.Address?.Trim() ?? string.Empty,
+                BloodGroup = dto.BloodGroup?.Trim() ?? string.Empty,
+                EmergencyContactName = dto.EmergencyContactName?.Trim() ?? string.Empty,
+                EmergencyContactNumber = dto.EmergencyContactNumber?.Trim() ?? string.Empty,
                 Status = dto.Status,
                 IsDeleted = false,
                 CreatedBy = userId,
@@ -175,20 +170,15 @@ namespace SMS.Api.Repositories.Implementations
             if (entity == null)
                 return false;
 
-            entity.DriverName = dto.DriverName.Trim();
-            entity.MobileNumber = dto.MobileNumber.Trim();
-            entity.AlternateMobileNumber =
-                string.IsNullOrWhiteSpace(dto.AlternateMobileNumber)
-                    ? null
-                    : dto.AlternateMobileNumber.Trim();
-            entity.LicenceNumber = dto.LicenceNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.DriverName)) entity.DriverName = dto.DriverName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.MobileNumber)) entity.MobileNumber = dto.MobileNumber.Trim();
+            entity.AlternateMobileNumber = dto.AlternateMobileNumber?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(dto.LicenceNumber)) entity.LicenceNumber = dto.LicenceNumber.Trim();
             entity.LicenceExpiry = dto.LicenceExpiry;
-            entity.Address = dto.Address?.Trim();
-            entity.BloodGroup = dto.BloodGroup?.Trim();
-            entity.EmergencyContactName =
-                dto.EmergencyContactName?.Trim();
-            entity.EmergencyContactNumber =
-                dto.EmergencyContactNumber?.Trim();
+            entity.Address = dto.Address?.Trim() ?? string.Empty;
+            entity.BloodGroup = dto.BloodGroup?.Trim() ?? string.Empty;
+            entity.EmergencyContactName = dto.EmergencyContactName?.Trim() ?? string.Empty;
+            entity.EmergencyContactNumber = dto.EmergencyContactNumber?.Trim() ?? string.Empty;
             entity.Status = dto.Status;
             entity.UpdatedBy = userId;
             entity.UpdatedAt = DateTime.UtcNow;

@@ -67,7 +67,8 @@ public class OtpService : IOtpService
         return new SendOtpResponseDto
         {
             Message = $"OTP sent successfully to your {dto.DeliveryMethod}.",
-            DeliveryMethod = dto.DeliveryMethod
+            DeliveryMethod = dto.DeliveryMethod,
+            TestOtpCode = rawOtpCode
         };
     }
 

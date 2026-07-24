@@ -291,7 +291,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
                       </>
                     )}
 
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency(st.salary)}/mo</td>
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency(st.salary * 12)}/yr</td>
                     <td className="py-3 px-4">
                       <button onClick={() => toggleStatus(st)}>
                         <Badge variant={st.status === 'Active' ? 'success' : (st.status === 'On Leave' ? 'warning' : 'neutral')}>

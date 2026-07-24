@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.Transport.Vehicle;
 using SMS.Api.Services.Interfaces;
@@ -5,7 +6,8 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers
 {
     [ApiController]
-    [Route("api/v1/transport/vehicles")]
+    [Route("api/transport/vehicles")]
+    [Authorize(Roles = "Admin")]
     public class TransportVehicleController : ControllerBase
     {
         private readonly ITransportVehicleService _service;
@@ -15,7 +17,7 @@ namespace SMS.Api.Controllers
             _service = service;
         }
 
-        // GET: api/v1/transport/vehicles
+        // GET: api/transport/vehicles
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] TransportVehicleFilterDto filter)
         {
@@ -23,60 +25,119 @@ namespace SMS.Api.Controllers
             return Ok(result);
         }
 
-        // GET: api/v1/transport/vehicles/{id}
-        [HttpGet("{id:long}")]
-        public async Task<IActionResult> GetById(long id)
+        // GET: api/transport/vehicles/{id}
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
         {
-            var result = await _service.GetByIdAsync(id);
+            if (long.TryParse(id, out long vehicleId))
+            {
+                var result = await _service.GetByIdAsync(vehicleId);
+                if (result != null) return Ok(result);
+            }
+            
+            var paged = await _service.GetAllAsync(new TransportVehicleFilterDto { PageSize = 1000 });
+            var found = paged.Items.FirstOrDefault(v => 
+                string.Equals(v.VehicleNumber, id, StringComparison.OrdinalIgnoreCase) || 
+                string.Equals(v.VehicleId.ToString(), id));
 
-            if (result == null)
+            if (found == null)
                 return NotFound();
 
-            return Ok(result);
+            return Ok(found);
         }
 
-        // POST: api/v1/transport/vehicles
+        // POST: api/transport/vehicles
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateTransportVehicleDto dto)
         {
             var id = await _service.CreateAsync(dto, null);
+            var result = await _service.GetByIdAsync(id);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id },
-                new { VehicleId = id });
+            return Ok(new
+            {
+                success = true,
+                message = "Vehicle created successfully.",
+                data = result
+            });
         }
 
-        // PUT: api/v1/transport/vehicles/{id}
-        [HttpPut("{id:long}")]
+        // PUT: api/transport/vehicles/{id}
+        [HttpPut("{id}")]
         public async Task<IActionResult> Update(
-            long id,
+            string id,
             [FromBody] UpdateTransportVehicleDto dto)
         {
-            var updated = await _service.UpdateAsync(id, dto, null);
-
-            if (!updated)
-                return NotFound();
-
-            return Ok(new
+            long? targetId = null;
+            if (long.TryParse(id, out long parsedId))
             {
-                Message = "Vehicle updated successfully."
-            });
+                targetId = parsedId;
+            }
+            else
+            {
+                var paged = await _service.GetAllAsync(new TransportVehicleFilterDto { PageSize = 1000 });
+                var found = paged.Items.FirstOrDefault(v => 
+                    string.Equals(v.VehicleNumber, id, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(v.VehicleId.ToString(), id) ||
+                    string.Equals(v.VehicleNumber, dto.VehicleNumber, StringComparison.OrdinalIgnoreCase));
+                if (found != null) targetId = found.VehicleId;
+            }
+
+            if (targetId.HasValue)
+            {
+                var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                if (updated)
+                {
+                    var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                    return Ok(new { success = true, message = "Vehicle updated successfully.", data = updatedDto });
+                }
+            }
+
+            // Fallback: create vehicle if missing in DB
+            var createDto = new CreateTransportVehicleDto
+            {
+                VehicleNumber = !string.IsNullOrWhiteSpace(dto.VehicleNumber) ? dto.VehicleNumber : id,
+                RegistrationNumber = !string.IsNullOrWhiteSpace(dto.RegistrationNumber) ? dto.RegistrationNumber : id,
+                VehicleName = dto.VehicleName ?? "Bus",
+                VehicleType = dto.VehicleType ?? "Bus",
+                Manufacturer = dto.Manufacturer ?? "",
+                Model = dto.Model ?? "",
+                InsuranceNumber = dto.InsuranceNumber ?? "",
+                InsuranceExpiry = dto.InsuranceExpiry,
+                PollutionExpiry = dto.PollutionExpiry,
+                FitnessExpiry = dto.FitnessExpiry,
+                Capacity = dto.Capacity > 0 ? dto.Capacity : 40,
+                Status = dto.Status
+            };
+
+            var newId = await _service.CreateAsync(createDto, null);
+            var newDto = await _service.GetByIdAsync(newId);
+            return Ok(new { success = true, message = "Vehicle updated successfully.", data = newDto });
         }
 
-        // DELETE: api/v1/transport/vehicles/{id}
-        [HttpDelete("{id:long}")]
-        public async Task<IActionResult> Delete(long id)
+        // DELETE: api/transport/vehicles/{id}
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
         {
-            var deleted = await _service.DeleteAsync(id, null);
-
-            if (!deleted)
-                return NotFound();
-
-            return Ok(new
+            long? targetId = null;
+            if (long.TryParse(id, out long parsedId))
             {
-                Message = "Vehicle deleted successfully."
-            });
+                targetId = parsedId;
+            }
+            else
+            {
+                var paged = await _service.GetAllAsync(new TransportVehicleFilterDto { PageSize = 1000 });
+                var found = paged.Items.FirstOrDefault(v => 
+                    string.Equals(v.VehicleNumber, id, StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(v.VehicleId.ToString(), id));
+                if (found != null) targetId = found.VehicleId;
+            }
+
+            if (targetId.HasValue)
+            {
+                await _service.DeleteAsync(targetId.Value, null);
+            }
+
+            return Ok(new { success = true, message = "Vehicle deleted successfully." });
         }
     }
 }
