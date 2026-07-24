@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CalendarCheck, Users, CheckCircle2, XCircle, Clock, AlertTriangle, Fingerprint } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { CalendarCheck } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { DailyAttendance } from '../../../types';
@@ -10,11 +10,25 @@ export const AttendanceView: React.FC = () => {
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedClass, setSelectedClass] = useState(academicClasses[0]?.name || 'Class 10');
+  const [selectedSection, setSelectedSection] = useState('All Sections');
   const [activeTab, setActiveTab] = useState<'students' | 'staff'>('students');
-  const [biometricOnline, setBiometricOnline] = useState(true);
+  const classOptions = useMemo(() => academicClasses.map(c => c.name), [academicClasses]);
+  const sectionOptions = useMemo(
+    () => academicClasses.find(c => c.name === selectedClass)?.sections || [],
+    [academicClasses, selectedClass]
+  );
+
+  useEffect(() => {
+    if (selectedSection !== 'All Sections' && !sectionOptions.includes(selectedSection)) {
+      setSelectedSection('All Sections');
+    }
+  }, [selectedClass, selectedSection, sectionOptions]);
 
   // Local state for grid edit
-  const classStudents = students.filter(s => s.className === selectedClass);
+  const classStudents = students.filter(s =>
+    s.className === selectedClass &&
+    (selectedSection === 'All Sections' || s.section === selectedSection)
+  );
 
   const getAttendanceStatus = (entityId: string): DailyAttendance['status'] => {
     const record = attendance.find(a => a.date === date && a.entityId === entityId);
@@ -33,7 +47,7 @@ export const AttendanceView: React.FC = () => {
       status
     }));
     markAttendance(records);
-    addToast('success', 'Bulk Attendance Marked', `Set all ${selectedClass} students to ${status}`);
+    addToast('success', 'Bulk Attendance Marked', `Set all ${selectedClass}${selectedSection !== 'All Sections' ? `-${selectedSection}` : ''} students to ${status}`);
   };
 
   return (
@@ -44,19 +58,7 @@ export const AttendanceView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-emerald-600" /> Daily Attendance Register
           </h2>
-          <p className="text-xs text-slate-500">Log student & staff daily attendance, view analytics, biometric sync status</p>
-        </div>
-
-        {/* Biometric Status Pill */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
-          <Fingerprint className={`w-4 h-4 ${biometricOnline ? 'text-emerald-500 animate-pulse' : 'text-slate-400'}`} />
-          <span>Biometric Scanner: {biometricOnline ? 'Online Syncing' : 'Offline'}</span>
-          <button
-            onClick={() => setBiometricOnline(!biometricOnline)}
-            className="ml-2 text-[10px] text-brand-600 underline font-bold"
-          >
-            Toggle
-          </button>
+          <p className="text-xs text-slate-500">Log student & staff daily attendance and view daily attendance analytics</p>
         </div>
       </div>
 
@@ -97,11 +99,30 @@ export const AttendanceView: React.FC = () => {
               <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">Class Grade</label>
               <select
                 value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
+                onChange={e => {
+                  setSelectedClass(e.target.value);
+                  setSelectedSection('All Sections');
+                }}
                 className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
               >
-                {academicClasses.map(c => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
+                {classOptions.map(className => (
+                  <option key={className} value={className}>{className}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {activeTab === 'students' && (
+            <div>
+              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-0.5">Section</label>
+              <select
+                value={selectedSection}
+                onChange={e => setSelectedSection(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="All Sections">All Sections</option>
+                {sectionOptions.map(section => (
+                  <option key={section} value={section}>{section}</option>
                 ))}
               </select>
             </div>
@@ -131,7 +152,7 @@ export const AttendanceView: React.FC = () => {
         <div className="glass-card rounded-2xl overflow-hidden">
           <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
             <span className="font-bold text-slate-700 dark:text-slate-200">
-              Showing students for {selectedClass} ({classStudents.length} Students)
+              Showing students for {selectedClass}{selectedSection !== 'All Sections' ? ` - ${selectedSection}` : ' - All Sections'} ({classStudents.length} Students)
             </span>
             <span className="text-slate-400">Date: {date}</span>
           </div>

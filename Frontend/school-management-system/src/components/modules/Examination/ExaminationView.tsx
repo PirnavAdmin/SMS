@@ -927,6 +927,157 @@ export const ExaminationView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          <div className="bg-white dark:bg-slate-900 border rounded-3xl p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
+                  Exam Timetable Preview
+                </h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Review the complete read-only timetable for a selected class and section.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                  <input
+                    type="text"
+                    value={previewSearch}
+                    onChange={e => setPreviewSearch(e.target.value)}
+                    placeholder="Search subject..."
+                    className="pl-8 pr-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePrintPreview}
+                  className="px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold hover:bg-slate-100 flex items-center gap-1.5 text-[11px]"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-600" /> Print / PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportPreviewCsv}
+                  className="px-3 py-2 rounded-xl border bg-emerald-50 text-emerald-700 font-bold hover:bg-emerald-100 flex items-center gap-1.5 text-[11px]"
+                >
+                  <Download className="w-3.5 h-3.5" /> Export Excel
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">Academic Year *</label>
+                <select
+                  value={previewAcademicYear}
+                  onChange={e => setPreviewAcademicYear(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                >
+                  {academicYearOptions.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">Branch *</label>
+                <select
+                  value={previewBranch}
+                  onChange={e => setPreviewBranch(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                >
+                  {branchOptions.map(branch => (
+                    <option key={branch} value={branch}>{branch}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">Exam *</label>
+                <select
+                  value={previewExamId}
+                  onChange={e => setPreviewExamId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                >
+                  <option value="">Select Exam</option>
+                  {previewExamOptions.map(exam => (
+                    <option key={exam.id} value={exam.id}>{exam.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">Class *</label>
+                <select
+                  value={previewClass}
+                  onChange={e => setPreviewClass(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                >
+                  <option value="">Select Class</option>
+                  {classOptions.map(className => (
+                    <option key={className} value={className}>{className}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">Section *</label>
+                <select
+                  value={previewSection}
+                  onChange={e => setPreviewSection(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                >
+                  <option value="">Select Section</option>
+                  {previewSectionOptions.map(section => (
+                    <option key={section} value={section}>{section}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto border rounded-2xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-850/50 text-slate-500 font-bold uppercase border-b">
+                    <th className="py-3 px-4">Subject</th>
+                    <th className="py-3 px-4">Exam Date</th>
+                    <th className="py-3 px-4">Start Time</th>
+                    <th className="py-3 px-4">End Time</th>
+                    <th className="py-3 px-4 text-center">Maximum Marks</th>
+                    <th className="py-3 px-4 text-center">Passing Marks</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
+                  {!previewAcademicYear || !previewBranch || !previewExamId || !previewClass || !previewSection ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400 italic">
+                        Select academic year, branch, exam, class, and section to preview the timetable.
+                      </td>
+                    </tr>
+                  ) : previewTimetableRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400 italic">
+                        No timetable exists for the selected class and section.
+                      </td>
+                    </tr>
+                  ) : (
+                    previewTimetableRows.map(row => (
+                      <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-black">{row.subject}</td>
+                        <td className="py-3 px-4 font-mono">{row.date}</td>
+                        <td className="py-3 px-4 font-mono">{row.startTime}</td>
+                        <td className="py-3 px-4 font-mono">{row.endTime}</td>
+                        <td className="py-3 px-4 text-center font-black text-slate-800 dark:text-slate-200">{row.maxMarks}</td>
+                        <td className="py-3 px-4 text-center font-black text-slate-800 dark:text-slate-200">{row.passMarks}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

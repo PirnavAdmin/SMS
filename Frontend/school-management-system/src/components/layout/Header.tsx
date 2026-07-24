@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Search, Sun, Moon, Bell, Shield, LogOut, Key, Clock, CheckCircle2,
-  Megaphone, Building2
+  Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useData } from '../../context/DataContext';
 import { UserRole } from '../../types';
+import { ConfirmModal } from '../common/ConfirmModal';
+import { BRANCHES } from '../../utils/validation';
 
 interface HeaderProps {
   collapsed: boolean;
@@ -17,13 +19,27 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenChangePass }) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const { announcements } = useData();
+  const { announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters } = useData();
 
   const [timeStr, setTimeStr] = useState('');
   const [dateStr, setDateStr] = useState('');
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
+  const [showBranchMenu, setShowBranchMenu] = useState(false);
+  const [branchSearch, setBranchSearch] = useState('');
+  const [managedBranches, setManagedBranches] = useState<string[]>(() => {
+    const saved = localStorage.getItem('managed_branches');
+    return saved ? JSON.parse(saved) : [...BRANCHES];
+  });
+  const [inactiveBranches, setInactiveBranches] = useState<string[]>(() => {
+    const saved = localStorage.getItem('inactive_branches');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [branchModalOpen, setBranchModalOpen] = useState(false);
+  const [branchDraftName, setBranchDraftName] = useState('');
+  const [editingBranchName, setEditingBranchName] = useState<string | null>(null);
+  const [deactivatingBranch, setDeactivatingBranch] = useState<string | null>(null);
 
   useEffect(() => {
     const updateClock = () => {
@@ -57,13 +73,97 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenC
     return [userBranch || 'Main Campus'];
   };
 
-  const authorizedBranches = getAuthorizedBranches(role, user?.branch);
+  const canViewBranch = ['Super Admin', 'Admin', 'Principal', 'Accountant', 'Teacher', 'Receptionist', 'HR', 'Transport Manager', 'Hostel Warden'].includes(role);
+  const canCreateBranch = ['Super Admin', 'Admin'].includes(role);
+  const canManageBranch = ['Super Admin', 'Admin'].includes(role);
+
+  const branchOptions = useMemo(() => {
+    const sourceBranches = [
+      ...managedBranches,
+      ...students.map(s => s.branch || 'Main Campus'),
+      ...admissions.map(a => a.branch || 'Main Campus'),
+      ...academicClasses.map(c => (c as any).branch || 'Main Campus'),
+      ...dynamicFeeStructures.map(f => f.branch || 'Main Campus'),
+      ...routeMasters.map(r => (r as any).branch || 'Main Campus'),
+      ...hostelMasters.map(h => (h as any).branch || 'Main Campus')
+    ];
+    return Array.from(new Set(sourceBranches))
+      .filter(branch => branch && !inactiveBranches.includes(branch))
+      .sort();
+  }, [managedBranches, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, inactiveBranches]);
+
+  const authorizedBranches = useMemo(() => {
+    const roleBranches = getAuthorizedBranches(role, user?.branch);
+    if (role === 'Super Admin' || role === 'Admin') return branchOptions;
+    return roleBranches.filter(branch => branchOptions.includes(branch));
+  }, [role, user?.branch, branchOptions]);
+
+  const filteredBranchOptions = authorizedBranches.filter(branch =>
+    branch.toLowerCase().includes(branchSearch.toLowerCase())
+  );
 
   useEffect(() => {
     if (authorizedBranches.length > 0 && !authorizedBranches.includes(selectedBranch)) {
       setSelectedBranch(authorizedBranches[0]);
     }
-  }, [role, user?.branch, selectedBranch, authorizedBranches]);
+  }, [selectedBranch, authorizedBranches, setSelectedBranch]);
+
+  useEffect(() => {
+    localStorage.setItem('managed_branches', JSON.stringify(managedBranches));
+  }, [managedBranches]);
+
+  useEffect(() => {
+    localStorage.setItem('inactive_branches', JSON.stringify(inactiveBranches));
+  }, [inactiveBranches]);
+
+  const selectBranch = (branch: string) => {
+    if (!canViewBranch || !authorizedBranches.includes(branch)) return;
+    setSelectedBranch(branch);
+    setShowBranchMenu(false);
+    setBranchSearch('');
+  };
+
+  const openCreateBranch = () => {
+    if (!canCreateBranch) return;
+    setEditingBranchName(null);
+    setBranchDraftName('');
+    setBranchModalOpen(true);
+    setShowBranchMenu(false);
+  };
+
+  const openEditBranch = (branch: string) => {
+    if (!canManageBranch) return;
+    setEditingBranchName(branch);
+    setBranchDraftName(branch);
+    setBranchModalOpen(true);
+  };
+
+  const saveBranch = () => {
+    const nextName = branchDraftName.trim();
+    if (!nextName) return;
+    setManagedBranches(prev => {
+      const withoutEdited = editingBranchName ? prev.filter(branch => branch !== editingBranchName) : prev;
+      return Array.from(new Set([...withoutEdited, nextName]));
+    });
+    if (editingBranchName && inactiveBranches.includes(editingBranchName)) {
+      setInactiveBranches(prev => prev.filter(branch => branch !== editingBranchName));
+    }
+    setBranchModalOpen(false);
+    setEditingBranchName(null);
+    setBranchDraftName('');
+    selectBranch(nextName);
+  };
+
+  const confirmDeactivateBranch = () => {
+    if (!deactivatingBranch || !canManageBranch) return;
+    setInactiveBranches(prev => Array.from(new Set([...prev, deactivatingBranch])));
+    if (selectedBranch === deactivatingBranch) {
+      const fallback = branchOptions.find(branch => branch !== deactivatingBranch) || 'Main Campus';
+      setSelectedBranch(fallback);
+    }
+    setDeactivatingBranch(null);
+    setShowBranchMenu(false);
+  };
 
   return (
     <header
@@ -82,34 +182,84 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenC
         </button>
 
         {/* Global Branch Selector with Permissions */}
-        {authorizedBranches.length > 1 ? (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold animate-in fade-in">
-            <Building2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Branch:</span>
-            <select
-              value={selectedBranch}
-              onChange={e => {
-                const targetVal = e.target.value;
-                if (authorizedBranches.includes(targetVal)) {
-                  setSelectedBranch(targetVal);
-                }
-              }}
-              className="bg-transparent border-none outline-none font-bold cursor-pointer text-indigo-900 dark:text-indigo-200 text-xs"
+        {canViewBranch && authorizedBranches.length > 0 && (
+          <div className="relative animate-in fade-in">
+            <button
+              onClick={() => setShowBranchMenu(!showBranchMenu)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
             >
-              {authorizedBranches.map(b => (
-                <option key={b} value={b} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
-                  {b}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          authorizedBranches.length === 1 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 text-xs font-bold animate-in fade-in">
               <Building2 className="w-3.5 h-3.5" />
-              <span>Branch: {authorizedBranches[0]}</span>
-            </div>
-          )
+              <span className="hidden sm:inline">Branch:</span>
+              <span className="max-w-32 truncate text-indigo-900 dark:text-indigo-100">{selectedBranch}</span>
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+
+            {showBranchMenu && (
+              <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex-1 flex items-center gap-2 px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <Search className="w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      value={branchSearch}
+                      onChange={e => setBranchSearch(e.target.value)}
+                      placeholder="Search branch..."
+                      className="w-full bg-transparent outline-none text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
+                      autoFocus
+                    />
+                  </div>
+                  {canCreateBranch && (
+                    <button
+                      onClick={openCreateBranch}
+                      className="p-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors"
+                      title="Add Branch"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-64 overflow-y-auto space-y-1">
+                  {filteredBranchOptions.length === 0 ? (
+                    <div className="px-3 py-6 text-center text-xs text-slate-500">No branches found.</div>
+                  ) : filteredBranchOptions.map(branch => (
+                    <div
+                      key={branch}
+                      className={`group flex items-center gap-2 rounded-xl transition-colors ${
+                        selectedBranch === branch
+                          ? 'bg-indigo-600 text-white'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <button
+                        onClick={() => selectBranch(branch)}
+                        className="flex-1 text-left px-3 py-2 text-xs font-semibold truncate"
+                      >
+                        {branch}
+                      </button>
+                      {canManageBranch && (
+                        <div className="flex items-center gap-1 pr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => openEditBranch(branch)}
+                            className={`p-1 rounded-lg ${selectedBranch === branch ? 'hover:bg-white/15' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                            title="Edit Branch"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeactivatingBranch(branch)}
+                            className={`p-1 rounded-lg ${selectedBranch === branch ? 'hover:bg-white/15' : 'hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-500'}`}
+                            title="Deactivate Branch"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Real-time Clock */}
@@ -234,6 +384,66 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, onOpenSearch, onOpenC
           )}
         </div>
       </div>
+
+      {branchModalOpen && (
+        <div className="fixed inset-0 z-[80] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white">{editingBranchName ? 'Edit Branch' : 'Create Branch'}</h3>
+                <p className="text-xs text-slate-500">Branch will be available immediately from the header selector.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setBranchModalOpen(false);
+                  setEditingBranchName(null);
+                  setBranchDraftName('');
+                }}
+                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">Branch Name</label>
+            <input
+              value={branchDraftName}
+              onChange={e => setBranchDraftName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveBranch()}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. East Campus"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={() => {
+                  setBranchModalOpen(false);
+                  setEditingBranchName(null);
+                  setBranchDraftName('');
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveBranch}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-700"
+              >
+                {editingBranchName ? 'Save Branch' : 'Create Branch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={!!deactivatingBranch}
+        title="Deactivate Branch"
+        message={`Deactivate ${deactivatingBranch || 'this branch'}? Existing records will remain unchanged, but the branch will be hidden from active selection.`}
+        confirmLabel="Deactivate"
+        variant="danger"
+        onConfirm={confirmDeactivateBranch}
+        onCancel={() => setDeactivatingBranch(null)}
+      />
     </header>
   );
 };

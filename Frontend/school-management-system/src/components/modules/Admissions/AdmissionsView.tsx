@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
-  GraduationCap, Plus, Search, Filter, CheckCircle2, UserCheck,
-  Building2, Phone, X, Eye, Edit, Trash2, ChevronLeft, ChevronRight, XCircle,
-  ArrowLeft, Camera, User, Shield, Home, Bus, Upload, Calculator
+  GraduationCap, Plus, Search, CheckCircle2, UserCheck,
+  X, Eye, Edit, Trash2, ChevronLeft, ChevronRight, XCircle,
+  ArrowLeft, Camera, User, Shield, Home, Bus, Calculator
 } from 'lucide-react';
 import { AdmissionApplication, StudentType, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
-import { Badge } from '../../common/Badge';
+import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 import { validateDOB } from '../../../utils/dateValidation';
@@ -17,14 +17,15 @@ interface AdmissionsViewProps {
   onSelectStudentProfile?: (student: Student) => void;
 }
 
-export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentProfile }) => {
+export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
   const {
     admissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus, students,
-    transportRoutes, hostelBlocks, hostelRooms, hostelBeds, routeMasters, pickupPoints,
+    routeMasters, pickupPoints,
     getStudentFeeLedger, dynamicFeeStructures, financeTransportConfigs, hostelMasters, financeHostelConfigs,
-    roomMasters, studentHostelAssignments, scholarships, discounts, roomTypeMasters
+    roomMasters, studentHostelAssignments, scholarships, discounts, roomTypeMasters, academicClasses
   } = useData();
   const { addToast } = useToast();
+  const { selectedBranch } = useAuth();
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
@@ -75,13 +76,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
     floor: '',
     hostelRoom: '',
     hostelBed: '',
-    branch: '',
+      branch: selectedBranch,
     documentsSubmitted: []
   });
 
   const [phoneError, setPhoneError] = useState('');
   const [altPhoneError, setAltPhoneError] = useState('');
   const [dobError, setDobError] = useState('');
+
+  const classOptions = academicClasses.map(cls => cls.name);
 
   const handleAltPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, '').slice(0, 10);
@@ -109,8 +112,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
 
   const totalPages = Math.ceil(filteredAdmissions.length / pageSize) || 1;
   const paginated = filteredAdmissions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
-  const availableBeds = hostelBeds.filter(b => b.status === 'Available');
 
   const handleOpenAdd = () => {
     setEditingApp(null);
@@ -146,7 +147,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
       floor: '',
       hostelRoom: '',
       hostelBed: '',
-      branch: '',
+      branch: selectedBranch,
       scholarshipId: '',
       discountId: '',
       documentsSubmitted: []
@@ -267,7 +268,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
         floor: formData.floor,
         hostelRoom: formData.hostelRoom,
         hostelBed: formData.hostelBed,
-        branch: formData.branch || 'Main Campus',
+        branch: formData.branch || selectedBranch || 'Main Campus',
         scholarshipId: formData.scholarshipId,
         discountId: formData.discountId,
         submissionDate: new Date().toISOString().split('T')[0],
@@ -509,10 +510,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                     onChange={e => setFormData({ ...formData, appliedClass: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
                   >
-                    <option value="Class 9">Class 9</option>
-                    <option value="Class 10">Class 10</option>
-                    <option value="Class 11">Class 11</option>
-                    <option value="Class 12">Class 12</option>
+                    <option value="">Select Class</option>
+                    {classOptions.map(className => (
+                      <option key={className} value={className}>{className}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -530,11 +531,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Target Campus / Branch *</label>
                   <select
-                    value={formData.branch}
+                    value={formData.branch || selectedBranch || 'Main Campus'}
                     onChange={e => setFormData({ ...formData, branch: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
                   >
-                    {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                    {BRANCHES.map(branch => (
+                      <option key={branch} value={branch}>{branch}</option>
+                    ))}
                   </select>
                 </div>
               </div>

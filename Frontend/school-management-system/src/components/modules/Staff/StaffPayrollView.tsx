@@ -202,6 +202,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
   const [newCompName, setNewCompName] = useState('');
   const [newCompAmount, setNewCompAmount] = useState<number | ''>('');
   const [newCompType, setNewCompType] = useState<'earnings' | 'deductions'>('earnings');
+  const [activeReport, setActiveReport] = useState<'pf' | 'esi' | 'tds' | 'expense' | 'bank'>('expense');
 
   const [processingStep, setProcessingStep] = useState(1);
   const [adjustmentEmployeeId, setAdjustmentEmployeeId] = useState<string | null>(null);
@@ -726,8 +727,6 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
       </div>
     );
   };
-
-  const [activeReport, setActiveReport] = useState<'pf' | 'esi' | 'tds' | 'expense' | 'bank'>('expense');
 
   const renderReports = () => {
     const currentMonthPayslips = data.payslips.filter(p => p.month === payrollMonth);
@@ -1402,7 +1401,14 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
             </div>
             
             <div className="grid gap-4 md:grid-cols-4 bg-slate-50/50 dark:bg-slate-900/50 p-4 rounded-xl border">
-              <Field label="Structure Code"><Input value={draft.structureCode || ''} readOnly className="bg-slate-100 dark:bg-slate-800 cursor-not-allowed font-mono font-bold" /></Field>
+              <Field label="Structure Code">
+                <Input
+                  value={draft.structureCode || ''}
+                  onChange={e => setStructureDraft({ ...draft, structureCode: e.target.value })}
+                  placeholder="STR-1001"
+                  className="font-mono font-bold"
+                />
+              </Field>
               <Field label="Structure Name"><Input value={draft.structureName || ''} onChange={e => setStructureDraft({ ...draft, structureName: e.target.value })} placeholder="Teacher Grade A" /></Field>
               <Field label="Department">
                 <Select value={draft.department || 'General'} onChange={e => setStructureDraft({ ...draft, department: e.target.value })}>
@@ -1435,8 +1441,13 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
               <div className="col-span-1 md:col-span-3">
                 <Field label="Notes"><Input value={draft.notes || ''} onChange={e => setStructureDraft({ ...draft, notes: e.target.value })} placeholder="Additional comments..." /></Field>
               </div>
-              <Field label="Monthly Gross Salary (Auto)">
-                <Input type="number" readOnly value={draft.earnings?.reduce((sum, e) => sum + e.amount, 0) || 0} className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 font-extrabold cursor-not-allowed font-mono" />
+              <Field label="Monthly Gross Salary">
+                <Input
+                  type="number"
+                  value={draft.grossSalary || 0}
+                  onChange={e => setStructureDraft({ ...draft, grossSalary: Number(e.target.value) })}
+                  className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 font-extrabold font-mono"
+                />
               </Field>
             </div>
 
@@ -1459,8 +1470,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                               const updated = draft.earnings.filter((_, i) => i !== idx);
                               setStructureDraft({
                                 ...draft,
-                                earnings: updated,
-                                grossSalary: updated.reduce((sum, item) => sum + item.amount, 0)
+                                earnings: updated
                               });
                             }}
                             className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-900 rounded"
@@ -1505,8 +1515,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                       const updated = [...(draft.earnings || []), { name: sel.value, amount: newAmount, type: 'Fixed' as const, value: newAmount }];
                       setStructureDraft({
                         ...draft,
-                        earnings: updated,
-                        grossSalary: updated.reduce((sum, item) => sum + item.amount, 0)
+                        earnings: updated
                       });
                       amt.value = '';
                     }}
@@ -1598,7 +1607,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                   try {
                     const finalStructure = {
                       ...draft,
-                      grossSalary: draft.earnings?.reduce((sum, item) => sum + item.amount, 0) || 0,
+                      grossSalary: Number(draft.grossSalary || 0),
                       branch: draft.branch || selectedBranch
                     };
                     if (draft.id) {
