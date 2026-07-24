@@ -46,6 +46,7 @@ public class AdmissionsController : ControllerBase
         return Ok(new { success = true, message = "Application deleted successfully." });
     }
 
+    [HttpPost("{registrationNo}/status")]
     [HttpPatch("{registrationNo}/status")]
     public async Task<IActionResult> UpdateStatusByRegistrationNo(string registrationNo, [FromBody] StatusUpdateDto dto)
     {

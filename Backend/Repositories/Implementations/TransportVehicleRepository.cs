@@ -103,14 +103,14 @@ namespace SMS.Api.Repositories.Implementations
         {
             var entity = new TransportVehicle
             {
-                VehicleNumber = dto.VehicleNumber.Trim(),
-                RegistrationNumber = dto.RegistrationNumber.Trim(),
-                VehicleName = dto.VehicleName.Trim(),
-                VehicleType = dto.VehicleType.Trim(),
-                Capacity = dto.Capacity,
-                Manufacturer = dto.Manufacturer,
-                Model = dto.Model,
-                InsuranceNumber = dto.InsuranceNumber,
+                VehicleNumber = !string.IsNullOrWhiteSpace(dto.VehicleNumber) ? dto.VehicleNumber.Trim() : $"VH-{Random.Shared.Next(100, 999)}",
+                RegistrationNumber = !string.IsNullOrWhiteSpace(dto.RegistrationNumber) ? dto.RegistrationNumber.Trim() : $"REG-{Random.Shared.Next(100, 999)}",
+                VehicleName = !string.IsNullOrWhiteSpace(dto.VehicleName) ? dto.VehicleName.Trim() : "School Bus",
+                VehicleType = !string.IsNullOrWhiteSpace(dto.VehicleType) ? dto.VehicleType.Trim() : "Bus",
+                Capacity = dto.Capacity > 0 ? dto.Capacity : 40,
+                Manufacturer = dto.Manufacturer?.Trim() ?? string.Empty,
+                Model = dto.Model?.Trim() ?? string.Empty,
+                InsuranceNumber = dto.InsuranceNumber?.Trim() ?? string.Empty,
                 InsuranceExpiry = dto.InsuranceExpiry,
                 PollutionExpiry = dto.PollutionExpiry,
                 FitnessExpiry = dto.FitnessExpiry,
@@ -138,14 +138,14 @@ namespace SMS.Api.Repositories.Implementations
             if (entity == null)
                 return false;
 
-            entity.VehicleNumber = dto.VehicleNumber.Trim();
-            entity.RegistrationNumber = dto.RegistrationNumber.Trim();
-            entity.VehicleName = dto.VehicleName.Trim();
-            entity.VehicleType = dto.VehicleType.Trim();
-            entity.Capacity = dto.Capacity;
-            entity.Manufacturer = dto.Manufacturer;
-            entity.Model = dto.Model;
-            entity.InsuranceNumber = dto.InsuranceNumber;
+            if (!string.IsNullOrWhiteSpace(dto.VehicleNumber)) entity.VehicleNumber = dto.VehicleNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.RegistrationNumber)) entity.RegistrationNumber = dto.RegistrationNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.VehicleName)) entity.VehicleName = dto.VehicleName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.VehicleType)) entity.VehicleType = dto.VehicleType.Trim();
+            if (dto.Capacity > 0) entity.Capacity = dto.Capacity;
+            entity.Manufacturer = dto.Manufacturer?.Trim() ?? string.Empty;
+            entity.Model = dto.Model?.Trim() ?? string.Empty;
+            entity.InsuranceNumber = dto.InsuranceNumber?.Trim() ?? string.Empty;
             entity.InsuranceExpiry = dto.InsuranceExpiry;
             entity.PollutionExpiry = dto.PollutionExpiry;
             entity.FitnessExpiry = dto.FitnessExpiry;

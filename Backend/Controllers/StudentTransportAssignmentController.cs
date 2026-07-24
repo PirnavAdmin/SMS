@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.Transport.StudentTransportAssignment;
 using SMS.Api.Services.Interfaces;
@@ -5,7 +6,8 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers
 {
     [ApiController]
-    [Route("api/v1/transport/student-assignments")]
+    [Route("api/transport/student-assignments")]
+    [Authorize(Roles = "Admin")]
     public class StudentTransportAssignmentController : ControllerBase
     {
         private readonly IStudentTransportAssignmentService _service;

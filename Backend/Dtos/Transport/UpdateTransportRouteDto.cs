@@ -4,7 +4,7 @@ using SMS.Api.Common;
 
 namespace SMS.Api.Dtos.Transport
 {
-    public class CreateTransportRouteDto
+    public class UpdateTransportRouteDto
     {
         private string _routeCode = string.Empty;
         private string _routeName = string.Empty;
@@ -23,7 +23,7 @@ namespace SMS.Api.Dtos.Transport
         [JsonPropertyName("routeName")]
         public string RouteName
         {
-            get => !string.IsNullOrWhiteSpace(_routeName) ? _routeName : (!string.IsNullOrWhiteSpace(_routeCode) ? _routeCode : "New Route");
+            get => !string.IsNullOrWhiteSpace(_routeName) ? _routeName : (!string.IsNullOrWhiteSpace(_routeCode) ? _routeCode : "Updated Route");
             set => _routeName = value ?? string.Empty;
         }
 

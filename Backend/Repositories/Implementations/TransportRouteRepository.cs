@@ -110,16 +110,13 @@ namespace SMS.Api.Repositories.Implementations
         {
             TransportRoute route = new()
             {
-                RouteCode = dto.RouteCode.Trim(),
-                RouteName = dto.RouteName.Trim(),
-                StartLocation = dto.StartLocation.Trim(),
-                EndLocation = dto.EndLocation.Trim(),
+                RouteCode = !string.IsNullOrWhiteSpace(dto.RouteCode) ? dto.RouteCode.Trim() : $"R-CODE-{Random.Shared.Next(100, 999)}",
+                RouteName = !string.IsNullOrWhiteSpace(dto.RouteName) ? dto.RouteName.Trim() : "New Route",
+                StartLocation = !string.IsNullOrWhiteSpace(dto.StartLocation) ? dto.StartLocation.Trim() : "Start Location",
+                EndLocation = !string.IsNullOrWhiteSpace(dto.EndLocation) ? dto.EndLocation.Trim() : "End Location",
                 DistanceKm = dto.DistanceKm,
-                EstimatedDurationMinutes =
-                    dto.EstimatedDurationMinutes,
-                Description = string.IsNullOrWhiteSpace(dto.Description)
-                    ? null
-                    : dto.Description.Trim(),
+                EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : 30,
+                Description = dto.Description?.Trim() ?? string.Empty,
                 Status = dto.Status,
                 IsDeleted = false,
                 CreatedBy = userId,
@@ -146,17 +143,13 @@ namespace SMS.Api.Repositories.Implementations
             if (route is null)
                 return false;
 
-            route.RouteCode = dto.RouteCode.Trim();
-            route.RouteName = dto.RouteName.Trim();
-            route.StartLocation = dto.StartLocation.Trim();
-            route.EndLocation = dto.EndLocation.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.RouteCode)) route.RouteCode = dto.RouteCode.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.RouteName)) route.RouteName = dto.RouteName.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.StartLocation)) route.StartLocation = dto.StartLocation.Trim();
+            if (!string.IsNullOrWhiteSpace(dto.EndLocation)) route.EndLocation = dto.EndLocation.Trim();
             route.DistanceKm = dto.DistanceKm;
-            route.EstimatedDurationMinutes =
-                dto.EstimatedDurationMinutes;
-            route.Description =
-                string.IsNullOrWhiteSpace(dto.Description)
-                    ? null
-                    : dto.Description.Trim();
+            route.EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : route.EstimatedDurationMinutes;
+            route.Description = dto.Description?.Trim() ?? string.Empty;
             route.Status = dto.Status;
             route.UpdatedBy = userId;
             route.UpdatedAt = DateTime.UtcNow;
