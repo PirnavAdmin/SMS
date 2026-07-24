@@ -39,17 +39,17 @@ export const VehicleMasterView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingVehicle(null);
     setForm({
-      vehicleNumber: `BUS-${Math.floor(100 + Math.random() * 900)}`,
-      registrationNumber: `NY-99-AB-${Math.floor(1000 + Math.random() * 9000)}`,
+      vehicleNumber: '',
+      registrationNumber: '',
       vehicleType: 'Bus',
-      capacity: 40,
-      isAC: true,
-      chassisNumber: `CH-${Math.floor(10000 + Math.random() * 90000)}`,
-      engineNumber: `ENG-${Math.floor(10000 + Math.random() * 90000)}`,
-      insuranceExpiry: '2026-12-31',
-      pollutionExpiry: '2026-11-30',
-      fitnessExpiry: '2027-03-31',
-      gpsDeviceId: `GPS-DEV-${Math.floor(1000 + Math.random() * 9000)}`,
+      capacity: 0,
+      isAC: false,
+      chassisNumber: '',
+      engineNumber: '',
+      insuranceExpiry: '',
+      pollutionExpiry: '',
+      fitnessExpiry: '',
+      gpsDeviceId: '',
       status: 'Active'
     });
     setIsModalOpen(true);

@@ -52,6 +52,10 @@ const MainLayout: React.FC = () => {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [activeModule]);
+
   if (!isAuthenticated) {
     return <LoginView />;
   }

@@ -66,9 +66,9 @@ export const SubjectsView: React.FC = () => {
     setEditingSubject(null);
     const nextNum = Math.floor(100 + subjects.length + 1);
     setFormData({
-      subjectId: `SUB-${nextNum}`,
+      subjectId: '',
       name: '',
-      code: `SUB-${nextNum}`
+      code: ''
     });
     setIsFormOpen(true);
   };
@@ -85,26 +85,28 @@ export const SubjectsView: React.FC = () => {
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.subjectId) {
-      addToast('warning', 'Required Fields', 'Subject ID and Subject Name are required.');
+    const finalSubjectId = formData.subjectId || `SUB-${Math.floor(100 + subjects.length + 1)}`;
+
+    if (!formData.name) {
+      addToast('warning', 'Required Fields', 'Subject Name is required.');
       return;
     }
 
     try {
       if (editingSubject) {
         await updateSubjectApi(editingSubject.id as any, {
-          subjectCode: formData.subjectId,
+          subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code
         });
         addToast('success', 'Subject Updated', `Updated subject ${formData.name}`);
       } else {
         await createSubjectApi({
-          subjectCode: formData.subjectId,
+          subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code
         });
-        addToast('success', 'Subject Created', `Added subject ${formData.name} (${formData.subjectId})`);
+        addToast('success', 'Subject Created', `Added subject ${formData.name}`);
       }
       setIsFormOpen(false);
       loadSubjects();
@@ -114,14 +116,14 @@ export const SubjectsView: React.FC = () => {
   };
 
   return (
-    <div className="animate-in fade-in h-full bg-white dark:bg-[#0B1121] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-6 border-b border-slate-200 dark:border-slate-800/50 gap-4">
+    <div className="space-y-6 animate-in fade-in">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-brand-500/10 dark:bg-brand-500/20 rounded-lg hidden sm:block">
             <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Subjects Management</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Subjects Management</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Manage all academic subjects and course codes</p>
           </div>
         </div>
@@ -133,24 +135,25 @@ export const SubjectsView: React.FC = () => {
               placeholder="Search subjects..."
               value={query}
               onChange={e => setQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow"
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow shadow-sm"
             />
           </div>
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all shadow-sm whitespace-nowrap flex-shrink-0"
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto flex-shrink-0"
           >
             <Plus className="w-4 h-4 inline-block mr-1" /> Add Subject
           </button>
         </div>
       </div>
 
-      <div className="w-full px-6 flex-1">
-        <div className="overflow-x-auto">
+      <div className="glass-card bg-white dark:bg-[#0B1121] rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col">
+        <div className="w-full px-6 flex-1 py-4">
+          <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-[13px]">
             <thead>
               <tr className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800/50">
-                <th className="py-4 px-2">Subject ID</th>
+                <th className="py-4 px-2">S.No</th>
                 <th className="py-4 px-2">Subject Name</th>
                 <th className="py-4 px-2">Course Code</th>
                 <th className="py-4 px-2 text-right">Actions</th>
@@ -162,9 +165,9 @@ export const SubjectsView: React.FC = () => {
               ) : paginated.length === 0 ? (
                 <tr><td colSpan={4} className="text-center py-8 text-slate-500">No subjects found.</td></tr>
               ) : (
-                paginated.map(sub => (
+                paginated.map((sub, index) => (
                   <tr key={sub.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                    <td className="py-4 px-2 font-bold">{sub.subjectId}</td>
+                    <td className="py-4 px-2 font-bold text-slate-500">{(currentPage - 1) * pageSize + index + 1}</td>
                     <td className="py-4 px-2 font-bold">{sub.name}</td>
                     <td className="py-4 px-2 text-slate-400 font-mono text-[12px]">{sub.code || sub.subjectId}</td>
                     <td className="py-4 px-2 text-right">
@@ -192,8 +195,9 @@ export const SubjectsView: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
 
-      {/* Add / Edit Subject Modal */}
+    {/* Add / Edit Subject Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6 text-slate-900 dark:text-slate-100">
@@ -207,17 +211,7 @@ export const SubjectsView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5 text-[13px]">
-              <div>
-                <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Subject ID *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. SUB-101"
-                  value={formData.subjectId}
-                  onChange={e => setFormData({ ...formData, subjectId: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white font-mono outline-none font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                />
-              </div>
+              {/* Subject ID field removed per user request */}
 
               <div>
                 <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Subject Name *</label>

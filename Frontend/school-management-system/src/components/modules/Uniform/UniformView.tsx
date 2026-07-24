@@ -39,13 +39,13 @@ export const UniformView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingUniform(null);
     setFormData({
-      category: 'Summer Polo Shirt',
-      gender: 'Unisex',
-      className: 'Class 10',
-      size: 'M',
-      color: 'Navy Blue',
-      price: 35,
-      availableStock: 50
+      category: '',
+      gender: '',
+      className: '',
+      size: '',
+      color: '',
+      price: 0,
+      availableStock: 0
     });
     setIsFormOpen(true);
   };
@@ -172,6 +172,7 @@ export const UniformView: React.FC = () => {
                 <div>
                   <label className="block font-semibold mb-1">Gender</label>
                   <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                    <option value="">Select Gender</option>
                     <option value="Unisex">Unisex</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -180,6 +181,7 @@ export const UniformView: React.FC = () => {
                 <div>
                   <label className="block font-semibold mb-1">Target Class</label>
                   <select value={formData.className} onChange={e => setFormData({ ...formData, className: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                    <option value="">Select Class</option>
                     <option value="Class 9">Class 9</option>
                     <option value="Class 10">Class 10</option>
                     <option value="Class 11">Class 11</option>
