@@ -161,6 +161,9 @@ export interface Staff {
     sick: number;
     paid: number;
   };
+  salaryStructureId?: string;
+  salaryStructureName?: string;
+  salaryStructureEffectiveDate?: string;
 }
 
 export interface AdmissionApplication {
@@ -284,17 +287,43 @@ export interface ExamSetup {
   startDate: string;
   endDate: string;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Results Published';
+  
+  // Enterprise fields
+  branch?: string;
+  examType?: 'Unit Test' | 'Quarterly' | 'Half-Yearly' | 'Annual' | 'Practical' | 'Custom';
+  applicableClasses?: string[];
+}
+
+export interface RevaluationLog {
+  date: string;
+  oldMarks: number;
+  newMarks: number;
+  reason: string;
+  updatedBy: string;
+  type: 'Grace' | 'Revaluation';
 }
 
 export interface ExamMark {
   id: string;
   examId: string;
+  academicYear?: string;
+  branch?: string;
+  className?: string;
+  section?: string;
   studentId: string;
   subject: string;
   marksObtained: number;
   totalMarks: number;
   grade: string;
   remarks?: string;
+
+  // Enterprise fields
+  graceMarks?: number;
+  isLocked?: boolean;
+  isRevalued?: boolean;
+  revaluationHistory?: RevaluationLog[];
+  submittedBy?: string;
+  submittedAt?: string;
 }
 
 export interface TimetableSlot {
@@ -1063,16 +1092,256 @@ export interface Payslip {
   employeeId: string;
   employeeName: string;
   empId: string;
+  branch?: string;
+  department?: string;
+  designation?: string;
+  employeeCategory?: 'Teacher' | 'Staff';
   month: string;
   basicSalary: number;
   hra: number;
   da: number;
+  earnings?: PayrollAmountLine[];
+  deductions?: PayrollAmountLine[];
+  grossSalary?: number;
+  leaveDeduction?: number;
+  otherDeductions?: number;
   pfDeduction: number;
   lopDeduction: number;
   netSalary: number;
   bankAccount: string;
   disbursedDate: string;
-  status: 'Paid';
+  paymentDate?: string;
+  leaveDetails?: {
+    paidLeaveDays: number;
+    unpaidLeaveDays: number;
+    halfDays: number;
+    lateEntries: number;
+  };
+  status: 'Generated' | 'Paid' | 'Emailed';
+}
+
+export type PayrollComponentCategory = 'Earning' | 'Deduction';
+export type PayrollComponentValueType = 'Fixed' | 'Percentage';
+export type PayrollStatus = 'Draft' | 'Active' | 'Inactive';
+export type SalaryCalculationMethod = 'Calendar Days' | 'Working Days';
+export type PayrollFrequency = 'Monthly' | 'Weekly' | 'Bi-Weekly';
+export type PayrollRunStatus = 'Pending' | 'Processed' | 'HR Review' | 'Accounts Review' | 'Principal Approval' | 'Locked';
+
+export interface PayrollAmountLine {
+  name: string;
+  amount: number;
+  type?: PayrollComponentValueType;
+  value?: number;
+}
+
+export interface PayrollComponent {
+  id: string;
+  name: string;
+  category: PayrollComponentCategory;
+  type: PayrollComponentValueType;
+  value: number;
+  taxable?: boolean;
+  mandatory?: boolean;
+  status: 'Active' | 'Inactive';
+  branch?: string;
+}
+
+export interface PayrollLeaveRule {
+  leaveTypeId: string;
+  leaveTypeName: string;
+  paidLeave: boolean;
+  deductSalary: boolean;
+  maximumPaidDays: number;
+  carryForward: boolean;
+}
+
+export interface PayrollConfiguration {
+  id: string;
+  branch: string;
+  financialYear: string;
+  payrollName: string;
+  status: PayrollStatus;
+  currency: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  leaveRules: PayrollLeaveRule[];
+  attendanceRules: {
+    salaryCalculationMethod: SalaryCalculationMethod;
+    calendarDays: number;
+    workingDays: number;
+    includeWeeklyOff: boolean;
+    includePublicHolidays: boolean;
+    includeApprovedLeave: boolean;
+    twoHalfDaysOneFullDay: boolean;
+    deductHalfSalary: boolean;
+    lateEntriesForHalfDay: number;
+    halfDaysForLop: number;
+  };
+  deductionRules: {
+    lopDeduction: string;
+    halfDayDeduction: string;
+    unauthorizedAbsence: string;
+    lateComing: string;
+    earlyExit: string;
+  };
+  payrollCycle: {
+    payrollType: PayrollFrequency;
+    payrollStartDate: string;
+    payrollEndDate: string;
+    salaryPaymentDate: string;
+  };
+  overtime: {
+    enabled: boolean;
+    calculationType: 'Fixed' | 'Multiplier';
+    hourlyRate: number;
+    weekendRate: number;
+    holidayRate: number;
+  };
+  settings: {
+    autoGeneratePayslips: boolean;
+    autoLockPayrollAfterProcessing: boolean;
+    allowManualAdjustment: boolean;
+    autoCalculateLeaveDeduction: boolean;
+    autoSendPayslips: boolean;
+    enablePayrollApprovalWorkflow: boolean;
+  };
+  updatedBy?: string;
+  updatedAt?: string;
+  auditLogs?: {
+    updatedBy: string;
+    updatedAt: string;
+    oldValue: string;
+    newValue: string;
+  }[];
+}
+
+export interface SalaryStructure {
+  id: string;
+  structureName: string;
+  employeeCategory: 'Teacher' | 'Staff';
+  branch: string;
+  earnings: PayrollAmountLine[];
+  deductions: PayrollAmountLine[];
+  grossSalary: number;
+  netSalaryFormula: string;
+  status: 'Active' | 'Inactive';
+  structureCode?: string;
+  designation?: string;
+  department?: string;
+  employmentType?: string;
+  notes?: string;
+  branchId?: string;
+  effectiveDate?: string;
+}
+
+export interface EmployeeSalaryAssignment {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  empId: string;
+  employeeCategory: 'Teacher' | 'Staff';
+  branch: string;
+  department: string;
+  salaryStructureId: string;
+  salaryStructureName: string;
+  effectiveDate: string;
+  status: 'Active' | 'Inactive';
+  monthlyGross?: number;
+  previousGross?: number;
+  updatedBy?: string;
+  updatedAt?: string;
+  reason?: string;
+}
+
+export interface PayrollRun {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  empId: string;
+  branch: string;
+  department: string;
+  employeeCategory: 'Teacher' | 'Staff';
+  payrollMonth: string;
+  grossSalary: number;
+  leaveDeduction: number;
+  otherDeductions: number;
+  netSalary: number;
+  status: PayrollRunStatus;
+  salaryStructureId?: string;
+  configurationId?: string;
+  earnings: PayrollAmountLine[];
+  deductions: PayrollAmountLine[];
+  leaveDetails: {
+    paidLeaveDays: number;
+    unpaidLeaveDays: number;
+    halfDays: number;
+    lateEntries: number;
+  };
+  processedDate?: string;
+  lockedDate?: string;
+  paymentDate?: string;
+  workflowStage?: 'HR' | 'Accounts' | 'Principal' | 'Management' | 'Released';
+  manualAdjustments?: {
+    type: 'Bonus' | 'Incentive' | 'Recovery' | 'Fine' | 'Advance Recovery';
+    amount: number;
+    reason: string;
+    date: string;
+  }[];
+  notes?: string;
+}
+
+export interface ExamSchedule {
+  id: string;
+  examId: string;
+  academicYear?: string;
+  branch?: string;
+  date: string;
+  startTime: string; // HH:MM
+  endTime: string;   // HH:MM
+  subject: string;
+  className: string;
+  section: string;
+  maxMarks: number;
+  passMarks: number;
+  room: string;
+  invigilatorId: string;
+  invigilatorName: string;
+}
+
+export interface GradeConfig {
+  id: string;
+  academicYear?: string;
+  branch?: string;
+  schemeName?: string;
+  gradeName: string;
+  minPercent: number;
+  maxPercent: number;
+  gradePoints: number;
+  passCriteria: 'Pass' | 'Fail';
+}
+
+export interface ProcessedResult {
+  id: string;
+  examId: string;
+  academicYear?: string;
+  branch?: string;
+  studentId: string;
+  studentName: string;
+  rollNo: string;
+  className: string;
+  section: string;
+  totalMaxMarks: number;
+  totalObtainedMarks: number;
+  percentage: number;
+  gpa: number;
+  finalGrade: string;
+  passStatus: 'Pass' | 'Fail';
+  status: 'Draft' | 'Processed' | 'Published' | 'Locked';
+  processedBy?: string;
+  processedAt?: string;
+  publishedAt?: string;
+  lockedAt?: string;
+  remarks?: string;
 }
 
 

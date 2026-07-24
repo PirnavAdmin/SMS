@@ -40,7 +40,7 @@ export const UniformView: React.FC = () => {
     setEditingUniform(null);
     setFormData({
       category: '',
-      gender: '',
+      gender: '' as any,
       className: '',
       size: '',
       color: '',

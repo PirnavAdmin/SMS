@@ -94,6 +94,11 @@ const MainLayout: React.FC = () => {
         return <LeaveManagementView />;
       case 'staff-payroll':
         return <StaffPayrollView />;
+      case 'staff-payroll-config':
+      case 'staff-payroll-structures':
+      case 'staff-payroll-processing':
+      case 'staff-payroll-payslips':
+        return <StaffPayrollView initialTab={activeModule as any} />;
       case 'staff-payslips':
         return <StaffPayslipView />;
       case 'admissions':

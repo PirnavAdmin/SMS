@@ -67,3 +67,13 @@
     display: none !important;
   }
 }
+
+/* Hide number input spin arrows globally */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}

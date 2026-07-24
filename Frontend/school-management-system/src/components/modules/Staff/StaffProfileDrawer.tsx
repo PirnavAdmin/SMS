@@ -6,6 +6,7 @@ import { Staff, StaffDocType, BankDetails } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
+import { formatCurrency } from '../../../utils/currency';
 
 interface StaffProfileDrawerProps {
   staff: Staff | null;
@@ -14,10 +15,10 @@ interface StaffProfileDrawerProps {
 }
 
 export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, isOpen, onClose }) => {
-  const { updateStaff, addStaffDocument, deleteStaffDocument, updateBankDetails } = useData();
+  const { updateStaff, addStaffDocument, deleteStaffDocument, updateBankDetails, salaryStructures, employeeSalaryAssignments, assignEmployeeSalaryStructure } = useData();
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'info' | 'docs' | 'bank'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'docs' | 'bank' | 'payroll'>('info');
 
   // Document Modal state
   const [isAddDocOpen, setIsAddDocOpen] = useState(false);
@@ -34,6 +35,12 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
     ifscCode: '',
     upiId: ''
   });
+
+  // Payroll Assignment state
+  const [isEditingPayroll, setIsEditingPayroll] = useState(false);
+  const [newStructureId, setNewStructureId] = useState('');
+  const [newEffectiveDate, setNewEffectiveDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newReason, setNewReason] = useState('Salary Revision');
 
   if (!isOpen || !staff) return null;
 
@@ -89,6 +96,200 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
       upiId: ''
     });
     setIsBankOpen(true);
+  };
+
+  const renderPayrollTab = () => {
+    const activeAssignment = (employeeSalaryAssignments || []).find(
+      a => a.employeeId === staff.id && a.status === 'Active'
+    );
+    const history = (employeeSalaryAssignments || [])
+      .filter(a => a.employeeId === staff.id)
+      .sort((a, b) => new Date(b.effectiveDate).getTime() - new Date(a.effectiveDate).getTime());
+
+    return (
+      <div className="space-y-4 animate-in fade-in">
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold uppercase text-slate-400 text-[11px]">Employee Salary Configuration</h3>
+          <button
+            onClick={() => {
+              setNewStructureId(staff.salaryStructureId || '');
+              setIsEditingPayroll(!isEditingPayroll);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-sky-600 text-white font-bold flex items-center gap-1 hover:bg-sky-500 transition-colors"
+          >
+            <Edit className="w-3.5 h-3.5" /> {isEditingPayroll ? 'Cancel Edit' : 'Edit Assignment'}
+          </button>
+        </div>
+
+        {isEditingPayroll ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!newStructureId) return;
+              const structure = salaryStructures.find(s => s.id === newStructureId);
+              assignEmployeeSalaryStructure({
+                employeeId: staff.id,
+                employeeName: `${staff.firstName} ${staff.lastName}`,
+                empId: staff.empId,
+                employeeCategory: staff.employeeCategory || 'Staff',
+                branch: staff.branch || 'Main Campus',
+                department: staff.department || 'General',
+                salaryStructureId: newStructureId,
+                salaryStructureName: structure ? structure.structureName : '',
+                effectiveDate: newEffectiveDate,
+                status: 'Active',
+                reason: newReason
+              });
+              addToast('success', 'Salary Structure Assigned', `Assigned ${structure?.structureName} structure`);
+              setIsEditingPayroll(false);
+            }}
+            className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-3 animate-in slide-in-from-top-2 duration-150"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Select Salary Structure *</label>
+                <select
+                  required
+                  value={newStructureId}
+                  onChange={e => setNewStructureId(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border cursor-pointer font-bold outline-none"
+                >
+                  <option value="">Select Structure</option>
+                  {(salaryStructures || []).map(s => (
+                    <option key={s.id} value={s.id}>{s.structureName} ({s.employeeCategory})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Effective Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={newEffectiveDate}
+                  onChange={e => setNewEffectiveDate(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border outline-none font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">Reason for Revision</label>
+                <input
+                  type="text"
+                  value={newReason}
+                  onChange={e => setNewReason(e.target.value)}
+                  className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border outline-none"
+                  placeholder="Salary revision reason"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsEditingPayroll(false)}
+                className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl hover:bg-sky-500 transition-colors"
+              >
+                Save Assignment
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-3">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-700">
+                <span className="font-bold text-slate-900 dark:text-white">Active Payroll Status</span>
+                <Badge variant={staff.salaryStructureId ? 'success' : 'neutral'}>
+                  {staff.salaryStructureId ? 'Structure Assigned' : 'Salary Structure Not Assigned'}
+                </Badge>
+              </div>
+
+              {activeAssignment ? (
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Structure:</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{activeAssignment.salaryStructureName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Monthly Gross Salary:</span>
+                    <span className="font-extrabold text-emerald-600">{formatCurrency(activeAssignment.monthlyGross || 0)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Effective Date:</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{activeAssignment.effectiveDate}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-6 text-center text-slate-400 space-y-2">
+                  <p>No active salary structure assigned to this employee.</p>
+                  <p className="text-[10px] text-rose-500 font-bold">Cannot process payroll until a structure is configured.</p>
+                </div>
+              )}
+            </div>
+
+            {(() => {
+              const structure = (salaryStructures || []).find(s => s.id === staff.salaryStructureId);
+              if (!structure) return null;
+              return (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-2">
+                  <h4 className="font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-slate-700">Structure Components</h4>
+                  <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
+                    {structure.earnings.map(e => (
+                      <div key={e.name} className="flex justify-between text-[11px]"><span className="text-slate-400">{e.name}:</span><span className="font-semibold text-emerald-600">+{formatCurrency(e.amount)}</span></div>
+                    ))}
+                    {structure.deductions.map(d => (
+                      <div key={d.name} className="flex justify-between text-[11px]"><span className="text-slate-400">{d.name}:</span><span className="font-semibold text-rose-500">-{formatCurrency(d.amount)}</span></div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <h4 className="font-bold text-slate-400 text-[11px] uppercase tracking-wider">Salary Assignment History</h4>
+          <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+            <table className="w-full text-left border-collapse text-[10px]">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 font-bold uppercase text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-2.5 px-3">Effective Date</th>
+                  <th className="py-2.5 px-3">Structure</th>
+                  <th className="py-2.5 px-3 text-right">Prev Gross</th>
+                  <th className="py-2.5 px-3 text-right">New Gross</th>
+                  <th className="py-2.5 px-3">Updated By</th>
+                  <th className="py-2.5 px-3">Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                {history.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-4 text-slate-400 italic">No historical records available.</td>
+                  </tr>
+                ) : (
+                  history.map(h => (
+                    <tr key={h.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                      <td className="py-2.5 px-3 font-semibold">{h.effectiveDate}</td>
+                      <td className="py-2.5 px-3">{h.salaryStructureName}</td>
+                      <td className="py-2.5 px-3 text-right text-slate-400">{h.previousGross ? formatCurrency(h.previousGross) : '—'}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600">{formatCurrency(h.monthlyGross || 0)}</td>
+                      <td className="py-2.5 px-3 text-slate-400">{h.updatedBy || 'System'}</td>
+                      <td className="py-2.5 px-3 text-slate-500 italic max-w-[120px] truncate" title={h.reason}>{h.reason || '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -148,7 +349,16 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
               activeTab === 'bank' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm' : 'text-slate-500'
             }`}
           >
-            Bank Account & Payroll Details
+            Bank Account Info
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('payroll')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'payroll' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            Payroll & History
           </button>
         </div>
 
@@ -259,6 +469,9 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
               </div>
             </div>
           )}
+
+          {/* Payroll Section */}
+          {activeTab === 'payroll' && renderPayrollTab()}
         </div>
       </div>
 

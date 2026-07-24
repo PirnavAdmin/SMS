@@ -71,6 +71,8 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     },
     leaveBalance: { casual: 10, sick: 10, paid: 15 }
   });
+  
+
 
   // State for adding a new document inline
   const [newDoc, setNewDoc] = useState<{ title: string; type: StaffDocType; fileUrl: string }>({
@@ -516,8 +518,8 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contract Monthly Salary (₹) *</label>
-                  <input type="number" required value={formData.salary || ''} onChange={e => setFormData({ ...formData, salary: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contract Annual Salary (₹) *</label>
+                  <input type="number" required value={formData.salary ? formData.salary * 12 : ''} onChange={e => setFormData({ ...formData, salary: Math.round(Number(e.target.value) / 12) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Account Holder Name</label>
@@ -602,6 +604,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   />
                 </div>
               </div>
+
             </div>
           )}
 

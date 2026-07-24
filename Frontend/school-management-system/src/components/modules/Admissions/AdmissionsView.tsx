@@ -48,7 +48,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
     appliedClass: '',
-    gender: '',
+    gender: '' as any,
     dob: '',
     bloodGroup: '',
     religion: '',
@@ -66,9 +66,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
     addressPinCode: '',
     siblingsCount: 0,
     siblingStudentId: '',
-    studentType: '',
+    studentType: '' as any,
     transportRequired: false,
-    transportType: '',
+    transportType: '' as any,
     busRoute: '',
     pickupPoint: '',
     hostelBlock: '',
@@ -119,7 +119,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
     setAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
     setFormData({
       appliedClass: '',
-      gender: '',
+      gender: '' as any,
       dob: '',
       bloodGroup: '',
       religion: '',
@@ -137,9 +137,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({ onSelectStudentP
       addressPinCode: '',
       siblingsCount: 0,
       siblingStudentId: '',
-      studentType: '',
+      studentType: '' as any,
       transportRequired: false,
-      transportType: '',
+      transportType: '' as any,
       busRoute: '',
       pickupPoint: '',
       hostelBlock: '',

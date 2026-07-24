@@ -117,7 +117,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
     { id: 'staff-leave', label: 'Leave Management', icon: FileText },
     { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
-    { id: 'staff-payslips', label: 'Payslips', icon: Receipt },
+  ];
+
+  const payrollSubItems = [
+    { id: 'staff-payroll-config', label: 'Payroll Configuration', icon: SlidersHorizontal },
+    { id: 'staff-payroll-structures', label: 'Salary Structures', icon: Layers },
+    { id: 'staff-payroll-processing', label: 'Payroll Processing', icon: IndianRupee },
+    { id: 'staff-payroll-payslips', label: 'Payslips', icon: Receipt },
   ];
 
   const menuGroups = [
@@ -482,20 +488,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div className="pl-3 border-l-2 border-emerald-200 dark:border-emerald-950 ml-3 space-y-0.5 my-1">
                           {staffSubItems.map(sub => {
                             const SubIcon = sub.icon;
-                            const isSubActive = activeModule === sub.id;
+                            const isPayroll = sub.id === 'staff-payroll';
+                            const isSubActive = activeModule === sub.id || (isPayroll && activeModule.startsWith('staff-payroll-'));
                             return (
-                              <button
-                                key={sub.id}
-                                onClick={() => setActiveModule(sub.id)}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                  isSubActive
-                                    ? 'bg-sky-600 text-white font-bold'
-                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
-                                }`}
-                              >
-                                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                                <span className="truncate">{sub.label}</span>
-                              </button>
+                              <React.Fragment key={sub.id}>
+                                <button
+                                  onClick={() => setActiveModule(isPayroll ? 'staff-payroll-config' : sub.id)}
+                                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                    isSubActive
+                                      ? 'bg-sky-600 text-white font-bold'
+                                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                                  }`}
+                                >
+                                  <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                  <span className="truncate">{sub.label}</span>
+                                </button>
+                                {isPayroll && isSubActive && (
+                                  <div className="ml-5 border-l border-emerald-100 pl-2 dark:border-emerald-950">
+                                    {payrollSubItems.map(payrollSub => {
+                                      const PayrollSubIcon = payrollSub.icon;
+                                      const isPayrollSubActive = activeModule === payrollSub.id || (activeModule === 'staff-payroll' && payrollSub.id === 'staff-payroll-config');
+                                      return (
+                                        <button
+                                          key={payrollSub.id}
+                                          onClick={() => setActiveModule(payrollSub.id)}
+                                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
+                                            isPayrollSubActive
+                                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                                          }`}
+                                        >
+                                          <PayrollSubIcon className="w-3 h-3 shrink-0" />
+                                          <span className="truncate">{payrollSub.label}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </React.Fragment>
                             );
                           })}
                         </div>

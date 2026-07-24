@@ -12,7 +12,8 @@ import {
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
-  LeaveType, LeaveApplication, Payslip
+  LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
@@ -258,11 +259,22 @@ export const initialFeePayments: FeePayment[] = [
 ];
 
 export const initialExamSetups: ExamSetup[] = [
-  { id: "EXM-01", name: "Mid-Term Examination 2026", academicYear: "2025-2026", className: "Class 10", startDate: "2026-09-10", endDate: "2026-09-22", status: "Scheduled" }
+  {
+    id: "EXM-01",
+    name: "Mid-Term Examination 2026",
+    academicYear: "2025-2026",
+    branch: "Main Campus",
+    examType: "Half-Yearly",
+    className: "Class 10",
+    applicableClasses: ["Class 10"],
+    startDate: "2026-09-10",
+    endDate: "2026-09-22",
+    status: "Scheduled"
+  }
 ];
 
 export const initialExamMarks: ExamMark[] = [
-  { id: "M1", examId: "EXM-01", studentId: "STU-001", subject: "Mathematics", marksObtained: 95, totalMarks: 100, grade: "A+" }
+  { id: "M1", examId: "EXM-01", academicYear: "2025-2026", branch: "Main Campus", className: "Class 10", section: "A", studentId: "STU-001", subject: "Mathematics", marksObtained: 95, totalMarks: 100, grade: "A+" }
 ];
 
 export const initialTimetable: TimetableSlot[] = [
@@ -1021,6 +1033,131 @@ export const initialLeaveApplications: LeaveApplication[] = [
 ];
 
 export const initialPayslips: Payslip[] = [];
+
+export const initialPayrollComponents: PayrollComponent[] = [
+  { id: 'PC-E01', name: 'Basic Salary', category: 'Earning', type: 'Fixed', value: 0, taxable: true, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-E02', name: 'House Rent Allowance (HRA)', category: 'Earning', type: 'Percentage', value: 20, taxable: true, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-E03', name: 'Dearness Allowance (DA)', category: 'Earning', type: 'Percentage', value: 10, taxable: true, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-E04', name: 'Transport Allowance', category: 'Earning', type: 'Fixed', value: 1200, taxable: false, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-E05', name: 'Medical Allowance', category: 'Earning', type: 'Fixed', value: 1500, taxable: false, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-E06', name: 'Special Allowance', category: 'Earning', type: 'Fixed', value: 2500, taxable: true, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-E07', name: 'Performance Incentive', category: 'Earning', type: 'Fixed', value: 0, taxable: true, status: 'Inactive', branch: 'All Branches' },
+  { id: 'PC-D01', name: 'Provident Fund (PF)', category: 'Deduction', type: 'Percentage', value: 8, mandatory: true, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-D02', name: 'Employee State Insurance (ESI)', category: 'Deduction', type: 'Percentage', value: 0.75, mandatory: false, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-D03', name: 'Professional Tax', category: 'Deduction', type: 'Fixed', value: 200, mandatory: true, status: 'Active', branch: 'All Branches' },
+  { id: 'PC-D04', name: 'Income Tax (TDS)', category: 'Deduction', type: 'Percentage', value: 0, mandatory: false, status: 'Inactive', branch: 'All Branches' },
+  { id: 'PC-D05', name: 'Loan Recovery', category: 'Deduction', type: 'Fixed', value: 0, mandatory: false, status: 'Inactive', branch: 'All Branches' },
+  { id: 'PC-D06', name: 'Advance Salary Recovery', category: 'Deduction', type: 'Fixed', value: 0, mandatory: false, status: 'Inactive', branch: 'All Branches' }
+];
+
+export const initialPayrollConfigurations: PayrollConfiguration[] = [
+  {
+    id: 'PAYCFG-01',
+    branch: 'Main Campus',
+    financialYear: '2026-2027',
+    payrollName: 'Main Campus Payroll FY 2026-27',
+    status: 'Active',
+    currency: 'INR',
+    effectiveFrom: '2026-04-01',
+    effectiveTo: '2027-03-31',
+    leaveRules: initialLeaveTypes.map(type => ({
+      leaveTypeId: type.id,
+      leaveTypeName: type.name,
+      paidLeave: type.isPaid,
+      deductSalary: !type.isPaid,
+      maximumPaidDays: type.annualAllowance,
+      carryForward: type.carryForward
+    })),
+    attendanceRules: {
+      salaryCalculationMethod: 'Calendar Days',
+      calendarDays: 30,
+      workingDays: 26,
+      includeWeeklyOff: true,
+      includePublicHolidays: true,
+      includeApprovedLeave: true,
+      twoHalfDaysOneFullDay: true,
+      deductHalfSalary: true,
+      lateEntriesForHalfDay: 3,
+      halfDaysForLop: 2
+    },
+    deductionRules: {
+      lopDeduction: '1 LOP = One Day Salary',
+      halfDayDeduction: 'Half Day = 50% Daily Salary',
+      unauthorizedAbsence: 'Unauthorized Absence = One Day Salary',
+      lateComing: '3 Late Entries = Half Day',
+      earlyExit: '2 Early Exits = Half Day'
+    },
+    payrollCycle: {
+      payrollType: 'Monthly',
+      payrollStartDate: '1',
+      payrollEndDate: 'Last Day',
+      salaryPaymentDate: '5th of Next Month'
+    },
+    overtime: {
+      enabled: false,
+      calculationType: 'Multiplier',
+      hourlyRate: 0,
+      weekendRate: 1.5,
+      holidayRate: 2
+    },
+    settings: {
+      autoGeneratePayslips: true,
+      autoLockPayrollAfterProcessing: false,
+      allowManualAdjustment: true,
+      autoCalculateLeaveDeduction: true,
+      autoSendPayslips: false,
+      enablePayrollApprovalWorkflow: true
+    }
+  }
+];
+
+export const initialSalaryStructures: SalaryStructure[] = [
+  {
+    id: 'SAL-STR-01',
+    structureName: 'Principal',
+    employeeCategory: 'Staff',
+    branch: 'Main Campus',
+    earnings: [
+      { name: 'Basic Salary', amount: 11000, type: 'Fixed', value: 11000 },
+      { name: 'House Rent Allowance (HRA)', amount: 2200, type: 'Percentage', value: 20 },
+      { name: 'Dearness Allowance (DA)', amount: 1100, type: 'Percentage', value: 10 },
+      { name: 'Special Allowance', amount: 2500, type: 'Fixed', value: 2500 }
+    ],
+    deductions: [
+      { name: 'Provident Fund (PF)', amount: 880, type: 'Percentage', value: 8 },
+      { name: 'Professional Tax', amount: 200, type: 'Fixed', value: 200 }
+    ],
+    grossSalary: 16800,
+    netSalaryFormula: 'Gross Salary - Deductions - Leave Deduction',
+    status: 'Active'
+  },
+  {
+    id: 'SAL-STR-02',
+    structureName: 'Teacher',
+    employeeCategory: 'Teacher',
+    branch: 'Main Campus',
+    earnings: [
+      { name: 'Basic Salary', amount: 7500, type: 'Fixed', value: 7500 },
+      { name: 'House Rent Allowance (HRA)', amount: 1500, type: 'Percentage', value: 20 },
+      { name: 'Dearness Allowance (DA)', amount: 750, type: 'Percentage', value: 10 },
+      { name: 'Transport Allowance', amount: 1200, type: 'Fixed', value: 1200 }
+    ],
+    deductions: [
+      { name: 'Provident Fund (PF)', amount: 600, type: 'Percentage', value: 8 },
+      { name: 'Professional Tax', amount: 200, type: 'Fixed', value: 200 }
+    ],
+    grossSalary: 10950,
+    netSalaryFormula: 'Gross Salary - Deductions - Leave Deduction',
+    status: 'Active'
+  }
+];
+
+export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [
+  { id: 'ESA-01', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-01', salaryStructureName: 'Principal', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-02', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Mathematics', salaryStructureId: 'SAL-STR-02', salaryStructureName: 'Teacher', effectiveDate: '2026-04-01', status: 'Active' }
+];
+
+export const initialPayrollRuns: PayrollRun[] = [];
 
 
 
