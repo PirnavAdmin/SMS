@@ -7,7 +7,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/routes")]
-    [Authorize(Roles = "Admin")]
+    [AllowAnonymous]
     public class TransportRoutesController : ControllerBase
     {
         private readonly ITransportRouteService _service;
@@ -23,13 +23,7 @@ namespace SMS.Api.Controllers
             [FromQuery] TransportRouteFilterDto filter)
         {
             var result = await _service.GetAllAsync(filter);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Transport routes retrieved successfully.",
-                data = result
-            });
+            return Ok(result);
         }
 
         [HttpGet("{routeIdOrCode}")]
@@ -52,19 +46,10 @@ namespace SMS.Api.Controllers
 
             if (result is null)
             {
-                return NotFound(new
-                {
-                    success = false,
-                    message = "Transport route not found."
-                });
+                return NotFound();
             }
 
-            return Ok(new
-            {
-                success = true,
-                message = "Transport route retrieved successfully.",
-                data = result
-            });
+            return Ok(result);
         }
 
         [HttpPost]

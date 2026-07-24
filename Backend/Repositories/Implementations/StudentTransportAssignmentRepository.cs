@@ -35,11 +35,11 @@ namespace SMS.Api.Repositories.Implementations
 
                 query = query.Where(x =>
                     x.StudentId.ToString().Contains(search) ||
-                    x.Route.RouteName.Contains(search) ||
-                    x.PickupPoint.PickupPointName.Contains(search) ||
-                    x.VehicleAssignment.Vehicle.VehicleNumber.Contains(search) ||
-                    x.VehicleAssignment.Driver.DriverName.Contains(search) ||
-                    x.TransportType.Contains(search));
+                    (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.Contains(search)) ||
+                    (x.PickupPoint != null && x.PickupPoint.PickupPointName != null && x.PickupPoint.PickupPointName.Contains(search)) ||
+                    (x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null && x.VehicleAssignment.Vehicle.VehicleNumber != null && x.VehicleAssignment.Vehicle.VehicleNumber.Contains(search)) ||
+                    (x.VehicleAssignment != null && x.VehicleAssignment.Driver != null && x.VehicleAssignment.Driver.DriverName != null && x.VehicleAssignment.Driver.DriverName.Contains(search)) ||
+                    (x.TransportType != null && x.TransportType.Contains(search)));
             }
 
             // Student filter

@@ -30,8 +30,8 @@ namespace SMS.Api.Repositories.Implementations
                 query = query.Where(x =>
                     x.RouteCode.ToLower().Contains(search) ||
                     x.RouteName.ToLower().Contains(search) ||
-                    x.StartLocation.ToLower().Contains(search) ||
-                    x.EndLocation.ToLower().Contains(search));
+                    (x.StartLocation != null && x.StartLocation.ToLower().Contains(search)) ||
+                    (x.EndLocation != null && x.EndLocation.ToLower().Contains(search)));
             }
 
             if (filter.Status.HasValue)
@@ -54,14 +54,14 @@ namespace SMS.Api.Repositories.Implementations
                     RouteId = x.RouteId,
                     RouteCode = x.RouteCode,
                     RouteName = x.RouteName,
-                    StartLocation = x.StartLocation,
-                    EndLocation = x.EndLocation,
+                    StartLocation = x.StartLocation ?? string.Empty,
+                    EndLocation = x.EndLocation ?? string.Empty,
                     DistanceKm = x.DistanceKm,
                     EstimatedDurationMinutes = x.EstimatedDurationMinutes,
                     EstimatedDurationText =
                         FormatDuration(x.EstimatedDurationMinutes),
                     Description = x.Description,
-                    Status = x.Status,
+                    Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
@@ -89,14 +89,14 @@ namespace SMS.Api.Repositories.Implementations
                     RouteId = x.RouteId,
                     RouteCode = x.RouteCode,
                     RouteName = x.RouteName,
-                    StartLocation = x.StartLocation,
-                    EndLocation = x.EndLocation,
+                    StartLocation = x.StartLocation ?? string.Empty,
+                    EndLocation = x.EndLocation ?? string.Empty,
                     DistanceKm = x.DistanceKm,
                     EstimatedDurationMinutes = x.EstimatedDurationMinutes,
                     EstimatedDurationText =
                         FormatDuration(x.EstimatedDurationMinutes),
                     Description = x.Description,
-                    Status = x.Status,
+                    Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt

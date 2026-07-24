@@ -336,6 +336,9 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("transport_drivers", "AssignedVehicleId", "bigint NULL");
         EnsureColumnExists("transport_vehicle_assignments", "Shift", "varchar(20) NULL");
         EnsureColumnExists("student_transport_assignments", "Remarks", "varchar(255) NULL");
+        EnsureColumnExists("transport_vehicles", "ChassisNumber", "varchar(100) NULL");
+        EnsureColumnExists("transport_vehicles", "EngineNumber", "varchar(100) NULL");
+        EnsureColumnExists("transport_vehicles", "GpsDeviceId", "varchar(100) NULL");
 
         // DB Schema Audit Verification
         try

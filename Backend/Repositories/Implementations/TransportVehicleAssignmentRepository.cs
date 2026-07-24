@@ -48,9 +48,9 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.Route.RouteName.ToLower().Contains(search) ||
-                    x.Vehicle.VehicleNumber.ToLower().Contains(search) ||
-                    x.Driver.DriverName.ToLower().Contains(search));
+                    (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.ToLower().Contains(search)) ||
+                    (x.Vehicle != null && x.Vehicle.VehicleNumber != null && x.Vehicle.VehicleNumber.ToLower().Contains(search)) ||
+                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)));
             }
 
             var totalCount = await query.CountAsync();
@@ -64,15 +64,15 @@ namespace SMS.Api.Repositories.Implementations
                     AssignmentId = x.AssignmentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route.RouteName,
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
 
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.Vehicle.VehicleNumber,
-                    VehicleName = x.Vehicle.VehicleName,
+                    VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
+                    VehicleName = x.Vehicle != null && x.Vehicle.VehicleName != null ? x.Vehicle.VehicleName : string.Empty,
 
                     DriverId = x.DriverId,
-                    DriverName = x.Driver.DriverName,
-                    DriverMobile = x.Driver.MobileNumber,
+                    DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty,
+                    DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
 
                     AssignmentDate = x.AssignmentDate,
                     EffectiveFrom = x.EffectiveFrom,
@@ -108,15 +108,15 @@ namespace SMS.Api.Repositories.Implementations
                     AssignmentId = x.AssignmentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route.RouteName,
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
 
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.Vehicle.VehicleNumber,
-                    VehicleName = x.Vehicle.VehicleName,
+                    VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
+                    VehicleName = x.Vehicle != null && x.Vehicle.VehicleName != null ? x.Vehicle.VehicleName : string.Empty,
 
                     DriverId = x.DriverId,
-                    DriverName = x.Driver.DriverName,
-                    DriverMobile = x.Driver.MobileNumber,
+                    DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty,
+                    DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
 
                     AssignmentDate = x.AssignmentDate,
                     EffectiveFrom = x.EffectiveFrom,
@@ -257,9 +257,9 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportVehicleAssignmentLookupDto
                 {
                     AssignmentId = x.AssignmentId,
-                    RouteName = x.Route.RouteName,
-                    VehicleNumber = x.Vehicle.VehicleNumber,
-                    DriverName = x.Driver.DriverName
+                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
+                    VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
+                    DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty
                 })
                 .ToListAsync();
         }

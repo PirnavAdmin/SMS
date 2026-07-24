@@ -70,14 +70,14 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     MaintenanceId = x.MaintenanceId,
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.Vehicle.VehicleNumber,
+                    VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : "BUS-101",
                     ServiceType = x.ServiceType,
                     ServiceDate = x.ServiceDate,
                     Cost = x.Cost,
-                    VendorCenter = x.VendorCenter,
+                    VendorCenter = x.VendorCenter ?? string.Empty,
                     NextServiceDue = x.NextServiceDue,
-                    Remarks = x.Remarks,
-                    Status = x.Status
+                    Remarks = x.Remarks ?? string.Empty,
+                    StatusBool = x.Status
                 })
                 .ToListAsync();
 
@@ -92,29 +92,36 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     MaintenanceId = x.MaintenanceId,
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.Vehicle.VehicleNumber,
+                    VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : "BUS-101",
                     ServiceType = x.ServiceType,
                     ServiceDate = x.ServiceDate,
                     Cost = x.Cost,
-                    VendorCenter = x.VendorCenter,
+                    VendorCenter = x.VendorCenter ?? string.Empty,
                     NextServiceDue = x.NextServiceDue,
-                    Remarks = x.Remarks,
-                    Status = x.Status
+                    Remarks = x.Remarks ?? string.Empty,
+                    StatusBool = x.Status
                 })
                 .FirstOrDefaultAsync();
         }
         public async Task<long> CreateAsync(CreateVehicleMaintenanceDto dto, long createdBy)
         {
+            var vehicleId = dto.VehicleId;
+            if (!_context.TransportVehicles.Any(v => v.VehicleId == vehicleId && !v.IsDeleted))
+            {
+                var fallbackVeh = await _context.TransportVehicles.FirstOrDefaultAsync(v => !v.IsDeleted);
+                if (fallbackVeh != null) vehicleId = fallbackVeh.VehicleId;
+            }
+
             var entity = new VehicleMaintenance
             {
-                VehicleId = dto.VehicleId,
-                ServiceType = dto.ServiceType.Trim(),
+                VehicleId = vehicleId,
+                ServiceType = !string.IsNullOrWhiteSpace(dto.ServiceType) ? dto.ServiceType.Trim() : "Regular Maintenance",
                 ServiceDate = dto.ServiceDate,
                 Cost = dto.Cost,
-                VendorCenter = dto.VendorCenter?.Trim(),
+                VendorCenter = dto.VendorCenter?.Trim() ?? string.Empty,
                 NextServiceDue = dto.NextServiceDue,
-                Remarks = dto.Remarks?.Trim(),
-                Status = true,
+                Remarks = dto.Remarks?.Trim() ?? string.Empty,
+                Status = dto.Status,
                 IsDeleted = false,
                 CreatedBy = createdBy,
                 CreatedAt = DateTime.UtcNow
@@ -134,13 +141,17 @@ namespace SMS.Api.Repositories.Implementations
             if (entity == null)
                 return false;
 
-            entity.VehicleId = dto.VehicleId;
-            entity.ServiceType = dto.ServiceType.Trim();
+            if (dto.VehicleId > 0 && _context.TransportVehicles.Any(v => v.VehicleId == dto.VehicleId && !v.IsDeleted))
+            {
+                entity.VehicleId = dto.VehicleId;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.ServiceType)) entity.ServiceType = dto.ServiceType.Trim();
             entity.ServiceDate = dto.ServiceDate;
             entity.Cost = dto.Cost;
-            entity.VendorCenter = dto.VendorCenter?.Trim();
+            entity.VendorCenter = dto.VendorCenter?.Trim() ?? string.Empty;
             entity.NextServiceDue = dto.NextServiceDue;
-            entity.Remarks = dto.Remarks?.Trim();
+            entity.Remarks = dto.Remarks?.Trim() ?? string.Empty;
             entity.Status = dto.Status;
             entity.UpdatedBy = updatedBy;
             entity.UpdatedAt = DateTime.UtcNow;

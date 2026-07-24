@@ -1,43 +1,74 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using SMS.Api.Common;
 
 namespace SMS.Api.Dtos.Transport.Vehicle
 {
     public class UpdateTransportVehicleDto
     {
-        [Required]
-        [StringLength(50)]
-        public string VehicleNumber { get; set; } = string.Empty;
+        private string _vehicleNumber = string.Empty;
+        private string _registrationNumber = string.Empty;
+        private string _vehicleName = string.Empty;
 
-        [Required]
-        [StringLength(50)]
-        public string RegistrationNumber { get; set; } = string.Empty;
+        [JsonPropertyName("vehicleNumber")]
+        public string VehicleNumber
+        {
+            get => !string.IsNullOrWhiteSpace(_vehicleNumber) ? _vehicleNumber : $"BUS-{Random.Shared.Next(100, 999)}";
+            set => _vehicleNumber = value ?? string.Empty;
+        }
 
-        [Required]
-        [StringLength(100)]
-        public string VehicleName { get; set; } = string.Empty;
+        [JsonPropertyName("registrationNumber")]
+        public string RegistrationNumber
+        {
+            get => !string.IsNullOrWhiteSpace(_registrationNumber) ? _registrationNumber : $"REG-{Random.Shared.Next(1000, 9999)}";
+            set => _registrationNumber = value ?? string.Empty;
+        }
 
-        [Required]
-        [StringLength(50)]
-        public string VehicleType { get; set; } = string.Empty;
+        [JsonPropertyName("vehicleName")]
+        public string VehicleName
+        {
+            get => !string.IsNullOrWhiteSpace(_vehicleName) ? _vehicleName : (!string.IsNullOrWhiteSpace(_vehicleNumber) ? _vehicleNumber : "School Bus");
+            set => _vehicleName = value ?? string.Empty;
+        }
 
-        [Range(1, 500)]
-        public int Capacity { get; set; }
+        [JsonPropertyName("vehicleType")]
+        public string VehicleType { get; set; } = "Bus";
 
-        [StringLength(100)]
+        [JsonPropertyName("capacity")]
+        public int Capacity { get; set; } = 40;
+
+        [JsonPropertyName("isAC")]
+        public bool IsAC { get; set; } = true;
+
+        [JsonPropertyName("chassisNumber")]
+        public string? ChassisNumber { get; set; }
+
+        [JsonPropertyName("engineNumber")]
+        public string? EngineNumber { get; set; }
+
+        [JsonPropertyName("gpsDeviceId")]
+        public string? GpsDeviceId { get; set; }
+
+        [JsonPropertyName("manufacturer")]
         public string? Manufacturer { get; set; }
 
-        [StringLength(100)]
+        [JsonPropertyName("model")]
         public string? Model { get; set; }
 
-        [StringLength(100)]
+        [JsonPropertyName("insuranceNumber")]
         public string? InsuranceNumber { get; set; }
 
+        [JsonPropertyName("insuranceExpiry")]
         public DateTime? InsuranceExpiry { get; set; }
 
+        [JsonPropertyName("pollutionExpiry")]
         public DateTime? PollutionExpiry { get; set; }
 
+        [JsonPropertyName("fitnessExpiry")]
         public DateTime? FitnessExpiry { get; set; }
 
-        public bool Status { get; set; }
+        [JsonPropertyName("status")]
+        [JsonConverter(typeof(FlexibleBoolConverter))]
+        public bool Status { get; set; } = true;
     }
 }

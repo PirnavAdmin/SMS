@@ -10,16 +10,19 @@ public class TransportVehicle
     public long VehicleId { get; set; }
 
     [Required]
-    public string VehicleNumber { get; set; } = string.Empty;
+    public string? VehicleNumber { get; set; }
 
     [Required]
-    public string RegistrationNumber { get; set; } = string.Empty;
+    public string? RegistrationNumber { get; set; }
 
-    public string VehicleName { get; set; } = string.Empty;
-    public string VehicleType { get; set; } = "Bus";
-    public string Manufacturer { get; set; } = string.Empty;
-    public string Model { get; set; } = string.Empty;
-    public string InsuranceNumber { get; set; } = string.Empty;
+    public string? VehicleName { get; set; }
+    public string? VehicleType { get; set; }
+    public string? Manufacturer { get; set; }
+    public string? Model { get; set; }
+    public string? ChassisNumber { get; set; }
+    public string? EngineNumber { get; set; }
+    public string? GpsDeviceId { get; set; }
+    public string? InsuranceNumber { get; set; }
     public DateTime? InsuranceExpiry { get; set; }
     public DateTime? PollutionExpiry { get; set; }
     public DateTime? FitnessExpiry { get; set; }
