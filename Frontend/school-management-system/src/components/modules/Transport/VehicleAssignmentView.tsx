@@ -38,9 +38,9 @@ export const VehicleAssignmentView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const veh = vehicleMasters.find(v => v.id === vehicleId);
-    const rt = routeMasters.find(r => r.id === routeId);
-    const drv = driverMasters.find(d => d.id === driverId);
+    const veh = vehicleMasters.find(v => v.id?.toString() === vehicleId?.toString());
+    const rt = routeMasters.find(r => r.id?.toString() === routeId?.toString());
+    const drv = driverMasters.find(d => d.id?.toString() === driverId?.toString());
 
     if (!veh || !rt || !drv) {
       addToast('warning', 'Incomplete Form', 'Select vehicle, route, and driver.');
@@ -159,8 +159,9 @@ export const VehicleAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Fleet Vehicle *</label>
                 <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="" disabled>-- Select a Vehicle --</option>
                   {vehicleMasters.map(v => (
-                    <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.registrationNumber} • {v.capacity} Seats)</option>
+                    <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.registrationNumber} - {v.capacity} Seats)</option>
                   ))}
                 </select>
               </div>
@@ -168,6 +169,7 @@ export const VehicleAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Transit Route *</label>
                 <select value={routeId} onChange={e => setRouteId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="" disabled>-- Select a Route --</option>
                   {routeMasters.map(r => (
                     <option key={r.id} value={r.id}>{r.routeName} ({r.routeCode})</option>
                   ))}
@@ -177,6 +179,7 @@ export const VehicleAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Driver *</label>
                 <select value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="" disabled>-- Select a Driver --</option>
                   {driverMasters.map(d => (
                     <option key={d.id} value={d.id}>{d.driverName} ({d.mobileNumber})</option>
                   ))}

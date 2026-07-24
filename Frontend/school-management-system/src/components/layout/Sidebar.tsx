@@ -220,11 +220,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !financeExpanded;
-                        setFinanceExpanded(newExpanded);
-                        if (newExpanded) {
-                          setHostelExpanded(false);
-                        }
+                          const newExpanded = !financeExpanded;
+                          setFinanceExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                          }
                         if (!isFinanceActive) {
                           setActiveModule('finance-dashboard');
                         }
@@ -278,12 +281,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !hostelExpanded;
-                        setHostelExpanded(newExpanded);
-                        if (newExpanded) {
-                          setFinanceExpanded(false);
-                          setTransportExpanded(false);
-                        }
+                          const newExpanded = !hostelExpanded;
+                          setHostelExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                          }
                         if (!isHostelActive) {
                           setActiveModule('hostel-dashboard');
                         }
@@ -337,12 +342,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !transportExpanded;
-                        setTransportExpanded(newExpanded);
-                        if (newExpanded) {
-                          setFinanceExpanded(false);
-                          setHostelExpanded(false);
-                        }
+                          const newExpanded = !transportExpanded;
+                          setTransportExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setUniformExpanded(false);
+                          }
                         if (!isTransportActive) {
                           setActiveModule('transport-dashboard');
                         }
@@ -392,13 +399,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !uniformExpanded;
-                        setUniformExpanded(newExpanded);
-                        if (newExpanded) {
-                          setFinanceExpanded(false);
-                          setHostelExpanded(false);
-                          setTransportExpanded(false);
-                        }
+                          const newExpanded = !uniformExpanded;
+                          setUniformExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                          }
                         if (!isUniformActive) {
                           setActiveModule('uniform-dashboard');
                         }
@@ -540,7 +548,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveModule(item.id)}
+                    onClick={() => {
+                      setActiveModule(item.id);
+                      setStaffExpanded(false);
+                      setFinanceExpanded(false);
+                      setHostelExpanded(false);
+                      setTransportExpanded(false);
+                      setUniformExpanded(false);
+                    }}
                     title={collapsed ? item.label : undefined}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                       isActive
