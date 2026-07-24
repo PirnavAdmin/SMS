@@ -190,9 +190,9 @@ export const VehicleMasterView: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-3">
-                <div><label className="block font-semibold mb-1">Insurance Expiry</label><input type="date" value={form.insuranceExpiry} onChange={e => setForm({ ...form, insuranceExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Pollution Expiry</label><input type="date" value={form.pollutionExpiry} onChange={e => setForm({ ...form, pollutionExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Fitness Expiry</label><input type="date" value={form.fitnessExpiry} onChange={e => setForm({ ...form, fitnessExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-1">Insurance Expiry</label><input type="date" value={form.insuranceExpiry?.split('T')[0] || ''} onChange={e => setForm({ ...form, insuranceExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-1">Pollution Expiry</label><input type="date" value={form.pollutionExpiry?.split('T')[0] || ''} onChange={e => setForm({ ...form, pollutionExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-1">Fitness Expiry</label><input type="date" value={form.fitnessExpiry?.split('T')[0] || ''} onChange={e => setForm({ ...form, fitnessExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

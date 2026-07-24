@@ -165,7 +165,7 @@ export const DriverMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Commercial License No *</label><input type="text" required value={form.licenseNumber} onChange={e => setForm({ ...form, licenseNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">License Expiry Date</label><input type="date" value={form.licenseExpiryDate} onChange={e => setForm({ ...form, licenseExpiryDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-1">License Expiry Date</label><input type="date" value={form.licenseExpiryDate?.split('T')[0] || ''} onChange={e => setForm({ ...form, licenseExpiryDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

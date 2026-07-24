@@ -483,6 +483,7 @@ export interface SubjectItem {
   name: string;
   code?: string;
   department?: string;
+  className?: string;
 }
 
 // ==========================================

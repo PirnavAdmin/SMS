@@ -185,7 +185,7 @@ export const VehicleAssignmentView: React.FC = () => {
 
               <div>
                 <label className="block font-semibold mb-1">Effective Date</label>
-                <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                <input type="date" value={effectiveFrom?.split('T')[0] || ''} onChange={e => setEffectiveFrom(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

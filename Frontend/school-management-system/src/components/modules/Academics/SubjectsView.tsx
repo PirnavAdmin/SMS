@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, Loader2, ChevronDown } from 'lucide-react';
+import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { SubjectItem } from '../../../types';
@@ -9,8 +10,10 @@ export const SubjectsView: React.FC = () => {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
+  const { academicClasses } = useData();
 
   const [query, setQuery] = useState('');
+  const [filterClass, setFilterClass] = useState('All');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(null);
   const [deletingSubject, setDeletingSubject] = useState<SubjectItem | null>(null);
@@ -19,20 +22,24 @@ export const SubjectsView: React.FC = () => {
     subjectId: string;
     name: string;
     code: string;
+    className: string;
   }>({
     subjectId: '',
     name: '',
-    code: ''
+    code: '',
+    className: ''
   });
 
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
-  const filteredSubjects = subjects.filter(s =>
-    s.name.toLowerCase().includes(query.toLowerCase()) ||
-    s.subjectId.toLowerCase().includes(query.toLowerCase()) ||
-    (s.code || '').toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredSubjects = subjects.filter(s => {
+    const matchQuery = s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.subjectId.toLowerCase().includes(query.toLowerCase()) ||
+      (s.code || '').toLowerCase().includes(query.toLowerCase());
+    const matchClass = filterClass === 'All' || s.className === filterClass;
+    return matchQuery && matchClass;
+  });
 
   const totalPages = Math.ceil(filteredSubjects.length / pageSize) || 1;
   const paginated = filteredSubjects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -42,12 +49,14 @@ export const SubjectsView: React.FC = () => {
       setLoading(true);
       const data = await fetchSubjectsApi();
       const dataArray = Array.isArray(data) ? data : (data?.data || data?.subjects || data?.items || []);
+      const localClassMap = JSON.parse(localStorage.getItem('edu_db_subject_classes') || '{}');
       if (Array.isArray(dataArray)) {
         const mappedData = dataArray.map((item: any) => ({
           id: item.subjectId?.toString() || item.id?.toString() || Math.random().toString(),
           subjectId: item.subjectCode || '',
           name: item.subjectName || item.name || '',
-          code: item.courseCode || item.code || ''
+          code: item.courseCode || item.code || '',
+          className: item.className || localClassMap[item.subjectCode || item.id || ''] || ''
         }));
         setSubjects(mappedData);
       }
@@ -68,7 +77,8 @@ export const SubjectsView: React.FC = () => {
     setFormData({
       subjectId: '',
       name: '',
-      code: ''
+      code: '',
+      className: ''
     });
     setIsFormOpen(true);
   };
@@ -78,7 +88,8 @@ export const SubjectsView: React.FC = () => {
     setFormData({
       subjectId: sub.subjectId,
       name: sub.name,
-      code: sub.code || sub.subjectId
+      code: sub.code || sub.subjectId,
+      className: sub.className || ''
     });
     setIsFormOpen(true);
   };
@@ -93,19 +104,26 @@ export const SubjectsView: React.FC = () => {
     }
 
     try {
+      // Save className locally since backend DTO doesn't support it yet
+      const localClassMap = JSON.parse(localStorage.getItem('edu_db_subject_classes') || '{}');
+      localClassMap[finalSubjectId] = formData.className;
+      localStorage.setItem('edu_db_subject_classes', JSON.stringify(localClassMap));
+
       if (editingSubject) {
         await updateSubjectApi(editingSubject.id as any, {
           subjectCode: finalSubjectId,
           subjectName: formData.name,
-          courseCode: formData.code
-        });
+          courseCode: formData.code,
+          className: formData.className
+        } as any);
         addToast('success', 'Subject Updated', `Updated subject ${formData.name}`);
       } else {
         await createSubjectApi({
           subjectCode: finalSubjectId,
           subjectName: formData.name,
-          courseCode: formData.code
-        });
+          courseCode: formData.code,
+          className: formData.className
+        } as any);
         addToast('success', 'Subject Created', `Added subject ${formData.name}`);
       }
       setIsFormOpen(false);
@@ -138,6 +156,19 @@ export const SubjectsView: React.FC = () => {
               className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow shadow-sm"
             />
           </div>
+          <div className="relative hidden sm:block">
+            <select
+              value={filterClass}
+              onChange={e => setFilterClass(e.target.value)}
+              className="pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm text-slate-700 dark:text-slate-300 font-bold focus:outline-none focus:ring-2 focus:ring-brand-500/50 appearance-none cursor-pointer h-[38px]"
+            >
+              <option value="All">All Classes</option>
+              {academicClasses.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
           <button
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto flex-shrink-0"
@@ -155,6 +186,7 @@ export const SubjectsView: React.FC = () => {
               <tr className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800/50">
                 <th className="py-4 px-2">S.No</th>
                 <th className="py-4 px-2">Subject Name</th>
+                <th className="py-4 px-2">Assigned Class</th>
                 <th className="py-4 px-2">Course Code</th>
                 <th className="py-4 px-2 text-right">Actions</th>
               </tr>
@@ -169,6 +201,13 @@ export const SubjectsView: React.FC = () => {
                   <tr key={sub.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
                     <td className="py-4 px-2 font-bold text-slate-500">{(currentPage - 1) * pageSize + index + 1}</td>
                     <td className="py-4 px-2 font-bold">{sub.name}</td>
+                    <td className="py-4 px-2 text-slate-500 font-medium">
+                      {sub.className ? (
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-xs font-bold">{sub.className}</span>
+                      ) : (
+                        <span className="text-slate-400 italic text-xs">Unassigned</span>
+                      )}
+                    </td>
                     <td className="py-4 px-2 text-slate-400 font-mono text-[12px]">{sub.code || sub.subjectId}</td>
                     <td className="py-4 px-2 text-right">
                       <div className="flex items-center justify-end gap-4">
@@ -234,6 +273,23 @@ export const SubjectsView: React.FC = () => {
                   onChange={e => setFormData({ ...formData, code: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white outline-none font-mono font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Assign to Class</label>
+                <div className="relative">
+                  <select
+                    value={formData.className}
+                    onChange={e => setFormData({ ...formData, className: e.target.value })}
+                    className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white outline-none font-bold appearance-none cursor-pointer"
+                  >
+                    <option value="">Select Class (Optional)</option>
+                    {academicClasses.map(c => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-4 pt-4">

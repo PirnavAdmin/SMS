@@ -151,13 +151,13 @@ export const VehicleMaintenanceView: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Service Date</label><input type="date" value={serviceDate} onChange={e => setServiceDate(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div><label className="block font-semibold mb-1">Service Date</label><input type="date" value={serviceDate?.split('T')[0] || ''} onChange={e => setServiceDate(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
                 <div><label className="block font-semibold mb-1">Cost (₹) *</label><input type="number" required value={cost} onChange={e => setCost(Number(e.target.value))} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Vendor Center</label><input type="text" value={vendor} onChange={e => setVendor(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Next Service Due</label><input type="date" value={nextServiceDue} onChange={e => setNextServiceDue(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" /></div>
+                <div><label className="block font-semibold mb-1">Next Service Due</label><input type="date" value={nextServiceDue?.split('T')[0] || ''} onChange={e => setNextServiceDue(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-rose-500" /></div>
               </div>
 
               <div>

@@ -37,8 +37,13 @@ export const LoginView: React.FC = () => {
     try {
       await login(identifier, password, role);
       addToast('success', 'Authentication Successful', `Welcome to Pirnav Educational Institution!`);
-    } catch {
-      setError('Invalid credentials.');
+    } catch (err: any) {
+      const errorMessage = err?.message || '';
+      if (errorMessage.includes('502') || errorMessage.includes('503') || errorMessage.includes('Failed to fetch')) {
+        setError('The server is currently unreachable. Please try again later.');
+      } else {
+        setError(errorMessage || 'Invalid credentials.');
+      }
       setLoading(false);
     }
   };

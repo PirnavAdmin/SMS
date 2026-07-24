@@ -297,7 +297,7 @@ export const TransportReportsView: React.FC = () => {
               <label className="block text-[10px] font-bold text-slate-500 mb-1">Start Date</label>
               <input
                 type="date"
-                value={filterStartDate}
+                value={filterStartDate?.split('T')[0] || ''}
                 onChange={e => setFilterStartDate(e.target.value)}
                 className="w-full px-1.5 py-1.5 text-[11px] rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
               />
@@ -306,7 +306,7 @@ export const TransportReportsView: React.FC = () => {
               <label className="block text-[10px] font-bold text-slate-500 mb-1">End Date</label>
               <input
                 type="date"
-                value={filterEndDate}
+                value={filterEndDate?.split('T')[0] || ''}
                 onChange={e => setFilterEndDate(e.target.value)}
                 className="w-full px-1.5 py-1.5 text-[11px] rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
               />

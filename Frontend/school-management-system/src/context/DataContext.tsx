@@ -658,8 +658,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         const extractData = (result: any) => {
           if (result.status !== 'fulfilled' || !result.value) return null;
-          const dataArray = Array.isArray(result.value) ? result.value : (Array.isArray(result.value.data) ? result.value.data : null);
+          
+          let dataArray = null;
+          const val = result.value;
+          
+          if (Array.isArray(val)) dataArray = val;
+          else if (val?.items && Array.isArray(val.items)) dataArray = val.items;
+          else if (val?.Items && Array.isArray(val.Items)) dataArray = val.Items;
+          else if (val?.data && Array.isArray(val.data)) dataArray = val.data;
+          else if (val?.data?.items && Array.isArray(val.data.items)) dataArray = val.data.items;
+          else if (val?.data?.Items && Array.isArray(val.data.Items)) dataArray = val.data.Items;
+
           if (!dataArray) return null;
+          
           return dataArray.map((item: any) => ({
             ...item,
             id: (item.id || item.routeId || item.vehicleId || item.driverId || item.pickupPointId || item.assignmentId || item.maintenanceId || item.studentTransportId || '').toString()
@@ -766,8 +777,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    fetchAdmissions();
-  }, []);
+    if (isAuthenticated) {
+      fetchAdmissions();
+    }
+  }, [isAuthenticated]);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
     const newLog: AuditLog = {
@@ -1904,8 +1917,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addRouteMaster = async (r: Omit<RouteMaster, 'id'>) => {
     try {
       const response = await TransportAPI.createRouteApi(r);
-      const id = response?.id || 'RM-' + Math.floor(100 + Math.random() * 900);
-      const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.routeId || 'RM-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newRoute: RouteMaster = { ...r, ...backendData, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
       setRouteMasters(prev => [...prev, newRoute]);
       logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
     } catch (err) {
@@ -1942,8 +1956,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addPickupPoint = async (p: Omit<PickupPoint, 'id'>) => {
     try {
       const response = await TransportAPI.createPickupPointApi(p);
-      const id = response?.id || 'PP-' + Math.floor(100 + Math.random() * 900);
-      const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.pickupPointId || 'PP-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newPt: PickupPoint = { ...p, ...backendData, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
       setPickupPoints(prev => [...prev, newPt]);
       logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
     } catch (err) {
@@ -1977,8 +1992,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addVehicleMaster = async (v: Omit<VehicleMaster, 'id'>) => {
     try {
       const response = await TransportAPI.createVehicleApi(v);
-      const id = response?.id || 'VM-' + Math.floor(100 + Math.random() * 900);
-      const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.vehicleId || 'VM-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newVehicle: VehicleMaster = { ...v, ...backendData, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
       setVehicleMasters(prev => [...prev, newVehicle]);
       logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
     } catch (err) {
@@ -2012,8 +2028,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addDriverMaster = async (d: Omit<DriverMaster, 'id'>) => {
     try {
       const response = await TransportAPI.createDriverApi(d);
-      const id = response?.id || 'DRV-' + Math.floor(100 + Math.random() * 900);
-      const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.driverId || 'DRV-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newDriver: DriverMaster = { ...d, ...backendData, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
       setDriverMasters(prev => [...prev, newDriver]);
       logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
     } catch (err) {
@@ -2047,8 +2064,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const assignVehicleRouteDriver = async (va: Omit<VehicleAssignment, 'id'>) => {
     try {
       const response = await TransportAPI.createVehicleAssignmentApi(va);
-      const id = response?.id || 'VA-' + Math.floor(100 + Math.random() * 900);
-      const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.assignmentId || 'VA-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newAssign: VehicleAssignment = { ...va, ...backendData, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
       setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
       logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
     } catch (err) {
@@ -2072,8 +2090,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addVehicleMaintenance = async (vm: Omit<VehicleMaintenance, 'id'>) => {
     try {
       const response = await TransportAPI.createMaintenanceApi(vm);
-      const id = response?.id || 'VMN-' + Math.floor(100 + Math.random() * 900);
-      const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.maintenanceId || 'VMN-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newMaint: VehicleMaintenance = { ...vm, ...backendData, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
       setVehicleMaintenances(prev => [newMaint, ...prev]);
       logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
     } catch (err) {
