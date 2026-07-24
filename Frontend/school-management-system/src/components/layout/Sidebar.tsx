@@ -535,7 +535,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }
 
                 const Icon = item.icon;
-                const isActive = activeModule === item.id;
+                const isActive = activeModule === item.id || (item.id === 'admissions' && activeModule === 'admissions-add');
 
                 return (
                   <button

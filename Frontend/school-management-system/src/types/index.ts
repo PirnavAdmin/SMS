@@ -211,6 +211,7 @@ export interface AdmissionApplication {
   branch?: string;
   scholarshipId?: string;
   discountId?: string;
+  selectedOptionalFees?: string[];
   submissionDate: string;
   status: 'Pending' | 'Verified' | 'Approved' | 'Rejected' | 'Enrolled';
   documentsSubmitted: string[];

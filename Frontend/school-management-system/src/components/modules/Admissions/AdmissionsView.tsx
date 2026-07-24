@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   GraduationCap, Plus, Search, CheckCircle2, UserCheck,
   X, Eye, Edit, Trash2, ChevronLeft, ChevronRight, XCircle,
@@ -15,14 +15,20 @@ import { formatCurrency } from '../../../utils/currency';
 
 interface AdmissionsViewProps {
   onSelectStudentProfile?: (student: Student) => void;
+  onNavigate?: (module: string) => void;
+  initialFormOpen?: boolean;
 }
 
-export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
+export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
+  onNavigate,
+  initialFormOpen
+}) => {
   const {
     admissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus, students,
     routeMasters, pickupPoints,
     getStudentFeeLedger, dynamicFeeStructures, financeTransportConfigs, hostelMasters, financeHostelConfigs,
-    roomMasters, studentHostelAssignments, scholarships, discounts, roomTypeMasters, academicClasses
+    roomMasters, studentHostelAssignments, scholarships, discounts, roomTypeMasters, academicClasses,
+    feeHeads
   } = useData();
   const { addToast } = useToast();
   const { selectedBranch } = useAuth();
@@ -35,7 +41,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
   const pageSize = 8;
 
   // View States: Table View vs Full-Page Form View
-  const [isFormView, setIsFormView] = useState(false);
+  const [isFormView, setIsFormView] = useState(initialFormOpen || false);
+
+
+  const handleCloseForm = () => {
+    setIsFormView(false);
+    if (onNavigate && initialFormOpen) {
+      onNavigate('admissions');
+    }
+  };
+
   const [editingApp, setEditingApp] = useState<AdmissionApplication | null>(null);
   const [deletingApp, setDeletingApp] = useState<AdmissionApplication | null>(null);
   const [selectedAppForView, setSelectedAppForView] = useState<AdmissionApplication | null>(null);
@@ -77,7 +92,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
     hostelRoom: '',
     hostelBed: '',
       branch: selectedBranch,
-    documentsSubmitted: []
+      selectedOptionalFees: [],
+      documentsSubmitted: []
   });
 
   const [phoneError, setPhoneError] = useState('');
@@ -150,12 +166,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
       branch: selectedBranch,
       scholarshipId: '',
       discountId: '',
+      selectedOptionalFees: [],
       documentsSubmitted: []
     });
     setPhoneError('');
     setDobError('');
     setIsFormView(true);
   };
+
+  useEffect(() => {
+    if (initialFormOpen) {
+      handleOpenAdd();
+    }
+  }, [initialFormOpen]);
 
   const handleOpenEdit = (app: AdmissionApplication) => {
     setEditingApp(app);
@@ -271,6 +294,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
         branch: formData.branch || selectedBranch || 'Main Campus',
         scholarshipId: formData.scholarshipId,
         discountId: formData.discountId,
+        selectedOptionalFees: formData.selectedOptionalFees || [],
         submissionDate: new Date().toISOString().split('T')[0],
         status: 'Pending',
         documentsSubmitted: formData.documentsSubmitted || []
@@ -279,7 +303,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
       addToast('success', 'Application Submitted', `Application registered for ${fullApplicantName}`);
     }
 
-    setIsFormView(false);
+    handleCloseForm();
   };
 
   const calculateLiveFeePreview = () => {
@@ -298,7 +322,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
     let items: { name: string; amount: number; isApplicable: boolean; remarks?: string }[] = [];
 
     baseItems.forEach(i => {
-      items.push({ name: i.feeHeadName, amount: i.amount, isApplicable: true });
+      const fh = feeHeads.find(h => h.id === i.feeHeadId || h.name === i.feeHeadName);
+      const isMandatory = fh ? fh.mandatory : true;
+      const isSelected = isMandatory || (formData.selectedOptionalFees || []).includes(i.feeHeadId);
+      items.push({
+        name: i.feeHeadName,
+        amount: i.amount,
+        isApplicable: isSelected,
+        remarks: isSelected ? undefined : 'Optional Fee Not Selected'
+      });
     });
 
     if (stType === 'Day Scholar') {
@@ -409,7 +441,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsFormView(false)}
+              onClick={handleCloseForm}
               className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-sm"
               title="Back to Directory"
             >
@@ -958,13 +990,69 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Optional Fee Head Selection */}
+              {(() => {
+                const clsName = formData.appliedClass || 'Class 10';
+                const dfs = dynamicFeeStructures.find(d => d.className === clsName && d.status === 'Active') || dynamicFeeStructures[0];
+                const baseItems = dfs ? dfs.items : [
+                  { feeHeadId: 'FH-01', feeHeadName: 'Tuition Fee', amount: 25000 },
+                  { feeHeadId: 'FH-02', feeHeadName: 'Admission Fee', amount: 5000 },
+                  { feeHeadId: 'FH-03', feeHeadName: 'Books & Stationery Fee', amount: 4500 },
+                  { feeHeadId: 'FH-04', feeHeadName: 'Uniform & Sports Kit Fee', amount: 3500 },
+                  { feeHeadId: 'FH-05', feeHeadName: 'Science & Computer Lab Fee', amount: 2500 }
+                ];
+                
+                const optionalItems = baseItems.filter(item => {
+                  const fh = feeHeads.find(h => h.id === item.feeHeadId || h.name === item.feeHeadName);
+                  if (fh) {
+                    return !fh.mandatory;
+                  }
+                  const lowerName = item.feeHeadName.toLowerCase();
+                  return !(lowerName.includes('tuition') || lowerName.includes('admission') || lowerName.includes('book') || lowerName.includes('textbook') || lowerName.includes('stationery'));
+                });
+
+                if (optionalItems.length === 0) return null;
+
+                return (
+                  <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
+                    <h5 className="font-bold text-sky-900 dark:text-sky-200">Optional Fee Selection</h5>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Select any optional fee heads to apply for this student:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {optionalItems.map(item => {
+                        const isChecked = (formData.selectedOptionalFees || []).includes(item.feeHeadId);
+                        return (
+                          <label key={item.feeHeadId} className="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                const currentSelected = formData.selectedOptionalFees || [];
+                                const updated = isChecked
+                                  ? currentSelected.filter(id => id !== item.feeHeadId)
+                                  : [...currentSelected, item.feeHeadId];
+                                setFormData({ ...formData, selectedOptionalFees: updated });
+                              }}
+                              className="w-4 h-4 rounded text-sky-600 border-slate-300 focus:ring-sky-500"
+                            />
+                            <div>
+                              <span className="block font-bold text-slate-900 dark:text-white text-xs">{item.feeHeadName}</span>
+                              <span className="block text-[10px] text-slate-500">{formatCurrency(item.amount)}</span>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Actions Footer */}
             <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => setIsFormView(false)}
+                onClick={handleCloseForm}
                 className="px-5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
               >
                 Cancel

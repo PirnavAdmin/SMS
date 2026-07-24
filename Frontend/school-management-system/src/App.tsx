@@ -102,7 +102,13 @@ const MainLayout: React.FC = () => {
       case 'staff-payslips':
         return <StaffPayslipView />;
       case 'admissions':
-        return <AdmissionsView />;
+      case 'admissions-add':
+        return (
+          <AdmissionsView
+            onNavigate={(mod) => setActiveModule(mod)}
+            initialFormOpen={activeModule === 'admissions-add'}
+          />
+        );
       case 'academics':
         return <AcademicsView />;
       case 'subjects':

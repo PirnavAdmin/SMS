@@ -51,7 +51,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
           <div className="flex items-center gap-3 shrink-0">
             <button
-              onClick={() => onNavigate('students')}
+              onClick={() => onNavigate('admissions-add')}
               className="px-4 py-2.5 rounded-xl bg-white text-brand-700 hover:bg-brand-50 text-xs font-bold shadow-md transition-all flex items-center gap-2"
             >
               <UserCheck className="w-4 h-4" /> Add Student

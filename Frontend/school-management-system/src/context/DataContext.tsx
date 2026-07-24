@@ -994,6 +994,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ].filter(Boolean);
           const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Main Campus Area';
 
+          // --- DYNAMIC FEE CALCULATION & ASSIGNMENT SETUP ---
+          const clsName = app.appliedClass || 'Class 10';
+          const dfs = dynamicFeeStructures.find(d => d.className === clsName && d.status === 'Active') || dynamicFeeStructures[0];
+          const baseItems = dfs ? dfs.items : [
+            { feeHeadId: 'FH-01', feeHeadName: 'Tuition Fee', amount: 25000 },
+            { feeHeadId: 'FH-02', feeHeadName: 'Admission Fee', amount: 5000 },
+            { feeHeadId: 'FH-03', feeHeadName: 'Books & Stationery Fee', amount: 4500 },
+            { feeHeadId: 'FH-04', feeHeadName: 'Uniform & Sports Kit Fee', amount: 3500 },
+            { feeHeadId: 'FH-05', feeHeadName: 'Science & Computer Lab Fee', amount: 2500 }
+          ];
+
+          const selectedOptional = app.selectedOptionalFees || [];
+          const assignedFeeHeads = baseItems.filter(item => {
+            const fh = feeHeads.find(h => h.id === item.feeHeadId || h.name === item.feeHeadName);
+            const isMandatory = fh ? fh.mandatory : true;
+            return isMandatory || selectedOptional.includes(item.feeHeadId);
+          });
+          const baseFeeTotal = assignedFeeHeads.reduce((acc, h) => acc + h.amount, 0);
+
+          let additionalFees = 0;
+          if (app.studentType === 'Day Scholar' && app.transportRequired) {
+            const rObj = routeMasters.find(r => r.id === app.routeId || r.routeName === app.busRoute);
+            const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
+            const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
+            additionalFees += ftc ? ftc.feeAmount : 5500;
+          } else if (app.studentType === 'Hosteller' && app.hostelBed) {
+            const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
+            const fhc = financeHostelConfigs.find(c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active') || financeHostelConfigs[0];
+            additionalFees += fhc ? fhc.hostelFee : 40000;
+            if (fhc && fhc.messFee) additionalFees += fhc.messFee;
+            if (fhc && fhc.securityDeposit) additionalFees += fhc.securityDeposit;
+          }
+
+          let scholarshipAmount = 0;
+          if (app.scholarshipId) {
+            const sObj = scholarships.find(s => s.id === app.scholarshipId);
+            if (sObj && sObj.status === 'Active') {
+              const tuitionFeeAmount = assignedFeeHeads.find(i => i.feeHeadId === 'FH-001' || i.feeHeadName === 'Tuition Fee' || i.feeHeadId === 'FH-01')?.amount || 25000;
+              const sVal = sObj.discountType === 'Percentage' ? (sObj.percentage || 0) : (sObj.fixedAmount || 0);
+              scholarshipAmount = sObj.discountType === 'Percentage' ? (tuitionFeeAmount * sVal) / 100 : sVal;
+            }
+          }
+
+          let discountAmount = 0;
+          if (app.discountId) {
+            const dObj = discounts.find(d => d.id === app.discountId);
+            if (dObj && dObj.status === 'Active') {
+              const tuitionFeeAmount = assignedFeeHeads.find(i => i.feeHeadId === 'FH-001' || i.feeHeadName === 'Tuition Fee' || i.feeHeadId === 'FH-01')?.amount || 25000;
+              discountAmount = dObj.mode === 'Percentage' ? (tuitionFeeAmount * dObj.value) / 100 : dObj.value;
+            }
+          }
+
+          const calculatedTotalFee = Math.max(0, baseFeeTotal + additionalFees - scholarshipAmount - discountAmount);
+
           const newStudent = addStudent({
             admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
             rollNo: '20' + Math.floor(10 + Math.random() * 90),
@@ -1033,12 +1087,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             alternatePhone: app.alternatePhone,
             address: fullAddress,
             siblingsCount: app.siblingsCount || 0,
-            totalFee: 36500,
+            totalFee: calculatedTotalFee,
             paidFee: 0,
-            dueFee: 36500,
+            dueFee: calculatedTotalFee,
             attendancePct: 100.0,
             gpa: 4.0
           });
+
+          // Create Student Fee Assignment based on selected fee heads
+          const sfaId = 'SFA-' + Math.floor(100 + Math.random() * 900);
+          const assignment: StudentFeeAssignment = {
+            id: sfaId,
+            studentId: newStudent.id,
+            studentName: `${newStudent.firstName} ${newStudent.lastName}`,
+            admissionNo: newStudent.admissionNo,
+            branch: newStudent.branch || selectedBranch || 'Main Campus',
+            academicYear: dfs?.academicYear || '2025-2026',
+            className: newStudent.className,
+            section: newStudent.section,
+            feeStructureId: dfs?.id || 'DFS-FALLBACK',
+            assignedFeeHeads,
+            baseFeeTotal,
+            assignedDate: new Date().toISOString().split('T')[0],
+            status: 'Active'
+          };
+          setStudentFeeAssignments(prev => [...prev.filter(a => a.studentId !== newStudent.id), assignment]);
 
           // Auto-assign transport facility if Day Scholar opted for transport
           if (app.studentType === 'Day Scholar' && app.transportRequired) {
