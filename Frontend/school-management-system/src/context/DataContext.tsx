@@ -298,6 +298,7 @@ interface DataContextType {
 
   vehicleAssignments: VehicleAssignment[];
   assignVehicleRouteDriver: (va: Omit<VehicleAssignment, 'id'>) => Promise<void>;
+  updateVehicleAssignment: (id: string, updates: Partial<VehicleAssignment>) => Promise<void>;
   removeVehicleAssignment: (id: string) => Promise<void>;
 
   vehicleMaintenances: VehicleMaintenance[];
@@ -2156,7 +2157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addPickupPoint = async (p: Omit<PickupPoint, 'id'>) => {
     try {
-      const payload = { ...p, status: p.status === 'Active' };
+      const payload = { ...p, status: true };
       const response = await TransportAPI.createPickupPointApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.pickupPointId || 'PP-' + Math.floor(100 + Math.random() * 900)).toString();
@@ -2173,7 +2174,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updatePickupPoint = async (id: string, updates: Partial<PickupPoint>) => {
     try {
-      const payload = { ...updates, ...(updates.status !== undefined && { status: updates.status === 'Active' }) };
+      const payload = { ...updates, status: true };
       await TransportAPI.updatePickupPointApi(id, payload as any);
       setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     } catch (err) {
@@ -2310,7 +2311,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const payload = {
         ...va,
-        status: va.status === 'Active',
+        status: true,
         assignmentDate: new Date().toISOString()
       };
       const response = await TransportAPI.createVehicleAssignmentApi(payload as any);
@@ -2324,6 +2325,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const id = 'VA-' + Math.floor(100 + Math.random() * 900);
       const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
       setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+    }
+  };
+
+  const updateVehicleAssignment = async (id: string, updates: Partial<VehicleAssignment>) => {
+    try {
+      const payload = { ...updates, status: true };
+      await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
+      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
     }
   };
 
