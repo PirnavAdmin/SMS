@@ -37,6 +37,7 @@ import {
   initialLeaveTypes, initialLeaveApplications, initialPayslips
 } from '../services/mockData';
 import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import * as TransportAPI from '../api/transport';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 
@@ -273,33 +274,33 @@ interface DataContextType {
 
   // TRANSPORT ERP MODULE ADDITIONS
   routeMasters: RouteMaster[];
-  addRouteMaster: (r: Omit<RouteMaster, 'id'>) => void;
-  updateRouteMaster: (id: string, updates: Partial<RouteMaster>) => void;
-  deleteRouteMaster: (id: string) => void;
+  addRouteMaster: (r: Omit<RouteMaster, 'id'>) => Promise<void>;
+  updateRouteMaster: (id: string, updates: Partial<RouteMaster>) => Promise<void>;
+  deleteRouteMaster: (id: string) => Promise<void>;
 
   pickupPoints: PickupPoint[];
-  addPickupPoint: (p: Omit<PickupPoint, 'id'>) => void;
-  updatePickupPoint: (id: string, updates: Partial<PickupPoint>) => void;
-  deletePickupPoint: (id: string) => void;
+  addPickupPoint: (p: Omit<PickupPoint, 'id'>) => Promise<void>;
+  updatePickupPoint: (id: string, updates: Partial<PickupPoint>) => Promise<void>;
+  deletePickupPoint: (id: string) => Promise<void>;
 
   vehicleMasters: VehicleMaster[];
-  addVehicleMaster: (v: Omit<VehicleMaster, 'id'>) => void;
-  updateVehicleMaster: (id: string, updates: Partial<VehicleMaster>) => void;
-  deleteVehicleMaster: (id: string) => void;
+  addVehicleMaster: (v: Omit<VehicleMaster, 'id'>) => Promise<void>;
+  updateVehicleMaster: (id: string, updates: Partial<VehicleMaster>) => Promise<void>;
+  deleteVehicleMaster: (id: string) => Promise<void>;
 
   driverMasters: DriverMaster[];
-  addDriverMaster: (d: Omit<DriverMaster, 'id'>) => void;
-  updateDriverMaster: (id: string, updates: Partial<DriverMaster>) => void;
-  deleteDriverMaster: (id: string) => void;
+  addDriverMaster: (d: Omit<DriverMaster, 'id'>) => Promise<void>;
+  updateDriverMaster: (id: string, updates: Partial<DriverMaster>) => Promise<void>;
+  deleteDriverMaster: (id: string) => Promise<void>;
 
   vehicleAssignments: VehicleAssignment[];
-  assignVehicleRouteDriver: (va: Omit<VehicleAssignment, 'id'>) => void;
-  removeVehicleAssignment: (id: string) => void;
+  assignVehicleRouteDriver: (va: Omit<VehicleAssignment, 'id'>) => Promise<void>;
+  removeVehicleAssignment: (id: string) => Promise<void>;
 
   vehicleMaintenances: VehicleMaintenance[];
-  addVehicleMaintenance: (vm: Omit<VehicleMaintenance, 'id'>) => void;
-  updateVehicleMaintenance: (id: string, updates: Partial<VehicleMaintenance>) => void;
-  deleteVehicleMaintenance: (id: string) => void;
+  addVehicleMaintenance: (vm: Omit<VehicleMaintenance, 'id'>) => Promise<void>;
+  updateVehicleMaintenance: (id: string, updates: Partial<VehicleMaintenance>) => Promise<void>;
+  deleteVehicleMaintenance: (id: string) => Promise<void>;
 
   checkVehicleCapacity: (vehicleId: string) => CapacityCheckResult;
 
@@ -399,7 +400,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, isAuthenticated } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
@@ -538,6 +539,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_driver_masters', JSON.stringify(driverMasters)); }, [driverMasters]);
   useEffect(() => { localStorage.setItem('edu_db_vehicle_assignments', JSON.stringify(vehicleAssignments)); }, [vehicleAssignments]);
   useEffect(() => { localStorage.setItem('edu_db_vehicle_maintenances', JSON.stringify(vehicleMaintenances)); }, [vehicleMaintenances]);
+
+  // Fetch API data on mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchTransportData = async () => {
+      try {
+        const results = await Promise.allSettled([
+          TransportAPI.fetchRoutesApi(),
+          TransportAPI.fetchPickupPointsApi(),
+          TransportAPI.fetchVehiclesApi(),
+          TransportAPI.fetchDriversApi(),
+          TransportAPI.fetchVehicleAssignmentsApi(),
+          TransportAPI.fetchMaintenanceApi()
+        ]);
+        
+        const extractData = (result: any) => {
+          if (result.status !== 'fulfilled' || !result.value) return null;
+          const dataArray = Array.isArray(result.value) ? result.value : (Array.isArray(result.value.data) ? result.value.data : null);
+          if (!dataArray) return null;
+          return dataArray.map((item: any) => ({
+            ...item,
+            id: (item.id || item.routeId || item.vehicleId || item.driverId || item.pickupPointId || item.assignmentId || item.maintenanceId || item.studentTransportId || '').toString()
+          }));
+        };
+
+        const routes = extractData(results[0]);
+        const points = extractData(results[1]);
+        const vehicles = extractData(results[2]);
+        const drivers = extractData(results[3]);
+        const assignments = extractData(results[4]);
+        const maintenance = extractData(results[5]);
+
+        if (routes) setRouteMasters(routes);
+        if (points) setPickupPoints(points);
+        if (vehicles) setVehicleMasters(vehicles);
+        if (drivers) setDriverMasters(drivers);
+        if (assignments) setVehicleAssignments(assignments);
+        if (maintenance) setVehicleMaintenances(maintenance);
+        
+        if (results.some(r => r.status === 'rejected')) {
+          console.warn('Some Transport API fetches failed', results.filter(r => r.status === 'rejected'));
+        }
+      } catch (err) {
+        console.warn('Transport API fetch failed entirely', err);
+      }
+    };
+    fetchTransportData();
+  }, [isAuthenticated]);
 
   // Finance Transport Config & Ledger Effects
   useEffect(() => { localStorage.setItem('edu_db_finance_transport_configs', JSON.stringify(financeTransportConfigs)); }, [financeTransportConfigs]);
@@ -1740,92 +1789,207 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // TRANSPORT ERP MODULE CRUD & CAPACITY ENGINE
   // ==========================================
 
-  const addRouteMaster = (r: Omit<RouteMaster, 'id'>) => {
-    const id = 'RM-' + Math.floor(100 + Math.random() * 900);
-    const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
-    setRouteMasters(prev => [...prev, newRoute]);
-    logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
+  const addRouteMaster = async (r: Omit<RouteMaster, 'id'>) => {
+    try {
+      const response = await TransportAPI.createRouteApi(r);
+      const id = response?.id || 'RM-' + Math.floor(100 + Math.random() * 900);
+      const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
+      setRouteMasters(prev => [...prev, newRoute]);
+      logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'RM-' + Math.floor(100 + Math.random() * 900);
+      const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
+      setRouteMasters(prev => [...prev, newRoute]);
+      logActivity('Created Transport Route (Local)', `Added ${newRoute.routeName}`);
+    }
   };
 
-  const updateRouteMaster = (id: string, updates: Partial<RouteMaster>) => {
-    setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
-    logActivity('Updated Transport Route', `Updated Route ID ${id}`);
+  const updateRouteMaster = async (id: string, updates: Partial<RouteMaster>) => {
+    try {
+      await TransportAPI.updateRouteApi(id, updates);
+      setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+      logActivity('Updated Transport Route', `Updated Route ID ${id}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    }
   };
 
-  const deleteRouteMaster = (id: string) => {
-    setRouteMasters(prev => prev.filter(r => r.id !== id));
-    logActivity('Deleted Transport Route', `Removed Route ID ${id}`);
+  const deleteRouteMaster = async (id: string) => {
+    try {
+      await TransportAPI.deleteRouteApi(id);
+      setRouteMasters(prev => prev.filter(r => r.id !== id));
+      logActivity('Deleted Transport Route', `Removed Route ID ${id}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setRouteMasters(prev => prev.filter(r => r.id !== id));
+    }
   };
 
-  const addPickupPoint = (p: Omit<PickupPoint, 'id'>) => {
-    const id = 'PP-' + Math.floor(100 + Math.random() * 900);
-    const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
-    setPickupPoints(prev => [...prev, newPt]);
-    logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
+  const addPickupPoint = async (p: Omit<PickupPoint, 'id'>) => {
+    try {
+      const response = await TransportAPI.createPickupPointApi(p);
+      const id = response?.id || 'PP-' + Math.floor(100 + Math.random() * 900);
+      const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
+      setPickupPoints(prev => [...prev, newPt]);
+      logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'PP-' + Math.floor(100 + Math.random() * 900);
+      const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
+      setPickupPoints(prev => [...prev, newPt]);
+    }
   };
 
-  const updatePickupPoint = (id: string, updates: Partial<PickupPoint>) => {
-    setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  const updatePickupPoint = async (id: string, updates: Partial<PickupPoint>) => {
+    try {
+      await TransportAPI.updatePickupPointApi(id, updates);
+      setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    }
   };
 
-  const deletePickupPoint = (id: string) => {
-    setPickupPoints(prev => prev.filter(p => p.id !== id));
+  const deletePickupPoint = async (id: string) => {
+    try {
+      await TransportAPI.deletePickupPointApi(id);
+      setPickupPoints(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setPickupPoints(prev => prev.filter(p => p.id !== id));
+    }
   };
 
-  const addVehicleMaster = (v: Omit<VehicleMaster, 'id'>) => {
-    const id = 'VM-' + Math.floor(100 + Math.random() * 900);
-    const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
-    setVehicleMasters(prev => [...prev, newVehicle]);
-    logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
+  const addVehicleMaster = async (v: Omit<VehicleMaster, 'id'>) => {
+    try {
+      const response = await TransportAPI.createVehicleApi(v);
+      const id = response?.id || 'VM-' + Math.floor(100 + Math.random() * 900);
+      const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMasters(prev => [...prev, newVehicle]);
+      logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'VM-' + Math.floor(100 + Math.random() * 900);
+      const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMasters(prev => [...prev, newVehicle]);
+    }
   };
 
-  const updateVehicleMaster = (id: string, updates: Partial<VehicleMaster>) => {
-    setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+  const updateVehicleMaster = async (id: string, updates: Partial<VehicleMaster>) => {
+    try {
+      await TransportAPI.updateVehicleApi(id, updates);
+      setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+    }
   };
 
-  const deleteVehicleMaster = (id: string) => {
-    setVehicleMasters(prev => prev.filter(v => v.id !== id));
+  const deleteVehicleMaster = async (id: string) => {
+    try {
+      await TransportAPI.deleteVehicleApi(id);
+      setVehicleMasters(prev => prev.filter(v => v.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMasters(prev => prev.filter(v => v.id !== id));
+    }
   };
 
-  const addDriverMaster = (d: Omit<DriverMaster, 'id'>) => {
-    const id = 'DRV-' + Math.floor(100 + Math.random() * 900);
-    const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
-    setDriverMasters(prev => [...prev, newDriver]);
-    logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
+  const addDriverMaster = async (d: Omit<DriverMaster, 'id'>) => {
+    try {
+      const response = await TransportAPI.createDriverApi(d);
+      const id = response?.id || 'DRV-' + Math.floor(100 + Math.random() * 900);
+      const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
+      setDriverMasters(prev => [...prev, newDriver]);
+      logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'DRV-' + Math.floor(100 + Math.random() * 900);
+      const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
+      setDriverMasters(prev => [...prev, newDriver]);
+    }
   };
 
-  const updateDriverMaster = (id: string, updates: Partial<DriverMaster>) => {
-    setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+  const updateDriverMaster = async (id: string, updates: Partial<DriverMaster>) => {
+    try {
+      await TransportAPI.updateDriverApi(id, updates);
+      setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    }
   };
 
-  const deleteDriverMaster = (id: string) => {
-    setDriverMasters(prev => prev.filter(d => d.id !== id));
+  const deleteDriverMaster = async (id: string) => {
+    try {
+      await TransportAPI.deleteDriverApi(id);
+      setDriverMasters(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setDriverMasters(prev => prev.filter(d => d.id !== id));
+    }
   };
 
-  const assignVehicleRouteDriver = (va: Omit<VehicleAssignment, 'id'>) => {
-    const id = 'VA-' + Math.floor(100 + Math.random() * 900);
-    const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
-    setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
-    logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
+  const assignVehicleRouteDriver = async (va: Omit<VehicleAssignment, 'id'>) => {
+    try {
+      const response = await TransportAPI.createVehicleAssignmentApi(va);
+      const id = response?.id || 'VA-' + Math.floor(100 + Math.random() * 900);
+      const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+      logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'VA-' + Math.floor(100 + Math.random() * 900);
+      const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+    }
   };
 
-  const removeVehicleAssignment = (id: string) => {
-    setVehicleAssignments(prev => prev.filter(a => a.id !== id));
+  const removeVehicleAssignment = async (id: string) => {
+    try {
+      await TransportAPI.deleteVehicleAssignmentApi(id);
+      setVehicleAssignments(prev => prev.filter(a => a.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleAssignments(prev => prev.filter(a => a.id !== id));
+    }
   };
 
-  const addVehicleMaintenance = (vm: Omit<VehicleMaintenance, 'id'>) => {
-    const id = 'VMN-' + Math.floor(100 + Math.random() * 900);
-    const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
-    setVehicleMaintenances(prev => [newMaint, ...prev]);
-    logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
+  const addVehicleMaintenance = async (vm: Omit<VehicleMaintenance, 'id'>) => {
+    try {
+      const response = await TransportAPI.createMaintenanceApi(vm);
+      const id = response?.id || 'VMN-' + Math.floor(100 + Math.random() * 900);
+      const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMaintenances(prev => [newMaint, ...prev]);
+      logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'VMN-' + Math.floor(100 + Math.random() * 900);
+      const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMaintenances(prev => [newMaint, ...prev]);
+    }
   };
 
-  const updateVehicleMaintenance = (id: string, updates: Partial<VehicleMaintenance>) => {
-    setVehicleMaintenances(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+  const updateVehicleMaintenance = async (id: string, updates: Partial<VehicleMaintenance>) => {
+    try {
+      await TransportAPI.updateMaintenanceApi(id, updates);
+      setVehicleMaintenances(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMaintenances(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    }
   };
 
-  const deleteVehicleMaintenance = (id: string) => {
-    setVehicleMaintenances(prev => prev.filter(m => m.id !== id));
+  const deleteVehicleMaintenance = async (id: string) => {
+    try {
+      await TransportAPI.deleteMaintenanceApi(id);
+      setVehicleMaintenances(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMaintenances(prev => prev.filter(m => m.id !== id));
+    }
   };
 
   const checkVehicleCapacity = (vehicleId: string): CapacityCheckResult => {
