@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
-import { School, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, Shield, GraduationCap } from 'lucide-react';
+import { School, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, Shield, GraduationCap, UserCircle2, ChevronDown, Briefcase } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { UserRole } from '../../../types';
 
-export const LoginView: React.FC = () => {
+interface LoginViewProps {
+  onBack?: () => void;
+}
+
+export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
 
   const [identifier, setIdentifier] = useState('javvadivenkat999@gmail.com');
   const [password, setPassword] = useState('venkat');
-  const [role] = useState<UserRole>('Admin');
+  const [role, setRole] = useState<UserRole>('Admin');
+  
+  type MainTab = 'Student' | 'Employee' | 'Parent';
+  const [mainTab, setMainTab] = useState<MainTab>('Employee');
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -164,12 +171,22 @@ export const LoginView: React.FC = () => {
            <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-purple-400/10 dark:bg-purple-600/10 rounded-full blur-[100px]" />
         </div>
 
-        <div className="relative z-10 w-full max-w-[480px] mx-auto px-6 sm:px-12 flex flex-col justify-center min-h-full py-8 my-auto">
+        <div className="relative z-10 w-full max-w-[480px] mx-auto px-4 sm:px-12 flex flex-col min-h-full py-4 sm:py-6">
+          {onBack && (
+            <div className="mb-4">
+              <button 
+                onClick={onBack}
+                className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+              >
+                ← Back to Home
+              </button>
+            </div>
+          )}
           
-          <div className="bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-[2rem] border-2 border-black/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none">
+          <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl sm:rounded-[2rem] border-2 border-black/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none mt-auto mb-auto">
             {/* Minimalist Universal Header */}
-          <div className="mb-8">
-            <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 shadow-xl shadow-brand-500/30 mb-5">
+          <div className="mb-6">
+            <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 shadow-xl shadow-brand-500/30 mb-4">
               <School className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
@@ -186,8 +203,60 @@ export const LoginView: React.FC = () => {
 
           {/* LOGIN FORM */}
           {mode === 'login' && (
-            <form onSubmit={handleLoginSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-              <div className="space-y-5">
+            <form onSubmit={handleLoginSubmit} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
+              <div className="space-y-4">
+                {/* Role Tabs */}
+                <div className="flex bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded-2xl mb-2 shadow-inner border border-slate-200/50 dark:border-slate-800/50">
+                  {(['Student', 'Employee', 'Parent'] as MainTab[]).map(tab => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => {
+                        setMainTab(tab);
+                        if (tab === 'Student') setRole('Student');
+                        else if (tab === 'Parent') setRole('Parent');
+                        else setRole('Teacher');
+                      }}
+                      className={`flex-1 py-2.5 sm:py-3 text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 ${
+                        mainTab === tab 
+                          ? 'bg-white dark:bg-brand-600 text-brand-600 dark:text-white shadow-md border border-slate-200 dark:border-transparent'
+                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/5'
+                      }`}
+                    >
+                      {tab === 'Student' && <GraduationCap className="w-4 h-4 hidden sm:block" />}
+                      {tab === 'Employee' && <Briefcase className="w-4 h-4 hidden sm:block" />}
+                      {tab === 'Parent' && <UserCircle2 className="w-4 h-4 hidden sm:block" />}
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                {mainTab === 'Employee' && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <label className="block text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-300">Employee Designation</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Briefcase className="w-5 h-5 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
+                      </div>
+                      <select
+                        value={role}
+                        onChange={e => setRole(e.target.value as UserRole)}
+                        className="w-full pl-12 pr-10 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium appearance-none"
+                      >
+                        <option value="Admin">Administrator</option>
+                        <option value="Principal">Principal</option>
+                        <option value="Teacher">Teacher</option>
+                        <option value="Accountant">Accountant</option>
+                        <option value="Hostel Warden">Hostel Warden</option>
+                        <option value="Staff">Other Staff</option>
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Identifier */}
                 <div className="space-y-2">
                   <label className="block text-sm font-bold text-slate-700 dark:text-slate-300">Email or Phone Number</label>
@@ -201,7 +270,7 @@ export const LoginView: React.FC = () => {
                       onChange={e => setIdentifier(e.target.value)}
                       placeholder="Enter your email or phone"
                       required
-                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium"
                     />
                   </div>
                 </div>
@@ -228,17 +297,17 @@ export const LoginView: React.FC = () => {
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium tracking-wider"
+                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium tracking-wider"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-2">
                 <button
                   type="submit"
                   disabled={loading}
-                  className="group w-full flex items-center justify-center gap-3 py-4 rounded-2xl bg-slate-900 dark:bg-brand-600 hover:bg-slate-800 dark:hover:bg-brand-500 text-white font-bold text-sm sm:text-base shadow-xl shadow-slate-900/10 dark:shadow-brand-600/20 transition-all active:scale-[0.98] disabled:opacity-70"
+                  className="group w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-slate-900 dark:bg-brand-600 hover:bg-slate-800 dark:hover:bg-brand-500 text-white font-bold text-sm sm:text-base shadow-xl shadow-slate-900/10 dark:shadow-brand-600/20 transition-all active:scale-[0.98] disabled:opacity-70"
                 >
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

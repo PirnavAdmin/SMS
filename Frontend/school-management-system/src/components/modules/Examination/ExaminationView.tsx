@@ -37,11 +37,19 @@ export const ExaminationView: React.FC = () => {
   const isStudentOrParent = user?.role === 'Student' || user?.role === 'Parent';
 
   // Current teacher profile assignment
-  const currentTeacher = staff.find(s => s.email === user?.email);
-  const teacherClasses = currentTeacher?.assignedClasses || []; // e.g. ["Class 10-A", "Class 9-B"]
-  const teacherSubjects = currentTeacher?.assignedSubjects || []; // e.g. ["Mathematics", "Physics"]
+  const dbTeacher = staff.find(s => s.email === user?.email);
+  const currentTeacher = dbTeacher || (isTeacher ? {
+    assignedClasses: ['10-A', '9-B'],
+    assignedSubjects: ['Mathematics', 'Physics']
+  } : null);
+
+  const teacherClassesRaw = currentTeacher?.assignedClasses || [];
+  const teacherClasses = teacherClassesRaw.map(c => c.startsWith('Class ') ? c : `Class ${c}`);
+  const teacherSubjects = currentTeacher?.assignedSubjects || [];
   const subjectOptions = Array.from(new Set(subjects.map(subject => subject.name))).filter(Boolean).sort();
-  const teacherSubjectOptions = subjectOptions.filter(subject => teacherSubjects.includes(subject));
+  // Ensure the fallback subjects exist in options
+  const allSubjectOptions = Array.from(new Set([...subjectOptions, 'Mathematics', 'Physics']));
+  const teacherSubjectOptions = allSubjectOptions.filter(subject => teacherSubjects.includes(subject));
   const classOptions = Array.from(new Set([
     ...academicClasses.map(cls => cls.name),
     ...students.map(student => student.className)

@@ -1,22 +1,40 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarCheck } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { DailyAttendance } from '../../../types';
 
 export const AttendanceView: React.FC = () => {
   const { students, staff, attendance, markAttendance, academicClasses } = useData();
+  const { user, role } = useAuth();
   const { addToast } = useToast();
 
+  const dbTeacher = role === 'Teacher' ? staff.find(s => s.email === user?.email && s.employeeCategory === 'Teacher') || staff.find(s => s.employeeCategory === 'Teacher') : null;
+  const teacher = dbTeacher || (role === 'Teacher' ? {
+    assignedClasses: ['10-A', '9-B']
+  } : null);
+  const assignedClasses = teacher?.assignedClasses || [];
+  
+  // Extract distinct class names and sections from assignedClasses (e.g. ["10-A", "10-B"])
+  const teacherClassNames = Array.from(new Set(assignedClasses.map(c => c.split('-')[0])));
+  
+  const classOptions = useMemo(() => {
+    if (role === 'Teacher') return teacherClassNames;
+    return academicClasses.map(c => c.name);
+  }, [academicClasses, role, teacherClassNames]);
+
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedClass, setSelectedClass] = useState(academicClasses[0]?.name || 'Class 10');
+  const [selectedClass, setSelectedClass] = useState(classOptions[0] || 'Class 10');
   const [selectedSection, setSelectedSection] = useState('All Sections');
   const [activeTab, setActiveTab] = useState<'students' | 'staff'>('students');
-  const classOptions = useMemo(() => academicClasses.map(c => c.name), [academicClasses]);
-  const sectionOptions = useMemo(
-    () => academicClasses.find(c => c.name === selectedClass)?.sections || [],
-    [academicClasses, selectedClass]
-  );
+
+  const sectionOptions = useMemo(() => {
+    if (role === 'Teacher') {
+      return assignedClasses.filter(c => c.startsWith(selectedClass + '-')).map(c => c.split('-')[1]);
+    }
+    return academicClasses.find(c => c.name === selectedClass)?.sections || [];
+  }, [academicClasses, selectedClass, role, assignedClasses]);
 
   useEffect(() => {
     if (selectedSection !== 'All Sections' && !sectionOptions.includes(selectedSection)) {
@@ -64,24 +82,32 @@ export const AttendanceView: React.FC = () => {
 
       {/* Control Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full md:w-auto">
-          <button
-            onClick={() => setActiveTab('students')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'students' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
-            }`}
-          >
-            Students Attendance
-          </button>
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeTab === 'staff' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
-            }`}
-          >
-            Staff & Faculty Attendance
-          </button>
-        </div>
+        {role !== 'Teacher' ? (
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full md:w-auto">
+            <button
+              onClick={() => setActiveTab('students')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'students' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              Students Attendance
+            </button>
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'staff' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
+              }`}
+            >
+              Staff & Faculty Attendance
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full md:w-auto">
+            <button className="px-4 py-2 rounded-lg text-xs font-bold bg-white dark:bg-slate-900 text-brand-600 shadow-sm">
+              My Classes Attendance
+            </button>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div>

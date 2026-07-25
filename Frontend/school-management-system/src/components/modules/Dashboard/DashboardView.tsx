@@ -4,18 +4,30 @@ import {
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
+
+import { TeacherDashboardView } from './TeacherDashboardView';
+import { ParentDashboardView } from './ParentDashboardView';
+import { StudentDashboardView } from './StudentDashboardView';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
+  const { user } = useAuth();
   const {
     students, staff, feePayments, announcements, holidays,
     birthdays, auditLogs, schoolProfile
   } = useData();
+
+  const userRole = user?.role?.toLowerCase() || '';
+
+  if (userRole === 'student') return <StudentDashboardView />;
+  if (userRole === 'parent') return <ParentDashboardView />;
+  if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView />;
 
   const totalStudents = students.length;
   const totalStaff = staff.length;

@@ -24,6 +24,7 @@ export interface User {
   phone?: string;
   lastLogin?: string;
   status?: string;
+  isFirstLogin?: boolean;
 }
 
 export interface SchoolProfile {

@@ -7,12 +7,28 @@ import { Homework, HomeworkAttachment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework } = useData();
-  const { role } = useAuth();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses } = useData();
+  const { role, user } = useAuth();
   const { addToast } = useToast();
 
   // RBAC checks
   const canModify = role === 'Teacher' || role === 'Super Admin';
+  const dbTeacher = role === 'Teacher' ? staff.find(s => s.email === user?.email && s.employeeCategory === 'Teacher') || staff.find(s => s.employeeCategory === 'Teacher') : null;
+  const teacher = dbTeacher || (role === 'Teacher' ? {
+    firstName: user?.name || 'Sarah',
+    lastName: 'Jenkins',
+    assignedClasses: ['10-A', '9-B'],
+    assignedSubjects: ['Mathematics', 'Physics']
+  } : null);
+
+  const assignedClasses = teacher?.assignedClasses || [];
+  const assignedSubjects = teacher?.assignedSubjects || [];
+  const teacherClassNames = Array.from(new Set(assignedClasses.map(c => c.split('-')[0])));
+
+  const classOptions = role === 'Teacher' ? teacherClassNames : academicClasses.map(c => c.name);
+  const subjectOptions = role === 'Teacher' ? assignedSubjects : ['Mathematics', 'Physics', 'English', 'Computer Science', 'Chemistry', 'Biology'];
+
+  const rbacHomework = role === 'Teacher' ? homework.filter(h => assignedClasses.includes(`${h.className}-${h.section}`)) : homework;
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
@@ -37,7 +53,7 @@ export const HomeworkView: React.FC = () => {
     totalSubmissions: 0
   });
 
-  const filtered = homework.filter(h => {
+  const filtered = rbacHomework.filter(h => {
     const matchQuery = h.title.toLowerCase().includes(query.toLowerCase()) || h.description.toLowerCase().includes(query.toLowerCase());
     const matchClass = filterClass === 'All' || h.className === filterClass;
     const matchSubject = filterSubject === 'All' || h.subject === filterSubject;
@@ -53,12 +69,12 @@ export const HomeworkView: React.FC = () => {
     setAttachments([]);
     setFormData({
       title: '',
-      className: 'Class 10',
-      section: 'A',
-      subject: 'Mathematics',
-      teacherName: 'Jonathan Miller',
+      className: classOptions[0] || 'Class 10',
+      section: role === 'Teacher' ? assignedClasses.find(c => c.startsWith(classOptions[0]))?.split('-')[1] || 'A' : 'A',
+      subject: subjectOptions[0] || 'Mathematics',
+      teacherName: teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Admin',
       assignedDate: new Date().toISOString().split('T')[0],
-      dueDate: '2026-07-28',
+      dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], // 3 days from now
       description: '',
       totalSubmissions: 0
     });
@@ -150,10 +166,9 @@ export const HomeworkView: React.FC = () => {
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           >
             <option value="All">All Classes</option>
-            <option value="Class 9">Class 9</option>
-            <option value="Class 10">Class 10</option>
-            <option value="Class 11">Class 11</option>
-            <option value="Class 12">Class 12</option>
+            {classOptions.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
 
           <select
@@ -162,10 +177,9 @@ export const HomeworkView: React.FC = () => {
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           >
             <option value="All">All Subjects</option>
-            <option value="Mathematics">Mathematics</option>
-            <option value="Physics">Physics</option>
-            <option value="English">English</option>
-            <option value="Computer Science">Computer Science</option>
+            {subjectOptions.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -258,27 +272,28 @@ export const HomeworkView: React.FC = () => {
                 <div>
                   <label className="block font-semibold mb-1">Class</label>
                   <select value={formData.className} onChange={e => setFormData({ ...formData, className: e.target.value })} className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="Class 9">Class 9</option>
-                    <option value="Class 10">Class 10</option>
-                    <option value="Class 11">Class 11</option>
-                    <option value="Class 12">Class 12</option>
+                    {classOptions.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Section</label>
                   <select value={formData.section} onChange={e => setFormData({ ...formData, section: e.target.value })} className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="A">Sec A</option>
-                    <option value="B">Sec B</option>
-                    <option value="C">Sec C</option>
+                    {(role === 'Teacher' ? 
+                      assignedClasses.filter(c => c.startsWith(formData.className + '-')).map(c => c.split('-')[1]) 
+                      : ['A', 'B', 'C']
+                    ).map(sec => (
+                      <option key={sec} value={sec}>Sec {sec}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Subject</label>
                   <select value={formData.subject} onChange={e => setFormData({ ...formData, subject: e.target.value })} className="w-full px-2 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="Mathematics">Math</option>
-                    <option value="Physics">Physics</option>
-                    <option value="English">English</option>
-                    <option value="Computer Science">CS</option>
+                    {subjectOptions.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
                   </select>
                 </div>
               </div>

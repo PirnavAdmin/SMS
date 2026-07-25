@@ -1,13 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Clock, Plus, Edit, Trash2, X, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const TimetableView: React.FC = () => {
   const { timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, staff, academicClasses, subjects } = useData();
+  const { user, role } = useAuth();
   const { addToast } = useToast();
+
+  const isTeacher = role === 'Teacher';
+  const currentTeacher = staff.find(s => s.email === user?.email) || (isTeacher ? {
+    firstName: user?.name || 'Sarah',
+    lastName: 'Jenkins'
+  } : null);
+  const teacherFullName = currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : '';
 
   const classOptions = useMemo(() => academicClasses.map(c => c.name), [academicClasses]);
   const getSectionsForClass = (className?: string) => academicClasses.find(c => c.name === className)?.sections || [];
@@ -132,11 +141,15 @@ export const TimetableView: React.FC = () => {
             <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Timetable Management</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Manage daily schedules for all classes</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+              {isTeacher ? 'Class Timetable' : 'Timetable Management'}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {isTeacher ? 'Manage daily schedules for your assigned classes' : 'Manage daily schedules for all classes'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <div className="relative">
             <select
               value={selectedClass}
@@ -192,7 +205,9 @@ export const TimetableView: React.FC = () => {
               {timeSlots.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-16 text-center text-slate-500 dark:text-slate-400">
-                    <p className="text-sm">No timetable slots have been added for {selectedClass} - Section {selectedSection} yet.</p>
+                    <p className="text-sm">
+                      No timetable slots have been added for {selectedClass} - Section {selectedSection} yet.
+                    </p>
                     <p className="text-xs mt-1">Click <span className="font-bold text-brand-600 dark:text-brand-400">+ Add Slot</span> above to begin building the schedule.</p>
                   </td>
                 </tr>
@@ -222,7 +237,7 @@ export const TimetableView: React.FC = () => {
                         ) : (
                           <button
                             onClick={() => handleOpenAdd(day as any, slot)}
-                            className="text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 italic text-[11px] hover:underline"
+                            className="text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 italic text-[11px] hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             + Assign
                           </button>
