@@ -100,6 +100,28 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "departments",
+                columns: table => new
+                {
+                    DepartmentId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    DepartmentName = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DepartmentCode = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false, defaultValue: "Active")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_departments", x => x.DepartmentId);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "exam_masters",
                 columns: table => new
                 {
@@ -245,31 +267,6 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "Subjects",
-                columns: table => new
-                {
-                    SubjectId = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    SubjectCode = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    SubjectName = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CourseCode = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    AcademicClassId = table.Column<int>(type: "int", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Subjects", x => x.SubjectId);
-                    table.ForeignKey(
-                        name: "FK_Subjects_AcademicClass_AcademicClassId",
-                        column: x => x.AcademicClassId,
-                        principalTable: "AcademicClass",
-                        principalColumn: "Id");
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "AdmissionApplications",
                 columns: table => new
                 {
@@ -362,6 +359,38 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "subjects",
+                columns: table => new
+                {
+                    SubjectId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    SubjectCode = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    SubjectName = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CourseCode = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DepartmentId = table.Column<int>(type: "int", nullable: false),
+                    AcademicClassId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_subjects", x => x.SubjectId);
+                    table.ForeignKey(
+                        name: "FK_subjects_AcademicClass_AcademicClassId",
+                        column: x => x.AcademicClassId,
+                        principalTable: "AcademicClass",
+                        principalColumn: "Id");
+                    table.ForeignKey(
+                        name: "FK_subjects_departments_DepartmentId",
+                        column: x => x.DepartmentId,
+                        principalTable: "departments",
+                        principalColumn: "DepartmentId",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "exam_classes",
                 columns: table => new
                 {
@@ -387,29 +416,28 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "ClassSections",
+                name: "class_sections",
                 columns: table => new
                 {
                     SectionId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     SectionName = table.Column<string>(type: "varchar(255)", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ClassId = table.Column<int>(type: "int", nullable: false),
-                    ClassGradeClassId = table.Column<int>(type: "int", nullable: false),
-                    ClassTeacherEmpId = table.Column<int>(type: "int", nullable: true)
+                    AcademicClassId = table.Column<int>(type: "int", nullable: false),
+                    ClassTeacherId = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ClassSections", x => x.SectionId);
+                    table.PrimaryKey("PK_class_sections", x => x.SectionId);
                     table.ForeignKey(
-                        name: "FK_ClassSections_Classes_ClassGradeClassId",
-                        column: x => x.ClassGradeClassId,
+                        name: "FK_class_sections_Classes_AcademicClassId",
+                        column: x => x.AcademicClassId,
                         principalTable: "Classes",
                         principalColumn: "ClassId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ClassSections_Staff_ClassTeacherEmpId",
-                        column: x => x.ClassTeacherEmpId,
+                        name: "FK_class_sections_Staff_ClassTeacherId",
+                        column: x => x.ClassTeacherId,
                         principalTable: "Staff",
                         principalColumn: "StaffId",
                         onDelete: ReferentialAction.SetNull);
@@ -636,9 +664,9 @@ namespace Backend.Migrations
                         principalColumn: "ClassId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ClassCurriculumSubjects_Subjects_SubjectId",
+                        name: "FK_ClassCurriculumSubjects_subjects_SubjectId",
                         column: x => x.SubjectId,
-                        principalTable: "Subjects",
+                        principalTable: "subjects",
                         principalColumn: "SubjectId",
                         onDelete: ReferentialAction.Cascade);
                 })
@@ -764,6 +792,17 @@ namespace Backend.Migrations
                 column: "AppliedClassId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_class_sections_AcademicClassId_SectionName",
+                table: "class_sections",
+                columns: new[] { "AcademicClassId", "SectionName" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_class_sections_ClassTeacherId",
+                table: "class_sections",
+                column: "ClassTeacherId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ClassCurriculumSubjects_ClassGradeClassId",
                 table: "ClassCurriculumSubjects",
                 column: "ClassGradeClassId");
@@ -774,20 +813,10 @@ namespace Backend.Migrations
                 column: "SubjectId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ClassSections_ClassGradeClassId",
-                table: "ClassSections",
-                column: "ClassGradeClassId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ClassSections_ClassId_SectionName",
-                table: "ClassSections",
-                columns: new[] { "ClassId", "SectionName" },
+                name: "IX_departments_DepartmentCode",
+                table: "departments",
+                column: "DepartmentCode",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ClassSections_ClassTeacherEmpId",
-                table: "ClassSections",
-                column: "ClassTeacherEmpId");
 
             migrationBuilder.CreateIndex(
                 name: "ix_exam_classes_class_id",
@@ -851,9 +880,20 @@ namespace Backend.Migrations
                 column: "VehicleAssignmentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Subjects_AcademicClassId",
-                table: "Subjects",
+                name: "IX_subjects_AcademicClassId",
+                table: "subjects",
                 column: "AcademicClassId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_subjects_DepartmentId",
+                table: "subjects",
+                column: "DepartmentId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_subjects_SubjectCode",
+                table: "subjects",
+                column: "SubjectCode",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_transport_pickup_points_RouteId_PickupPointName",
@@ -975,10 +1015,10 @@ namespace Backend.Migrations
                 name: "Branches");
 
             migrationBuilder.DropTable(
-                name: "ClassCurriculumSubjects");
+                name: "class_sections");
 
             migrationBuilder.DropTable(
-                name: "ClassSections");
+                name: "ClassCurriculumSubjects");
 
             migrationBuilder.DropTable(
                 name: "exam_classes");
@@ -999,7 +1039,7 @@ namespace Backend.Migrations
                 name: "UserRoles");
 
             migrationBuilder.DropTable(
-                name: "Subjects");
+                name: "subjects");
 
             migrationBuilder.DropTable(
                 name: "Classes");
@@ -1024,6 +1064,9 @@ namespace Backend.Migrations
 
             migrationBuilder.DropTable(
                 name: "AcademicClass");
+
+            migrationBuilder.DropTable(
+                name: "departments");
 
             migrationBuilder.DropTable(
                 name: "TransportDrivers");

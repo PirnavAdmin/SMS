@@ -3,42 +3,9 @@ using SMS.Api.Models;
 
 namespace SMS.Api.Data
 {
-<<<<<<< HEAD
     public class AppDbContext : DbContext
-=======
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-    // System & Auth DbSets
-    public DbSet<User> Users { get; set; } = null!;
-    public DbSet<Role> Roles { get; set; } = null!;
-    public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
-
-    // Academic, HR & Admission DbSets
-    public DbSet<Branch> Branches { get; set; } = null!;
-    public DbSet<Department> Departments { get; set; } = null!;
-    public DbSet<Subject> Subjects { get; set; } = null!;
-    public DbSet<Staff> Staff { get; set; } = null!;
-    public DbSet<ClassGrade> Classes { get; set; } = null!;
-    public DbSet<ClassSection> ClassSections { get; set; } = null!;
-    public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
-    public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-    public DbSet<Admission> Admissions { get; set; } = null!;
-
-    // Transport Management DbSets
-    public DbSet<TransportRoute> TransportRoutes { get; set; } = null!;
-    public DbSet<PickupPoint> PickupPoints { get; set; } = null!;
-    public DbSet<TransportVehicle> TransportVehicles { get; set; } = null!;
-    public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
-    public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
-    public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
-    public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
->>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
     {
-        public AppDbContext(
-            DbContextOptions<AppDbContext> options)
-            : base(options)
+        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
 
@@ -52,25 +19,10 @@ namespace SMS.Api.Data
 
         public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
 
-<<<<<<< HEAD
+
         // =====================================================
         // Academic, Staff and Admission Modules
         // =====================================================
-=======
-        // --------------------------------------------------
-        // Academic & HR Module Configurations
-        // --------------------------------------------------
-        modelBuilder.Entity<Department>().HasKey(d => d.DepartmentId);
-
-        modelBuilder.Entity<Subject>()
-            .HasOne(s => s.Department)
-            .WithMany(d => d.Subjects)
-            .HasForeignKey(s => s.DepartmentId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        modelBuilder.Entity<ClassCurriculumSubject>()
-            .HasKey(ccs => new { ccs.ClassId, ccs.SubjectId });
->>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
 
         public DbSet<Branch> Branches { get; set; } = null!;
 
@@ -84,17 +36,9 @@ namespace SMS.Api.Data
 
         public DbSet<ClassSection> ClassSections { get; set; } = null!;
 
-        public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects
-        {
-            get;
-            set;
-        } = null!;
+        public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
 
-        public DbSet<AdmissionApplication> AdmissionApplications
-        {
-            get;
-            set;
-        } = null!;
+        public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
 
         public DbSet<Admission> Admissions { get; set; } = null!;
 
@@ -102,54 +46,30 @@ namespace SMS.Api.Data
         // Transport Module
         // =====================================================
 
-        public DbSet<TransportRoute> TransportRoutes
-            => Set<TransportRoute>();
+        public DbSet<TransportRoute> TransportRoutes => Set<TransportRoute>();
 
-        public DbSet<PickupPoint> PickupPoints
-            => Set<PickupPoint>();
+        public DbSet<PickupPoint> PickupPoints => Set<PickupPoint>();
 
-        public DbSet<TransportVehicle> TransportVehicles
-            => Set<TransportVehicle>();
+        public DbSet<TransportVehicle> TransportVehicles => Set<TransportVehicle>();
 
-        public DbSet<TransportDriver> TransportDrivers
-        {
-            get;
-            set;
-        } = null!;
+        public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
 
-        public DbSet<TransportVehicleAssignment>
-            TransportVehicleAssignments
-        {
-            get;
-            set;
-        } = null!;
+        public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
 
-        public DbSet<StudentTransportAssignment>
-            StudentTransportAssignments
-        {
-            get;
-            set;
-        } = null!;
+        public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
 
-        public DbSet<VehicleMaintenance> VehicleMaintenances
-        {
-            get;
-            set;
-        } = null!;
+        public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
 
 
         // =====================================================
         // Examination Module
         // =====================================================
 
-        public DbSet<ExamMaster> ExamMasters
-            => Set<ExamMaster>();
+        public DbSet<ExamMaster> ExamMasters => Set<ExamMaster>();
 
-        public DbSet<ExamClass> ExamClasses
-            => Set<ExamClass>();
+        public DbSet<ExamClass> ExamClasses => Set<ExamClass>();
 
-        protected override void OnModelCreating(
-            ModelBuilder modelBuilder)
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
@@ -179,8 +99,7 @@ namespace SMS.Api.Data
         // User Configuration
         // =====================================================
 
-        private static void ConfigureUser(
-            ModelBuilder modelBuilder)
+        private static void ConfigureUser(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>(entity =>
             {
@@ -195,8 +114,7 @@ namespace SMS.Api.Data
         // Role Configuration
         // =====================================================
 
-        private static void ConfigureRole(
-            ModelBuilder modelBuilder)
+        private static void ConfigureRole(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Role>(entity =>
             {
@@ -208,8 +126,7 @@ namespace SMS.Api.Data
         // User Roles Configuration
         // =====================================================
 
-        private static void ConfigureUserRoles(
-            ModelBuilder modelBuilder)
+        private static void ConfigureUserRoles(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>()
                 .HasMany(user => user.Roles)
@@ -232,8 +149,7 @@ namespace SMS.Api.Data
         // OTP Verification Configuration
         // =====================================================
 
-        private static void ConfigureOtpVerification(
-            ModelBuilder modelBuilder)
+        private static void ConfigureOtpVerification(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<OtpVerification>(entity =>
             {
@@ -250,12 +166,36 @@ namespace SMS.Api.Data
         // Department Configuration
         // =====================================================
 
-        private static void ConfigureDepartment(
-            ModelBuilder modelBuilder)
+        private static void ConfigureDepartment(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Department>(entity =>
             {
+                entity.ToTable("departments");
+
                 entity.HasKey(x => x.DepartmentId);
+
+                entity.Property(x => x.DepartmentId)
+                    .HasColumnName("DepartmentId")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.DepartmentName)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.DepartmentCode)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.Status)
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Active");
+
+                entity.HasIndex(x => x.DepartmentCode)
+                    .IsUnique();
             });
         }
 
@@ -263,11 +203,36 @@ namespace SMS.Api.Data
         // Subject Configuration
         // =====================================================
 
-        private static void ConfigureSubject(
-            ModelBuilder modelBuilder)
+        private static void ConfigureSubject(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Subject>(entity =>
             {
+                entity.ToTable("subjects");
+
+                entity.HasKey(x => x.SubjectId);
+
+                entity.Property(x => x.SubjectId)
+                    .HasColumnName("SubjectId")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.SubjectCode)
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.SubjectName)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.CourseCode)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.DepartmentId)
+                    .HasColumnName("DepartmentId")
+                    .IsRequired();
+
+                entity.HasIndex(x => x.SubjectCode)
+                    .IsUnique();
+
                 entity.HasOne(x => x.Department)
                     .WithMany(x => x.Subjects)
                     .HasForeignKey(x => x.DepartmentId)
@@ -279,8 +244,7 @@ namespace SMS.Api.Data
         // Class Curriculum Subject Configuration
         // =====================================================
 
-        private static void ConfigureClassCurriculumSubject(
-            ModelBuilder modelBuilder)
+        private static void ConfigureClassCurriculumSubject(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ClassCurriculumSubject>()
                 .HasKey(x => new
@@ -294,12 +258,11 @@ namespace SMS.Api.Data
         // Class Section Configuration
         // =====================================================
 
-        private static void ConfigureClassSection(
-            ModelBuilder modelBuilder)
+        private static void ConfigureClassSection(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ClassSection>(entity =>
             {
-                entity.ToTable("section");
+                entity.ToTable("class_sections");
 
                 entity.HasKey(x => x.SectionId);
 
@@ -307,8 +270,7 @@ namespace SMS.Api.Data
                 {
                     x.ClassId,
                     x.SectionName
-                })
-                    .IsUnique();
+                }).IsUnique();
 
                 entity.Property(x => x.ClassId)
                     .HasColumnName("AcademicClassId");
@@ -332,8 +294,7 @@ namespace SMS.Api.Data
         // Admission Application Configuration
         // =====================================================
 
-        private static void ConfigureAdmissionApplication(
-            ModelBuilder modelBuilder)
+        private static void ConfigureAdmissionApplication(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AdmissionApplication>(entity =>
             {
@@ -349,8 +310,7 @@ namespace SMS.Api.Data
         // Transport Route Configuration
         // =====================================================
 
-        private static void ConfigureTransportRoute(
-            ModelBuilder modelBuilder)
+        private static void ConfigureTransportRoute(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<TransportRoute>(entity =>
             {
@@ -387,8 +347,7 @@ namespace SMS.Api.Data
                     .HasPrecision(10, 2);
 
                 entity.Property(x => x.EstimatedDurationMinutes)
-                    .HasColumnName(
-                        "estimated_duration_minutes");
+                    .HasColumnName("estimated_duration_minutes");
 
                 entity.Property(x => x.Description)
                     .HasColumnName("description")
@@ -416,21 +375,18 @@ namespace SMS.Api.Data
 
                 entity.HasIndex(x => x.RouteCode)
                     .IsUnique()
-                    .HasDatabaseName(
-                        "ux_transport_routes_route_code");
+                    .HasDatabaseName("ux_transport_routes_route_code");
 
                 entity.HasIndex(x => x.RouteName)
                     .IsUnique()
-                    .HasDatabaseName(
-                        "ux_transport_routes_route_name");
+                    .HasDatabaseName("ux_transport_routes_route_name");
 
                 entity.HasIndex(x => new
                 {
                     x.Status,
                     x.IsDeleted
                 })
-                    .HasDatabaseName(
-                        "ix_transport_routes_status_is_deleted");
+                    .HasDatabaseName("ix_transport_routes_status_is_deleted");
             });
         }
 
@@ -438,8 +394,7 @@ namespace SMS.Api.Data
         // Pickup Point Configuration
         // =====================================================
 
-        private static void ConfigurePickupPoint(
-            ModelBuilder modelBuilder)
+        private static void ConfigurePickupPoint(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<PickupPoint>(entity =>
             {
@@ -480,8 +435,7 @@ namespace SMS.Api.Data
         // Transport Vehicle Configuration
         // =====================================================
 
-        private static void ConfigureTransportVehicle(
-            ModelBuilder modelBuilder)
+        private static void ConfigureTransportVehicle(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<TransportVehicle>(entity =>
             {
@@ -561,8 +515,7 @@ namespace SMS.Api.Data
         // Transport Vehicle Assignment Configuration
         // =====================================================
 
-        private static void ConfigureTransportVehicleAssignment(
-            ModelBuilder modelBuilder)
+        private static void ConfigureTransportVehicleAssignment(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<TransportVehicleAssignment>(
                 entity =>
@@ -606,8 +559,7 @@ namespace SMS.Api.Data
                         x.Status,
                         x.IsDeleted
                     })
-                        .HasDatabaseName(
-                            "IX_TVA_Vehicle_Driver_Route");
+                        .HasDatabaseName("IX_TVA_Vehicle_Driver_Route");
 
                     entity.Property(x => x.Status)
                         .HasDefaultValue(true);
@@ -621,8 +573,7 @@ namespace SMS.Api.Data
         // Student Transport Assignment Configuration
         // =====================================================
 
-        private static void ConfigureStudentTransportAssignment(
-            ModelBuilder modelBuilder)
+        private static void ConfigureStudentTransportAssignment(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<StudentTransportAssignment>(
                 entity =>
@@ -669,8 +620,7 @@ namespace SMS.Api.Data
                         x.Status,
                         x.IsDeleted
                     })
-                        .HasDatabaseName(
-                            "IX_STA_Route_Pickup_Vehicle");
+                        .HasDatabaseName("IX_STA_Route_Pickup_Vehicle");
 
                     entity.Property(x => x.TransportType)
                         .IsRequired()
@@ -688,8 +638,7 @@ namespace SMS.Api.Data
         // Vehicle Maintenance Configuration
         // =====================================================
 
-        private static void ConfigureVehicleMaintenance(
-            ModelBuilder modelBuilder)
+        private static void ConfigureVehicleMaintenance(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<VehicleMaintenance>(entity =>
             {
@@ -750,8 +699,7 @@ namespace SMS.Api.Data
                 entity.Property(x => x.CreatedAt)
                     .HasColumnName("created_at")
                     .HasColumnType("datetime")
-                    .HasDefaultValueSql(
-                        "CURRENT_TIMESTAMP");
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
                 entity.Property(x => x.UpdatedAt)
                     .HasColumnName("updated_at")
@@ -764,8 +712,7 @@ namespace SMS.Api.Data
 
                 // Existing foreign-key index
                 entity.HasIndex(x => x.VehicleId)
-                    .HasDatabaseName(
-                        "IX_transport_vehicle_maintenance_vehicle_id");
+                    .HasDatabaseName("IX_transport_vehicle_maintenance_vehicle_id");
 
                 // Transport report performance index
                 entity.HasIndex(x => new
@@ -774,12 +721,10 @@ namespace SMS.Api.Data
                     x.ServiceDate,
                     x.IsDeleted
                 })
-                    .HasDatabaseName(
-                        "IX_VehMaint_Vehicle_ServiceDate_Deleted");
+                    .HasDatabaseName("IX_VehMaint_Vehicle_ServiceDate_Deleted");
             });
         }
-        private static void ConfigureExamMaster(
-        ModelBuilder modelBuilder)
+        private static void ConfigureExamMaster(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ExamMaster>(entity =>
             {
@@ -840,8 +785,7 @@ namespace SMS.Api.Data
                     x.AcademicYearId
                 })
                     .IsUnique()
-                    .HasDatabaseName(
-                        "ux_exam_title_branch_academic_year");
+                    .HasDatabaseName("ux_exam_title_branch_academic_year");
 
                 entity.HasIndex(x => new
                 {
@@ -850,13 +794,11 @@ namespace SMS.Api.Data
                     x.ExamStatus,
                     x.IsDeleted
                 })
-                    .HasDatabaseName(
-                        "ix_exam_master_filter");
+                    .HasDatabaseName("ix_exam_master_filter");
             });
         }
 
-        private static void ConfigureExamClass(
-            ModelBuilder modelBuilder)
+        private static void ConfigureExamClass(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ExamClass>(entity =>
             {
@@ -885,11 +827,8 @@ namespace SMS.Api.Data
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasIndex(x => x.ClassId)
-                    .HasDatabaseName(
-                        "ix_exam_classes_class_id");
+                    .HasDatabaseName("ix_exam_classes_class_id");
             });
         }
-
-
     }
 }
