@@ -257,6 +257,7 @@ using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
 
+<<<<<<< HEAD
     try
     {
         var context =
@@ -271,6 +272,34 @@ using (var scope = app.Services.CreateScope())
         // =================================================
 
         var defaultRoles = new[]
+=======
+    // Safe Schema Synchronization for MySQL (No table collision errors)
+    try
+    {
+        context.Database.ExecuteSqlRaw(@"
+            CREATE TABLE IF NOT EXISTS `Departments` (
+                `DepartmentId` int NOT NULL AUTO_INCREMENT,
+                `DepartmentName` varchar(150) NOT NULL,
+                `DepartmentCode` varchar(50) NULL,
+                `Description` varchar(500) NULL,
+                `Status` varchar(20) NOT NULL DEFAULT 'Active',
+                `CreatedDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`DepartmentId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+            CREATE TABLE IF NOT EXISTS `departments` (
+                `DepartmentId` int NOT NULL AUTO_INCREMENT,
+                `DepartmentName` varchar(150) NOT NULL,
+                `DepartmentCode` varchar(50) NULL,
+                `Description` varchar(500) NULL,
+                `Status` varchar(20) NOT NULL DEFAULT 'Active',
+                `CreatedDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`DepartmentId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+        ");
+
+        void EnsureColumnExists(string table, string column, string columnDef)
+>>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
         {
             new Role
             {
@@ -475,6 +504,7 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+<<<<<<< HEAD
         await context.SaveChangesAsync();
 
         // =================================================
@@ -646,6 +676,12 @@ using (var scope = app.Services.CreateScope())
         // =================================================
         // SEED ADMISSION APPLICATION
         // =================================================
+=======
+        EnsureColumnExists("Subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
+    }
+    catch { }
+>>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
 
         if (!await context.AdmissionApplications.AnyAsync())
         {
@@ -721,6 +757,66 @@ using (var scope = app.Services.CreateScope())
 
                 await context.SaveChangesAsync();
             }
+<<<<<<< HEAD
+=======
+        };
+        context.Staff.AddRange(sampleStaff);
+        context.SaveChanges();
+    }
+
+    // 4. Ensure Sample Departments & Subjects Exist
+    try
+    {
+        if (!context.Departments.Any())
+        {
+            var mathDept = new Department { DepartmentName = "Mathematics", DepartmentCode = "DEPT-MTH", Description = "Department of Mathematics & Statistics", Status = "Active" };
+            var sciDept = new Department { DepartmentName = "Science", DepartmentCode = "DEPT-SCI", Description = "Physics, Chemistry & Biology", Status = "Active" };
+            var langDept = new Department { DepartmentName = "Languages", DepartmentCode = "DEPT-ENG", Description = "English & Foreign Languages", Status = "Active" };
+
+            context.Departments.AddRange(mathDept, sciDept, langDept);
+            context.SaveChanges();
+
+            if (!context.Subjects.Any())
+            {
+                var sampleSubjects = new List<Subject>
+                {
+                    new Subject { SubjectCode = "MATH101", SubjectName = "Mathematics", CourseCode = "MATH", DepartmentId = mathDept.DepartmentId },
+                    new Subject { SubjectCode = "PHY101", SubjectName = "Physics", CourseCode = "PHY", DepartmentId = sciDept.DepartmentId },
+                    new Subject { SubjectCode = "ENG101", SubjectName = "English Literature", CourseCode = "ENG", DepartmentId = langDept.DepartmentId },
+                    new Subject { SubjectCode = "CHEM101", SubjectName = "Chemistry", CourseCode = "CHEM", DepartmentId = sciDept.DepartmentId }
+                };
+                context.Subjects.AddRange(sampleSubjects);
+                context.SaveChanges();
+            }
+        }
+    }
+    catch { /* Ignore if table creation is pending */ }
+
+    // 5. Ensure Default Academic Classes & Sections Exist
+    if (!context.Classes.Any())
+    {
+        var staff1 = context.Staff.FirstOrDefault();
+        var staff2 = context.Staff.Skip(1).FirstOrDefault();
+
+        for (int i = 1; i <= 12; i++)
+        {
+            var cls = new ClassGrade { ClassName = $"Class {i}" };
+            if (i == 1)
+            {
+                cls.Sections.Add(new ClassSection { SectionName = "A", ClassTeacherEmpId = staff1?.StaffId });
+            }
+            else if (i == 2)
+            {
+                cls.Sections.Add(new ClassSection { SectionName = "A", ClassTeacherEmpId = staff2?.StaffId });
+            }
+            else if (i == 9)
+            {
+                cls.Sections.Add(new ClassSection { SectionName = "A", ClassTeacherEmpId = staff1?.StaffId });
+                cls.Sections.Add(new ClassSection { SectionName = "B", ClassTeacherEmpId = staff2?.StaffId });
+            }
+            context.Classes.Add(cls);
+            context.SaveChanges();
+>>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
         }
     }
     catch (Exception exception)

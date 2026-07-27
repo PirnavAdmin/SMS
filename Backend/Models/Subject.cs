@@ -16,5 +16,9 @@ public class Subject
 
     public string CourseCode { get; set; } = string.Empty;
 
+    [Required]
+    public int DepartmentId { get; set; }
+    public Department Department { get; set; } = null!;
+
     public ICollection<ClassCurriculumSubject> CurriculumSubjects { get; set; } = new List<ClassCurriculumSubject>();
 }

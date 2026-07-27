@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using SMS.Api.Dtos;
 using SMS.Api.Exceptions;
@@ -14,12 +15,17 @@ namespace Backend.Tests.Services
     public class SchoolServiceTests
     {
         private readonly Mock<ISchoolRepository> _repoMock;
+        private readonly SMS.Api.Data.AppDbContext _context;
         private readonly SchoolService _service;
 
         public SchoolServiceTests()
         {
             _repoMock = new Mock<ISchoolRepository>();
-            _service = new SchoolService(_repoMock.Object);
+            var options = new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<SMS.Api.Data.AppDbContext>()
+                .UseInMemoryDatabase(databaseName: System.Guid.NewGuid().ToString())
+                .Options;
+            _context = new SMS.Api.Data.AppDbContext(options);
+            _service = new SchoolService(_repoMock.Object, _context);
         }
 
         // --- STAFF TESTS ---
@@ -89,7 +95,10 @@ namespace Backend.Tests.Services
         [Fact]
         public async Task CreateSubjectAsync_CourseCodeEmpty_UsesSubjectCode()
         {
-            var dto = new CreateSubjectDto { SubjectCode = "PHY101", SubjectName = "Physics", CourseCode = "" };
+            var dto = new CreateSubjectDto { SubjectCode = "PHY101", SubjectName = "Physics", CourseCode = "", DepartmentId = 1 };
+            var activeDept = new Department { DepartmentId = 1, DepartmentName = "Science", Status = "Active" };
+
+            _repoMock.Setup(r => r.GetDepartmentByIdAsync(1)).ReturnsAsync(activeDept);
 
             Subject capturedSubject = null!;
             _repoMock.Setup(r => r.AddSubjectAsync(It.IsAny<Subject>()))
@@ -101,6 +110,7 @@ namespace Backend.Tests.Services
             Assert.NotNull(capturedSubject);
             Assert.Equal("PHY101", capturedSubject.CourseCode);
             Assert.Equal("PHY101", result.CourseCode);
+            Assert.Equal(1, result.DepartmentId);
         }
 
         [Fact]

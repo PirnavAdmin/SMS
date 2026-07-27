@@ -3,7 +3,38 @@ using SMS.Api.Models;
 
 namespace SMS.Api.Data
 {
+<<<<<<< HEAD
     public class AppDbContext : DbContext
+=======
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    // System & Auth DbSets
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
+
+    // Academic, HR & Admission DbSets
+    public DbSet<Branch> Branches { get; set; } = null!;
+    public DbSet<Department> Departments { get; set; } = null!;
+    public DbSet<Subject> Subjects { get; set; } = null!;
+    public DbSet<Staff> Staff { get; set; } = null!;
+    public DbSet<ClassGrade> Classes { get; set; } = null!;
+    public DbSet<ClassSection> ClassSections { get; set; } = null!;
+    public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
+    public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+    public DbSet<Admission> Admissions { get; set; } = null!;
+
+    // Transport Management DbSets
+    public DbSet<TransportRoute> TransportRoutes { get; set; } = null!;
+    public DbSet<PickupPoint> PickupPoints { get; set; } = null!;
+    public DbSet<TransportVehicle> TransportVehicles { get; set; } = null!;
+    public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
+    public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
+    public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
+    public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+>>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
     {
         public AppDbContext(
             DbContextOptions<AppDbContext> options)
@@ -21,9 +52,25 @@ namespace SMS.Api.Data
 
         public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
 
+<<<<<<< HEAD
         // =====================================================
         // Academic, Staff and Admission Modules
         // =====================================================
+=======
+        // --------------------------------------------------
+        // Academic & HR Module Configurations
+        // --------------------------------------------------
+        modelBuilder.Entity<Department>().HasKey(d => d.DepartmentId);
+
+        modelBuilder.Entity<Subject>()
+            .HasOne(s => s.Department)
+            .WithMany(d => d.Subjects)
+            .HasForeignKey(s => s.DepartmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ClassCurriculumSubject>()
+            .HasKey(ccs => new { ccs.ClassId, ccs.SubjectId });
+>>>>>>> 1e309e5beccc913ec23b371aa50486225bb14c81
 
         public DbSet<Branch> Branches { get; set; } = null!;
 

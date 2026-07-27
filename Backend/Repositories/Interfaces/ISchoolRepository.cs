@@ -13,6 +13,16 @@ public interface ISchoolRepository
     Task AddStaffAsync(Staff staff);
     void RemoveStaff(Staff staff);
 
+    // Department Operations
+    Task<List<Department>> GetAllDepartmentsAsync(string? search);
+    Task<Department?> GetDepartmentByIdAsync(int id);
+    Task<Department?> GetDepartmentByIdOrCodeAsync(string idOrCode);
+    Task<List<Department>> GetActiveDepartmentsDropdownAsync(string? search);
+    Task<List<Subject>> GetSubjectsByDepartmentIdAsync(int departmentId);
+    Task AddDepartmentAsync(Department department);
+    void RemoveDepartment(Department department);
+    Task<bool> DepartmentHasSubjectsAsync(int departmentId);
+
     // Subject Operations
     Task<List<Subject>> GetAllSubjectsAsync(string? search);
     Task<Subject?> GetSubjectByIdAsync(int id);

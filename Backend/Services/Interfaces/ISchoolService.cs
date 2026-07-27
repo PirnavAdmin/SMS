@@ -14,6 +14,19 @@ public interface ISchoolService
     Task<StaffResponseDto> UpdateStaffAsync(int id, StaffCreateDto dto);
     Task<bool> DeleteStaffAsync(int id);
 
+    // Department Operations
+    Task<List<DepartmentDto>> GetAllDepartmentsAsync(string? search);
+    Task<DepartmentDto> GetDepartmentByIdAsync(int id);
+    Task<DepartmentDto> GetDepartmentByIdAsync(string idOrCode);
+    Task<List<DepartmentDropdownDto>> GetActiveDepartmentsDropdownAsync(string? search);
+    Task<List<SubjectDto>> GetSubjectsByDepartmentIdAsync(int departmentId);
+    Task<List<SubjectDto>> GetSubjectsByDepartmentIdAsync(string idOrCode);
+    Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentDto dto);
+    Task<DepartmentDto> UpdateDepartmentAsync(int id, CreateDepartmentDto dto);
+    Task<DepartmentDto> UpdateDepartmentAsync(string idOrCode, CreateDepartmentDto dto);
+    Task<bool> DeleteDepartmentAsync(int id);
+    Task<bool> DeleteDepartmentAsync(string idOrCode);
+
     // Subject Operations
     Task<List<SubjectDto>> GetAllSubjectsAsync(string? search);
     Task<SubjectDto> GetSubjectByIdAsync(int id);

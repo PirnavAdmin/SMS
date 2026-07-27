@@ -112,6 +112,152 @@ public class SchoolService : ISchoolService
 		IsActive = s.IsActive
 	};
 
+	// --- DEPARTMENTS ---
+	public async Task<List<DepartmentDto>> GetAllDepartmentsAsync(string? search)
+	{
+		var list = await _schoolRepository.GetAllDepartmentsAsync(search);
+		return list.Select(MapToDepartmentDto).ToList();
+	}
+
+	public async Task<DepartmentDto> GetDepartmentByIdAsync(int id)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdAsync(id)
+			?? throw new NotFoundException($"Department with ID '{id}' not found.");
+		return MapToDepartmentDto(dept);
+	}
+
+	public async Task<DepartmentDto> GetDepartmentByIdAsync(string idOrCode)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdOrCodeAsync(idOrCode)
+			?? throw new NotFoundException($"Department '{idOrCode}' not found.");
+		return MapToDepartmentDto(dept);
+	}
+
+	public async Task<List<DepartmentDropdownDto>> GetActiveDepartmentsDropdownAsync(string? search)
+	{
+		var list = await _schoolRepository.GetActiveDepartmentsDropdownAsync(search);
+		return list.Select(d => new DepartmentDropdownDto
+		{
+			DepartmentId = d.DepartmentId,
+			DepartmentName = d.DepartmentName,
+			DepartmentCode = d.DepartmentCode
+		}).ToList();
+	}
+
+	public async Task<List<SubjectDto>> GetSubjectsByDepartmentIdAsync(int departmentId)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdAsync(departmentId)
+			?? throw new NotFoundException($"Department with ID '{departmentId}' not found.");
+
+		var subjects = await _schoolRepository.GetSubjectsByDepartmentIdAsync(departmentId);
+		return subjects.Select(MapToSubjectDto).ToList();
+	}
+
+	public async Task<List<SubjectDto>> GetSubjectsByDepartmentIdAsync(string idOrCode)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdOrCodeAsync(idOrCode)
+			?? throw new NotFoundException($"Department '{idOrCode}' not found.");
+
+		var subjects = await _schoolRepository.GetSubjectsByDepartmentIdAsync(dept.DepartmentId);
+		return subjects.Select(MapToSubjectDto).ToList();
+	}
+
+	public async Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentDto dto)
+	{
+		if (string.IsNullOrWhiteSpace(dto.DepartmentName))
+			throw new InvalidOperationException("Department name is required.");
+
+		var dept = new Department
+		{
+			DepartmentName = dto.DepartmentName.Trim(),
+			DepartmentCode = dto.DepartmentCode?.Trim(),
+			Description = dto.Description?.Trim(),
+			Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
+			CreatedDate = System.DateTime.UtcNow
+		};
+
+		await _schoolRepository.AddDepartmentAsync(dept);
+		await _schoolRepository.SaveChangesAsync();
+		return MapToDepartmentDto(dept);
+	}
+
+	public async Task<DepartmentDto> UpdateDepartmentAsync(int id, CreateDepartmentDto dto)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdAsync(id)
+			?? throw new NotFoundException($"Department with ID '{id}' not found.");
+
+		if (string.IsNullOrWhiteSpace(dto.DepartmentName))
+			throw new InvalidOperationException("Department name is required.");
+
+		dept.DepartmentName = dto.DepartmentName.Trim();
+		dept.DepartmentCode = dto.DepartmentCode?.Trim();
+		dept.Description = dto.Description?.Trim();
+		dept.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
+
+		await _schoolRepository.SaveChangesAsync();
+		return MapToDepartmentDto(dept);
+	}
+
+	public async Task<DepartmentDto> UpdateDepartmentAsync(string idOrCode, CreateDepartmentDto dto)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdOrCodeAsync(idOrCode)
+			?? throw new NotFoundException($"Department '{idOrCode}' not found.");
+
+		if (string.IsNullOrWhiteSpace(dto.DepartmentName))
+			throw new InvalidOperationException("Department name is required.");
+
+		dept.DepartmentName = dto.DepartmentName.Trim();
+		dept.DepartmentCode = dto.DepartmentCode?.Trim();
+		dept.Description = dto.Description?.Trim();
+		dept.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
+
+		await _schoolRepository.SaveChangesAsync();
+		return MapToDepartmentDto(dept);
+	}
+
+	public async Task<bool> DeleteDepartmentAsync(int id)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdAsync(id)
+			?? throw new NotFoundException($"Department with ID '{id}' not found.");
+
+		bool hasSubjects = await _schoolRepository.DepartmentHasSubjectsAsync(id);
+		if (hasSubjects)
+		{
+			throw new InvalidOperationException("Cannot delete department because subjects are currently assigned to it. Move or delete its subjects first.");
+		}
+
+		_schoolRepository.RemoveDepartment(dept);
+		await _schoolRepository.SaveChangesAsync();
+		return true;
+	}
+
+	public async Task<bool> DeleteDepartmentAsync(string idOrCode)
+	{
+		var dept = await _schoolRepository.GetDepartmentByIdOrCodeAsync(idOrCode)
+			?? throw new NotFoundException($"Department '{idOrCode}' not found.");
+
+		bool hasSubjects = await _schoolRepository.DepartmentHasSubjectsAsync(dept.DepartmentId);
+		if (hasSubjects)
+		{
+			throw new InvalidOperationException("Cannot delete department because subjects are currently assigned to it. Move or delete its subjects first.");
+		}
+
+		_schoolRepository.RemoveDepartment(dept);
+		await _schoolRepository.SaveChangesAsync();
+		return true;
+	}
+
+	private static DepartmentDto MapToDepartmentDto(Department d) => new()
+	{
+		DepartmentId = d.DepartmentId,
+		DepartmentName = d.DepartmentName,
+		DepartmentCode = d.DepartmentCode,
+		Description = d.Description,
+		Status = d.Status,
+		CreatedDate = d.CreatedDate,
+		NumberOfSubjects = d.Subjects?.Count ?? 0
+	};
+
 	// --- SUBJECTS ---
 	public async Task<List<SubjectDto>> GetAllSubjectsAsync(string? search)
 	{
@@ -133,22 +279,60 @@ public class SchoolService : ISchoolService
 		{
 			SubjectId = s.SubjectId,
 			SubjectCode = s.SubjectCode,
-			SubjectName = s.SubjectName
+			SubjectName = s.SubjectName,
+			DepartmentId = s.DepartmentId,
+			DepartmentName = s.Department?.DepartmentName ?? string.Empty
 		}).ToList();
 	}
 
 	public async Task<SubjectDto> CreateSubjectAsync(CreateSubjectDto dto)
 	{
+		if (dto.DepartmentId <= 0)
+		{
+			var activeDepts = await _schoolRepository.GetActiveDepartmentsDropdownAsync(null);
+			if (activeDepts.Count > 0)
+			{
+				dto.DepartmentId = activeDepts[0].DepartmentId;
+			}
+			else
+			{
+				var defaultDept = new Department 
+				{ 
+					DepartmentName = "General", 
+					DepartmentCode = "DEPT-GEN", 
+					Description = "General Academic Department", 
+					Status = "Active",
+					CreatedDate = System.DateTime.UtcNow
+				};
+				await _schoolRepository.AddDepartmentAsync(defaultDept);
+				await _schoolRepository.SaveChangesAsync();
+				dto.DepartmentId = defaultDept.DepartmentId;
+			}
+		}
+
+		var dept = await _schoolRepository.GetDepartmentByIdAsync(dto.DepartmentId)
+			?? throw new InvalidOperationException($"Department with ID '{dto.DepartmentId}' does not exist.");
+
+		if (dept.Status != "Active")
+			throw new InvalidOperationException("Subjects can only be assigned to active departments.");
+
+		string effectiveCode = string.IsNullOrWhiteSpace(dto.SubjectCode)
+			? (string.IsNullOrWhiteSpace(dto.CourseCode) ? dto.SubjectName : dto.CourseCode)
+			: dto.SubjectCode;
+
 		var subject = new Subject
 		{
-			SubjectCode = dto.SubjectCode,
-			SubjectName = dto.SubjectName,
-			CourseCode = string.IsNullOrWhiteSpace(dto.CourseCode) ? dto.SubjectCode : dto.CourseCode
+			SubjectCode = effectiveCode,
+			SubjectName = dto.SubjectName.Trim(),
+			CourseCode = dto.CourseCode?.Trim() ?? string.Empty,
+			DepartmentId = dto.DepartmentId
 		};
 
 		await _schoolRepository.AddSubjectAsync(subject);
 		await _schoolRepository.SaveChangesAsync();
-		return MapToSubjectDto(subject);
+
+		var createdSubject = await _schoolRepository.GetSubjectByIdAsync(subject.SubjectId);
+		return MapToSubjectDto(createdSubject ?? subject);
 	}
 
 	public async Task<SubjectDto> UpdateSubjectAsync(int id, CreateSubjectDto dto)
@@ -156,12 +340,30 @@ public class SchoolService : ISchoolService
 		var subject = await _schoolRepository.GetSubjectByIdAsync(id)
 			?? throw new NotFoundException($"Subject with ID '{id}' not found.");
 
-		subject.SubjectCode = dto.SubjectCode;
-		subject.SubjectName = dto.SubjectName;
-		subject.CourseCode = string.IsNullOrWhiteSpace(dto.CourseCode) ? dto.SubjectCode : dto.CourseCode;
+		if (dto.DepartmentId <= 0)
+		{
+			dto.DepartmentId = subject.DepartmentId;
+		}
+
+		var dept = await _schoolRepository.GetDepartmentByIdAsync(dto.DepartmentId)
+			?? throw new InvalidOperationException($"Department with ID '{dto.DepartmentId}' does not exist.");
+
+		if (dept.Status != "Active")
+			throw new InvalidOperationException("Subjects can only be assigned to active departments.");
+
+		string effectiveCode = string.IsNullOrWhiteSpace(dto.SubjectCode)
+			? (string.IsNullOrWhiteSpace(dto.CourseCode) ? dto.SubjectName : dto.CourseCode)
+			: dto.SubjectCode;
+
+		subject.SubjectCode = effectiveCode;
+		subject.SubjectName = dto.SubjectName.Trim();
+		subject.CourseCode = dto.CourseCode?.Trim() ?? string.Empty;
+		subject.DepartmentId = dto.DepartmentId;
 
 		await _schoolRepository.SaveChangesAsync();
-		return MapToSubjectDto(subject);
+
+		var updatedSubject = await _schoolRepository.GetSubjectByIdAsync(subject.SubjectId);
+		return MapToSubjectDto(updatedSubject ?? subject);
 	}
 
 	public async Task<bool> DeleteSubjectAsync(int id)
@@ -179,7 +381,10 @@ public class SchoolService : ISchoolService
 		SubjectId = s.SubjectId,
 		SubjectCode = s.SubjectCode,
 		SubjectName = s.SubjectName,
-		CourseCode = s.CourseCode
+		CourseCode = s.CourseCode,
+		DepartmentId = s.DepartmentId,
+		DepartmentName = s.Department?.DepartmentName ?? string.Empty,
+		DepartmentCode = s.Department?.DepartmentCode
 	};
 
 	// --- ACADEMIC CLASSES ---
