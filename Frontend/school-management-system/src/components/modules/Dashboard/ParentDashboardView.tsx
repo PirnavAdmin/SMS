@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { User, Activity, AlertCircle, Calendar, GraduationCap, Clock, Home, Megaphone, MapPin } from 'lucide-react';
+import { User, Activity, AlertCircle, Calendar, GraduationCap, Clock, Home, Megaphone, MapPin, Users } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 
 export const ParentDashboardView: React.FC = () => {
   const { user } = useAuth();
-  const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers } = useData();
+  const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
 
   let parentWards = students.filter(s => 
@@ -38,13 +38,13 @@ export const ParentDashboardView: React.FC = () => {
 
   // Real data for notices
   const recentNotices = [
-    ...(announcements || []).map(a => ({ date: a.date, title: a.title, desc: a.description, type: 'notice' })),
+    ...(announcements || []).map(a => ({ date: a.date, title: a.title, desc: (a as any).description || a.content, type: 'notice' })),
     ...(holidays || []).map(h => ({ date: h.startDate, title: h.name, desc: h.type + ' Holiday', type: 'holiday' }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-  const wardHostel = studentHostels.find(sh => sh.studentId === currentWard.id && sh.status === 'Occupied');
-  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId) : null;
-  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId) : null;
+  const wardHostel = studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied'));
+  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
+  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
   // Fee Dues
   const wardLedger = studentFeeLedgers.find(l => l.studentId === currentWard.id);
@@ -133,11 +133,11 @@ export const ParentDashboardView: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-4">
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-slate-400" />
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{hostelDetails.name}</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{hostelDetails.hostelName || (hostelDetails as any).name}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <div className="w-4 h-4 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[10px] text-slate-500">RM</div>
-                    <span className="font-medium text-slate-700 dark:text-slate-300">Room {roomDetails.roomNumber} ({roomDetails.roomType})</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">Room {roomDetails.roomNumber || (roomDetails as any).roomNo} ({roomDetails.roomTypeName || (roomDetails as any).roomType || 'Standard'})</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <User className="w-4 h-4 text-slate-400" />
@@ -221,6 +221,43 @@ export const ParentDashboardView: React.FC = () => {
             )}
           </div>
         </div>
+
+        {/* My Scheduled Meetings */}
+        {(() => {
+          const parentMeetings = meetings.filter(m => 
+            m.status === 'Scheduled' &&
+            m.participants.some(p => p.id.includes(currentWard.id) || p.name.toLowerCase().includes(currentWard.firstName.toLowerCase()))
+          );
+
+          if (parentMeetings.length === 0) return null;
+
+          return (
+            <div className="glass-card p-6 rounded-3xl space-y-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-purple-600" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Scheduled Parent-Teacher Meetings</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {parentMeetings.map(m => (
+                  <div key={m.id} className="p-4 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/20 dark:bg-purple-950/20 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                        {m.meetingAudience} ({m.meetingMode})
+                      </span>
+                      <span className="font-mono text-slate-500 font-bold">{m.meetingDate}</span>
+                    </div>
+                    <h4 className="font-extrabold text-slate-900 dark:text-white">{m.title}</h4>
+                    <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-purple-100/60 dark:border-purple-900/30">
+                      <span>{m.meetingMode === 'In-Person' ? `📍 ${m.roomVenue}` : `🔗 ${m.onlineMeetingUrl}`}</span>
+                      <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{m.startTime} - {m.endTime}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -72,12 +72,12 @@ export const StudentList: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <UserCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" /> 
-            {role === 'Teacher' ? 'My Students' : 'Students Directory'}
+            {role === 'Teacher' ? 'My Students' : 'Student Directory'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             {role === 'Teacher' 
               ? 'View profiles and manage records for students in your assigned classes' 
-              : 'Comprehensive student profiles, ID cards, branch transfers & filter-aware data export'}
+              : 'Manage student directory records, generate student ID cards, perform branch transfers, and export registers.'}
           </p>
         </div>
 
@@ -93,7 +93,7 @@ export const StudentList: React.FC = () => {
               className="btn-primary flex items-center gap-2"
             >
               <User className="w-4 h-4" />
-              Admit Student
+              New Admission
             </button>
           )}
         </div>
@@ -173,7 +173,7 @@ export const StudentList: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Student</th>
+                <th className="py-3.5 px-4">Student Details</th>
                 <th className="py-3.5 px-4">Class & Roll</th>
                 <th className="py-3.5 px-4">Branch / Campus</th>
                 <th className="py-3.5 px-4">Guardian Contact</th>

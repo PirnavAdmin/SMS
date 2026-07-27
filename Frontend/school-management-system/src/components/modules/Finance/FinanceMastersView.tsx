@@ -23,18 +23,18 @@ export const FinanceMastersView: React.FC = () => {
 
   const subTabs = [
     { id: 'fee-heads', label: 'Fee Heads', icon: Tag },
-    { id: 'fee-structure', label: 'Fee Structure', icon: Layers },
+    { id: 'fee-structure', label: 'Fee Structures', icon: Layers },
     { id: 'scholarships', label: 'Scholarships', icon: Gift },
     { id: 'discounts', label: 'Discounts', icon: Percent },
     { id: 'fine-rules', label: 'Fine Rules', icon: AlertTriangle },
     { id: 'transport-fee', label: 'Transport Fee', icon: Route },
     { id: 'hostel-fee', label: 'Hostel Fee', icon: Home },
-    { id: 'student-assignment', label: 'Student Assignment', icon: UserPlus },
+    { id: 'student-assignment', label: 'Student Fee Assignment', icon: UserPlus },
     { id: 'student-transport', label: 'Student Transport', icon: Bus },
     { id: 'student-hostel', label: 'Student Hostel', icon: Bed },
     { id: 'uniform-fee', label: 'Uniform Fee', icon: Shirt },
-    { id: 'refunds', label: 'Refunds', icon: RotateCcw },
-    { id: 'settings', label: 'Settings', icon: SlidersHorizontal },
+    { id: 'refunds', label: 'Refund Management', icon: RotateCcw },
+    { id: 'settings', label: 'Fine Configurations', icon: SlidersHorizontal },
   ] as const;
 
   const renderSubTabContent = () => {

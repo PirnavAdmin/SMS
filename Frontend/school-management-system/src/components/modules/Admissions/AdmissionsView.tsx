@@ -186,7 +186,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setFirstName(parts[0] || '');
     setLastName(parts.slice(1).join(' ') || '');
     setAvatar(app.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
-    setFormData(app);
+    
+    let formattedDob = app.dob || '';
+    if (formattedDob.includes('-') && formattedDob.split('-').length === 3) {
+      const dParts = formattedDob.split('-');
+      formattedDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
+    }
+
+    setFormData({ ...app, dob: formattedDob });
     setPhoneError('');
     setDobError('');
     setIsFormView(true);
@@ -242,7 +249,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return;
     }
 
-    const dobValidation = validateDOB(formData.dob || '');
+    let finalDob = formData.dob || '';
+    if (finalDob.includes('-') && finalDob.split('-').length === 3) {
+      const dParts = finalDob.split('-');
+      finalDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
+    }
+
+    const dobValidation = validateDOB(finalDob);
     if (!dobValidation.isValid) {
       setDobError(dobValidation.error || 'Invalid DOB');
       addToast('error', 'DOB Validation Error', dobValidation.error);
@@ -254,6 +267,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (editingApp) {
       updateAdmission(editingApp.id, {
         ...formData,
+        dob: finalDob,
         applicantName: fullApplicantName,
         avatar
       });
@@ -264,7 +278,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         avatar,
         appliedClass: formData.appliedClass || 'Class 10',
         gender: formData.gender || 'Male',
-        dob: formData.dob || '15/08/2012',
+        dob: finalDob || '15/08/2012',
         bloodGroup: formData.bloodGroup || 'O+',
         religion: formData.religion || 'General',
         casteCategory: formData.casteCategory || 'General',
@@ -448,11 +462,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Student Admission Application'}
+                {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Admission Registration'}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Complete student enrollment form with live fee preview, personal, guardian, and facility details</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Complete student admission registration including personal, guardian, transport, and hostel details.</p>
             </div>
           </div>
         </div>
@@ -578,11 +592,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth *</label>
                   <input
-                    type="text"
+                    type="date"
                     required
-                    placeholder="15/08/2012"
-                    value={formData.dob}
-                    onChange={e => handleDOBChange(e.target.value)}
+                    value={formData.dob ? formData.dob.split('/').reverse().join('-') : ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val) {
+                        const parts = val.split('-');
+                        if (parts.length === 3) {
+                          handleDOBChange(`${parts[2]}/${parts[1]}/${parts[0]}`);
+                          return;
+                        }
+                      }
+                      handleDOBChange('');
+                    }}
                     className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                       dobError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'
                     }`}
@@ -651,7 +674,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">1. Father Mobile Number *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">1. Father Mobile *</label>
                   <input
                     type="text"
                     required
@@ -666,7 +689,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">2. Mother Mobile Number</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">2. Mother Mobile</label>
                   <input
                     type="text"
                     placeholder="Enter mobile number"
@@ -677,7 +700,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alternate Mobile</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alt Mobile</label>
                   <input
                     type="text"
                     placeholder="Enter mobile number"
@@ -691,12 +714,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">4. Email Address *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">4. Email Address</label>
                   <input
-                    type="email"
-                    required
+                    type="text"
                     placeholder="parent@example.com"
-                    value={formData.email}
+                    value={formData.email || ''}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                   />
@@ -1131,16 +1153,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Admission Applications Directory
+            <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Admission Register
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">View submitted applications table, edit or delete records, and enroll students into active database</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">View admission applications, update candidate details, and enroll applicants into their designated classes.</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Submit Application
+          <Plus className="w-4 h-4" /> New Admission Registration
         </button>
       </div>
 

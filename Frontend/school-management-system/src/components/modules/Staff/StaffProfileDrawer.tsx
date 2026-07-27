@@ -376,8 +376,14 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                 
                 {(staff.employeeCategory === 'Teacher' || staff.role === 'Teacher') && (
                   <>
-                    <div className="col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400">Assigned Classes:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.assignedClasses?.join(', ') || 'None'}</p></div>
-                    <div className="col-span-2"><span className="text-slate-400">Assigned Subjects:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.assignedSubjects?.join(', ') || 'None'}</p></div>
+                    <div className="col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2 grid grid-cols-2 gap-4">
+                      <div><span className="text-slate-400">Primary Subject:</span> <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{staff.primarySubject || (staff.assignedSubjects?.[0]) || 'Mathematics'}</p></div>
+                      <div><span className="text-slate-400">Secondary Subject:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.secondarySubject || 'None'}</p></div>
+                      <div><span className="text-slate-400">Specialization:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.specialization || 'Algebra & Calculus'}</p></div>
+                      <div><span className="text-slate-400">Class Teacher Eligible:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.isClassTeacherEligible !== false ? 'Yes' : 'No'}</p></div>
+                      <div><span className="text-slate-400">Max Daily Workload:</span> <p className="font-bold font-mono text-slate-900 dark:text-white mt-0.5">{staff.dailyWorkloadLimit || 5} Periods/Day</p></div>
+                      <div><span className="text-slate-400">Max Weekly Workload:</span> <p className="font-bold font-mono text-slate-900 dark:text-white mt-0.5">{staff.weeklyWorkloadLimit || 24} Periods/Week</p></div>
+                    </div>
                   </>
                 )}
               </div>

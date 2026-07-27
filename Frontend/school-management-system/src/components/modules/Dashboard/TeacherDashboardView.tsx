@@ -6,7 +6,7 @@ import { useData } from '../../../context/DataContext';
 
 export const TeacherDashboardView: React.FC = () => {
   const { user } = useAuth();
-  const { staff, students, timetable, homework, attendance } = useData();
+  const { staff, students, timetable, homework, attendance, meetings } = useData();
 
   // Find logged-in teacher
   const dbTeacher = staff.find(s => s.email === user?.email && s.employeeCategory === 'Teacher') || staff.find(s => s.employeeCategory === 'Teacher');
@@ -32,13 +32,13 @@ export const TeacherDashboardView: React.FC = () => {
   // Todays Schedule
   const todaysSchedule = timetable
     .filter(t => t.teacherName === `${teacher.firstName} ${teacher.lastName}` && t.day === todayName)
-    .sort((a,b) => a.startTime.localeCompare(b.startTime));
+    .sort((a,b) => (a.startTime || a.timeSlot || '').localeCompare(b.startTime || b.timeSlot || ''));
 
   const pendingHomework = homework.filter(h => h.teacherName === `${teacher.firstName} ${teacher.lastName}` && new Date(h.dueDate) >= new Date()).length;
 
   // Next Class
   const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const nextClass = todaysSchedule.find(c => c.startTime >= now) || todaysSchedule[0];
+  const nextClass = todaysSchedule.find(c => (c.startTime || c.timeSlot || '') >= now) || todaysSchedule[0];
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -91,7 +91,7 @@ export const TeacherDashboardView: React.FC = () => {
             <div key={idx} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-4">
                 <div className="px-3 py-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-mono text-xs font-bold">
-                  {cls.startTime} - {cls.endTime}
+                  {cls.startTime || cls.timeSlot} {cls.endTime ? `- ${cls.endTime}` : ''}
                 </div>
                 <div>
                   <p className="font-bold text-sm text-slate-900 dark:text-white">{cls.subject}</p>
@@ -109,6 +109,44 @@ export const TeacherDashboardView: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* My Scheduled Meetings Widget */}
+      {(() => {
+        const teacherName = `${teacher.firstName} ${teacher.lastName}`;
+        const myMeetings = meetings.filter(m => 
+          m.status === 'Scheduled' &&
+          (m.organizerName === teacherName || m.participants.some(p => p.id === dbTeacher?.id || p.name.toLowerCase().includes(teacher.firstName.toLowerCase())))
+        );
+
+        if (myMeetings.length === 0) return null;
+
+        return (
+          <div className="glass-card p-6 rounded-3xl space-y-4">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">My Scheduled Meetings</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {myMeetings.map(m => (
+                <div key={m.id} className="p-4 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/30 dark:bg-purple-950/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                      {m.meetingAudience} ({m.meetingMode})
+                    </span>
+                    <span className="font-mono text-xs text-slate-500 font-bold">{m.meetingDate}</span>
+                  </div>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{m.title}</h4>
+                  <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-purple-100/60 dark:border-purple-900/30">
+                    <span>{m.meetingMode === 'In-Person' ? `📍 ${m.roomVenue}` : `🔗 ${m.onlineMeetingUrl}`}</span>
+                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{m.startTime} - {m.endTime}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -13,7 +13,7 @@ import {
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
-  SalaryStructure, EmployeeSalaryAssignment, PayrollRun
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
@@ -116,17 +116,23 @@ export const initialStaff: Staff[] = [
   {
     id: "STF-001",
     empId: "EMP001",
-    employeeCategory: "Staff",
+    employeeCategory: "Teacher",
     firstName: "Dr. Eleanor",
     lastName: "Vance",
     designation: "Principal",
-    department: "Administration",
+    department: "Academics",
     email: "eleanor.vance@stxaviers.edu",
     phone: "+1 555-888-001",
     gender: "Female",
     dob: "15/03/1975",
     joiningDate: "2015-08-01",
     qualification: "Ph.D. in Educational Leadership",
+    highestQualification: "Ph.D. in Educational Leadership",
+    specialization: "School Governance & Ethics",
+    primarySubject: "Educational Ethics",
+    isClassTeacherEligible: true,
+    dailyWorkloadLimit: 4,
+    weeklyWorkloadLimit: 18,
     experienceYears: 22,
     salary: 11000,
     status: "Active",
@@ -154,7 +160,7 @@ export const initialStaff: Staff[] = [
     employeeCategory: "Teacher",
     firstName: "Jonathan",
     lastName: "Miller",
-    designation: "Senior Teacher",
+    designation: "Class Teacher",
     department: "Mathematics",
     email: "j.miller@stxaviers.edu",
     phone: "+1 555-888-002",
@@ -162,6 +168,13 @@ export const initialStaff: Staff[] = [
     dob: "20/06/1984",
     joiningDate: "2018-06-15",
     qualification: "M.Sc. Mathematics, B.Ed.",
+    highestQualification: "M.Sc. Mathematics, B.Ed.",
+    specialization: "Calculus & Algebra",
+    primarySubject: "Mathematics",
+    secondarySubject: "Higher Mathematics",
+    isClassTeacherEligible: true,
+    dailyWorkloadLimit: 5,
+    weeklyWorkloadLimit: 24,
     experienceYears: 14,
     salary: 7500,
     status: "Active",
@@ -180,6 +193,276 @@ export const initialStaff: Staff[] = [
       ifscCode: "BOFA004421"
     },
     leaveBalance: { casual: 8, sick: 10, paid: 15 }
+  },
+  {
+    id: "STF-003",
+    empId: "EMP003",
+    employeeCategory: "Teacher",
+    firstName: "Sarah",
+    lastName: "Jenkins",
+    designation: "Head of Department (HOD)",
+    department: "Science",
+    email: "s.jenkins@stxaviers.edu",
+    phone: "+1 555-888-003",
+    gender: "Female",
+    dob: "12/11/1986",
+    joiningDate: "2019-07-01",
+    qualification: "Ph.D. in Physics, B.Ed.",
+    highestQualification: "Ph.D. in Physics, B.Ed.",
+    specialization: "Classical Mechanics & Optics",
+    primarySubject: "Physics",
+    secondarySubject: "Quantum Physics",
+    isClassTeacherEligible: true,
+    dailyWorkloadLimit: 5,
+    weeklyWorkloadLimit: 22,
+    experienceYears: 12,
+    salary: 8200,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
+    address: "45 Academic Avenue, Knowledge City, NY",
+    assignedClasses: ["Class 9-A", "Class 12-A"],
+    assignedSubjects: ["Physics"],
+    documents: [
+      { id: "DOC-104", title: "Ph.D Physics Degree.pdf", type: "Educational Certificates", fileUrl: "#", uploadedDate: "2019-07-01" }
+    ],
+    bankDetails: {
+      accountHolderName: "Sarah Jenkins",
+      accountNumber: "551299831002",
+      bankName: "Wells Fargo",
+      branch: "Central NY",
+      ifscCode: "WFAR005512"
+    },
+    leaveBalance: { casual: 9, sick: 10, paid: 18 }
+  },
+  {
+    id: "STF-004",
+    empId: "EMP004",
+    employeeCategory: "Teacher",
+    firstName: "Robert",
+    lastName: "Langdon",
+    designation: "Subject Teacher",
+    department: "Computer Science",
+    email: "r.langdon@stxaviers.edu",
+    phone: "+1 555-888-004",
+    gender: "Male",
+    dob: "05/04/1988",
+    joiningDate: "2020-08-15",
+    qualification: "M.Tech in Computer Science",
+    highestQualification: "M.Tech in Computer Science",
+    specialization: "Data Structures & AI",
+    primarySubject: "Computer Science",
+    secondarySubject: "Mathematics",
+    isClassTeacherEligible: true,
+    dailyWorkloadLimit: 6,
+    weeklyWorkloadLimit: 26,
+    experienceYears: 9,
+    salary: 7100,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
+    address: "102 Tech Lane, Knowledge City, NY",
+    assignedClasses: ["Class 10-A", "Class 11-A"],
+    assignedSubjects: ["Computer Science"],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "Robert Langdon",
+      accountNumber: "882190031924",
+      bankName: "Citibank",
+      branch: "North NY",
+      ifscCode: "CITI008821"
+    },
+    leaveBalance: { casual: 10, sick: 8, paid: 14 }
+  },
+  {
+    id: "STF-005",
+    empId: "EMP005",
+    employeeCategory: "Teacher",
+    firstName: "Marcus",
+    lastName: "Brody",
+    designation: "Physical Education Teacher",
+    department: "Physical Education",
+    email: "m.brody@stxaviers.edu",
+    phone: "+1 555-888-005",
+    gender: "Male",
+    dob: "18/09/1985",
+    joiningDate: "2017-04-10",
+    qualification: "Master of Physical Education (M.P.Ed)",
+    highestQualification: "M.P.Ed",
+    specialization: "Athletics & Sports Science",
+    primarySubject: "Physical Education",
+    isClassTeacherEligible: false,
+    dailyWorkloadLimit: 6,
+    weeklyWorkloadLimit: 28,
+    experienceYears: 15,
+    salary: 6800,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+    address: "15 Sports Complex Drive, Knowledge City, NY",
+    assignedClasses: [],
+    assignedSubjects: [],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "Marcus Brody",
+      accountNumber: "330192831092",
+      bankName: "Chase Bank",
+      branch: "Main City",
+      ifscCode: "CHAS003301"
+    },
+    leaveBalance: { casual: 12, sick: 10, paid: 15 }
+  },
+  {
+    id: "STF-006",
+    empId: "EMP006",
+    employeeCategory: "Staff",
+    firstName: "David",
+    lastName: "Miller",
+    designation: "Accountant",
+    department: "Finance & Accounts",
+    email: "d.miller@stxaviers.edu",
+    phone: "+1 555-888-006",
+    gender: "Male",
+    dob: "24/01/1982",
+    joiningDate: "2016-03-01",
+    qualification: "M.Com, Certified Public Accountant",
+    experienceYears: 16,
+    salary: 6800,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
+    address: "88 Commercial Square, Knowledge City, NY",
+    assignedClasses: [],
+    assignedSubjects: [],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "David Miller",
+      accountNumber: "661204918230",
+      bankName: "Bank of America",
+      branch: "Financial District",
+      ifscCode: "BOFA006612"
+    },
+    leaveBalance: { casual: 10, sick: 10, paid: 15 }
+  },
+  {
+    id: "STF-007",
+    empId: "EMP007",
+    employeeCategory: "Staff",
+    firstName: "Rachel",
+    lastName: "Green",
+    designation: "HR Executive",
+    department: "Human Resources",
+    email: "r.green@stxaviers.edu",
+    phone: "+1 555-888-007",
+    gender: "Female",
+    dob: "14/07/1990",
+    joiningDate: "2021-02-15",
+    qualification: "MBA in HR Management",
+    experienceYears: 7,
+    salary: 6200,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
+    address: "34 Corporate Way, Knowledge City, NY",
+    assignedClasses: [],
+    assignedSubjects: [],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "Rachel Green",
+      accountNumber: "771092831029",
+      bankName: "Wells Fargo",
+      branch: "Downtown NY",
+      ifscCode: "WFAR007710"
+    },
+    leaveBalance: { casual: 10, sick: 12, paid: 15 }
+  },
+  {
+    id: "STF-008",
+    empId: "EMP008",
+    employeeCategory: "Staff",
+    firstName: "Michael",
+    lastName: "Scott",
+    designation: "Transport Manager",
+    department: "Logistics & Transport",
+    email: "m.scott@stxaviers.edu",
+    phone: "+1 555-888-008",
+    gender: "Male",
+    dob: "15/03/1978",
+    joiningDate: "2017-09-01",
+    qualification: "B.A. Public Administration",
+    experienceYears: 18,
+    salary: 5500,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80",
+    address: "99 Depot Avenue, Knowledge City, NY",
+    assignedClasses: [],
+    assignedSubjects: [],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "Michael Scott",
+      accountNumber: "220918230192",
+      bankName: "Chase Bank",
+      branch: "Main City",
+      ifscCode: "CHAS002209"
+    },
+    leaveBalance: { casual: 10, sick: 10, paid: 15 }
+  },
+  {
+    id: "STF-009",
+    empId: "EMP009",
+    employeeCategory: "Staff",
+    firstName: "Arthur",
+    lastName: "Pendelton",
+    designation: "Hostel Warden",
+    department: "Hostel Management",
+    email: "a.pendelton@stxaviers.edu",
+    phone: "+1 555-888-009",
+    gender: "Male",
+    dob: "08/10/1980",
+    joiningDate: "2019-01-10",
+    qualification: "Diploma in Student Welfare",
+    experienceYears: 11,
+    salary: 5200,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80",
+    address: "Hostel Block A Quarters, Knowledge City, NY",
+    assignedClasses: [],
+    assignedSubjects: [],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "Arthur Pendelton",
+      accountNumber: "119028301928",
+      bankName: "Citibank",
+      branch: "Central NY",
+      ifscCode: "CITI001190"
+    },
+    leaveBalance: { casual: 10, sick: 10, paid: 15 }
+  },
+  {
+    id: "STF-010",
+    empId: "EMP010",
+    employeeCategory: "Staff",
+    firstName: "James",
+    lastName: "Wilson",
+    designation: "IT Administrator",
+    department: "IT Support",
+    email: "j.wilson@stxaviers.edu",
+    phone: "+1 555-888-010",
+    gender: "Male",
+    dob: "22/08/1991",
+    joiningDate: "2022-05-01",
+    qualification: "B.Sc. Information Technology",
+    experienceYears: 6,
+    salary: 6000,
+    status: "Active",
+    avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150&auto=format&fit=crop&q=80",
+    address: "56 Server Park, Knowledge City, NY",
+    assignedClasses: [],
+    assignedSubjects: [],
+    documents: [],
+    bankDetails: {
+      accountHolderName: "James Wilson",
+      accountNumber: "990192830192",
+      bankName: "Bank of America",
+      branch: "Downtown NY",
+      ifscCode: "BOFA009901"
+    },
+    leaveBalance: { casual: 10, sick: 10, paid: 15 }
   }
 ];
 
@@ -303,8 +586,8 @@ export const initialHostelBlocks: HostelBlock[] = [
 ];
 
 export const initialHostelRooms: HostelRoom[] = [
-  { id: "RM-101", blockId: "BLK-A", roomNo: "101", capacity: 4, occupied: 3, feePerTerm: 1200 },
-  { id: "RM-201", blockId: "BLK-B", roomNo: "201", capacity: 2, occupied: 2, feePerTerm: 1500 }
+  { id: "RM-101", blockId: "BLK-A", roomNo: "101", capacity: 4, occupiedBeds: 3, occupied: 3, monthlyRent: 1200, feePerTerm: 1200, status: 'Available' },
+  { id: "RM-201", blockId: "BLK-B", roomNo: "201", capacity: 2, occupiedBeds: 2, occupied: 2, monthlyRent: 1500, feePerTerm: 1500, status: 'Full' }
 ];
 
 export const initialHostelBeds: HostelBed[] = [
@@ -385,16 +668,33 @@ export const initialCustomRoles: CustomRole[] = [
   }
 ];
 
+export const initialDepartments: Department[] = [
+  { id: 'DEPT-001', departmentName: 'Mathematics', departmentCode: 'DEPT-MTH', description: 'Department of Mathematics & Statistics', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-002', departmentName: 'Science', departmentCode: 'DEPT-SCI', description: 'Physics, Chemistry, Biology & Natural Sciences', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-003', departmentName: 'English', departmentCode: 'DEPT-ENG', description: 'English Language & Literature', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-004', departmentName: 'Social Science', departmentCode: 'DEPT-SOC', description: 'History, Geography, Civics & Economics', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-005', departmentName: 'Languages', departmentCode: 'DEPT-LNG', description: 'Regional, National & Foreign Languages', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-006', departmentName: 'Computer Science / ICT', departmentCode: 'DEPT-CS', description: 'Computer Science, IT, AI & Technology', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-007', departmentName: 'Commerce', departmentCode: 'DEPT-COM', description: 'Accountancy, Business Studies & Finance', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-008', departmentName: 'Humanities', departmentCode: 'DEPT-HUM', description: 'Psychology, Sociology & Liberal Arts', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-009', departmentName: 'Fine Arts', departmentCode: 'DEPT-ART', description: 'Drawing, Painting & Visual Arts', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-010', departmentName: 'Performing Arts', departmentCode: 'DEPT-PA', description: 'Music, Dance & Drama', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-011', departmentName: 'Physical Education', departmentCode: 'DEPT-PE', description: 'Sports, Fitness & Physical Health', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-012', departmentName: 'Library', departmentCode: 'DEPT-LIB', description: 'Library & Information Science', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-013', departmentName: 'Special Education', departmentCode: 'DEPT-SE', description: 'Inclusive Learning & Remedial Care', status: 'Active', branch: 'Main Campus' },
+  { id: 'DEPT-014', departmentName: 'Pre-Primary', departmentCode: 'DEPT-PRE', description: 'Early Childhood & Foundation Stage', status: 'Active', branch: 'Main Campus' }
+];
+
 export const initialSubjects: SubjectItem[] = [
-  { id: 'SUB-101', subjectId: 'SUB-101', name: 'Mathematics', code: 'MTH-101', department: 'Mathematics' },
-  { id: 'SUB-102', subjectId: 'SUB-102', name: 'Physics', code: 'PHY-102', department: 'Science' },
-  { id: 'SUB-103', subjectId: 'SUB-103', name: 'Chemistry', code: 'CHM-103', department: 'Science' },
-  { id: 'SUB-104', subjectId: 'SUB-104', name: 'Biology', code: 'BIO-104', department: 'Science' },
-  { id: 'SUB-105', subjectId: 'SUB-105', name: 'English', code: 'ENG-105', department: 'Languages' },
-  { id: 'SUB-106', subjectId: 'SUB-106', name: 'Computer Science', code: 'CS-106', department: 'Technology' },
-  { id: 'SUB-107', subjectId: 'SUB-107', name: 'History', code: 'HIS-107', department: 'Social Studies' },
-  { id: 'SUB-108', subjectId: 'SUB-108', name: 'Economics', code: 'ECO-108', department: 'Humanities' },
-  { id: 'SUB-109', subjectId: 'SUB-109', name: 'Accountancy', code: 'ACC-109', department: 'Commerce' }
+  { id: 'SUB-101', subjectId: 'SUB-101', name: 'Mathematics', code: 'MTH-101', department: 'Mathematics', departmentId: 'DEPT-001' },
+  { id: 'SUB-102', subjectId: 'SUB-102', name: 'Physics', code: 'PHY-102', department: 'Science', departmentId: 'DEPT-002' },
+  { id: 'SUB-103', subjectId: 'SUB-103', name: 'Chemistry', code: 'CHM-103', department: 'Science', departmentId: 'DEPT-002' },
+  { id: 'SUB-104', subjectId: 'SUB-104', name: 'Biology', code: 'BIO-104', department: 'Science', departmentId: 'DEPT-002' },
+  { id: 'SUB-105', subjectId: 'SUB-105', name: 'English Language', code: 'ENG-105', department: 'English', departmentId: 'DEPT-003' },
+  { id: 'SUB-106', subjectId: 'SUB-106', name: 'Computer Science', code: 'CS-106', department: 'Computer Science / ICT', departmentId: 'DEPT-006' },
+  { id: 'SUB-107', subjectId: 'SUB-107', name: 'History', code: 'HIS-107', department: 'Social Science', departmentId: 'DEPT-004' },
+  { id: 'SUB-108', subjectId: 'SUB-108', name: 'Economics', code: 'ECO-108', department: 'Social Science', departmentId: 'DEPT-004' },
+  { id: 'SUB-109', subjectId: 'SUB-109', name: 'Accountancy', code: 'ACC-109', department: 'Commerce', departmentId: 'DEPT-007' }
 ];
 
 export const initialFeeHeads: FeeHead[] = [
@@ -1158,6 +1458,126 @@ export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [
 ];
 
 export const initialPayrollRuns: PayrollRun[] = [];
+
+export const initialQuestionPapers: QuestionPaper[] = [
+  {
+    id: "QP-101",
+    academicYear: "2025-2026",
+    branch: "Main Campus",
+    examId: "EX-001",
+    examName: "Mid-Term Examination 2026",
+    className: "Class 10",
+    section: "A",
+    subject: "Mathematics",
+    paperTitle: "Class 10 Mathematics Mid-Term Question Paper",
+    examDate: "2026-09-15",
+    duration: "3 Hours",
+    maxMarks: 100,
+    instructions: "Answer all questions in Section A. Show neat calculations.",
+    fileUrl: "#",
+    fileName: "Class10_Maths_MidTerm_2026.pdf",
+    fileSize: "1.4 MB",
+    fileType: "PDF Document",
+    uploadedBy: "Jonathan Miller",
+    uploadedOn: "2026-08-20",
+    status: "Published"
+  },
+  {
+    id: "QP-102",
+    academicYear: "2025-2026",
+    branch: "Main Campus",
+    examId: "EX-001",
+    examName: "Mid-Term Examination 2026",
+    className: "Class 10",
+    section: "A",
+    subject: "Physics",
+    paperTitle: "Class 10 Physics Mid-Term Theory & Lab Paper",
+    examDate: "2026-09-17",
+    duration: "3 Hours",
+    maxMarks: 100,
+    instructions: "Scientific calculators are permitted. Attempt all numericals.",
+    fileUrl: "#",
+    fileName: "Class10_Physics_MidTerm_2026.pdf",
+    fileSize: "2.1 MB",
+    fileType: "PDF Document",
+    uploadedBy: "Sarah Jenkins",
+    uploadedOn: "2026-08-22",
+    status: "Published"
+  }
+];
+
+export const initialMeetings: SchoolMeeting[] = [
+  {
+    id: "MTG-101",
+    title: "Parent-Teacher Performance Sync (Alex Morgan)",
+    description: "In-person discussion regarding Class 10 Mid-Term progress and career stream selection.",
+    academicYear: "2025-2026",
+    branch: "Main Campus",
+    meetingAudience: "Individual",
+    participantType: "Parent",
+    participants: [
+      {
+        id: "PAR-101",
+        name: "Robert Morgan (Parent)",
+        type: "Parent",
+        details: "Parent of Alex Morgan (Class 10-A • ADM-101)",
+        email: "robert.m@example.com",
+        phone: "9876543210"
+      }
+    ],
+    meetingMode: "In-Person",
+    building: "Academic Block A",
+    floor: "2nd Floor",
+    roomVenue: "Conference Room 204",
+    roomCapacity: 12,
+    meetingDate: "2026-08-10",
+    startTime: "14:00",
+    endTime: "14:30",
+    status: "Scheduled",
+    organizerName: "Jonathan Miller",
+    organizerRole: "HOD Mathematics",
+    createdAt: "2026-07-25"
+  },
+  {
+    id: "MTG-102",
+    title: "HOD & Mathematics Faculty Academic Alignment",
+    description: "Group strategy session to align syllabus completion for Class 9 and Class 10 upcoming assessments.",
+    academicYear: "2025-2026",
+    branch: "Main Campus",
+    meetingAudience: "Group",
+    targetGroupDescription: "All Mathematics Department Faculty",
+    participants: [
+      {
+        id: "STF-002",
+        name: "Jonathan Miller",
+        type: "Teaching Staff",
+        details: "EMP002 • Mathematics • HOD",
+        email: "jonathan.m@school.edu"
+      },
+      {
+        id: "STF-003",
+        name: "Sarah Jenkins",
+        type: "Teaching Staff",
+        details: "EMP003 • Mathematics • Subject Teacher",
+        email: "sarah.j@school.edu"
+      }
+    ],
+    meetingMode: "In-Person",
+    building: "Science & Tech Wing",
+    floor: "1st Floor",
+    roomVenue: "Staff Seminar Hall B",
+    roomCapacity: 30,
+    meetingDate: "2026-08-12",
+    startTime: "11:00",
+    endTime: "12:00",
+    status: "Scheduled",
+    organizerName: "Dr. Eleanor Vance",
+    organizerRole: "Principal",
+    createdAt: "2026-07-26"
+  }
+];
+
+
 
 
 

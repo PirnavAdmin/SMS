@@ -9,10 +9,10 @@ export const HostelMastersView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>('blocks');
 
   const subTabs = [
-    { id: 'blocks', label: 'Hostels', icon: Building2 },
-    { id: 'room-types', label: 'Room Types', icon: Layers },
-    { id: 'rooms', label: 'Rooms', icon: Home },
-    { id: 'wardens', label: 'Wardens', icon: Users }
+    { id: 'blocks', label: 'Hostel Master', icon: Building2 },
+    { id: 'room-types', label: 'Room Categories', icon: Layers },
+    { id: 'rooms', label: 'Room Management', icon: Home },
+    { id: 'wardens', label: 'Warden Management', icon: Users }
   ] as const;
 
   const renderSubTabContent = () => {

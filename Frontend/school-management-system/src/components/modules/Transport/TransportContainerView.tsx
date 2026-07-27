@@ -24,9 +24,9 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
 
   const tabs = [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transport-masters', label: 'Transport Masters', icon: Route },
-    { id: 'transport-student-assignment', label: 'Student Transport', icon: UserPlus },
-    { id: 'transport-reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
+    { id: 'transport-student-assignment', label: 'Student Transport Assignment', icon: UserPlus },
+    { id: 'transport-reports', label: 'Transport Reports', icon: FileSpreadsheet },
   ];
 
   const renderTabContent = () => {

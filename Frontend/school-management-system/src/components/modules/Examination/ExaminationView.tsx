@@ -3,9 +3,9 @@ import {
   Award, Plus, Save, Printer, Edit, Trash2, X, Calendar, BookOpen, User, 
   MapPin, CheckCircle2, AlertTriangle, ShieldAlert, Lock, Unlock, Download, Upload,
   Search, FileSpreadsheet, RefreshCw, BarChart2, PlusCircle, CheckCircle, FileText,
-  UserCheck, ShieldCheck, HelpCircle, History
+  UserCheck, ShieldCheck, HelpCircle, History, Eye
 } from 'lucide-react';
-import { Student, ExamSetup, ExamMark, ExamSchedule, GradeConfig, ProcessedResult } from '../../../types';
+import { Student, ExamSetup, ExamMark, ExamSchedule, GradeConfig, ProcessedResult, QuestionPaper } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -13,12 +13,13 @@ import { PrintableReportCard } from './PrintableReportCard';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 
-type MainTab = 'master' | 'schedule' | 'marks' | 'grades' | 'results' | 'reportCards';
+type MainTab = 'master' | 'schedule' | 'papers' | 'marks' | 'grades' | 'results' | 'reportCards';
 
 export const ExaminationView: React.FC = () => {
   const data = useData();
   const { 
     exams, students, staff, academicClasses, subjects, examMarks, examSchedules, gradeConfigurations, processedResults,
+    questionPapers, addQuestionPaper, updateQuestionPaper, deleteQuestionPaper,
     addExam, updateExam, deleteExam, saveMarks, 
     addExamSchedule, updateExamSchedule, deleteExamSchedule,
     saveGradeConfiguration, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
@@ -116,10 +117,37 @@ export const ExaminationView: React.FC = () => {
     setIsExamModalOpen(true);
   };
 
+  const [applyToAllSections, setApplyToAllSections] = useState(true);
+
   const handleExamSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!examFormData.name) {
-      addToast('warning', 'Validation Warning', 'Please provide a name for the examination setup.');
+    if (!examFormData.name?.trim()) {
+      addToast('warning', 'Validation Warning', 'Please provide a title for the examination.');
+      return;
+    }
+    if (!examFormData.startDate || !examFormData.endDate) {
+      addToast('warning', 'Validation Warning', 'Please set both Start Date and End Date for the exam setup.');
+      return;
+    }
+    if (examFormData.startDate > examFormData.endDate) {
+      addToast('error', 'Validation Error', 'Start Date must be before or equal to End Date.');
+      return;
+    }
+    if (!examFormData.applicableClasses || examFormData.applicableClasses.length === 0) {
+      addToast('warning', 'Validation Warning', 'Please select at least one applicable class.');
+      return;
+    }
+
+    // Check unique Exam Name per Academic Year and Branch
+    const isDuplicate = exams.some(
+      ex => ex.id !== editingExam?.id &&
+        ex.academicYear === selectedAcademicYear &&
+        (!ex.branch || ex.branch === selectedBranch) &&
+        ex.name.trim().toLowerCase() === examFormData.name?.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      addToast('error', 'Duplicate Exam Name', `An examination named '${examFormData.name}' already exists for academic year ${selectedAcademicYear}.`);
       return;
     }
 
@@ -132,10 +160,10 @@ export const ExaminationView: React.FC = () => {
 
     if (editingExam) {
       updateExam(editingExam.id, payload);
-      addToast('success', 'Success', `Updated examination: ${examFormData.name}`);
+      addToast('success', 'Success', `Updated examination setup: ${examFormData.name}`);
     } else {
       addExam(payload as Omit<ExamSetup, 'id'>);
-      addToast('success', 'Success', `Scheduled new examination: ${examFormData.name}`);
+      addToast('success', 'Success', `Configured new examination: ${examFormData.name}`);
     }
     setIsExamModalOpen(false);
   };
@@ -154,7 +182,7 @@ export const ExaminationView: React.FC = () => {
     endTime: '12:00',
     subject: 'Mathematics',
     className: 'Class 10',
-    section: 'A',
+    section: 'All Sections',
     maxMarks: 100,
     passMarks: 33,
     room: '',
@@ -189,7 +217,7 @@ export const ExaminationView: React.FC = () => {
       if (scheduleExam?.branch && scheduleExam.branch !== selectedBranch) return;
       if (s.date === date && overlaps(startTime, endTime, s.startTime, s.endTime)) {
         if (s.className === className && (s.section === section || s.section === 'All Sections' || section === 'All Sections')) {
-          conflicts.push(`Class Conflict: Class ${className}-${section} already has a scheduled exam (${s.subject}) during this time.`);
+          conflicts.push(`Class Conflict: Class ${className}-${section} already has a scheduled exam (${s.subject}) during ${startTime} - ${endTime}.`);
         }
       }
     });
@@ -199,43 +227,228 @@ export const ExaminationView: React.FC = () => {
 
   const handleScheduleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const { date, startTime, endTime, section, examId, subject } = scheduleForm;
+    const { date, startTime, endTime, section, examId, subject, maxMarks, passMarks } = scheduleForm;
     const targetClasses = (editingSchedule ? [scheduleForm.className || selectedScheduleClasses[0] || classOptions[0]] : selectedScheduleClasses).filter(Boolean);
+    
     if (!examId || !date || !startTime || !endTime || !subject || targetClasses.length === 0) {
       addToast('warning', 'Validation Warning', 'Please fill in all mandatory scheduling fields.');
       return;
     }
 
-    const conflicts = targetClasses.flatMap(className => checkScheduleConflicts(
-      date, startTime, endTime, className || 'Class 10', section || 'All Sections', editingSchedule?.id
-    ));
+    // 1. Validate Exam Date within Exam Master's Start Date and End Date
+    const examMaster = exams.find(ex => ex.id === examId);
+    if (examMaster) {
+      if (examMaster.startDate && date < examMaster.startDate) {
+        addToast('error', 'Validation Error', `Exam Date (${date}) cannot be before Exam Master Start Date (${examMaster.startDate}).`);
+        return;
+      }
+      if (examMaster.endDate && date > examMaster.endDate) {
+        addToast('error', 'Validation Error', `Exam Date (${date}) cannot be after Exam Master End Date (${examMaster.endDate}).`);
+        return;
+      }
+    }
+
+    // 2. Validate Start Time < End Time
+    if (startTime >= endTime) {
+      addToast('error', 'Validation Error', 'Start Time must be strictly before End Time.');
+      return;
+    }
+
+    // 3. Validate Maximum Marks > Passing Marks
+    const maxScore = Number(maxMarks) || 100;
+    const passingScore = Number(passMarks) || 33;
+    if (maxScore <= passingScore) {
+      addToast('error', 'Validation Error', `Maximum Marks (${maxScore}) must be greater than Passing Marks (${passingScore}).`);
+      return;
+    }
+
+    // 4. Validate Duplicate Subject Schedule for same class and section
+    const targetSections = applyToAllSections
+      ? (getSectionOptions(targetClasses[0]).length > 0 ? getSectionOptions(targetClasses[0]) : ['A', 'B'])
+      : [section || 'All Sections'];
+
+    const duplicateCheck = examSchedules.find(s =>
+      s.id !== editingSchedule?.id &&
+      s.examId === examId &&
+      targetClasses.includes(s.className) &&
+      (s.section === 'All Sections' || targetSections.includes(s.section) || section === 'All Sections') &&
+      s.subject.toLowerCase() === subject.toLowerCase()
+    );
+
+    if (duplicateCheck) {
+      addToast('error', 'Duplicate Schedule', `Subject '${subject}' is already scheduled for Class ${duplicateCheck.className}-${duplicateCheck.section} in this examination.`);
+      return;
+    }
+
+    // 5. Overlapping Exam Check
+    const conflicts = targetClasses.flatMap(className => targetSections.flatMap(sec => checkScheduleConflicts(
+      date, startTime, endTime, className, sec, editingSchedule?.id
+    )));
 
     if (conflicts.length > 0) {
       addToast('error', 'Scheduling Conflict', conflicts[0]);
       return;
     }
 
-    const makePayload = (className: string) => ({
-      ...scheduleForm,
-      academicYear: selectedAcademicYear,
-      branch: selectedBranch,
-      className,
-      section: section || 'All Sections',
-      room: '',
-      invigilatorId: '',
-      invigilatorName: '',
-      maxMarks: Number(scheduleForm.maxMarks) || 100,
-      passMarks: Number(scheduleForm.passMarks) || 33
-    } as Omit<ExamSchedule, 'id'>);
-
     if (editingSchedule) {
-      updateExamSchedule(editingSchedule.id, makePayload(targetClasses[0]));
+      updateExamSchedule(editingSchedule.id, {
+        ...scheduleForm,
+        academicYear: selectedAcademicYear,
+        branch: selectedBranch,
+        className: targetClasses[0],
+        section: section || 'All Sections',
+        maxMarks: maxScore,
+        passMarks: passingScore
+      } as Omit<ExamSchedule, 'id'>);
       addToast('success', 'Success', 'Updated exam schedule details.');
     } else {
-      targetClasses.forEach(className => addExamSchedule(makePayload(className)));
-      addToast('success', 'Success', `Successfully scheduled subject exam for ${targetClasses.length} class${targetClasses.length > 1 ? 'es' : ''}.`);
+      let count = 0;
+      targetClasses.forEach(className => {
+        const sectionsToSchedule = applyToAllSections ? (getSectionOptions(className).length > 0 ? getSectionOptions(className) : ['A']) : [section || 'All Sections'];
+        sectionsToSchedule.forEach(sec => {
+          addExamSchedule({
+            ...scheduleForm,
+            academicYear: selectedAcademicYear,
+            branch: selectedBranch,
+            className,
+            section: sec,
+            maxMarks: maxScore,
+            passMarks: passingScore
+          } as Omit<ExamSchedule, 'id'>);
+          count++;
+        });
+      });
+      addToast('success', 'Success', `Successfully scheduled subject exam entries for ${count} class/section mapping(s).`);
     }
     setIsScheduleModalOpen(false);
+  };
+
+  // ----------------------------------------------------
+  // Question Papers Repository State & Handlers
+  // ----------------------------------------------------
+  const [paperFilterExam, setPaperFilterExam] = useState('');
+  const [paperFilterClass, setPaperFilterClass] = useState('');
+  const [paperFilterSection, setPaperFilterSection] = useState('');
+  const [paperFilterSubject, setPaperFilterSubject] = useState('');
+  const [paperSearchQuery, setPaperSearchQuery] = useState('');
+
+  const [isPaperModalOpen, setIsPaperModalOpen] = useState(false);
+  const [editingPaper, setEditingPaper] = useState<QuestionPaper | null>(null);
+  const [viewingPaper, setViewingPaper] = useState<QuestionPaper | null>(null);
+
+  const [paperFormData, setPaperFormData] = useState<Partial<QuestionPaper>>({
+    paperTitle: '',
+    academicYear: '2025-2026',
+    branch: 'Main Campus',
+    examId: '',
+    className: 'Class 10',
+    section: 'A',
+    subject: 'Mathematics',
+    examDate: '',
+    duration: '3 Hours',
+    maxMarks: 100,
+    instructions: '1. Read all questions carefully.\n2. Answer in neat handwriting.\n3. Calculators permitted where applicable.',
+    fileName: 'question_paper.pdf',
+    fileSize: '1.5 MB',
+    fileType: 'PDF Document',
+    fileUrl: '#',
+    status: 'Published'
+  });
+
+  const handleOpenAddPaper = () => {
+    if (!isAdminOrPrincipal && !isTeacher) return;
+    setEditingPaper(null);
+    setPaperFormData({
+      paperTitle: '',
+      academicYear: selectedAcademicYear,
+      branch: selectedBranch,
+      examId: branchExamsList[0]?.id || '',
+      className: classOptions[0] || 'Class 10',
+      section: 'A',
+      subject: 'Mathematics',
+      examDate: new Date().toISOString().split('T')[0],
+      duration: '3 Hours',
+      maxMarks: 100,
+      instructions: '1. Read all questions carefully.\n2. Answer in neat handwriting.',
+      fileName: 'question_paper.pdf',
+      fileSize: '1.5 MB',
+      fileType: 'PDF Document',
+      fileUrl: '#',
+      status: 'Published'
+    });
+    setIsPaperModalOpen(true);
+  };
+
+  const handleOpenEditPaper = (paper: QuestionPaper) => {
+    if (!isAdminOrPrincipal && !isTeacher) return;
+    setEditingPaper(paper);
+    setPaperFormData(paper);
+    setIsPaperModalOpen(true);
+  };
+
+  const handlePaperSubmit = (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    const { examId, className, section, subject, paperTitle, duration, maxMarks } = paperFormData;
+    if (!examId || !className || !subject || !paperTitle) {
+      addToast('warning', 'Validation Warning', 'Please fill in mandatory fields (Exam, Class, Subject, Paper Title).');
+      return;
+    }
+
+    const examObj = exams.find(e => e.id === examId);
+
+    // Business Rule: One question paper per Academic Year + Branch + Exam + Class + Section + Subject
+    const duplicate = questionPapers.find(qp =>
+      qp.id !== editingPaper?.id &&
+      qp.academicYear === selectedAcademicYear &&
+      (!qp.branch || qp.branch === selectedBranch) &&
+      qp.examId === examId &&
+      qp.className === className &&
+      (!section || section === 'All Sections' || qp.section === section || qp.section === 'All Sections') &&
+      qp.subject.toLowerCase() === subject.toLowerCase()
+    );
+
+    if (duplicate) {
+      addToast('error', 'Duplicate Question Paper', `A paper already exists for ${className}-${section || 'All'} ${subject} under '${examObj?.name || 'this exam'}'. Use 'Edit Details' or 'Replace File' to update.`);
+      return;
+    }
+
+    const payload: Omit<QuestionPaper, 'id'> = {
+      academicYear: selectedAcademicYear,
+      branch: selectedBranch,
+      examId: examId || '',
+      examName: examObj?.name || 'Term Exam',
+      className: className || 'Class 10',
+      section: section || 'A',
+      subject: subject || 'Mathematics',
+      paperTitle: paperTitle || '',
+      examDate: paperFormData.examDate || new Date().toISOString().split('T')[0],
+      duration: duration || '3 Hours',
+      maxMarks: Number(maxMarks) || 100,
+      instructions: paperFormData.instructions || '',
+      fileName: paperFormData.fileName || 'question_paper.pdf',
+      fileSize: paperFormData.fileSize || '1.2 MB',
+      fileType: paperFormData.fileType || 'PDF Document',
+      fileUrl: paperFormData.fileUrl || '#',
+      uploadedBy: paperFormData.uploadedBy || user?.name || 'Exam Coordinator',
+      uploadedOn: paperFormData.uploadedOn || new Date().toISOString().split('T')[0],
+      status: paperFormData.status || 'Published'
+    };
+
+    if (editingPaper) {
+      updateQuestionPaper(editingPaper.id, payload);
+      addToast('success', 'Paper Updated', `Updated question paper: ${paperTitle}`);
+    } else {
+      addQuestionPaper(payload);
+      addToast('success', 'Paper Uploaded', `Uploaded '${paperTitle}' to repository.`);
+    }
+    setIsPaperModalOpen(false);
+  };
+
+  const handleTogglePublishPaper = (paper: QuestionPaper) => {
+    if (!isAdminOrPrincipal && !isTeacher) return;
+    const nextStatus = paper.status === 'Published' ? 'Draft' : 'Published';
+    updateQuestionPaper(paper.id, { status: nextStatus });
+    addToast('info', 'Status Updated', `Question Paper is now set to ${nextStatus}.`);
   };
 
   // ----------------------------------------------------
@@ -713,6 +926,7 @@ export const ExaminationView: React.FC = () => {
           {[
             { id: 'master', label: 'Exam Master', icon: Award },
             { id: 'schedule', label: 'Exam Schedule', icon: Calendar },
+            { id: 'papers', label: 'Question Papers', icon: FileText },
             { id: 'marks', label: 'Marks Entry', icon: Edit },
             { id: 'grades', label: 'Grade Configurations', icon: BarChart2 },
             { id: 'results', label: 'Result Processing', icon: RefreshCw },
@@ -1082,6 +1296,243 @@ export const ExaminationView: React.FC = () => {
                       </tr>
                     ))
                   )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ----------------------------------------------------
+          TAB: QUESTION PAPERS REPOSITORY VIEW
+          ---------------------------------------------------- */}
+      {activeTab === 'papers' && !isStudentOrParent && (
+        <div className="space-y-4">
+          {/* Action Header Card */}
+          <div className="glass-card p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-slate-800 dark:text-slate-100 text-sm">Question Papers Repository</h3>
+                <p className="text-[11px] text-slate-500">Centralized vault to manage, preview, download, and publish examination papers</p>
+              </div>
+            </div>
+
+            {(isAdminOrPrincipal || isTeacher) && (
+              <button
+                onClick={handleOpenAddPaper}
+                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-2xl shadow-lg shadow-amber-500/20 flex items-center gap-2 text-xs transition-all self-start md:self-auto"
+              >
+                <Upload className="w-4 h-4" />
+                Upload Question Paper
+              </button>
+            )}
+          </div>
+
+          {/* Filter Bar */}
+          <div className="glass-card p-4 rounded-3xl grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Exam</label>
+              <select
+                value={paperFilterExam}
+                onChange={e => setPaperFilterExam(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+              >
+                <option value="">All Exams</option>
+                {branchExamsList.map(e => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Class</label>
+              <select
+                value={paperFilterClass}
+                onChange={e => setPaperFilterClass(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+              >
+                <option value="">All Classes</option>
+                {classOptions.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Section</label>
+              <select
+                value={paperFilterSection}
+                onChange={e => setPaperFilterSection(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+              >
+                <option value="">All Sections</option>
+                {getSectionOptions(paperFilterClass || classOptions[0]).map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Subject</label>
+              <select
+                value={paperFilterSubject}
+                onChange={e => setPaperFilterSubject(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+              >
+                <option value="">All Subjects</option>
+                {allSubjectOptions.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-[10px] font-bold text-slate-400 mb-1">Search Repository</label>
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search title, teacher, file..."
+                  value={paperSearchQuery}
+                  onChange={e => setPaperSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Question Papers Table */}
+          <div className="glass-card rounded-3xl overflow-hidden shadow-lg border border-slate-100 dark:border-slate-800">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-black">
+                    <th className="p-4">Paper Title & File</th>
+                    <th className="p-4">Exam</th>
+                    <th className="p-4">Class & Section</th>
+                    <th className="p-4">Subject</th>
+                    <th className="p-4">Uploaded By</th>
+                    <th className="p-4">Uploaded On</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  {(() => {
+                    const filtered = questionPapers.filter(qp => {
+                      if (qp.academicYear && qp.academicYear !== selectedAcademicYear) return false;
+                      if (qp.branch && qp.branch !== selectedBranch) return false;
+                      if (paperFilterExam && qp.examId !== paperFilterExam) return false;
+                      if (paperFilterClass && qp.className !== paperFilterClass) return false;
+                      if (paperFilterSection && paperFilterSection !== 'All Sections' && qp.section && qp.section !== 'All Sections' && qp.section !== paperFilterSection) return false;
+                      if (paperFilterSubject && qp.subject !== paperFilterSubject) return false;
+                      if (paperSearchQuery) {
+                        const q = paperSearchQuery.toLowerCase();
+                        const match = qp.paperTitle.toLowerCase().includes(q) || qp.subject.toLowerCase().includes(q) || qp.uploadedBy.toLowerCase().includes(q) || qp.fileName.toLowerCase().includes(q);
+                        if (!match) return false;
+                      }
+                      return true;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={8} className="p-8 text-center text-slate-400 font-bold">
+                            No question papers found matching your criteria.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filtered.map(paper => (
+                      <tr key={paper.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-slate-900 dark:text-white hover:text-amber-600 transition-colors">{paper.paperTitle}</p>
+                              <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-mono">
+                                <span>{paper.fileName}</span>
+                                <span>•</span>
+                                <span>{paper.fileSize || '1.5 MB'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{paper.examName}</td>
+                        <td className="p-4 font-bold">{paper.className} <span className="text-amber-600 font-extrabold">({paper.section || 'All'})</span></td>
+                        <td className="p-4 font-bold text-amber-600 dark:text-amber-400">{paper.subject}</td>
+                        <td className="p-4">{paper.uploadedBy}</td>
+                        <td className="p-4 font-mono text-slate-500">{paper.uploadedOn}</td>
+                        <td className="p-4">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                            paper.status === 'Published'
+                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                          }`}>
+                            {paper.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setViewingPaper(paper)}
+                              title="Preview Paper Details"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                addToast('success', 'Download Started', `Downloading '${paper.fileName}'...`);
+                              }}
+                              title="Download File"
+                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                            {(isAdminOrPrincipal || isTeacher) && (
+                              <>
+                                <button
+                                  onClick={() => handleTogglePublishPaper(paper)}
+                                  title={paper.status === 'Published' ? 'Unpublish Paper' : 'Publish Paper'}
+                                  className={`p-1.5 rounded-lg transition-colors ${
+                                    paper.status === 'Published' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                  }`}
+                                >
+                                  {paper.status === 'Published' ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditPaper(paper)}
+                                  title="Edit Paper Details / Replace File"
+                                  className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Are you sure you want to delete '${paper.paperTitle}'?`)) {
+                                      deleteQuestionPaper(paper.id);
+                                      addToast('info', 'Deleted Paper', 'Question paper removed from repository.');
+                                    }
+                                  }}
+                                  title="Delete Paper"
+                                  className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -2012,22 +2463,31 @@ export const ExaminationView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Subject *</label>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Subject (Loaded from Subject Mapping) *</label>
                   <select
                     value={scheduleForm.subject}
                     onChange={e => setScheduleForm({ ...scheduleForm, subject: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-amber-600 dark:text-amber-400"
                   >
-                    {subjectOptions.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {(() => {
+                      const selClass = selectedScheduleClasses[0] || 'Class 10';
+                      const mapped = Array.from(new Set(
+                        subjects
+                          .filter(s => !s.className || s.className === selClass)
+                          .map(s => s.name)
+                      )).filter(Boolean).sort();
+                      const optionsList = mapped.length > 0 ? mapped : allSubjectOptions;
+                      return optionsList.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ));
+                    })()}
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="relative">
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Classes *</label>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Target Class *</label>
                   <button
                     type="button"
                     disabled={!!editingSchedule}
@@ -2097,11 +2557,28 @@ export const ExaminationView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Section *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] font-bold text-slate-455">Section *</label>
+                    <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                      <input
+                        type="checkbox"
+                        checked={applyToAllSections}
+                        onChange={e => {
+                          setApplyToAllSections(e.target.checked);
+                          if (e.target.checked) {
+                            setScheduleForm({ ...scheduleForm, section: 'All Sections' });
+                          }
+                        }}
+                        className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                      />
+                      <span>Apply to All Sections</span>
+                    </label>
+                  </div>
                   <select
+                    disabled={applyToAllSections}
                     value={scheduleForm.section}
                     onChange={e => setScheduleForm({ ...scheduleForm, section: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800"
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold disabled:opacity-60"
                   >
                     <option value="All Sections">All Sections</option>
                     {getSectionOptionsForClasses(selectedScheduleClasses).map(s => (
@@ -2332,6 +2809,282 @@ export const ExaminationView: React.FC = () => {
             setSelectedExamForReport(null);
           }}
         />
+      )}
+
+      {/* Question Paper Upload / Edit Modal */}
+      {isPaperModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-955/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <FileText className="w-4 h-4 text-amber-500" />
+                {editingPaper ? 'Modify Question Paper' : 'Upload Question Paper'}
+              </h3>
+              <button onClick={() => setIsPaperModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePaperSubmit} className="space-y-4 text-xs font-semibold text-slate-655 dark:text-slate-350">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Target Exam *</label>
+                  <select
+                    required
+                    value={paperFormData.examId}
+                    onChange={e => {
+                      const examObj = exams.find(x => x.id === e.target.value);
+                      setPaperFormData({
+                        ...paperFormData,
+                        examId: e.target.value,
+                        examName: examObj?.name || ''
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                  >
+                    <option value="">Select Exam</option>
+                    {branchExamsList.map(e => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Class *</label>
+                  <select
+                    required
+                    value={paperFormData.className}
+                    onChange={e => setPaperFormData({ ...paperFormData, className: e.target.value, section: getSectionOptions(e.target.value)[0] || 'A' })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                  >
+                    {classOptions.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Section</label>
+                  <select
+                    value={paperFormData.section}
+                    onChange={e => setPaperFormData({ ...paperFormData, section: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                  >
+                    <option value="All Sections">All Sections</option>
+                    {getSectionOptions(paperFormData.className || classOptions[0]).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Subject (Auto Loaded) *</label>
+                  <select
+                    required
+                    value={paperFormData.subject}
+                    onChange={e => setPaperFormData({ ...paperFormData, subject: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-amber-600 dark:text-amber-400"
+                  >
+                    {(() => {
+                      const selClass = paperFormData.className || 'Class 10';
+                      const mapped = Array.from(new Set(
+                        subjects
+                          .filter(s => !s.className || s.className === selClass)
+                          .map(s => s.name)
+                      )).filter(Boolean).sort();
+                      const optionsList = mapped.length > 0 ? mapped : allSubjectOptions;
+                      return optionsList.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ));
+                    })()}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Paper Title *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Mid-Term Mathematics Question Paper 2026"
+                  value={paperFormData.paperTitle}
+                  onChange={e => setPaperFormData({ ...paperFormData, paperTitle: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Exam Date</label>
+                  <input
+                    type="date"
+                    value={paperFormData.examDate}
+                    onChange={e => setPaperFormData({ ...paperFormData, examDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Duration *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 3 Hours"
+                    value={paperFormData.duration}
+                    onChange={e => setPaperFormData({ ...paperFormData, duration: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-center font-bold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Max Marks *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="e.g. 100"
+                    value={paperFormData.maxMarks}
+                    onChange={e => setPaperFormData({ ...paperFormData, maxMarks: Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-center font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Instructions (Optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="Enter exam guidelines and instructions..."
+                  value={paperFormData.instructions}
+                  onChange={e => setPaperFormData({ ...paperFormData, instructions: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-medium"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/30 space-y-2">
+                <label className="block text-[10px] font-bold text-slate-455">Question Paper Document (PDF / DOCX / Image)</label>
+                <input
+                  type="file"
+                  accept=".pdf,.docx,.doc,.png,.jpg,.jpeg"
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const sizeInMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
+                      setPaperFormData({
+                        ...paperFormData,
+                        fileName: file.name,
+                        fileSize: sizeInMb,
+                        fileType: file.type.includes('pdf') ? 'PDF Document' : file.type.includes('word') ? 'Word Document' : 'Image File'
+                      });
+                    }
+                  }}
+                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+                />
+                <p className="text-[10px] text-slate-400">Current file: <span className="font-mono text-amber-600">{paperFormData.fileName || 'None'}</span> ({paperFormData.fileSize || '0 KB'})</p>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Publishing Status *</label>
+                <select
+                  value={paperFormData.status}
+                  onChange={e => setPaperFormData({ ...paperFormData, status: e.target.value as any })}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                >
+                  <option value="Published">Published (Visible to Staff & Students)</option>
+                  <option value="Draft">Draft (Staff Only Confidential)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t">
+                <button type="button" onClick={() => setIsPaperModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-amber-500 hover:bg-amber-400 rounded-xl shadow-md flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  {editingPaper ? 'Save Changes' : 'Upload Paper'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Question Paper Preview Modal */}
+      {viewingPaper && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-955/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Question Paper Preview</h3>
+                  <p className="text-[10px] text-slate-400">{viewingPaper.paperTitle}</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingPaper(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 font-semibold">
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Exam Name</span>
+                  <span className="text-slate-900 dark:text-white font-extrabold">{viewingPaper.examName}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Class & Section</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-extrabold">{viewingPaper.className} ({viewingPaper.section || 'All'})</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Subject</span>
+                  <span className="text-slate-900 dark:text-white font-extrabold">{viewingPaper.subject}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Exam Date</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{viewingPaper.examDate || 'TBD'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Duration</span>
+                  <span className="text-slate-900 dark:text-white font-bold">{viewingPaper.duration}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 block font-bold">Maximum Marks</span>
+                  <span className="text-slate-900 dark:text-white font-mono font-bold">{viewingPaper.maxMarks} Marks</span>
+                </div>
+              </div>
+
+              {viewingPaper.instructions && (
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-amber-50/20 dark:bg-amber-950/10 space-y-1">
+                  <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-wider">Examination Instructions</span>
+                  <p className="text-slate-700 dark:text-slate-300 font-medium whitespace-pre-line leading-relaxed">{viewingPaper.instructions}</p>
+                </div>
+              )}
+
+              <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="font-extrabold text-slate-900 dark:text-white">{viewingPaper.fileName}</p>
+                  <p className="text-[10px] text-slate-400 font-mono">{viewingPaper.fileType} • {viewingPaper.fileSize || '1.5 MB'}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    addToast('success', 'Download Triggered', `Downloading '${viewingPaper.fileName}'`);
+                  }}
+                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t text-[10px] text-slate-400 font-medium">
+                <span>Uploaded by: <strong className="text-slate-600 dark:text-slate-300">{viewingPaper.uploadedBy}</strong></span>
+                <span>On: <strong className="font-mono text-slate-600 dark:text-slate-300">{viewingPaper.uploadedOn}</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Exam Confirmation Modal */}

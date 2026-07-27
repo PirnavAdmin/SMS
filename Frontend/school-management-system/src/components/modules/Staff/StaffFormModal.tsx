@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Users, User, Briefcase, GraduationCap, CreditCard, FileText, Plus, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Users, User, Briefcase, GraduationCap, CreditCard, FileText, Plus, Trash2, Info, Upload, FileCheck, Eye, Paperclip } from 'lucide-react';
 import { Staff, StaffDocument, StaffDocType } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -17,7 +17,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   staffToEdit,
   defaultCategory = 'Teacher'
 }) => {
-  const { staff, addStaff, updateStaff, customRoles, subjects, academicClasses } = useData();
+  const { staff, addStaff, updateStaff, customRoles, subjects, academicClasses, departments } = useData();
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'personal' | 'professional' | 'academic' | 'payroll' | 'documents'>('personal');
@@ -27,6 +27,39 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     'Teacher', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'
   ];
   const allRoles = Array.from(new Set([...defaultRoles, ...(customRoles || []).map(r => r.name)]));
+
+  const teachingDesignations = [
+    'Principal', 'Vice Principal', 'Academic Coordinator', 'Head of Department (HOD)',
+    'Teacher', 'Class Teacher', 'Subject Teacher', 'Assistant Teacher',
+    'Physical Education Teacher', 'Art Teacher', 'Music Teacher', 'Dance Teacher',
+    'Computer Teacher', 'Librarian'
+  ];
+
+  const nonTeachingDesignations = [
+    'Accountant', 'HR Executive', 'Office Administrator', 'Receptionist',
+    'Transport Manager', 'Driver', 'Conductor / Bus Attendant', 'Hostel Warden',
+    'Lab Assistant', 'IT Administrator', 'Security Guard', 'Office Assistant',
+    'Housekeeping', 'Maintenance Staff', 'Store Keeper'
+  ];
+
+  // Department data called back from Subject Management module
+  const activeDeptsFromSubjectMgmt = (departments || [])
+    .filter(d => d.status === 'Active')
+    .map(d => d.departmentName);
+
+  const teachingDepartments = activeDeptsFromSubjectMgmt.length > 0
+    ? Array.from(new Set(activeDeptsFromSubjectMgmt))
+    : [
+        'Mathematics', 'Science', 'English', 'Social Science', 'Languages',
+        'Computer Science / ICT', 'Commerce', 'Humanities', 'Fine Arts', 'Performing Arts',
+        'Physical Education', 'Library', 'Special Education', 'Pre-Primary'
+      ];
+
+  const nonTeachingDepartments = Array.from(new Set([
+    'Administration', 'Finance', 'Human Resources', 'Transport',
+    'Hostel', 'Information Technology (IT)', 'Library', 'Maintenance', 'Security',
+    ...activeDeptsFromSubjectMgmt
+  ]));
 
   const generateNextEmpId = () => {
     const empNumbers = staff
@@ -74,12 +107,60 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   
 
 
-  // State for adding a new document inline
+  // State for adding a new document inline with native file browser
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newDoc, setNewDoc] = useState<{ title: string; type: StaffDocType; fileUrl: string }>({
     title: '',
     type: 'Educational Certificates',
     fileUrl: '#'
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!newDoc.title.trim()) {
+        const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        const formattedTitle = cleanName.charAt(0).toUpperCase() + cleanName.slice(1);
+        setNewDoc(prev => ({ ...prev, title: formattedTitle }));
+      }
+    }
+  };
+
+  const handleAddDocument = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (!selectedFile && !newDoc.title.trim()) {
+      fileInputRef.current?.click();
+      return;
+    }
+
+    const docTitle = newDoc.title.trim() || (selectedFile ? selectedFile.name : 'Untitled Document');
+    let fileUrl = '#';
+    if (selectedFile) {
+      fileUrl = URL.createObjectURL(selectedFile);
+    }
+
+    const doc: StaffDocument = {
+      id: 'DOC-' + Math.floor(1000 + Math.random() * 9000),
+      title: docTitle,
+      type: newDoc.type,
+      fileUrl: fileUrl,
+      uploadedDate: new Date().toISOString().split('T')[0]
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      documents: [...(prev.documents || []), doc]
+    }));
+
+    setNewDoc({ title: '', type: 'Educational Certificates', fileUrl: '#' });
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    addToast('success', 'Document Attached', `'${docTitle}' attached successfully.`);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -90,13 +171,17 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           employeeCategory: staffToEdit.employeeCategory || (staffToEdit.role === 'Teacher' ? 'Teacher' : 'Staff')
         });
       } else {
+        const initialDept = defaultCategory === 'Teacher' ? (teachingDepartments[0] || 'Mathematics') : 'Administration';
+        const deptMatchingSubs = subjects.filter(s => (s.department || '').trim().toLowerCase() === initialDept.toLowerCase());
+        const initialPrimarySubject = deptMatchingSubs.length > 0 ? deptMatchingSubs[0].name : (subjects[0]?.name || 'Mathematics');
+
         setFormData({
           empId: generateNextEmpId(),
           employeeCategory: defaultCategory,
           firstName: '',
           lastName: '',
-          designation: defaultCategory === 'Teacher' ? 'Subject Teacher' : 'Administrative Officer',
-          department: defaultCategory === 'Teacher' ? 'Academics' : 'General',
+          designation: defaultCategory === 'Teacher' ? 'Subject Teacher' : 'Office Administrator',
+          department: initialDept,
           role: defaultCategory === 'Teacher' ? 'Teacher' : 'Staff',
           email: '',
           phone: '',
@@ -104,6 +189,13 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           dob: '15/05/1988',
           joiningDate: new Date().toISOString().split('T')[0],
           qualification: defaultCategory === 'Teacher' ? 'M.Sc. Mathematics, B.Ed.' : 'Bachelor of Commerce',
+          highestQualification: defaultCategory === 'Teacher' ? 'M.Sc. Mathematics, B.Ed.' : 'Bachelor of Commerce',
+          specialization: defaultCategory === 'Teacher' ? 'Algebra & Calculus' : 'Finance & Accounting',
+          primarySubject: defaultCategory === 'Teacher' ? initialPrimarySubject : undefined,
+          secondarySubject: '', // Defaults to Select Subject
+          isClassTeacherEligible: true,
+          dailyWorkloadLimit: 5,
+          weeklyWorkloadLimit: 24,
           experienceYears: 5,
           salary: defaultCategory === 'Teacher' ? 7000 : 5500,
           status: 'Active',
@@ -134,30 +226,9 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       ...prev,
       employeeCategory: cat,
       role: cat === 'Teacher' ? 'Teacher' : 'Staff',
-      designation: cat === 'Teacher' ? 'Subject Teacher' : 'Administrative Officer',
-      department: cat === 'Teacher' ? 'Academics' : 'General'
+      designation: cat === 'Teacher' ? 'Subject Teacher' : 'Accountant',
+      department: cat === 'Teacher' ? 'Mathematics' : 'Administration'
     }));
-  };
-
-  const handleAddDocument = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (!newDoc.title) {
-      addToast('warning', 'Missing Title', 'Please enter a document title.');
-      return;
-    }
-    const doc: StaffDocument = {
-      id: 'DOC-' + Math.floor(100 + Math.random() * 900),
-      title: newDoc.title,
-      type: newDoc.type,
-      fileUrl: newDoc.fileUrl || '#',
-      uploadedDate: new Date().toISOString().split('T')[0]
-    };
-    setFormData(prev => ({
-      ...prev,
-      documents: [...(prev.documents || []), doc]
-    }));
-    setNewDoc({ title: '', type: 'Educational Certificates', fileUrl: '#' });
-    addToast('success', 'Document Appended', 'Document successfully added to list.');
   };
 
   const handleRemoveDocument = (docId: string) => {
@@ -213,6 +284,13 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     }
     onClose();
   };
+
+  // Derived subject options for Primary Subject (filtered by selected department in Professional Info)
+  const currentDeptName = (formData.department || '').trim();
+  const departmentSubjects = subjects.filter(s => 
+    (s.department || '').trim().toLowerCase() === currentDeptName.toLowerCase()
+  );
+  const primarySubjectOptions = departmentSubjects.length > 0 ? departmentSubjects : subjects;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
@@ -315,8 +393,8 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                     onChange={e => handleCategoryChange(e.target.value as any)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold text-emerald-600"
                   >
-                    <option value="Teacher">Teacher (Teaching Staff)</option>
-                    <option value="Staff">Staff (Support / General / Admin)</option>
+                    <option value="Teacher">Teaching Staff</option>
+                    <option value="Staff">Non-Teaching Staff</option>
                   </select>
                 </div>
                 <div>
@@ -391,25 +469,42 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Job Title / Designation *</label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    placeholder="e.g. Science HOD, Receptionist"
                     value={formData.designation}
                     onChange={e => setFormData({ ...formData, designation: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                  />
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold"
+                  >
+                    {(isTeacher ? teachingDesignations : nonTeachingDesignations).map(desig => (
+                      <option key={desig} value={desig}>{desig}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Department *</label>
-                  <input
-                    type="text"
+                  <select
                     required
-                    placeholder="e.g. Mathematics, Administration"
                     value={formData.department}
-                    onChange={e => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                  />
+                    onChange={e => {
+                      const newDept = e.target.value;
+                      const deptMatchingSubs = subjects.filter(s => (s.department || '').trim().toLowerCase() === newDept.trim().toLowerCase());
+                      const defaultPrimary = deptMatchingSubs.length > 0 ? deptMatchingSubs[0].name : (subjects[0]?.name || '');
+
+                      setFormData(prev => {
+                        const isCurrentPrimaryValid = deptMatchingSubs.some(s => s.name === prev.primarySubject);
+                        return {
+                          ...prev,
+                          department: newDept,
+                          primarySubject: isCurrentPrimaryValid ? prev.primarySubject : defaultPrimary
+                        };
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold"
+                  >
+                    {(isTeacher ? teachingDepartments : nonTeachingDepartments).map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -460,54 +555,128 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             </div>
           )}
 
-          {/* ACADEMIC INFO TAB (Only for Teachers) */}
+          {/* TEACHING PROFILE TAB (Only for Teachers) */}
           {activeTab === 'academic' && isTeacher && (
             <div className="space-y-4">
-              <div>
-                <h4 className="font-extrabold text-[11px] text-slate-500 uppercase tracking-wider mb-2">Assigned Academic Classes & Sections</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border">
-                  {academicClasses.map(cls => (
-                    <div key={cls.id} className="space-y-1">
-                      <p className="font-bold text-[10px] text-slate-400 uppercase">{cls.name}</p>
-                      <div className="flex flex-col gap-1.5">
-                        {cls.sections.map(sec => {
-                          const classSec = `${cls.name}-${sec}`;
-                          const checked = (formData.assignedClasses || []).includes(classSec);
-                          return (
-                            <label key={sec} className="flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() => handleClassCheckbox(classSec)}
-                                className="rounded text-emerald-600 cursor-pointer"
-                              />
-                              <span>Section {sec}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
+              {/* Informational Banner */}
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
+                <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <p className="font-bold text-xs">Permanent Teaching Profile & Capacity</p>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5 leading-relaxed">
+                    Class, Section, and Subject assignments are managed per Academic Year under <span className="font-extrabold underline">Academics → Class Management → Teacher Assignment</span>.
+                  </p>
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-extrabold text-[11px] text-slate-500 uppercase tracking-wider mb-2">Assigned Teaching Subjects</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border">
-                  {subjects.map(sub => {
-                    const checked = (formData.assignedSubjects || []).includes(sub.name);
-                    return (
-                      <label key={sub.id} className="flex items-center gap-1.5 cursor-pointer hover:text-emerald-600 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => handleSubjectCheckbox(sub.name)}
-                          className="rounded text-emerald-600 cursor-pointer"
-                        />
-                        <span>{sub.name}</span>
-                      </label>
-                    );
-                  })}
+              {/* Qualifications & Specialization */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Highest Qualification *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. M.Sc. Mathematics, B.Ed."
+                    value={formData.highestQualification || formData.qualification || ''}
+                    onChange={e => setFormData({ ...formData, highestQualification: e.target.value, qualification: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Specialization / Expertise</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Algebra & Calculus, Organic Chemistry"
+                    value={formData.specialization || ''}
+                    onChange={e => setFormData({ ...formData, specialization: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  />
+                </div>
+              </div>
+
+              {/* Teaching Preferences */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                    <span>Primary Subject *</span>
+                    {formData.department && (
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded">
+                        {formData.department} Dept
+                      </span>
+                    )}
+                  </label>
+                  <select
+                    required
+                    value={formData.primarySubject || (primarySubjectOptions[0]?.name || '')}
+                    onChange={e => setFormData({ ...formData, primarySubject: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold text-emerald-600 dark:text-emerald-400"
+                  >
+                    {primarySubjectOptions.map(s => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} {s.code ? `(${s.code})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {departmentSubjects.length === 0 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                      No specific subjects created under '{formData.department}'. Displaying all subjects.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Secondary Subject</label>
+                  <select
+                    value={formData.secondarySubject || ''}
+                    onChange={e => setFormData({ ...formData, secondarySubject: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-medium text-slate-900 dark:text-white"
+                  >
+                    <option value="">Select Subject</option>
+                    {subjects.map(s => (
+                      <option key={s.id} value={s.name}>
+                        {s.name} ({s.department || 'General'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class Teacher Eligible</label>
+                  <select
+                    value={formData.isClassTeacherEligible !== false ? 'Yes' : 'No'}
+                    onChange={e => setFormData({ ...formData, isClassTeacherEligible: e.target.value === 'Yes' })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold"
+                  >
+                    <option value="Yes">Yes (Eligible)</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Workload Configuration */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border space-y-3">
+                <h4 className="font-extrabold text-[11px] text-slate-500 uppercase tracking-wider">Workload Capacity Configuration</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Max Periods Per Day *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={formData.dailyWorkloadLimit || 5}
+                      onChange={e => setFormData({ ...formData, dailyWorkloadLimit: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Max Periods Per Week *</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={45}
+                      value={formData.weeklyWorkloadLimit || 24}
+                      onChange={e => setFormData({ ...formData, weeklyWorkloadLimit: Number(e.target.value) })}
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -612,49 +781,93 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           {activeTab === 'documents' && (
             <div className="space-y-4">
               {/* Document List */}
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-2.5 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
                 {(formData.documents || []).length === 0 ? (
-                  <p className="text-center text-slate-400 py-6">No credentials or certificates uploaded.</p>
+                  <div className="text-center py-8 px-4 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                    <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400">No credentials or certificates attached yet.</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">Use the form below to browse and attach degree certificates, ID proofs, or resumes.</p>
+                  </div>
                 ) : (
                   (formData.documents || []).map(doc => (
-                    <div key={doc.id} className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border">
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white">{doc.title}</p>
-                        <p className="text-[10px] text-slate-400">{doc.type} • Uploaded {doc.uploadedDate}</p>
+                    <div key={doc.id} className="flex justify-between items-center p-3.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xs">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 font-bold">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+                            {doc.title}
+                            <span className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold">
+                              {doc.type}
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">Uploaded on {doc.uploadedDate}</p>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveDocument(doc.id)}
-                        className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 rounded-lg transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      
+                      <div className="flex items-center gap-1.5">
+                        {doc.fileUrl && doc.fileUrl !== '#' && (
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg transition-colors text-xs font-bold flex items-center gap-1"
+                            title="View Document"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDocument(doc.id)}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors"
+                          title="Remove Document"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
               </div>
 
-              {/* Inline Form to Add Document */}
-              <div className="p-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl space-y-3.5 bg-slate-50/40">
-                <h4 className="font-extrabold text-[11px] text-slate-500 uppercase tracking-wider">Add Credentials / Document</h4>
+              {/* Inline Form to Add / Upload Document */}
+              <div className="p-4 border-2 border-dashed border-emerald-200 dark:border-emerald-900/60 rounded-3xl space-y-3.5 bg-emerald-50/20 dark:bg-emerald-950/10">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-black text-xs text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <Paperclip className="w-4 h-4 text-emerald-600" />
+                    Add Credentials / Document
+                  </h4>
+                  <span className="text-[10px] font-bold text-slate-400">PDF, PNG, JPG, DOCX</span>
+                </div>
                 
+                {/* Hidden File Input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  className="hidden"
+                />
+
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Doc Title *</label>
+                    <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Doc Title *</label>
                     <input
                       type="text"
                       placeholder="e.g. Master Degree Certificate"
                       value={newDoc.title}
                       onChange={e => setNewDoc({ ...newDoc, title: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Doc Category *</label>
+                    <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-1">Doc Category *</label>
                     <select
                       value={newDoc.type}
                       onChange={e => setNewDoc({ ...newDoc, type: e.target.value as StaffDocType })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold cursor-pointer text-xs"
                     >
                       <option value="Educational Certificates">Educational Certificates</option>
                       <option value="Aadhaar Card">Aadhaar Card</option>
@@ -667,13 +880,29 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex justify-end pt-1">
+                {/* File Attachment Controls */}
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 font-bold text-xs flex items-center gap-2 shadow-xs transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-indigo-600" />
+                    {selectedFile ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-black truncate max-w-[200px]">
+                        ✓ {selectedFile.name}
+                      </span>
+                    ) : (
+                      'Browse File from Device...'
+                    )}
+                  </button>
+
                   <button
                     type="button"
                     onClick={handleAddDocument}
-                    className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-xl flex items-center gap-1.5 transition-all text-[11px]"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl flex items-center gap-1.5 transition-all text-xs shadow-md shadow-emerald-600/20"
                   >
-                    <Plus className="w-3.5 h-3.5" /> Attach Document
+                    <Plus className="w-4 h-4" /> Attach Document
                   </button>
                 </div>
               </div>

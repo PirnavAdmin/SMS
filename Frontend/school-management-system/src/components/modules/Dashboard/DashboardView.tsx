@@ -66,13 +66,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               onClick={() => onNavigate('admissions-add')}
               className="px-4 py-2.5 rounded-xl bg-white text-brand-700 hover:bg-brand-50 text-xs font-bold shadow-md transition-all flex items-center gap-2"
             >
-              <UserCheck className="w-4 h-4" /> Add Student
+              <UserCheck className="w-4 h-4" /> Admit Student
             </button>
             <button
               onClick={() => onNavigate('fees')}
               className="px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white backdrop-blur-md text-xs font-bold transition-all flex items-center gap-2"
             >
-              <IndianRupee className="w-4 h-4" /> Collect Fee
+              <IndianRupee className="w-4 h-4" /> Fee Collection
             </button>
           </div>
         </div>
@@ -83,21 +83,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <StatCard title="Total Students" value={totalStudents} subtitle="Enrolled active students" change="+12% vs last term" isPositive={true} icon={UserCheck} color="indigo" />
         <StatCard title="Total Staff" value={totalStaff} subtitle="Faculty & administration" change="100% active" isPositive={true} icon={Users} color="emerald" />
         <StatCard title="Fee Collected" value={formatCurrency(feeCollected)} subtitle="Total revenue processed" change="+18.5% growth" isPositive={true} icon={IndianRupee} color="sky" />
-        <StatCard title="Fee Outstandings" value={formatCurrency(feeDue)} subtitle="Pending student dues" change="Action required" isPositive={false} icon={AlertCircle} color="rose" />
+        <StatCard title="Due Fees" value={formatCurrency(feeDue)} subtitle="Pending student dues" change="Action required" isPositive={false} icon={AlertCircle} color="rose" />
       </div>
 
-      {/* Recent Transactions Widget */}
+      {/* Recent Payments */}
       <div className="glass-card p-6 rounded-3xl space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Receipt className="w-5 h-5 text-sky-500" />
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Transactions Widget</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Payments</h3>
               <p className="text-xs text-slate-500">Live fee collection activity</p>
             </div>
           </div>
           <button onClick={() => onNavigate('fees')} className="text-xs font-semibold text-brand-600 hover:underline flex items-center gap-1">
-            View All Fee Receipts <ArrowRight className="w-3.5 h-3.5" />
+            Receipts <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 

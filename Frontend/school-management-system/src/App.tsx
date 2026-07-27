@@ -117,11 +117,9 @@ const MainLayout: React.FC = () => {
       case 'students':
         return <StudentList />;
       case 'staff':
-        return <StaffList />;
       case 'staff-teachers':
-        return <StaffList key="teachers" initialCategory="Teacher" />;
       case 'staff-directory':
-        return <StaffList key="staff" initialCategory="Staff" />;
+        return <StaffList />;
       case 'staff-attendance':
         return <StaffAttendanceView />;
       case 'staff-leave':

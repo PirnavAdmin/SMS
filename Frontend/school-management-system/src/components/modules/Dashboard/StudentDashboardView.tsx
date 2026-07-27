@@ -1,12 +1,12 @@
 import React from 'react';
-import { BookOpen, Calendar, Clock, Award, Flame, Target, Home, MapPin, User, Megaphone, AlertCircle } from 'lucide-react';
+import { BookOpen, Calendar, Clock, Award, Flame, Target, Home, MapPin, User, Megaphone, AlertCircle, Users } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 
 export const StudentDashboardView: React.FC = () => {
   const { user } = useAuth();
-  const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, timetable, subjects, staff, studentFeeLedgers } = useData();
+  const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, timetable, subjects, staff, studentFeeLedgers, meetings } = useData();
   
   // Since we are mocking auth, map to first active student
   const currentWard = students.find(s => s.status === 'Active') || students[0];
@@ -26,15 +26,21 @@ export const StudentDashboardView: React.FC = () => {
   // Timetable
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const todayName = days[new Date().getDay()] as any;
-  const todaysSchedule = timetable.filter(t => t.className === currentWard.className && t.section === currentWard.section && t.day === todayName).sort((a,b) => a.startTime.localeCompare(b.startTime));
+  const todaysSchedule = timetable
+    .filter(t => t.className === currentWard.className && t.section === currentWard.section && t.day === todayName)
+    .sort((a,b) => (a.startTime || a.timeSlot || '').localeCompare(b.startTime || b.timeSlot || ''));
 
-  const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || id;
-  const getTeacherName = (id: string) => staff.find(s => s.id === id)?.name || id;
+  const getSubjectName = (id?: string) => id ? (subjects.find(s => s.id === id)?.name || id) : 'Subject';
+  const getTeacherName = (id?: string) => {
+    if (!id) return 'Teacher';
+    const found = staff.find(s => s.id === id || s.empId === id);
+    return found ? `${found.firstName} ${found.lastName}` : id;
+  };
 
   // Hostel
-  const wardHostel = studentHostels.find(sh => sh.studentId === currentWard.id && sh.status === 'Occupied');
-  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId) : null;
-  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId) : null;
+  const wardHostel = studentHostels.find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied'));
+  const hostelDetails = wardHostel ? hostelMasters.find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
+  const roomDetails = wardHostel ? roomMasters.find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
   // Fee Dues
   const wardLedger = studentFeeLedgers.find(l => l.studentId === currentWard.id);
@@ -43,7 +49,7 @@ export const StudentDashboardView: React.FC = () => {
 
   // Notices
   const recentNotices = [
-    ...(announcements || []).map(a => ({ date: a.date, title: a.title, desc: a.description, type: 'notice' })),
+    ...(announcements || []).map(a => ({ date: a.date, title: a.title, desc: (a as any).description || a.content, type: 'notice' })),
     ...(holidays || []).map(h => ({ date: h.startDate, title: h.name, desc: h.type + ' Holiday', type: 'holiday' }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
@@ -100,11 +106,11 @@ export const StudentDashboardView: React.FC = () => {
                 <div key={idx} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                   <div className="flex items-center gap-4">
                     <div className="px-3 py-1.5 rounded-lg font-mono text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                      {cls.startTime}
+                      {cls.startTime || cls.timeSlot}
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-slate-900 dark:text-white">{getSubjectName(cls.subjectId)}</p>
-                      <p className="text-xs text-slate-500 font-medium">{getTeacherName(cls.teacherId)} {cls.roomId ? `• ${cls.roomId}` : ''}</p>
+                      <p className="font-bold text-sm text-slate-900 dark:text-white">{getSubjectName(cls.subjectId || cls.subject)}</p>
+                      <p className="text-xs text-slate-500 font-medium">{getTeacherName(cls.teacherId || cls.teacherName)} {cls.roomId ? `• ${cls.roomId}` : ''}</p>
                     </div>
                   </div>
                 </div>
@@ -168,11 +174,11 @@ export const StudentDashboardView: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-4">
                   <div className="flex items-center gap-2 text-sm">
                     <MapPin className="w-4 h-4 text-slate-400" />
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{hostelDetails.name}</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">{hostelDetails.hostelName || (hostelDetails as any).name}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <div className="w-4 h-4 rounded bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-[10px] text-slate-500">RM</div>
-                    <span className="font-medium text-slate-700 dark:text-slate-300">Room {roomDetails.roomNumber} ({roomDetails.roomType})</span>
+                    <span className="font-medium text-slate-700 dark:text-slate-300">Room {roomDetails.roomNumber || (roomDetails as any).roomNo} ({roomDetails.roomTypeName || (roomDetails as any).roomType || 'Standard'})</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <User className="w-4 h-4 text-slate-400" />
@@ -229,7 +235,7 @@ export const StudentDashboardView: React.FC = () => {
                   <input type="checkbox" className="mt-1 w-4 h-4 rounded text-brand-500 focus:ring-brand-500 border-slate-300 cursor-pointer" />
                   <div>
                     <p className="font-bold text-sm text-slate-900 dark:text-white">{item.title}</p>
-                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-1">{getSubjectName(item.subjectId)}</p>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-slate-400 mt-1">{getSubjectName(item.subjectId || item.subject)}</p>
                     <p className="text-xs text-amber-600 dark:text-amber-400 font-medium mt-1">Due: {item.dueDate}</p>
                   </div>
                 </div>
@@ -238,6 +244,43 @@ export const StudentDashboardView: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* My Scheduled Meetings */}
+          {(() => {
+            const studentMeetings = meetings.filter(m => 
+              m.status === 'Scheduled' &&
+              m.participants.some(p => p.id === currentWard.id || p.name.toLowerCase().includes(currentWard.firstName.toLowerCase()))
+            );
+
+            if (studentMeetings.length === 0) return null;
+
+            return (
+              <div className="glass-card p-6 rounded-3xl space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Users className="w-5 h-5 text-indigo-500" />
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">My Scheduled Meetings</h3>
+                </div>
+
+                <div className="space-y-3">
+                  {studentMeetings.map(m => (
+                    <div key={m.id} className="p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                          {m.meetingAudience} ({m.meetingMode})
+                        </span>
+                        <span className="font-mono text-slate-500 font-bold">{m.meetingDate}</span>
+                      </div>
+                      <h4 className="font-extrabold text-slate-900 dark:text-white">{m.title}</h4>
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-indigo-100/60 dark:border-indigo-900/30">
+                        <span>{m.meetingMode === 'In-Person' ? `📍 ${m.roomVenue}` : `🔗 ${m.onlineMeetingUrl}`}</span>
+                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{m.startTime} - {m.endTime}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

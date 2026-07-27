@@ -23,9 +23,9 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'masters', label: 'Hostel Masters', icon: Building2 },
-    { id: 'student-hostel', label: 'Student Hostel', icon: UserPlus },
-    { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'masters', label: 'Hostel Master Setup', icon: Building2 },
+    { id: 'student-hostel', label: 'Student Hostel Allocations', icon: UserPlus },
+    { id: 'reports', label: 'Hostel Reports', icon: FileSpreadsheet },
   ];
 
   const renderTabContent = () => {

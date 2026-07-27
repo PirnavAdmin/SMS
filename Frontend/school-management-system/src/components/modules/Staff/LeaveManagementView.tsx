@@ -356,7 +356,7 @@ export const LeaveManagementView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-6 h-6 text-emerald-600" /> Leave Management System
+            <FileText className="w-6 h-6 text-emerald-600" /> Leave Management
           </h2>
           <p className="text-xs text-slate-500">Configure leave settings, monitor balances, process approvals, and manage school calendars</p>
         </div>
@@ -366,7 +366,7 @@ export const LeaveManagementView: React.FC = () => {
             onClick={() => { setEditingApplication(null); resetApplyForm(); setIsApplyOpen(true); }}
             className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Apply Leave
+            <Plus className="w-4 h-4" /> Submit Leave Application
           </button>
         </div>
       </div>

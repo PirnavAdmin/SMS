@@ -35,9 +35,12 @@ export const ParentTimetableView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
-  // Filter the global timetable data for this specific ward's class and section
+  // Filter the global timetable data for this specific ward's class and section (Published timetables only)
   const wardTimetableRaw = timetable.filter(t => 
-    t.className === currentWard.className && t.section === currentWard.section && t.day === selectedDay
+    t.className === currentWard.className &&
+    t.section === currentWard.section &&
+    t.day === selectedDay &&
+    (!t.status || t.status === 'Published')
   ).sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
 
   // Static Fallback if the mock database is empty for this class
@@ -54,9 +57,9 @@ export const ParentTimetableView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Clock className="w-6 h-6 text-brand-600" /> Academic Schedule
+          <Clock className="w-6 h-6 text-brand-600" /> Student Timetable (Auto Generated)
         </h2>
-        <p className="text-xs text-slate-500 mt-1">Review weekly academic schedule for your wards</p>
+        <p className="text-xs text-slate-500 mt-1">Review auto-generated weekly class timetable for your ward(s)</p>
       </div>
 
       {!hasMatchedWards && (
