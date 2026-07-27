@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
 
     // Academic, HR & Admission DbSets
     public DbSet<Branch> Branches { get; set; } = null!;
+    public DbSet<Department> Departments { get; set; } = null!;
     public DbSet<Subject> Subjects { get; set; } = null!;
     public DbSet<Staff> Staff { get; set; } = null!;
     public DbSet<ClassGrade> Classes { get; set; } = null!;
@@ -63,6 +64,14 @@ public class AppDbContext : DbContext
         // --------------------------------------------------
         // Academic & HR Module Configurations
         // --------------------------------------------------
+        modelBuilder.Entity<Department>().HasKey(d => d.DepartmentId);
+
+        modelBuilder.Entity<Subject>()
+            .HasOne(s => s.Department)
+            .WithMany(d => d.Subjects)
+            .HasForeignKey(s => s.DepartmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         modelBuilder.Entity<ClassCurriculumSubject>()
             .HasKey(ccs => new { ccs.ClassId, ccs.SubjectId });
 

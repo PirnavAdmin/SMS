@@ -70,8 +70,8 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task CreateSubject_ReturnsOkWithSubjectDto()
         {
-            var dto = new CreateSubjectDto { SubjectCode = "ENG", SubjectName = "English" };
-            var expectedResult = new SubjectDto { SubjectId = 2, SubjectCode = "ENG", SubjectName = "English" };
+            var dto = new CreateSubjectDto { SubjectCode = "ENG", SubjectName = "English", DepartmentId = 1 };
+            var expectedResult = new SubjectDto { SubjectId = 2, SubjectCode = "ENG", SubjectName = "English", DepartmentId = 1, DepartmentName = "Languages" };
 
             _schoolServiceMock.Setup(s => s.CreateSubjectAsync(dto))
                 .ReturnsAsync(expectedResult);
@@ -85,8 +85,8 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task UpdateSubject_ReturnsOkWithSubjectDto()
         {
-            var dto = new CreateSubjectDto { SubjectCode = "ENG", SubjectName = "Advanced English" };
-            var expectedResult = new SubjectDto { SubjectId = 2, SubjectCode = "ENG", SubjectName = "Advanced English" };
+            var dto = new CreateSubjectDto { SubjectCode = "ENG", SubjectName = "Advanced English", DepartmentId = 1 };
+            var expectedResult = new SubjectDto { SubjectId = 2, SubjectCode = "ENG", SubjectName = "Advanced English", DepartmentId = 1, DepartmentName = "Languages" };
 
             _schoolServiceMock.Setup(s => s.UpdateSubjectAsync(2, dto))
                 .ReturnsAsync(expectedResult);

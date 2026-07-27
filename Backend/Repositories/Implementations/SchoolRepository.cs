@@ -47,18 +47,105 @@ public class SchoolRepository : ISchoolRepository
 
 	public void RemoveStaff(Staff staff) => _context.Staff.Remove(staff);
 
+	// --- DEPARTMENTS ---
+	public async Task<List<Department>> GetAllDepartmentsAsync(string? search)
+	{
+		var query = _context.Departments.Include(d => d.Subjects).AsNoTracking().AsQueryable();
+
+		if (!string.IsNullOrWhiteSpace(search))
+		{
+			query = query.Where(d => d.DepartmentName.Contains(search) || 
+			                         (d.DepartmentCode != null && d.DepartmentCode.Contains(search)) || 
+			                         (d.Description != null && d.Description.Contains(search)));
+		}
+
+		return await query.OrderByDescending(d => d.CreatedDate).ToListAsync();
+	}
+
+	public async Task<Department?> GetDepartmentByIdAsync(int id)
+	{
+		return await _context.Departments.Include(d => d.Subjects).FirstOrDefaultAsync(d => d.DepartmentId == id);
+	}
+
+	public async Task<Department?> GetDepartmentByIdOrCodeAsync(string idOrCode)
+	{
+		if (string.IsNullOrWhiteSpace(idOrCode)) return null;
+
+		var cleanInput = idOrCode.Trim();
+
+		// 1. Exact numeric ID lookup
+		if (int.TryParse(cleanInput, out int id))
+		{
+			var deptById = await _context.Departments.Include(d => d.Subjects).FirstOrDefaultAsync(d => d.DepartmentId == id);
+			if (deptById != null) return deptById;
+		}
+
+		// 2. DepartmentCode or DepartmentName lookup (exact & space-normalized)
+		var deptByCode = await _context.Departments.Include(d => d.Subjects)
+			.FirstOrDefaultAsync(d => (d.DepartmentCode != null && (d.DepartmentCode.ToLower() == cleanInput.ToLower() || d.DepartmentCode.Replace(" ", "").ToLower() == cleanInput.Replace(" ", "").ToLower())) ||
+			                          d.DepartmentName.ToLower() == cleanInput.ToLower());
+		if (deptByCode != null) return deptByCode;
+
+		// 3. Extracted numeric digits fallback (e.g., DEPT-005 or DEPT-5 -> 5)
+		var digitsOnly = new string(cleanInput.Where(char.IsDigit).ToArray());
+		if (!string.IsNullOrEmpty(digitsOnly) && int.TryParse(digitsOnly, out int extractedId))
+		{
+			return await _context.Departments.Include(d => d.Subjects).FirstOrDefaultAsync(d => d.DepartmentId == extractedId);
+		}
+
+		return null;
+	}
+
+	public async Task<List<Department>> GetActiveDepartmentsDropdownAsync(string? search)
+	{
+		var query = _context.Departments.AsNoTracking().Where(d => d.Status == "Active");
+
+		if (!string.IsNullOrWhiteSpace(search))
+		{
+			query = query.Where(d => d.DepartmentName.Contains(search) || 
+			                         (d.DepartmentCode != null && d.DepartmentCode.Contains(search)));
+		}
+
+		return await query.OrderBy(d => d.DepartmentName).ToListAsync();
+	}
+
+	public async Task<List<Subject>> GetSubjectsByDepartmentIdAsync(int departmentId)
+	{
+		return await _context.Subjects
+			.Include(s => s.Department)
+			.AsNoTracking()
+			.Where(s => s.DepartmentId == departmentId)
+			.OrderBy(s => s.SubjectName)
+			.ToListAsync();
+	}
+
+	public async Task AddDepartmentAsync(Department department) => await _context.Departments.AddAsync(department);
+
+	public void RemoveDepartment(Department department) => _context.Departments.Remove(department);
+
+	public async Task<bool> DepartmentHasSubjectsAsync(int departmentId)
+	{
+		return await _context.Subjects.AnyAsync(s => s.DepartmentId == departmentId);
+	}
+
 	// --- SUBJECTS ---
 	public async Task<List<Subject>> GetAllSubjectsAsync(string? search)
 	{
-		var query = _context.Subjects.AsNoTracking().AsQueryable();
+		var query = _context.Subjects.Include(s => s.Department).AsNoTracking().AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(search))
-			query = query.Where(s => s.SubjectName.Contains(search) || s.SubjectCode.Contains(search) || s.CourseCode.Contains(search));
+		{
+			query = query.Where(s => s.SubjectName.Contains(search) || 
+			                         s.SubjectCode.Contains(search) || 
+			                         s.CourseCode.Contains(search) || 
+			                         (s.Department != null && s.Department.DepartmentName.Contains(search)));
+		}
 
-		return await query.ToListAsync();
+		return await query.OrderBy(s => s.SubjectName).ToListAsync();
 	}
 
-	public async Task<Subject?> GetSubjectByIdAsync(int id) => await _context.Subjects.FindAsync(id);
+	public async Task<Subject?> GetSubjectByIdAsync(int id) => 
+		await _context.Subjects.Include(s => s.Department).FirstOrDefaultAsync(s => s.SubjectId == id);
 
 	public async Task AddSubjectAsync(Subject subject) => await _context.Subjects.AddAsync(subject);
 

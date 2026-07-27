@@ -154,167 +154,31 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Safe schema initialization: Ensure Transport Module tables exist without altering existing table data
+    // Safe Schema Synchronization for MySQL (No table collision errors)
     try
     {
         context.Database.ExecuteSqlRaw(@"
-            CREATE TABLE IF NOT EXISTS `transport_vehicles` (
-                `VehicleId` bigint NOT NULL AUTO_INCREMENT,
-                `VehicleNumber` varchar(50) NOT NULL,
-                `RegistrationNumber` varchar(50) NOT NULL,
-                `VehicleName` varchar(100) NOT NULL DEFAULT '',
-                `VehicleType` varchar(50) NOT NULL DEFAULT 'Bus',
-                `Manufacturer` varchar(100) NOT NULL DEFAULT '',
-                `Model` varchar(100) NOT NULL DEFAULT '',
-                `InsuranceNumber` varchar(100) NOT NULL DEFAULT '',
-                `InsuranceExpiry` datetime(6) NULL,
-                `PollutionExpiry` datetime(6) NULL,
-                `FitnessExpiry` datetime(6) NULL,
-                `Capacity` int NOT NULL DEFAULT 40,
-                `IsAC` tinyint(1) NOT NULL DEFAULT 1,
-                `Status` tinyint(1) NOT NULL DEFAULT 1,
-                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                `CreatedBy` bigint NULL,
-                `UpdatedBy` bigint NULL,
-                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-                `UpdatedAt` datetime(6) NULL,
-                PRIMARY KEY (`VehicleId`)
+            CREATE TABLE IF NOT EXISTS `Departments` (
+                `DepartmentId` int NOT NULL AUTO_INCREMENT,
+                `DepartmentName` varchar(150) NOT NULL,
+                `DepartmentCode` varchar(50) NULL,
+                `Description` varchar(500) NULL,
+                `Status` varchar(20) NOT NULL DEFAULT 'Active',
+                `CreatedDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`DepartmentId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-            CREATE TABLE IF NOT EXISTS `transport_routes` (
-                `RouteId` bigint NOT NULL AUTO_INCREMENT,
-                `RouteCode` varchar(30) NOT NULL,
-                `RouteName` varchar(150) NOT NULL,
-                `StartLocation` varchar(150) NOT NULL DEFAULT '',
-                `EndLocation` varchar(150) NOT NULL DEFAULT '',
-                `PickupPoint` varchar(255) NOT NULL DEFAULT '',
-                `DropPoint` varchar(255) NOT NULL DEFAULT '',
-                `DistanceKm` decimal(10,2) NOT NULL DEFAULT 0,
-                `EstimatedDurationMinutes` int NOT NULL DEFAULT 30,
-                `Description` varchar(500) NOT NULL DEFAULT '',
-                `MonthlyFee` decimal(18,2) NOT NULL DEFAULT 0,
-                `Status` tinyint(1) NOT NULL DEFAULT 1,
-                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                `CreatedBy` bigint NULL,
-                `UpdatedBy` bigint NULL,
-                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-                `UpdatedAt` datetime(6) NULL,
-                `VehicleId` bigint NULL,
-                PRIMARY KEY (`RouteId`)
+            CREATE TABLE IF NOT EXISTS `departments` (
+                `DepartmentId` int NOT NULL AUTO_INCREMENT,
+                `DepartmentName` varchar(150) NOT NULL,
+                `DepartmentCode` varchar(50) NULL,
+                `Description` varchar(500) NULL,
+                `Status` varchar(20) NOT NULL DEFAULT 'Active',
+                `CreatedDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`DepartmentId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-            CREATE TABLE IF NOT EXISTS `transport_drivers` (
-                `DriverId` bigint NOT NULL AUTO_INCREMENT,
-                `DriverName` varchar(100) NOT NULL,
-                `LicenceNumber` varchar(50) NOT NULL,
-                `LicenceExpiry` datetime(6) NULL,
-                `MobileNumber` varchar(20) NOT NULL,
-                `AlternateMobileNumber` varchar(20) NOT NULL DEFAULT '',
-                `Address` varchar(255) NOT NULL DEFAULT '',
-                `BloodGroup` varchar(10) NOT NULL DEFAULT '',
-                `EmergencyContactName` varchar(100) NOT NULL DEFAULT '',
-                `EmergencyContactNumber` varchar(20) NOT NULL DEFAULT '',
-                `Status` tinyint(1) NOT NULL DEFAULT 1,
-                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                `CreatedBy` bigint NULL,
-                `UpdatedBy` bigint NULL,
-                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-                `UpdatedAt` datetime(6) NULL,
-                `AssignedVehicleId` bigint NULL,
-                PRIMARY KEY (`DriverId`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-            CREATE TABLE IF NOT EXISTS `transport_pickup_points` (
-                `PickupPointId` bigint NOT NULL AUTO_INCREMENT,
-                `RouteId` bigint NOT NULL,
-                `PickupPointName` varchar(150) NOT NULL,
-                `Landmark` varchar(250) NULL,
-                `SequenceNo` int NOT NULL DEFAULT 1,
-                `PickupTime` time NOT NULL DEFAULT '00:00:00',
-                `DistanceFromStart` decimal(10,2) NOT NULL DEFAULT 0,
-                `Status` tinyint(1) NOT NULL DEFAULT 1,
-                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                `CreatedBy` bigint NULL,
-                `UpdatedBy` bigint NULL,
-                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-                `UpdatedAt` datetime(6) NULL,
-                PRIMARY KEY (`PickupPointId`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-            CREATE TABLE IF NOT EXISTS `transport_vehicle_assignments` (
-                `AssignmentId` bigint NOT NULL AUTO_INCREMENT,
-                `RouteId` bigint NOT NULL,
-                `VehicleId` bigint NOT NULL,
-                `DriverId` bigint NOT NULL,
-                `EffectiveFrom` datetime(6) NOT NULL,
-                `EffectiveTo` datetime(6) NULL,
-                `Shift` varchar(20) NULL,
-                `Remarks` varchar(255) NULL,
-                `Status` tinyint(1) NOT NULL DEFAULT 1,
-                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                PRIMARY KEY (`AssignmentId`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-            CREATE TABLE IF NOT EXISTS `student_transport_assignments` (
-                `StudentTransportAssignmentId` bigint NOT NULL AUTO_INCREMENT,
-                `StudentId` bigint NOT NULL,
-                `RouteId` bigint NOT NULL,
-                `PickupPointId` bigint NOT NULL,
-                `VehicleAssignmentId` bigint NOT NULL,
-                `TransportType` varchar(20) NOT NULL DEFAULT 'AC',
-                `EffectiveFrom` datetime(6) NOT NULL,
-                `EffectiveTo` datetime(6) NULL,
-                `Remarks` varchar(255) NULL,
-                `Status` tinyint(1) NOT NULL DEFAULT 1,
-                `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
-                PRIMARY KEY (`StudentTransportAssignmentId`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-            CREATE TABLE IF NOT EXISTS `transport_vehicle_maintenance` (
-                `maintenance_id` bigint NOT NULL AUTO_INCREMENT,
-                `vehicle_id` bigint NOT NULL,
-                `service_type` varchar(150) NOT NULL,
-                `service_date` date NOT NULL,
-                `cost` decimal(12,2) NOT NULL DEFAULT 0,
-                `vendor_center` varchar(150) NULL,
-                `next_service_due` date NULL,
-                `remarks` varchar(500) NULL,
-                `status` tinyint(1) NOT NULL DEFAULT 1,
-                `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
-                `created_by` bigint NULL,
-                `updated_by` bigint NULL,
-                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-                `updated_at` datetime(6) NULL,
-                PRIMARY KEY (`maintenance_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-            CREATE TABLE IF NOT EXISTS `__EFMigrationsHistory` (
-                `MigrationId` varchar(150) CHARACTER SET utf8mb4 NOT NULL,
-                `ProductVersion` varchar(32) CHARACTER SET utf8mb4 NOT NULL,
-                CONSTRAINT `PK___EFMigrationsHistory` PRIMARY KEY (`MigrationId`)
-            ) CHARACTER SET=utf8mb4;
-
-            INSERT IGNORE INTO `__EFMigrationsHistory` (`MigrationId`, `ProductVersion`) VALUES
-            ('20260722050151_InitialCreate', '9.0.0'),
-            ('20260722064533_AddAcademicClassManagement', '9.0.0'),
-            ('20260722111607_AddTransportRouteMaster', '9.0.0'),
-            ('20260722112301_InitialCleanSetup', '9.0.0'),
-            ('20260722113738_AddPickupPointMaster', '9.0.0'),
-            ('20260722175324_AddTransportVehicleMaster', '9.0.0'),
-            ('20260723040503_AddTransportDriverMaster', '9.0.0'),
-            ('20260723042707_AddTransportVehicleAssignment', '9.0.0'),
-            ('20260723050948_AddStudentTransportAssignment', '9.0.0'),
-            ('20260723052220_AddExtendedAdmissionFields', '9.0.0'),
-            ('20260723053901_AddFirstNameAndLastNameToAdmission', '9.0.0'),
-            ('20260723054607_AddAllExtendedFieldsAndFinancialBenefitsToAdmission', '9.0.0'),
-            ('20260723055420_RemoveStudentNameAndStudentTypeFromAdmission', '9.0.0'),
-            ('20260723063756_FixAdmissionApplicationClassGradeForeignKey', '9.0.0'),
-            ('20260723084335_AddVehicleMaintenance', '9.0.0'),
-            ('20260723103949_AddTransportPerformanceIndexes', '9.0.0'),
-            ('20260723133619_TransportModuleFullSetup', '9.0.0');
         ");
 
-        // Migration column sync for existing tables (Check INFORMATION_SCHEMA first to prevent EF Core error logs)
         void EnsureColumnExists(string table, string column, string columnDef)
         {
             try
@@ -334,41 +198,10 @@ using (var scope = app.Services.CreateScope())
             catch { }
         }
 
-        EnsureColumnExists("transport_routes", "VehicleId", "bigint NULL");
-        EnsureColumnExists("transport_routes", "PickupPoint", "varchar(255) NULL");
-        EnsureColumnExists("transport_routes", "DropPoint", "varchar(255) NULL");
-        EnsureColumnExists("transport_drivers", "AssignedVehicleId", "bigint NULL");
-        EnsureColumnExists("transport_vehicle_assignments", "Shift", "varchar(20) NULL");
-        EnsureColumnExists("student_transport_assignments", "Remarks", "varchar(255) NULL");
-        EnsureColumnExists("transport_vehicles", "ChassisNumber", "varchar(100) NULL");
-        EnsureColumnExists("transport_vehicles", "EngineNumber", "varchar(100) NULL");
-        EnsureColumnExists("transport_vehicles", "GpsDeviceId", "varchar(100) NULL");
-
-        try
-        {
-            context.Database.ExecuteSqlRaw("ALTER TABLE transport_routes MODIFY COLUMN DropPoint varchar(255) NULL;");
-            context.Database.ExecuteSqlRaw("ALTER TABLE transport_routes MODIFY COLUMN PickupPoint varchar(255) NULL;");
-        }
-        catch { }
-
-        // DB Schema Audit Verification
-        try
-        {
-            var cols = context.Database.SqlQueryRaw<string>(
-                "SELECT CONCAT(TABLE_NAME, '.', COLUMN_NAME, ' (', DATA_TYPE, ')') FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND (TABLE_NAME LIKE 'transport%' OR TABLE_NAME LIKE '%transport%')"
-            ).ToList();
-            Console.WriteLine("=== DATABASE TRANSPORT TABLES AUDIT ===");
-            foreach (var col in cols)
-            {
-                Console.WriteLine($"DB SCHEMA: {col}");
-            }
-            Console.WriteLine("=======================================");
-        }
-        catch { }
+        EnsureColumnExists("Subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
     }
-    catch { /* Ignore if already executed */ }
-
-    context.Database.EnsureCreated();
+    catch { }
 
     // 1. Ensure All System Roles Exist
     var defaultRoles = new[]
@@ -473,19 +306,33 @@ using (var scope = app.Services.CreateScope())
         context.SaveChanges();
     }
 
-    // 4. Ensure Sample Subjects Exist
-    if (!context.Subjects.Any())
+    // 4. Ensure Sample Departments & Subjects Exist
+    try
     {
-        var sampleSubjects = new List<Subject>
+        if (!context.Departments.Any())
         {
-            new Subject { SubjectCode = "MATH101", SubjectName = "Mathematics", CourseCode = "MATH" },
-            new Subject { SubjectCode = "PHY101", SubjectName = "Physics", CourseCode = "PHY" },
-            new Subject { SubjectCode = "ENG101", SubjectName = "English Literature", CourseCode = "ENG" },
-            new Subject { SubjectCode = "CHEM101", SubjectName = "Chemistry", CourseCode = "CHEM" }
-        };
-        context.Subjects.AddRange(sampleSubjects);
-        context.SaveChanges();
+            var mathDept = new Department { DepartmentName = "Mathematics", DepartmentCode = "DEPT-MTH", Description = "Department of Mathematics & Statistics", Status = "Active" };
+            var sciDept = new Department { DepartmentName = "Science", DepartmentCode = "DEPT-SCI", Description = "Physics, Chemistry & Biology", Status = "Active" };
+            var langDept = new Department { DepartmentName = "Languages", DepartmentCode = "DEPT-ENG", Description = "English & Foreign Languages", Status = "Active" };
+
+            context.Departments.AddRange(mathDept, sciDept, langDept);
+            context.SaveChanges();
+
+            if (!context.Subjects.Any())
+            {
+                var sampleSubjects = new List<Subject>
+                {
+                    new Subject { SubjectCode = "MATH101", SubjectName = "Mathematics", CourseCode = "MATH", DepartmentId = mathDept.DepartmentId },
+                    new Subject { SubjectCode = "PHY101", SubjectName = "Physics", CourseCode = "PHY", DepartmentId = sciDept.DepartmentId },
+                    new Subject { SubjectCode = "ENG101", SubjectName = "English Literature", CourseCode = "ENG", DepartmentId = langDept.DepartmentId },
+                    new Subject { SubjectCode = "CHEM101", SubjectName = "Chemistry", CourseCode = "CHEM", DepartmentId = sciDept.DepartmentId }
+                };
+                context.Subjects.AddRange(sampleSubjects);
+                context.SaveChanges();
+            }
+        }
     }
+    catch { /* Ignore if table creation is pending */ }
 
     // 5. Ensure Default Academic Classes & Sections Exist
     if (!context.Classes.Any())
