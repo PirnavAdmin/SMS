@@ -50,15 +50,26 @@ namespace SMS.Api.Controllers
         public async Task<IActionResult> Create(
             [FromBody] CreateTransportVehicleAssignmentDto dto)
         {
-            var id = await _service.CreateAsync(dto, null);
-            var result = await _service.GetByIdAsync(id);
-
-            return Ok(new
+            try
             {
-                success = true,
-                message = "Vehicle assigned successfully.",
-                data = result
-            });
+                var id = await _service.CreateAsync(dto, null);
+                var result = await _service.GetByIdAsync(id);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Vehicle assigned successfully.",
+                    data = result
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         [HttpPut("{id}")]
@@ -66,39 +77,50 @@ namespace SMS.Api.Controllers
             string id,
             [FromBody] UpdateTransportVehicleAssignmentDto dto)
         {
-            long? targetId = null;
-            if (long.TryParse(id, out long parsedId))
+            try
             {
-                targetId = parsedId;
-            }
-
-            if (targetId.HasValue)
-            {
-                var updated = await _service.UpdateAsync(targetId.Value, dto, null);
-                if (updated)
+                long? targetId = null;
+                if (long.TryParse(id, out long parsedId))
                 {
-                    var updatedDto = await _service.GetByIdAsync(targetId.Value);
-                    return Ok(new { success = true, message = "Assignment updated successfully.", data = updatedDto });
+                    targetId = parsedId;
                 }
+
+                if (targetId.HasValue)
+                {
+                    var updated = await _service.UpdateAsync(targetId.Value, dto, null);
+                    if (updated)
+                    {
+                        var updatedDto = await _service.GetByIdAsync(targetId.Value);
+                        return Ok(new { success = true, message = "Assignment updated successfully.", data = updatedDto });
+                    }
+                }
+
+                // Fallback create assignment if ID was not numeric or existing
+                var createDto = new CreateTransportVehicleAssignmentDto
+                {
+                    RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
+                    VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
+                    DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
+                    AssignmentDate = dto.AssignmentDate != default ? dto.AssignmentDate : DateTime.UtcNow,
+                    EffectiveFrom = dto.EffectiveFrom != default ? dto.EffectiveFrom : DateTime.UtcNow,
+                    EffectiveTo = dto.EffectiveTo,
+                    Shift = dto.Shift ?? "Morning",
+                    Remarks = dto.Remarks ?? "",
+                    Status = dto.Status
+                };
+
+                var newId = await _service.CreateAsync(createDto, null);
+                var newDto = await _service.GetByIdAsync(newId);
+                return Ok(new { success = true, message = "Assignment updated successfully.", data = newDto });
             }
-
-            // Fallback create assignment if ID was not numeric or existing
-            var createDto = new CreateTransportVehicleAssignmentDto
+            catch (InvalidOperationException ex)
             {
-                RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
-                VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
-                DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
-                AssignmentDate = dto.AssignmentDate != default ? dto.AssignmentDate : DateTime.UtcNow,
-                EffectiveFrom = dto.EffectiveFrom != default ? dto.EffectiveFrom : DateTime.UtcNow,
-                EffectiveTo = dto.EffectiveTo,
-                Shift = dto.Shift ?? "Morning",
-                Remarks = dto.Remarks ?? "",
-                Status = dto.Status
-            };
-
-            var newId = await _service.CreateAsync(createDto, null);
-            var newDto = await _service.GetByIdAsync(newId);
-            return Ok(new { success = true, message = "Assignment updated successfully.", data = newDto });
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         [HttpDelete("{id}")]

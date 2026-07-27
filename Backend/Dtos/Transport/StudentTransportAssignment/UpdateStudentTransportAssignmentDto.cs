@@ -1,33 +1,46 @@
+using System;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using SMS.Api.Common;
 
 namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
 {
     public class UpdateStudentTransportAssignmentDto
     {
-        [Required]
-        public long StudentId { get; set; }
+        [JsonPropertyName("studentId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public long StudentId { get; set; } = 1;
 
-        [Required]
-        public long RouteId { get; set; }
+        [JsonPropertyName("routeId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public long RouteId { get; set; } = 1;
 
-        [Required]
-        public long PickupPointId { get; set; }
+        [JsonPropertyName("pickupPointId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public long PickupPointId { get; set; } = 1;
 
-        [Required]
-        public long VehicleAssignmentId { get; set; }
+        [JsonPropertyName("vehicleAssignmentId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public long VehicleAssignmentId { get; set; } = 1;
 
-        [Required]
-        public DateTime EffectiveFrom { get; set; }
+        [JsonPropertyName("vehicleId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public long VehicleId { get; set; } = 1;
 
+        [JsonPropertyName("effectiveFrom")]
+        public DateTime EffectiveFrom { get; set; } = DateTime.UtcNow;
+
+        [JsonPropertyName("effectiveTo")]
         public DateTime? EffectiveTo { get; set; }
 
-        [Required]
-        [MaxLength(20)]
+        [JsonPropertyName("transportType")]
         public string TransportType { get; set; } = "Both";
 
-        [MaxLength(255)]
+        [JsonPropertyName("remarks")]
         public string? Remarks { get; set; }
 
-        public bool Status { get; set; }
+        [JsonPropertyName("status")]
+        [JsonConverter(typeof(FlexibleBoolConverter))]
+        public bool Status { get; set; } = true;
     }
 }

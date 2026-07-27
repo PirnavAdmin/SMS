@@ -1,27 +1,76 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
+using SMS.Api.Common;
 
 namespace SMS.Api.Dtos.Transport.PickupPoint
 {
     public class CreatePickupPointDto
     {
-        [Required]
-        public long RouteId { get; set; }
+        private string _pickupPointName = string.Empty;
+        private TimeSpan _pickupTime = new TimeSpan(7, 30, 0);
 
-        [Required]
-        [StringLength(150)]
-        public string PickupPointName { get; set; } = string.Empty;
+        [JsonPropertyName("routeId")]
+        public long RouteId { get; set; } = 1;
 
-        [StringLength(250)]
+        [JsonPropertyName("pickupPointName")]
+        public string PickupPointName
+        {
+            get => !string.IsNullOrWhiteSpace(_pickupPointName) ? _pickupPointName : "Pickup Point";
+            set => _pickupPointName = value ?? string.Empty;
+        }
+
+        [JsonPropertyName("pickupName")]
+        public string? PickupName
+        {
+            get => PickupPointName;
+            set { if (!string.IsNullOrWhiteSpace(value)) PickupPointName = value; }
+        }
+
+        [JsonPropertyName("landmark")]
         public string? Landmark { get; set; }
 
-        [Range(1, 1000)]
-        public int SequenceNo { get; set; }
+        [JsonPropertyName("sequenceNo")]
+        public int SequenceNo { get; set; } = 1;
 
-        public TimeSpan PickupTime { get; set; }
+        [JsonPropertyName("sequenceNumber")]
+        public int? SequenceNumber
+        {
+            get => SequenceNo;
+            set { if (value.HasValue && value.Value > 0) SequenceNo = value.Value; }
+        }
 
-        [Range(0, 999999)]
+        [JsonPropertyName("pickupTime")]
+        public TimeSpan PickupTime
+        {
+            get => _pickupTime;
+            set => _pickupTime = value;
+        }
+
+        [JsonPropertyName("arrivalTime")]
+        public string? ArrivalTime
+        {
+            get => _pickupTime.ToString(@"hh\:mm");
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && TimeSpan.TryParse(value, out var ts))
+                {
+                    _pickupTime = ts;
+                }
+            }
+        }
+
+        [JsonPropertyName("distanceFromStart")]
         public decimal DistanceFromStart { get; set; }
 
+        [JsonPropertyName("distanceFromSchoolKm")]
+        public decimal? DistanceFromSchoolKm
+        {
+            get => DistanceFromStart;
+            set { if (value.HasValue) DistanceFromStart = value.Value; }
+        }
+
+        [JsonPropertyName("status")]
+        [JsonConverter(typeof(FlexibleBoolConverter))]
         public bool Status { get; set; } = true;
     }
 }

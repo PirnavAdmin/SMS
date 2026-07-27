@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<ClassSection> ClassSections { get; set; } = null!;
     public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
     public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+    public DbSet<Admission> Admissions { get; set; } = null!;
 
     // Transport Management DbSets
     public DbSet<TransportRoute> TransportRoutes { get; set; } = null!;

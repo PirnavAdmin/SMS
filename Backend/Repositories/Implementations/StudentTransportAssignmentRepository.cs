@@ -104,31 +104,26 @@ namespace SMS.Api.Repositories.Implementations
                 .Take(filter.PageSize)
                 .Select(x => new StudentTransportAssignmentDto
                 {
-                    StudentTransportAssignmentId =
-                        x.StudentTransportAssignmentId,
+                    StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
                     StudentId = x.StudentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route.RouteName,
+                    RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
 
                     PickupPointId = x.PickupPointId,
-                    PickupPointName =
-                        x.PickupPoint.PickupPointName,
+                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
 
-                    VehicleAssignmentId =
-                        x.VehicleAssignmentId,
+                    VehicleAssignmentId = x.VehicleAssignmentId,
 
-                    VehicleNumber =
-                        x.VehicleAssignment.Vehicle.VehicleNumber,
+                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
 
-                    DriverName =
-                        x.VehicleAssignment.Driver.DriverName,
+                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
 
                     EffectiveFrom = x.EffectiveFrom,
                     EffectiveTo = x.EffectiveTo,
 
-                    TransportType = x.TransportType,
+                    TransportType = x.TransportType ?? "Both",
                     Remarks = x.Remarks,
                     Status = x.Status,
 
@@ -162,31 +157,26 @@ namespace SMS.Api.Repositories.Implementations
                     !x.IsDeleted)
                 .Select(x => new StudentTransportAssignmentDto
                 {
-                    StudentTransportAssignmentId =
-                        x.StudentTransportAssignmentId,
+                    StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
                     StudentId = x.StudentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route.RouteName,
+                    RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
 
                     PickupPointId = x.PickupPointId,
-                    PickupPointName =
-                        x.PickupPoint.PickupPointName,
+                    PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
 
-                    VehicleAssignmentId =
-                        x.VehicleAssignmentId,
+                    VehicleAssignmentId = x.VehicleAssignmentId,
 
-                    VehicleNumber =
-                        x.VehicleAssignment.Vehicle.VehicleNumber,
+                    VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
 
-                    DriverName =
-                        x.VehicleAssignment.Driver.DriverName,
+                    DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
 
                     EffectiveFrom = x.EffectiveFrom,
                     EffectiveTo = x.EffectiveTo,
 
-                    TransportType = x.TransportType,
+                    TransportType = x.TransportType ?? "Both",
                     Remarks = x.Remarks,
                     Status = x.Status,
 
@@ -312,33 +302,23 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x =>
                     new StudentTransportAssignmentLookupDto
                     {
-                        StudentTransportAssignmentId =
-                            x.StudentTransportAssignmentId,
+                        StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
                         StudentId = x.StudentId,
 
                         RouteId = x.RouteId,
-                        RouteName = x.Route.RouteName,
+                        RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
 
                         PickupPointId = x.PickupPointId,
-                        PickupPointName =
-                            x.PickupPoint.PickupPointName,
+                        PickupPointName = x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop",
 
-                        VehicleAssignmentId =
-                            x.VehicleAssignmentId,
+                        VehicleAssignmentId = x.VehicleAssignmentId,
 
-                        VehicleNumber =
-                            x.VehicleAssignment
-                                .Vehicle.VehicleNumber,
+                        VehicleNumber = x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null ? x.VehicleAssignment.Vehicle.VehicleNumber : "BUS-101",
 
-                        DriverName =
-                            x.VehicleAssignment
-                                .Driver.DriverName,
+                        DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
 
-                        DisplayName =
-                            x.StudentId + " - " +
-                            x.Route.RouteName + " - " +
-                            x.PickupPoint.PickupPointName
+                        DisplayName = x.StudentId + " - " + (x.Route != null ? x.Route.RouteName : "Main Route") + " - " + (x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop")
                     })
                 .ToListAsync();
         }

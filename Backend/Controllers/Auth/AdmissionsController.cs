@@ -65,6 +65,10 @@ public class AdmissionsController : ControllerBase
         {
             await _schoolService.EnrollStudentAsync(target.Id);
         }
+        else
+        {
+            await _schoolService.UpdateApplicationStatusAsync(target.Id, dto.Status);
+        }
 
         return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully." });
     }
