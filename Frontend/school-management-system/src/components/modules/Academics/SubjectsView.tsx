@@ -7,19 +7,23 @@ import { useToast } from '../../../context/ToastContext';
 import { useData } from '../../../context/DataContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { SubjectItem, Department } from '../../../types';
-import { fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi } from '../../../api/academic';
+import { 
+  fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi,
+  fetchDepartmentsApi, createDepartmentApi, updateDepartmentApi, deleteDepartmentApi
+} from '../../../api/academic';
 
 export const SubjectsView: React.FC = () => {
   const { 
-    departments, addDepartment, updateDepartment, deleteDepartment,
+    departments: contextDepartments, addDepartment, updateDepartment, deleteDepartment,
     subjects: contextSubjects, addSubject, updateSubject, deleteSubject
   } = useData();
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'subjects' | 'departments'>('subjects');
 
-  // Subjects State
+  // Subjects & Departments State
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -97,14 +101,38 @@ export const SubjectsView: React.FC = () => {
           department: item.department || item.departmentName || 'Mathematics'
         }));
         setSubjects(mappedData);
-      } else if (contextSubjects && contextSubjects.length > 0) {
-        setSubjects(contextSubjects);
+      } else {
+        setSubjects([]);
       }
     } catch (error) {
-      if (contextSubjects && contextSubjects.length > 0) {
-        setSubjects(contextSubjects);
+      addToast('error', 'Error Fetching Subjects', 'Failed to load curriculum subjects.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      setLoading(true);
+      const data = await fetchDepartmentsApi();
+      const dataArray = Array.isArray(data) ? data : (data?.data || []);
+      if (Array.isArray(dataArray) && dataArray.length > 0) {
+        const mappedData = dataArray.map((item: any) => ({
+          id: item.departmentId?.toString() || item.id?.toString() || Math.random().toString(),
+          departmentName: item.departmentName || '',
+          departmentCode: item.departmentCode || '',
+          description: item.description || '',
+          status: item.status || 'Active'
+        }));
+        setDepartments(mappedData);
       } else {
-        addToast('error', 'Error Fetching Subjects', 'Failed to load curriculum subjects.');
+        setDepartments([]);
+      }
+    } catch (error) {
+      if (contextDepartments && contextDepartments.length > 0) {
+        setDepartments(contextDepartments);
+      } else {
+        addToast('error', 'Error Fetching Departments', 'Failed to load curriculum departments.');
       }
     } finally {
       setLoading(false);
@@ -113,14 +141,11 @@ export const SubjectsView: React.FC = () => {
 
   useEffect(() => {
     loadSubjects();
+    loadDepartments();
   }, []);
 
   // Update local subjects list if context subjects change
-  useEffect(() => {
-    if (contextSubjects && contextSubjects.length > 0) {
-      setSubjects(contextSubjects);
-    }
-  }, [contextSubjects]);
+  // Removed static context dependency per request
 
   // Subject Form Handlers
   const handleOpenAdd = () => {
@@ -173,13 +198,13 @@ export const SubjectsView: React.FC = () => {
 
       try {
         await updateSubjectApi(editingSubject.id as any, {
-          subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code,
-          department: formData.department
+          departmentId: selectedDeptObj?.id || 1
         } as any);
+        await loadSubjects();
       } catch (err) {
-        // Silently handled - DataContext handles persistence
+        // Silently handled
       }
 
       addToast('success', 'Subject Updated', `Updated subject '${formData.name}' assigned to '${formData.department}'.`);
@@ -194,13 +219,13 @@ export const SubjectsView: React.FC = () => {
 
       try {
         await createSubjectApi({
-          subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code,
-          department: formData.department
+          departmentId: selectedDeptObj?.id || 1
         } as any);
+        await loadSubjects();
       } catch (err) {
-        // Silently handled - DataContext handles persistence
+        // Silently handled
       }
 
       addToast('success', 'Subject Created', `Added subject '${formData.name}' assigned to '${formData.department}'.`);
@@ -231,7 +256,7 @@ export const SubjectsView: React.FC = () => {
     setIsDeptModalOpen(true);
   };
 
-  const handleDeptSubmit = (e: React.FormEvent) => {
+  const handleDeptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const name = deptFormData.departmentName.trim();
@@ -269,6 +294,18 @@ export const SubjectsView: React.FC = () => {
         }));
       }
 
+      try {
+        await updateDepartmentApi(editingDepartment.id, {
+          departmentName: name,
+          departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
+          description: deptFormData.description.trim(),
+          status: deptFormData.status
+        });
+        await loadDepartments();
+      } catch (err) {
+        // Error handling
+      }
+
       addToast('success', 'Department Updated', `Successfully updated department '${name}'.`);
     } else {
       const created = addDepartment({
@@ -277,6 +314,18 @@ export const SubjectsView: React.FC = () => {
         description: deptFormData.description.trim(),
         status: deptFormData.status
       });
+
+      try {
+        await createDepartmentApi({
+          departmentName: name,
+          departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
+          description: deptFormData.description.trim(),
+          status: deptFormData.status
+        });
+        await loadDepartments();
+      } catch (err) {
+        // Error handling
+      }
 
       // Auto select newly created department in subject form if open
       if (isFormOpen) {
@@ -305,9 +354,17 @@ export const SubjectsView: React.FC = () => {
     }
   };
 
-  const handleConfirmDeleteDept = () => {
+  const handleConfirmDeleteDept = async () => {
     if (!deletingDepartment) return;
     deleteDepartment(deletingDepartment.id);
+    
+    try {
+      await deleteDepartmentApi(deletingDepartment.id);
+      await loadDepartments();
+    } catch (err) {
+      // Error handling
+    }
+    
     addToast('info', 'Department Deleted', `Removed department '${deletingDepartment.departmentName}'.`);
     setDeletingDepartment(null);
   };
@@ -763,11 +820,11 @@ export const SubjectsView: React.FC = () => {
         message={`Are you sure you want to delete ${deletingSubject?.name} (${deletingSubject?.code || deletingSubject?.subjectId})?`}
         onConfirm={async () => {
           if (deletingSubject) {
-            deleteSubject(deletingSubject.id);
             try {
               await deleteSubjectApi(deletingSubject.id as any);
+              await loadSubjects();
+              addToast('success', 'Subject Deleted', `Deleted subject '${deletingSubject.name}'.`);
             } catch (error: any) {}
-            addToast('success', 'Subject Deleted', `Deleted subject '${deletingSubject.name}'.`);
             setDeletingSubject(null);
           }
         }}

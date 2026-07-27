@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { School, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, Shield, GraduationCap, UserCircle2, ChevronDown, Briefcase } from 'lucide-react';
+import { School, Lock, Mail, AlertCircle, ArrowRight, CheckCircle2, Shield, GraduationCap, UserCircle2, ChevronDown, Briefcase, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { UserRole } from '../../../types';
@@ -14,6 +14,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
 
   const [identifier, setIdentifier] = useState('javvadivenkat999@gmail.com');
   const [password, setPassword] = useState('venkat');
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<UserRole>('Admin');
   
   const [loading, setLoading] = useState(false);
@@ -229,13 +230,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                       <Lock className="w-5 h-5 text-slate-400 group-focus-within:text-brand-600 dark:group-focus-within:text-brand-400 transition-colors" />
                     </div>
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium tracking-wider"
+                      className="w-full pl-12 pr-12 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium tracking-wider"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   <div className="flex justify-end mt-1">
                     <button

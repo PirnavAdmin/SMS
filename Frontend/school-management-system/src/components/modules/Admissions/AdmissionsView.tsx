@@ -186,7 +186,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setFirstName(parts[0] || '');
     setLastName(parts.slice(1).join(' ') || '');
     setAvatar(app.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
-    setFormData(app);
+    
+    let formattedDob = app.dob || '';
+    if (formattedDob.includes('-') && formattedDob.split('-').length === 3) {
+      const dParts = formattedDob.split('-');
+      formattedDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
+    }
+
+    setFormData({ ...app, dob: formattedDob });
     setPhoneError('');
     setDobError('');
     setIsFormView(true);
@@ -242,7 +249,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return;
     }
 
-    const dobValidation = validateDOB(formData.dob || '');
+    let finalDob = formData.dob || '';
+    if (finalDob.includes('-') && finalDob.split('-').length === 3) {
+      const dParts = finalDob.split('-');
+      finalDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
+    }
+
+    const dobValidation = validateDOB(finalDob);
     if (!dobValidation.isValid) {
       setDobError(dobValidation.error || 'Invalid DOB');
       addToast('error', 'DOB Validation Error', dobValidation.error);
@@ -254,6 +267,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (editingApp) {
       updateAdmission(editingApp.id, {
         ...formData,
+        dob: finalDob,
         applicantName: fullApplicantName,
         avatar
       });
@@ -264,7 +278,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         avatar,
         appliedClass: formData.appliedClass || 'Class 10',
         gender: formData.gender || 'Male',
-        dob: formData.dob || '15/08/2012',
+        dob: finalDob || '15/08/2012',
         bloodGroup: formData.bloodGroup || 'O+',
         religion: formData.religion || 'General',
         casteCategory: formData.casteCategory || 'General',
@@ -578,11 +592,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth *</label>
                   <input
-                    type="text"
+                    type="date"
                     required
-                    placeholder="15/08/2012"
-                    value={formData.dob}
-                    onChange={e => handleDOBChange(e.target.value)}
+                    value={formData.dob ? formData.dob.split('/').reverse().join('-') : ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val) {
+                        const parts = val.split('-');
+                        if (parts.length === 3) {
+                          handleDOBChange(`${parts[2]}/${parts[1]}/${parts[0]}`);
+                          return;
+                        }
+                      }
+                      handleDOBChange('');
+                    }}
                     className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                       dobError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'
                     }`}
@@ -651,7 +674,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 pt-2">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">1. Father Mobile Number *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">1. Father Mobile *</label>
                   <input
                     type="text"
                     required
@@ -666,7 +689,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">2. Mother Mobile Number</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">2. Mother Mobile</label>
                   <input
                     type="text"
                     placeholder="Enter mobile number"
@@ -677,7 +700,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alternate Mobile</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alt Mobile</label>
                   <input
                     type="text"
                     placeholder="Enter mobile number"
@@ -691,12 +714,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">4. Email Address *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">4. Email Address</label>
                   <input
-                    type="email"
-                    required
+                    type="text"
                     placeholder="parent@example.com"
-                    value={formData.email}
+                    value={formData.email || ''}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                   />
