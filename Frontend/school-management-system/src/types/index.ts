@@ -309,6 +309,7 @@ export interface ExamSetup {
   branch?: string;
   examType?: 'Unit Test' | 'Quarterly' | 'Half-Yearly' | 'Annual' | 'Practical' | 'Custom';
   applicableClasses?: string[];
+  gradeSchemeName?: string;
 }
 
 export interface RevaluationLog {
@@ -1428,6 +1429,7 @@ export interface QuestionPaper {
   section?: string;
   subject: string;
   paperTitle: string;
+  paperCode?: string;
   examDate?: string;
   duration: string;
   maxMarks: number;

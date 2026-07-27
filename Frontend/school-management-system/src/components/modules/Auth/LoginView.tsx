@@ -107,20 +107,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
   };
 
   return (
-    <div className="h-screen w-full flex bg-white dark:bg-[#0B1120] font-sans overflow-hidden">
+    <div className="h-screen w-full flex font-sans overflow-hidden relative bg-brand-950">
+      {/* Background Image spanning the entire page */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center opacity-70 animate-in fade-in zoom-in-105 duration-[2000ms] z-0"
+        style={{ backgroundImage: `url(${bgImageUrl})` }}
+      />
       
+      {/* Deep Gradient Overlays */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 via-brand-900/60 to-indigo-900/80 z-0" />
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/40 rounded-full blur-[120px] z-0 pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/40 rounded-full blur-[100px] z-0 pointer-events-none" />
+
       {/* LEFT SIDE: Visual Showcase (Hidden on Mobile) */}
-      <div className="hidden lg:flex flex-1 relative bg-brand-950 items-center justify-center p-12 overflow-hidden">
-        {/* Background Image with Parallax-like subtle scale */}
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-70 animate-in fade-in zoom-in-105 duration-[2000ms]"
-          style={{ backgroundImage: `url(${bgImageUrl})` }}
-        />
-        
-        {/* Deep Gradient Overlays for premium feel */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 via-brand-900/60 to-indigo-900/80 z-10" />
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/40 rounded-full blur-[120px] z-10 pointer-events-none" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/40 rounded-full blur-[100px] z-10 pointer-events-none" />
+      <div className="hidden lg:flex flex-1 relative items-center justify-center p-12 overflow-hidden z-10">
+
 
         {/* Content Wrapper */}
         <div className="relative z-20 w-full max-w-2xl text-white space-y-12">
@@ -162,12 +163,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
       </div>
 
       {/* RIGHT SIDE: Authentication Form */}
-      <div className="w-full lg:w-[500px] xl:w-[600px] flex flex-col relative bg-slate-50 dark:bg-[#0B1120] z-20 shadow-2xl border-l border-slate-200 dark:border-slate-800/50 overflow-y-auto">
-        {/* Mobile background (visible only on small screens) */}
-        <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none z-0">
-           <div className="absolute top-[-20%] right-[-10%] w-[70%] h-[50%] bg-brand-400/10 dark:bg-brand-600/10 rounded-full blur-[100px]" />
-           <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[40%] bg-purple-400/10 dark:bg-purple-600/10 rounded-full blur-[100px]" />
-        </div>
+      <div className="w-full lg:w-[500px] xl:w-[600px] flex flex-col relative z-10 overflow-y-auto justify-center">
 
         <div className="relative z-10 w-full max-w-[480px] mx-auto px-4 sm:px-12 flex flex-col min-h-full py-4 sm:py-6">
           {onBack && (
@@ -181,7 +177,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
             </div>
           )}
           
-          <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl sm:rounded-[2rem] border-2 border-black/50 dark:border-slate-800 shadow-xl shadow-slate-200/40 dark:shadow-none mt-auto mb-auto">
+          <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl sm:rounded-[2rem] border border-white/20 dark:border-slate-800/50 shadow-2xl mt-auto mb-auto backdrop-blur-xl bg-opacity-95 dark:bg-opacity-95">
             {/* Minimalist Universal Header */}
           <div className="mb-6">
             <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 shadow-xl shadow-brand-500/30 mb-4">

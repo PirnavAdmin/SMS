@@ -3,7 +3,7 @@ import {
   Award, Plus, Save, Printer, Edit, Trash2, X, Calendar, BookOpen, User, 
   MapPin, CheckCircle2, AlertTriangle, ShieldAlert, Lock, Unlock, Download, Upload,
   Search, FileSpreadsheet, RefreshCw, BarChart2, PlusCircle, CheckCircle, FileText,
-  UserCheck, ShieldCheck, HelpCircle, History, Eye
+  UserCheck, ShieldCheck, HelpCircle, History, Eye, ChevronDown
 } from 'lucide-react';
 import { Student, ExamSetup, ExamMark, ExamSchedule, GradeConfig, ProcessedResult, QuestionPaper } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -36,6 +36,11 @@ export const ExaminationView: React.FC = () => {
   const isAdminOrPrincipal = user?.role === 'Admin' || user?.role === 'Super Admin' || user?.role === 'Principal';
   const isTeacher = user?.role === 'Teacher';
   const isStudentOrParent = user?.role === 'Student' || user?.role === 'Parent';
+
+  const formatSubject = (subjectName: string) => {
+    const subj = subjects.find(s => s.name === subjectName);
+    return subj?.code ? `${subjectName} - ${subj.code}` : subjectName;
+  };
 
   // Current teacher profile assignment
   const dbTeacher = staff.find(s => s.email === user?.email);
@@ -88,7 +93,8 @@ export const ExaminationView: React.FC = () => {
     endDate: '',
     applicableClasses: [],
     status: 'Scheduled',
-    branch: ''
+    branch: '',
+    gradeSchemeName: 'Default Scholastic'
   });
   const [deletingExam, setDeletingExam] = useState<ExamSetup | null>(null);
 
@@ -103,7 +109,8 @@ export const ExaminationView: React.FC = () => {
       endDate: new Date().toISOString().split('T')[0],
       applicableClasses: ['Class 9', 'Class 10'],
       status: 'Scheduled',
-      branch: selectedBranch
+      branch: selectedBranch,
+      gradeSchemeName: 'Default Scholastic'
     });
     setClassDropdownOpen(false);
     setIsExamModalOpen(true);
@@ -189,6 +196,8 @@ export const ExaminationView: React.FC = () => {
     invigilatorId: '',
     invigilatorName: ''
   });
+  const [invigilatorAssignments, setInvigilatorAssignments] = useState<Record<string, string[]>>({});
+  const [teacherSearch, setTeacherSearch] = useState<Record<string, string>>({});
   const [scheduleFilterExam, setScheduleFilterExam] = useState('');
   const [previewAcademicYear, setPreviewAcademicYear] = useState(schoolProfile.academicYear || '2025-2026');
   const [previewBranch, setPreviewBranch] = useState(user?.branch || 'Main Campus');
@@ -254,13 +263,9 @@ export const ExaminationView: React.FC = () => {
       return;
     }
 
-    // 3. Validate Maximum Marks > Passing Marks
-    const maxScore = Number(maxMarks) || 100;
-    const passingScore = Number(passMarks) || 33;
-    if (maxScore <= passingScore) {
-      addToast('error', 'Validation Error', `Maximum Marks (${maxScore}) must be greater than Passing Marks (${passingScore}).`);
-      return;
-    }
+    // 3. Validate Maximum Marks > Passing Marks (Using defaults)
+    const maxScore = 100;
+    const passingScore = 33;
 
     // 4. Validate Duplicate Subject Schedule for same class and section
     const targetSections = applyToAllSections
@@ -291,14 +296,25 @@ export const ExaminationView: React.FC = () => {
     }
 
     if (editingSchedule) {
+      const sec = section || 'All Sections';
+      const invigIds = invigilatorAssignments[`${targetClasses[0]}-${sec}`] || (scheduleForm.invigilatorId ? scheduleForm.invigilatorId.split(',') : []);
+      const invigIdStr = invigIds.join(',');
+      const invigNameStr = invigIds
+        .map(id => staff.find(s => s.id === id))
+        .filter(Boolean)
+        .map(s => s?.name || `${s?.firstName} ${s?.lastName}`)
+        .join(', ');
+
       updateExamSchedule(editingSchedule.id, {
         ...scheduleForm,
         academicYear: selectedAcademicYear,
         branch: selectedBranch,
         className: targetClasses[0],
-        section: section || 'All Sections',
+        section: sec,
         maxMarks: maxScore,
-        passMarks: passingScore
+        passMarks: passingScore,
+        invigilatorId: invigIdStr,
+        invigilatorName: invigNameStr
       } as Omit<ExamSchedule, 'id'>);
       addToast('success', 'Success', 'Updated exam schedule details.');
     } else {
@@ -306,6 +322,14 @@ export const ExaminationView: React.FC = () => {
       targetClasses.forEach(className => {
         const sectionsToSchedule = applyToAllSections ? (getSectionOptions(className).length > 0 ? getSectionOptions(className) : ['A']) : [section || 'All Sections'];
         sectionsToSchedule.forEach(sec => {
+          const invigIds = invigilatorAssignments[`${className}-${sec}`] || [];
+          const invigIdStr = invigIds.join(',');
+          const invigNameStr = invigIds
+            .map(id => staff.find(s => s.id === id))
+            .filter(Boolean)
+            .map(s => s?.name || `${s?.firstName} ${s?.lastName}`)
+            .join(', ');
+
           addExamSchedule({
             ...scheduleForm,
             academicYear: selectedAcademicYear,
@@ -313,7 +337,9 @@ export const ExaminationView: React.FC = () => {
             className,
             section: sec,
             maxMarks: maxScore,
-            passMarks: passingScore
+            passMarks: passingScore,
+            invigilatorId: invigIdStr,
+            invigilatorName: invigNameStr
           } as Omit<ExamSchedule, 'id'>);
           count++;
         });
@@ -333,6 +359,7 @@ export const ExaminationView: React.FC = () => {
   const [paperSearchQuery, setPaperSearchQuery] = useState('');
 
   const [isPaperModalOpen, setIsPaperModalOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [editingPaper, setEditingPaper] = useState<QuestionPaper | null>(null);
   const [viewingPaper, setViewingPaper] = useState<QuestionPaper | null>(null);
 
@@ -412,6 +439,18 @@ export const ExaminationView: React.FC = () => {
       return;
     }
 
+    if (paperFormData.status === 'Published') {
+      setIsPublishModalOpen(true);
+      return;
+    }
+
+    executePaperSubmit();
+  };
+
+  const executePaperSubmit = () => {
+    const { examId, className, section, subject, paperTitle, duration, maxMarks } = paperFormData;
+    const examObj = exams.find(e => e.id === examId);
+
     const payload: Omit<QuestionPaper, 'id'> = {
       academicYear: selectedAcademicYear,
       branch: selectedBranch,
@@ -421,6 +460,7 @@ export const ExaminationView: React.FC = () => {
       section: section || 'A',
       subject: subject || 'Mathematics',
       paperTitle: paperTitle || '',
+      paperCode: paperFormData.paperCode || '',
       examDate: paperFormData.examDate || new Date().toISOString().split('T')[0],
       duration: duration || '3 Hours',
       maxMarks: Number(maxMarks) || 100,
@@ -442,6 +482,7 @@ export const ExaminationView: React.FC = () => {
       addToast('success', 'Paper Uploaded', `Uploaded '${paperTitle}' to repository.`);
     }
     setIsPaperModalOpen(false);
+    setIsPublishModalOpen(false);
   };
 
   const handleTogglePublishPaper = (paper: QuestionPaper) => {
@@ -457,8 +498,10 @@ export const ExaminationView: React.FC = () => {
   const [marksExamId, setMarksExamId] = useState('');
   const [marksClass, setMarksClass] = useState('Class 10');
   const [marksSection, setMarksSection] = useState('A');
-  const [marksSubject, setMarksSubject] = useState('Mathematics');
-  const [enteredMarks, setEnteredMarks] = useState<Record<string, { score: number; remarks: string }>>({});
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
+  const [enteredMarks, setEnteredMarks] = useState<Record<string, { score: number | ''; remarks: string }>>({});
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [csvText, setCsvText] = useState('');
 
@@ -479,73 +522,87 @@ export const ExaminationView: React.FC = () => {
 
   // Load marks into state on filter change
   useEffect(() => {
-    if (!marksExamId) return;
+    if (!marksExamId || !selectedStudentId) {
+      setEnteredMarks({});
+      return;
+    }
     const filteredMarks = examMarks.filter(
-      m => m.examId === marksExamId && m.subject === marksSubject
+      m => m.examId === marksExamId && m.studentId === selectedStudentId
     );
     const newState: Record<string, { score: number; remarks: string }> = {};
     filteredMarks.forEach(m => {
-      newState[m.studentId] = {
+      newState[m.subject] = {
         score: m.marksObtained,
         remarks: m.remarks || ''
       };
     });
     setEnteredMarks(newState);
-  }, [marksExamId, marksClass, marksSection, marksSubject, examMarks]);
+  }, [marksExamId, selectedStudentId, examMarks]);
+
+  // Reset student when class/section changes
+  useEffect(() => {
+    setSelectedStudentId('');
+  }, [marksClass, marksSection]);
 
   const handleSaveMarksEntry = (lockAfterSave: boolean) => {
-    const classSchedule = examSchedules.find(
-      s => s.examId === marksExamId && s.className === marksClass && s.section === marksSection && s.subject === marksSubject
-    );
-    const maxScore = classSchedule ? classSchedule.maxMarks : 100;
-
-    if (isTeacher && (!teacherClasses.includes(`${marksClass}-${marksSection}`) || !teacherSubjects.includes(marksSubject))) {
-      addToast('error', 'Access Denied', 'Teachers can enter marks only for their assigned classes and subjects.');
+    if (!selectedStudentId) {
+      addToast('error', 'Select Student', 'Please select a student to enter marks.');
       return;
     }
 
-    const isLocked = examMarks.some(
-      m => m.examId === marksExamId && m.subject === marksSubject && m.isLocked &&
-        students.some(st => st.id === m.studentId && st.className === marksClass && st.section === marksSection)
+    const classSchedules = examSchedules.filter(
+      s => s.examId === marksExamId && s.className === marksClass && s.section === marksSection
     );
-    if (isLocked && !isAdminOrPrincipal) {
-      addToast('error', 'Marks Locked', 'Submitted marks are locked and cannot be edited.');
+
+    if (classSchedules.length === 0) {
+      addToast('error', 'No Schedule', 'No subjects scheduled for this class/section.');
       return;
     }
 
-    const classStudents = students.filter(
-      s => s.className === marksClass && s.section === marksSection && s.branch === selectedBranch
-    );
+    const student = students.find(s => s.id === selectedStudentId);
+    if (!student) return;
 
+    const payload: Omit<ExamMark, 'id'>[] = [];
     const errorList: string[] = [];
-    const payload = classStudents.map(s => {
-      const entry = enteredMarks[s.id] || { score: 0, remarks: '' };
-      if (entry.score > maxScore || entry.score < 0) {
-        errorList.push(`${s.firstName} score (${entry.score}) exceeds limits [0-${maxScore}].`);
+
+    classSchedules.forEach(schedule => {
+      const entry = enteredMarks[schedule.subject];
+      if (entry && entry.score !== '') {
+        const scoreVal = Number(entry.score);
+        if (scoreVal > schedule.maxMarks || scoreVal < 0) {
+          errorList.push(`${formatSubject(schedule.subject)} score (${scoreVal}) exceeds limits [0-${schedule.maxMarks}].`);
+        }
+
+        const existingMark = examMarks.find(
+          m => m.examId === marksExamId && m.studentId === student.id && m.subject === schedule.subject
+        );
+        
+        const currentExam = branchExamsList.find(e => e.id === marksExamId);
+        const schemeName = currentExam?.gradeSchemeName || 'Default Scholastic';
+        
+        let grade = '-';
+        const pct = (scoreVal / schedule.maxMarks) * 100;
+        const matched = gradeConfigurations.find(c => (c.schemeName || 'Default Scholastic') === schemeName && pct >= c.minPercent && pct <= c.maxPercent);
+        if (matched) grade = matched.gradeName;
+
+        payload.push({
+          examId: marksExamId,
+          academicYear: selectedAcademicYear,
+          branch: selectedBranch,
+          className: marksClass,
+          section: marksSection,
+          studentId: student.id,
+          subject: schedule.subject,
+          marksObtained: scoreVal,
+          totalMarks: schedule.maxMarks,
+          graceMarks: existingMark?.graceMarks || 0,
+          grade,
+          remarks: entry.remarks || '',
+          isLocked: lockAfterSave,
+          submittedBy: user?.name || 'System',
+          submittedAt: existingMark?.submittedAt || new Date().toISOString().split('T')[0]
+        });
       }
-
-      // Grade calculation
-      let grade = 'F';
-      const pct = (entry.score / maxScore) * 100;
-      const matched = gradeConfigurations.find(c => pct >= c.minPercent && pct <= c.maxPercent);
-      if (matched) grade = matched.gradeName;
-
-      return {
-        examId: marksExamId,
-        academicYear: selectedAcademicYear,
-        branch: selectedBranch,
-        className: marksClass,
-        section: marksSection,
-        studentId: s.id,
-        subject: marksSubject,
-        marksObtained: entry.score,
-        totalMarks: maxScore,
-        grade,
-        remarks: entry.remarks,
-        isLocked: lockAfterSave,
-        submittedBy: user?.name || 'System',
-        submittedAt: new Date().toISOString().split('T')[0]
-      };
     });
 
     if (errorList.length > 0) {
@@ -553,69 +610,33 @@ export const ExaminationView: React.FC = () => {
       return;
     }
 
-    saveMarks(payload);
-    addToast('success', 'Success', `Marks saved successfully${lockAfterSave ? ' and locked' : ' as draft'}.`);
+    if (payload.length > 0) {
+      saveMarks(payload);
+      addToast('success', lockAfterSave ? 'Marks Locked' : 'Draft Saved', 'Marks entry saved successfully.');
+    } else {
+      addToast('info', 'No Data', 'No marks entered to save.');
+    }
   };
 
   // CSV Export
   const handleExportCsv = () => {
-    const classSchedule = examSchedules.find(
-      s => s.examId === marksExamId && s.className === marksClass && s.section === marksSection && s.subject === marksSubject
-    );
-    const maxScore = classSchedule ? classSchedule.maxMarks : 100;
-
-    const classStudents = students.filter(
-      s => s.className === marksClass && s.section === marksSection && s.branch === selectedBranch
-    );
-
-    let csv = "Student ID,Roll No,Student Name,Marks Obtained (Max " + maxScore + "),Remarks\n";
-    classStudents.forEach(s => {
-      const entry = enteredMarks[s.id] || { score: 0, remarks: '' };
-      csv += `${s.id},${s.rollNo},${s.firstName} ${s.lastName},${entry.score},${entry.remarks}\n`;
-    });
-
-    setCsvText(csv);
-    setIsCsvModalOpen(true);
+    addToast('info', 'Not Supported', 'CSV Export is disabled for Student-Centric View.');
   };
 
   // CSV Import Parse
   const handleImportCsv = () => {
-    try {
-      const lines = csvText.split('\n');
-      const newState = { ...enteredMarks };
-      let count = 0;
-
-      lines.forEach((line, idx) => {
-        if (idx === 0 || !line.trim()) return; // skip header/empty lines
-        const parts = line.split(',');
-        if (parts.length >= 4) {
-          const studentId = parts[0].trim();
-          const score = Number(parts[3].trim());
-          const remarks = parts[4] ? parts[4].trim() : '';
-
-          if (students.some(s => s.id === studentId)) {
-            newState[studentId] = { score, remarks };
-            count++;
-          }
-        }
-      });
-
-      setEnteredMarks(newState);
-      setIsCsvModalOpen(false);
-      addToast('success', 'Success', `Successfully parsed & imported ${count} student marks.`);
-    } catch (err) {
-      addToast('error', 'Parser Error', 'Invalid CSV format. Please verify column order.');
-    }
+    addToast('info', 'Not Supported', 'CSV Import is disabled for Student-Centric View.');
   };
 
   // ----------------------------------------------------
   // Tab 4: Grade Config States & Actions
   // ----------------------------------------------------
-  const [editableGrades, setEditableGrades] = useState<GradeConfig[]>(gradeConfigurations);
+  const [selectedScheme, setSelectedScheme] = useState('Default Scholastic');
+  const [editableGrades, setEditableGrades] = useState<any[]>(gradeConfigurations.filter(g => (g.schemeName || 'Default Scholastic') === 'Default Scholastic'));
 
   useEffect(() => {
-    setEditableGrades(gradeConfigurations);
-  }, [gradeConfigurations]);
+    setEditableGrades(gradeConfigurations.filter(g => (g.schemeName || 'Default Scholastic') === selectedScheme));
+  }, [gradeConfigurations, selectedScheme]);
 
   const handleUpdateGradeRow = (idx: number, field: keyof GradeConfig, val: any) => {
     const updated = [...editableGrades];
@@ -628,8 +649,30 @@ export const ExaminationView: React.FC = () => {
 
   const handleSaveGrades = () => {
     if (!isAdminOrPrincipal) return;
-    saveGradeConfiguration(editableGrades);
+    const otherSchemes = gradeConfigurations.filter(g => (g.schemeName || 'Default Scholastic') !== selectedScheme);
+    saveGradeConfiguration([...otherSchemes, ...editableGrades]);
     addToast('success', 'Success', 'Grade configurations saved successfully.');
+  };
+
+  const handleAddScheme = () => {
+    const newScheme = window.prompt("Enter new Grade Scheme Name (e.g. Out of 50)");
+    if (!newScheme || newScheme.trim() === '') return;
+    const schemeName = newScheme.trim();
+    if (gradeConfigurations.some(g => (g.schemeName || 'Default Scholastic') === schemeName)) {
+      addToast('error', 'Error', 'A grading scheme with this name already exists.');
+      return;
+    }
+    const defaultTemplate: GradeConfig[] = [
+      { id: `GRD-${Date.now()}-1`, schemeName, gradeName: 'A+', minPercent: 90, maxPercent: 100, gradePoints: 10, passCriteria: 'Pass' },
+      { id: `GRD-${Date.now()}-2`, schemeName, gradeName: 'A', minPercent: 80, maxPercent: 89, gradePoints: 9, passCriteria: 'Pass' },
+      { id: `GRD-${Date.now()}-3`, schemeName, gradeName: 'B+', minPercent: 70, maxPercent: 79, gradePoints: 8, passCriteria: 'Pass' },
+      { id: `GRD-${Date.now()}-4`, schemeName, gradeName: 'B', minPercent: 60, maxPercent: 69, gradePoints: 7, passCriteria: 'Pass' },
+      { id: `GRD-${Date.now()}-5`, schemeName, gradeName: 'C', minPercent: 50, maxPercent: 59, gradePoints: 6, passCriteria: 'Pass' },
+      { id: `GRD-${Date.now()}-6`, schemeName, gradeName: 'F', minPercent: 0, maxPercent: 49, gradePoints: 0, passCriteria: 'Fail' }
+    ];
+    saveGradeConfiguration([...gradeConfigurations, ...defaultTemplate]);
+    setSelectedScheme(schemeName);
+    addToast('success', 'Success', `Added new grading scheme: ${schemeName}`);
   };
 
   // ----------------------------------------------------
@@ -1102,7 +1145,7 @@ export const ExaminationView: React.FC = () => {
                       <tr key={sch.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                         <td className="py-3 px-4 font-black text-slate-800 dark:text-slate-200">{exam?.name || 'Unknown Exam'}</td>
                         <td className="py-3 px-4">{sch.className} - {sch.section}</td>
-                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-bold">{sch.subject}</td>
+                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-bold">{formatSubject(sch.subject)}</td>
                         <td className="py-3 px-4">
                           <span className="block font-mono">{sch.date}</span>
                           <span className="text-[10px] text-slate-400 font-normal">{sch.startTime} - {sch.endTime}</span>
@@ -1287,7 +1330,7 @@ export const ExaminationView: React.FC = () => {
                   ) : (
                     previewTimetableRows.map(row => (
                       <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-black">{row.subject}</td>
+                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-black">{formatSubject(row.subject)}</td>
                         <td className="py-3 px-4 font-mono">{row.date}</td>
                         <td className="py-3 px-4 font-mono">{row.startTime}</td>
                         <td className="py-3 px-4 font-mono">{row.endTime}</td>
@@ -1384,7 +1427,7 @@ export const ExaminationView: React.FC = () => {
               >
                 <option value="">All Subjects</option>
                 {allSubjectOptions.map(s => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{formatSubject(s)}</option>
                 ))}
               </select>
             </div>
@@ -1466,7 +1509,7 @@ export const ExaminationView: React.FC = () => {
                         </td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{paper.examName}</td>
                         <td className="p-4 font-bold">{paper.className} <span className="text-amber-600 font-extrabold">({paper.section || 'All'})</span></td>
-                        <td className="p-4 font-bold text-amber-600 dark:text-amber-400">{paper.subject}</td>
+                        <td className="p-4 font-bold text-amber-600 dark:text-amber-400">{formatSubject(paper.subject)}</td>
                         <td className="p-4">{paper.uploadedBy}</td>
                         <td className="p-4 font-mono text-slate-500">{paper.uploadedOn}</td>
                         <td className="p-4">
@@ -1547,7 +1590,7 @@ export const ExaminationView: React.FC = () => {
         <div className="space-y-4">
           <div className="glass-card p-5 rounded-3xl space-y-4">
             <h4 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">Marks Entry Filters</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">Target Exam Setup</label>
                 <select
@@ -1599,202 +1642,201 @@ export const ExaminationView: React.FC = () => {
                   )}
                 </select>
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">Subject</label>
-                <select
-                  value={marksSubject}
-                  onChange={e => setMarksSubject(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-805/50 font-bold"
+              
+              <div className="relative">
+                <label className="block text-[10px] font-bold text-slate-400 mb-1">Select Student</label>
+                <div 
+                  className="w-full px-3 py-2 rounded-xl border bg-blue-50/50 dark:bg-blue-900/20 font-bold text-blue-700 dark:text-blue-300 cursor-pointer flex justify-between items-center"
+                  onClick={() => setStudentDropdownOpen(!studentDropdownOpen)}
                 >
-                  {isTeacher ? (
-                    teacherSubjectOptions.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))
-                  ) : (
-                    subjectOptions.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))
-                  )}
-                </select>
+                  <span className="truncate">
+                    {selectedStudentId 
+                      ? (() => {
+                          const s = students.find(st => st.id === selectedStudentId);
+                          return s ? `${s.firstName} ${s.lastName} (${s.rollNo})` : 'Select Student';
+                        })()
+                      : '-- Search & Select Student --'}
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+
+                {studentDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl shadow-lg flex flex-col">
+                    <div className="p-2 border-b dark:border-slate-700">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Search student name or roll no..."
+                          value={studentSearchTerm}
+                          onChange={(e) => setStudentSearchTerm(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 text-sm rounded-lg bg-slate-50 dark:bg-slate-900 border-none outline-none focus:ring-1 focus:ring-blue-500"
+                          onClick={(e) => e.stopPropagation()}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-60 overflow-y-auto p-1">
+                      {students
+                        .filter(s => s.className === marksClass && s.section === marksSection && s.branch === selectedBranch)
+                        .filter(s => 
+                          `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearchTerm.toLowerCase()) || 
+                          s.rollNo?.toLowerCase().includes(studentSearchTerm.toLowerCase())
+                        )
+                        .map(s => (
+                          <div
+                            key={s.id}
+                            className={`px-3 py-2 text-sm rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 ${selectedStudentId === s.id ? 'bg-blue-100 dark:bg-blue-900/50 font-bold text-blue-700 dark:text-blue-300' : 'text-slate-700 dark:text-slate-300'}`}
+                            onClick={() => {
+                              setSelectedStudentId(s.id);
+                              setStudentDropdownOpen(false);
+                              setStudentSearchTerm('');
+                            }}
+                          >
+                            {s.firstName} {s.lastName} <span className="text-xs text-slate-500 dark:text-slate-400">({s.rollNo})</span>
+                          </div>
+                        ))
+                      }
+                      {students.filter(s => s.className === marksClass && s.section === marksSection && s.branch === selectedBranch)
+                        .filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(studentSearchTerm.toLowerCase()) || s.rollNo?.toLowerCase().includes(studentSearchTerm.toLowerCase())).length === 0 && (
+                        <div className="p-3 text-center text-sm text-slate-500">No students found</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Conflict details & Max marks indicator */}
+          {/* Student Marks Entry Table */}
           {(() => {
-            const classSchedule = examSchedules.find(
-              s => s.examId === marksExamId && s.className === marksClass && s.section === marksSection && s.subject === marksSubject
+            const classSchedules = examSchedules.filter(
+              s => s.examId === marksExamId && s.className === marksClass && s.section === marksSection
             );
 
-            const isLocked = examMarks.some(
-              m => m.examId === marksExamId && m.subject === marksSubject && m.isLocked && 
-                students.some(st => st.id === m.studentId && st.className === marksClass && st.section === marksSection)
-            );
-
-            // Fetch students matching the class/section
-            const classStudents = students.filter(
-              s => s.className === marksClass && s.section === marksSection && s.branch === selectedBranch
-            );
-
-            if (!classSchedule) {
+            if (!selectedStudentId) {
               return (
-                <div className="bg-amber-50 border border-amber-200 dark:bg-amber-955/20 dark:border-amber-900 rounded-2xl p-5 text-amber-800 dark:text-amber-300 font-bold">
-                  No scheduled exam found for {marksSubject} in {marksClass}-{marksSection}. Please schedule this subject in the Schedule tab first.
+                <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-10 text-center flex flex-col items-center justify-center">
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center mb-4">
+                    <User className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-slate-100 mb-2">Select a Student</h3>
+                  <p className="text-sm text-slate-500 font-semibold max-w-md">Please select a student from the dropdown above to begin entering their marks for {marksClass}-{marksSection}.</p>
                 </div>
               );
             }
+
+            if (classSchedules.length === 0) {
+              return (
+                <div className="bg-amber-50 border border-amber-200 dark:bg-amber-955/20 dark:border-amber-900 rounded-2xl p-5 text-amber-800 dark:text-amber-300 font-bold">
+                  No scheduled exams found for {marksClass}-{marksSection}. Please schedule subjects in the Schedule tab first.
+                </div>
+              );
+            }
+
+            const student = students.find(s => s.id === selectedStudentId);
 
             return (
               <div className="bg-white dark:bg-slate-900 border rounded-3xl p-6 space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
                   <div>
-                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight flex items-center gap-1.5">
-                      {isLocked ? <Lock className="w-4 h-4 text-rose-500" /> : <Unlock className="w-4 h-4 text-emerald-500" />}
-                      Marks Register: {marksSubject}
+                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center text-blue-700 dark:text-blue-300">
+                        {student?.firstName.charAt(0)}{student?.lastName.charAt(0)}
+                      </div>
+                      <div>
+                        {student?.firstName} {student?.lastName}
+                        <div className="text-[10px] text-slate-400 font-bold">Roll No: {student?.rollNo}</div>
+                      </div>
                     </h3>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      Max Marks: <strong className="text-slate-700 dark:text-slate-350">{classSchedule.maxMarks}</strong> • 
-                      Pass Marks: <strong className="text-slate-700 dark:text-slate-350">{classSchedule.passMarks}</strong> • 
-                      Invigilator: <strong className="text-slate-700 dark:text-slate-350">{classSchedule.invigilatorName}</strong>
-                    </p>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <button
-                      onClick={handleExportCsv}
-                      className="px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold hover:bg-slate-105 flex items-center gap-1 text-[11px]"
+                      onClick={() => handleSaveMarksEntry(false)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold hover:bg-slate-200 flex items-center gap-1 text-[11px]"
                     >
-                      <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" /> Export CSV
+                      Save Draft
                     </button>
-                    
-                    {!isLocked && (
-                      <button
-                        onClick={() => { setCsvText(''); setIsCsvModalOpen(true); }}
-                        className="px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold hover:bg-slate-105 flex items-center gap-1 text-[11px]"
-                      >
-                        <Upload className="w-3.5 h-3.5 text-blue-600" /> Import CSV
-                      </button>
-                    )}
-
-                    {!isLocked && (
-                      <>
-                        <button
-                          onClick={() => handleSaveMarksEntry(false)}
-                          className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold hover:bg-slate-200 flex items-center gap-1 text-[11px]"
-                        >
-                          Save Draft
-                        </button>
-                        <button
-                          onClick={() => handleSaveMarksEntry(true)}
-                          className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 text-[11px] shadow-sm"
-                        >
-                          <Lock className="w-3.5 h-3.5" /> Submit & Lock
-                        </button>
-                      </>
-                    )}
-
-                    {isLocked && isAdminOrPrincipal && (
-                      <button
-                        onClick={() => {
-                          const matchingMarks = examMarks.filter(
-                            m => m.examId === marksExamId && m.subject === marksSubject &&
-                              students.some(st => st.id === m.studentId && st.className === marksClass && st.section === marksSection)
-                          );
-                          saveMarks(matchingMarks.map(m => ({ ...m, isLocked: false })));
-                          addToast('success', 'Unlocked', 'Marks entry has been unlocked for modifications.');
-                        }}
-                        className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold flex items-center gap-1 text-[11px] shadow-sm"
-                      >
-                        <Unlock className="w-3.5 h-3.5" /> Unlock Marks
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleSaveMarksEntry(true)}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold flex items-center gap-1 text-[11px] shadow-sm"
+                    >
+                      <Lock className="w-3.5 h-3.5" /> Submit & Lock
+                    </button>
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto pb-4">
+                  <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-850/50 text-slate-500 font-bold uppercase border-b">
-                        <th className="py-2.5 px-3">Student Name</th>
-                        <th className="py-2.5 px-3">Roll No</th>
-                        <th className="py-2.5 px-3">Status</th>
-                        <th className="py-2.5 px-3">Marks Obtained</th>
+                        <th className="py-2.5 px-3">Subject</th>
+                        <th className="py-2.5 px-3 text-center">Max Marks</th>
+                        <th className="py-2.5 px-3 text-center">Marks Obtained</th>
                         <th className="py-2.5 px-3 text-center">Grade Preview</th>
                         <th className="py-2.5 px-3">Remarks</th>
-                        <th className="py-2.5 px-3 text-right">Adjustment</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                      {classStudents.map(st => {
-                        const entry = enteredMarks[st.id] || { score: 0, remarks: '' };
+                      {classSchedules.map(sub => {
                         const existingMark = examMarks.find(
-                          m => m.examId === marksExamId && m.studentId === st.id && m.subject === marksSubject
+                          m => m.examId === marksExamId && m.studentId === selectedStudentId && m.subject === sub.subject
                         );
-
-                        // Grade Calculation
-                        let grade = 'F';
-                        const pct = (entry.score / classSchedule.maxMarks) * 100;
-                        const matched = gradeConfigurations.find(c => pct >= c.minPercent && pct <= c.maxPercent);
-                        if (matched) grade = matched.gradeName;
+                        const isLocked = existingMark?.isLocked;
+                        const entry = enteredMarks[sub.subject] || (existingMark ? { score: existingMark.marksObtained, remarks: existingMark.remarks } : { score: '', remarks: '' });
+                        
+                        let grade = '-';
+                        const currentExam = branchExamsList.find(e => e.id === marksExamId);
+                        const schemeName = currentExam?.gradeSchemeName || 'Default Scholastic';
+                        if (entry.score !== '') {
+                          const pct = (Number(entry.score) / sub.maxMarks) * 100;
+                          const matched = gradeConfigurations.find(c => (c.schemeName || 'Default Scholastic') === schemeName && pct >= c.minPercent && pct <= c.maxPercent);
+                          if (matched) grade = matched.gradeName;
+                        }
 
                         return (
-                          <tr key={st.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20">
-                            <td className="py-2 px-3 font-black text-slate-800 dark:text-slate-100">{st.firstName} {st.lastName}</td>
-                            <td className="py-2 px-3 font-mono">{st.rollNo}</td>
-                            <td className="py-2 px-3">
-                              {entry.score >= classSchedule.passMarks ? (
-                                <span className="text-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded text-[10px]">Pass</span>
-                              ) : (
-                                <span className="text-rose-600 bg-rose-50 dark:bg-rose-955/20 px-1.5 py-0.5 rounded text-[10px]">Fail</span>
-                              )}
-                              {existingMark?.graceMarks && existingMark.graceMarks > 0 ? (
-                                <span className="ml-1 text-[9px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded font-sans">+{existingMark.graceMarks} Grace</span>
-                              ) : null}
+                          <tr key={sub.subject} className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20">
+                            <td className="py-3 px-3 font-black text-slate-800 dark:text-slate-100">{formatSubject(sub.subject)}</td>
+                            <td className="py-3 px-3 font-mono text-center text-slate-500">{sub.maxMarks}</td>
+                            
+                            <td className="py-3 px-3 text-center">
+                              <div className="flex justify-center">
+                                <input
+                                  type="number"
+                                  disabled={isLocked}
+                                  value={entry.score !== undefined ? entry.score : ''}
+                                  max={sub.maxMarks}
+                                  min={0}
+                                  onChange={e => {
+                                    setEnteredMarks({
+                                      ...enteredMarks,
+                                      [sub.subject]: { ...entry, score: e.target.value === '' ? '' : Number(e.target.value) }
+                                    });
+                                  }}
+                                  className="w-20 px-2 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-800 font-mono text-center font-bold text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+                                />
+                              </div>
                             </td>
-                            <td className="py-2 px-3">
-                              <input
-                                type="number"
-                                disabled={isLocked}
-                                value={entry.score}
-                                max={classSchedule.maxMarks}
-                                min={0}
-                                onChange={e => setEnteredMarks({
-                                  ...enteredMarks,
-                                  [st.id]: { ...entry, score: Number(e.target.value) }
-                                })}
-                                className="w-20 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-800 font-mono text-center font-bold"
-                              />
+                            
+                            <td className="py-3 px-3 text-center">
+                              <span className={`text-xs font-black ${isLocked ? 'text-slate-400' : 'text-amber-600'}`}>{grade}</span>
                             </td>
-                            <td className="py-2 px-3 text-center text-amber-600 dark:text-amber-400 font-bold">{grade}</td>
-                            <td className="py-2 px-3">
+                            
+                            <td className="py-3 px-3">
                               <input
                                 type="text"
                                 disabled={isLocked}
                                 placeholder="E.g., Good"
-                                value={entry.remarks}
-                                onChange={e => setEnteredMarks({
-                                  ...enteredMarks,
-                                  [st.id]: { ...entry, remarks: e.target.value }
-                                })}
-                                className="w-full max-w-[150px] px-2 py-1 border rounded bg-slate-55 dark:bg-slate-800 text-[11px]"
+                                value={entry.remarks || ''}
+                                onChange={e => {
+                                  setEnteredMarks({
+                                    ...enteredMarks,
+                                    [sub.subject]: { ...entry, remarks: e.target.value }
+                                  });
+                                }}
+                                className="w-full max-w-[200px] px-3 py-1.5 border rounded-lg bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
                               />
-                            </td>
-                            <td className="py-2 px-3 text-right">
-                              {existingMark && isAdminOrPrincipal && (
-                                <button
-                                  onClick={() => {
-                                    setRevalueMark(existingMark);
-                                    setRevalueStudentName(`${st.firstName} ${st.lastName}`);
-                                    setRevalueNewMarks(existingMark.marksObtained);
-                                    setRevalueType('Revaluation');
-                                    setRevalueReason('');
-                                  }}
-                                  className="px-2 py-1 rounded border text-amber-605 bg-amber-50 hover:bg-amber-100 dark:bg-amber-955/20 text-[10px] flex items-center gap-1 ml-auto font-sans"
-                                >
-                                  <History className="w-3 h-3" /> Adjust
-                                </button>
-                              )}
                             </td>
                           </tr>
                         );
@@ -1814,7 +1856,28 @@ export const ExaminationView: React.FC = () => {
       {activeTab === 'grades' && !isStudentOrParent && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h3 className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">System Grading Configurations</h3>
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">System Grading Configurations</h3>
+              {isAdminOrPrincipal && (
+                <>
+                  <select
+                    value={selectedScheme}
+                    onChange={e => setSelectedScheme(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-xs"
+                  >
+                    {Array.from(new Set(gradeConfigurations.map(g => g.schemeName || 'Default Scholastic'))).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleAddScheme}
+                    className="px-2 py-1 text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 rounded-lg"
+                  >
+                    + New Scheme
+                  </button>
+                </>
+              )}
+            </div>
             {isAdminOrPrincipal && (
               <button
                 onClick={handleSaveGrades}
@@ -1854,8 +1917,8 @@ export const ExaminationView: React.FC = () => {
                         type="number"
                         disabled={!isAdminOrPrincipal}
                         value={g.minPercent}
-                        onChange={e => handleUpdateGradeRow(idx, 'minPercent', Number(e.target.value))}
-                        className="w-20 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-805 text-center font-mono"
+                        onChange={e => handleUpdateGradeRow(idx, 'minPercent', e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-20 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-800 text-center font-bold text-slate-900 dark:text-white"
                       />
                     </td>
                     <td className="py-2 px-3">
@@ -1863,8 +1926,8 @@ export const ExaminationView: React.FC = () => {
                         type="number"
                         disabled={!isAdminOrPrincipal}
                         value={g.maxPercent}
-                        onChange={e => handleUpdateGradeRow(idx, 'maxPercent', Number(e.target.value))}
-                        className="w-20 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-805 text-center font-mono"
+                        onChange={e => handleUpdateGradeRow(idx, 'maxPercent', e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-20 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-800 text-center font-bold text-slate-900 dark:text-white"
                       />
                     </td>
                     <td className="py-2 px-3">
@@ -1872,8 +1935,8 @@ export const ExaminationView: React.FC = () => {
                         type="number"
                         disabled={!isAdminOrPrincipal}
                         value={g.gradePoints}
-                        onChange={e => handleUpdateGradeRow(idx, 'gradePoints', Number(e.target.value))}
-                        className="w-20 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-850 text-center font-mono"
+                        onChange={e => handleUpdateGradeRow(idx, 'gradePoints', e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-16 px-2 py-1 border rounded bg-slate-50 dark:bg-slate-800 text-center font-bold text-slate-900 dark:text-white"
                       />
                     </td>
                     <td className="py-2 px-3">
@@ -2422,6 +2485,20 @@ export const ExaminationView: React.FC = () => {
                 )}
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Grade Scheme</label>
+                <select
+                  required
+                  value={examFormData.gradeSchemeName || 'Default Scholastic'}
+                  onChange={e => setExamFormData({ ...examFormData, gradeSchemeName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
+                >
+                  {Array.from(new Set(gradeConfigurations.map(g => g.schemeName || 'Default Scholastic'))).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-3 border-t">
                 <button type="button" onClick={() => setIsExamModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
                 <button type="submit" className="px-5 py-2 font-bold text-white bg-amber-500 hover:bg-amber-400 rounded-xl shadow-md">
@@ -2478,7 +2555,7 @@ export const ExaminationView: React.FC = () => {
                       )).filter(Boolean).sort();
                       const optionsList = mapped.length > 0 ? mapped : allSubjectOptions;
                       return optionsList.map(s => (
-                        <option key={s} value={s}>{s}</option>
+                        <option key={s} value={s}>{formatSubject(s)}</option>
                       ));
                     })()}
                   </select>
@@ -2625,27 +2702,63 @@ export const ExaminationView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Max Marks *</label>
-                  <input
-                    type="number"
-                    required
-                    value={scheduleForm.maxMarks}
-                    onChange={e => setScheduleForm({ ...scheduleForm, maxMarks: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono text-center"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Pass Marks *</label>
-                  <input
-                    type="number"
-                    required
-                    value={scheduleForm.passMarks}
-                    onChange={e => setScheduleForm({ ...scheduleForm, passMarks: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-mono text-center"
-                  />
+              {/* Invigilator Assignment Section */}
+              <div className="space-y-3">
+                <label className="block text-[10px] font-bold text-slate-455">Invigilator Assignment (per section)</label>
+                <div className="grid gap-3 grid-cols-2">
+                  {(() => {
+                    const cls = scheduleForm.className || classOptions[0];
+                    const sections = (applyToAllSections && !editingSchedule)
+                      ? (getSectionOptions(cls).length > 0 ? getSectionOptions(cls) : ['A'])
+                      : [scheduleForm.section || 'A'];
+                    
+                    return sections.map(sec => (
+                      <div key={`${cls}-${sec}`} className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">Section {sec}</label>
+                        <input
+                          type="text"
+                          placeholder="Search teacher..."
+                          value={teacherSearch[`${cls}-${sec}`] || ''}
+                          onChange={e => setTeacherSearch({...teacherSearch, [`${cls}-${sec}`]: e.target.value})}
+                          className="w-full px-2 py-1 mb-2 text-[10px] rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        />
+                        <div className="max-h-28 overflow-y-auto border rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-2 space-y-1">
+                          {staff
+                            .filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher')
+                            .filter(s => {
+                              const query = (teacherSearch[`${cls}-${sec}`] || '').toLowerCase();
+                              if (!query) return true;
+                              const name = (s.name || `${s.firstName} ${s.lastName}`).toLowerCase();
+                              const empId = (s.empId || '').toLowerCase();
+                              return name.includes(query) || empId.includes(query);
+                            })
+                            .map(t => {
+                            const isSelected = (invigilatorAssignments[`${cls}-${sec}`] || []).includes(t.id);
+                            return (
+                              <label key={t.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-1 rounded">
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    const curr = invigilatorAssignments[`${cls}-${sec}`] || [];
+                                    if (e.target.checked) {
+                                      setInvigilatorAssignments({...invigilatorAssignments, [`${cls}-${sec}`]: [...curr, t.id]});
+                                    } else {
+                                      setInvigilatorAssignments({...invigilatorAssignments, [`${cls}-${sec}`]: curr.filter(id => id !== t.id)});
+                                    }
+                                  }}
+                                  className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 border-slate-300"
+                                />
+                                <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                  {t.name || `${t.firstName} ${t.lastName}`} <span className="text-[9px] text-slate-400 font-normal">({t.empId})</span>
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </div>
 
@@ -2896,23 +3009,36 @@ export const ExaminationView: React.FC = () => {
                       )).filter(Boolean).sort();
                       const optionsList = mapped.length > 0 ? mapped : allSubjectOptions;
                       return optionsList.map(s => (
-                        <option key={s} value={s}>{s}</option>
+                        <option key={s} value={s}>{formatSubject(s)}</option>
                       ));
                     })()}
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-455 mb-1">Paper Title *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Mid-Term Mathematics Question Paper 2026"
-                  value={paperFormData.paperTitle}
-                  onChange={e => setPaperFormData({ ...paperFormData, paperTitle: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Paper Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Mid-Term Mathematics Question Paper 2026"
+                    value={paperFormData.paperTitle}
+                    onChange={e => setPaperFormData({ ...paperFormData, paperTitle: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-455 mb-1">Question Paper Code *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. MAT-101"
+                    value={paperFormData.paperCode || ''}
+                    onChange={e => setPaperFormData({ ...paperFormData, paperCode: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -2970,6 +3096,10 @@ export const ExaminationView: React.FC = () => {
                   onChange={e => {
                     const file = e.target.files?.[0];
                     if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        addToast('error', 'File Too Large', 'Maximum file size is 5MB.');
+                        return;
+                      }
                       const sizeInMb = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
                       setPaperFormData({
                         ...paperFormData,
@@ -3039,7 +3169,7 @@ export const ExaminationView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Subject</span>
-                  <span className="text-slate-900 dark:text-white font-extrabold">{viewingPaper.subject}</span>
+                  <span className="text-slate-900 dark:text-white font-extrabold">{formatSubject(viewingPaper.subject)}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Exam Date</span>
@@ -3100,6 +3230,19 @@ export const ExaminationView: React.FC = () => {
           }
         }}
         onCancel={() => setDeletingExam(null)}
+      />
+
+      {/* Publish Question Paper Confirmation Modal */}
+      <ConfirmModal
+        isOpen={isPublishModalOpen}
+        title="Publish Question Paper"
+        message="Are you sure you want to publish this Question Paper? Once published, it will be visible to Staff & Students immediately."
+        confirmLabel="Publish"
+        variant="warning"
+        onConfirm={() => {
+          executePaperSubmit();
+        }}
+        onCancel={() => setIsPublishModalOpen(false)}
       />
     </div>
   );
