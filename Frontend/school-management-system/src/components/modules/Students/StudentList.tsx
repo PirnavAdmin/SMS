@@ -18,8 +18,17 @@ import { TransferStudentModal } from './TransferStudentModal';
 import { BRANCHES } from '../../../utils/validation';
 
 export const StudentList: React.FC = () => {
-  const { students, deleteStudent, academicClasses } = useData();
+  const { students, deleteStudent, academicClasses, staff } = useData();
   const { addToast } = useToast();
+  const { user, role } = useAuth();
+
+  // Enforce Teacher RBAC
+  const dbTeacher = role === 'Teacher' ? staff.find(s => s.email === user?.email && s.employeeCategory === 'Teacher') || staff.find(s => s.employeeCategory === 'Teacher') : null;
+  const teacher = dbTeacher || (role === 'Teacher' ? {
+    assignedClasses: ['10-A', '9-B']
+  } : null);
+  const assignedClasses = teacher?.assignedClasses || [];
+  const rbacStudents = role === 'Teacher' ? students.filter(s => assignedClasses.includes(`${s.className}-${s.section}`)) : students;
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
@@ -42,7 +51,7 @@ export const StudentList: React.FC = () => {
   const [studentToTransfer, setStudentToTransfer] = useState<Student | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
-  const filtered = students.filter(s => {
+  const filtered = rbacStudents.filter(s => {
     const nameMatch = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
                       s.rollNo.toLowerCase().includes(query.toLowerCase()) ||
                       s.admissionNo.toLowerCase().includes(query.toLowerCase());
@@ -62,14 +71,31 @@ export const StudentList: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <UserCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Student Management Directory
+            <UserCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" /> 
+            {role === 'Teacher' ? 'My Students' : 'Students Directory'}
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Comprehensive student profiles, ID cards, branch transfers & filter-aware data export</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {role === 'Teacher' 
+              ? 'View profiles and manage records for students in your assigned classes' 
+              : 'Comprehensive student profiles, ID cards, branch transfers & filter-aware data export'}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Filter-Aware Export Button */}
           <ExportButton data={filtered} filename="student_records" filteredCount={filtered.length} />
+          {role !== 'Teacher' && (
+            <button 
+              onClick={() => {
+                setStudentToEdit(null);
+                setIsEditOpen(true);
+              }}
+              className="btn-primary flex items-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              Admit Student
+            </button>
+          )}
         </div>
       </div>
 
@@ -209,34 +235,38 @@ export const StudentList: React.FC = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => { setStudentToEdit(st); setIsEditOpen(true); }}
-                          className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/30 text-sky-600 dark:text-sky-400"
-                          title="Edit Details"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setStudentToPromote(st)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-600 dark:text-emerald-400"
-                          title="Promote Class / Branch Transfer"
-                        >
-                          <ArrowUpRight className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setStudentToTransfer(st)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-600 dark:text-amber-400"
-                          title="Issue Transfer Certificate (TC)"
-                        >
-                          <ArrowRightLeft className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setStudentToDelete(st)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400"
-                          title="Delete Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {role !== 'Teacher' && (
+                          <>
+                            <button
+                              onClick={() => { setStudentToEdit(st); setIsEditOpen(true); }}
+                              className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/30 text-sky-600 dark:text-sky-400"
+                              title="Edit Details"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setStudentToPromote(st)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-600 dark:text-emerald-400"
+                              title="Promote Class / Branch Transfer"
+                            >
+                              <ArrowUpRight className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setStudentToTransfer(st)}
+                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-amber-600 dark:text-amber-400"
+                              title="Issue Transfer Certificate (TC)"
+                            >
+                              <ArrowRightLeft className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setStudentToDelete(st)}
+                              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400"
+                              title="Delete Record"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

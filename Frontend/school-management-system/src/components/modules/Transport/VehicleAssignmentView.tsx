@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Plus, Search, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Layers, Plus, Search, Trash2, Edit, X } from 'lucide-react';
 import { VehicleAssignment } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -10,12 +10,13 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 export const VehicleAssignmentView: React.FC = () => {
   const {
     vehicleAssignments, vehicleMasters, routeMasters, driverMasters,
-    assignVehicleRouteDriver, removeVehicleAssignment
+    assignVehicleRouteDriver, removeVehicleAssignment, updateVehicleAssignment
   } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState<VehicleAssignment | null>(null);
   const [deletingAssignment, setDeletingAssignment] = useState<VehicleAssignment | null>(null);
 
   const [vehicleId, setVehicleId] = useState('');
@@ -30,17 +31,28 @@ export const VehicleAssignmentView: React.FC = () => {
   );
 
   const handleOpenAdd = () => {
+    setEditingAssignment(null);
     setVehicleId('');
     setRouteId('');
     setDriverId('');
+    setEffectiveFrom(new Date().toISOString().split('T')[0]);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (a: VehicleAssignment) => {
+    setEditingAssignment(a);
+    setVehicleId(a.vehicleId);
+    setRouteId(a.routeId);
+    setDriverId(a.driverId);
+    setEffectiveFrom(a.effectiveFrom);
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    const veh = vehicleMasters.find(v => v.id === vehicleId);
-    const rt = routeMasters.find(r => r.id === routeId);
-    const drv = driverMasters.find(d => d.id === driverId);
+    const veh = vehicleMasters.find(v => v.id?.toString() === vehicleId?.toString());
+    const rt = routeMasters.find(r => r.id?.toString() === routeId?.toString());
+    const drv = driverMasters.find(d => d.id?.toString() === driverId?.toString());
 
     if (!veh || !rt || !drv) {
       addToast('warning', 'Incomplete Form', 'Select vehicle, route, and driver.');
@@ -59,6 +71,22 @@ export const VehicleAssignmentView: React.FC = () => {
 
     if (existingDriverAssign) {
       addToast('info', 'Driver Reassigned', `${drv.driverName} was reassigned to ${veh.vehicleNumber}`);
+    }
+
+    if (editingAssignment) {
+      updateVehicleAssignment(editingAssignment.id, {
+        vehicleId: veh.id,
+        vehicleNumber: veh.vehicleNumber,
+        routeId: rt.id,
+        routeName: rt.routeName,
+        driverId: drv.id,
+        driverName: drv.driverName,
+        effectiveFrom,
+        status: 'Active'
+      });
+      addToast('success', 'Assignment Updated', `Updated assignment for ${veh.vehicleNumber}`);
+      setIsModalOpen(false);
+      return;
     }
 
     assignVehicleRouteDriver({
@@ -122,7 +150,6 @@ export const VehicleAssignmentView: React.FC = () => {
                 <th className="py-3.5 px-4">Target Transit Route</th>
                 <th className="py-3.5 px-4">Designated Driver</th>
                 <th className="py-3.5 px-4">Effective From</th>
-                <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -133,11 +160,11 @@ export const VehicleAssignmentView: React.FC = () => {
                   <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{a.routeName}</td>
                   <td className="py-3 px-4 text-slate-700 dark:text-slate-200 font-semibold">{a.driverName}</td>
                   <td className="py-3 px-4 text-slate-500">{a.effectiveFrom}</td>
-                  <td className="py-3 px-4"><Badge variant={a.status === 'Active' ? 'success' : 'neutral'}>{a.status}</Badge></td>
                   <td className="py-3 px-4 text-right">
-                    <button onClick={() => setDeletingAssignment(a)} className="p-1 rounded hover:bg-rose-50 text-rose-600 ml-auto flex items-center gap-1">
-                      <Trash2 className="w-3.5 h-3.5" /> Remove
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={() => handleOpenEdit(a)} className="p-1 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => setDeletingAssignment(a)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -151,16 +178,17 @@ export const VehicleAssignmentView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Assign Vehicle → Route → Driver</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingAssignment ? 'Edit Assignment' : 'Assign Vehicle → Route → Driver'}</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold mb-1">Select Fleet Vehicle *</label>
                 <select value={vehicleId} onChange={e => setVehicleId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="" disabled>-- Select a Vehicle --</option>
                   {vehicleMasters.map(v => (
-                    <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.registrationNumber} • {v.capacity} Seats)</option>
+                    <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.registrationNumber} - {v.capacity} Seats)</option>
                   ))}
                 </select>
               </div>
@@ -168,6 +196,7 @@ export const VehicleAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Transit Route *</label>
                 <select value={routeId} onChange={e => setRouteId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="" disabled>-- Select a Route --</option>
                   {routeMasters.map(r => (
                     <option key={r.id} value={r.id}>{r.routeName} ({r.routeCode})</option>
                   ))}
@@ -177,6 +206,7 @@ export const VehicleAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Driver *</label>
                 <select value={driverId} onChange={e => setDriverId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="" disabled>-- Select a Driver --</option>
                   {driverMasters.map(d => (
                     <option key={d.id} value={d.id}>{d.driverName} ({d.mobileNumber})</option>
                   ))}
@@ -185,12 +215,12 @@ export const VehicleAssignmentView: React.FC = () => {
 
               <div>
                 <label className="block font-semibold mb-1">Effective Date</label>
-                <input type="date" value={effectiveFrom} onChange={e => setEffectiveFrom(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                <input type="date" value={effectiveFrom?.split('T')[0] || ''} onChange={e => setEffectiveFrom(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Assign Route</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">{editingAssignment ? 'Update Assignment' : 'Assign Route'}</button>
               </div>
             </form>
           </div>

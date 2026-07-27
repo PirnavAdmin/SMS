@@ -5,7 +5,7 @@ import {
   DailyAttendance, ExamSetup, ExamMark, TimetableSlot, Homework,
   BookItem, BookIssue, TransportRoute, HostelBlock, HostelRoom, HostelBed, Bus, UniformItem,
   CustomRole, InventoryItem, Announcement, Holiday, Birthday, AuditLog, SchoolProfile, PromotionHistoryItem,
-  SubjectItem,
+  SubjectItem, ExamSchedule, GradeConfig, ProcessedResult,
   FeeHead, DynamicFeeStructure, StudentFeeAssignment, Scholarship, StudentScholarship,
   Discount, StudentDiscount, FineRule, TransportRoute as ERPTransportRoute, StudentTransport,
   HostelMaster, StudentHostel, Refund, FinanceSettings, FeeStructureItem,
@@ -13,7 +13,8 @@ import {
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
-  LeaveType, LeaveApplication, Payslip
+  LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -34,9 +35,12 @@ import {
   initialHostelVisitorLogs, initialHostelAttendanceLogs, initialFinanceHostelConfigs,
   initialUniformCategories, initialUniformSizes, initialUniformSuppliers, initialUniformInventory,
   initialStudentUniformIssues, initialFinanceUniformConfigs,
-  initialLeaveTypes, initialLeaveApplications, initialPayslips
+  initialLeaveTypes, initialLeaveApplications, initialPayslips,
+  initialPayrollConfigurations, initialPayrollComponents, initialSalaryStructures,
+  initialEmployeeSalaryAssignments, initialPayrollRuns
 } from '../services/mockData';
-import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, updateAdmissionStatusApi, deleteAdmissionApi } from '../api/admission';
+import * as TransportAPI from '../api/transport';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 
@@ -104,7 +108,7 @@ interface DataContextType {
   transferStudent: (id: string, reason: string) => void;
 
   staff: Staff[];
-  addStaff: (staffMember: Omit<Staff, 'id'>) => void;
+  addStaff: (staffMember: Omit<Staff, 'id'>) => Staff;
   updateStaff: (id: string, updates: Partial<Staff>) => void;
   deleteStaff: (id: string) => void;
   addStaffDocument: (staffId: string, doc: Omit<StaffDocument, 'id'>) => void;
@@ -273,33 +277,34 @@ interface DataContextType {
 
   // TRANSPORT ERP MODULE ADDITIONS
   routeMasters: RouteMaster[];
-  addRouteMaster: (r: Omit<RouteMaster, 'id'>) => void;
-  updateRouteMaster: (id: string, updates: Partial<RouteMaster>) => void;
-  deleteRouteMaster: (id: string) => void;
+  addRouteMaster: (r: Omit<RouteMaster, 'id'>) => Promise<void>;
+  updateRouteMaster: (id: string, updates: Partial<RouteMaster>) => Promise<void>;
+  deleteRouteMaster: (id: string) => Promise<void>;
 
   pickupPoints: PickupPoint[];
-  addPickupPoint: (p: Omit<PickupPoint, 'id'>) => void;
-  updatePickupPoint: (id: string, updates: Partial<PickupPoint>) => void;
-  deletePickupPoint: (id: string) => void;
+  addPickupPoint: (p: Omit<PickupPoint, 'id'>) => Promise<void>;
+  updatePickupPoint: (id: string, updates: Partial<PickupPoint>) => Promise<void>;
+  deletePickupPoint: (id: string) => Promise<void>;
 
   vehicleMasters: VehicleMaster[];
-  addVehicleMaster: (v: Omit<VehicleMaster, 'id'>) => void;
-  updateVehicleMaster: (id: string, updates: Partial<VehicleMaster>) => void;
-  deleteVehicleMaster: (id: string) => void;
+  addVehicleMaster: (v: Omit<VehicleMaster, 'id'>) => Promise<void>;
+  updateVehicleMaster: (id: string, updates: Partial<VehicleMaster>) => Promise<void>;
+  deleteVehicleMaster: (id: string) => Promise<void>;
 
   driverMasters: DriverMaster[];
-  addDriverMaster: (d: Omit<DriverMaster, 'id'>) => void;
-  updateDriverMaster: (id: string, updates: Partial<DriverMaster>) => void;
-  deleteDriverMaster: (id: string) => void;
+  addDriverMaster: (d: Omit<DriverMaster, 'id'>) => Promise<void>;
+  updateDriverMaster: (id: string, updates: Partial<DriverMaster>) => Promise<void>;
+  deleteDriverMaster: (id: string) => Promise<void>;
 
   vehicleAssignments: VehicleAssignment[];
-  assignVehicleRouteDriver: (va: Omit<VehicleAssignment, 'id'>) => void;
-  removeVehicleAssignment: (id: string) => void;
+  assignVehicleRouteDriver: (va: Omit<VehicleAssignment, 'id'>) => Promise<void>;
+  updateVehicleAssignment: (id: string, updates: Partial<VehicleAssignment>) => Promise<void>;
+  removeVehicleAssignment: (id: string) => Promise<void>;
 
   vehicleMaintenances: VehicleMaintenance[];
-  addVehicleMaintenance: (vm: Omit<VehicleMaintenance, 'id'>) => void;
-  updateVehicleMaintenance: (id: string, updates: Partial<VehicleMaintenance>) => void;
-  deleteVehicleMaintenance: (id: string) => void;
+  addVehicleMaintenance: (vm: Omit<VehicleMaintenance, 'id'>) => Promise<void>;
+  updateVehicleMaintenance: (id: string, updates: Partial<VehicleMaintenance>) => Promise<void>;
+  deleteVehicleMaintenance: (id: string) => Promise<void>;
 
   checkVehicleCapacity: (vehicleId: string) => CapacityCheckResult;
 
@@ -312,6 +317,19 @@ interface DataContextType {
   updateExam: (id: string, updates: Partial<ExamSetup>) => void;
   deleteExam: (id: string) => void;
   saveMarks: (marks: Omit<ExamMark, 'id'>[]) => void;
+
+  examSchedules: ExamSchedule[];
+  addExamSchedule: (schedule: Omit<ExamSchedule, 'id'>) => void;
+  updateExamSchedule: (id: string, updates: Partial<ExamSchedule>) => void;
+  deleteExamSchedule: (id: string) => void;
+  
+  gradeConfigurations: GradeConfig[];
+  saveGradeConfiguration: (grades: GradeConfig[]) => void;
+  
+  processedResults: ProcessedResult[];
+  saveProcessedResults: (results: ProcessedResult[]) => void;
+  updateResultStatus: (examId: string, className: string, section: string, status: ProcessedResult['status']) => void;
+  applyGraceOrRevaluation: (markId: string, newMarks: number, type: 'Grace' | 'Revaluation', reason: string, updatedBy: string) => void;
 
   timetable: TimetableSlot[];
   addTimetableSlot: (slot: Omit<TimetableSlot, 'id'>) => void;
@@ -393,13 +411,89 @@ interface DataContextType {
 
   payslips: Payslip[];
   disburseSalary: (payslip: Omit<Payslip, 'id'>) => void;
+
+  payrollConfigurations: PayrollConfiguration[];
+  addPayrollConfiguration: (config: Omit<PayrollConfiguration, 'id'>) => void;
+  updatePayrollConfiguration: (id: string, updates: Partial<PayrollConfiguration>) => void;
+  deletePayrollConfiguration: (id: string) => void;
+  activatePayrollConfiguration: (id: string) => void;
+  deactivatePayrollConfiguration: (id: string) => void;
+
+  payrollComponents: PayrollComponent[];
+  addPayrollComponent: (component: Omit<PayrollComponent, 'id'>) => void;
+  updatePayrollComponent: (id: string, updates: Partial<PayrollComponent>) => void;
+  deletePayrollComponent: (id: string) => void;
+
+  salaryStructures: SalaryStructure[];
+  addSalaryStructure: (structure: Omit<SalaryStructure, 'id'>) => void;
+  updateSalaryStructure: (id: string, updates: Partial<SalaryStructure>) => void;
+  deleteSalaryStructure: (id: string) => void;
+  cloneSalaryStructure: (id: string) => void;
+  loadSalaryStructures: (structures: SalaryStructure[]) => void;
+
+  employeeSalaryAssignments: EmployeeSalaryAssignment[];
+  assignEmployeeSalaryStructure: (assignment: Omit<EmployeeSalaryAssignment, 'id'>) => void;
+  updateEmployeeSalaryAssignment: (id: string, updates: Partial<EmployeeSalaryAssignment>) => void;
+  deleteEmployeeSalaryAssignment: (id: string) => void;
+
+  payrollRuns: PayrollRun[];
+  upsertPayrollRun: (run: Omit<PayrollRun, 'id'>) => PayrollRun;
+  updatePayrollRun: (id: string, updates: Partial<PayrollRun>) => void;
+  deletePayrollRun: (id: string) => void;
 }
+
+const defaultGradeConfigurations: GradeConfig[] = [
+  { id: 'GRD-1', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'A+', minPercent: 90, maxPercent: 100, gradePoints: 10, passCriteria: 'Pass' },
+  { id: 'GRD-2', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'A', minPercent: 80, maxPercent: 89, gradePoints: 9, passCriteria: 'Pass' },
+  { id: 'GRD-3', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'B+', minPercent: 70, maxPercent: 79, gradePoints: 8, passCriteria: 'Pass' },
+  { id: 'GRD-4', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'B', minPercent: 60, maxPercent: 69, gradePoints: 7, passCriteria: 'Pass' },
+  { id: 'GRD-5', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'C', minPercent: 50, maxPercent: 59, gradePoints: 6, passCriteria: 'Pass' },
+  { id: 'GRD-6', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'D', minPercent: 33, maxPercent: 49, gradePoints: 4, passCriteria: 'Pass' },
+  { id: 'GRD-7', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', gradeName: 'F', minPercent: 0, maxPercent: 32, gradePoints: 0, passCriteria: 'Fail' }
+];
+
+const defaultExamSchedules: ExamSchedule[] = [
+  {
+    id: 'SCH-1',
+    examId: 'EXM-01',
+    academicYear: '2025-2026',
+    branch: 'Main Campus',
+    date: '2026-09-10',
+    startTime: '09:00',
+    endTime: '12:00',
+    subject: 'Mathematics',
+    className: 'Class 10',
+    section: 'A',
+    maxMarks: 100,
+    passMarks: 33,
+    room: 'Room 101',
+    invigilatorId: 'STF-002',
+    invigilatorName: 'Jonathan Miller'
+  },
+  {
+    id: 'SCH-2',
+    examId: 'EXM-01',
+    academicYear: '2025-2026',
+    branch: 'Main Campus',
+    date: '2026-09-12',
+    startTime: '09:00',
+    endTime: '12:00',
+    subject: 'Physics',
+    className: 'Class 10',
+    section: 'A',
+    maxMarks: 100,
+    passMarks: 33,
+    room: 'Room 102',
+    invigilatorId: 'STF-002',
+    invigilatorName: 'Jonathan Miller'
+  }
+];
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, isAuthenticated } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
@@ -422,6 +516,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [attendance, setAttendance] = useState<DailyAttendance[]>(() => getStored('attendance', []));
   const [exams, setExams] = useState<ExamSetup[]>(() => getStored('exams', initialExamSetups));
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => getStored('exam_marks', initialExamMarks));
+
+  const [examSchedules, setExamSchedules] = useState<ExamSchedule[]>(() => getStored('exam_schedules', defaultExamSchedules));
+  const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(() => getStored('grade_configurations', defaultGradeConfigurations));
+  const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(() => getStored('processed_results', []));
+
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() => getStored('timetable', initialTimetable));
   const [homework, setHomework] = useState<Homework[]>(() => getStored('homework', initialHomework));
   const [books, setBooks] = useState<BookItem[]>(() => getStored('books', initialBooks));
@@ -438,6 +537,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() => getStored('leave_types', initialLeaveTypes));
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>(() => getStored('leave_applications', initialLeaveApplications));
   const [payslips, setPayslips] = useState<Payslip[]>(() => getStored('payslips', initialPayslips));
+  const [payrollConfigurations, setPayrollConfigurations] = useState<PayrollConfiguration[]>(() => getStored('payroll_configurations', initialPayrollConfigurations));
+  const [payrollComponents, setPayrollComponents] = useState<PayrollComponent[]>(() => getStored('payroll_components', initialPayrollComponents));
+  const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>(() => getStored('salary_structures', initialSalaryStructures));
+  const [employeeSalaryAssignments, setEmployeeSalaryAssignments] = useState<EmployeeSalaryAssignment[]>(() => getStored('employee_salary_assignments', initialEmployeeSalaryAssignments));
+  const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>(() => getStored('payroll_runs', initialPayrollRuns));
 
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(() => getStored('uniform_categories', initialUniformCategories));
@@ -539,6 +643,65 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_vehicle_assignments', JSON.stringify(vehicleAssignments)); }, [vehicleAssignments]);
   useEffect(() => { localStorage.setItem('edu_db_vehicle_maintenances', JSON.stringify(vehicleMaintenances)); }, [vehicleMaintenances]);
 
+  // Fetch API data on mount
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchTransportData = async () => {
+      try {
+        const results = await Promise.allSettled([
+          TransportAPI.fetchRoutesApi(),
+          TransportAPI.fetchPickupPointsApi(),
+          TransportAPI.fetchVehiclesApi(),
+          TransportAPI.fetchDriversApi(),
+          TransportAPI.fetchVehicleAssignmentsApi(),
+          TransportAPI.fetchMaintenanceApi()
+        ]);
+        
+        const extractData = (result: any) => {
+          if (result.status !== 'fulfilled' || !result.value) return null;
+          
+          let dataArray = null;
+          const val = result.value;
+          
+          if (Array.isArray(val)) dataArray = val;
+          else if (val?.items && Array.isArray(val.items)) dataArray = val.items;
+          else if (val?.Items && Array.isArray(val.Items)) dataArray = val.Items;
+          else if (val?.data && Array.isArray(val.data)) dataArray = val.data;
+          else if (val?.data?.items && Array.isArray(val.data.items)) dataArray = val.data.items;
+          else if (val?.data?.Items && Array.isArray(val.data.Items)) dataArray = val.data.Items;
+
+          if (!dataArray) return null;
+          
+          return dataArray.map((item: any) => ({
+            ...item,
+            id: (item.id || item.routeId || item.vehicleId || item.driverId || item.pickupPointId || item.assignmentId || item.maintenanceId || item.studentTransportId || '').toString()
+          }));
+        };
+
+        const routes = extractData(results[0]);
+        const points = extractData(results[1]);
+        const vehicles = extractData(results[2]);
+        const drivers = extractData(results[3]);
+        const assignments = extractData(results[4]);
+        const maintenance = extractData(results[5]);
+
+        if (routes) setRouteMasters(routes);
+        if (points) setPickupPoints(points);
+        if (vehicles) setVehicleMasters(vehicles);
+        if (drivers) setDriverMasters(drivers);
+        if (assignments) setVehicleAssignments(assignments);
+        if (maintenance) setVehicleMaintenances(maintenance);
+        
+        if (results.some(r => r.status === 'rejected')) {
+          console.warn('Some Transport API fetches failed', results.filter(r => r.status === 'rejected'));
+        }
+      } catch (err) {
+        console.warn('Transport API fetch failed entirely', err);
+      }
+    };
+    fetchTransportData();
+  }, [isAuthenticated]);
+
   // Finance Transport Config & Ledger Effects
   useEffect(() => { localStorage.setItem('edu_db_finance_transport_configs', JSON.stringify(financeTransportConfigs)); }, [financeTransportConfigs]);
   useEffect(() => { localStorage.setItem('edu_db_student_fee_ledgers', JSON.stringify(studentFeeLedgers)); }, [studentFeeLedgers]);
@@ -548,6 +711,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_leave_types', JSON.stringify(leaveTypes)); }, [leaveTypes]);
   useEffect(() => { localStorage.setItem('edu_db_leave_applications', JSON.stringify(leaveApplications)); }, [leaveApplications]);
   useEffect(() => { localStorage.setItem('edu_db_payslips', JSON.stringify(payslips)); }, [payslips]);
+  useEffect(() => { localStorage.setItem('edu_db_payroll_configurations', JSON.stringify(payrollConfigurations)); }, [payrollConfigurations]);
+  useEffect(() => { localStorage.setItem('edu_db_payroll_components', JSON.stringify(payrollComponents)); }, [payrollComponents]);
+  useEffect(() => { localStorage.setItem('edu_db_salary_structures', JSON.stringify(salaryStructures)); }, [salaryStructures]);
+  useEffect(() => { localStorage.setItem('edu_db_employee_salary_assignments', JSON.stringify(employeeSalaryAssignments)); }, [employeeSalaryAssignments]);
+  useEffect(() => { localStorage.setItem('edu_db_payroll_runs', JSON.stringify(payrollRuns)); }, [payrollRuns]);
+
+  useEffect(() => { localStorage.setItem('edu_db_exam_schedules', JSON.stringify(examSchedules)); }, [examSchedules]);
+  useEffect(() => { localStorage.setItem('edu_db_grade_configurations', JSON.stringify(gradeConfigurations)); }, [gradeConfigurations]);
+  useEffect(() => { localStorage.setItem('edu_db_processed_results', JSON.stringify(processedResults)); }, [processedResults]);
 
   const fetchAdmissions = async () => {
     try {
@@ -606,8 +778,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    fetchAdmissions();
-  }, []);
+    if (isAuthenticated) {
+      fetchAdmissions();
+    }
+  }, [isAuthenticated]);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
     const newLog: AuditLog = {
@@ -693,11 +867,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Staff CRUD
-  const addStaff = (staffData: Omit<Staff, 'id'>) => {
+  const addStaff = (staffData: Omit<Staff, 'id'>): Staff => {
     const id = 'STF-' + Math.floor(100 + Math.random() * 900);
     const newStaff: Staff = { ...staffData, id, branch: staffData.branch || selectedBranch || 'Main Campus' };
     setStaff(prev => [...prev, newStaff]);
     logActivity('Hired Staff Member', `Registered ${newStaff.firstName} ${newStaff.lastName}`);
+    return newStaff;
   };
 
   const updateStaff = (id: string, updates: Partial<Staff>) => {
@@ -788,14 +963,78 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateAdmission = (id: string, updates: Partial<AdmissionApplication>) => {
-    setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-    logActivity('Updated Admission Record', `Updated application ID ${id}`);
+  const updateAdmission = async (id: string, updates: Partial<AdmissionApplication>) => {
+    try {
+      const existing = admissions.find(a => a.id === id);
+      if (!existing) return;
+      const appData = { ...existing, ...updates };
+
+      let isoDob = new Date().toISOString();
+      if (appData.dob) {
+        if (appData.dob.includes('/')) {
+          const parts = appData.dob.split('/');
+          if (parts.length === 3) {
+            const parsed = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
+            if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+          }
+        } else {
+          const parsed = new Date(appData.dob);
+          if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+        }
+      }
+
+      const payload = {
+        applicantFullName: appData.applicantName || "",
+        appliedClass: appData.appliedClass || "",
+        gender: appData.gender || "",
+        dob: isoDob,
+        bloodGroup: appData.bloodGroup || "O+",
+        religion: appData.religion || "General",
+        casteCategory: appData.casteCategory || "General",
+        fatherFullName: appData.parentName || "",
+        motherFullName: appData.motherName || "",
+        fatherMobileNo: appData.phone || "",
+        houseNo: appData.addressHouseNo || "",
+        street: appData.addressStreet || "",
+        areaLocality: appData.addressArea || "",
+        city: appData.addressCity || "",
+        district: appData.addressDistrict || "",
+        state: appData.addressState || "",
+        pinCode: appData.addressPinCode || "",
+        numberOfSiblings: appData.siblingsCount || 0,
+        siblingStudentId: "N/A",
+        studentType: appData.studentType || "Day Scholar",
+        transportRequired: !!appData.transportRequired,
+        transportType: appData.transportType || "N/A",
+        busRoute: appData.busRoute || "N/A",
+        pickupPoint: appData.pickupPoint || "N/A",
+        hostelBlock: appData.hostelBlock || "N/A",
+        hostelRoom: appData.hostelRoom || "N/A",
+        availableBed: appData.hostelBed || "N/A",
+        scholarship: appData.scholarship || "None",
+        discount: appData.discount || "None"
+      };
+
+      await updateAdmissionApi(parseInt(id, 10), payload);
+
+      setAdmissions(prev => prev.map(a => a.id === id ? appData as AdmissionApplication : a));
+      logActivity('Updated Admission Record', `Updated application ID ${id}`);
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    }
   };
 
-  const deleteAdmission = (id: string) => {
-    setAdmissions(prev => prev.filter(a => a.id !== id));
-    logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+  const deleteAdmission = async (id: string) => {
+    try {
+      await deleteAdmissionApi(parseInt(id, 10));
+      setAdmissions(prev => prev.filter(a => a.id !== id));
+      logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Failed to delete admission from server.');
+      setAdmissions(prev => prev.filter(a => a.id !== id)); // Local fallback
+    }
   };
 
   const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
@@ -819,6 +1058,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             app.addressPinCode ? `PIN: ${app.addressPinCode}` : ''
           ].filter(Boolean);
           const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Main Campus Area';
+
+          // --- DYNAMIC FEE CALCULATION & ASSIGNMENT SETUP ---
+          const clsName = app.appliedClass || 'Class 10';
+          const dfs = dynamicFeeStructures.find(d => d.className === clsName && d.status === 'Active') || dynamicFeeStructures[0];
+          const baseItems = dfs ? dfs.items : [
+            { feeHeadId: 'FH-01', feeHeadName: 'Tuition Fee', amount: 25000 },
+            { feeHeadId: 'FH-02', feeHeadName: 'Admission Fee', amount: 5000 },
+            { feeHeadId: 'FH-03', feeHeadName: 'Books & Stationery Fee', amount: 4500 },
+            { feeHeadId: 'FH-04', feeHeadName: 'Uniform & Sports Kit Fee', amount: 3500 },
+            { feeHeadId: 'FH-05', feeHeadName: 'Science & Computer Lab Fee', amount: 2500 }
+          ];
+
+          const selectedOptional = app.selectedOptionalFees || [];
+          const assignedFeeHeads = baseItems.filter(item => {
+            const fh = feeHeads.find(h => h.id === item.feeHeadId || h.name === item.feeHeadName);
+            const isMandatory = fh ? fh.mandatory : true;
+            return isMandatory || selectedOptional.includes(item.feeHeadId);
+          });
+          const baseFeeTotal = assignedFeeHeads.reduce((acc, h) => acc + h.amount, 0);
+
+          let additionalFees = 0;
+          if (app.studentType === 'Day Scholar' && app.transportRequired) {
+            const rObj = routeMasters.find(r => r.id === app.routeId || r.routeName === app.busRoute);
+            const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
+            const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
+            additionalFees += ftc ? ftc.feeAmount : 5500;
+          } else if (app.studentType === 'Hosteller' && app.hostelBed) {
+            const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
+            const fhc = financeHostelConfigs.find(c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active') || financeHostelConfigs[0];
+            additionalFees += fhc ? fhc.hostelFee : 40000;
+            if (fhc && fhc.messFee) additionalFees += fhc.messFee;
+            if (fhc && fhc.securityDeposit) additionalFees += fhc.securityDeposit;
+          }
+
+          let scholarshipAmount = 0;
+          if (app.scholarshipId) {
+            const sObj = scholarships.find(s => s.id === app.scholarshipId);
+            if (sObj && sObj.status === 'Active') {
+              const tuitionFeeAmount = assignedFeeHeads.find(i => i.feeHeadId === 'FH-001' || i.feeHeadName === 'Tuition Fee' || i.feeHeadId === 'FH-01')?.amount || 25000;
+              const sVal = sObj.discountType === 'Percentage' ? (sObj.percentage || 0) : (sObj.fixedAmount || 0);
+              scholarshipAmount = sObj.discountType === 'Percentage' ? (tuitionFeeAmount * sVal) / 100 : sVal;
+            }
+          }
+
+          let discountAmount = 0;
+          if (app.discountId) {
+            const dObj = discounts.find(d => d.id === app.discountId);
+            if (dObj && dObj.status === 'Active') {
+              const tuitionFeeAmount = assignedFeeHeads.find(i => i.feeHeadId === 'FH-001' || i.feeHeadName === 'Tuition Fee' || i.feeHeadId === 'FH-01')?.amount || 25000;
+              discountAmount = dObj.mode === 'Percentage' ? (tuitionFeeAmount * dObj.value) / 100 : dObj.value;
+            }
+          }
+
+          const calculatedTotalFee = Math.max(0, baseFeeTotal + additionalFees - scholarshipAmount - discountAmount);
 
           const newStudent = addStudent({
             admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
@@ -859,12 +1152,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             alternatePhone: app.alternatePhone,
             address: fullAddress,
             siblingsCount: app.siblingsCount || 0,
-            totalFee: 36500,
+            totalFee: calculatedTotalFee,
             paidFee: 0,
-            dueFee: 36500,
+            dueFee: calculatedTotalFee,
             attendancePct: 100.0,
             gpa: 4.0
           });
+
+          // Create Student Fee Assignment based on selected fee heads
+          const sfaId = 'SFA-' + Math.floor(100 + Math.random() * 900);
+          const assignment: StudentFeeAssignment = {
+            id: sfaId,
+            studentId: newStudent.id,
+            studentName: `${newStudent.firstName} ${newStudent.lastName}`,
+            admissionNo: newStudent.admissionNo,
+            branch: newStudent.branch || selectedBranch || 'Main Campus',
+            academicYear: dfs?.academicYear || '2025-2026',
+            className: newStudent.className,
+            section: newStudent.section,
+            feeStructureId: dfs?.id || 'DFS-FALLBACK',
+            assignedFeeHeads,
+            baseFeeTotal,
+            assignedDate: new Date().toISOString().split('T')[0],
+            status: 'Active'
+          };
+          setStudentFeeAssignments(prev => [...prev.filter(a => a.studentId !== newStudent.id), assignment]);
 
           // Auto-assign transport facility if Day Scholar opted for transport
           if (app.studentType === 'Day Scholar' && app.transportRequired) {
@@ -1319,20 +1631,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 8. Student Transport Assignment
-  const assignStudentTransport = (st: Omit<StudentTransport, 'id'>) => {
-    const id = 'STRP-' + Math.floor(100 + Math.random() * 900);
-    const newAssignment: StudentTransport = { ...st, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
-    setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
-    logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
+  const assignStudentTransport = async (st: Omit<StudentTransport, 'id'>) => {
+    try {
+      const studentIdInt = parseInt(st.studentId.replace(/\D/g, ''), 10) || 0;
+      const routeIdInt = parseInt(st.routeId.replace(/\D/g, ''), 10) || 0;
 
-    setTimeout(() => recalculateStudentFeeLedger(st.studentId), 50);
+      const pickupObj = pickupPoints.find(p => p.pickupName === st.pickupPoint && p.routeId === st.routeId) || pickupPoints[0];
+      const pickupPointIdInt = pickupObj ? parseInt(pickupObj.id.replace(/\D/g, ''), 10) || 1 : 1;
+
+      const vaObj = vehicleAssignments.find(va => va.routeId === st.routeId) || vehicleAssignments[0];
+      const vaIdInt = vaObj ? parseInt(vaObj.id.replace(/\D/g, ''), 10) || 1 : 1;
+
+      const payload = {
+        studentId: studentIdInt || 1,
+        routeId: routeIdInt || 1,
+        pickupPointId: pickupPointIdInt || 1,
+        vehicleAssignmentId: vaIdInt || 1,
+        effectiveFrom: st.effectiveFrom,
+        effectiveTo: st.effectiveTo || null,
+        transportType: "Both",
+        remarks: "",
+        status: st.status === 'Active'
+      };
+
+      const response = await TransportAPI.createStudentAssignmentApi(payload as any);
+      const backendData = response?.data || {};
+
+      const id = (backendData.id || backendData.assignmentId || 'STRP-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newAssignment: StudentTransport = { ...st, ...backendData, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
+      setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
+      logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
+      setTimeout(() => recalculateStudentFeeLedger(st.studentId), 50);
+    } catch (err: any) {
+      addToast('error', 'API Sync Failed', err?.message || 'Operating in local fallback mode');
+      const id = 'STRP-' + Math.floor(100 + Math.random() * 900);
+      const newAssignment: StudentTransport = { ...st, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
+      setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
+      logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
+      setTimeout(() => recalculateStudentFeeLedger(st.studentId), 50);
+    }
   };
 
-  const removeStudentTransport = (id: string) => {
-    const target = studentTransports.find(t => t.id === id);
-    setStudentTransports(prev => prev.filter(t => t.id !== id));
-    if (target) {
-      setTimeout(() => recalculateStudentFeeLedger(target.studentId), 50);
+  const removeStudentTransport = async (id: string) => {
+    try {
+      const assignmentIdInt = parseInt(id.replace(/\D/g, ''), 10) || 0;
+      await TransportAPI.deleteStudentAssignmentApi(assignmentIdInt.toString());
+
+      const target = studentTransports.find(t => t.id === id);
+      setStudentTransports(prev => prev.filter(t => t.id !== id));
+      if (target) {
+        setTimeout(() => recalculateStudentFeeLedger(target.studentId), 50);
+      }
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const target = studentTransports.find(t => t.id === id);
+      setStudentTransports(prev => prev.filter(t => t.id !== id));
+      if (target) {
+        setTimeout(() => recalculateStudentFeeLedger(target.studentId), 50);
+      }
     }
   };
 
@@ -1740,92 +2096,293 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // TRANSPORT ERP MODULE CRUD & CAPACITY ENGINE
   // ==========================================
 
-  const addRouteMaster = (r: Omit<RouteMaster, 'id'>) => {
-    const id = 'RM-' + Math.floor(100 + Math.random() * 900);
-    const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
-    setRouteMasters(prev => [...prev, newRoute]);
-    logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
+  const addRouteMaster = async (r: Omit<RouteMaster, 'id'>) => {
+    try {
+      const payload = {
+        routeCode: r.routeCode,
+        routeName: r.routeName,
+        startLocation: r.routeStart,
+        endLocation: r.routeEnd,
+        distanceKm: r.totalDistanceKm,
+        estimatedDurationMinutes: r.estimatedTimeMinutes,
+        description: r.description,
+        status: r.status === 'Active'
+      };
+      const response = await TransportAPI.createRouteApi(payload as any);
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.routeId || 'RM-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newRoute: RouteMaster = { ...r, ...backendData, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
+      setRouteMasters(prev => [...prev, newRoute]);
+      logActivity('Created Transport Route', `Added ${newRoute.routeName} (${newRoute.routeCode})`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'RM-' + Math.floor(100 + Math.random() * 900);
+      const newRoute: RouteMaster = { ...r, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
+      setRouteMasters(prev => [...prev, newRoute]);
+      logActivity('Created Transport Route (Local)', `Added ${newRoute.routeName}`);
+    }
   };
 
-  const updateRouteMaster = (id: string, updates: Partial<RouteMaster>) => {
-    setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
-    logActivity('Updated Transport Route', `Updated Route ID ${id}`);
+  const updateRouteMaster = async (id: string, updates: Partial<RouteMaster>) => {
+    try {
+      const payload: any = {};
+      if (updates.routeCode !== undefined) payload.routeCode = updates.routeCode;
+      if (updates.routeName !== undefined) payload.routeName = updates.routeName;
+      if (updates.routeStart !== undefined) payload.startLocation = updates.routeStart;
+      if (updates.routeEnd !== undefined) payload.endLocation = updates.routeEnd;
+      if (updates.totalDistanceKm !== undefined) payload.distanceKm = updates.totalDistanceKm;
+      if (updates.estimatedTimeMinutes !== undefined) payload.estimatedDurationMinutes = updates.estimatedTimeMinutes;
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.status !== undefined) payload.status = updates.status === 'Active';
+      
+      await TransportAPI.updateRouteApi(id, payload);
+      setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+      logActivity('Updated Transport Route', `Updated Route ID ${id}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    }
   };
 
-  const deleteRouteMaster = (id: string) => {
-    setRouteMasters(prev => prev.filter(r => r.id !== id));
-    logActivity('Deleted Transport Route', `Removed Route ID ${id}`);
+  const deleteRouteMaster = async (id: string) => {
+    try {
+      await TransportAPI.deleteRouteApi(id);
+      setRouteMasters(prev => prev.filter(r => r.id !== id));
+      logActivity('Deleted Transport Route', `Removed Route ID ${id}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setRouteMasters(prev => prev.filter(r => r.id !== id));
+    }
   };
 
-  const addPickupPoint = (p: Omit<PickupPoint, 'id'>) => {
-    const id = 'PP-' + Math.floor(100 + Math.random() * 900);
-    const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
-    setPickupPoints(prev => [...prev, newPt]);
-    logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
+  const addPickupPoint = async (p: Omit<PickupPoint, 'id'>) => {
+    try {
+      const payload = { ...p, status: true };
+      const response = await TransportAPI.createPickupPointApi(payload as any);
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.pickupPointId || 'PP-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newPt: PickupPoint = { ...p, ...backendData, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
+      setPickupPoints(prev => [...prev, newPt]);
+      logActivity('Created Pickup Point', `Added stop ${newPt.pickupName} for ${newPt.routeName}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'PP-' + Math.floor(100 + Math.random() * 900);
+      const newPt: PickupPoint = { ...p, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
+      setPickupPoints(prev => [...prev, newPt]);
+    }
   };
 
-  const updatePickupPoint = (id: string, updates: Partial<PickupPoint>) => {
-    setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  const updatePickupPoint = async (id: string, updates: Partial<PickupPoint>) => {
+    try {
+      const payload = { ...updates, status: true };
+      await TransportAPI.updatePickupPointApi(id, payload as any);
+      setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+    }
   };
 
-  const deletePickupPoint = (id: string) => {
-    setPickupPoints(prev => prev.filter(p => p.id !== id));
+  const deletePickupPoint = async (id: string) => {
+    try {
+      await TransportAPI.deletePickupPointApi(id);
+      setPickupPoints(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setPickupPoints(prev => prev.filter(p => p.id !== id));
+    }
   };
 
-  const addVehicleMaster = (v: Omit<VehicleMaster, 'id'>) => {
-    const id = 'VM-' + Math.floor(100 + Math.random() * 900);
-    const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
-    setVehicleMasters(prev => [...prev, newVehicle]);
-    logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
+  const addVehicleMaster = async (v: Omit<VehicleMaster, 'id'>) => {
+    try {
+      const payload = {
+        vehicleNumber: v.vehicleNumber,
+        registrationNumber: v.registrationNumber,
+        vehicleName: v.vehicleNumber,
+        vehicleType: v.vehicleType,
+        capacity: v.capacity,
+        insuranceExpiry: v.insuranceExpiry,
+        pollutionExpiry: v.pollutionExpiry,
+        fitnessExpiry: v.fitnessExpiry,
+        status: v.status === 'Active'
+      };
+      const response = await TransportAPI.createVehicleApi(payload as any);
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.vehicleId || 'VM-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newVehicle: VehicleMaster = { ...v, ...backendData, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMasters(prev => [...prev, newVehicle]);
+      logActivity('Added Fleet Vehicle', `Registered ${newVehicle.vehicleType} ${newVehicle.vehicleNumber}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'VM-' + Math.floor(100 + Math.random() * 900);
+      const newVehicle: VehicleMaster = { ...v, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMasters(prev => [...prev, newVehicle]);
+    }
   };
 
-  const updateVehicleMaster = (id: string, updates: Partial<VehicleMaster>) => {
-    setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+  const updateVehicleMaster = async (id: string, updates: Partial<VehicleMaster>) => {
+    try {
+      const payload: any = {};
+      if (updates.vehicleNumber !== undefined) {
+        payload.vehicleNumber = updates.vehicleNumber;
+        payload.vehicleName = updates.vehicleNumber;
+      }
+      if (updates.registrationNumber !== undefined) payload.registrationNumber = updates.registrationNumber;
+      if (updates.vehicleType !== undefined) payload.vehicleType = updates.vehicleType;
+      if (updates.capacity !== undefined) payload.capacity = updates.capacity;
+      if (updates.insuranceExpiry !== undefined) payload.insuranceExpiry = updates.insuranceExpiry;
+      if (updates.pollutionExpiry !== undefined) payload.pollutionExpiry = updates.pollutionExpiry;
+      if (updates.fitnessExpiry !== undefined) payload.fitnessExpiry = updates.fitnessExpiry;
+      if (updates.status !== undefined) payload.status = updates.status === 'Active';
+
+      await TransportAPI.updateVehicleApi(id, payload);
+      setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
+    }
   };
 
-  const deleteVehicleMaster = (id: string) => {
-    setVehicleMasters(prev => prev.filter(v => v.id !== id));
+  const deleteVehicleMaster = async (id: string) => {
+    try {
+      await TransportAPI.deleteVehicleApi(id);
+      setVehicleMasters(prev => prev.filter(v => v.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMasters(prev => prev.filter(v => v.id !== id));
+    }
   };
 
-  const addDriverMaster = (d: Omit<DriverMaster, 'id'>) => {
-    const id = 'DRV-' + Math.floor(100 + Math.random() * 900);
-    const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
-    setDriverMasters(prev => [...prev, newDriver]);
-    logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
+  const addDriverMaster = async (d: Omit<DriverMaster, 'id'>) => {
+    try {
+      const payload = {
+        driverName: d.driverName,
+        mobileNumber: d.mobileNumber,
+        licenceNumber: d.licenseNumber,
+        licenceExpiry: d.licenseExpiryDate,
+        address: d.address,
+        emergencyContactNumber: d.emergencyContact,
+        status: d.status === 'Active'
+      };
+      const response = await TransportAPI.createDriverApi(payload as any);
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.driverId || 'DRV-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newDriver: DriverMaster = { ...d, ...backendData, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
+      setDriverMasters(prev => [...prev, newDriver]);
+      logActivity('Added Transport Driver', `Registered driver ${newDriver.driverName}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'DRV-' + Math.floor(100 + Math.random() * 900);
+      const newDriver: DriverMaster = { ...d, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
+      setDriverMasters(prev => [...prev, newDriver]);
+    }
   };
 
-  const updateDriverMaster = (id: string, updates: Partial<DriverMaster>) => {
-    setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+  const updateDriverMaster = async (id: string, updates: Partial<DriverMaster>) => {
+    try {
+      const payload: any = {};
+      if (updates.driverName !== undefined) payload.driverName = updates.driverName;
+      if (updates.mobileNumber !== undefined) payload.mobileNumber = updates.mobileNumber;
+      if (updates.licenseNumber !== undefined) payload.licenceNumber = updates.licenseNumber;
+      if (updates.licenseExpiryDate !== undefined) payload.licenceExpiry = updates.licenseExpiryDate;
+      if (updates.address !== undefined) payload.address = updates.address;
+      if (updates.emergencyContact !== undefined) payload.emergencyContactNumber = updates.emergencyContact;
+      if (updates.status !== undefined) payload.status = updates.status === 'Active';
+
+      await TransportAPI.updateDriverApi(id, payload);
+      setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    }
   };
 
-  const deleteDriverMaster = (id: string) => {
-    setDriverMasters(prev => prev.filter(d => d.id !== id));
+  const deleteDriverMaster = async (id: string) => {
+    try {
+      await TransportAPI.deleteDriverApi(id);
+      setDriverMasters(prev => prev.filter(d => d.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setDriverMasters(prev => prev.filter(d => d.id !== id));
+    }
   };
 
-  const assignVehicleRouteDriver = (va: Omit<VehicleAssignment, 'id'>) => {
-    const id = 'VA-' + Math.floor(100 + Math.random() * 900);
-    const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
-    setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
-    logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
+  const assignVehicleRouteDriver = async (va: Omit<VehicleAssignment, 'id'>) => {
+    try {
+      const payload = {
+        ...va,
+        status: true,
+        assignmentDate: new Date().toISOString()
+      };
+      const response = await TransportAPI.createVehicleAssignmentApi(payload as any);
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.assignmentId || 'VA-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newAssign: VehicleAssignment = { ...va, ...backendData, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+      logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'VA-' + Math.floor(100 + Math.random() * 900);
+      const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+    }
   };
 
-  const removeVehicleAssignment = (id: string) => {
-    setVehicleAssignments(prev => prev.filter(a => a.id !== id));
+  const updateVehicleAssignment = async (id: string, updates: Partial<VehicleAssignment>) => {
+    try {
+      const payload = { ...updates, status: true };
+      await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
+      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    }
   };
 
-  const addVehicleMaintenance = (vm: Omit<VehicleMaintenance, 'id'>) => {
-    const id = 'VMN-' + Math.floor(100 + Math.random() * 900);
-    const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
-    setVehicleMaintenances(prev => [newMaint, ...prev]);
-    logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
+  const removeVehicleAssignment = async (id: string) => {
+    try {
+      await TransportAPI.deleteVehicleAssignmentApi(id);
+      setVehicleAssignments(prev => prev.filter(a => a.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleAssignments(prev => prev.filter(a => a.id !== id));
+    }
   };
 
-  const updateVehicleMaintenance = (id: string, updates: Partial<VehicleMaintenance>) => {
-    setVehicleMaintenances(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+  const addVehicleMaintenance = async (vm: Omit<VehicleMaintenance, 'id'>) => {
+    try {
+      const response = await TransportAPI.createMaintenanceApi(vm);
+      const backendData = response?.data || {};
+      const id = (backendData.id || backendData.maintenanceId || 'VMN-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newMaint: VehicleMaintenance = { ...vm, ...backendData, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMaintenances(prev => [newMaint, ...prev]);
+      logActivity('Logged Vehicle Maintenance', `Serviced vehicle ${newMaint.vehicleNumber}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const id = 'VMN-' + Math.floor(100 + Math.random() * 900);
+      const newMaint: VehicleMaintenance = { ...vm, id, branch: (vm as any).branch || selectedBranch || 'Main Campus' } as any;
+      setVehicleMaintenances(prev => [newMaint, ...prev]);
+    }
   };
 
-  const deleteVehicleMaintenance = (id: string) => {
-    setVehicleMaintenances(prev => prev.filter(m => m.id !== id));
+  const updateVehicleMaintenance = async (id: string, updates: Partial<VehicleMaintenance>) => {
+    try {
+      await TransportAPI.updateMaintenanceApi(id, updates);
+      setVehicleMaintenances(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMaintenances(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    }
+  };
+
+  const deleteVehicleMaintenance = async (id: string) => {
+    try {
+      await TransportAPI.deleteMaintenanceApi(id);
+      setVehicleMaintenances(prev => prev.filter(m => m.id !== id));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleMaintenances(prev => prev.filter(m => m.id !== id));
+    }
   };
 
   const checkVehicleCapacity = (vehicleId: string): CapacityCheckResult => {
@@ -2155,10 +2712,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const saveMarks = (marksData: Omit<ExamMark, 'id'>[]) => {
-    const newMarks: ExamMark[] = marksData.map(m => ({
-      ...m,
-      id: 'MRK-' + Math.floor(1000 + Math.random() * 9000)
-    }));
+    const blockedLockedMarks = marksData.filter(m => {
+      const existing = examMarks.find(em => em.examId === m.examId && em.studentId === m.studentId && em.subject === m.subject);
+      return existing?.isLocked && m.isLocked !== false;
+    });
+    if (blockedLockedMarks.length > 0) {
+      addToast('error', 'Marks Locked', 'Submitted marks are locked. Unlock them before saving changes.');
+      return;
+    }
+
+    const newMarks: ExamMark[] = marksData.map(m => {
+      const exam = exams.find(e => e.id === m.examId);
+      const student = students.find(s => s.id === m.studentId);
+      return {
+        ...m,
+        academicYear: m.academicYear || exam?.academicYear || schoolProfile.academicYear,
+        branch: m.branch || exam?.branch || student?.branch || selectedBranch || 'Main Campus',
+        className: m.className || student?.className,
+        section: m.section || student?.section,
+        id: 'MRK-' + Math.floor(1000 + Math.random() * 9000)
+      };
+    });
 
     setExamMarks(prev => {
       const existingKeys = newMarks.map(nm => `${nm.examId}_${nm.studentId}_${nm.subject}`);
@@ -2166,6 +2740,121 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...filtered, ...newMarks];
     });
     logActivity('Saved Exam Marks', `Entered marks for ${newMarks.length} records`);
+  };
+
+  const addExamSchedule = (scheduleData: Omit<ExamSchedule, 'id'>) => {
+    const id = 'SCH-' + Math.floor(100 + Math.random() * 900);
+    const exam = exams.find(e => e.id === scheduleData.examId);
+    setExamSchedules(prev => [...prev, {
+      ...scheduleData,
+      id,
+      academicYear: scheduleData.academicYear || exam?.academicYear || schoolProfile.academicYear,
+      branch: scheduleData.branch || exam?.branch || selectedBranch || 'Main Campus'
+    }]);
+    logActivity('Scheduled Subject Exam', `Scheduled ${scheduleData.subject} for Class ${scheduleData.className}`);
+  };
+
+  const updateExamSchedule = (id: string, updates: Partial<ExamSchedule>) => {
+    setExamSchedules(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+    logActivity('Updated Exam Schedule', `Updated schedule ID ${id}`);
+  };
+
+  const deleteExamSchedule = (id: string) => {
+    setExamSchedules(prev => prev.filter(s => s.id !== id));
+    logActivity('Deleted Exam Schedule', `Removed schedule ID ${id}`);
+  };
+
+  const saveGradeConfiguration = (grades: GradeConfig[]) => {
+    setGradeConfigurations(grades);
+    logActivity('Saved Grade Configurations', `Updated grade range settings`);
+  };
+
+  const saveProcessedResults = (results: ProcessedResult[]) => {
+    const blockedLockedResults = results.filter(r => {
+      const existing = processedResults.find(p => p.examId === r.examId && p.studentId === r.studentId);
+      return existing?.status === 'Locked';
+    });
+    if (blockedLockedResults.length > 0) {
+      addToast('error', 'Results Locked', 'Unlock results before recalculating this class.');
+      return;
+    }
+
+    setProcessedResults(prev => {
+      const newKeys = results.map(r => `${r.examId}_${r.studentId}`);
+      const filtered = prev.filter(p => !newKeys.includes(`${p.examId}_${p.studentId}`));
+      return [...filtered, ...results];
+    });
+    logActivity('Processed Exam Results', `Calculated grades & percentages for ${results.length} students`);
+  };
+
+  const updateResultStatus = (examId: string, className: string, section: string, status: ProcessedResult['status']) => {
+    const stamp = new Date().toISOString().split('T')[0];
+    setProcessedResults(prev => prev.map(r => {
+      if (r.examId === examId && r.className === className && r.section === section) {
+        return {
+          ...r,
+          status,
+          processedAt: stamp,
+          publishedAt: status === 'Published' ? stamp : r.publishedAt,
+          lockedAt: status === 'Locked' ? stamp : r.lockedAt
+        };
+      }
+      return r;
+    }));
+    if (status === 'Published' || status === 'Locked') {
+      setExamMarks(prev => prev.map(m => {
+        const student = students.find(s => s.id === m.studentId);
+        return m.examId === examId && student?.className === className && student?.section === section
+          ? { ...m, isLocked: true }
+          : m;
+      }));
+    }
+    if (status === 'Draft') {
+      setExamMarks(prev => prev.map(m => {
+        const student = students.find(s => s.id === m.studentId);
+        return m.examId === examId && student?.className === className && student?.section === section
+          ? { ...m, isLocked: false }
+          : m;
+      }));
+    }
+    setExams(prev => prev.map(e => e.id === examId ? {
+      ...e,
+      status: status === 'Published' || status === 'Locked' ? 'Results Published' : status === 'Processed' ? 'Completed' : e.status
+    } : e));
+    logActivity('Updated Results Status', `Set results for ${examId} (${className}-${section}) to ${status}`);
+  };
+
+  const applyGraceOrRevaluation = (markId: string, newMarks: number, type: 'Grace' | 'Revaluation', reason: string, updatedBy: string) => {
+    setExamMarks(prev => prev.map(m => {
+      if (m.id === markId) {
+        const oldMarks = m.marksObtained;
+        const history = m.revaluationHistory || [];
+        const newLog = {
+          date: new Date().toISOString().split('T')[0],
+          oldMarks,
+          newMarks,
+          reason,
+          updatedBy,
+          type
+        };
+        
+        let grade = 'F';
+        const pct = (newMarks / m.totalMarks) * 100;
+        const matchedConfig = gradeConfigurations.find(c => pct >= c.minPercent && pct <= c.maxPercent);
+        if (matchedConfig) grade = matchedConfig.gradeName;
+
+        return {
+          ...m,
+          marksObtained: newMarks,
+          graceMarks: type === 'Grace' ? (newMarks - oldMarks) : m.graceMarks,
+          isRevalued: type === 'Revaluation' ? true : m.isRevalued,
+          grade,
+          revaluationHistory: [...history, newLog]
+        };
+      }
+      return m;
+    }));
+    logActivity(`Applied ${type}`, `Updated mark ID ${markId} to score ${newMarks}`);
   };
 
   const addTimetableSlot = (slotData: Omit<TimetableSlot, 'id'>) => {
@@ -2398,6 +3087,129 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPayslips(prev => [...prev, { ...pData, id, branch: (pData as any).branch || selectedBranch || 'Main Campus' } as any]);
   };
 
+  const addPayrollConfiguration = (configData: Omit<PayrollConfiguration, 'id'>) => {
+    const id = 'PAYCFG-' + Math.floor(100 + Math.random() * 900);
+    setPayrollConfigurations(prev => [
+      ...prev.map(c => c.branch === configData.branch && configData.status === 'Active' ? { ...c, status: 'Inactive' as const } : c),
+      { ...configData, id, branch: configData.branch || selectedBranch || 'Main Campus' }
+    ]);
+  };
+  const updatePayrollConfiguration = (id: string, updates: Partial<PayrollConfiguration>) => {
+    setPayrollConfigurations(prev => {
+      const targetBranch = updates.branch || prev.find(c => c.id === id)?.branch;
+      return prev.map(c => {
+        if (updates.status === 'Active' && c.id !== id && c.branch === targetBranch) {
+          return { ...c, status: 'Inactive' };
+        }
+        return c.id === id ? { ...c, ...updates } : c;
+      });
+    });
+  };
+  const deletePayrollConfiguration = (id: string) => {
+    setPayrollConfigurations(prev => prev.filter(c => c.id !== id));
+  };
+  const activatePayrollConfiguration = (id: string) => {
+    const target = payrollConfigurations.find(c => c.id === id);
+    if (!target) return;
+    setPayrollConfigurations(prev => prev.map(c => c.branch === target.branch ? { ...c, status: c.id === id ? 'Active' : 'Inactive' } : c));
+  };
+  const deactivatePayrollConfiguration = (id: string) => {
+    setPayrollConfigurations(prev => prev.map(c => c.id === id ? { ...c, status: 'Inactive' } : c));
+  };
+
+  const addPayrollComponent = (componentData: Omit<PayrollComponent, 'id'>) => {
+    const id = 'PC-' + Math.floor(1000 + Math.random() * 9000);
+    setPayrollComponents(prev => [...prev, { ...componentData, id, branch: componentData.branch || selectedBranch || 'Main Campus' }]);
+  };
+  const updatePayrollComponent = (id: string, updates: Partial<PayrollComponent>) => {
+    setPayrollComponents(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+  const deletePayrollComponent = (id: string) => {
+    setPayrollComponents(prev => prev.filter(c => c.id !== id));
+  };
+
+  const addSalaryStructure = (structureData: Omit<SalaryStructure, 'id'>) => {
+    const id = 'SAL-STR-' + Math.floor(100 + Math.random() * 900);
+    setSalaryStructures(prev => [...prev, { ...structureData, id, branch: structureData.branch || selectedBranch || 'Main Campus' }]);
+  };
+  const updateSalaryStructure = (id: string, updates: Partial<SalaryStructure>) => {
+    setSalaryStructures(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+  };
+  const deleteSalaryStructure = (id: string) => {
+    setSalaryStructures(prev => prev.filter(s => s.id !== id));
+  };
+  const cloneSalaryStructure = (id: string) => {
+    const source = salaryStructures.find(s => s.id === id);
+    if (!source) return;
+    const clone: SalaryStructure = {
+      ...source,
+      id: 'SAL-STR-' + Math.floor(100 + Math.random() * 900),
+      structureName: `${source.structureName} Copy`,
+      status: 'Inactive'
+    };
+    setSalaryStructures(prev => [...prev, clone]);
+  };
+  const loadSalaryStructures = (structures: SalaryStructure[]) => {
+    setSalaryStructures(structures);
+  };
+
+  const assignEmployeeSalaryStructure = (assignmentData: Omit<EmployeeSalaryAssignment, 'id'>) => {
+    const id = 'ESA-' + Math.floor(100 + Math.random() * 900);
+    const structure = salaryStructures.find(s => s.id === assignmentData.salaryStructureId);
+    const gross = structure ? structure.grossSalary : 0;
+    
+    const prevActive = employeeSalaryAssignments.find(a => a.employeeId === assignmentData.employeeId && a.status === 'Active');
+    const prevGross = prevActive ? prevActive.monthlyGross || 0 : 0;
+
+    const newAssignment: EmployeeSalaryAssignment = {
+      ...assignmentData,
+      id,
+      branch: assignmentData.branch || selectedBranch || 'Main Campus',
+      monthlyGross: gross,
+      previousGross: prevGross,
+      updatedBy: 'Admin',
+      updatedAt: new Date().toISOString()
+    };
+
+    setEmployeeSalaryAssignments(prev => [
+      ...prev.map(a => a.employeeId === assignmentData.employeeId ? { ...a, status: 'Inactive' as const } : a),
+      newAssignment
+    ]);
+
+    setStaff(prev => prev.map(s => s.id === assignmentData.employeeId ? {
+      ...s,
+      salaryStructureId: assignmentData.salaryStructureId,
+      salaryStructureName: assignmentData.salaryStructureName,
+      salaryStructureEffectiveDate: assignmentData.effectiveDate,
+      salary: gross
+    } : s));
+  };
+  const updateEmployeeSalaryAssignment = (id: string, updates: Partial<EmployeeSalaryAssignment>) => {
+    setEmployeeSalaryAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+  };
+  const deleteEmployeeSalaryAssignment = (id: string) => {
+    setEmployeeSalaryAssignments(prev => prev.filter(a => a.id !== id));
+  };
+
+  const upsertPayrollRun = (runData: Omit<PayrollRun, 'id'>): PayrollRun => {
+    let savedRun: PayrollRun = { ...runData, id: 'PRUN-' + Math.floor(1000 + Math.random() * 9000) };
+    setPayrollRuns(prev => {
+      const existing = prev.find(r => r.employeeId === runData.employeeId && r.payrollMonth === runData.payrollMonth);
+      if (existing) {
+        savedRun = { ...existing, ...runData };
+        return prev.map(r => r.id === existing.id ? savedRun : r);
+      }
+      return [...prev, savedRun];
+    });
+    return savedRun;
+  };
+  const updatePayrollRun = (id: string, updates: Partial<PayrollRun>) => {
+    setPayrollRuns(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+  };
+  const deletePayrollRun = (id: string) => {
+    setPayrollRuns(prev => prev.filter(r => r.id !== id));
+  };
+
   // Leave Application Status Engine
   const updateLeaveApplicationStatus = (
     id: string,
@@ -2512,6 +3324,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const filteredLeaveApplications = filterByBranch(leaveApplications);
   const filteredHolidays = filterByBranch(holidays);
   const filteredPayslips = filterByBranch(payslips);
+  const filteredPayrollConfigurations = filterByBranch(payrollConfigurations);
+  const filteredPayrollComponents = filterByBranch(payrollComponents);
+  const filteredSalaryStructures = filterByBranch(salaryStructures);
+  const filteredEmployeeSalaryAssignments = filterByBranch(employeeSalaryAssignments);
+  const filteredPayrollRuns = filterByBranch(payrollRuns);
 
   const filteredAttendance = attendance.filter(a => {
     if (!selectedBranch) return true;
@@ -2585,6 +3402,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         checkVehicleCapacity,
         attendance: filteredAttendance, markAttendance,
         exams: filteredExams, examMarks, addExam, updateExam, deleteExam, saveMarks,
+        examSchedules, addExamSchedule, updateExamSchedule, deleteExamSchedule,
+        gradeConfigurations, saveGradeConfiguration,
+        processedResults, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
         timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
         homework: filteredHomework, addHomework, updateHomework, deleteHomework,
         books, bookIssues: filteredBookIssues, addBook, issueBook, returnBook,
@@ -2605,7 +3425,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType,
         leaveApplications: filteredLeaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
         addHoliday, updateHoliday, deleteHoliday,
-        payslips: filteredPayslips, disburseSalary
+        payslips: filteredPayslips, disburseSalary,
+        payrollConfigurations: filteredPayrollConfigurations,
+        addPayrollConfiguration, updatePayrollConfiguration, deletePayrollConfiguration, activatePayrollConfiguration, deactivatePayrollConfiguration,
+        payrollComponents: filteredPayrollComponents,
+        addPayrollComponent, updatePayrollComponent, deletePayrollComponent,
+        salaryStructures: filteredSalaryStructures,
+        addSalaryStructure, updateSalaryStructure, deleteSalaryStructure, cloneSalaryStructure, loadSalaryStructures,
+        employeeSalaryAssignments: filteredEmployeeSalaryAssignments,
+        assignEmployeeSalaryStructure, updateEmployeeSalaryAssignment, deleteEmployeeSalaryAssignment,
+        payrollRuns: filteredPayrollRuns,
+        upsertPayrollRun, updatePayrollRun, deletePayrollRun
       }}
     >
       {children}

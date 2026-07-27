@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { Megaphone, Send, Mail, MessageSquare, Bell } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 
 export const CommunicationView: React.FC = () => {
   const { announcements, addAnnouncement } = useData();
   const { addToast } = useToast();
+  const { role } = useAuth();
+  
+  const canModify = role === 'Super Admin' || role === 'Teacher';
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -43,8 +47,9 @@ export const CommunicationView: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Composer Form */}
-        <div className="glass-card p-6 rounded-3xl space-y-4">
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Compose Broadcast Circular</h3>
+        {canModify && (
+          <div className="glass-card p-6 rounded-3xl space-y-4">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Compose Broadcast Circular</h3>
           <form onSubmit={handleBroadcast} className="space-y-3 text-xs">
             <div>
               <label className="block font-semibold mb-1">Title *</label>
@@ -113,9 +118,10 @@ export const CommunicationView: React.FC = () => {
             </button>
           </form>
         </div>
+        )}
 
         {/* Live Broadcast Feed */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className={`${canModify ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4`}>
           <h3 className="font-bold text-sm text-slate-900 dark:text-white">Active Circular Feed</h3>
           <div className="space-y-3">
             {announcements.map(a => (

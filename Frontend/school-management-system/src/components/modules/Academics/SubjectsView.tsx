@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Plus, Edit, Trash2, Search, X, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Edit, Trash2, Search, X, Loader2 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { SubjectItem } from '../../../types';
@@ -28,11 +28,12 @@ export const SubjectsView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
-  const filteredSubjects = subjects.filter(s =>
-    s.name.toLowerCase().includes(query.toLowerCase()) ||
-    s.subjectId.toLowerCase().includes(query.toLowerCase()) ||
-    (s.code || '').toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredSubjects = subjects.filter(s => {
+    const matchQuery = s.name.toLowerCase().includes(query.toLowerCase()) ||
+      s.subjectId.toLowerCase().includes(query.toLowerCase()) ||
+      (s.code || '').toLowerCase().includes(query.toLowerCase());
+    return matchQuery;
+  });
 
   const totalPages = Math.ceil(filteredSubjects.length / pageSize) || 1;
   const paginated = filteredSubjects.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -64,7 +65,6 @@ export const SubjectsView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setEditingSubject(null);
-    const nextNum = Math.floor(100 + subjects.length + 1);
     setFormData({
       subjectId: '',
       name: '',
@@ -98,14 +98,14 @@ export const SubjectsView: React.FC = () => {
           subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code
-        });
+        } as any);
         addToast('success', 'Subject Updated', `Updated subject ${formData.name}`);
       } else {
         await createSubjectApi({
           subjectCode: finalSubjectId,
           subjectName: formData.name,
           courseCode: formData.code
-        });
+        } as any);
         addToast('success', 'Subject Created', `Added subject ${formData.name}`);
       }
       setIsFormOpen(false);
@@ -138,6 +138,7 @@ export const SubjectsView: React.FC = () => {
               className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow shadow-sm"
             />
           </div>
+
           <button
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto flex-shrink-0"
@@ -235,6 +236,8 @@ export const SubjectsView: React.FC = () => {
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white outline-none font-mono font-bold placeholder:text-slate-400 dark:placeholder:text-slate-500"
                 />
               </div>
+
+
 
               <div className="flex items-center justify-end gap-4 pt-4">
                 <button type="button" onClick={() => setIsFormOpen(false)} className="px-6 py-2.5 font-bold text-slate-600 dark:text-white bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">Cancel</button>

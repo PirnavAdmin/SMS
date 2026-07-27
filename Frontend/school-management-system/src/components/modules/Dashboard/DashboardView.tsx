@@ -4,18 +4,30 @@ import {
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
+
+import { TeacherDashboardView } from './TeacherDashboardView';
+import { ParentDashboardView } from './ParentDashboardView';
+import { StudentDashboardView } from './StudentDashboardView';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
+  const { user } = useAuth();
   const {
     students, staff, feePayments, announcements, holidays,
     birthdays, auditLogs, schoolProfile
   } = useData();
+
+  const userRole = user?.role?.toLowerCase() || '';
+
+  if (userRole === 'student') return <StudentDashboardView />;
+  if (userRole === 'parent') return <ParentDashboardView />;
+  if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView />;
 
   const totalStudents = students.length;
   const totalStaff = staff.length;
@@ -51,7 +63,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
           <div className="flex items-center gap-3 shrink-0">
             <button
-              onClick={() => onNavigate('students')}
+              onClick={() => onNavigate('admissions-add')}
               className="px-4 py-2.5 rounded-xl bg-white text-brand-700 hover:bg-brand-50 text-xs font-bold shadow-md transition-all flex items-center gap-2"
             >
               <UserCheck className="w-4 h-4" /> Add Student

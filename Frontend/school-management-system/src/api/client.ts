@@ -17,9 +17,21 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     try {
       const errorBody = await response.text();
       const errorJson = JSON.parse(errorBody);
-      if (errorJson.message) errorMessage = errorJson.message;
-      else if (errorJson.error) errorMessage = errorJson.error;
-      else if (errorBody) errorMessage = errorBody;
+      
+      if (errorJson.errors) {
+        const validationErrors = Object.entries(errorJson.errors)
+          .map(([key, messages]) => `${key}: ${(messages as string[]).join(', ')}`)
+          .join(' | ');
+        errorMessage = `${errorJson.title || 'Validation Error'}: ${validationErrors}`;
+      } else if (errorJson.message) {
+        errorMessage = errorJson.message;
+      } else if (errorJson.error) {
+        errorMessage = errorJson.error;
+      } else if (errorJson.title) {
+        errorMessage = errorJson.title;
+      } else if (errorBody) {
+        errorMessage = errorBody;
+      }
     } catch (e) {
       // Ignored
     }

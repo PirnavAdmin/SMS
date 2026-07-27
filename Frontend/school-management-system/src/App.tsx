@@ -7,7 +7,9 @@ import { DataProvider } from './context/DataContext';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { GlobalSearchModal } from './components/common/GlobalSearchModal';
+import { LandingView } from './components/modules/Auth/LandingView';
 import { LoginView } from './components/modules/Auth/LoginView';
+import { ProfileCompletionView } from './components/modules/Auth/ProfileCompletionView';
 import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordModal';
 
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
@@ -24,7 +26,14 @@ import { AttendanceView } from './components/modules/Attendance/AttendanceView';
 import { TimetableView } from './components/modules/Timetable/TimetableView';
 import { ExaminationView } from './components/modules/Examination/ExaminationView';
 import { HomeworkView } from './components/modules/Homework/HomeworkView';
-import { FeeManagementView } from './components/modules/FeeManagement/FeeManagementView';
+import { ParentHomeworkView } from './components/modules/Academics/ParentHomeworkView';
+import { ParentTimetableView } from './components/modules/Academics/ParentTimetableView';
+import { ParentExaminationView } from './components/modules/Academics/ParentExaminationView';
+import { ParentTeacherInfoView } from './components/modules/Academics/ParentTeacherInfoView';
+import { ParentBusInfoView } from './components/modules/Transport/ParentBusInfoView';
+import { ParentAttendanceView } from './components/modules/Attendance/ParentAttendanceView';
+import { ParentFinanceView } from './components/modules/Dashboard/ParentFinanceView';
+import { ParentHostelView } from './components/modules/Dashboard/ParentHostelView';
 import { FinanceContainerView } from './components/modules/Finance/FinanceContainerView';
 import { UniformContainerView } from './components/modules/Uniform/UniformContainerView';
 import { LibraryView } from './components/modules/Library/LibraryView';
@@ -40,11 +49,14 @@ import { UserManagementView } from './components/modules/UserManagement/UserMana
 import { SettingsView } from './components/modules/Settings/SettingsView';
 
 const MainLayout: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [activeModule, setActiveModule] = useState<string>('dashboard');
+  const [showLogin, setShowLogin] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
+
+  const userRole = user?.role?.toLowerCase() || '';
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -57,10 +69,32 @@ const MainLayout: React.FC = () => {
   }, [activeModule]);
 
   if (!isAuthenticated) {
-    return <LoginView />;
+    if (showLogin) {
+      return <LoginView onBack={() => setShowLogin(false)} />;
+    }
+    return <LandingView onLoginClick={() => setShowLogin(true)} />;
+  }
+
+  if (user?.isFirstLogin) {
+    return <ProfileCompletionView />;
   }
 
   const renderModuleContent = () => {
+    if (activeModule.startsWith('parent-fee-')) {
+      return <ParentFinanceView activeTab={activeModule} />;
+    }
+
+    switch (activeModule) {
+      case 'parent-hostel-details':
+        return <ParentHostelView />;
+      case 'parent-teacher-info':
+        return <ParentTeacherInfoView />;
+      case 'parent-bus-info':
+        return <ParentBusInfoView />;
+      default:
+        break;
+    }
+
     if (activeModule.startsWith('finance-')) {
       return <FinanceContainerView initialTab={activeModule} />;
     }
@@ -94,22 +128,33 @@ const MainLayout: React.FC = () => {
         return <LeaveManagementView />;
       case 'staff-payroll':
         return <StaffPayrollView />;
+      case 'staff-payroll-config':
+      case 'staff-payroll-structures':
+      case 'staff-payroll-processing':
+      case 'staff-payroll-payslips':
+        return <StaffPayrollView initialTab={activeModule as any} />;
       case 'staff-payslips':
         return <StaffPayslipView />;
       case 'admissions':
-        return <AdmissionsView />;
+      case 'admissions-add':
+        return (
+          <AdmissionsView
+            onNavigate={(mod) => setActiveModule(mod)}
+            initialFormOpen={activeModule === 'admissions-add'}
+          />
+        );
       case 'academics':
         return <AcademicsView />;
       case 'subjects':
         return <SubjectsView />;
       case 'attendance':
-        return <AttendanceView />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentAttendanceView /> : <AttendanceView />;
       case 'timetable':
-        return <TimetableView />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentTimetableView /> : <TimetableView />;
       case 'examination':
-        return <ExaminationView />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentExaminationView /> : <ExaminationView />;
       case 'homework':
-        return <HomeworkView />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentHomeworkView /> : <HomeworkView />;
       case 'fees':
         return <FinanceContainerView initialTab="fee-collection" />;
       case 'uniforms':

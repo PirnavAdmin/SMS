@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Clock, Plus, Edit, Trash2, X, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const TimetableView: React.FC = () => {
   const { timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, staff, academicClasses, subjects } = useData();
+  const { user, role } = useAuth();
   const { addToast } = useToast();
 
+  const isTeacher = role === 'Teacher';
+  const currentTeacher = staff.find(s => s.email === user?.email) || (isTeacher ? {
+    firstName: user?.name || 'Sarah',
+    lastName: 'Jenkins'
+  } : null);
+  const teacherFullName = currentTeacher ? `${currentTeacher.firstName} ${currentTeacher.lastName}` : '';
+
+  const classOptions = useMemo(() => academicClasses.map(c => c.name), [academicClasses]);
+  const getSectionsForClass = (className?: string) => academicClasses.find(c => c.name === className)?.sections || [];
+
   const [selectedClass, setSelectedClass] = useState(academicClasses[0]?.name || 'Class 10');
+  const [selectedSection, setSelectedSection] = useState(getSectionsForClass(academicClasses[0]?.name)[0] || 'A');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
   const [deletingSlot, setDeletingSlot] = useState<TimetableSlot | null>(null);
@@ -18,6 +31,16 @@ export const TimetableView: React.FC = () => {
   const [endTime, setEndTime] = useState('');
 
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const sectionOptions = useMemo(
+    () => academicClasses.find(c => c.name === selectedClass)?.sections || [],
+    [academicClasses, selectedClass]
+  );
+
+  useEffect(() => {
+    if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
+      setSelectedSection(sectionOptions[0]);
+    }
+  }, [sectionOptions, selectedSection]);
   
   const parseSortable = (ts: string) => {
     const match = ts.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -49,7 +72,7 @@ export const TimetableView: React.FC = () => {
     return `${hr.toString().padStart(2, '0')}:${m} ${ampm}`;
   };
 
-  const classTimetable = timetable.filter(t => t.className === selectedClass);
+  const classTimetable = timetable.filter(t => t.className === selectedClass && t.section === selectedSection);
   const timeSlots = Array.from(new Set(classTimetable.map(t => t.timeSlot))).sort((a, b) => parseSortable(a) - parseSortable(b));
 
   const [formData, setFormData] = useState<Partial<TimetableSlot>>({
@@ -76,7 +99,7 @@ export const TimetableView: React.FC = () => {
       day: day || 'Monday',
       timeSlot: slot || '',
       className: selectedClass,
-      section: '',
+      section: selectedSection,
       subject: '',
       teacherName: '',
       roomNo: ''
@@ -95,7 +118,7 @@ export const TimetableView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!formData.subject || !formData.teacherName) return;
+    if (!formData.subject || !formData.teacherName || !formData.className || !formData.section) return;
 
     const timeSlotStr = `${formatTo12(startTime)} - ${formatTo12(endTime)}`;
     const finalData = { ...formData, timeSlot: timeSlotStr };
@@ -118,19 +141,40 @@ export const TimetableView: React.FC = () => {
             <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Timetable Management</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Manage daily schedules for all classes</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+              {isTeacher ? 'Class Timetable' : 'Timetable Management'}
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {isTeacher ? 'Manage daily schedules for your assigned classes' : 'Manage daily schedules for all classes'}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <div className="relative">
             <select
               value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
+              onChange={e => {
+                const nextClass = e.target.value;
+                setSelectedClass(nextClass);
+                setSelectedSection(getSectionsForClass(nextClass)[0] || '');
+              }}
               className="appearance-none pr-10 pl-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow cursor-pointer min-w-[140px] shadow-sm"
             >
-              {academicClasses.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
+              {classOptions.map(className => (
+                <option key={className} value={className}>{className}</option>
+              ))}
+            </select>
+            <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          <div className="relative">
+            <select
+              value={selectedSection}
+              onChange={e => setSelectedSection(e.target.value)}
+              className="appearance-none pr-10 pl-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/50 transition-shadow cursor-pointer min-w-[120px] shadow-sm"
+            >
+              {sectionOptions.map(section => (
+                <option key={section} value={section}>Section {section}</option>
               ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -161,7 +205,9 @@ export const TimetableView: React.FC = () => {
               {timeSlots.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-16 text-center text-slate-500 dark:text-slate-400">
-                    <p className="text-sm">No timetable slots have been added for this class yet.</p>
+                    <p className="text-sm">
+                      No timetable slots have been added for {selectedClass} - Section {selectedSection} yet.
+                    </p>
                     <p className="text-xs mt-1">Click <span className="font-bold text-brand-600 dark:text-brand-400">+ Add Slot</span> above to begin building the schedule.</p>
                   </td>
                 </tr>
@@ -170,13 +216,14 @@ export const TimetableView: React.FC = () => {
                 <tr key={slot} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="py-4 px-2 font-mono font-bold whitespace-nowrap">{slot}</td>
                   {days.map(day => {
-                    const match = timetable.find(t => t.day === day && t.timeSlot === slot && t.className === selectedClass);
+                    const match = timetable.find(t => t.day === day && t.timeSlot === slot && t.className === selectedClass && t.section === selectedSection);
                     return (
                       <td key={day} className="py-4 px-2 text-center align-middle">
                         {match ? (
                           <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-transparent space-y-1 relative group text-left mx-auto w-40 hover:shadow-md transition-shadow">
                             <p className="font-extrabold text-slate-900 dark:text-white truncate">{match.subject}</p>
                             <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{match.teacherName}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{match.className} - Section {match.section}</p>
                             <div className="flex items-center justify-between pt-2">
                               <span className="px-2 py-1 rounded-md bg-white dark:bg-slate-900 text-[10px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
                                 {match.roomNo}
@@ -190,7 +237,7 @@ export const TimetableView: React.FC = () => {
                         ) : (
                           <button
                             onClick={() => handleOpenAdd(day as any, slot)}
-                            className="text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 italic text-[11px] hover:underline"
+                            className="text-slate-400 dark:text-slate-500 hover:text-brand-600 dark:hover:text-brand-400 italic text-[11px] hover:underline opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             + Assign
                           </button>
@@ -220,6 +267,50 @@ export const TimetableView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5 text-[13px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Class *</label>
+                  <div className="relative">
+                    <select
+                      required
+                      value={formData.className}
+                      onChange={e => {
+                        const nextClass = e.target.value;
+                        const nextSections = getSectionsForClass(nextClass);
+                        setFormData({
+                          ...formData,
+                          className: nextClass,
+                          section: nextSections.includes(formData.section || '') ? formData.section : nextSections[0] || ''
+                        });
+                      }}
+                      className="appearance-none w-full pr-10 pl-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white font-bold outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                    >
+                      {classOptions.map(className => (
+                        <option key={className} value={className}>{className}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Section *</label>
+                  <div className="relative">
+                    <select
+                      required
+                      value={formData.section}
+                      onChange={e => setFormData({ ...formData, section: e.target.value })}
+                      className="appearance-none w-full pr-10 pl-4 py-3 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-transparent text-slate-900 dark:text-white font-bold outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer"
+                    >
+                      {getSectionsForClass(formData.className).map(section => (
+                        <option key={section} value={section}>Section {section}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold mb-2 text-slate-700 dark:text-slate-200">Day</label>

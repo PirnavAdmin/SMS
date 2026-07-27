@@ -1,3 +1,5 @@
 .vs/
 bin/
 obj/
+/Backend/Controllers/PayrollConfigurationController.cs
+/Backend/Controllers/SalaryStructureController.cs
