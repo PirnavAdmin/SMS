@@ -33,11 +33,11 @@ public class TransportDriver
         set => MobileNumber = value;
     }
 
-    public string AlternateMobileNumber { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
-    public string BloodGroup { get; set; } = string.Empty;
-    public string EmergencyContactName { get; set; } = string.Empty;
-    public string EmergencyContactNumber { get; set; } = string.Empty;
+    public string? AlternateMobileNumber { get; set; }
+    public string? Address { get; set; }
+    public string? BloodGroup { get; set; }
+    public string? EmergencyContactName { get; set; }
+    public string? EmergencyContactNumber { get; set; }
 
     public bool Status { get; set; } = true;
     public bool IsDeleted { get; set; } = false;

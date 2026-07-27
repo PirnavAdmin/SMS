@@ -9,6 +9,7 @@ public class TransportVehicleDto
     public int Capacity { get; set; } = 40;
     public bool IsAC { get; set; } = true;
     public string Status { get; set; } = "Active";
+    public string StatusText { get; set; } = "Active";
 }
 
 public class CreateTransportVehicleDto

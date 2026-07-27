@@ -21,8 +21,15 @@ namespace SMS.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll([FromQuery] TransportVehicleFilterDto filter)
         {
-            var result = await _service.GetAllAsync(filter);
-            return Ok(result);
+            try
+            {
+                var result = await _service.GetAllAsync(filter);
+                return Ok(result);
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { message = "DEBUG ERROR: " + ex.ToString() });
+            }
         }
 
         // GET: api/transport/vehicles/{id}

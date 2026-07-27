@@ -14,13 +14,13 @@ public class TransportRoute
     [Required]
     public string RouteName { get; set; } = string.Empty;
 
-    public string StartLocation { get; set; } = string.Empty;
-    public string EndLocation { get; set; } = string.Empty;
-    public string PickupPoint { get; set; } = string.Empty;
-    public string DropPoint { get; set; } = string.Empty;
+    public string? StartLocation { get; set; }
+    public string? EndLocation { get; set; }
+    public string? PickupPoint { get; set; }
+    public string? DropPoint { get; set; }
     public decimal DistanceKm { get; set; } = 0;
     public int EstimatedDurationMinutes { get; set; } = 30;
-    public string Description { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public decimal MonthlyFee { get; set; } = 0;
 
     public bool Status { get; set; } = true;

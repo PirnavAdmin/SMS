@@ -39,7 +39,7 @@ import {
   initialPayrollConfigurations, initialPayrollComponents, initialSalaryStructures,
   initialEmployeeSalaryAssignments, initialPayrollRuns
 } from '../services/mockData';
-import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionStatusApi } from '../api/admission';
+import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, updateAdmissionStatusApi, deleteAdmissionApi } from '../api/admission';
 import * as TransportAPI from '../api/transport';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
@@ -298,6 +298,7 @@ interface DataContextType {
 
   vehicleAssignments: VehicleAssignment[];
   assignVehicleRouteDriver: (va: Omit<VehicleAssignment, 'id'>) => Promise<void>;
+  updateVehicleAssignment: (id: string, updates: Partial<VehicleAssignment>) => Promise<void>;
   removeVehicleAssignment: (id: string) => Promise<void>;
 
   vehicleMaintenances: VehicleMaintenance[];
@@ -962,14 +963,78 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateAdmission = (id: string, updates: Partial<AdmissionApplication>) => {
-    setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
-    logActivity('Updated Admission Record', `Updated application ID ${id}`);
+  const updateAdmission = async (id: string, updates: Partial<AdmissionApplication>) => {
+    try {
+      const existing = admissions.find(a => a.id === id);
+      if (!existing) return;
+      const appData = { ...existing, ...updates };
+
+      let isoDob = new Date().toISOString();
+      if (appData.dob) {
+        if (appData.dob.includes('/')) {
+          const parts = appData.dob.split('/');
+          if (parts.length === 3) {
+            const parsed = new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00Z`);
+            if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+          }
+        } else {
+          const parsed = new Date(appData.dob);
+          if (!isNaN(parsed.getTime())) isoDob = parsed.toISOString();
+        }
+      }
+
+      const payload = {
+        applicantFullName: appData.applicantName || "",
+        appliedClass: appData.appliedClass || "",
+        gender: appData.gender || "",
+        dob: isoDob,
+        bloodGroup: appData.bloodGroup || "O+",
+        religion: appData.religion || "General",
+        casteCategory: appData.casteCategory || "General",
+        fatherFullName: appData.parentName || "",
+        motherFullName: appData.motherName || "",
+        fatherMobileNo: appData.phone || "",
+        houseNo: appData.addressHouseNo || "",
+        street: appData.addressStreet || "",
+        areaLocality: appData.addressArea || "",
+        city: appData.addressCity || "",
+        district: appData.addressDistrict || "",
+        state: appData.addressState || "",
+        pinCode: appData.addressPinCode || "",
+        numberOfSiblings: appData.siblingsCount || 0,
+        siblingStudentId: "N/A",
+        studentType: appData.studentType || "Day Scholar",
+        transportRequired: !!appData.transportRequired,
+        transportType: appData.transportType || "N/A",
+        busRoute: appData.busRoute || "N/A",
+        pickupPoint: appData.pickupPoint || "N/A",
+        hostelBlock: appData.hostelBlock || "N/A",
+        hostelRoom: appData.hostelRoom || "N/A",
+        availableBed: appData.hostelBed || "N/A",
+        scholarship: appData.scholarship || "None",
+        discount: appData.discount || "None"
+      };
+
+      await updateAdmissionApi(parseInt(id, 10), payload);
+
+      setAdmissions(prev => prev.map(a => a.id === id ? appData as AdmissionApplication : a));
+      logActivity('Updated Admission Record', `Updated application ID ${id}`);
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setAdmissions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    }
   };
 
-  const deleteAdmission = (id: string) => {
-    setAdmissions(prev => prev.filter(a => a.id !== id));
-    logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+  const deleteAdmission = async (id: string) => {
+    try {
+      await deleteAdmissionApi(parseInt(id, 10));
+      setAdmissions(prev => prev.filter(a => a.id !== id));
+      logActivity('Deleted Admission Record', `Removed application ID ${id}`);
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Failed to delete admission from server.');
+      setAdmissions(prev => prev.filter(a => a.id !== id)); // Local fallback
+    }
   };
 
   const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
@@ -993,6 +1058,60 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             app.addressPinCode ? `PIN: ${app.addressPinCode}` : ''
           ].filter(Boolean);
           const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'Main Campus Area';
+
+          // --- DYNAMIC FEE CALCULATION & ASSIGNMENT SETUP ---
+          const clsName = app.appliedClass || 'Class 10';
+          const dfs = dynamicFeeStructures.find(d => d.className === clsName && d.status === 'Active') || dynamicFeeStructures[0];
+          const baseItems = dfs ? dfs.items : [
+            { feeHeadId: 'FH-01', feeHeadName: 'Tuition Fee', amount: 25000 },
+            { feeHeadId: 'FH-02', feeHeadName: 'Admission Fee', amount: 5000 },
+            { feeHeadId: 'FH-03', feeHeadName: 'Books & Stationery Fee', amount: 4500 },
+            { feeHeadId: 'FH-04', feeHeadName: 'Uniform & Sports Kit Fee', amount: 3500 },
+            { feeHeadId: 'FH-05', feeHeadName: 'Science & Computer Lab Fee', amount: 2500 }
+          ];
+
+          const selectedOptional = app.selectedOptionalFees || [];
+          const assignedFeeHeads = baseItems.filter(item => {
+            const fh = feeHeads.find(h => h.id === item.feeHeadId || h.name === item.feeHeadName);
+            const isMandatory = fh ? fh.mandatory : true;
+            return isMandatory || selectedOptional.includes(item.feeHeadId);
+          });
+          const baseFeeTotal = assignedFeeHeads.reduce((acc, h) => acc + h.amount, 0);
+
+          let additionalFees = 0;
+          if (app.studentType === 'Day Scholar' && app.transportRequired) {
+            const rObj = routeMasters.find(r => r.id === app.routeId || r.routeName === app.busRoute);
+            const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
+            const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
+            additionalFees += ftc ? ftc.feeAmount : 5500;
+          } else if (app.studentType === 'Hosteller' && app.hostelBed) {
+            const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
+            const fhc = financeHostelConfigs.find(c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active') || financeHostelConfigs[0];
+            additionalFees += fhc ? fhc.hostelFee : 40000;
+            if (fhc && fhc.messFee) additionalFees += fhc.messFee;
+            if (fhc && fhc.securityDeposit) additionalFees += fhc.securityDeposit;
+          }
+
+          let scholarshipAmount = 0;
+          if (app.scholarshipId) {
+            const sObj = scholarships.find(s => s.id === app.scholarshipId);
+            if (sObj && sObj.status === 'Active') {
+              const tuitionFeeAmount = assignedFeeHeads.find(i => i.feeHeadId === 'FH-001' || i.feeHeadName === 'Tuition Fee' || i.feeHeadId === 'FH-01')?.amount || 25000;
+              const sVal = sObj.discountType === 'Percentage' ? (sObj.percentage || 0) : (sObj.fixedAmount || 0);
+              scholarshipAmount = sObj.discountType === 'Percentage' ? (tuitionFeeAmount * sVal) / 100 : sVal;
+            }
+          }
+
+          let discountAmount = 0;
+          if (app.discountId) {
+            const dObj = discounts.find(d => d.id === app.discountId);
+            if (dObj && dObj.status === 'Active') {
+              const tuitionFeeAmount = assignedFeeHeads.find(i => i.feeHeadId === 'FH-001' || i.feeHeadName === 'Tuition Fee' || i.feeHeadId === 'FH-01')?.amount || 25000;
+              discountAmount = dObj.mode === 'Percentage' ? (tuitionFeeAmount * dObj.value) / 100 : dObj.value;
+            }
+          }
+
+          const calculatedTotalFee = Math.max(0, baseFeeTotal + additionalFees - scholarshipAmount - discountAmount);
 
           const newStudent = addStudent({
             admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
@@ -1033,12 +1152,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             alternatePhone: app.alternatePhone,
             address: fullAddress,
             siblingsCount: app.siblingsCount || 0,
-            totalFee: 36500,
+            totalFee: calculatedTotalFee,
             paidFee: 0,
-            dueFee: 36500,
+            dueFee: calculatedTotalFee,
             attendancePct: 100.0,
             gpa: 4.0
           });
+
+          // Create Student Fee Assignment based on selected fee heads
+          const sfaId = 'SFA-' + Math.floor(100 + Math.random() * 900);
+          const assignment: StudentFeeAssignment = {
+            id: sfaId,
+            studentId: newStudent.id,
+            studentName: `${newStudent.firstName} ${newStudent.lastName}`,
+            admissionNo: newStudent.admissionNo,
+            branch: newStudent.branch || selectedBranch || 'Main Campus',
+            academicYear: dfs?.academicYear || '2025-2026',
+            className: newStudent.className,
+            section: newStudent.section,
+            feeStructureId: dfs?.id || 'DFS-FALLBACK',
+            assignedFeeHeads,
+            baseFeeTotal,
+            assignedDate: new Date().toISOString().split('T')[0],
+            status: 'Active'
+          };
+          setStudentFeeAssignments(prev => [...prev.filter(a => a.studentId !== newStudent.id), assignment]);
 
           // Auto-assign transport facility if Day Scholar opted for transport
           if (app.studentType === 'Day Scholar' && app.transportRequired) {
@@ -1493,20 +1631,64 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // 8. Student Transport Assignment
-  const assignStudentTransport = (st: Omit<StudentTransport, 'id'>) => {
-    const id = 'STRP-' + Math.floor(100 + Math.random() * 900);
-    const newAssignment: StudentTransport = { ...st, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
-    setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
-    logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
+  const assignStudentTransport = async (st: Omit<StudentTransport, 'id'>) => {
+    try {
+      const studentIdInt = parseInt(st.studentId.replace(/\D/g, ''), 10) || 0;
+      const routeIdInt = parseInt(st.routeId.replace(/\D/g, ''), 10) || 0;
 
-    setTimeout(() => recalculateStudentFeeLedger(st.studentId), 50);
+      const pickupObj = pickupPoints.find(p => p.pickupName === st.pickupPoint && p.routeId === st.routeId) || pickupPoints[0];
+      const pickupPointIdInt = pickupObj ? parseInt(pickupObj.id.replace(/\D/g, ''), 10) || 1 : 1;
+
+      const vaObj = vehicleAssignments.find(va => va.routeId === st.routeId) || vehicleAssignments[0];
+      const vaIdInt = vaObj ? parseInt(vaObj.id.replace(/\D/g, ''), 10) || 1 : 1;
+
+      const payload = {
+        studentId: studentIdInt || 1,
+        routeId: routeIdInt || 1,
+        pickupPointId: pickupPointIdInt || 1,
+        vehicleAssignmentId: vaIdInt || 1,
+        effectiveFrom: st.effectiveFrom,
+        effectiveTo: st.effectiveTo || null,
+        transportType: "Both",
+        remarks: "",
+        status: st.status === 'Active'
+      };
+
+      const response = await TransportAPI.createStudentAssignmentApi(payload as any);
+      const backendData = response?.data || {};
+
+      const id = (backendData.id || backendData.assignmentId || 'STRP-' + Math.floor(100 + Math.random() * 900)).toString();
+      const newAssignment: StudentTransport = { ...st, ...backendData, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
+      setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
+      logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
+      setTimeout(() => recalculateStudentFeeLedger(st.studentId), 50);
+    } catch (err: any) {
+      addToast('error', 'API Sync Failed', err?.message || 'Operating in local fallback mode');
+      const id = 'STRP-' + Math.floor(100 + Math.random() * 900);
+      const newAssignment: StudentTransport = { ...st, id, branch: (st as any).branch || selectedBranch || 'Main Campus' } as any;
+      setStudentTransports(prev => [...prev.filter(t => t.studentId !== st.studentId), newAssignment]);
+      logActivity('Assigned Transport', `Assigned route ${st.routeName} to ${st.studentName}`);
+      setTimeout(() => recalculateStudentFeeLedger(st.studentId), 50);
+    }
   };
 
-  const removeStudentTransport = (id: string) => {
-    const target = studentTransports.find(t => t.id === id);
-    setStudentTransports(prev => prev.filter(t => t.id !== id));
-    if (target) {
-      setTimeout(() => recalculateStudentFeeLedger(target.studentId), 50);
+  const removeStudentTransport = async (id: string) => {
+    try {
+      const assignmentIdInt = parseInt(id.replace(/\D/g, ''), 10) || 0;
+      await TransportAPI.deleteStudentAssignmentApi(assignmentIdInt.toString());
+
+      const target = studentTransports.find(t => t.id === id);
+      setStudentTransports(prev => prev.filter(t => t.id !== id));
+      if (target) {
+        setTimeout(() => recalculateStudentFeeLedger(target.studentId), 50);
+      }
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      const target = studentTransports.find(t => t.id === id);
+      setStudentTransports(prev => prev.filter(t => t.id !== id));
+      if (target) {
+        setTimeout(() => recalculateStudentFeeLedger(target.studentId), 50);
+      }
     }
   };
 
@@ -1916,7 +2098,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addRouteMaster = async (r: Omit<RouteMaster, 'id'>) => {
     try {
-      const response = await TransportAPI.createRouteApi(r);
+      const payload = {
+        routeCode: r.routeCode,
+        routeName: r.routeName,
+        startLocation: r.routeStart,
+        endLocation: r.routeEnd,
+        distanceKm: r.totalDistanceKm,
+        estimatedDurationMinutes: r.estimatedTimeMinutes,
+        description: r.description,
+        status: r.status === 'Active'
+      };
+      const response = await TransportAPI.createRouteApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.routeId || 'RM-' + Math.floor(100 + Math.random() * 900)).toString();
       const newRoute: RouteMaster = { ...r, ...backendData, id, branch: (r as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -1933,7 +2125,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateRouteMaster = async (id: string, updates: Partial<RouteMaster>) => {
     try {
-      await TransportAPI.updateRouteApi(id, updates);
+      const payload: any = {};
+      if (updates.routeCode !== undefined) payload.routeCode = updates.routeCode;
+      if (updates.routeName !== undefined) payload.routeName = updates.routeName;
+      if (updates.routeStart !== undefined) payload.startLocation = updates.routeStart;
+      if (updates.routeEnd !== undefined) payload.endLocation = updates.routeEnd;
+      if (updates.totalDistanceKm !== undefined) payload.distanceKm = updates.totalDistanceKm;
+      if (updates.estimatedTimeMinutes !== undefined) payload.estimatedDurationMinutes = updates.estimatedTimeMinutes;
+      if (updates.description !== undefined) payload.description = updates.description;
+      if (updates.status !== undefined) payload.status = updates.status === 'Active';
+      
+      await TransportAPI.updateRouteApi(id, payload);
       setRouteMasters(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
       logActivity('Updated Transport Route', `Updated Route ID ${id}`);
     } catch (err) {
@@ -1955,7 +2157,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addPickupPoint = async (p: Omit<PickupPoint, 'id'>) => {
     try {
-      const response = await TransportAPI.createPickupPointApi(p);
+      const payload = { ...p, status: true };
+      const response = await TransportAPI.createPickupPointApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.pickupPointId || 'PP-' + Math.floor(100 + Math.random() * 900)).toString();
       const newPt: PickupPoint = { ...p, ...backendData, id, branch: (p as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -1971,7 +2174,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updatePickupPoint = async (id: string, updates: Partial<PickupPoint>) => {
     try {
-      await TransportAPI.updatePickupPointApi(id, updates);
+      const payload = { ...updates, status: true };
+      await TransportAPI.updatePickupPointApi(id, payload as any);
       setPickupPoints(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
     } catch (err) {
       addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
@@ -1991,7 +2195,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addVehicleMaster = async (v: Omit<VehicleMaster, 'id'>) => {
     try {
-      const response = await TransportAPI.createVehicleApi(v);
+      const payload = {
+        vehicleNumber: v.vehicleNumber,
+        registrationNumber: v.registrationNumber,
+        vehicleName: v.vehicleNumber,
+        vehicleType: v.vehicleType,
+        capacity: v.capacity,
+        insuranceExpiry: v.insuranceExpiry,
+        pollutionExpiry: v.pollutionExpiry,
+        fitnessExpiry: v.fitnessExpiry,
+        status: v.status === 'Active'
+      };
+      const response = await TransportAPI.createVehicleApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.vehicleId || 'VM-' + Math.floor(100 + Math.random() * 900)).toString();
       const newVehicle: VehicleMaster = { ...v, ...backendData, id, branch: (v as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -2007,7 +2222,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateVehicleMaster = async (id: string, updates: Partial<VehicleMaster>) => {
     try {
-      await TransportAPI.updateVehicleApi(id, updates);
+      const payload: any = {};
+      if (updates.vehicleNumber !== undefined) {
+        payload.vehicleNumber = updates.vehicleNumber;
+        payload.vehicleName = updates.vehicleNumber;
+      }
+      if (updates.registrationNumber !== undefined) payload.registrationNumber = updates.registrationNumber;
+      if (updates.vehicleType !== undefined) payload.vehicleType = updates.vehicleType;
+      if (updates.capacity !== undefined) payload.capacity = updates.capacity;
+      if (updates.insuranceExpiry !== undefined) payload.insuranceExpiry = updates.insuranceExpiry;
+      if (updates.pollutionExpiry !== undefined) payload.pollutionExpiry = updates.pollutionExpiry;
+      if (updates.fitnessExpiry !== undefined) payload.fitnessExpiry = updates.fitnessExpiry;
+      if (updates.status !== undefined) payload.status = updates.status === 'Active';
+
+      await TransportAPI.updateVehicleApi(id, payload);
       setVehicleMasters(prev => prev.map(v => v.id === id ? { ...v, ...updates } : v));
     } catch (err) {
       addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
@@ -2027,7 +2255,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addDriverMaster = async (d: Omit<DriverMaster, 'id'>) => {
     try {
-      const response = await TransportAPI.createDriverApi(d);
+      const payload = {
+        driverName: d.driverName,
+        mobileNumber: d.mobileNumber,
+        licenceNumber: d.licenseNumber,
+        licenceExpiry: d.licenseExpiryDate,
+        address: d.address,
+        emergencyContactNumber: d.emergencyContact,
+        status: d.status === 'Active'
+      };
+      const response = await TransportAPI.createDriverApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.driverId || 'DRV-' + Math.floor(100 + Math.random() * 900)).toString();
       const newDriver: DriverMaster = { ...d, ...backendData, id, branch: (d as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -2043,7 +2280,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateDriverMaster = async (id: string, updates: Partial<DriverMaster>) => {
     try {
-      await TransportAPI.updateDriverApi(id, updates);
+      const payload: any = {};
+      if (updates.driverName !== undefined) payload.driverName = updates.driverName;
+      if (updates.mobileNumber !== undefined) payload.mobileNumber = updates.mobileNumber;
+      if (updates.licenseNumber !== undefined) payload.licenceNumber = updates.licenseNumber;
+      if (updates.licenseExpiryDate !== undefined) payload.licenceExpiry = updates.licenseExpiryDate;
+      if (updates.address !== undefined) payload.address = updates.address;
+      if (updates.emergencyContact !== undefined) payload.emergencyContactNumber = updates.emergencyContact;
+      if (updates.status !== undefined) payload.status = updates.status === 'Active';
+
+      await TransportAPI.updateDriverApi(id, payload);
       setDriverMasters(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
     } catch (err) {
       addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
@@ -2063,7 +2309,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const assignVehicleRouteDriver = async (va: Omit<VehicleAssignment, 'id'>) => {
     try {
-      const response = await TransportAPI.createVehicleAssignmentApi(va);
+      const payload = {
+        ...va,
+        status: true,
+        assignmentDate: new Date().toISOString()
+      };
+      const response = await TransportAPI.createVehicleAssignmentApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.assignmentId || 'VA-' + Math.floor(100 + Math.random() * 900)).toString();
       const newAssign: VehicleAssignment = { ...va, ...backendData, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -2074,6 +2325,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const id = 'VA-' + Math.floor(100 + Math.random() * 900);
       const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
       setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+    }
+  };
+
+  const updateVehicleAssignment = async (id: string, updates: Partial<VehicleAssignment>) => {
+    try {
+      const payload = { ...updates, status: true };
+      await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
+      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    } catch (err) {
+      addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
+      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
     }
   };
 

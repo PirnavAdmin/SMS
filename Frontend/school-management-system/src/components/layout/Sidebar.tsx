@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
+import { hasModuleAccess } from '../../utils/rbac';
 
 interface SidebarProps {
   activeModule: string;
@@ -34,9 +35,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees';
   const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel';
-  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport';
+  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule === 'parent-bus-info';
   const isUniformActive = activeModule.startsWith('uniform-') || activeModule === 'uniforms';
-  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff';
+  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule === 'parent-teacher-info';
 
   const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'other'>('other');
 
@@ -83,21 +84,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const pendingAdmissions = admissions.filter(a => a.status === 'Pending').length;
 
-  const financeSubItems = [
+  const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
+    { id: 'parent-fee-dues', label: 'Fee Details', icon: IndianRupee },
+    { id: 'parent-fee-receipts', label: 'Payment History', icon: FileSpreadsheet }
+  ] : [
     { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'finance-masters', label: 'Finance Masters', icon: SlidersHorizontal },
     { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
     { id: 'finance-reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
-  const hostelSubItems = [
+  const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
+    { id: 'parent-hostel-details', label: 'Hostel Accommodation', icon: Building2 }
+  ] : [
     { id: 'hostel-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'hostel-masters', label: 'Hostel Masters', icon: Building2 },
     { id: 'hostel-student-hostel', label: 'Student Hostel', icon: UserPlus },
     { id: 'hostel-reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
-  const transportSubItems = [
+  const transportSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
+    { id: 'parent-bus-info', label: 'Bus Information', icon: Bus }
+  ] : [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'transport-masters', label: 'Transport Masters', icon: Route },
     { id: 'transport-student-assignment', label: 'Student Transport', icon: UserPlus },
@@ -111,7 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'uniform-reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
-  const staffSubItems = [
+  const staffSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'staff-teachers', label: 'Teachers', icon: GraduationCap },
     { id: 'staff-directory', label: 'Staff', icon: Users },
     { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
@@ -130,42 +138,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'Core Management',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Admin', 'Principal', 'Teacher', 'Accountant', 'Librarian', 'Student', 'Parent'] },
-        { id: 'students', label: 'Students', icon: UserCheck, roles: ['Admin', 'Principal', 'Teacher', 'Accountant'] },
-        { id: 'staff', label: 'Staff & HR', icon: Users, roles: ['Admin', 'Principal'] },
-        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined, roles: ['Admin', 'Principal'] },
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'students', label: 'Students', icon: UserCheck },
+        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teacher Info' : 'Staff & HR', icon: Users },
+        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
       ]
     },
     {
       title: 'Academics & Operations',
       items: [
-        { id: 'academics', label: 'Classes', icon: Presentation, roles: ['Admin', 'Principal', 'Teacher'] },
-        { id: 'subjects', label: 'Subjects', icon: BookOpen, roles: ['Admin', 'Principal', 'Teacher'] },
-        { id: 'attendance', label: 'Attendance', icon: CalendarCheck, roles: ['Admin', 'Teacher'] },
-        { id: 'timetable', label: 'Timetable', icon: Clock, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
-        { id: 'examination', label: 'Examinations', icon: Award, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
-        { id: 'homework', label: 'Homework', icon: FileText, roles: ['Admin', 'Teacher', 'Student', 'Parent'] },
+        { id: 'academics', label: 'Classes', icon: Presentation },
+        { id: 'subjects', label: 'Subjects', icon: BookOpen },
+        { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Academic Schedule' : 'Timetable', icon: Clock },
+        { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Reports' : 'Examinations', icon: Award },
+        { id: 'homework', label: 'Homework', icon: FileText },
       ]
     },
     {
       title: 'Finance & Operations',
       isFinanceSection: true,
       items: [
-        { id: 'library', label: 'Library', icon: Library, roles: ['Admin', 'Librarian', 'Teacher', 'Student'] },
-        { id: 'inventory', label: 'Inventory', icon: Package, roles: ['Admin', 'Principal', 'Accountant'] },
+        { id: 'library', label: 'Library', icon: Library },
+        { id: 'inventory', label: 'Inventory', icon: Package },
       ]
     },
     {
       title: 'Communication & Admin',
       items: [
-        { id: 'communication', label: 'Announcements', icon: Megaphone, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
-        { id: 'events', label: 'Events & Holidays', icon: Calendar, roles: ['Admin', 'Principal', 'Teacher', 'Student', 'Parent'] },
-        { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, roles: ['Admin', 'Principal', 'Accountant'] },
-        { id: 'users', label: 'User Roles & Access', icon: ShieldCheck, roles: ['Admin'] },
-        { id: 'settings', label: 'Settings', icon: Settings, roles: ['Admin', 'Principal'] },
+        { id: 'communication', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Notifications' : 'Announcements', icon: Megaphone },
+        { id: 'events', label: 'Events & Holidays', icon: Calendar },
+        { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
+        { id: 'users', label: 'User Roles & Access', icon: ShieldCheck },
+        { id: 'settings', label: 'Settings', icon: Settings },
       ]
     }
-  ];
+  ].map(group => ({
+    ...group,
+    items: group.items.filter(item => hasModuleAccess(role, item.id))
+  })).filter(group => group.items.length > 0 || group.isFinanceSection);
 
   // Handled above
 
@@ -214,19 +225,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {group.isFinanceSection && (
                 <>
+                  {hasModuleAccess(role, 'fees') && (
                   <div className="space-y-1">
                     <button
                       onClick={() => {
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !financeExpanded;
-                        setFinanceExpanded(newExpanded);
-                        if (newExpanded) {
-                          setHostelExpanded(false);
-                        }
+                          const newExpanded = !financeExpanded;
+                          setFinanceExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                          }
                         if (!isFinanceActive) {
-                          setActiveModule('finance-dashboard');
+                          setActiveModule((role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'parent-fee-dues' : 'finance-dashboard');
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
@@ -237,7 +252,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-center gap-3 truncate">
                         <IndianRupee className={`w-4 h-4 shrink-0 ${isFinanceActive ? 'text-white' : 'text-sky-500'}`} />
-                        {!collapsed && <span className="font-bold">Finance ERP</span>}
+                        {!collapsed && <span className="font-bold">
+                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Fee Management' : 'Finance ERP'}
+                          </span>}
                       </div>
                       {!collapsed && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${financeExpanded ? 'rotate-180' : ''}`} />
@@ -271,21 +288,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {hasModuleAccess(role, 'hostel') && (
                   <div className="space-y-1 pt-1">
                     <button
                       onClick={() => {
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !hostelExpanded;
-                        setHostelExpanded(newExpanded);
-                        if (newExpanded) {
-                          setFinanceExpanded(false);
-                          setTransportExpanded(false);
-                        }
+                          const newExpanded = !hostelExpanded;
+                          setHostelExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                          }
                         if (!isHostelActive) {
-                          setActiveModule('hostel-dashboard');
+                          setActiveModule((role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'parent-hostel-details' : 'hostel-dashboard');
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
@@ -296,7 +317,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-center gap-3 truncate">
                         <Home className={`w-4 h-4 shrink-0 ${isHostelActive ? 'text-white' : 'text-indigo-500'}`} />
-                        {!collapsed && <span className="font-bold">Hostel ERP</span>}
+                        {!collapsed && <span className="font-bold">
+                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Residential Facility' : 'Hostel ERP'}
+                          </span>}
                       </div>
                       {!collapsed && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${hostelExpanded ? 'rotate-180' : ''}`} />
@@ -330,21 +353,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {hasModuleAccess(role, 'transport') && (
                   <div className="space-y-1 pt-1">
                     <button
                       onClick={() => {
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !transportExpanded;
-                        setTransportExpanded(newExpanded);
-                        if (newExpanded) {
-                          setFinanceExpanded(false);
-                          setHostelExpanded(false);
-                        }
+                          const newExpanded = !transportExpanded;
+                          setTransportExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setUniformExpanded(false);
+                          }
                         if (!isTransportActive) {
-                          setActiveModule('transport-dashboard');
+                          if (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') {
+                            setActiveModule('parent-bus-info');
+                          } else {
+                            setActiveModule('transport-dashboard');
+                          }
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
@@ -385,20 +416,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
 
+                  {hasModuleAccess(role, 'uniforms') && (
                   <div className="space-y-1 pt-1">
                     <button
                       onClick={() => {
                         if (collapsed) {
                           setCollapsed(false);
                         }
-                        const newExpanded = !uniformExpanded;
-                        setUniformExpanded(newExpanded);
-                        if (newExpanded) {
-                          setFinanceExpanded(false);
-                          setHostelExpanded(false);
-                          setTransportExpanded(false);
-                        }
+                          const newExpanded = !uniformExpanded;
+                          setUniformExpanded(newExpanded);
+                          if (newExpanded) {
+                            setStaffExpanded(false);
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                          }
                         if (!isUniformActive) {
                           setActiveModule('uniform-dashboard');
                         }
@@ -445,11 +479,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                     )}
                   </div>
+                  )}
                 </>
               )}
 
               {visibleItems.map(item => {
-                if (item.id === 'staff') {
+                if (item.id === 'staff' && hasModuleAccess(role, 'staff')) {
                   return (
                     <div key={item.id} className="space-y-1">
                       <button
@@ -466,7 +501,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setUniformExpanded(false);
                           }
                           if (!isStaffActive) {
-                            setActiveModule('staff-teachers');
+                            if (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') {
+                              setActiveModule('parent-teacher-info');
+                            } else {
+                              setActiveModule('staff-teachers');
+                            }
                           }
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
@@ -477,9 +516,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="flex items-center gap-3 truncate">
                           <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-emerald-500'}`} />
-                          {!collapsed && <span className="font-bold">Staff & HR</span>}
+                          {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teacher Info' : 'Staff & HR'}</span>}
                         </div>
-                        {!collapsed && (
+                        {!collapsed && staffSubItems.length > 0 && (
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? 'rotate-180' : ''}`} />
                         )}
                       </button>
@@ -535,12 +574,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }
 
                 const Icon = item.icon;
-                const isActive = activeModule === item.id;
+                const isActive = activeModule === item.id || (item.id === 'admissions' && activeModule === 'admissions-add');
 
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveModule(item.id)}
+                    onClick={() => {
+                      setActiveModule(item.id);
+                      setStaffExpanded(false);
+                      setFinanceExpanded(false);
+                      setHostelExpanded(false);
+                      setTransportExpanded(false);
+                      setUniformExpanded(false);
+                    }}
                     title={collapsed ? item.label : undefined}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                       isActive

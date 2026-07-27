@@ -3,7 +3,37 @@ using SMS.Api.Models;
 
 namespace SMS.Api.Data
 {
+<<<<<<< HEAD
     public class AppDbContext : DbContext
+=======
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
+
+    // System & Auth DbSets
+    public DbSet<User> Users { get; set; } = null!;
+    public DbSet<Role> Roles { get; set; } = null!;
+    public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
+
+    // Academic, HR & Admission DbSets
+    public DbSet<Branch> Branches { get; set; } = null!;
+    public DbSet<Subject> Subjects { get; set; } = null!;
+    public DbSet<Staff> Staff { get; set; } = null!;
+    public DbSet<ClassGrade> Classes { get; set; } = null!;
+    public DbSet<ClassSection> ClassSections { get; set; } = null!;
+    public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
+    public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+    public DbSet<Admission> Admissions { get; set; } = null!;
+
+    // Transport Management DbSets
+    public DbSet<TransportRoute> TransportRoutes { get; set; } = null!;
+    public DbSet<PickupPoint> PickupPoints { get; set; } = null!;
+    public DbSet<TransportVehicle> TransportVehicles { get; set; } = null!;
+    public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
+    public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
+    public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
+    public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+>>>>>>> 1795679efc28df2336d7d8edc61b64032ca71afd
     {
         public AppDbContext(
             DbContextOptions<AppDbContext> options)

@@ -48,7 +48,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     PickupPointId = x.PickupPointId,
                     RouteId = x.RouteId,
-                    RouteName = x.TransportRoute!.RouteName,
+                    RouteName = x.TransportRoute != null ? x.TransportRoute.RouteName : "Main Route",
                     PickupPointName = x.PickupPointName,
                     Landmark = x.Landmark,
                     SequenceNo = x.SequenceNo,
@@ -77,7 +77,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     PickupPointId = x.PickupPointId,
                     RouteId = x.RouteId,
-                    RouteName = x.TransportRoute!.RouteName,
+                    RouteName = x.TransportRoute != null ? x.TransportRoute.RouteName : "Main Route",
                     PickupPointName = x.PickupPointName,
                     Landmark = x.Landmark,
                     SequenceNo = x.SequenceNo,

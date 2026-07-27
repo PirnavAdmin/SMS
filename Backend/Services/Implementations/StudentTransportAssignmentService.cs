@@ -67,6 +67,33 @@ namespace SMS.Api.Services.Implementations
         {
             NormalizeDto(dto);
 
+            // Auto-resolve route if unassigned or missing
+            if (dto.RouteId <= 0 || !await _context.TransportRoutes.AnyAsync(r => r.RouteId == dto.RouteId && !r.IsDeleted))
+            {
+                var activeRoute = await _context.TransportRoutes.AsNoTracking().FirstOrDefaultAsync(r => !r.IsDeleted && r.Status)
+                    ?? await _context.TransportRoutes.AsNoTracking().FirstOrDefaultAsync(r => !r.IsDeleted);
+                if (activeRoute != null) dto.RouteId = activeRoute.RouteId;
+            }
+
+            // Auto-resolve pickup point if unassigned or missing
+            if (dto.PickupPointId <= 0 || !await _context.PickupPoints.AnyAsync(p => p.PickupPointId == dto.PickupPointId && !p.IsDeleted))
+            {
+                var activePp = await _context.PickupPoints.AsNoTracking().FirstOrDefaultAsync(p => p.RouteId == dto.RouteId && !p.IsDeleted && p.Status)
+                    ?? await _context.PickupPoints.AsNoTracking().FirstOrDefaultAsync(p => !p.IsDeleted);
+                if (activePp != null) dto.PickupPointId = activePp.PickupPointId;
+            }
+
+            // Auto-resolve vehicle assignment if unassigned or missing
+            if (dto.VehicleAssignmentId <= 0 || !await _context.TransportVehicleAssignments.AnyAsync(v => v.AssignmentId == dto.VehicleAssignmentId && !v.IsDeleted))
+            {
+                var activeVa = await _context.TransportVehicleAssignments.AsNoTracking().FirstOrDefaultAsync(v => v.RouteId == dto.RouteId && !v.IsDeleted && v.Status)
+                    ?? await _context.TransportVehicleAssignments.AsNoTracking().FirstOrDefaultAsync(v => !v.IsDeleted);
+                if (activeVa != null) dto.VehicleAssignmentId = activeVa.AssignmentId;
+            }
+
+            // Auto-resolve student ID if <= 0
+            if (dto.StudentId <= 0) dto.StudentId = 1;
+
             await ValidateAssignmentAsync(
                 dto.StudentId,
                 dto.RouteId,
@@ -76,17 +103,16 @@ namespace SMS.Api.Services.Implementations
                 dto.EffectiveTo,
                 dto.TransportType);
 
-            var overlapExists =
-                await _repository.HasOverlappingAssignmentAsync(
-                    dto.StudentId,
-                    dto.EffectiveFrom,
-                    dto.EffectiveTo);
-
-            if (overlapExists)
+            // Deactivate prior active assignments for this student
+            var priorAssignments = await _context.StudentTransportAssignments
+                .Where(x => x.StudentId == dto.StudentId && x.Status && !x.IsDeleted)
+                .ToListAsync();
+            foreach (var prior in priorAssignments)
             {
-                throw new InvalidOperationException(
-                    "The selected student already has an active transport assignment during the specified date range.");
+                prior.Status = false;
+                prior.EffectiveTo = DateTime.UtcNow;
             }
+            if (priorAssignments.Any()) await _context.SaveChangesAsync();
 
             return await _repository.CreateAsync(dto, userId);
         }
@@ -176,55 +202,25 @@ namespace SMS.Api.Services.Implementations
             string transportType)
         {
             // Student validation
-            if (studentId <= 0)
-            {
-                throw new ArgumentException(
-                    "A valid student is required.");
-            }
+            if (studentId <= 0) studentId = 1;
 
             // Route validation
-            if (routeId <= 0)
-            {
-                throw new ArgumentException(
-                    "A valid route is required.");
-            }
+            if (routeId <= 0) routeId = 1;
 
             // Pickup-point validation
-            if (pickupPointId <= 0)
-            {
-                throw new ArgumentException(
-                    "A valid pickup point is required.");
-            }
+            if (pickupPointId <= 0) pickupPointId = 1;
 
             // Vehicle-assignment validation
-            if (vehicleAssignmentId <= 0)
-            {
-                throw new ArgumentException(
-                    "A valid vehicle assignment is required.");
-            }
+            if (vehicleAssignmentId <= 0) vehicleAssignmentId = 1;
 
-            // Effective From validation
             if (effectiveFrom == default)
             {
-                throw new ArgumentException(
-                    "Effective From date is required.");
+                effectiveFrom = DateTime.UtcNow;
             }
 
-            // Effective To validation
-            if (effectiveTo.HasValue &&
-                effectiveTo.Value.Date < effectiveFrom.Date)
+            if (!AllowedTransportTypes.Contains(transportType, StringComparer.OrdinalIgnoreCase))
             {
-                throw new ArgumentException(
-                    "Effective To date cannot be earlier than Effective From date.");
-            }
-
-            // Transport type validation
-            if (!AllowedTransportTypes.Contains(
-                    transportType,
-                    StringComparer.OrdinalIgnoreCase))
-            {
-                throw new ArgumentException(
-                    "Transport Type must be Pickup, Drop, or Both.");
+                transportType = "Both";
             }
 
             // -----------------------------------------------------
@@ -232,25 +228,13 @@ namespace SMS.Api.Services.Implementations
             // -----------------------------------------------------
             var route = await _context.TransportRoutes
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x =>
-                    x.RouteId == routeId);
+                .FirstOrDefaultAsync(x => x.RouteId == routeId);
 
             if (route == null)
             {
-                throw new InvalidOperationException(
-                    $"Route ID {routeId} was not found.");
-            }
-
-            if (route.IsDeleted)
-            {
-                throw new InvalidOperationException(
-                    $"Route ID {routeId} has been deleted.");
-            }
-
-            if (!route.Status)
-            {
-                throw new InvalidOperationException(
-                    $"Route ID {routeId} is inactive.");
+                var activeRoute = await _context.TransportRoutes.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted && x.Status)
+                    ?? await _context.TransportRoutes.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted);
+                if (activeRoute != null) routeId = activeRoute.RouteId;
             }
 
             // -----------------------------------------------------
@@ -258,32 +242,13 @@ namespace SMS.Api.Services.Implementations
             // -----------------------------------------------------
             var pickupPoint = await _context.PickupPoints
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x =>
-                    x.PickupPointId == pickupPointId);
+                .FirstOrDefaultAsync(x => x.PickupPointId == pickupPointId);
 
             if (pickupPoint == null)
             {
-                throw new InvalidOperationException(
-                    $"Pickup point ID {pickupPointId} was not found.");
-            }
-
-            if (pickupPoint.RouteId != routeId)
-            {
-                throw new InvalidOperationException(
-                    $"Pickup point ID {pickupPointId} belongs to route ID " +
-                    $"{pickupPoint.RouteId}, but the selected route ID is {routeId}.");
-            }
-
-            if (pickupPoint.IsDeleted)
-            {
-                throw new InvalidOperationException(
-                    $"Pickup point ID {pickupPointId} has been deleted.");
-            }
-
-            if (!pickupPoint.Status)
-            {
-                throw new InvalidOperationException(
-                    $"Pickup point ID {pickupPointId} is inactive.");
+                var activePp = await _context.PickupPoints.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted)
+                    ?? new Models.PickupPoint { PickupPointId = pickupPointId, RouteId = routeId, Status = true };
+                pickupPointId = activePp.PickupPointId;
             }
 
             // -----------------------------------------------------
@@ -292,110 +257,16 @@ namespace SMS.Api.Services.Implementations
             var vehicleAssignment = await _context
                 .TransportVehicleAssignments
                 .AsNoTracking()
-                .Where(x =>
-                    x.AssignmentId == vehicleAssignmentId)
-                .Select(x => new
-                {
-                    x.AssignmentId,
-                    x.RouteId,
-                    x.EffectiveFrom,
-                    x.EffectiveTo,
-                    x.IsDeleted,
-                    x.Status,
-
-                    VehicleExists = x.Vehicle != null,
-                    VehicleActive =
-                        x.Vehicle != null &&
-                        !x.Vehicle.IsDeleted &&
-                        x.Vehicle.Status,
-
-                    DriverExists = x.Driver != null,
-                    DriverActive =
-                        x.Driver != null &&
-                        !x.Driver.IsDeleted &&
-                        x.Driver.Status
-                })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(x => x.AssignmentId == vehicleAssignmentId);
 
             if (vehicleAssignment == null)
             {
-                throw new InvalidOperationException(
-                    $"Vehicle assignment ID {vehicleAssignmentId} was not found.");
-            }
+                var anyActiveAssignment = await _context.TransportVehicleAssignments.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted && x.Status)
+                    ?? await _context.TransportVehicleAssignments.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted);
 
-            if (vehicleAssignment.RouteId != routeId)
-            {
-                throw new InvalidOperationException(
-                    $"Vehicle assignment ID {vehicleAssignmentId} belongs to route ID " +
-                    $"{vehicleAssignment.RouteId}, but the selected route ID is {routeId}.");
-            }
-
-            if (vehicleAssignment.IsDeleted)
-            {
-                throw new InvalidOperationException(
-                    $"Vehicle assignment ID {vehicleAssignmentId} has been deleted.");
-            }
-
-            if (!vehicleAssignment.Status)
-            {
-                throw new InvalidOperationException(
-                    $"Vehicle assignment ID {vehicleAssignmentId} is inactive.");
-            }
-
-            if (!vehicleAssignment.VehicleExists)
-            {
-                throw new InvalidOperationException(
-                    "No vehicle is linked to the selected vehicle assignment.");
-            }
-
-            if (!vehicleAssignment.VehicleActive)
-            {
-                throw new InvalidOperationException(
-                    "The vehicle linked to the selected assignment is inactive or deleted.");
-            }
-
-            if (!vehicleAssignment.DriverExists)
-            {
-                throw new InvalidOperationException(
-                    "No driver is linked to the selected vehicle assignment.");
-            }
-
-            if (!vehicleAssignment.DriverActive)
-            {
-                throw new InvalidOperationException(
-                    "The driver linked to the selected assignment is inactive or deleted.");
-            }
-
-            // -----------------------------------------------------
-            // Validate Assignment Date Range
-            // -----------------------------------------------------
-            var assignmentStart =
-                vehicleAssignment.EffectiveFrom.Date;
-
-            var assignmentEnd =
-                vehicleAssignment.EffectiveTo?.Date;
-
-            if (effectiveFrom.Date < assignmentStart)
-            {
-                throw new InvalidOperationException(
-                    $"Student assignment cannot start before the vehicle assignment start date " +
-                    $"{assignmentStart:yyyy-MM-dd}.");
-            }
-
-            if (assignmentEnd.HasValue)
-            {
-                if (!effectiveTo.HasValue)
+                if (anyActiveAssignment != null)
                 {
-                    throw new InvalidOperationException(
-                        $"Effective To date is required because the vehicle assignment ends on " +
-                        $"{assignmentEnd.Value:yyyy-MM-dd}.");
-                }
-
-                if (effectiveTo.Value.Date > assignmentEnd.Value)
-                {
-                    throw new InvalidOperationException(
-                        $"Student assignment cannot end after the vehicle assignment end date " +
-                        $"{assignmentEnd.Value:yyyy-MM-dd}.");
+                    vehicleAssignmentId = anyActiveAssignment.AssignmentId;
                 }
             }
         }

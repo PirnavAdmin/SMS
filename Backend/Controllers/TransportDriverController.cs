@@ -49,6 +49,33 @@ namespace SMS.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateTransportDriverDto dto)
         {
+            var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
+            var existing = paged.Items.FirstOrDefault(d =>
+                (!string.IsNullOrWhiteSpace(dto.LicenceNumber) && string.Equals(d.LicenceNumber, dto.LicenceNumber, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(dto.MobileNumber) && string.Equals(d.MobileNumber, dto.MobileNumber, StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrWhiteSpace(dto.DriverName) && string.Equals(d.DriverName, dto.DriverName, StringComparison.OrdinalIgnoreCase)));
+
+            if (existing != null)
+            {
+                var updateDto = new UpdateTransportDriverDto
+                {
+                    DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName : existing.DriverName,
+                    LicenceNumber = !string.IsNullOrWhiteSpace(dto.LicenceNumber) ? dto.LicenceNumber : existing.LicenceNumber,
+                    LicenceExpiry = dto.LicenceExpiry ?? existing.LicenceExpiry,
+                    MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber : existing.MobileNumber,
+                    AlternateMobileNumber = dto.AlternateMobileNumber ?? existing.AlternateMobileNumber,
+                    Address = dto.Address ?? existing.Address,
+                    BloodGroup = dto.BloodGroup ?? existing.BloodGroup,
+                    EmergencyContactName = dto.EmergencyContactName ?? existing.EmergencyContactName,
+                    EmergencyContactNumber = dto.EmergencyContactNumber ?? existing.EmergencyContactNumber,
+                    Status = dto.Status
+                };
+
+                await _service.UpdateAsync(existing.DriverId, updateDto, null);
+                var updatedResult = await _service.GetByIdAsync(existing.DriverId);
+                return Ok(new { success = true, message = "Driver updated successfully.", data = updatedResult });
+            }
+
             var id = await _service.CreateAsync(dto, null);
             var result = await _service.GetByIdAsync(id);
 
@@ -72,12 +99,34 @@ namespace SMS.Api.Controllers
             }
             else
             {
-                var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
+                var digitsOnly = new string(id.Where(char.IsDigit).ToArray());
+                if (!string.IsNullOrEmpty(digitsOnly) && long.TryParse(digitsOnly, out long numericId))
+                {
+                    targetId = numericId;
+                }
+            }
+
+            var paged = await _service.GetAllAsync(new TransportDriverFilterDto { PageSize = 1000 });
+
+            if (targetId.HasValue)
+            {
+                var existsById = paged.Items.FirstOrDefault(d => d.DriverId == targetId.Value);
+                if (existsById == null)
+                {
+                    targetId = null;
+                }
+            }
+
+            if (!targetId.HasValue)
+            {
                 var found = paged.Items.FirstOrDefault(d => 
                     string.Equals(d.DriverName, id, StringComparison.OrdinalIgnoreCase) || 
                     string.Equals(d.LicenceNumber, id, StringComparison.OrdinalIgnoreCase) || 
                     string.Equals(d.DriverId.ToString(), id) ||
-                    string.Equals(d.DriverName, dto.DriverName, StringComparison.OrdinalIgnoreCase));
+                    (!string.IsNullOrWhiteSpace(dto.DriverName) && string.Equals(d.DriverName, dto.DriverName, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(dto.LicenceNumber) && string.Equals(d.LicenceNumber, dto.LicenceNumber, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(dto.MobileNumber) && string.Equals(d.MobileNumber, dto.MobileNumber, StringComparison.OrdinalIgnoreCase)));
+                
                 if (found != null) targetId = found.DriverId;
             }
 
@@ -91,7 +140,7 @@ namespace SMS.Api.Controllers
                 }
             }
 
-            // Fallback create driver
+            // Fallback create driver if no existing record matched
             var createDto = new CreateTransportDriverDto
             {
                 DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName : id,

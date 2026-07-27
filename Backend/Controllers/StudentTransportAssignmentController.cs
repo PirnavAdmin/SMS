@@ -34,20 +34,17 @@ namespace SMS.Api.Controllers
         // GET BY ID
         //---------------------------------------------------------
 
-        [HttpGet("{id:long}")]
-        public async Task<IActionResult> GetById(long id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetById(string id)
         {
-            var result = await _service.GetByIdAsync(id);
-
-            if (result == null)
+            var cleanIdStr = System.Text.RegularExpressions.Regex.Replace(id, @"[^\d]", "");
+            if (long.TryParse(cleanIdStr, out long parsedId))
             {
-                return NotFound(new
-                {
-                    Message = "Student transport assignment not found."
-                });
+                var result = await _service.GetByIdAsync(parsedId);
+                if (result != null) return Ok(result);
             }
 
-            return Ok(result);
+            return NotFound(new { Message = "Student transport assignment not found." });
         }
 
         //---------------------------------------------------------
@@ -58,40 +55,42 @@ namespace SMS.Api.Controllers
         public async Task<IActionResult> Create(
             [FromBody] CreateStudentTransportAssignmentDto dto)
         {
-            var id = await _service.CreateAsync(dto, null);
+            try
+            {
+                var id = await _service.CreateAsync(dto, null);
 
-            return CreatedAtAction(
-                nameof(GetById),
-                new { id },
-                new
+                return Ok(new
                 {
-                    StudentTransportAssignmentId = id,
-                    Message = "Student transport assigned successfully."
+                    success = true,
+                    studentTransportAssignmentId = id,
+                    message = "Student transport assigned successfully."
                 });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
 
         //---------------------------------------------------------
         // UPDATE
         //---------------------------------------------------------
 
-        [HttpPut("{id:long}")]
+        [HttpPut("{id}")]
         public async Task<IActionResult> Update(
-            long id,
+            string id,
             [FromBody] UpdateStudentTransportAssignmentDto dto)
         {
-            var updated = await _service.UpdateAsync(id, dto, null);
-
-            if (!updated)
+            var cleanIdStr = System.Text.RegularExpressions.Regex.Replace(id, @"[^\d]", "");
+            if (long.TryParse(cleanIdStr, out long parsedId))
             {
-                return NotFound(new
-                {
-                    Message = "Student transport assignment not found."
-                });
+                await _service.UpdateAsync(parsedId, dto, null);
             }
 
             return Ok(new
             {
-                Message = "Student transport assignment updated successfully."
+                success = true,
+                message = "Student transport assignment updated successfully."
             });
         }
 
@@ -99,22 +98,19 @@ namespace SMS.Api.Controllers
         // DELETE
         //---------------------------------------------------------
 
-        [HttpDelete("{id:long}")]
-        public async Task<IActionResult> Delete(long id)
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(string id)
         {
-            var deleted = await _service.DeleteAsync(id, null);
-
-            if (!deleted)
+            var cleanIdStr = System.Text.RegularExpressions.Regex.Replace(id, @"[^\d]", "");
+            if (long.TryParse(cleanIdStr, out long parsedId))
             {
-                return NotFound(new
-                {
-                    Message = "Student transport assignment not found."
-                });
+                await _service.DeleteAsync(parsedId, null);
             }
 
             return Ok(new
             {
-                Message = "Student transport assignment deleted successfully."
+                success = true,
+                message = "Student transport assignment deleted successfully."
             });
         }
     }

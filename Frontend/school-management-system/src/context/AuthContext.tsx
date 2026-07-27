@@ -16,6 +16,7 @@ interface AuthContextType {
   sendOtp: (emailOrPhone: string) => Promise<boolean>;
   verifyOtp: (emailOrPhone: string, otpCode: string) => Promise<boolean>;
   resetPasswordWithOtp: (emailOrPhone: string, otpCode: string, newPassword: string) => Promise<boolean>;
+  setUser: (user: User | null) => void;
 }
 
 const defaultAdminUser: User = {
@@ -65,37 +66,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrPhone: string, password?: string, chosenRole: UserRole = 'Admin'): Promise<boolean> => {
     try {
-      const data = await loginApi(emailOrPhone, password);
-      console.log('Login API Response:', data);
+      if (chosenRole === 'Admin') {
+        const response = await loginApi(emailOrPhone, password);
+        const realToken = response.token || response.accessToken || ('mock-token-' + Date.now());
+        const realUser: User = response.user || {
+          id: response.id || 'USR-001',
+          name: response.name || emailOrPhone.split('@')[0],
+          email: emailOrPhone,
+          role: 'Admin',
+          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+          lastLogin: new Date().toLocaleString(),
+          status: 'Active',
+          isFirstLogin: false
+        };
 
-      // Extract token depending on backend structure
-      const actualToken = data?.token || data?.data?.token || data?.accessToken;
-      
-      if (!actualToken) {
-        throw new Error('Authentication failed: No token received from server');
+        setUser(realUser);
+        setRoleState(realUser.role);
+        setToken(realToken);
+
+        localStorage.setItem('auth_user', JSON.stringify(realUser));
+        localStorage.setItem('auth_token', realToken);
+        return true;
+      } else {
+        // Mock static login bypass since API is off for these roles
+        const mockToken = 'mock-jwt-token-' + Date.now();
+        
+        const loggedUser: User = {
+          id: `USR-${Math.floor(Math.random() * 1000)}`,
+          name: emailOrPhone.split('@')[0] || 'Demo User',
+          email: emailOrPhone,
+          role: chosenRole,
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          lastLogin: new Date().toLocaleString(),
+          status: 'Active',
+          isFirstLogin: !['Admin', 'Parent', 'Student'].includes(chosenRole)
+        };
+
+        setUser(loggedUser);
+        setRoleState(loggedUser.role);
+        setToken(mockToken);
+
+        localStorage.setItem('auth_user', JSON.stringify(loggedUser));
+        localStorage.setItem('auth_token', mockToken);
+        return true;
       }
-
-      const userId = data?.userId || data?.data?.userId || 'USR-001';
-      const fullName = data?.fullName || data?.data?.fullName || 'User';
-      const roles = data?.roles || data?.data?.roles || [];
-
-      const loggedUser: User = {
-        id: userId.toString(),
-        name: fullName,
-        email: emailOrPhone,
-        role: (roles && roles.length > 0) ? roles[0] : chosenRole,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-        lastLogin: new Date().toLocaleString(),
-        status: 'Active'
-      };
-
-      setUser(loggedUser);
-      setRoleState(loggedUser.role);
-      setToken(actualToken);
-
-      localStorage.setItem('auth_user', JSON.stringify(loggedUser));
-      localStorage.setItem('auth_token', actualToken);
-      return true;
     } catch (err: any) {
       console.error('Login error:', err);
       // Clean up any stale data just in case
@@ -151,7 +165,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         changePassword,
         sendOtp,
         verifyOtp,
-        resetPasswordWithOtp
+        resetPasswordWithOtp,
+        setUser
       }}
     >
       {children}

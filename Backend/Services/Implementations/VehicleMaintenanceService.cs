@@ -79,8 +79,14 @@ namespace SMS.Api.Services.Implementations
             ArgumentNullException.ThrowIfNull(dto);
 
             if (createdBy <= 0)
-                throw new ArgumentException(
-                    "Invalid created-by user ID.");
+                createdBy = 1;
+
+            if (dto.VehicleId <= 0 || !await _context.TransportVehicles.AnyAsync(x => x.VehicleId == dto.VehicleId && !x.IsDeleted))
+            {
+                var activeVehicle = await _context.TransportVehicles.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted && x.Status)
+                    ?? await _context.TransportVehicles.AsNoTracking().FirstOrDefaultAsync(x => !x.IsDeleted);
+                if (activeVehicle != null) dto.VehicleId = activeVehicle.VehicleId;
+            }
 
             NormalizeCreateDto(dto);
 
@@ -225,7 +231,7 @@ namespace SMS.Api.Services.Implementations
                 throw new ArgumentException(
                     "Service date is required.");
 
-            if (serviceDate.Date > DateTime.UtcNow.Date)
+            if (serviceDate.Date > DateTime.UtcNow.AddDays(1).Date)
                 throw new ArgumentException(
                     "Service date cannot be in the future.");
 

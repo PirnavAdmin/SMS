@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Plus, Search, Edit, Trash2, Clock } from 'lucide-react';
+import { MapPin, Plus, Search, Edit, Trash2, Clock, X } from 'lucide-react';
 import { PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -23,8 +23,7 @@ export const PickupPointsView: React.FC = () => {
     pickupName: 'Kukatpally Housing Board',
     sequenceNumber: 1,
     arrivalTime: '07:20 AM',
-    distanceFromSchoolKm: 12.0,
-    status: 'Active'
+    distanceFromSchoolKm: 12.0
   });
 
   const filteredPoints = pickupPoints.filter(p => {
@@ -42,8 +41,7 @@ export const PickupPointsView: React.FC = () => {
       pickupName: '',
       sequenceNumber: (pickupPoints.length + 1),
       arrivalTime: '07:30 AM',
-      distanceFromSchoolKm: 10,
-      status: 'Active'
+      distanceFromSchoolKm: 10
     });
     setIsModalOpen(true);
   };
@@ -132,7 +130,6 @@ export const PickupPointsView: React.FC = () => {
                 <th className="py-3.5 px-4">Assigned Route</th>
                 <th className="py-3.5 px-4">Arrival Time</th>
                 <th className="py-3.5 px-4">Distance (KM)</th>
-                <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -150,7 +147,6 @@ export const PickupPointsView: React.FC = () => {
                     <Clock className="w-3.5 h-3.5 text-sky-500" /> {p.arrivalTime}
                   </td>
                   <td className="py-3 px-4 font-mono text-slate-500">{p.distanceFromSchoolKm} KM</td>
-                  <td className="py-3 px-4"><Badge variant={p.status === 'Active' ? 'success' : 'neutral'}>{p.status}</Badge></td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => handleOpenEdit(p)} className="p-1 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
@@ -172,7 +168,7 @@ export const PickupPointsView: React.FC = () => {
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {editingPoint ? 'Edit Pickup Point' : 'Create Pickup Point'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">

@@ -28,13 +28,14 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const [pickupPointId, setPickupPointId] = useState('');
   const [feePlan, setFeePlan] = useState<'Monthly' | 'Quarterly' | 'Half Yearly' | 'Annual'>('Quarterly');
   const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().split('T')[0]);
+  const [status, setStatus] = useState<'Active' | 'Inactive'>('Active');
 
   // Bulk Selection
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   const activeAssignedRoute = routeMasters.find(r => r.id === routeId);
-  const availablePickupPoints = pickupPoints.filter(p => p.routeId === routeId);
-  const assignedVehicleRel = vehicleAssignments.find(va => va.routeId === routeId && va.status === 'Active');
+  const availablePickupPoints = pickupPoints.filter(p => p.routeId?.toString() === routeId?.toString());
+  const assignedVehicleRel = vehicleAssignments.find(va => va.routeId?.toString() === routeId?.toString() && va.status === 'Active');
   const autoVehicleNumber = assignedVehicleRel ? assignedVehicleRel.vehicleNumber : 'BUS-101';
   const autoVehicleId = assignedVehicleRel ? assignedVehicleRel.vehicleId : 'VM-01';
 
@@ -88,7 +89,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
       feePlan,
       feeAmount: fee,
       effectiveFrom,
-      status: 'Active',
+      status,
       vehicleId: autoVehicleId,
       vehicleNumber: autoVehicleNumber
     } as any);
@@ -125,7 +126,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
           feePlan: 'Quarterly',
           feeAmount: defaultPickup.quarterlyFee,
           effectiveFrom,
-          status: 'Active',
+          status,
           vehicleId: autoVehicleId,
           vehicleNumber: autoVehicleNumber
         } as any);
@@ -249,7 +250,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   value={routeId}
                   onChange={e => {
                     setRouteId(e.target.value);
-                    const firstPk = pickupPoints.find(p => p.routeId === e.target.value);
+                    const firstPk = pickupPoints.find(p => p.routeId?.toString() === e.target.value?.toString());
                     setPickupPointId(firstPk?.id || '');
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
@@ -263,9 +264,16 @@ export const StudentTransportAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Pickup Point (Stop) *</label>
                 <select value={pickupPointId} onChange={e => setPickupPointId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                  {availablePickupPoints.map(p => (
-                    <option key={p.id} value={p.id}>{p.pickupName} (Stop #{p.sequenceNumber} • {formatCurrency(p.monthlyFee || 0)}/mo)</option>
-                  ))}
+                  {availablePickupPoints.length === 0 ? (
+                    <option value="" disabled>No pickup points available for this route</option>
+                  ) : (
+                    <>
+                      <option value="" disabled>-- Select a Pickup Point --</option>
+                      {availablePickupPoints.map(p => (
+                        <option key={p.id} value={p.id}>{p.pickupName} (Stop #{p.sequenceNumber} • {formatCurrency(p.monthlyFee || 0)}/mo)</option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -281,7 +289,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Fee Payment Plan</label>
                   <select value={feePlan} onChange={e => setFeePlan(e.target.value as any)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
@@ -294,6 +302,13 @@ export const StudentTransportAssignmentView: React.FC = () => {
                 <div>
                   <label className="block font-semibold mb-1">Effective Date</label>
                   <input type="date" value={effectiveFrom?.split('T')[0] || ''} onChange={e => setEffectiveFrom(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Assignment Status</label>
+                  <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
                 </div>
               </div>
 

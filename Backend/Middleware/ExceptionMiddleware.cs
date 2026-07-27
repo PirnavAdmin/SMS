@@ -52,6 +52,11 @@ public class ExceptionMiddleware
             statusCode = appException.StatusCode;
             message = appException.Message;
         }
+        else if (exception is InvalidOperationException || exception is ArgumentException || exception is Exception)
+        {
+            statusCode = HttpStatusCode.BadRequest;
+            message = exception.Message;
+        }
 
         context.Response.StatusCode = (int)statusCode;
 

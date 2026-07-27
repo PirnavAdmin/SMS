@@ -456,13 +456,42 @@ using (var scope = app.Services.CreateScope())
                 Console.WriteLine("=== DATABASE TRANSPORT TABLES AUDIT ===");
                 foreach (var col in cols)
                 {
+<<<<<<< HEAD
                     Console.WriteLine($"DB SCHEMA: {col}");
+=======
+#pragma warning disable EF1002
+                    context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};");
+#pragma warning restore EF1002
+>>>>>>> 1795679efc28df2336d7d8edc61b64032ca71afd
                 }
                 Console.WriteLine("=======================================");
             }
             catch { }
         }
+<<<<<<< HEAD
         catch
+=======
+
+        EnsureColumnExists("transport_routes", "VehicleId", "bigint NULL");
+        EnsureColumnExists("transport_routes", "PickupPoint", "varchar(255) NULL");
+        EnsureColumnExists("transport_routes", "DropPoint", "varchar(255) NULL");
+        EnsureColumnExists("transport_drivers", "AssignedVehicleId", "bigint NULL");
+        EnsureColumnExists("transport_vehicle_assignments", "Shift", "varchar(20) NULL");
+        EnsureColumnExists("student_transport_assignments", "Remarks", "varchar(255) NULL");
+        EnsureColumnExists("transport_vehicles", "ChassisNumber", "varchar(100) NULL");
+        EnsureColumnExists("transport_vehicles", "EngineNumber", "varchar(100) NULL");
+        EnsureColumnExists("transport_vehicles", "GpsDeviceId", "varchar(100) NULL");
+
+        try
+        {
+            context.Database.ExecuteSqlRaw("ALTER TABLE transport_routes MODIFY COLUMN DropPoint varchar(255) NULL;");
+            context.Database.ExecuteSqlRaw("ALTER TABLE transport_routes MODIFY COLUMN PickupPoint varchar(255) NULL;");
+        }
+        catch { }
+
+        // DB Schema Audit Verification
+        try
+>>>>>>> 1795679efc28df2336d7d8edc61b64032ca71afd
         {
             // Ignore if the compatibility schema initialization already ran.
         }

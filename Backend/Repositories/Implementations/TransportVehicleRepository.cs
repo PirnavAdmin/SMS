@@ -26,9 +26,9 @@ namespace SMS.Api.Repositories.Implementations
                 string search = filter.Search.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.VehicleNumber.ToLower().Contains(search) ||
-                    x.VehicleName.ToLower().Contains(search) ||
-                    x.RegistrationNumber.ToLower().Contains(search));
+                    (x.VehicleNumber != null && x.VehicleNumber.ToLower().Contains(search)) ||
+                    (x.VehicleName != null && x.VehicleName.ToLower().Contains(search)) ||
+                    (x.RegistrationNumber != null && x.RegistrationNumber.ToLower().Contains(search)));
             }
 
             if (!string.IsNullOrWhiteSpace(filter.VehicleType))
@@ -50,18 +50,22 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportVehicleDto
                 {
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.VehicleNumber,
-                    RegistrationNumber = x.RegistrationNumber,
-                    VehicleName = x.VehicleName,
-                    VehicleType = x.VehicleType,
+                    VehicleNumber = x.VehicleNumber ?? string.Empty,
+                    RegistrationNumber = x.RegistrationNumber ?? string.Empty,
+                    VehicleName = x.VehicleName ?? string.Empty,
+                    VehicleType = x.VehicleType ?? string.Empty,
                     Capacity = x.Capacity,
+                    IsAC = x.IsAC,
+                    ChassisNumber = x.ChassisNumber,
+                    EngineNumber = x.EngineNumber,
+                    GpsDeviceId = x.GpsDeviceId,
                     Manufacturer = x.Manufacturer,
                     Model = x.Model,
                     InsuranceNumber = x.InsuranceNumber,
                     InsuranceExpiry = x.InsuranceExpiry,
                     PollutionExpiry = x.PollutionExpiry,
                     FitnessExpiry = x.FitnessExpiry,
-                    Status = x.Status,
+                    Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     CreatedAt = x.CreatedAt
                 })
@@ -82,18 +86,22 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportVehicleDto
                 {
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.VehicleNumber,
-                    RegistrationNumber = x.RegistrationNumber,
-                    VehicleName = x.VehicleName,
-                    VehicleType = x.VehicleType,
+                    VehicleNumber = x.VehicleNumber ?? string.Empty,
+                    RegistrationNumber = x.RegistrationNumber ?? string.Empty,
+                    VehicleName = x.VehicleName ?? string.Empty,
+                    VehicleType = x.VehicleType ?? string.Empty,
                     Capacity = x.Capacity,
+                    IsAC = x.IsAC,
+                    ChassisNumber = x.ChassisNumber,
+                    EngineNumber = x.EngineNumber,
+                    GpsDeviceId = x.GpsDeviceId,
                     Manufacturer = x.Manufacturer,
                     Model = x.Model,
                     InsuranceNumber = x.InsuranceNumber,
                     InsuranceExpiry = x.InsuranceExpiry,
                     PollutionExpiry = x.PollutionExpiry,
                     FitnessExpiry = x.FitnessExpiry,
-                    Status = x.Status,
+                    Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     CreatedAt = x.CreatedAt
                 })
@@ -191,8 +199,8 @@ namespace SMS.Api.Repositories.Implementations
                 .AnyAsync(x =>
                     !x.IsDeleted &&
                     (
-                        x.VehicleNumber.ToLower() == vehicleNumber ||
-                        x.RegistrationNumber.ToLower() == registrationNumber
+                        (x.VehicleNumber != null && x.VehicleNumber.ToLower() == vehicleNumber) ||
+                        (x.RegistrationNumber != null && x.RegistrationNumber.ToLower() == registrationNumber)
                     ) &&
                     (!excludeVehicleId.HasValue ||
                      x.VehicleId != excludeVehicleId.Value));
@@ -206,9 +214,9 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportVehicleLookupDto
                 {
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.VehicleNumber,
-                    VehicleName = x.VehicleName,
-                    RegistrationNumber = x.RegistrationNumber
+                    VehicleNumber = x.VehicleNumber ?? string.Empty,
+                    VehicleName = x.VehicleName ?? string.Empty,
+                    RegistrationNumber = x.RegistrationNumber ?? string.Empty
                 })
                 .ToListAsync();
         }

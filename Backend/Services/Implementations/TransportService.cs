@@ -78,12 +78,13 @@ public class TransportService : ITransportService
     private static TransportVehicleDto MapToVehicleDto(TransportVehicle v) => new()
     {
         VehicleId = v.VehicleId,
-        VehicleNumber = v.VehicleNumber,
-        RegistrationNumber = v.RegistrationNumber,
-        VehicleType = v.VehicleType,
+        VehicleNumber = v.VehicleNumber ?? string.Empty,
+        RegistrationNumber = v.RegistrationNumber ?? string.Empty,
+        VehicleType = v.VehicleType ?? "Bus",
         Capacity = v.Capacity,
         IsAC = v.IsAC,
-        Status = v.Status ? "Active" : "Inactive"
+        Status = v.Status ? "Active" : "Inactive",
+        StatusText = v.Status ? "Active" : "Inactive"
     };
 
     // --- ROUTES ---
@@ -106,11 +107,11 @@ public class TransportService : ITransportService
         {
             RouteCode = dto.RouteCode,
             RouteName = dto.RouteName,
-            PickupPoint = dto.PickupPoint,
-            DropPoint = dto.DropPoint,
+            PickupPoint = dto.PickupPoint ?? string.Empty,
+            DropPoint = dto.DropPoint ?? string.Empty,
             DistanceKm = dto.DistanceKm,
             MonthlyFee = dto.MonthlyFee,
-            Status = dto.Status.Equals("Active", System.StringComparison.OrdinalIgnoreCase),
+            Status = string.Equals(dto.Status, "Active", System.StringComparison.OrdinalIgnoreCase),
             VehicleId = dto.VehicleId
         };
 
@@ -126,11 +127,11 @@ public class TransportService : ITransportService
 
         route.RouteCode = dto.RouteCode;
         route.RouteName = dto.RouteName;
-        route.PickupPoint = dto.PickupPoint;
-        route.DropPoint = dto.DropPoint;
+        route.PickupPoint = dto.PickupPoint ?? string.Empty;
+        route.DropPoint = dto.DropPoint ?? string.Empty;
         route.DistanceKm = dto.DistanceKm;
         route.MonthlyFee = dto.MonthlyFee;
-        route.Status = dto.Status.Equals("Active", System.StringComparison.OrdinalIgnoreCase);
+        route.Status = string.Equals(dto.Status, "Active", System.StringComparison.OrdinalIgnoreCase);
         route.VehicleId = dto.VehicleId;
 
         await _repository.SaveChangesAsync();
@@ -150,10 +151,10 @@ public class TransportService : ITransportService
     private static TransportRouteDto MapToRouteDto(TransportRoute r) => new()
     {
         RouteId = r.RouteId,
-        RouteCode = r.RouteCode,
-        RouteName = r.RouteName,
-        PickupPoint = r.PickupPoint,
-        DropPoint = r.DropPoint,
+        RouteCode = r.RouteCode ?? string.Empty,
+        RouteName = r.RouteName ?? string.Empty,
+        PickupPoint = r.PickupPoint ?? string.Empty,
+        DropPoint = r.DropPoint ?? string.Empty,
         DistanceKm = r.DistanceKm,
         MonthlyFee = r.MonthlyFee,
         Status = r.Status ? "Active" : "Inactive",

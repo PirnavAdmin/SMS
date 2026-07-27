@@ -37,4 +37,5 @@ public interface ISchoolService
     Task<bool> DeleteApplicationAsync(int id);
     Task<bool> RejectApplicationAsync(int id);
     Task<bool> EnrollStudentAsync(int id);
+    Task<bool> UpdateApplicationStatusAsync(int id, string status);
 }

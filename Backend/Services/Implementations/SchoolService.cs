@@ -13,10 +13,12 @@ using System.Threading.Tasks;
 public class SchoolService : ISchoolService
 {
 	private readonly ISchoolRepository _schoolRepository;
+	private readonly Data.AppDbContext _context;
 
-	public SchoolService(ISchoolRepository schoolRepository)
+	public SchoolService(ISchoolRepository schoolRepository, Data.AppDbContext context)
 	{
 		_schoolRepository = schoolRepository;
+		_context = context;
 	}
 
 	// --- STAFF ---
@@ -378,6 +380,8 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.AddApplicationAsync(app);
 		await _schoolRepository.SaveChangesAsync();
 
+		await SyncToAdmissionsTableAsync(app);
+
 		return MapToAdmissionResponseDto(app);
 	}
 
@@ -425,6 +429,8 @@ public class SchoolService : ISchoolService
 		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) app.DateOfBirth = parsedDob;
 
 		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app);
+
 		return MapToAdmissionResponseDto(app);
 	}
 
@@ -433,8 +439,9 @@ public class SchoolService : ISchoolService
 		var app = await _schoolRepository.GetApplicationByIdAsync(id)
 			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
 
-		_schoolRepository.RemoveApplication(app);
+		app.Status = "Deleted";
 		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app, isDeleted: true);
 		return true;
 	}
 
@@ -445,6 +452,7 @@ public class SchoolService : ISchoolService
 
 		app.Status = "Rejected";
 		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app);
 		return true;
 	}
 
@@ -457,7 +465,70 @@ public class SchoolService : ISchoolService
 
 		app.Status = "Enrolled";
 		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app);
 		return true;
+	}
+
+	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(id)
+			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
+
+		app.Status = status;
+		await _schoolRepository.SaveChangesAsync();
+		await SyncToAdmissionsTableAsync(app, isDeleted: string.Equals(status, "Deleted", StringComparison.OrdinalIgnoreCase));
+		return true;
+	}
+
+	private async Task SyncToAdmissionsTableAsync(AdmissionApplication app, bool isDeleted = false)
+	{
+		try
+		{
+			var existing = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.Admissions, x => x.ApplicationNo == app.RegistrationNo);
+
+			if (existing == null)
+			{
+				var newAdmission = new Admission
+				{
+					ApplicationNo = app.RegistrationNo,
+					StudentName = $"{app.FirstName} {app.LastName}".Trim(),
+					Dob = app.DateOfBirth,
+					Gender = app.Gender,
+					FatherName = app.FatherName,
+					FatherMobile = app.FatherContact,
+					BloodGroup = app.BloodGroup,
+					Caste = app.Caste,
+					BranchId = 1,
+					ClassId = app.AppliedClassId > 0 ? app.AppliedClassId : 1,
+					AdmissionType = "Regular",
+					Status = app.Status,
+					IsDeleted = isDeleted,
+					CreatedDate = DateTime.UtcNow
+				};
+				await _context.Admissions.AddAsync(newAdmission);
+			}
+			else
+			{
+				existing.StudentName = $"{app.FirstName} {app.LastName}".Trim();
+				existing.Dob = app.DateOfBirth;
+				existing.Gender = app.Gender;
+				existing.FatherName = app.FatherName;
+				existing.FatherMobile = app.FatherContact;
+				existing.BloodGroup = app.BloodGroup;
+				existing.Caste = app.Caste;
+				existing.ClassId = app.AppliedClassId > 0 ? app.AppliedClassId : 1;
+				existing.Status = app.Status;
+				existing.IsDeleted = isDeleted;
+				existing.ModifiedDate = DateTime.UtcNow;
+			}
+
+			await _context.SaveChangesAsync();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error syncing to admissions table: {ex.Message}");
+		}
 	}
 
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()

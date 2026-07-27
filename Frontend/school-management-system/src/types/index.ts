@@ -24,6 +24,7 @@ export interface User {
   phone?: string;
   lastLogin?: string;
   status?: string;
+  isFirstLogin?: boolean;
 }
 
 export interface SchoolProfile {
@@ -211,6 +212,7 @@ export interface AdmissionApplication {
   branch?: string;
   scholarshipId?: string;
   discountId?: string;
+  selectedOptionalFees?: string[];
   submissionDate: string;
   status: 'Pending' | 'Verified' | 'Approved' | 'Rejected' | 'Enrolled';
   documentsSubmitted: string[];
