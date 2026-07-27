@@ -3,37 +3,7 @@ using SMS.Api.Models;
 
 namespace SMS.Api.Data
 {
-<<<<<<< HEAD
     public class AppDbContext : DbContext
-=======
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-    // System & Auth DbSets
-    public DbSet<User> Users { get; set; } = null!;
-    public DbSet<Role> Roles { get; set; } = null!;
-    public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
-
-    // Academic, HR & Admission DbSets
-    public DbSet<Branch> Branches { get; set; } = null!;
-    public DbSet<Subject> Subjects { get; set; } = null!;
-    public DbSet<Staff> Staff { get; set; } = null!;
-    public DbSet<ClassGrade> Classes { get; set; } = null!;
-    public DbSet<ClassSection> ClassSections { get; set; } = null!;
-    public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
-    public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-    public DbSet<Admission> Admissions { get; set; } = null!;
-
-    // Transport Management DbSets
-    public DbSet<TransportRoute> TransportRoutes { get; set; } = null!;
-    public DbSet<PickupPoint> PickupPoints { get; set; } = null!;
-    public DbSet<TransportVehicle> TransportVehicles { get; set; } = null!;
-    public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
-    public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
-    public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
-    public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
->>>>>>> 1795679efc28df2336d7d8edc61b64032ca71afd
     {
         public AppDbContext(
             DbContextOptions<AppDbContext> options)
@@ -57,6 +27,8 @@ namespace SMS.Api.Data
 
         public DbSet<Branch> Branches { get; set; } = null!;
 
+        public DbSet<Department> Departments { get; set; } = null!;
+
         public DbSet<Subject> Subjects { get; set; } = null!;
 
         public DbSet<Staff> Staff { get; set; } = null!;
@@ -76,6 +48,8 @@ namespace SMS.Api.Data
             get;
             set;
         } = null!;
+
+        public DbSet<Admission> Admissions { get; set; } = null!;
 
         // =====================================================
         // Transport Module
@@ -137,6 +111,8 @@ namespace SMS.Api.Data
             ConfigureUserRoles(modelBuilder);
             ConfigureOtpVerification(modelBuilder);
 
+            ConfigureDepartment(modelBuilder);
+            ConfigureSubject(modelBuilder);
             ConfigureClassCurriculumSubject(modelBuilder);
             ConfigureClassSection(modelBuilder);
             ConfigureAdmissionApplication(modelBuilder);
@@ -224,6 +200,35 @@ namespace SMS.Api.Data
         }
 
         // =====================================================
+        // Department Configuration
+        // =====================================================
+
+        private static void ConfigureDepartment(
+            ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Department>(entity =>
+            {
+                entity.HasKey(x => x.DepartmentId);
+            });
+        }
+
+        // =====================================================
+        // Subject Configuration
+        // =====================================================
+
+        private static void ConfigureSubject(
+            ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Subject>(entity =>
+            {
+                entity.HasOne(x => x.Department)
+                    .WithMany(x => x.Subjects)
+                    .HasForeignKey(x => x.DepartmentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        // =====================================================
         // Class Curriculum Subject Configuration
         // =====================================================
 
@@ -247,12 +252,27 @@ namespace SMS.Api.Data
         {
             modelBuilder.Entity<ClassSection>(entity =>
             {
+                entity.ToTable("section");
+
+                entity.HasKey(x => x.SectionId);
+
                 entity.HasIndex(x => new
                 {
                     x.ClassId,
                     x.SectionName
                 })
                     .IsUnique();
+
+                entity.Property(x => x.ClassId)
+                    .HasColumnName("AcademicClassId");
+
+                entity.Property(x => x.ClassTeacherEmpId)
+                    .HasColumnName("ClassTeacherId");
+
+                entity.HasOne(x => x.ClassGrade)
+                    .WithMany(x => x.Sections)
+                    .HasForeignKey(x => x.ClassId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(x => x.ClassTeacher)
                     .WithMany()
@@ -459,8 +479,7 @@ namespace SMS.Api.Data
         // Transport Driver Configuration
         // =====================================================
 
-        private static void ConfigureTransportDriver(
-            ModelBuilder modelBuilder)
+        private static void ConfigureTransportDriver(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<TransportDriver>(entity =>
             {
@@ -790,7 +809,7 @@ namespace SMS.Api.Data
         }
 
         private static void ConfigureExamClass(
-    ModelBuilder modelBuilder)
+            ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ExamClass>(entity =>
             {

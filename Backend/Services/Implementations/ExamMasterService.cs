@@ -1,3 +1,4 @@
+
 using SMS.Api.Dtos.Examination.ExamMaster;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Interfaces;
@@ -161,7 +162,7 @@ namespace SMS.Api.Services.Implementations
             long academicYearId,
             DateOnly startDate,
             DateOnly endDate,
-            List<long> classIds)
+            List<int> classIds)
         {
             if (string.IsNullOrWhiteSpace(examTitle))
             {
@@ -233,3 +234,4 @@ namespace SMS.Api.Services.Implementations
         }
     }
 }
+

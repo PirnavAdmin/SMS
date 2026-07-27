@@ -31,6 +31,45 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "admissions",
+                columns: table => new
+                {
+                    admission_id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    application_no = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    student_name = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    dob = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    gender = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    father_name = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    father_mobile = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    blood_group = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    caste = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    branch_id = table.Column<long>(type: "bigint", nullable: false),
+                    class_id = table.Column<long>(type: "bigint", nullable: false),
+                    admission_type = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    status = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    created_by = table.Column<long>(type: "bigint", nullable: true),
+                    created_date = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    modified_by = table.Column<long>(type: "bigint", nullable: true),
+                    modified_date = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_admissions", x => x.admission_id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "Branches",
                 columns: table => new
                 {
@@ -57,6 +96,34 @@ namespace Backend.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Classes", x => x.ClassId);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "exam_masters",
+                columns: table => new
+                {
+                    exam_id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    exam_title = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    exam_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    exam_status = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false, defaultValue: "Scheduled")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    branch_id = table.Column<long>(type: "bigint", nullable: false),
+                    academic_year_id = table.Column<long>(type: "bigint", nullable: false),
+                    start_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    end_date = table.Column<DateOnly>(type: "date", nullable: false),
+                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    created_by = table.Column<long>(type: "bigint", nullable: true),
+                    updated_by = table.Column<long>(type: "bigint", nullable: true),
+                    created_at = table.Column<DateTime>(type: "datetime", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    updated_at = table.Column<DateTime>(type: "datetime", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_exam_masters", x => x.exam_id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -108,106 +175,46 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "transport_drivers",
-                columns: table => new
-                {
-                    driver_id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    driver_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    mobile_number = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    alternate_mobile_number = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    licence_number = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    licence_expiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    address = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    blood_group = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    emergency_contact_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    emergency_contact_number = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_by = table.Column<long>(type: "bigint", nullable: true),
-                    updated_by = table.Column<long>(type: "bigint", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_transport_drivers", x => x.driver_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "transport_routes",
-                columns: table => new
-                {
-                    route_id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    route_code = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    route_name = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    start_location = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    end_location = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    distance_km = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
-                    estimated_duration_minutes = table.Column<int>(type: "int", nullable: false),
-                    description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_by = table.Column<long>(type: "bigint", nullable: true),
-                    updated_by = table.Column<long>(type: "bigint", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_transport_routes", x => x.route_id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
                 name: "transport_vehicles",
                 columns: table => new
                 {
-                    vehicle_id = table.Column<long>(type: "bigint", nullable: false)
+                    VehicleId = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    vehicle_number = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    VehicleNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    registration_number = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    RegistrationNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    vehicle_name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                    VehicleName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    vehicle_type = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                    VehicleType = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    capacity = table.Column<int>(type: "int", nullable: false),
-                    manufacturer = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    Manufacturer = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    model = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    Model = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    insurance_number = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                    ChassisNumber = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    insurance_expiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    pollution_expiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    fitness_expiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    status = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    created_by = table.Column<long>(type: "bigint", nullable: true),
-                    updated_by = table.Column<long>(type: "bigint", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    EngineNumber = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    GpsDeviceId = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    InsuranceNumber = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    InsuranceExpiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    PollutionExpiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    FitnessExpiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    Capacity = table.Column<int>(type: "int", nullable: false),
+                    IsAC = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedBy = table.Column<long>(type: "bigint", nullable: true),
+                    UpdatedBy = table.Column<long>(type: "bigint", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_transport_vehicles", x => x.vehicle_id);
+                    table.PrimaryKey("PK_transport_vehicles", x => x.VehicleId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -355,6 +362,31 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "exam_classes",
+                columns: table => new
+                {
+                    exam_id = table.Column<long>(type: "bigint", nullable: false),
+                    class_id = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_exam_classes", x => new { x.exam_id, x.class_id });
+                    table.ForeignKey(
+                        name: "FK_exam_classes_Classes_class_id",
+                        column: x => x.class_id,
+                        principalTable: "Classes",
+                        principalColumn: "ClassId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_exam_classes_exam_masters_exam_id",
+                        column: x => x.exam_id,
+                        principalTable: "exam_masters",
+                        principalColumn: "exam_id",
+                        onDelete: ReferentialAction.Cascade);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "ClassSections",
                 columns: table => new
                 {
@@ -413,82 +445,44 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "transport_pickup_points",
+                name: "transport_routes",
                 columns: table => new
                 {
-                    pickup_point_id = table.Column<long>(type: "bigint", nullable: false)
+                    route_id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    route_id = table.Column<long>(type: "bigint", nullable: false),
-                    pickup_point_name = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
+                    route_code = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    landmark = table.Column<string>(type: "varchar(250)", maxLength: 250, nullable: true)
+                    route_name = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    sequence_no = table.Column<int>(type: "int", nullable: false),
-                    pickup_time = table.Column<TimeSpan>(type: "time(6)", nullable: false),
-                    distance_from_start = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
-                    status = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    created_by = table.Column<long>(type: "bigint", nullable: true),
-                    updated_by = table.Column<long>(type: "bigint", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_transport_pickup_points", x => x.pickup_point_id);
-                    table.ForeignKey(
-                        name: "FK_transport_pickup_points_transport_routes_route_id",
-                        column: x => x.route_id,
-                        principalTable: "transport_routes",
-                        principalColumn: "route_id",
-                        onDelete: ReferentialAction.Restrict);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
-
-            migrationBuilder.CreateTable(
-                name: "transport_vehicle_assignments",
-                columns: table => new
-                {
-                    assignment_id = table.Column<long>(type: "bigint", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    route_id = table.Column<long>(type: "bigint", nullable: false),
-                    vehicle_id = table.Column<long>(type: "bigint", nullable: false),
-                    driver_id = table.Column<long>(type: "bigint", nullable: false),
-                    assignment_date = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    effective_from = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    effective_to = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    shift = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: true)
+                    start_location = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    remarks = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                    end_location = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
+                    PickupPoint = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    DropPoint = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    distance_km = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
+                    estimated_duration_minutes = table.Column<int>(type: "int", nullable: false),
+                    description = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MonthlyFee = table.Column<decimal>(type: "decimal(65,30)", nullable: false),
                     status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
                     is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
                     created_by = table.Column<long>(type: "bigint", nullable: true),
                     updated_by = table.Column<long>(type: "bigint", nullable: true),
                     created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    VehicleId = table.Column<long>(type: "bigint", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_transport_vehicle_assignments", x => x.assignment_id);
+                    table.PrimaryKey("PK_transport_routes", x => x.route_id);
                     table.ForeignKey(
-                        name: "FK_transport_vehicle_assignments_transport_drivers_driver_id",
-                        column: x => x.driver_id,
-                        principalTable: "transport_drivers",
-                        principalColumn: "driver_id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_transport_vehicle_assignments_transport_routes_route_id",
-                        column: x => x.route_id,
-                        principalTable: "transport_routes",
-                        principalColumn: "route_id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_transport_vehicle_assignments_transport_vehicles_vehicle_id",
-                        column: x => x.vehicle_id,
+                        name: "FK_transport_routes_transport_vehicles_VehicleId",
+                        column: x => x.VehicleId,
                         principalTable: "transport_vehicles",
-                        principalColumn: "vehicle_id",
-                        onDelete: ReferentialAction.Restrict);
+                        principalColumn: "VehicleId");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -522,8 +516,50 @@ namespace Backend.Migrations
                         name: "FK_transport_vehicle_maintenance_transport_vehicles_vehicle_id",
                         column: x => x.vehicle_id,
                         principalTable: "transport_vehicles",
-                        principalColumn: "vehicle_id",
+                        principalColumn: "VehicleId",
                         onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TransportDrivers",
+                columns: table => new
+                {
+                    DriverId = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    DriverName = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LicenceNumber = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    LicenceExpiry = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    MobileNumber = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    AlternateMobileNumber = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Address = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    BloodGroup = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EmergencyContactName = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    EmergencyContactNumber = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
+                    CreatedBy = table.Column<long>(type: "bigint", nullable: true),
+                    UpdatedBy = table.Column<long>(type: "bigint", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    AssignedVehicleId = table.Column<long>(type: "bigint", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TransportDrivers", x => x.DriverId);
+                    table.ForeignKey(
+                        name: "FK_TransportDrivers_transport_vehicles_AssignedVehicleId",
+                        column: x => x.AssignedVehicleId,
+                        principalTable: "transport_vehicles",
+                        principalColumn: "VehicleId");
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -609,48 +645,115 @@ namespace Backend.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
-                name: "student_transport_assignments",
+                name: "transport_pickup_points",
                 columns: table => new
                 {
-                    student_transport_assignment_id = table.Column<long>(type: "bigint", nullable: false)
+                    PickupPointId = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    student_id = table.Column<long>(type: "bigint", nullable: false),
-                    route_id = table.Column<long>(type: "bigint", nullable: false),
-                    pickup_point_id = table.Column<long>(type: "bigint", nullable: false),
-                    vehicle_assignment_id = table.Column<long>(type: "bigint", nullable: false),
-                    effective_from = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    effective_to = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    transport_type = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                    RouteId = table.Column<long>(type: "bigint", nullable: false),
+                    PickupPointName = table.Column<string>(type: "varchar(150)", maxLength: 150, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    remarks = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                    Landmark = table.Column<string>(type: "varchar(250)", maxLength: 250, nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
-                    is_deleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false),
-                    created_by = table.Column<long>(type: "bigint", nullable: true),
-                    updated_by = table.Column<long>(type: "bigint", nullable: true),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: true)
+                    SequenceNo = table.Column<int>(type: "int", nullable: false),
+                    PickupTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
+                    DistanceFromStart = table.Column<decimal>(type: "decimal(10,2)", precision: 10, scale: 2, nullable: false),
+                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_student_transport_assignments", x => x.student_transport_assignment_id);
+                    table.PrimaryKey("PK_transport_pickup_points", x => x.PickupPointId);
                     table.ForeignKey(
-                        name: "FK_student_transport_assignments_transport_pickup_points_pickup~",
-                        column: x => x.pickup_point_id,
-                        principalTable: "transport_pickup_points",
-                        principalColumn: "pickup_point_id",
+                        name: "FK_transport_pickup_points_transport_routes_RouteId",
+                        column: x => x.RouteId,
+                        principalTable: "transport_routes",
+                        principalColumn: "route_id",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "TransportVehicleAssignments",
+                columns: table => new
+                {
+                    AssignmentId = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    RouteId = table.Column<long>(type: "bigint", nullable: false),
+                    VehicleId = table.Column<long>(type: "bigint", nullable: false),
+                    DriverId = table.Column<long>(type: "bigint", nullable: false),
+                    EffectiveFrom = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    EffectiveTo = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    Remarks = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TransportVehicleAssignments", x => x.AssignmentId);
+                    table.ForeignKey(
+                        name: "FK_TransportVehicleAssignments_TransportDrivers_DriverId",
+                        column: x => x.DriverId,
+                        principalTable: "TransportDrivers",
+                        principalColumn: "DriverId",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_student_transport_assignments_transport_routes_route_id",
-                        column: x => x.route_id,
+                        name: "FK_TransportVehicleAssignments_transport_routes_RouteId",
+                        column: x => x.RouteId,
                         principalTable: "transport_routes",
                         principalColumn: "route_id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_student_transport_assignments_transport_vehicle_assignments_~",
-                        column: x => x.vehicle_assignment_id,
-                        principalTable: "transport_vehicle_assignments",
-                        principalColumn: "assignment_id",
+                        name: "FK_TransportVehicleAssignments_transport_vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "transport_vehicles",
+                        principalColumn: "VehicleId",
+                        onDelete: ReferentialAction.Restrict);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "StudentTransportAssignments",
+                columns: table => new
+                {
+                    StudentTransportAssignmentId = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    StudentId = table.Column<long>(type: "bigint", nullable: false),
+                    RouteId = table.Column<long>(type: "bigint", nullable: false),
+                    PickupPointId = table.Column<long>(type: "bigint", nullable: false),
+                    VehicleAssignmentId = table.Column<long>(type: "bigint", nullable: false),
+                    EffectiveFrom = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    EffectiveTo = table.Column<DateTime>(type: "datetime(6)", nullable: true),
+                    TransportType = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Remarks = table.Column<string>(type: "varchar(255)", maxLength: 255, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: true),
+                    IsDeleted = table.Column<bool>(type: "tinyint(1)", nullable: false, defaultValue: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_StudentTransportAssignments", x => x.StudentTransportAssignmentId);
+                    table.ForeignKey(
+                        name: "FK_StudentTransportAssignments_TransportVehicleAssignments_Vehi~",
+                        column: x => x.VehicleAssignmentId,
+                        principalTable: "TransportVehicleAssignments",
+                        principalColumn: "AssignmentId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_StudentTransportAssignments_transport_pickup_points_PickupPo~",
+                        column: x => x.PickupPointId,
+                        principalTable: "transport_pickup_points",
+                        principalColumn: "PickupPointId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_StudentTransportAssignments_transport_routes_RouteId",
+                        column: x => x.RouteId,
+                        principalTable: "transport_routes",
+                        principalColumn: "route_id",
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
@@ -687,6 +790,22 @@ namespace Backend.Migrations
                 column: "ClassTeacherEmpId");
 
             migrationBuilder.CreateIndex(
+                name: "ix_exam_classes_class_id",
+                table: "exam_classes",
+                column: "class_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_exam_master_filter",
+                table: "exam_masters",
+                columns: new[] { "branch_id", "academic_year_id", "exam_status", "is_deleted" });
+
+            migrationBuilder.CreateIndex(
+                name: "ux_exam_title_branch_academic_year",
+                table: "exam_masters",
+                columns: new[] { "exam_title", "branch_id", "academic_year_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_OtpVerifications_UserId",
                 table: "OtpVerifications",
                 column: "UserId");
@@ -703,33 +822,33 @@ namespace Backend.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_STA_Route_Pickup_Vehicle",
-                table: "student_transport_assignments",
-                columns: new[] { "route_id", "pickup_point_id", "vehicle_assignment_id", "status", "is_deleted" });
+                table: "StudentTransportAssignments",
+                columns: new[] { "RouteId", "PickupPointId", "VehicleAssignmentId", "Status", "IsDeleted" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_student_transport_assignments_pickup_point_id",
-                table: "student_transport_assignments",
-                column: "pickup_point_id");
+                name: "IX_StudentTransportAssignments_PickupPointId",
+                table: "StudentTransportAssignments",
+                column: "PickupPointId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_student_transport_assignments_route_id",
-                table: "student_transport_assignments",
-                column: "route_id");
+                name: "IX_StudentTransportAssignments_RouteId",
+                table: "StudentTransportAssignments",
+                column: "RouteId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_student_transport_assignments_student_id",
-                table: "student_transport_assignments",
-                column: "student_id");
+                name: "IX_StudentTransportAssignments_StudentId",
+                table: "StudentTransportAssignments",
+                column: "StudentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_student_transport_assignments_student_id_effective_from_effe~",
-                table: "student_transport_assignments",
-                columns: new[] { "student_id", "effective_from", "effective_to" });
+                name: "IX_StudentTransportAssignments_StudentId_EffectiveFrom_Effectiv~",
+                table: "StudentTransportAssignments",
+                columns: new[] { "StudentId", "EffectiveFrom", "EffectiveTo" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_student_transport_assignments_vehicle_assignment_id",
-                table: "student_transport_assignments",
-                column: "vehicle_assignment_id");
+                name: "IX_StudentTransportAssignments_VehicleAssignmentId",
+                table: "StudentTransportAssignments",
+                column: "VehicleAssignmentId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Subjects_AcademicClassId",
@@ -737,30 +856,24 @@ namespace Backend.Migrations
                 column: "AcademicClassId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_transport_drivers_licence_number",
-                table: "transport_drivers",
-                column: "licence_number",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_transport_drivers_mobile_number",
-                table: "transport_drivers",
-                column: "mobile_number");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_transport_pickup_points_route_id_pickup_point_name",
+                name: "IX_transport_pickup_points_RouteId_PickupPointName",
                 table: "transport_pickup_points",
-                columns: new[] { "route_id", "pickup_point_name" });
+                columns: new[] { "RouteId", "PickupPointName" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_transport_pickup_points_route_id_sequence_no",
+                name: "IX_transport_pickup_points_RouteId_SequenceNo",
                 table: "transport_pickup_points",
-                columns: new[] { "route_id", "sequence_no" });
+                columns: new[] { "RouteId", "SequenceNo" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_transport_routes_status_is_deleted",
                 table: "transport_routes",
                 columns: new[] { "status", "is_deleted" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_transport_routes_VehicleId",
+                table: "transport_routes",
+                column: "VehicleId");
 
             migrationBuilder.CreateIndex(
                 name: "ux_transport_routes_route_code",
@@ -775,31 +888,6 @@ namespace Backend.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_transport_vehicle_assignments_driver_id",
-                table: "transport_vehicle_assignments",
-                column: "driver_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_transport_vehicle_assignments_route_id",
-                table: "transport_vehicle_assignments",
-                column: "route_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_transport_vehicle_assignments_route_id_vehicle_id_driver_id_~",
-                table: "transport_vehicle_assignments",
-                columns: new[] { "route_id", "vehicle_id", "driver_id", "effective_from" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_transport_vehicle_assignments_vehicle_id",
-                table: "transport_vehicle_assignments",
-                column: "vehicle_id");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TVA_Vehicle_Driver_Route",
-                table: "transport_vehicle_assignments",
-                columns: new[] { "vehicle_id", "driver_id", "route_id", "status", "is_deleted" });
-
-            migrationBuilder.CreateIndex(
                 name: "IX_transport_vehicle_maintenance_vehicle_id",
                 table: "transport_vehicle_maintenance",
                 column: "vehicle_id");
@@ -810,16 +898,57 @@ namespace Backend.Migrations
                 columns: new[] { "vehicle_id", "service_date", "is_deleted" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_transport_vehicles_registration_number",
+                name: "IX_transport_vehicles_RegistrationNumber",
                 table: "transport_vehicles",
-                column: "registration_number",
+                column: "RegistrationNumber",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_transport_vehicles_vehicle_number",
+                name: "IX_transport_vehicles_VehicleNumber",
                 table: "transport_vehicles",
-                column: "vehicle_number",
+                column: "VehicleNumber",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportDrivers_AssignedVehicleId",
+                table: "TransportDrivers",
+                column: "AssignedVehicleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportDrivers_LicenceNumber",
+                table: "TransportDrivers",
+                column: "LicenceNumber",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportDrivers_MobileNumber",
+                table: "TransportDrivers",
+                column: "MobileNumber");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportVehicleAssignments_DriverId",
+                table: "TransportVehicleAssignments",
+                column: "DriverId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportVehicleAssignments_RouteId",
+                table: "TransportVehicleAssignments",
+                column: "RouteId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportVehicleAssignments_RouteId_VehicleId_DriverId_Effec~",
+                table: "TransportVehicleAssignments",
+                columns: new[] { "RouteId", "VehicleId", "DriverId", "EffectiveFrom" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TransportVehicleAssignments_VehicleId",
+                table: "TransportVehicleAssignments",
+                column: "VehicleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TVA_Vehicle_Driver_Route",
+                table: "TransportVehicleAssignments",
+                columns: new[] { "VehicleId", "DriverId", "RouteId", "Status", "IsDeleted" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_UserRoles_UserId",
@@ -840,6 +969,9 @@ namespace Backend.Migrations
                 name: "AdmissionApplications");
 
             migrationBuilder.DropTable(
+                name: "admissions");
+
+            migrationBuilder.DropTable(
                 name: "Branches");
 
             migrationBuilder.DropTable(
@@ -849,13 +981,16 @@ namespace Backend.Migrations
                 name: "ClassSections");
 
             migrationBuilder.DropTable(
+                name: "exam_classes");
+
+            migrationBuilder.DropTable(
                 name: "OtpVerifications");
 
             migrationBuilder.DropTable(
                 name: "Section");
 
             migrationBuilder.DropTable(
-                name: "student_transport_assignments");
+                name: "StudentTransportAssignments");
 
             migrationBuilder.DropTable(
                 name: "transport_vehicle_maintenance");
@@ -870,13 +1005,16 @@ namespace Backend.Migrations
                 name: "Classes");
 
             migrationBuilder.DropTable(
+                name: "exam_masters");
+
+            migrationBuilder.DropTable(
                 name: "Staff");
 
             migrationBuilder.DropTable(
-                name: "transport_pickup_points");
+                name: "TransportVehicleAssignments");
 
             migrationBuilder.DropTable(
-                name: "transport_vehicle_assignments");
+                name: "transport_pickup_points");
 
             migrationBuilder.DropTable(
                 name: "Roles");
@@ -888,7 +1026,7 @@ namespace Backend.Migrations
                 name: "AcademicClass");
 
             migrationBuilder.DropTable(
-                name: "transport_drivers");
+                name: "TransportDrivers");
 
             migrationBuilder.DropTable(
                 name: "transport_routes");

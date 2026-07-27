@@ -1,19 +1,24 @@
-namespace SMS.Api.Models;
-
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-public class ClassSection
+namespace SMS.Api.Models
 {
-    [Key]
-    public int SectionId { get; set; }
+    public class ClassSection
+    {
+        [Key]
+        public int SectionId { get; set; }
 
-    [Required]
-    public string SectionName { get; set; } = string.Empty;
+        [Required]
+        public string SectionName { get; set; } = string.Empty;
 
-    public int ClassId { get; set; }
-    public ClassGrade ClassGrade { get; set; } = null!;
+        public int ClassId { get; set; }
 
-    // Note: Based on your AppDbContext, this is the Foreign Key property name you used
-    public int? ClassTeacherEmpId { get; set; }
-    public Staff? ClassTeacher { get; set; }
+        [ForeignKey(nameof(ClassId))]
+        public ClassGrade ClassGrade { get; set; } = null!;
+
+        public int? ClassTeacherEmpId { get; set; }
+
+        [ForeignKey(nameof(ClassTeacherEmpId))]
+        public Staff? ClassTeacher { get; set; }
+    }
 }

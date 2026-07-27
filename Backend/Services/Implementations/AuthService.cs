@@ -56,15 +56,60 @@ namespace SMS.Api.Services.Implementations
 
         public async Task<AuthResponseDto> LoginAsync(LoginRequestDto dto)
         {
-            var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone);
+            var identifier = dto.EmailOrPhone.Trim();
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
-                throw new AppException("Invalid credentials.", HttpStatusCode.Unauthorized);
+            var user = await _userRepository
+                .GetByIdentifierAsync(identifier);
+
+            if (user == null)
+            {
+                throw new AppException(
+                    "Invalid email/mobile number or password.",
+                    HttpStatusCode.Unauthorized);
+            }
+
+            var passwordMatches = BCrypt.Net.BCrypt.Verify(
+                dto.Password,
+                user.PasswordHash);
+
+            if (!passwordMatches)
+            {
+                throw new AppException(
+                    "Invalid email/mobile number or password.",
+                    HttpStatusCode.Unauthorized);
+            }
 
             var rolesList = GetUserRolesList(user);
+
+            if (rolesList.Count == 0)
+            {
+                throw new AppException(
+                    "No role is assigned to this user.",
+                    HttpStatusCode.Forbidden);
+            }
+
             var token = GenerateJwtToken(user, rolesList);
 
-            return new AuthResponseDto(user.UserId, user.FullName, token, rolesList);
+            return new AuthResponseDto(
+                user.UserId,
+                user.FullName,
+                token,
+                rolesList);
+        }
+        private static string GetPortalRole(string portal)
+        {
+            return portal.Trim().ToLowerInvariant() switch
+            {
+                "admin" => "Admin",
+                "employee" => "Teacher",
+                "teacher" => "Teacher",
+                "student" => "Student",
+                "parent" => "Parent",
+
+                _ => throw new AppException(
+                    "Invalid login portal.",
+                    HttpStatusCode.BadRequest)
+            };
         }
 
         private List<string> GetUserRolesList(User user)
