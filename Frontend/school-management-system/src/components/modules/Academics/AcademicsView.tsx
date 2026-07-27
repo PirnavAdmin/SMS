@@ -15,9 +15,10 @@ const TeacherSearchSelect: React.FC<TeacherSearchSelectProps> = ({ value, onChan
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const selectedStaff = staff.find(s => `${s.firstName} ${s.lastName}` === value) || staff[0];
+  const teachingStaff = staff.filter(s => !s.employeeCategory || s.employeeCategory === 'Teacher');
+  const selectedStaff = teachingStaff.find(s => `${s.firstName} ${s.lastName}` === value) || teachingStaff[0];
 
-  const filteredStaff = staff.filter(s => {
+  const filteredStaff = teachingStaff.filter(s => {
     const query = searchTerm.toLowerCase();
     const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
     const empId = (s.empId || s.id || '').toLowerCase();
@@ -242,7 +243,7 @@ const SubjectSearchMultiSelect: React.FC<SubjectSearchMultiSelectProps> = ({
 };
 
 export const AcademicsView: React.FC = () => {
-  const { academicClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass, staff, subjects } = useData();
+  const { academicClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass, staff, subjects, teacherAssignments, addTeacherAssignment } = useData();
   const { addToast } = useToast();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -397,16 +398,16 @@ export const AcademicsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <School className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Academic Setup & Class Model Management
+            <School className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Class Management
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Configure classes, add/delete sections, and assign individual section class teachers</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Configure classes, sections, and class teacher assignments</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Add Class Grade
+          <Plus className="w-4 h-4" /> Add Class
         </button>
       </div>
 
@@ -430,17 +431,17 @@ export const AcademicsView: React.FC = () => {
                 <button
                   onClick={() => setDeletingClass(cl)}
                   className="p-2 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 dark:text-rose-400 transition-colors"
-                  title="Delete Class Grade"
+                  title="Delete Class"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* Section Management & Searchable Teacher Dropdown Assignment */}
+            {/* Section & Class Teacher Assignment */}
             <div className="space-y-3">
               <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                SECTION MANAGEMENT & CLASS TEACHER DROPDOWNS
+                Section & Class Teacher Assignment
               </p>
 
               <div className="space-y-3">
@@ -506,9 +507,9 @@ export const AcademicsView: React.FC = () => {
               </div>
             </div>
 
-            {/* Curriculum Subjects */}
+            {/* Assigned Subjects */}
             <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Curriculum Subjects</p>
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Subjects</p>
               <div className="flex flex-wrap gap-1.5">
                 {cl.subjects.map(sub => (
                   <span key={sub} className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-medium border border-slate-200 dark:border-slate-700">
@@ -528,7 +529,7 @@ export const AcademicsView: React.FC = () => {
             {/* Sticky Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingClass ? 'Edit Academic Class' : 'Add New Academic Class Grade'}
+                {editingClass ? 'Edit Class' : 'Add Class'}
               </h3>
               <button onClick={() => setIsFormOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-5 h-5" />

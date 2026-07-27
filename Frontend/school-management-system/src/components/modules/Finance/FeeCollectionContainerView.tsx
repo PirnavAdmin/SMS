@@ -13,9 +13,9 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
   const [activeSubTab, setActiveSubTab] = useState<'collect' | 'due' | 'receipts'>('collect');
 
   const subTabs = [
-    { id: 'collect', label: 'Collect Fees', icon: IndianRupee },
+    { id: 'collect', label: 'Fee Collection', icon: IndianRupee },
     { id: 'due', label: 'Due Fees', icon: Clock },
-    { id: 'receipts', label: 'Fee Receipts', icon: Receipt },
+    { id: 'receipts', label: 'Receipts', icon: Receipt },
   ] as const;
 
   const handleCollectStudentFee = (student: Student) => {

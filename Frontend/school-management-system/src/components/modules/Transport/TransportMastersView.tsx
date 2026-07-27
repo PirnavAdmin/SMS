@@ -12,9 +12,9 @@ export const TransportMastersView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'routes' | 'vehicles' | 'drivers' | 'pickups' | 'assignments' | 'maintenance' | 'gps'>('routes');
 
   const subTabs = [
-    { id: 'routes', label: 'Routes', icon: Route },
-    { id: 'vehicles', label: 'Vehicles', icon: Bus },
-    { id: 'drivers', label: 'Drivers', icon: Users },
+    { id: 'routes', label: 'Route Management', icon: Route },
+    { id: 'vehicles', label: 'Vehicle Management', icon: Bus },
+    { id: 'drivers', label: 'Driver Management', icon: Users },
     { id: 'pickups', label: 'Pickup Points', icon: MapPin },
     { id: 'assignments', label: 'Vehicle Assignments', icon: Layers },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench },

@@ -2429,7 +2429,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900 dark:text-white">
-            <IndianRupee className="h-6 w-6 text-sky-600" /> Payroll
+            <IndianRupee className="h-6 w-6 text-sky-600" /> HR & Payroll
           </h2>
           <p className="text-slate-500">Configurable payroll dashboard, structures, processing, and compliance reporting.</p>
         </div>
@@ -2445,11 +2445,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
               }`}
             >
               {tab === 'dashboard' ? 'Dashboard' :
-               tab === 'config' ? 'Configuration' :
+               tab === 'config' ? 'Payroll Setup' :
                tab === 'structures' ? 'Salary Structures' :
                tab === 'processing' ? 'Payroll Processing' :
                tab === 'payslips' ? 'Payslips' :
-               'Reports & Analytics'}
+               'Payroll Reports'}
             </button>
           ))}
         </div>

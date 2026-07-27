@@ -7,8 +7,8 @@ export const StudentHostelContainerView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'allocations' | 'attendance'>('allocations');
 
   const subTabs = [
-    { id: 'allocations', label: 'Room Allocations', icon: UserPlus },
-    { id: 'attendance', label: 'Hostel Attendance', icon: UserCheck }
+    { id: 'allocations', label: 'Student Hostel Assignment', icon: UserPlus },
+    { id: 'attendance', label: 'Hostel Attendance Register', icon: UserCheck }
   ] as const;
 
   return (

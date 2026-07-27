@@ -85,46 +85,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const pendingAdmissions = admissions.filter(a => a.status === 'Pending').length;
 
   const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
-    { id: 'parent-fee-dues', label: 'Fee Details', icon: IndianRupee },
-    { id: 'parent-fee-receipts', label: 'Payment History', icon: FileSpreadsheet }
+    { id: 'parent-fee-dues', label: 'Student Fee Details', icon: IndianRupee },
+    { id: 'parent-fee-receipts', label: 'Receipt Register', icon: FileSpreadsheet }
   ] : [
     { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance-masters', label: 'Finance Masters', icon: SlidersHorizontal },
+    { id: 'finance-masters', label: 'Fee Configurator', icon: SlidersHorizontal },
     { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'finance-reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'finance-reports', label: 'Fee Reports', icon: FileSpreadsheet },
   ];
 
   const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
-    { id: 'parent-hostel-details', label: 'Hostel Accommodation', icon: Building2 }
+    { id: 'parent-hostel-details', label: 'Accommodation Details', icon: Building2 }
   ] : [
     { id: 'hostel-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'hostel-masters', label: 'Hostel Masters', icon: Building2 },
-    { id: 'hostel-student-hostel', label: 'Student Hostel', icon: UserPlus },
-    { id: 'hostel-reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'hostel-masters', label: 'Hostel Master Setup', icon: Building2 },
+    { id: 'hostel-student-hostel', label: 'Room Allocation', icon: UserPlus },
+    { id: 'hostel-reports', label: 'Hostel Reports', icon: FileSpreadsheet },
   ];
 
   const transportSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
-    { id: 'parent-bus-info', label: 'Bus Information', icon: Bus }
+    { id: 'parent-bus-info', label: 'Bus Route Details', icon: Bus }
   ] : [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transport-masters', label: 'Transport Masters', icon: Route },
-    { id: 'transport-student-assignment', label: 'Student Transport', icon: UserPlus },
-    { id: 'transport-reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
+    { id: 'transport-student-assignment', label: 'Student Transport Assignment', icon: UserPlus },
+    { id: 'transport-reports', label: 'Transport Reports', icon: FileSpreadsheet },
   ];
 
   const uniformSubItems = [
     { id: 'uniform-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'uniform-masters', label: 'Uniform Masters', icon: Shirt },
-    { id: 'uniform-student-uniform', label: 'Student Uniform', icon: UserPlus },
-    { id: 'uniform-reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'uniform-masters', label: 'Uniform Configuration', icon: Shirt },
+    { id: 'uniform-student-uniform', label: 'Student Uniform Distribution', icon: UserPlus },
+    { id: 'uniform-reports', label: 'Uniform Reports', icon: FileSpreadsheet },
   ];
 
   const staffSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'staff-teachers', label: 'Teachers', icon: GraduationCap },
-    { id: 'staff-directory', label: 'Staff', icon: Users },
-    { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
+    { id: 'staff-directory', label: 'Staff Directory', icon: Users },
+    { id: 'staff-attendance', label: 'Attendance Register', icon: CalendarCheck },
     { id: 'staff-leave', label: 'Leave Management', icon: FileText },
-    { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
+    { id: 'staff-payroll', label: 'Payroll Processing', icon: IndianRupee },
   ];
 
   const payrollSubItems = [
@@ -136,27 +135,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const menuGroups = [
     {
-      title: 'Core Management',
+      title: 'Core Operations',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'students', label: 'Students', icon: UserCheck },
-        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teacher Info' : 'Staff & HR', icon: Users },
-        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
+        { id: 'students', label: 'Student Directory', icon: UserCheck },
+        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Staff & HR', icon: Users },
+        { id: 'admissions', label: 'Admission Register', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
       ]
     },
     {
-      title: 'Academics & Operations',
+      title: 'Academics',
       items: [
-        { id: 'academics', label: 'Classes', icon: Presentation },
-        { id: 'subjects', label: 'Subjects', icon: BookOpen },
-        { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
-        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Academic Schedule' : 'Timetable', icon: Clock },
-        { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Reports' : 'Examinations', icon: Award },
+        { id: 'academics', label: 'Class Management', icon: Presentation },
+        { id: 'subjects', label: 'Subject Management', icon: BookOpen },
+        { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
+        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Student Timetable' : 'Class Timetable', icon: Clock },
+        { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
         { id: 'homework', label: 'Homework', icon: FileText },
       ]
     },
     {
-      title: 'Finance & Operations',
+      title: 'Finance & Logistics',
       isFinanceSection: true,
       items: [
         { id: 'library', label: 'Library', icon: Library },
@@ -164,12 +163,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ]
     },
     {
-      title: 'Communication & Admin',
+      title: 'School Administration',
       items: [
-        { id: 'communication', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Notifications' : 'Announcements', icon: Megaphone },
+        { id: 'communication', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Notifications' : 'Communication Hub', icon: Megaphone },
         { id: 'events', label: 'Events & Holidays', icon: Calendar },
-        { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
-        { id: 'users', label: 'User Roles & Access', icon: ShieldCheck },
+        { id: 'reports', label: 'School Reports', icon: BarChart3 },
+        { id: 'users', label: 'Role Configuration', icon: ShieldCheck },
         { id: 'settings', label: 'Settings', icon: Settings },
       ]
     }
@@ -211,7 +210,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Nav Menu */}
       <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar">
         {menuGroups.map((group, idx) => {
-          const visibleItems = group.items.filter(item => !item.roles || item.roles.includes(role || ''));
+          const visibleItems = group.items.filter((item: any) => !item.roles || item.roles.includes(role || ''));
 
           if (visibleItems.length === 0 && !group.isFinanceSection && !(group as any).isTransportSection) return null;
 
@@ -253,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-3 truncate">
                         <IndianRupee className={`w-4 h-4 shrink-0 ${isFinanceActive ? 'text-white' : 'text-sky-500'}`} />
                         {!collapsed && <span className="font-bold">
-                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Fee Management' : 'Finance ERP'}
+                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Fee Details' : 'Finance & Fees'}
                           </span>}
                       </div>
                       {!collapsed && (
@@ -318,7 +317,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-3 truncate">
                         <Home className={`w-4 h-4 shrink-0 ${isHostelActive ? 'text-white' : 'text-indigo-500'}`} />
                         {!collapsed && <span className="font-bold">
-                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Residential Facility' : 'Hostel ERP'}
+                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Hostel Accommodation' : 'Hostel Management'}
                           </span>}
                       </div>
                       {!collapsed && (
@@ -386,7 +385,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-center gap-3 truncate">
                         <Bus className={`w-4 h-4 shrink-0 ${isTransportActive ? 'text-white' : 'text-slate-400'}`} />
-                        {!collapsed && <span className="font-bold">Transport</span>}
+                        {!collapsed && <span className="font-bold">Transport Management</span>}
                       </div>
                       {!collapsed && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${transportExpanded ? 'rotate-180' : ''}`} />
@@ -445,7 +444,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-center gap-3 truncate">
                         <Shirt className={`w-4 h-4 shrink-0 ${isUniformActive ? 'text-white' : 'text-slate-400'}`} />
-                        {!collapsed && <span className="font-bold">Uniform Store</span>}
+                        {!collapsed && <span className="font-bold">Uniform Management</span>}
                       </div>
                       {!collapsed && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${uniformExpanded ? 'rotate-180' : ''}`} />
@@ -516,7 +515,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="flex items-center gap-3 truncate">
                           <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-emerald-500'}`} />
-                          {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teacher Info' : 'Staff & HR'}</span>}
+                          {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Staff & HR'}</span>}
                         </div>
                         {!collapsed && staffSubItems.length > 0 && (
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? 'rotate-180' : ''}`} />

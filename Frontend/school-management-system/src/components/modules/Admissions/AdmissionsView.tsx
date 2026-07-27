@@ -448,11 +448,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+               <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Student Admission Application'}
+                {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Admission Registration'}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Complete student enrollment form with live fee preview, personal, guardian, and facility details</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Complete student admission registration including personal, guardian, transport, and hostel details.</p>
             </div>
           </div>
         </div>
@@ -1131,16 +1131,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Admission Applications Directory
+            <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Admission Register
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">View submitted applications table, edit or delete records, and enroll students into active database</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">View admission applications, update candidate details, and enroll applicants into their designated classes.</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Submit Application
+          <Plus className="w-4 h-4" /> New Admission Registration
         </button>
       </div>
 

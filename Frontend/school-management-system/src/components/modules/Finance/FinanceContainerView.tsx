@@ -27,9 +27,9 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'masters', label: 'Finance Masters', icon: SlidersHorizontal },
+    { id: 'masters', label: 'Finance Setup', icon: SlidersHorizontal },
     { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'reports', label: 'Finance Reports', icon: FileSpreadsheet },
   ];
 
   const handleCollectStudentFee = (student: Student) => {

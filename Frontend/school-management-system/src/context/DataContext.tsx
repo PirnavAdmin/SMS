@@ -5,7 +5,7 @@ import {
   DailyAttendance, ExamSetup, ExamMark, TimetableSlot, Homework,
   BookItem, BookIssue, TransportRoute, HostelBlock, HostelRoom, HostelBed, Bus, UniformItem,
   CustomRole, InventoryItem, Announcement, Holiday, Birthday, AuditLog, SchoolProfile, PromotionHistoryItem,
-  SubjectItem, ExamSchedule, GradeConfig, ProcessedResult,
+  SubjectItem, ExamSchedule, GradeConfig, ProcessedResult, PeriodSetting, TeacherAssignment,
   FeeHead, DynamicFeeStructure, StudentFeeAssignment, Scholarship, StudentScholarship,
   Discount, StudentDiscount, FineRule, TransportRoute as ERPTransportRoute, StudentTransport,
   HostelMaster, StudentHostel, Refund, FinanceSettings, FeeStructureItem,
@@ -14,7 +14,7 @@ import {
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
-  SalaryStructure, EmployeeSalaryAssignment, PayrollRun
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -37,7 +37,7 @@ import {
   initialStudentUniformIssues, initialFinanceUniformConfigs,
   initialLeaveTypes, initialLeaveApplications, initialPayslips,
   initialPayrollConfigurations, initialPayrollComponents, initialSalaryStructures,
-  initialEmployeeSalaryAssignments, initialPayrollRuns
+  initialEmployeeSalaryAssignments, initialPayrollRuns, initialQuestionPapers, initialMeetings, initialDepartments
 } from '../services/mockData';
 import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, updateAdmissionStatusApi, deleteAdmissionApi } from '../api/admission';
 import * as TransportAPI from '../api/transport';
@@ -58,6 +58,27 @@ const initialClasses: AcademicClass[] = [
   { id: 'CL-10', name: 'Class 10', sections: ['A', 'B'], sectionTeachers: { 'A': 'Jonathan Miller', 'B': 'Robert Langdon' }, teacher: 'Jonathan Miller', subjects: ['Mathematics', 'Physics', 'Computer Science', 'English', 'Biology'] },
   { id: 'CL-11', name: 'Class 11', sections: ['A', 'B', 'C'], sectionTeachers: { 'A': 'Robert Langdon', 'B': 'Dr. Eleanor Vance', 'C': 'Jonathan Miller' }, teacher: 'Robert Langdon', subjects: ['Advanced Calculus', 'Organic Chemistry', 'Physics', 'Economics'] },
   { id: 'CL-12', name: 'Class 12', sections: ['A', 'B'], sectionTeachers: { 'A': 'Dr. Eleanor Vance', 'B': 'Sarah Jenkins' }, teacher: 'Dr. Eleanor Vance', subjects: ['Higher Mathematics', 'Quantum Physics', 'Literature', 'Accountancy'] }
+];
+
+const defaultPeriodSettings: PeriodSetting[] = [
+  { id: 'PS-1', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 1', startTime: '08:30 AM', endTime: '09:15 AM', sequence: 1, periodType: 'Teaching', status: 'Active' },
+  { id: 'PS-2', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 2', startTime: '09:15 AM', endTime: '10:00 AM', sequence: 2, periodType: 'Teaching', status: 'Active' },
+  { id: 'PS-3', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Morning Break', startTime: '10:00 AM', endTime: '10:15 AM', sequence: 3, periodType: 'Break', status: 'Active' },
+  { id: 'PS-4', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 3', startTime: '10:15 AM', endTime: '11:00 AM', sequence: 4, periodType: 'Teaching', status: 'Active' },
+  { id: 'PS-5', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 4', startTime: '11:00 AM', endTime: '11:45 AM', sequence: 5, periodType: 'Teaching', status: 'Active' },
+  { id: 'PS-6', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Lunch Break', startTime: '11:45 AM', endTime: '12:30 PM', sequence: 6, periodType: 'Lunch', status: 'Active' },
+  { id: 'PS-7', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 5', startTime: '12:30 PM', endTime: '01:15 PM', sequence: 7, periodType: 'Teaching', status: 'Active' },
+  { id: 'PS-8', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 6', startTime: '01:15 PM', endTime: '02:00 PM', sequence: 8, periodType: 'Teaching', status: 'Active' }
+];
+
+const defaultTeacherAssignments: TeacherAssignment[] = [
+  { id: 'TA-1', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Mathematics', teacherId: 'STF-01', teacherName: 'Jonathan Miller', status: 'Active' },
+  { id: 'TA-2', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Physics', teacherId: 'STF-02', teacherName: 'Sarah Jenkins', status: 'Active' },
+  { id: 'TA-3', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Computer Science', teacherId: 'STF-03', teacherName: 'Robert Langdon', status: 'Active' },
+  { id: 'TA-4', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'English', teacherId: 'STF-04', teacherName: 'Dr. Eleanor Vance', status: 'Active' },
+  { id: 'TA-5', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Biology', teacherId: 'STF-02', teacherName: 'Sarah Jenkins', status: 'Active' },
+  { id: 'TA-6', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 9', section: 'A', subject: 'Mathematics', teacherId: 'STF-02', teacherName: 'Sarah Jenkins', status: 'Active' },
+  { id: 'TA-7', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 9', section: 'A', subject: 'Physics', teacherId: 'STF-01', teacherName: 'Jonathan Miller', status: 'Active' }
 ];
 
 export interface StudentCalculationResult {
@@ -322,6 +343,22 @@ interface DataContextType {
   addExamSchedule: (schedule: Omit<ExamSchedule, 'id'>) => void;
   updateExamSchedule: (id: string, updates: Partial<ExamSchedule>) => void;
   deleteExamSchedule: (id: string) => void;
+
+  questionPapers: QuestionPaper[];
+  addQuestionPaper: (paper: Omit<QuestionPaper, 'id'>) => QuestionPaper;
+  updateQuestionPaper: (id: string, updates: Partial<QuestionPaper>) => void;
+  deleteQuestionPaper: (id: string) => void;
+
+  meetings: SchoolMeeting[];
+  addMeeting: (meeting: Omit<SchoolMeeting, 'id' | 'createdAt'>) => SchoolMeeting;
+  updateMeeting: (id: string, updates: Partial<SchoolMeeting>) => void;
+  cancelMeeting: (id: string, reason: string) => void;
+  deleteMeeting: (id: string) => void;
+
+  departments: Department[];
+  addDepartment: (dept: Omit<Department, 'id'>) => Department;
+  updateDepartment: (id: string, updates: Partial<Department>) => void;
+  deleteDepartment: (id: string) => void;
   
   gradeConfigurations: GradeConfig[];
   saveGradeConfiguration: (grades: GradeConfig[]) => void;
@@ -335,6 +372,17 @@ interface DataContextType {
   addTimetableSlot: (slot: Omit<TimetableSlot, 'id'>) => void;
   updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => void;
   deleteTimetableSlot: (id: string) => void;
+  publishClassTimetable: (className: string, section: string, academicYear?: string, branch?: string) => void;
+
+  periodSettings: PeriodSetting[];
+  addPeriodSetting: (data: Omit<PeriodSetting, 'id'>) => void;
+  updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => void;
+  deletePeriodSetting: (id: string) => void;
+
+  teacherAssignments: TeacherAssignment[];
+  addTeacherAssignment: (data: Omit<TeacherAssignment, 'id'>) => void;
+  updateTeacherAssignment: (id: string, updates: Partial<TeacherAssignment>) => void;
+  deleteTeacherAssignment: (id: string) => void;
 
   homework: Homework[];
   addHomework: (hw: Omit<Homework, 'id'>) => void;
@@ -518,6 +566,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => getStored('exam_marks', initialExamMarks));
 
   const [examSchedules, setExamSchedules] = useState<ExamSchedule[]>(() => getStored('exam_schedules', defaultExamSchedules));
+  const [questionPapers, setQuestionPapers] = useState<QuestionPaper[]>(() => getStored('question_papers', initialQuestionPapers));
+  const [meetings, setMeetings] = useState<SchoolMeeting[]>(() => getStored('school_meetings', initialMeetings));
+  const [departments, setDepartments] = useState<Department[]>(() => getStored('departments', initialDepartments));
   const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(() => getStored('grade_configurations', defaultGradeConfigurations));
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(() => getStored('processed_results', []));
 
@@ -626,6 +677,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_student_hostels', JSON.stringify(studentHostels)); }, [studentHostels]);
   useEffect(() => { localStorage.setItem('edu_db_refunds', JSON.stringify(refunds)); }, [refunds]);
   useEffect(() => { localStorage.setItem('edu_db_finance_settings', JSON.stringify(financeSettings)); }, [financeSettings]);
+  useEffect(() => { localStorage.setItem('edu_db_question_papers', JSON.stringify(questionPapers)); }, [questionPapers]);
+  useEffect(() => { localStorage.setItem('edu_db_school_meetings', JSON.stringify(meetings)); }, [meetings]);
+  useEffect(() => { localStorage.setItem('edu_db_departments', JSON.stringify(departments)); }, [departments]);
 
   // Uniform ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_uniform_categories', JSON.stringify(uniformCategories)); }, [uniformCategories]);
@@ -1011,8 +1065,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hostelBlock: appData.hostelBlock || "N/A",
         hostelRoom: appData.hostelRoom || "N/A",
         availableBed: appData.hostelBed || "N/A",
-        scholarship: appData.scholarship || "None",
-        discount: appData.discount || "None"
+        scholarship: (appData as any).scholarship || appData.scholarshipId || "None",
+        discount: (appData as any).discount || appData.discountId || "None"
       };
 
       await updateAdmissionApi(parseInt(id, 10), payload);
@@ -1347,7 +1401,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setHostelBeds(prev => prev.filter(b => b.id !== id));
   };
 
-  // Uniform CRUD
+  const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>(defaultPeriodSettings);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>(defaultTeacherAssignments);
+
+  const addPeriodSetting = (data: Omit<PeriodSetting, 'id'>) => {
+    const id = 'PS-' + Math.floor(100 + Math.random() * 900);
+    const newPs: PeriodSetting = { ...data, id };
+    setPeriodSettings(prev => [...prev, newPs]);
+    logActivity('Created Period Setting', `Added ${newPs.periodName} (${newPs.startTime}-${newPs.endTime})`);
+  };
+
+  const updatePeriodSetting = (id: string, updates: Partial<PeriodSetting>) => {
+    setPeriodSettings(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+  };
+
+  const deletePeriodSetting = (id: string) => {
+    setPeriodSettings(prev => prev.filter(p => p.id !== id));
+  };
+
+  const addTeacherAssignment = (data: Omit<TeacherAssignment, 'id'>) => {
+    const id = 'TA-' + Math.floor(100 + Math.random() * 900);
+    const newTa: TeacherAssignment = { ...data, id };
+    setTeacherAssignments(prev => [...prev.filter(t => !(t.className === data.className && t.section === data.section && t.subject === data.subject)), newTa]);
+    logActivity('Assigned Subject Teacher', `Assigned ${data.teacherName} to ${data.className}-${data.section} ${data.subject}`);
+  };
+
+  const updateTeacherAssignment = (id: string, updates: Partial<TeacherAssignment>) => {
+    setTeacherAssignments(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  };
+
+  const deleteTeacherAssignment = (id: string) => {
+    setTeacherAssignments(prev => prev.filter(t => t.id !== id));
+  };
+
+  const publishClassTimetable = (className: string, section: string, academicYear?: string, branch?: string) => {
+    setTimetable(prev => prev.map(t => {
+      if (t.className === className && t.section === section) {
+        return { ...t, status: 'Published' };
+      }
+      return t;
+    }));
+    logActivity('Published Timetable', `Published timetable for ${className}-${section}`);
+  };
   const addUniform = (itemData: Omit<UniformItem, 'id'>) => {
     const id = 'UNI-' + Math.floor(100 + Math.random() * 900);
     const newItem: UniformItem = { ...itemData, id };
@@ -2764,6 +2859,101 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('Deleted Exam Schedule', `Removed schedule ID ${id}`);
   };
 
+  const addQuestionPaper = (paperData: Omit<QuestionPaper, 'id'>): QuestionPaper => {
+    const id = 'QP-' + Math.floor(1000 + Math.random() * 9000);
+    const newPaper: QuestionPaper = {
+      ...paperData,
+      id,
+      academicYear: paperData.academicYear || schoolProfile.academicYear,
+      branch: paperData.branch || selectedBranch || 'Main Campus'
+    };
+    setQuestionPapers(prev => [newPaper, ...prev]);
+    logActivity('Uploaded Question Paper', `Uploaded ${newPaper.paperTitle} for ${newPaper.className} ${newPaper.subject}`);
+    return newPaper;
+  };
+
+  const updateQuestionPaper = (id: string, updates: Partial<QuestionPaper>) => {
+    setQuestionPapers(prev => prev.map(qp => qp.id === id ? { ...qp, ...updates } : qp));
+    logActivity('Updated Question Paper', `Updated question paper ID ${id}`);
+  };
+
+  const deleteQuestionPaper = (id: string) => {
+    setQuestionPapers(prev => prev.filter(qp => qp.id !== id));
+    logActivity('Deleted Question Paper', `Removed question paper ID ${id}`);
+  };
+
+  const addMeeting = (meetingData: Omit<SchoolMeeting, 'id' | 'createdAt'>): SchoolMeeting => {
+    const id = 'MTG-' + Math.floor(100 + Math.random() * 900);
+    const newMeeting: SchoolMeeting = {
+      ...meetingData,
+      id,
+      academicYear: meetingData.academicYear || schoolProfile.academicYear,
+      branch: meetingData.branch || selectedBranch || 'Main Campus',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setMeetings(prev => [newMeeting, ...prev]);
+
+    if (newMeeting.status === 'Scheduled') {
+      const targets = newMeeting.participants.map(p => p.name).join(', ');
+      logActivity('Scheduled Meeting', `Scheduled ${newMeeting.meetingAudience} meeting '${newMeeting.title}' for ${targets}`);
+    } else {
+      logActivity('Created Meeting Draft', `Saved draft meeting '${newMeeting.title}'`);
+    }
+
+    return newMeeting;
+  };
+
+  const updateMeeting = (id: string, updates: Partial<SchoolMeeting>) => {
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, ...updates } : m));
+    logActivity('Updated Meeting', `Updated details for meeting ID ${id}`);
+  };
+
+  const cancelMeeting = (id: string, reason: string) => {
+    setMeetings(prev => prev.map(m => m.id === id ? { ...m, status: 'Cancelled', cancellationReason: reason } : m));
+    logActivity('Cancelled Meeting', `Cancelled meeting ID ${id}. Reason: ${reason}`);
+  };
+
+  const deleteMeeting = (id: string) => {
+    setMeetings(prev => prev.filter(m => m.id !== id));
+    logActivity('Deleted Meeting', `Removed meeting record ID ${id}`);
+  };
+
+  const addDepartment = (deptData: Omit<Department, 'id'>): Department => {
+    const id = 'DEPT-' + Math.floor(100 + Math.random() * 900);
+    const newDept: Department = {
+      ...deptData,
+      id,
+      branch: deptData.branch || selectedBranch || 'Main Campus',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setDepartments(prev => [newDept, ...prev]);
+    logActivity('Created Department', `Added department ${newDept.departmentName}`);
+    return newDept;
+  };
+
+  const updateDepartment = (id: string, updates: Partial<Department>) => {
+    const oldDept = departments.find(d => d.id === id);
+    const oldName = oldDept?.departmentName;
+
+    setDepartments(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+
+    if (updates.departmentName && oldName && updates.departmentName !== oldName) {
+      setSubjects(prev => prev.map(sub => {
+        if (sub.department === oldName || sub.departmentId === id) {
+          return { ...sub, department: updates.departmentName };
+        }
+        return sub;
+      }));
+    }
+
+    logActivity('Updated Department', `Updated details for department ${updates.departmentName || id}`);
+  };
+
+  const deleteDepartment = (id: string) => {
+    setDepartments(prev => prev.filter(d => d.id !== id));
+    logActivity('Deleted Department', `Removed department ID ${id}`);
+  };
+
   const saveGradeConfiguration = (grades: GradeConfig[]) => {
     setGradeConfigurations(grades);
     logActivity('Saved Grade Configurations', `Updated grade range settings`);
@@ -3397,15 +3587,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pickupPoints: filteredPickupPoints, addPickupPoint, updatePickupPoint, deletePickupPoint,
         vehicleMasters: filteredVehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster,
         driverMasters: filteredDriverMasters, addDriverMaster, updateDriverMaster, deleteDriverMaster,
-        vehicleAssignments: filteredVehicleAssignments, assignVehicleRouteDriver, removeVehicleAssignment,
+        vehicleAssignments: filteredVehicleAssignments, assignVehicleRouteDriver, updateVehicleAssignment, removeVehicleAssignment,
         vehicleMaintenances: filteredVehicleMaintenances, addVehicleMaintenance, updateVehicleMaintenance, deleteVehicleMaintenance,
         checkVehicleCapacity,
         attendance: filteredAttendance, markAttendance,
         exams: filteredExams, examMarks, addExam, updateExam, deleteExam, saveMarks,
         examSchedules, addExamSchedule, updateExamSchedule, deleteExamSchedule,
+        questionPapers, addQuestionPaper, updateQuestionPaper, deleteQuestionPaper,
+        meetings, addMeeting, updateMeeting, cancelMeeting, deleteMeeting,
+        departments, addDepartment, updateDepartment, deleteDepartment,
         gradeConfigurations, saveGradeConfiguration,
         processedResults, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
-        timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
+        timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,
+        periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting,
+        teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
         homework: filteredHomework, addHomework, updateHomework, deleteHomework,
         books, bookIssues: filteredBookIssues, addBook, issueBook, returnBook,
         transportRoutes, addTransportRoute,

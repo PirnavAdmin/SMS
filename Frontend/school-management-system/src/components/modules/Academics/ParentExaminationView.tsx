@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Award, Download, TrendingUp, BookOpen, ChevronDown, AlertCircle } from 'lucide-react';
+import { Award, Download, TrendingUp, BookOpen, ChevronDown, AlertCircle, FileText } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 
 export const ParentExaminationView: React.FC = () => {
-  const { students, exams, processedResults, subjects, gradeConfigurations } = useData();
+  const { students, exams, processedResults, subjects, gradeConfigurations, questionPapers } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
@@ -35,8 +35,8 @@ export const ParentExaminationView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
-  // Get real results from Context
-  const wardResultsRaw = processedResults.filter(r => r.studentId === currentWard.id && r.status !== 'Draft');
+  // Get real results from Context (Published or Locked only)
+  const wardResultsRaw = processedResults.filter(r => r.studentId === currentWard.id && (r.status === 'Published' || r.status === 'Locked'));
 
   const staticFallbackExam = [{
     examName: 'Mid-Term Assessment 2026',
@@ -57,11 +57,11 @@ export const ParentExaminationView: React.FC = () => {
     return {
       examName: exam?.name || 'Unknown Exam',
       date: exam?.startDate || '',
-      overallGrade: r.overallGrade,
+      overallGrade: r.overallGrade || r.finalGrade,
       percentage: r.percentage.toFixed(1) + '%',
       remarks: r.remarks || 'No remarks provided by class teacher.',
-      subjects: r.subjectMarks.map(sm => ({
-        name: getSubjectName(sm.subjectId),
+      subjects: (r.subjectMarks || []).map((sm: any) => ({
+        name: getSubjectName(sm.subjectId || sm.subject),
         marks: `${sm.marksObtained}/${sm.maxMarks}`,
         grade: sm.grade
       }))
@@ -236,6 +236,57 @@ export const ParentExaminationView: React.FC = () => {
             No assessment records found for this student.
           </div>
         )}
+
+        {/* Published Question Papers for Student's Class */}
+        {(() => {
+          const publishedPapers = questionPapers.filter(qp => 
+            qp.status === 'Published' &&
+            (!qp.className || qp.className === currentWard.className) &&
+            (!qp.section || qp.section === 'All Sections' || qp.section === currentWard.section)
+          );
+
+          if (publishedPapers.length === 0) return null;
+
+          return (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm mt-6">
+              <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Published Examination Question Papers</h3>
+                    <p className="text-[11px] text-slate-500">Official question papers released for {currentWard.className} ({currentWard.section})</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {publishedPapers.map(paper => (
+                  <div key={paper.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <p className="font-extrabold text-slate-900 dark:text-white text-xs">{paper.paperTitle}</p>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <span className="font-bold text-amber-600 dark:text-amber-400">{paper.subject}</span>
+                        <span>•</span>
+                        <span>{paper.duration}</span>
+                        <span>•</span>
+                        <span>{paper.maxMarks} Marks</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => alert(`Downloading '${paper.fileName}'...`)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      Download
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

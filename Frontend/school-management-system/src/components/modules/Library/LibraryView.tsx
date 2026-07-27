@@ -66,7 +66,7 @@ export const LibraryView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Library className="w-6 h-6 text-amber-500" /> Library Management
+            <Library className="w-6 h-6 text-amber-500" /> Library Directory
           </h2>
           <p className="text-xs text-slate-500">Book inventory catalog, issue & return workflow, fine calculation</p>
         </div>

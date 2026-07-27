@@ -31,7 +31,7 @@ export const SettingsView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-brand-600" /> System Settings & Audit Logs
+          <SettingsIcon className="w-6 h-6 text-brand-600" /> School Settings
         </h2>
         <p className="text-xs text-slate-500">School branding profile, backup/restore database, and security audit trail</p>
       </div>
@@ -65,7 +65,7 @@ export const SettingsView: React.FC = () => {
 
       {activeTab === 'profile' && (
         <div className="glass-card p-6 rounded-3xl space-y-4 max-w-2xl">
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">School Identification Information</h3>
+          <h3 className="font-bold text-sm text-slate-900 dark:text-white">School Profile Setup</h3>
           <form onSubmit={handleSave} className="space-y-3 text-xs">
             <div>
               <label className="block font-semibold mb-1">School Name *</label>

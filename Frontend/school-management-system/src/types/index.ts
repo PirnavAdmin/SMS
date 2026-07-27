@@ -97,6 +97,10 @@ export interface Student {
   fatherOccupation: string;
   motherName: string;
   motherPhone: string;
+  guardianEmail?: string;
+  guardianPhone?: string;
+  contactEmail?: string;
+  contactPhone?: string;
 
   // Contact
   email: string;
@@ -137,6 +141,7 @@ export interface Staff {
   empId: string;
   employeeCategory?: 'Teacher' | 'Staff';
   branch?: string;
+  name?: string;
   firstName: string;
   lastName: string;
   designation: string;
@@ -165,6 +170,16 @@ export interface Staff {
   salaryStructureId?: string;
   salaryStructureName?: string;
   salaryStructureEffectiveDate?: string;
+  teacherCode?: string;
+  highestQualification?: string;
+  specialization?: string;
+  primarySubject?: string;
+  secondarySubject?: string;
+  isClassTeacherEligible?: boolean;
+  weeklyWorkloadLimit?: number;
+  dailyWorkloadLimit?: number;
+  availableWorkingDays?: string[];
+  availablePeriods?: string[];
 }
 
 export interface AdmissionApplication {
@@ -332,11 +347,43 @@ export interface TimetableSlot {
   id: string;
   day: 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
   timeSlot: string;
+  startTime?: string;
+  endTime?: string;
   className: string;
   section: string;
   subject: string;
+  subjectId?: string;
   teacherName: string;
+  teacherId?: string;
   roomNo: string;
+  roomId?: string;
+  academicYear?: string;
+  branch?: string;
+  status?: 'Draft' | 'Published' | 'Archived';
+}
+
+export interface PeriodSetting {
+  id: string;
+  academicYear: string;
+  branch: string;
+  periodName: string;
+  startTime: string;
+  endTime: string;
+  sequence: number;
+  periodType: 'Teaching' | 'Break' | 'Lunch';
+  status: 'Active' | 'Inactive';
+}
+
+export interface TeacherAssignment {
+  id: string;
+  academicYear: string;
+  branch: string;
+  className: string;
+  section: string;
+  subject: string;
+  teacherId: string;
+  teacherName: string;
+  status: 'Active' | 'Inactive';
 }
 
 export interface HomeworkAttachment {
@@ -352,6 +399,7 @@ export interface Homework {
   className: string;
   section: string;
   subject: string;
+  subjectId?: string;
   teacherName: string;
   assignedDate: string;
   dueDate: string;
@@ -372,15 +420,18 @@ export interface HostelRoom {
   blockId: string;
   roomNo: string;
   capacity: number;
-  occupied: number;
-  feePerTerm: number;
+  occupiedBeds?: number;
+  occupied?: number;
+  monthlyRent?: number;
+  feePerTerm?: number;
+  status: 'Available' | 'Full' | 'Maintenance';
 }
 
 export interface HostelBed {
   id: string;
   roomId: string;
   bedNo: string;
-  status: 'Available' | 'Occupied' | 'Maintenance';
+  status: 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
   studentName?: string;
 }
 
@@ -479,13 +530,28 @@ export interface AuditLog {
   ipAddress: string;
 }
 
+export interface Department {
+  id: string;
+  departmentName: string;
+  departmentCode?: string;
+  description?: string;
+  status: 'Active' | 'Inactive';
+  branch?: string;
+  academicYear?: string;
+  createdAt?: string;
+}
+
 export interface SubjectItem {
   id: string;
   subjectId: string;
   name: string;
   code?: string;
   department?: string;
+  departmentId?: string;
   className?: string;
+  weeklyPeriodCount?: number;
+  isPractical?: boolean;
+  labRequired?: boolean;
 }
 
 // ==========================================
@@ -688,11 +754,12 @@ export interface StudentHostel {
   admissionNo?: string;
   hostelId: string;
   hostelName: string;
+  roomId?: string;
   roomNo: string;
   bedNo: string;
   feeAmount: number;
   effectiveFrom: string;
-  status: 'Active' | 'Inactive';
+  status: 'Active' | 'Occupied' | 'Vacated' | 'Transferred' | 'Inactive' | string;
 }
 
 export interface Refund {
@@ -882,6 +949,7 @@ export interface VehicleMaintenance {
 export interface HostelMaster {
   id: string;
   hostelName: string;
+  name?: string;
   hostelCode: string;
   hostelType: 'Boys' | 'Girls' | 'Mixed';
   wardenName: string;
@@ -909,6 +977,7 @@ export interface RoomMaster {
   floor: string;
   roomNumber: string;
   roomTypeId: string;
+  roomType?: string;
   roomTypeName?: string;
   capacity?: number;
   status: 'Active' | 'Maintenance' | 'Inactive';
@@ -921,12 +990,12 @@ export interface StudentHostelAssignment {
   admissionNo: string;
   hostelId: string;
   hostelName: string;
-  roomId: string;
+  roomId?: string;
   roomNo: string;
   bedNo: string;
   joiningDate: string;
   leavingDate?: string;
-  status: 'Active' | 'Vacated' | 'Transferred';
+  status: 'Active' | 'Occupied' | 'Vacated' | 'Transferred' | string;
 }
 
 
@@ -1338,6 +1407,8 @@ export interface ProcessedResult {
   percentage: number;
   gpa: number;
   finalGrade: string;
+  overallGrade?: string;
+  subjectMarks?: any[];
   passStatus: 'Pass' | 'Fail';
   status: 'Draft' | 'Processed' | 'Published' | 'Locked';
   processedBy?: string;
@@ -1346,6 +1417,75 @@ export interface ProcessedResult {
   lockedAt?: string;
   remarks?: string;
 }
+
+export interface QuestionPaper {
+  id: string;
+  academicYear: string;
+  branch: string;
+  examId: string;
+  examName: string;
+  className: string;
+  section?: string;
+  subject: string;
+  paperTitle: string;
+  examDate?: string;
+  duration: string;
+  maxMarks: number;
+  instructions?: string;
+  fileUrl: string;
+  fileName: string;
+  fileSize?: string;
+  fileType?: string;
+  uploadedBy: string;
+  uploadedOn: string;
+  status: 'Draft' | 'Published';
+}
+
+export type MeetingAudience = 'Individual' | 'Group';
+export type MeetingParticipantType = 'Teaching Staff' | 'Non-Teaching Staff' | 'Student' | 'Parent';
+export type MeetingMode = 'In-Person' | 'Online' | 'Hybrid';
+export type MeetingStatus = 'Draft' | 'Scheduled' | 'Completed' | 'Cancelled';
+
+export interface MeetingParticipantInfo {
+  id: string;
+  name: string;
+  type: MeetingParticipantType;
+  details: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface SchoolMeeting {
+  id: string;
+  title: string;
+  description?: string;
+  academicYear: string;
+  branch: string;
+  meetingAudience: MeetingAudience;
+  participantType?: MeetingParticipantType;
+  participants: MeetingParticipantInfo[];
+  targetGroupDescription?: string;
+  meetingMode: MeetingMode;
+  
+  building?: string;
+  floor?: string;
+  roomVenue?: string;
+  roomCapacity?: number;
+  
+  onlineMeetingUrl?: string;
+
+  meetingDate: string;
+  startTime: string;
+  endTime: string;
+  
+  status: MeetingStatus;
+  organizerName: string;
+  organizerRole: string;
+  createdAt: string;
+  cancellationReason?: string;
+}
+
+
 
 
 

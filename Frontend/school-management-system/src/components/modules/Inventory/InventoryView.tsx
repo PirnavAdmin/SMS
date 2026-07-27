@@ -32,7 +32,7 @@ export const InventoryView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Package className="w-6 h-6 text-emerald-600" /> Inventory & Asset Management
+            <Package className="w-6 h-6 text-emerald-600" /> Inventory Management
           </h2>
           <p className="text-xs text-slate-500">Track equipment, lab assets, stationery stock levels & purchase orders</p>
         </div>
@@ -41,7 +41,7 @@ export const InventoryView: React.FC = () => {
           onClick={() => setIsAddOpen(true)}
           className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Add Asset Item
+          <Plus className="w-4 h-4" /> Add Inventory Item
         </button>
       </div>
 

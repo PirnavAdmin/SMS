@@ -15,7 +15,7 @@ import { PayrollDrawer } from './PayrollDrawer';
 import { StaffProfileDrawer } from './StaffProfileDrawer';
 
 export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({ initialCategory }) => {
-  const { staff, updateStaff, deleteStaff, subjects } = useData();
+  const { staff, updateStaff, deleteStaff, subjects, departments } = useData();
   const { addToast } = useToast();
 
   const [activeCategory, setActiveCategory] = useState<'Teacher' | 'Staff'>(initialCategory || 'Teacher');
@@ -76,8 +76,24 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
     addToast('info', 'Status Updated', `${s.firstName} is now ${nextStatus}`);
   };
 
-  // Derive filter lists from the current category list
-  const uniqueDepts = Array.from(new Set(categoryStaffList.map(s => s.department).filter(Boolean)));
+  // Standard department lists
+  const teachingDepartments = [
+    'Mathematics', 'Science', 'English', 'Social Science', 'Languages',
+    'Computer Science / ICT', 'Commerce', 'Humanities', 'Fine Arts', 'Performing Arts',
+    'Physical Education', 'Library', 'Special Education', 'Pre-Primary'
+  ];
+
+  const nonTeachingDepartments = [
+    'Administration', 'Finance', 'Human Resources', 'Transport',
+    'Hostel', 'Information Technology (IT)', 'Library', 'Maintenance', 'Security'
+  ];
+
+  // Derive filter lists from standard lists + departments context + existing data
+  const uniqueDepts = Array.from(new Set([
+    ...(departments || []).map(d => d.departmentName),
+    ...(activeCategory === 'Teacher' ? teachingDepartments : nonTeachingDepartments),
+    ...categoryStaffList.map(s => s.department).filter(Boolean)
+  ]));
   const uniqueDesignations = Array.from(new Set(categoryStaffList.map(s => s.designation).filter(Boolean)));
   const uniqueBranches = Array.from(new Set(categoryStaffList.map(s => (s as any).branch).filter(Boolean)));
 
@@ -97,9 +113,9 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-emerald-600" /> Faculty & Staff HR Directory
+            <Users className="w-6 h-6 text-emerald-600" /> {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
           </h2>
-          <p className="text-xs text-slate-500">Manage academic teachers, support workers, payroll records, and credentials</p>
+          <p className="text-xs text-slate-500">Manage academic faculty, operational employees, and payroll settings</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -108,13 +124,13 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
             onClick={() => { setStaffToEdit(null); setIsAddOpen(true); }}
             className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> {activeCategory === 'Teacher' ? 'Add Teacher' : 'Add Staff'}
+            <Plus className="w-4 h-4" /> {activeCategory === 'Teacher' ? 'Add Teaching Staff' : 'Add Non-Teaching Staff'}
           </button>
         </div>
       </div>
 
       {/* Top Segmented Tab Switches */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 max-w-xs border border-slate-200/40 dark:border-slate-800">
+      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 max-w-sm border border-slate-200/40 dark:border-slate-800">
         <button
           onClick={() => handleTabChange('Teacher')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -123,7 +139,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
           }`}
         >
-          <GraduationCap className="w-4 h-4" /> Teachers ({staff.filter(s => getStaffCategory(s) === 'Teacher').length})
+          <GraduationCap className="w-4 h-4" /> Teaching Staff ({staff.filter(s => getStaffCategory(s) === 'Teacher').length})
         </button>
         <button
           onClick={() => handleTabChange('Staff')}
@@ -133,7 +149,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
           }`}
         >
-          <Briefcase className="w-4 h-4" /> Staff ({staff.filter(s => getStaffCategory(s) === 'Staff').length})
+          <Briefcase className="w-4 h-4" /> Non-Teaching Staff ({staff.filter(s => getStaffCategory(s) === 'Staff').length})
         </button>
       </div>
 
@@ -232,8 +248,8 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
                   <th className="py-3.5 px-4">Teacher</th>
                   <th className="py-3.5 px-4 font-mono">Employee ID</th>
-                  <th className="py-3.5 px-4">Assigned Subjects</th>
-                  <th className="py-3.5 px-4">Assigned Classes</th>
+                  <th className="py-3.5 px-4">Primary Subject</th>
+                  <th className="py-3.5 px-4">Specialization</th>
                   <th className="py-3.5 px-4">Salary</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
@@ -273,14 +289,12 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
                     
                     {activeCategory === 'Teacher' ? (
                       <>
-                        <td className="py-3 px-4">
-                          <span className="font-semibold text-purple-600 dark:text-purple-400">
-                            {st.assignedSubjects?.join(', ') || 'N/A'}
-                          </span>
+                        <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                          {st.primarySubject || (st.assignedSubjects?.[0]) || 'Mathematics'}
                         </td>
                         <td className="py-3 px-4">
-                          <span className="text-[10px] font-semibold bg-indigo-50 dark:bg-slate-800 px-2 py-0.5 rounded text-indigo-700 dark:text-indigo-300">
-                            {st.assignedClasses?.join(', ') || 'N/A'}
+                          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                            {st.specialization || st.qualification || 'M.Sc. Education'}
                           </span>
                         </td>
                       </>
