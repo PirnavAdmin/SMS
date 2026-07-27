@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Models;
 
@@ -87,6 +86,17 @@ namespace SMS.Api.Data
             set;
         } = null!;
 
+
+        // =====================================================
+        // Examination Module
+        // =====================================================
+
+        public DbSet<ExamMaster> ExamMasters
+            => Set<ExamMaster>();
+
+        public DbSet<ExamClass> ExamClasses
+            => Set<ExamClass>();
+
         protected override void OnModelCreating(
             ModelBuilder modelBuilder)
         {
@@ -96,46 +106,11 @@ namespace SMS.Api.Data
             ConfigureRole(modelBuilder);
             ConfigureUserRoles(modelBuilder);
             ConfigureOtpVerification(modelBuilder);
-=======
-namespace SMS.Api.Data;
-
-using Microsoft.EntityFrameworkCore;
-using SMS.Api.Models;
-using System.Collections.Generic;
-
-public class AppDbContext : DbContext
-{
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-
-    // System & Auth DbSets
-    public DbSet<User> Users { get; set; } = null!;
-    public DbSet<Role> Roles { get; set; } = null!;
-    public DbSet<OtpVerification> OtpVerifications { get; set; } = null!;
-
-    // Academic, HR & Admission DbSets
-    public DbSet<Branch> Branches { get; set; } = null!;
-    public DbSet<Subject> Subjects { get; set; } = null!;
-    public DbSet<Staff> Staff { get; set; } = null!;
-    public DbSet<ClassGrade> Classes { get; set; } = null!;
-    public DbSet<ClassSection> ClassSections { get; set; } = null!;
-    public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
-    public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-
-    // Transport Management DbSets
-    public DbSet<TransportRoute> TransportRoutes { get; set; } = null!;
-    public DbSet<PickupPoint> PickupPoints { get; set; } = null!;
-    public DbSet<TransportVehicle> TransportVehicles { get; set; } = null!;
-    public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
-    public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
-    public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
-    public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
->>>>>>> eab1909434218961e513f516555570f0fed32a2c
 
             ConfigureClassCurriculumSubject(modelBuilder);
             ConfigureClassSection(modelBuilder);
             ConfigureAdmissionApplication(modelBuilder);
 
-<<<<<<< HEAD
             ConfigureTransportRoute(modelBuilder);
             ConfigurePickupPoint(modelBuilder);
             ConfigureTransportVehicle(modelBuilder);
@@ -143,6 +118,8 @@ public class AppDbContext : DbContext
             ConfigureTransportVehicleAssignment(modelBuilder);
             ConfigureStudentTransportAssignment(modelBuilder);
             ConfigureVehicleMaintenance(modelBuilder);
+            ConfigureExamMaster(modelBuilder);
+            ConfigureExamClass(modelBuilder);
         }
 
         // =====================================================
@@ -705,63 +682,118 @@ public class AppDbContext : DbContext
                         "IX_VehMaint_Vehicle_ServiceDate_Deleted");
             });
         }
-=======
-        // --------------------------------------------------
-        // Auth Configurations
-        // --------------------------------------------------
-        modelBuilder.Entity<User>().HasKey(u => u.UserId);
-        modelBuilder.Entity<User>().HasIndex(u => u.MobileNumber).IsUnique();
-        modelBuilder.Entity<Role>().HasKey(r => r.RoleId);
+        private static void ConfigureExamMaster(
+        ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ExamMaster>(entity =>
+            {
+                entity.ToTable("exam_masters");
 
-        modelBuilder.Entity<User>()
-            .HasMany(u => u.Roles)
-            .WithMany(r => r.Users)
-            .UsingEntity<Dictionary<string, object>>(
-                "UserRoles",
-                j => j.HasOne<Role>().WithMany().HasForeignKey("RoleId"),
-                j => j.HasOne<User>().WithMany().HasForeignKey("UserId")
-            );
+                entity.HasKey(x => x.ExamId);
 
-        modelBuilder.Entity<OtpVerification>().HasKey(o => o.OtpId);
+                entity.Property(x => x.ExamId)
+                    .HasColumnName("exam_id")
+                    .ValueGeneratedOnAdd();
 
-        modelBuilder.Entity<OtpVerification>()
-            .HasOne(o => o.User)
-            .WithMany(u => u.OtpVerifications)
-            .HasForeignKey(o => o.UserId)
-            .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(x => x.ExamTitle)
+                    .HasColumnName("exam_title")
+                    .HasMaxLength(150)
+                    .IsRequired();
 
-        // --------------------------------------------------
-        // Academic & HR Module Configurations
-        // --------------------------------------------------
-        modelBuilder.Entity<ClassCurriculumSubject>()
-            .HasKey(ccs => new { ccs.ClassId, ccs.SubjectId });
+                entity.Property(x => x.ExamType)
+                    .HasColumnName("exam_type")
+                    .HasMaxLength(50)
+                    .IsRequired();
 
-        modelBuilder.Entity<ClassSection>()
-            .HasIndex(cs => new { cs.ClassId, cs.SectionName })
-            .IsUnique();
+                entity.Property(x => x.ExamStatus)
+                    .HasColumnName("exam_status")
+                    .HasMaxLength(30)
+                    .HasDefaultValue("Scheduled")
+                    .IsRequired();
 
-        modelBuilder.Entity<ClassSection>()
-            .HasOne(cs => cs.ClassTeacher)
-            .WithMany()
-            .HasForeignKey(cs => cs.ClassTeacherEmpId)
-            .OnDelete(DeleteBehavior.SetNull);
+                entity.Property(x => x.BranchId)
+                    .HasColumnName("branch_id");
 
-        modelBuilder.Entity<AdmissionApplication>()
-            .HasOne(a => a.AppliedClass)
-            .WithMany(c => c.AdmissionApplications)
-            .HasForeignKey(a => a.AppliedClassId)
-            .OnDelete(DeleteBehavior.Restrict);
+                entity.Property(x => x.AcademicYearId)
+                    .HasColumnName("academic_year_id");
 
-        // --------------------------------------------------
-        // Transport Module Configurations
-        // --------------------------------------------------
-        modelBuilder.Entity<TransportVehicle>().ToTable("transport_vehicles").HasKey(v => v.VehicleId);
-        modelBuilder.Entity<TransportRoute>().ToTable("transport_routes").HasKey(r => r.RouteId);
-        modelBuilder.Entity<TransportDriver>().ToTable("transport_drivers").HasKey(d => d.DriverId);
-        modelBuilder.Entity<PickupPoint>().ToTable("transport_pickup_points").HasKey(p => p.PickupPointId);
-        modelBuilder.Entity<TransportVehicleAssignment>().ToTable("transport_vehicle_assignments").HasKey(a => a.AssignmentId);
-        modelBuilder.Entity<StudentTransportAssignment>().ToTable("student_transport_assignments").HasKey(sa => sa.StudentTransportAssignmentId);
-        modelBuilder.Entity<VehicleMaintenance>().ToTable("transport_vehicle_maintenance").HasKey(m => m.MaintenanceId);
->>>>>>> eab1909434218961e513f516555570f0fed32a2c
+                entity.Property(x => x.StartDate)
+                    .HasColumnName("start_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.EndDate)
+                    .HasColumnName("end_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.IsDeleted)
+                    .HasColumnName("is_deleted")
+                    .HasDefaultValue(false);
+
+                entity.Property(x => x.CreatedBy).HasColumnName("created_by");
+
+                entity.Property(x => x.UpdatedBy).HasColumnName("updated_by");
+
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("datetime").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime");
+
+                entity.HasIndex(x => new
+                {
+                    x.ExamTitle,
+                    x.BranchId,
+                    x.AcademicYearId
+                })
+                    .IsUnique()
+                    .HasDatabaseName(
+                        "ux_exam_title_branch_academic_year");
+
+                entity.HasIndex(x => new
+                {
+                    x.BranchId,
+                    x.AcademicYearId,
+                    x.ExamStatus,
+                    x.IsDeleted
+                })
+                    .HasDatabaseName(
+                        "ix_exam_master_filter");
+            });
+        }
+
+        private static void ConfigureExamClass(
+    ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ExamClass>(entity =>
+            {
+                entity.ToTable("exam_classes");
+
+                entity.HasKey(x => new
+                {
+                    x.ExamId,
+                    x.ClassId
+                });
+
+                entity.Property(x => x.ExamId)
+                    .HasColumnName("exam_id");
+
+                entity.Property(x => x.ClassId)
+                    .HasColumnName("class_id");
+
+                entity.HasOne(x => x.Exam)
+                    .WithMany(x => x.ExamClasses)
+                    .HasForeignKey(x => x.ExamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Class)
+                    .WithMany()
+                    .HasForeignKey(x => x.ClassId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => x.ClassId)
+                    .HasDatabaseName(
+                        "ix_exam_classes_class_id");
+            });
+        }
+
+
     }
 }
