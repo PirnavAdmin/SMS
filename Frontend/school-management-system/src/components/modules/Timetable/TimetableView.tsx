@@ -152,6 +152,38 @@ export const TimetableView: React.FC = () => {
     roomNo: ''
   });
 
+  // Dynamically load assigned subjects for the selected class from Class Management
+  const availableClassSubjects = useMemo(() => {
+    const targetClass = formData.className || '';
+    if (!targetClass) return subjects;
+
+    // Find class configuration in academicClasses
+    const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === targetClass.toLowerCase().trim());
+    
+    // Check if class has assigned subjects from Class Management
+    const assignedNames = clsObj?.subjects || [];
+
+    // Also collect subjects assigned in Teacher Assignments for this class
+    const teacherAssignedNames = teacherAssignments
+      .filter(ta => ta.className.toLowerCase().trim() === targetClass.toLowerCase().trim())
+      .map(ta => ta.subject);
+
+    const combinedNames = Array.from(new Set([...assignedNames, ...teacherAssignedNames]));
+
+    if (combinedNames.length > 0) {
+      return combinedNames.map((name, idx) => {
+        const globalSub = subjects.find(s => s.name.toLowerCase().trim() === name.toLowerCase().trim());
+        return {
+          id: globalSub?.id || `class-sub-${idx}-${name}`,
+          name: name,
+          weeklyPeriodCount: globalSub?.weeklyPeriodCount || 5
+        };
+      });
+    }
+
+    return subjects;
+  }, [academicClasses, formData.className, teacherAssignments, subjects]);
+
   // Auto load assigned teacher whenever subject changes in form
   const autoAssignedTeacher = useMemo(() => {
     if (!formData.subject || !formData.className || !formData.section) return '';
@@ -252,7 +284,10 @@ export const TimetableView: React.FC = () => {
   const handleOpenAdd = (day?: string, slot?: string) => {
     setEditingSlot(null);
     setValidationErrors([]);
-    const firstSubject = subjects[0]?.name || 'Mathematics';
+    const initialClassName = selectedClass || academicClasses[0]?.name || 'Class 9';
+    const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === initialClassName.toLowerCase().trim());
+    const assignedNames = clsObj?.subjects || [];
+    const firstSubject = assignedNames[0] || subjects[0]?.name || 'Mathematics';
     if (slot) {
       const parts = slot.split('-');
       setStartTime(parseTo24(parts[0]?.trim() || '08:30 AM'));
@@ -264,7 +299,7 @@ export const TimetableView: React.FC = () => {
     const initialSlot = {
       day: (day as any) || 'Monday',
       timeSlot: slot || '08:30 AM - 09:15 AM',
-      className: selectedClass,
+      className: initialClassName,
       section: selectedSection,
       subject: firstSubject,
       teacherName: '',
@@ -1005,10 +1040,14 @@ export const TimetableView: React.FC = () => {
                     onChange={e => {
                       const nextClass = e.target.value;
                       const nextSections = getSectionsForClass(nextClass);
+                      const nextClsObj = academicClasses.find(c => c.name.toLowerCase().trim() === nextClass.toLowerCase().trim());
+                      const nextAssigned = nextClsObj?.subjects || [];
+                      const nextSub = nextAssigned[0] || subjects[0]?.name || '';
                       setFormData({
                         ...formData,
                         className: nextClass,
-                        section: nextSections.includes(formData.section || '') ? formData.section : nextSections[0] || 'A'
+                        section: nextSections.includes(formData.section || '') ? formData.section : nextSections[0] || 'A',
+                        subject: nextSub
                       });
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none"
@@ -1063,7 +1102,12 @@ export const TimetableView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold mb-1">Subject * (Loaded from Subject Mapping)</label>
+                <label className="block font-bold mb-1 flex items-center justify-between">
+                  <span>Subject * (Loaded from Subject Mapping)</span>
+                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">
+                    Class {formData.className} Mapping
+                  </span>
+                </label>
                 <select
                   required
                   value={formData.subject}
@@ -1071,12 +1115,17 @@ export const TimetableView: React.FC = () => {
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none"
                 >
                   <option value="">Select Subject</option>
-                  {subjects.map(sub => (
+                  {availableClassSubjects.map(sub => (
                     <option key={sub.id} value={sub.name}>
                       {sub.name} ({sub.weeklyPeriodCount || 5} periods/wk)
                     </option>
                   ))}
                 </select>
+                {availableClassSubjects.length > 0 && (
+                  <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-1 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 text-sky-600" /> Loaded {availableClassSubjects.length} subject(s) assigned to {formData.className} in Class Management
+                  </p>
+                )}
               </div>
 
               <div>

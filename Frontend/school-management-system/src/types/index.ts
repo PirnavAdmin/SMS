@@ -1483,6 +1483,12 @@ export interface SchoolMeeting {
   organizerRole: string;
   createdAt: string;
   cancellationReason?: string;
+
+  // Enterprise ERP Fields
+  priority?: 'Low' | 'Normal' | 'High' | 'Urgent';
+  attendanceRequired?: 'Mandatory' | 'Optional';
+  recurrence?: 'None' | 'Daily' | 'Weekly' | 'Monthly';
+  excludedParticipantIds?: string[];
 }
 
 
