@@ -1,42 +1,3 @@
-<<<<<<< HEAD
-// import { apiClient } from './client';
-
-// export const fetchTransportRoutesApi = async () => {
-//   return apiClient('/api/transport/routes', {
-//     method: 'GET'
-//   });
-// };
-
-// export const fetchTransportVehiclesApi = async () => {
-//   return apiClient('/api/transport/vehicles', {
-//     method: 'GET'
-//   });
-// };
-
-// export const fetchTransportDriversApi = async () => {
-//   return apiClient('/api/transport/drivers', {
-//     method: 'GET'
-//   });
-// };
-
-// export const fetchPickupPointsApi = async () => {
-//   return apiClient('/api/transport/pickup-points', {
-//     method: 'GET'
-//   });
-// };
-
-// export const fetchVehicleAssignmentsApi = async () => {
-//   return apiClient('/api/transport/vehicle-assignments', {
-//     method: 'GET'
-//   });
-// };
-
-// export const fetchVehicleMaintenanceApi = async () => {
-//   return apiClient('/api/transport/vehicle-maintenance', {
-//     method: 'GET'
-//   });
-// };
-=======
 import { apiClient } from './client';
 import { RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, StudentTransport, VehicleMaintenance } from '../types';
 
@@ -109,4 +70,3 @@ export const fetchTransportLookupsDriversApi = () => apiClient('/api/transport/l
 export const fetchTransportLookupsPickupPointsApi = () => apiClient('/api/transport/lookups/pickup-points');
 export const fetchTransportLookupsVehicleAssignmentsApi = () => apiClient('/api/transport/lookups/vehicle-assignments');
 export const fetchTransportLookupsStudentAssignmentsApi = () => apiClient('/api/transport/lookups/student-assignments');
->>>>>>> 9fac8b99d45cfbcc5915487846466d2b37cbfa73
