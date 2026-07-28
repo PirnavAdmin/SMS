@@ -41,10 +41,10 @@ namespace Backend.Tests.Controllers
         public async Task GetDepartmentById_ReturnsOkWithDto()
         {
             var expectedDto = new DepartmentDto { DepartmentId = 1, DepartmentName = "Science" };
-            _schoolServiceMock.Setup(s => s.GetDepartmentByIdAsync(1))
+            _schoolServiceMock.Setup(s => s.GetDepartmentByIdAsync("1"))
                 .ReturnsAsync(expectedDto);
 
-            var result = await _controller.GetDepartmentById(1);
+            var result = await _controller.GetDepartmentById("1");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -75,10 +75,10 @@ namespace Backend.Tests.Controllers
                 new SubjectDto { SubjectId = 1, SubjectName = "Physics", DepartmentId = 1, DepartmentName = "Science" }
             };
 
-            _schoolServiceMock.Setup(s => s.GetSubjectsByDepartmentIdAsync(1))
+            _schoolServiceMock.Setup(s => s.GetSubjectsByDepartmentIdAsync("1"))
                 .ReturnsAsync(expectedList);
 
-            var result = await _controller.GetSubjectsByDepartment(1);
+            var result = await _controller.GetSubjectsByDepartment("1");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -105,10 +105,10 @@ namespace Backend.Tests.Controllers
             var dto = new CreateDepartmentDto { DepartmentName = "Advanced Science", DepartmentCode = "DEPT-SCI" };
             var expectedResult = new DepartmentDto { DepartmentId = 1, DepartmentName = "Advanced Science", DepartmentCode = "DEPT-SCI" };
 
-            _schoolServiceMock.Setup(s => s.UpdateDepartmentAsync(1, dto))
+            _schoolServiceMock.Setup(s => s.UpdateDepartmentAsync("1", dto))
                 .ReturnsAsync(expectedResult);
 
-            var result = await _controller.UpdateDepartment(1, dto);
+            var result = await _controller.UpdateDepartment("1", dto);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -117,10 +117,10 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task DeleteDepartment_ReturnsOk()
         {
-            _schoolServiceMock.Setup(s => s.DeleteDepartmentAsync(1))
+            _schoolServiceMock.Setup(s => s.DeleteDepartmentAsync("1"))
                 .ReturnsAsync(true);
 
-            var result = await _controller.DeleteDepartment(1);
+            var result = await _controller.DeleteDepartment("1");
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);

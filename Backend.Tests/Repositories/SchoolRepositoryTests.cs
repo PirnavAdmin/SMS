@@ -79,8 +79,11 @@ namespace Backend.Tests.Repositories
             using var db = GetInMemoryDbContext();
             var repo = new SchoolRepository(db);
 
-            var sub1 = new Subject { SubjectCode = "MATH101", SubjectName = "Mathematics", CourseCode = "MATH" };
-            var sub2 = new Subject { SubjectCode = "ENG101", SubjectName = "English", CourseCode = "ENG" };
+            var dept = new Department { DepartmentId = 1, DepartmentName = "Mathematics", DepartmentCode = "MATH" };
+            await repo.AddDepartmentAsync(dept);
+
+            var sub1 = new Subject { SubjectCode = "MATH101", SubjectName = "Mathematics", CourseCode = "MATH", DepartmentId = 1 };
+            var sub2 = new Subject { SubjectCode = "ENG101", SubjectName = "English", CourseCode = "ENG", DepartmentId = 1 };
 
             await repo.AddSubjectAsync(sub1);
             await repo.AddSubjectAsync(sub2);

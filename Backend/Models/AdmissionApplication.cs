@@ -66,6 +66,7 @@ public class AdmissionApplication
     public string? ExistingSiblingLookup { get; set; }
 
     // 5. Student Type & Facility Allocation - Transport
+    public string StudentType { get; set; } = "Day Scholar"; // "Day Scholar", "Hosteller"
     public bool TransportRequired { get; set; } = false;
     public string? TransportType { get; set; }
     public string? BusRoute { get; set; }
@@ -77,6 +78,7 @@ public class AdmissionApplication
     public string? FloorLevel { get; set; }
     public string? HostelRoom { get; set; }
     public string? AvailableBed { get; set; }
+    public string? AllocatedBedId { get; set; }
 
     // Financial Benefits
     public string? Scholarship { get; set; } = "None";

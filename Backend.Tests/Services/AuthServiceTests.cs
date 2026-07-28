@@ -93,7 +93,7 @@ namespace Backend.Tests.Services
 
             var ex = await Assert.ThrowsAsync<AppException>(() => _service.LoginAsync(dto));
             Assert.Equal(HttpStatusCode.Unauthorized, ex.StatusCode);
-            Assert.Equal("Invalid credentials.", ex.Message);
+            Assert.Equal("Invalid email/mobile number or password.", ex.Message);
         }
 
         [Fact]

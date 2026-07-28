@@ -324,7 +324,7 @@ public class SchoolService : ISchoolService
 		{
 			SubjectCode = effectiveCode,
 			SubjectName = dto.SubjectName.Trim(),
-			CourseCode = dto.CourseCode?.Trim() ?? string.Empty,
+			CourseCode = string.IsNullOrWhiteSpace(dto.CourseCode) ? effectiveCode : dto.CourseCode.Trim(),
 			DepartmentId = dto.DepartmentId
 		};
 
@@ -566,6 +566,7 @@ public class SchoolService : ISchoolService
 			PinCode = dto.PinCode,
 			NumberOfSiblings = dto.NumberOfSiblings,
 			ExistingSiblingLookup = dto.ExistingSiblingLookup,
+			StudentType = string.IsNullOrWhiteSpace(dto.StudentType) ? "Day Scholar" : dto.StudentType,
 			TransportRequired = dto.TransportRequired,
 			TransportType = dto.TransportType,
 			BusRoute = dto.BusRoute,
@@ -575,6 +576,7 @@ public class SchoolService : ISchoolService
 			FloorLevel = dto.FloorLevel,
 			HostelRoom = dto.HostelRoom,
 			AvailableBed = dto.AvailableBed,
+			AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed,
 			Scholarship = dto.Scholarship,
 			Discount = dto.Discount,
 			Status = "Pending"
@@ -586,6 +588,7 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.SaveChangesAsync();
 
 		await SyncToAdmissionsTableAsync(app);
+		await SyncHostelAllocationAsync(app);
 
 		return MapToAdmissionResponseDto(app);
 	}
@@ -601,6 +604,7 @@ public class SchoolService : ISchoolService
 		app.Gender = dto.Gender;
 		if (dto.AppliedClassId > 0) app.AppliedClassId = dto.AppliedClassId;
 		app.BranchName = dto.BranchName;
+		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
 		app.BloodGroup = dto.BloodGroup;
 		app.Religion = dto.Religion;
 		app.Caste = dto.Caste;
@@ -628,6 +632,7 @@ public class SchoolService : ISchoolService
 		app.FloorLevel = dto.FloorLevel;
 		app.HostelRoom = dto.HostelRoom;
 		app.AvailableBed = dto.AvailableBed;
+		app.AllocatedBedId = dto.AllocatedBedId ?? dto.AvailableBed ?? app.AllocatedBedId;
 		app.Scholarship = dto.Scholarship;
 		app.Discount = dto.Discount;
 
@@ -635,6 +640,7 @@ public class SchoolService : ISchoolService
 
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
+		await SyncHostelAllocationAsync(app);
 
 		return MapToAdmissionResponseDto(app);
 	}
@@ -765,6 +771,7 @@ public class SchoolService : ISchoolService
 		PinCode = a.PinCode,
 		NumberOfSiblings = a.NumberOfSiblings,
 		ExistingSiblingLookup = a.ExistingSiblingLookup,
+		StudentType = a.StudentType,
 		TransportRequired = a.TransportRequired,
 		TransportType = a.TransportType,
 		BusRoute = a.BusRoute,
@@ -778,4 +785,85 @@ public class SchoolService : ISchoolService
 		Discount = a.Discount,
 		Status = a.Status
 	};
+
+	private async Task SyncHostelAllocationAsync(AdmissionApplication app)
+	{
+		try
+		{
+			if (string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase) ||
+				!string.IsNullOrWhiteSpace(app.HostelBlock) ||
+				!string.IsNullOrWhiteSpace(app.HostelRoom))
+			{
+				string blockName = !string.IsNullOrWhiteSpace(app.HostelBlock) ? app.HostelBlock : "Main Block";
+				string roomNo = !string.IsNullOrWhiteSpace(app.HostelRoom) ? app.HostelRoom : "Room 101";
+				string bedNo = !string.IsNullOrWhiteSpace(app.AllocatedBedId) ? app.AllocatedBedId : (!string.IsNullOrWhiteSpace(app.AvailableBed) ? app.AvailableBed : "Bed-1");
+
+				var block = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.HostelBlocks, b => b.HostelName == blockName && b.Status == "Active");
+
+				if (block == null)
+				{
+					block = new HostelBlock { HostelName = blockName, HostelCode = "HST-01", HostelType = "Boys Hostel", Status = "Active", Address = "Main Campus" };
+					await _context.HostelBlocks.AddAsync(block);
+					await _context.SaveChangesAsync();
+				}
+
+				var roomType = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.RoomTypeConfigs, rt => rt.Status == "Active");
+
+				if (roomType == null)
+				{
+					roomType = new RoomTypeConfig { RoomTypeSpecification = "Standard Room", BedCapacity = 4, AcType = "AC", Status = "Active" };
+					await _context.RoomTypeConfigs.AddAsync(roomType);
+					await _context.SaveChangesAsync();
+				}
+
+				var room = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.RoomMasters, r => r.HostelId == block.HostelId && r.RoomNumber == roomNo && r.Status == "Active");
+
+				if (room == null)
+				{
+					room = new RoomMaster { HostelId = block.HostelId, RoomTypeId = roomType.RoomTypeId, RoomNumber = roomNo, FloorLevel = app.FloorLevel ?? "1st Floor", Status = "Active" };
+					await _context.RoomMasters.AddAsync(room);
+					await _context.SaveChangesAsync();
+				}
+
+				string regNo = app.RegistrationNo ?? string.Empty;
+				string stName = $"{app.FirstName} {app.LastName}".Trim();
+
+				var existingAllocation = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.StudentBedAllocations, a => a.StudentId == app.Id && a.Status == "Active");
+
+				if (existingAllocation == null)
+				{
+					var allocation = new StudentBedAllocation
+					{
+						StudentId = app.Id,
+						RegistrationNo = regNo,
+						StudentName = stName,
+						HostelId = block.HostelId,
+						RoomId = room.RoomId,
+						BedNumber = bedNo,
+						JoiningDate = DateTime.UtcNow,
+						Status = "Active"
+					};
+					await _context.StudentBedAllocations.AddAsync(allocation);
+				}
+				else
+				{
+					existingAllocation.RegistrationNo = regNo;
+					existingAllocation.StudentName = stName;
+					existingAllocation.HostelId = block.HostelId;
+					existingAllocation.RoomId = room.RoomId;
+					existingAllocation.BedNumber = bedNo;
+				}
+
+				await _context.SaveChangesAsync();
+			}
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error syncing hostel allocation: {ex.Message}");
+		}
+	}
 }

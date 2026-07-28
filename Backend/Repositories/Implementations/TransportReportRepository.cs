@@ -39,9 +39,9 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(vehicle =>
-                    vehicle.VehicleNumber.ToLower().Contains(search) ||
-                    vehicle.VehicleName.ToLower().Contains(search) ||
-                    vehicle.RegistrationNumber.ToLower().Contains(search));
+                    (vehicle.VehicleNumber != null && vehicle.VehicleNumber.ToLower().Contains(search)) ||
+                    (vehicle.VehicleName != null && vehicle.VehicleName.ToLower().Contains(search)) ||
+                    (vehicle.RegistrationNumber != null && vehicle.RegistrationNumber.ToLower().Contains(search)));
             }
 
             var data = await query
@@ -93,8 +93,8 @@ namespace SMS.Api.Repositories.Implementations
                 return new VehicleStudentReportDto
                 {
                     VehicleId = x.VehicleId,
-                    VehicleNumber = x.VehicleNumber,
-                    VehicleName = x.VehicleName,
+                    VehicleNumber = x.VehicleNumber ?? string.Empty,
+                    VehicleName = x.VehicleName ?? string.Empty,
                     Capacity = x.Capacity,
                     AssignedStudents = x.AssignedStudents,
                     AvailableSeats = availableSeats,

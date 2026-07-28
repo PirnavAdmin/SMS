@@ -70,7 +70,7 @@ namespace Backend.Tests.Middleware
             var context = new DefaultHttpContext();
             context.Response.Body = new MemoryStream();
 
-            RequestDelegate next = (ctx) => throw new InvalidOperationException("Unhandled DB Error");
+            RequestDelegate next = (ctx) => throw new Exception("Unhandled DB Error");
 
             var middleware = new ExceptionMiddleware(next, _loggerMock.Object);
             await middleware.InvokeAsync(context);

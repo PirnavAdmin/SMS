@@ -60,6 +60,27 @@ namespace SMS.Api.Data
 
         public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
 
+        // =====================================================
+        // Hostel ERP Module
+        // =====================================================
+
+        public DbSet<HostelBlock> HostelBlocks { get; set; } = null!;
+        public DbSet<RoomTypeConfig> RoomTypeConfigs { get; set; } = null!;
+        public DbSet<RoomMaster> RoomMasters { get; set; } = null!;
+        public DbSet<HostelWarden> HostelWardens { get; set; } = null!;
+        public DbSet<StudentBedAllocation> StudentBedAllocations { get; set; } = null!;
+        public DbSet<HostelAttendance> HostelAttendances { get; set; } = null!;
+
+
+        // =====================================================
+        // Timetable Module
+        // =====================================================
+
+        public DbSet<PeriodSetting> PeriodSettings { get; set; } = null!;
+        public DbSet<TeacherSubjectAssignment> TeacherSubjectAssignments { get; set; } = null!;
+        public DbSet<TimetableHeader> TimetableHeaders { get; set; } = null!;
+        public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
+
 
         // =====================================================
         // Examination Module
@@ -93,6 +114,84 @@ namespace SMS.Api.Data
             ConfigureVehicleMaintenance(modelBuilder);
             ConfigureExamMaster(modelBuilder);
             ConfigureExamClass(modelBuilder);
+
+            ConfigurePeriodSetting(modelBuilder);
+            ConfigureTeacherSubjectAssignment(modelBuilder);
+            ConfigureTimetableHeader(modelBuilder);
+            ConfigureTimetableSlot(modelBuilder);
+            ConfigureStudentBedAllocation(modelBuilder);
+        }
+
+        private static void ConfigurePeriodSetting(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<PeriodSetting>(entity =>
+            {
+                entity.ToTable("period_settings");
+                entity.HasKey(x => x.PeriodId);
+                entity.Property(x => x.PeriodName).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.PeriodType).HasMaxLength(50).IsRequired();
+            });
+        }
+
+        private static void ConfigureTeacherSubjectAssignment(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeacherSubjectAssignment>(entity =>
+            {
+                entity.ToTable("teacher_subject_assignments");
+                entity.HasKey(x => x.AssignmentId);
+                entity.HasIndex(x => new { x.ClassId, x.SectionId, x.SubjectId }).IsUnique();
+                entity.HasOne(x => x.Staff)
+                    .WithMany()
+                    .HasForeignKey(x => x.StaffId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private static void ConfigureTimetableHeader(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TimetableHeader>(entity =>
+            {
+                entity.ToTable("timetable_headers");
+                entity.HasKey(x => x.HeaderId);
+                entity.HasIndex(x => new { x.ClassId, x.SectionId, x.AcademicYear }).IsUnique();
+            });
+        }
+
+        private static void ConfigureTimetableSlot(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TimetableSlot>(entity =>
+            {
+                entity.ToTable("timetable_slots");
+                entity.HasKey(x => x.SlotId);
+                entity.HasIndex(x => new { x.HeaderId, x.DayOfWeek });
+                entity.HasIndex(x => new { x.TeacherId, x.DayOfWeek, x.StartTime, x.EndTime });
+                entity.HasIndex(x => new { x.RoomNo, x.DayOfWeek, x.StartTime, x.EndTime });
+            });
+        }
+
+        private static void ConfigureStudentBedAllocation(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StudentBedAllocation>(entity =>
+            {
+                entity.ToTable("student_bed_allocations");
+                entity.HasKey(x => x.AllocationId);
+                entity.Property(x => x.RegistrationNo).HasMaxLength(100).IsRequired();
+                entity.Property(x => x.StudentName).HasMaxLength(150).IsRequired();
+                entity.HasIndex(x => new { x.RegistrationNo, x.Status });
+                entity.HasOne(x => x.Student)
+                    .WithMany()
+                    .HasForeignKey(x => x.StudentId)
+                    .IsRequired(false)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.Hostel)
+                    .WithMany(x => x.Allocations)
+                    .HasForeignKey(x => x.HostelId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.Room)
+                    .WithMany(x => x.Allocations)
+                    .HasForeignKey(x => x.RoomId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
 
         // =====================================================
@@ -318,75 +417,35 @@ namespace SMS.Api.Data
 
                 entity.HasKey(x => x.RouteId);
 
-                entity.Property(x => x.RouteId)
-                    .HasColumnName("route_id")
-                    .ValueGeneratedOnAdd();
-
                 entity.Property(x => x.RouteCode)
-                    .HasColumnName("route_code")
                     .HasMaxLength(30)
                     .IsRequired();
 
                 entity.Property(x => x.RouteName)
-                    .HasColumnName("route_name")
                     .HasMaxLength(150)
                     .IsRequired();
 
                 entity.Property(x => x.StartLocation)
-                    .HasColumnName("start_location")
-                    .HasMaxLength(150)
-                    .IsRequired();
+                    .HasMaxLength(150);
 
                 entity.Property(x => x.EndLocation)
-                    .HasColumnName("end_location")
-                    .HasMaxLength(150)
-                    .IsRequired();
+                    .HasMaxLength(150);
 
                 entity.Property(x => x.DistanceKm)
-                    .HasColumnName("distance_km")
                     .HasPrecision(10, 2);
 
-                entity.Property(x => x.EstimatedDurationMinutes)
-                    .HasColumnName("estimated_duration_minutes");
-
                 entity.Property(x => x.Description)
-                    .HasColumnName("description")
                     .HasMaxLength(500);
 
                 entity.Property(x => x.Status)
-                    .HasColumnName("status")
                     .HasDefaultValue(true);
 
                 entity.Property(x => x.IsDeleted)
-                    .HasColumnName("is_deleted")
                     .HasDefaultValue(false);
-
-                entity.Property(x => x.CreatedBy)
-                    .HasColumnName("created_by");
-
-                entity.Property(x => x.UpdatedBy)
-                    .HasColumnName("updated_by");
-
-                entity.Property(x => x.CreatedAt)
-                    .HasColumnName("created_at");
-
-                entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("updated_at");
 
                 entity.HasIndex(x => x.RouteCode)
                     .IsUnique()
                     .HasDatabaseName("ux_transport_routes_route_code");
-
-                entity.HasIndex(x => x.RouteName)
-                    .IsUnique()
-                    .HasDatabaseName("ux_transport_routes_route_name");
-
-                entity.HasIndex(x => new
-                {
-                    x.Status,
-                    x.IsDeleted
-                })
-                    .HasDatabaseName("ix_transport_routes_status_is_deleted");
             });
         }
 
@@ -443,21 +502,25 @@ namespace SMS.Api.Data
 
                 entity.HasKey(x => x.VehicleId);
 
+                entity.HasIndex(x => x.VehicleNumber)
+                    .IsUnique();
+
+                entity.HasIndex(x => x.RegistrationNumber)
+                    .IsUnique();
+
                 entity.Property(x => x.VehicleNumber)
-                    .HasMaxLength(50)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasMaxLength(50);
 
                 entity.Property(x => x.RegistrationNumber)
-                    .HasMaxLength(50)
-                    .IsRequired();
+                    .IsRequired()
+                    .HasMaxLength(50);
 
                 entity.Property(x => x.VehicleName)
-                    .HasMaxLength(100)
-                    .IsRequired();
+                    .HasMaxLength(100);
 
                 entity.Property(x => x.VehicleType)
-                    .HasMaxLength(50)
-                    .IsRequired();
+                    .HasMaxLength(50);
 
                 entity.Property(x => x.Manufacturer)
                     .HasMaxLength(100);
@@ -468,11 +531,11 @@ namespace SMS.Api.Data
                 entity.Property(x => x.InsuranceNumber)
                     .HasMaxLength(100);
 
-                entity.HasIndex(x => x.VehicleNumber)
-                    .IsUnique();
+                entity.Property(x => x.Status)
+                    .HasDefaultValue(true);
 
-                entity.HasIndex(x => x.RegistrationNumber)
-                    .IsUnique();
+                entity.Property(x => x.IsDeleted)
+                    .HasDefaultValue(false);
             });
         }
 
@@ -484,6 +547,8 @@ namespace SMS.Api.Data
         {
             modelBuilder.Entity<TransportDriver>(entity =>
             {
+                entity.ToTable("transport_drivers");
+
                 entity.HasKey(x => x.DriverId);
 
                 entity.HasIndex(x => x.LicenceNumber)
@@ -520,6 +585,8 @@ namespace SMS.Api.Data
             modelBuilder.Entity<TransportVehicleAssignment>(
                 entity =>
                 {
+                    entity.ToTable("transport_vehicle_assignments");
+
                     entity.HasKey(x => x.AssignmentId);
 
                     entity.HasOne(x => x.Route)
@@ -578,6 +645,8 @@ namespace SMS.Api.Data
             modelBuilder.Entity<StudentTransportAssignment>(
                 entity =>
                 {
+                    entity.ToTable("student_transport_assignments");
+
                     entity.HasKey(
                         x => x.StudentTransportAssignmentId);
 
