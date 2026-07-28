@@ -328,7 +328,7 @@ export const StaffAttendanceView: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" /> 
-            Employee Attendance Management
+            Staff Attendance
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
             Enterprise attendance workflow, daily registers, leave integration, and payroll summary logs
@@ -1004,7 +1004,7 @@ export const StaffAttendanceView: React.FC = () => {
                 <h3 className="text-base font-black text-slate-900 dark:text-white">
                   {reportType} Attendance Report ({monthNames[reportMonth]} {reportYear})
                 </h3>
-                <p className="text-xs text-slate-500">Institution-wide employee presence analysis & leave logs for Payroll integration</p>
+                <p className="text-xs text-slate-500">Institution-wide staff presence analysis & leave logs for Payroll integration</p>
               </div>
               <span className="px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-xs">
                 Verified ERP Data

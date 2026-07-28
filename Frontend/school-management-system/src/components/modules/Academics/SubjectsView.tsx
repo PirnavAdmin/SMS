@@ -378,7 +378,7 @@ export const SubjectsView: React.FC = () => {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Curriculum & Department Management</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Curriculum & Departments</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">Manage academic subjects, course codes, and organizational department structures</p>
           </div>
         </div>

@@ -166,7 +166,7 @@ export const RouteMasterView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RouteIcon className="w-6 h-6 text-sky-500" /> Route & Ordered Stops Management
+            <RouteIcon className="w-6 h-6 text-sky-500" /> Routes & Stops
           </h2>
           <p className="text-xs text-slate-500">Configure transit routes, distance metrics, and ordered waypoints with timing validations</p>
         </div>

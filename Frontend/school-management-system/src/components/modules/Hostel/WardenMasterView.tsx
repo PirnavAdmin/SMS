@@ -127,7 +127,7 @@ export const WardenMasterView: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-sky-500" /> Unified Hostel Warden Allocation
+            <ShieldCheck className="w-6 h-6 text-sky-500" /> Wardens
           </h2>
           <p className="text-xs text-slate-500">Assign non-teaching staff to hostels without record duplication</p>
         </div>
@@ -222,7 +222,7 @@ export const WardenMasterView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Employee (Staff & HR Master) *</label>
+                <label className="block font-semibold mb-1">Select Employee (Faculty & Staff Master) *</label>
                 <select
                   value={selectedStaffId}
                   onChange={e => setSelectedStaffId(e.target.value)}
@@ -234,7 +234,7 @@ export const WardenMasterView: React.FC = () => {
                     </option>
                   ))}
                 </select>
-                <p className="text-[10px] text-slate-400 mt-1">Personal info auto-loads from Staff & HR database</p>
+                <p className="text-[10px] text-slate-400 mt-1">Personal info auto-loads from Faculty & Staff database</p>
               </div>
 
               <div>

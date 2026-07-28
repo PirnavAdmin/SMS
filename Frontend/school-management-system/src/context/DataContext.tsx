@@ -1816,7 +1816,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             gpa: 4.0
           });
 
-          // Create Student Fee Assignment based on selected fee heads
+          // Create Student Fee Assignment based on selected fee types
           const sfaId = 'SFA-' + Math.floor(100 + Math.random() * 900);
           const assignment: StudentFeeAssignment = {
             id: sfaId,
@@ -2296,7 +2296,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ERP FINANCE SYSTEM CRUD & ENGINE
   // ==========================================
 
-  // 1. Fee Heads CRUD
+  // 1. Fee Types CRUD
   const addFeeHead = (head: Omit<FeeHead, 'id'>) => {
     const id = 'FH-' + Math.floor(100 + Math.random() * 900);
     const newHead: FeeHead = {

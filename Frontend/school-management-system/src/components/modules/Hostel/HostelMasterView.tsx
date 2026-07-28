@@ -153,7 +153,7 @@ export const HostelMasterView: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-sky-500" /> Hostel Master Configuration
+            <Building2 className="w-6 h-6 text-sky-500" /> Hostels
           </h2>
           <p className="text-xs text-slate-500">Configure top-level hostel facilities. (Block Supervisors & Floor Wardens are managed under Blocks & Floors)</p>
         </div>

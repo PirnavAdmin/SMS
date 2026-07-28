@@ -172,7 +172,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Bus className="w-6 h-6 text-sky-500" /> Student Transport Service Allocation
+            <Bus className="w-6 h-6 text-sky-500" /> Transport Allocation
           </h2>
           <p className="text-xs text-slate-500">Allocate transport routes & pickup stops to students with strict seat capacity enforcement and history tracking</p>
         </div>

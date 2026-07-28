@@ -420,7 +420,7 @@ export const FinanceReportsView: React.FC = () => {
                   onChange={e => setFilterFeeHead(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none text-slate-800 dark:text-slate-200 cursor-pointer"
                 >
-                  <option value="All">All Fee Heads</option>
+                  <option value="All">All Fee Types</option>
                   <option value="Tuition Fee">Tuition Fee</option>
                   <option value="Admission Fee">Admission Fee</option>
                   <option value="Books Fee">Books Fee</option>

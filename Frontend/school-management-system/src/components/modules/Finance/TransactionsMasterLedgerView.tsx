@@ -269,7 +269,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-sky-600 dark:text-sky-400" />
-            Finance Transactions (Master Ledger)
+            Transactions
           </h2>
           <p className="text-xs text-slate-500">
             Single Source of Truth: Central financial repository consolidating all ERP income & expense flows

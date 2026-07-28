@@ -80,7 +80,7 @@ export const PickupPointsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <MapPin className="w-6 h-6 text-sky-500" /> Operational Pickup Point Master
+            <MapPin className="w-6 h-6 text-sky-500" /> Pickup Points
           </h2>
           <p className="text-xs text-slate-500">Manage route waypoints & arrival times in travel sequence (Pricing managed under Finance ERP)</p>
         </div>

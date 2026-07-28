@@ -109,7 +109,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'transport-trips', label: 'Vehicle Trips', icon: Bus },
     { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
-    { id: 'transport-student-assignment', label: 'Student Transport Assignment', icon: UserPlus },
+    { id: 'transport-student-assignment', label: 'Transport Assignment', icon: UserPlus },
     { id: 'transport-reports', label: 'Transport Reports', icon: FileSpreadsheet },
   ];
 
@@ -140,8 +140,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { id: 'students', label: 'Student Directory', icon: UserCheck },
-        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Staff & HR', icon: Users },
-        { id: 'admissions', label: 'Admission Register', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
+        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff', icon: Users },
+        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
       ]
     },
     {
@@ -514,7 +514,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="flex items-center gap-3 truncate">
                           <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-emerald-500'}`} />
-                          {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Staff & HR'}</span>}
+                          {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff'}</span>}
                         </div>
                         {!collapsed && staffSubItems.length > 0 && (
                           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? 'rotate-180' : ''}`} />

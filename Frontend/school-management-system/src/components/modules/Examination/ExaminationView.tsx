@@ -929,7 +929,7 @@ export const ExaminationView: React.FC = () => {
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Enterprise Examination Panel</h2>
+            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Examinations</h2>
             <p className="text-[10px] text-slate-500 mt-0.5">Define exam setups, subject schedules, invigilators, grading configurations, recalculate GPAs & print progress reports</p>
           </div>
         </div>
@@ -2346,7 +2346,7 @@ export const ExaminationView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {editingExam ? 'Modify Examination Details' : 'Configure New Examination'}
+                {editingExam ? 'Edit Exam' : 'New Exam'}
               </h3>
               <button onClick={() => setIsExamModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-5 h-5" />
@@ -2516,7 +2516,7 @@ export const ExaminationView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {editingSchedule ? 'Modify Subject Schedule' : 'Schedule Subject Examination'}
+                {editingSchedule ? 'Edit Exam Schedule' : 'Schedule Exam'}
               </h3>
               <button onClick={() => setIsScheduleModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-5 h-5" />

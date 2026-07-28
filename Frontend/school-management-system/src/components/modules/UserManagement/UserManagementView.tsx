@@ -16,7 +16,7 @@ export const UserManagementView: React.FC = () => {
   ];
 
   const modulesList = [
-    'Student Management', 'Staff & HR', 'Admissions', 'Academics & Timetable',
+    'Student Management', 'Faculty & Staff', 'Admissions', 'Academics & Timetable',
     'Examination & Marks', 'Homework & Assignments', 'Fee Management', 'Library',
     'Transport', 'Hostel', 'Uniform Store', 'System Settings'
   ];

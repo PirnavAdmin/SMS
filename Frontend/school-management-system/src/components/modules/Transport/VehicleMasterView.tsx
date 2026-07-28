@@ -160,7 +160,7 @@ export const VehicleMasterView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Bus className="w-6 h-6 text-sky-500" /> Fleet Vehicle & Regulatory Document Master
+            <Bus className="w-6 h-6 text-sky-500" /> Vehicles
           </h2>
           <p className="text-xs text-slate-500">Manage school fleet, seating capacity, AC/Non-AC specs, and compliance document expirations</p>
         </div>

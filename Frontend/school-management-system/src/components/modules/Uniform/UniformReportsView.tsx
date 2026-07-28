@@ -104,7 +104,7 @@ export const UniformReportsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-purple-600" /> Uniform Report Center
+            <FileSpreadsheet className="w-6 h-6 text-purple-600" /> Uniform Reports
           </h2>
           <p className="text-xs text-slate-500">Analyze current stock registries, replacement operations, low items alerts, and supplier coordinates</p>
         </div>

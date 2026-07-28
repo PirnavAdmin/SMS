@@ -134,7 +134,7 @@ export const FeeStructuresView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Layers className="w-6 h-6 text-sky-500" /> Class Fee Structures
           </h2>
-          <p className="text-xs text-slate-500">Configure class-wise, section-wise & category-wise fee breakdowns automatically calculated from Master Fee Heads</p>
+          <p className="text-xs text-slate-500">Configure class-wise, section-wise & category-wise fee breakdowns automatically calculated from Master Fee Types</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -262,7 +262,7 @@ export const FeeStructuresView: React.FC = () => {
 
               {/* Dynamic Fee Heads Selection */}
               <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
-                <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px]">Select Applicable Master Fee Heads</h4>
+                <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[10px]">Select Applicable Master Fee Types</h4>
                 {activeFeeHeads.map(head => {
                   const isSelected = head.id in selectedHeadItems;
                   return (

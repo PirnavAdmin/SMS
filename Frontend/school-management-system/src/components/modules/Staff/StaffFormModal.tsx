@@ -466,9 +466,9 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Building2 className="w-5 h-5 text-emerald-600" />
-              {staffToEdit ? 'Edit Master Employee Record' : 'Master Employee Registration'}
+              {staffToEdit ? 'Edit Staff Record' : 'Staff Registration'}
             </h3>
-            <p className="text-xs text-slate-500">Single Source of Truth: Central employee entry point for all ERP modules</p>
+            <p className="text-xs text-slate-500">Single Source of Truth: Central staff entry point for all ERP modules</p>
           </div>
           <button type="button" onClick={onClose} className="p-1 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-5 h-5" /></button>
         </div>

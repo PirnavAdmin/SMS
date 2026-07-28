@@ -88,7 +88,7 @@ export const DiscountsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Percent className="w-6 h-6 text-sky-500" /> Discounts & Concessions Master
+            <Percent className="w-6 h-6 text-sky-500" /> Discounts & Concessions
           </h2>
           <p className="text-xs text-slate-500">Configure Sibling, Staff Child, Early Payment & Custom Concessions</p>
         </div>
@@ -204,7 +204,7 @@ export const DiscountsView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingDisc ? 'Edit Discount Rule' : 'Add Discount Master'}
+                {editingDisc ? 'Edit Discount' : 'Add Discount'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
             </div>

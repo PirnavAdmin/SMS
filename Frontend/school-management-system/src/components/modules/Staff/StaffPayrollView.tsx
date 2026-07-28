@@ -705,7 +705,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
 
           {/* Quick Stats & Audit Log Widget */}
           <div className="p-5 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm space-y-4">
-            <h4 className="font-black text-slate-800 dark:text-slate-200">System Activity Registry (HR & Payroll)</h4>
+            <h4 className="font-black text-slate-800 dark:text-slate-200">System Activity Registry (Staff Payroll)</h4>
             <div className="space-y-3 pt-2">
               {payrollActivities.length === 0 ? (
                 <p className="text-slate-400 italic py-6 text-center">No payroll-related activity logged yet.</p>
@@ -2640,7 +2640,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900 dark:text-white">
-            <IndianRupee className="h-6 w-6 text-sky-600" /> HR & Payroll
+            <IndianRupee className="h-6 w-6 text-sky-600" /> Staff Payroll
           </h2>
           <p className="text-slate-500">Configurable payroll dashboard, structures, processing, and compliance reporting.</p>
         </div>

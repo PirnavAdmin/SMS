@@ -98,7 +98,7 @@ export const FeeHeadsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Tag className="w-6 h-6 text-sky-500" /> Fee Heads Master
+            <Tag className="w-6 h-6 text-sky-500" /> Fee Types
           </h2>
           <p className="text-xs text-slate-500">Configure master fee types, frequency rules, mandatory tags & display order</p>
         </div>

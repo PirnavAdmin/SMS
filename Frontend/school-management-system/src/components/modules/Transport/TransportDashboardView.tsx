@@ -65,7 +65,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <TrendingUp className="w-6 h-6 text-sky-500" /> Transport ERP Executive Dashboard
+          <TrendingUp className="w-6 h-6 text-sky-500" /> Transport Dashboard
         </h2>
         <p className="text-xs text-slate-500">Real-time overview of fleet operations, seat capacity utilization, active crew, document expirations, and transport fees</p>
       </div>

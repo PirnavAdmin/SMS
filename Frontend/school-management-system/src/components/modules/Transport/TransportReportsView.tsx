@@ -212,7 +212,7 @@ export const TransportReportsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Enterprise Transport & GPS Reports
+            <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Transport Reports
           </h2>
           <p className="text-xs text-slate-500">Generate 16 comprehensive transport & GPS telematics reports with Print, PDF, and Excel export capabilities</p>
         </div>

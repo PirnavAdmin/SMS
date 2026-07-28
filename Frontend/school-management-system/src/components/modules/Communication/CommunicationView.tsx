@@ -43,7 +43,7 @@ export const CommunicationView: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-brand-600" /> School Communications Hub
+            <Megaphone className="w-6 h-6 text-brand-600" /> Communications
           </h2>
           <p className="text-xs text-slate-500">Broadcast circulars, instant SMS alerts, emails, push notifications & meeting scheduling</p>
         </div>

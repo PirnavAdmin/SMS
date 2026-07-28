@@ -198,7 +198,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <IndianRupee className="w-6 h-6 text-emerald-500" /> Dynamic Fee Collection Counter
+          <IndianRupee className="w-6 h-6 text-emerald-500" /> Fee Collection
         </h2>
         <p className="text-xs text-slate-500">Zero manual fee entry — automatic computation of Base Fee, Transport, Hostel, Scholarships, Concessions & Late Fines</p>
       </div>
@@ -299,13 +299,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                 <div className="space-y-3 text-xs">
                   {/* Applied Fee Heads */}
                   <div className="space-y-1.5">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Applied Fee Heads</p>
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Applied Fee Types</p>
                     {(() => {
                       const ledger = getStudentFeeLedger(calcResult.student.id);
                       const items = ledger ? ledger.feeItems : [];
                       const activeItems = items.filter(fh => fh.isApplicable);
                       if (activeItems.length === 0) {
-                        return <p className="text-[11px] text-slate-400 italic">No active fee heads assigned.</p>;
+                        return <p className="text-[11px] text-slate-400 italic">No active fee types assigned.</p>;
                       }
                       return activeItems.map((fh, idx) => (
                         <div key={idx} className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-0">

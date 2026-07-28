@@ -114,7 +114,7 @@ export const FinanceTransportConfigView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RouteIcon className="w-6 h-6 text-sky-500" /> Finance ERP Transport Pricing Configuration
+            <RouteIcon className="w-6 h-6 text-sky-500" /> Transport Pricing
           </h2>
           <p className="text-xs text-slate-500">Single Source of Truth for Route & Pickup-Point Fee Slabs (Auto-linked with Transport Operational Masters)</p>
         </div>
@@ -215,7 +215,7 @@ export const FinanceTransportConfigView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <IndianRupee className="w-5 h-5 text-emerald-500" />
-                {editingConfig ? 'Edit Transport Pricing Configuration' : 'Configure Transport Fee Slab'}
+                {editingConfig ? 'Edit Fee Slab' : 'Add Fee Slab'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
             </div>

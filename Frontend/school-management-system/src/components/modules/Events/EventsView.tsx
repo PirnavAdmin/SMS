@@ -229,7 +229,7 @@ export const EventsView: React.FC = () => {
           category: 'Staff Birthday',
           description: `Department: ${stf.department}`,
           color: 'yellow',
-          sourceModule: 'Staff & HR',
+          sourceModule: 'Faculty & Staff',
           branch: stf.branch,
           rawItem: stf
         });
@@ -420,7 +420,7 @@ export const EventsView: React.FC = () => {
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <CalendarIcon className="w-6 h-6 text-indigo-500" />
-            Academic Calendar & Events Central Hub
+            Academic Calendar & Events
           </h2>
           <p className="text-xs text-slate-500">
             Centralized school event schedules, gazetted holidays, exams, meetings, and birthday celebrations

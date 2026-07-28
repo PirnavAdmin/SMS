@@ -1070,7 +1070,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 return (
                   <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
                     <h5 className="font-bold text-sky-900 dark:text-sky-200">Optional Fee Selection</h5>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Select any optional fee heads to apply for this student:</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Select any optional fee types to apply for this student:</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {optionalItems.map(item => {
                         const isChecked = (formData.selectedOptionalFees || []).includes(item.feeHeadId);
@@ -1184,7 +1184,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Admission Register
+            <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Admissions
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">View admission applications, update candidate details, and enroll applicants into their designated classes.</p>
         </div>
@@ -1494,7 +1494,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               {/* Applied Fees List */}
               <div className="space-y-2">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Applied Fee Heads</h4>
+                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Applied Fee Types</h4>
                 <div className="space-y-1.5 border border-slate-100 dark:border-slate-800 rounded-2xl p-3 bg-white dark:bg-slate-950">
                   {appliedFeeItems.map((item, idx) => (
                     <div key={idx} className="flex items-center justify-between text-xs py-1 border-b border-slate-50 dark:border-slate-800/50 last:border-0">

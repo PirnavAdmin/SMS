@@ -111,7 +111,7 @@ export const ScholarshipsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Gift className="w-6 h-6 text-sky-500" /> Scholarship & Financial Aid Master
+            <Gift className="w-6 h-6 text-sky-500" /> Scholarships
           </h2>
           <p className="text-xs text-slate-500">Configure merit, sports, government & staff child scholarships with automatic fee recalculations</p>
         </div>

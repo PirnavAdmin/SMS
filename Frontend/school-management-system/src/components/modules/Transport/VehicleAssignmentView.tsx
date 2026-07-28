@@ -162,7 +162,7 @@ export const VehicleAssignmentView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Layers className="w-6 h-6 text-sky-500" /> Vehicle Assignment & Crew Allocation
+            <Layers className="w-6 h-6 text-sky-500" /> Vehicle Assignments
           </h2>
           <p className="text-xs text-slate-500">Enforce operational chain: Vehicle → Driver → Bus Attendant → Route (Click card to view Trip Details)</p>
         </div>
