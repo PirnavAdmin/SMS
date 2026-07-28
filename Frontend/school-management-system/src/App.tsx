@@ -47,6 +47,7 @@ import { EventsView } from './components/modules/Events/EventsView';
 import { ReportsView } from './components/modules/Reports/ReportsView';
 import { UserManagementView } from './components/modules/UserManagement/UserManagementView';
 import { SettingsView } from './components/modules/Settings/SettingsView';
+import { TrainingContainerView } from './components/modules/Training/TrainingContainerView';
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
@@ -169,6 +170,8 @@ const MainLayout: React.FC = () => {
         return <CommunicationView />;
       case 'events':
         return <EventsView />;
+      case 'training':
+        return <TrainingContainerView />;
       case 'reports':
         return <ReportsView />;
       case 'users':

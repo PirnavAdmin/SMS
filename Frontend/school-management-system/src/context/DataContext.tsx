@@ -16,7 +16,8 @@ import {
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
   SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DocumentRequirementRule,
   FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionAuditLog,
-  SchoolEvent, UnifiedCalendarEvent, EventCategory, HolidayType
+  SchoolEvent, UnifiedCalendarEvent, EventCategory, HolidayType,
+  TrainingCategory, TrainingParticipant, WorkshopTraining, AssessmentType, AssessmentResult, EmployeeAssessment, IssuedCertificate
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -520,6 +521,24 @@ interface DataContextType {
   upsertPayrollRun: (run: Omit<PayrollRun, 'id'>) => PayrollRun;
   updatePayrollRun: (id: string, updates: Partial<PayrollRun>) => void;
   deletePayrollRun: (id: string) => void;
+
+  // TRAINING & ASSESSMENTS ERP MODULE ADDITIONS
+  workshops: WorkshopTraining[];
+  addWorkshop: (workshop: Omit<WorkshopTraining, 'id'>) => WorkshopTraining;
+  updateWorkshop: (id: string, updates: Partial<WorkshopTraining>) => void;
+  deleteWorkshop: (id: string) => void;
+  markWorkshopAttendance: (workshopId: string, attendanceList: { employeeId: string; status: 'Present' | 'Absent' | 'Excused' }[]) => void;
+  submitWorkshopFeedback: (workshopId: string, employeeId: string, feedback: TrainingParticipant['feedback']) => void;
+
+  employeeAssessments: EmployeeAssessment[];
+  addAssessment: (assessment: Omit<EmployeeAssessment, 'id'>) => EmployeeAssessment;
+  updateAssessment: (id: string, updates: Partial<EmployeeAssessment>) => void;
+  deleteAssessment: (id: string) => void;
+  saveAssessmentResults: (assessmentId: string, results: AssessmentResult[]) => void;
+
+  issuedCertificates: IssuedCertificate[];
+  issueCertificate: (cert: Omit<IssuedCertificate, 'id' | 'certificateNumber'>) => IssuedCertificate;
+  reissueCertificate: (id: string) => void;
 }
 
 const defaultGradeConfigurations: GradeConfig[] = [
@@ -933,6 +952,111 @@ const initialSchoolEvents: SchoolEvent[] = [
   }
 ];
 
+const initialWorkshops: WorkshopTraining[] = [
+  {
+    id: 'WKS-101',
+    workshopName: 'AI & Machine Learning Tools in Modern Education',
+    category: 'AI Training',
+    type: 'Internal',
+    trainerName: 'Dr. Vikramaditya Sharma',
+    organization: 'EdTech Innovations Institute',
+    branch: 'Main Campus',
+    department: 'Academics',
+    applicableDesignation: 'All Teaching Staff',
+    venue: 'Smart Audio-Visual Lab 1',
+    startDate: '2026-08-10',
+    endDate: '2026-08-11',
+    startTime: '09:30 AM',
+    endTime: '03:30 PM',
+    capacity: 40,
+    description: 'Hands-on workshop on leveraging Generative AI, lesson planning tools, automated assessment creators, and interactive student engagement platforms.',
+    attachments: [
+      { id: 'ATT-W1', name: 'AI_Tools_Handbook.pdf', url: '#', type: 'PDF' }
+    ],
+    status: 'Scheduled',
+    attendancePct: 95,
+    participants: [
+      { employeeId: 'STF-101', employeeName: 'Rajesh Sharma', employeeRole: 'Teaching Staff', department: 'Mathematics', designation: 'Senior PGT Teacher', branch: 'Main Campus', attendanceStatus: 'Present', certificateIssued: true, certificateNo: 'CERT-2026-101' },
+      { employeeId: 'STF-102', employeeName: 'Ananya Roy', employeeRole: 'Teaching Staff', department: 'Science', designation: 'TGT Teacher', branch: 'Main Campus', attendanceStatus: 'Present', certificateIssued: true, certificateNo: 'CERT-2026-102' }
+    ]
+  },
+  {
+    id: 'WKS-102',
+    workshopName: 'POCSO & Child Safety Awareness Training',
+    category: 'POCSO Awareness',
+    type: 'External',
+    trainerName: 'Adv. Meenakshi Sundaram',
+    organization: 'National Child Rights & Protection Forum',
+    branch: 'Main Campus',
+    department: 'Administration',
+    applicableDesignation: 'All Staff',
+    venue: 'Main Auditorium',
+    startDate: '2026-08-25',
+    endDate: '2026-08-25',
+    startTime: '10:00 AM',
+    endTime: '01:00 PM',
+    capacity: 100,
+    description: 'Mandatory workshop on POCSO Act guidelines, identifying behavioral indicators, emergency protocols, and institutional reporting procedures.',
+    attachments: [],
+    status: 'Scheduled',
+    attendancePct: 100,
+    participants: []
+  }
+];
+
+const initialEmployeeAssessments: EmployeeAssessment[] = [
+  {
+    id: 'ASM-201',
+    assessmentName: 'Digital Pedagogy & Smart Classroom Skills Assessment',
+    assessmentType: 'Digital Skills Test',
+    department: 'Academics',
+    applicableDesignation: 'Teaching Staff',
+    branch: 'Main Campus',
+    date: '2026-08-18',
+    durationMinutes: 60,
+    totalMarks: 100,
+    passingMarks: 70,
+    instructions: 'Comprehensive test covering interactive whiteboard usage, digital lesson design, online quiz creation, and LMS management.',
+    evaluatorName: 'Academic Director (Prof. V. K. Mehta)',
+    status: 'Evaluated',
+    results: [
+      { employeeId: 'STF-101', employeeName: 'Rajesh Sharma', department: 'Mathematics', designation: 'Senior PGT Teacher', branch: 'Main Campus', marksObtained: 92, totalMarks: 100, percentage: 92, grade: 'A+', result: 'Pass', evaluatorRemarks: 'Exceptional digital skills and interactive quiz integration.', certificateIssued: true, certificateNo: 'CERT-2026-201' },
+      { employeeId: 'STF-102', employeeName: 'Ananya Roy', department: 'Science', designation: 'TGT Teacher', branch: 'Main Campus', marksObtained: 85, totalMarks: 100, percentage: 85, grade: 'A', result: 'Pass', evaluatorRemarks: 'Great proficiency in smart board animations.', certificateIssued: true, certificateNo: 'CERT-2026-202' }
+    ]
+  }
+];
+
+const initialIssuedCertificates: IssuedCertificate[] = [
+  {
+    id: 'CRT-301',
+    certificateNumber: 'CERT-2026-101',
+    programType: 'Workshop',
+    programName: 'AI & Machine Learning Tools in Modern Education',
+    employeeId: 'STF-101',
+    employeeName: 'Rajesh Sharma',
+    department: 'Mathematics',
+    designation: 'Senior PGT Teacher',
+    branch: 'Main Campus',
+    completionDate: '2026-08-11',
+    issuedBy: 'Pirnav Schools Professional Development Cell',
+    status: 'Issued'
+  },
+  {
+    id: 'CRT-302',
+    certificateNumber: 'CERT-2026-201',
+    programType: 'Assessment',
+    programName: 'Digital Pedagogy & Smart Classroom Skills Assessment',
+    employeeId: 'STF-101',
+    employeeName: 'Rajesh Sharma',
+    department: 'Mathematics',
+    designation: 'Senior PGT Teacher',
+    branch: 'Main Campus',
+    completionDate: '2026-08-18',
+    issuedBy: 'Pirnav Schools Academic Council',
+    status: 'Issued'
+  }
+];
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -1062,6 +1186,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_financial_categories', JSON.stringify(financialCategories)); }, [financialCategories]);
   useEffect(() => { localStorage.setItem('edu_db_financial_budgets', JSON.stringify(financialBudgets)); }, [financialBudgets]);
   useEffect(() => { localStorage.setItem('edu_db_school_events', JSON.stringify(schoolEvents)); }, [schoolEvents]);
+
+  // Training & Assessments States
+  const [workshops, setWorkshops] = useState<WorkshopTraining[]>(() => getStored('workshops', initialWorkshops));
+  const [employeeAssessments, setEmployeeAssessments] = useState<EmployeeAssessment[]>(() => getStored('employee_assessments', initialEmployeeAssessments));
+  const [issuedCertificates, setIssuedCertificates] = useState<IssuedCertificate[]>(() => getStored('issued_certificates', initialIssuedCertificates));
+
+  useEffect(() => { localStorage.setItem('edu_db_workshops', JSON.stringify(workshops)); }, [workshops]);
+  useEffect(() => { localStorage.setItem('edu_db_employee_assessments', JSON.stringify(employeeAssessments)); }, [employeeAssessments]);
+  useEffect(() => { localStorage.setItem('edu_db_issued_certificates', JSON.stringify(issuedCertificates)); }, [issuedCertificates]);
 
   // ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_fee_heads', JSON.stringify(feeHeads)); }, [feeHeads]);
@@ -4065,6 +4198,167 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('Deleted School Event', `Removed event ID ${id}`);
   };
 
+  // TRAINING & ASSESSMENTS HANDLERS
+  const addWorkshop = (wData: Omit<WorkshopTraining, 'id'>): WorkshopTraining => {
+    const id = 'WKS-' + Math.floor(100 + Math.random() * 900);
+    const newWorkshop: WorkshopTraining = {
+      ...wData,
+      id,
+      branch: wData.branch || selectedBranch || 'Main Campus',
+      status: wData.status || 'Scheduled',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setWorkshops(prev => [newWorkshop, ...prev]);
+
+    // Automatically Sync to Academic Calendar
+    addSchoolEvent({
+      title: `[Workshop] ${newWorkshop.workshopName}`,
+      category: 'Workshop & Seminar',
+      description: `${newWorkshop.category} - ${newWorkshop.description}`,
+      organizer: `${newWorkshop.trainerName} (${newWorkshop.organization})`,
+      venue: newWorkshop.venue,
+      startDate: newWorkshop.startDate,
+      endDate: newWorkshop.endDate,
+      startTime: newWorkshop.startTime,
+      endTime: newWorkshop.endTime,
+      branch: newWorkshop.branch,
+      academicYear: '2025-2026',
+      participants: `${newWorkshop.participants.length} Employees Assigned`,
+      status: 'Published'
+    });
+
+    logActivity('Created Workshop', `Created workshop ${newWorkshop.workshopName}`);
+    return newWorkshop;
+  };
+
+  const updateWorkshop = (id: string, updates: Partial<WorkshopTraining>) => {
+    setWorkshops(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w));
+    logActivity('Updated Workshop', `Updated workshop ID ${id}`);
+  };
+
+  const deleteWorkshop = (id: string) => {
+    setWorkshops(prev => prev.filter(w => w.id !== id));
+    logActivity('Deleted Workshop', `Removed workshop ID ${id}`);
+  };
+
+  const markWorkshopAttendance = (
+    workshopId: string,
+    attendanceList: { employeeId: string; status: 'Present' | 'Absent' | 'Excused' }[]
+  ) => {
+    setWorkshops(prev => prev.map(w => {
+      if (w.id !== workshopId) return w;
+      const updatedParticipants = w.participants.map(p => {
+        const match = attendanceList.find(a => a.employeeId === p.employeeId);
+        return match ? { ...p, attendanceStatus: match.status } : p;
+      });
+      const presentCount = updatedParticipants.filter(p => p.attendanceStatus === 'Present').length;
+      const total = updatedParticipants.length;
+      const pct = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+      return { ...w, participants: updatedParticipants, attendancePct: pct, status: 'Completed' };
+    }));
+  };
+
+  const submitWorkshopFeedback = (
+    workshopId: string,
+    employeeId: string,
+    feedback: TrainingParticipant['feedback']
+  ) => {
+    setWorkshops(prev => prev.map(w => {
+      if (w.id !== workshopId) return w;
+      return {
+        ...w,
+        participants: w.participants.map(p => p.employeeId === employeeId ? { ...p, feedback } : p)
+      };
+    }));
+  };
+
+  const addAssessment = (aData: Omit<EmployeeAssessment, 'id'>): EmployeeAssessment => {
+    const id = 'ASM-' + Math.floor(100 + Math.random() * 900);
+    const newAssessment: EmployeeAssessment = {
+      ...aData,
+      id,
+      branch: aData.branch || selectedBranch || 'Main Campus',
+      status: aData.status || 'Scheduled',
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setEmployeeAssessments(prev => [newAssessment, ...prev]);
+
+    // Automatically Sync to Academic Calendar
+    addSchoolEvent({
+      title: `[Assessment] ${newAssessment.assessmentName}`,
+      category: 'Custom Event',
+      description: `${newAssessment.assessmentType} for ${newAssessment.department || 'All Departments'}`,
+      organizer: newAssessment.evaluatorName,
+      venue: 'Online / Assessment Center',
+      startDate: newAssessment.date,
+      endDate: newAssessment.date,
+      startTime: '10:00 AM',
+      endTime: '11:30 AM',
+      branch: newAssessment.branch,
+      academicYear: '2025-2026',
+      participants: `${newAssessment.results.length} Candidates Scheduled`,
+      status: 'Published'
+    });
+
+    logActivity('Created Assessment', `Scheduled ${newAssessment.assessmentName}`);
+    return newAssessment;
+  };
+
+  const updateAssessment = (id: string, updates: Partial<EmployeeAssessment>) => {
+    setEmployeeAssessments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    logActivity('Updated Assessment', `Updated assessment ID ${id}`);
+  };
+
+  const deleteAssessment = (id: string) => {
+    setEmployeeAssessments(prev => prev.filter(a => a.id !== id));
+    logActivity('Deleted Assessment', `Removed assessment ID ${id}`);
+  };
+
+  const saveAssessmentResults = (assessmentId: string, results: AssessmentResult[]) => {
+    setEmployeeAssessments(prev => prev.map(a => {
+      if (a.id !== assessmentId) return a;
+      return { ...a, results, status: 'Evaluated' };
+    }));
+
+    // Auto issue certificates for passing candidates
+    const targetAssessment = employeeAssessments.find(a => a.id === assessmentId);
+    if (targetAssessment) {
+      results.forEach(res => {
+        if (res.result === 'Pass') {
+          issueCertificate({
+            programType: 'Assessment',
+            programName: targetAssessment.assessmentName,
+            employeeId: res.employeeId,
+            employeeName: res.employeeName,
+            department: res.department,
+            designation: res.designation,
+            branch: res.branch || selectedBranch || 'Main Campus',
+            completionDate: new Date().toISOString().split('T')[0],
+            issuedBy: targetAssessment.evaluatorName || 'Academic Competency Board',
+            status: 'Issued'
+          });
+        }
+      });
+    }
+  };
+
+  const issueCertificate = (certData: Omit<IssuedCertificate, 'id' | 'certificateNumber'>): IssuedCertificate => {
+    const id = 'CRT-' + Math.floor(100 + Math.random() * 900);
+    const certificateNumber = 'CERT-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+    const newCert: IssuedCertificate = {
+      ...certData,
+      id,
+      certificateNumber,
+      status: certData.status || 'Issued'
+    };
+    setIssuedCertificates(prev => [newCert, ...prev]);
+    return newCert;
+  };
+
+  const reissueCertificate = (id: string) => {
+    setIssuedCertificates(prev => prev.map(c => c.id === id ? { ...c, status: 'Reissued', completionDate: new Date().toISOString().split('T')[0] } : c));
+  };
+
   // Payslip handler
   const disburseSalary = (pData: Omit<Payslip, 'id'>) => {
     const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
@@ -4434,7 +4728,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         financialBudgets, updateFinancialBudget,
 
         // ACADEMIC CALENDAR & SCHOOL EVENTS MAPPINGS
-        schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent
+        schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent,
+
+        // TRAINING & ASSESSMENTS MAPPINGS
+        workshops, addWorkshop, updateWorkshop, deleteWorkshop, markWorkshopAttendance, submitWorkshopFeedback,
+        employeeAssessments, addAssessment, updateAssessment, deleteAssessment, saveAssessmentResults,
+        issuedCertificates, issueCertificate, reissueCertificate
       }}
     >
       {children}

@@ -21,7 +21,8 @@ export const MODULES = [
   'events',
   'reports',
   'users',
-  'settings'
+  'settings',
+  'training'
 ] as const;
 
 export type ModuleId = typeof MODULES[number];
@@ -32,29 +33,29 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   'Admin': [...MODULES],
   'Principal': [
     'dashboard', 'students', 'staff', 'admissions', 'academics', 'subjects',
-    'timetable', 'examination', 'communication', 'events', 'reports', 'settings'
+    'timetable', 'examination', 'communication', 'events', 'reports', 'settings', 'training'
   ],
   'Teacher': [
     'dashboard', 'students', 'academics', 'subjects', 'attendance',
-    'timetable', 'examination', 'homework', 'library', 'communication', 'events'
+    'timetable', 'examination', 'homework', 'library', 'communication', 'events', 'training'
   ],
   'HR': [
-    'dashboard', 'staff', 'communication', 'events'
+    'dashboard', 'staff', 'communication', 'events', 'training'
   ],
   'Accountant': [
-    'dashboard', 'students', 'fees', 'inventory', 'reports', 'communication', 'events'
+    'dashboard', 'students', 'fees', 'inventory', 'reports', 'communication', 'events', 'training'
   ],
   'Librarian': [
-    'dashboard', 'library', 'communication', 'events'
+    'dashboard', 'library', 'communication', 'events', 'training'
   ],
   'Transport Manager': [
-    'dashboard', 'transport', 'communication', 'events'
+    'dashboard', 'transport', 'communication', 'events', 'training'
   ],
   'Hostel Warden': [
-    'dashboard', 'hostel', 'students', 'communication', 'events'
+    'dashboard', 'hostel', 'students', 'communication', 'events', 'training'
   ],
   'Receptionist': [
-    'dashboard', 'admissions', 'students', 'communication', 'events'
+    'dashboard', 'admissions', 'students', 'communication', 'events', 'training'
   ],
   'Student': [
     'dashboard', 'attendance', 'timetable', 'examination', 'homework', 'library', 'communication', 'events', 'fees', 'hostel', 'staff', 'transport'
@@ -63,7 +64,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'dashboard', 'attendance', 'timetable', 'examination', 'homework', 'fees', 'communication', 'events', 'hostel', 'staff', 'transport'
   ],
   'Staff': [
-    'dashboard', 'communication', 'events'
+    'dashboard', 'communication', 'events', 'training'
   ]
 };
 

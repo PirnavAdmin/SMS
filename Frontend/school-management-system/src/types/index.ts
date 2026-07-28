@@ -1751,6 +1751,169 @@ export interface SchoolMeeting {
   excludedParticipantIds?: string[];
 }
 
+// ==========================================
+// ENTERPRISE TRAINING & ASSESSMENTS MODELS
+// ==========================================
+
+export type TrainingCategory =
+  | 'Faculty Development Program (FDP)'
+  | 'Subject Training'
+  | 'Teaching Methodology'
+  | 'Classroom Management'
+  | 'Smart Classroom Training'
+  | 'ERP Training'
+  | 'AI Training'
+  | 'Leadership Training'
+  | 'First Aid'
+  | 'Fire Safety'
+  | 'Child Protection'
+  | 'POCSO Awareness'
+  | 'Communication Skills'
+  | 'Time Management'
+  | 'External Certification'
+  | 'Vendor Training'
+  | 'Other';
+
+export interface TrainingParticipant {
+  employeeId: string;
+  employeeName: string;
+  employeeRole: 'Teaching Staff' | 'Non-Teaching Staff';
+  department: string;
+  designation: string;
+  branch: string;
+  subject?: string;
+  attendanceStatus: 'Present' | 'Absent' | 'Excused' | 'Pending';
+  feedback?: {
+    overallRating: number;
+    trainerRating: number;
+    contentRating: number;
+    suggestions?: string;
+  };
+  certificateIssued?: boolean;
+  certificateNo?: string;
+}
+
+export interface WorkshopTraining {
+  id: string;
+  workshopName: string;
+  category: TrainingCategory;
+  type: 'Internal' | 'External';
+  trainerName: string;
+  organization: string;
+  branch: string;
+  department?: string;
+  applicableDesignation?: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  description: string;
+  attachments?: { id: string; name: string; url: string; type: string }[];
+  status: 'Scheduled' | 'Ongoing' | 'Completed' | 'Cancelled';
+  participants: TrainingParticipant[];
+  attendancePct?: number;
+  createdBy?: string;
+  createdAt?: string;
+}
+
+export type AssessmentCategory =
+  | 'Knowledge'
+  | 'Practical'
+  | 'Observation'
+  | 'Interview'
+  | 'Certification'
+  | 'Performance Evaluation'
+  | 'Validation';
+
+export type AssessmentMode = 'Offline' | 'Online' | 'Practical' | 'Classroom Observation';
+
+export type AssessmentType =
+  | 'Subject Knowledge Test'
+  | 'Teaching Competency'
+  | 'Practical Demonstration'
+  | 'Classroom Observation'
+  | 'Viva'
+  | 'Online Assessment'
+  | 'Offline Assessment'
+  | 'Digital Skills Test'
+  | 'Safety Assessment'
+  | 'Internal Promotion Assessment'
+  | 'Compliance Assessment'
+  | 'Custom Assessment';
+
+export interface AssessmentResult {
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  branch: string;
+  marksObtained: number;
+  totalMarks: number;
+  percentage: number;
+  grade: string;
+  result: 'Pass' | 'Fail' | 'Pending';
+  evaluatorRemarks?: string;
+  strengths?: string[];
+  improvementAreas?: string[];
+  evaluatedDate?: string;
+  certificateIssued?: boolean;
+  certificateNo?: string;
+}
+
+export interface EmployeeAssessment {
+  id: string;
+  assessmentName: string;
+  assessmentType: AssessmentType;
+  category?: AssessmentCategory;
+  description?: string;
+  gradingScheme?: 'Letter Grade' | 'Percentage' | 'Pass/Fail';
+  department: string;
+  applicableDesignation: string;
+  branch: string;
+  academicYear?: string;
+  targetEmployeeType?: 'Teaching Staff' | 'Non-Teaching Staff' | 'Both';
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes: number;
+  venue?: string;
+  mode?: AssessmentMode;
+  totalMarks: number;
+  passingMarks: number;
+  instructions: string;
+  evaluatorName: string;
+  coEvaluatorName?: string;
+  options?: {
+    notifyParticipants?: boolean;
+    addToCalendar?: boolean;
+    allowReassessment?: boolean;
+    publishImmediately?: boolean;
+    generateCertificatesOnCompletion?: boolean;
+  };
+  status: 'Scheduled' | 'In Progress' | 'Evaluated' | 'Cancelled';
+  results: AssessmentResult[];
+  createdBy?: string;
+  createdAt?: string;
+}
+
+export interface IssuedCertificate {
+  id: string;
+  certificateNumber: string;
+  programType: 'Workshop' | 'Training' | 'Assessment';
+  programName: string;
+  employeeId: string;
+  employeeName: string;
+  department: string;
+  designation: string;
+  branch: string;
+  completionDate: string;
+  issuedBy: string;
+  downloadUrl?: string;
+  status: 'Issued' | 'Revoked' | 'Reissued';
+}
+
 
 
 
