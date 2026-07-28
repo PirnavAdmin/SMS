@@ -9,7 +9,23 @@ export type CasteCategory = 'General' | 'OBC' | 'SC' | 'ST' | 'EWS' | 'Other';
 
 export type FeeTerm = 'Annual' | 'Bi-Annual' | 'Quarterly' | 'Monthly';
 
-export type StaffDocType = 'Aadhaar Card' | 'PAN Card' | 'Resume' | 'Experience Letter' | 'Educational Certificates' | 'Offer Letter' | 'Other';
+export type StaffDocType =
+  | 'Aadhaar Card'
+  | 'PAN Card'
+  | 'Driving License'
+  | 'Medical Certificate'
+  | 'Police Verification'
+  | 'Bank Passbook'
+  | 'Resume'
+  | 'Experience Letter'
+  | 'Educational Certificates'
+  | 'Degree Certificate'
+  | 'Post Graduation Certificate'
+  | 'B.Ed.'
+  | 'M.Ed.'
+  | 'Teaching Eligibility Certificate'
+  | 'Offer Letter'
+  | 'Other';
 
 export type ModulePermissions = Record<string, any>;
 
@@ -39,12 +55,37 @@ export interface SchoolProfile {
   logoUrl: string;
 }
 
+export interface StaffDocumentVersion {
+  version: number;
+  fileUrl: string;
+  replacedDate: string;
+  replacedBy: string;
+}
+
 export interface StaffDocument {
   id: string;
   title: string;
-  type: StaffDocType;
+  type: StaffDocType | string;
   fileUrl: string;
   uploadedDate: string;
+  uploadedBy?: string;
+  documentNumber?: string;
+  issueDate?: string;
+  expiryDate?: string;
+  verificationStatus?: 'Pending Verification' | 'Verified' | 'Rejected';
+  remarks?: string;
+  isRequired?: boolean;
+  category?: string;
+  versionHistory?: StaffDocumentVersion[];
+}
+
+export interface DocumentRequirementRule {
+  id: string;
+  department: string;
+  designation: string;
+  requiredDocTypes: string[];
+  status: 'Active' | 'Inactive';
+  updatedAt?: string;
 }
 
 export interface PromotionHistoryItem {
@@ -180,6 +221,15 @@ export interface Staff {
   dailyWorkloadLimit?: number;
   availableWorkingDays?: string[];
   availablePeriods?: string[];
+  hostelAssignment?: {
+    hostelId: string;
+    hostelName: string;
+    block: string;
+    floor: string;
+    assignmentDate: string;
+    status: 'Active' | 'Completed' | 'Transferred';
+    roleType: 'Warden' | 'Supervisor';
+  };
 }
 
 export interface AdmissionApplication {
@@ -964,6 +1014,38 @@ export interface HostelMaster {
   address: string;
   description: string;
   status: 'Active' | 'Inactive';
+}
+
+export interface HostelAssignment {
+  id: string;
+  staffId: string;
+  empId: string;
+  employeeName: string;
+  designation: string;
+  mobileNumber: string;
+  email: string;
+  hostelId: string;
+  hostelName: string;
+  block: string;
+  floor: string;
+  assignmentDate: string;
+  status: 'Active' | 'Completed' | 'Transferred';
+  roleType: 'Warden' | 'Supervisor';
+}
+
+export interface HostelAssignmentLogItem {
+  id: string;
+  staffId: string;
+  empId: string;
+  employeeName: string;
+  designation: string;
+  hostelName: string;
+  block: string;
+  floor: string;
+  fromDate: string;
+  toDate?: string;
+  status: 'Active' | 'Completed';
+  roleType: 'Warden' | 'Supervisor';
 }
 
 export interface RoomTypeMaster {

@@ -14,7 +14,7 @@ import {
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
-  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DocumentRequirementRule
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -135,6 +135,13 @@ interface DataContextType {
   addStaffDocument: (staffId: string, doc: Omit<StaffDocument, 'id'>) => void;
   deleteStaffDocument: (staffId: string, docId: string) => void;
   updateBankDetails: (staffId: string, bankDetails: BankDetails) => void;
+  documentRequirementRules: DocumentRequirementRule[];
+  getRequiredDocuments: (department?: string, designation?: string) => string[];
+  addDocumentRequirementRule: (rule: Omit<DocumentRequirementRule, 'id'>) => void;
+  updateDocumentRequirementRule: (id: string, updates: Partial<DocumentRequirementRule>) => void;
+  deleteDocumentRequirementRule: (id: string) => void;
+  verifyStaffDocument: (staffId: string, docId: string, status: 'Pending Verification' | 'Verified' | 'Rejected', remarks?: string) => void;
+  replaceStaffDocument: (staffId: string, docId: string, newFileUrl: string, replacedBy?: string, remarks?: string) => void;
 
   admissions: AdmissionApplication[];
   addAdmission: (app: Omit<AdmissionApplication, 'id' | 'applicationNo'>) => void;
@@ -950,6 +957,202 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateBankDetails = (staffId: string, bankDetails: BankDetails) => {
     setStaff(prev => prev.map(s => s.id === staffId ? { ...s, bankDetails } : s));
+  };
+
+  // DOCUMENT REQUIREMENT RULES MASTER MANAGEMENT
+  const [documentRequirementRules, setDocumentRequirementRules] = useState<DocumentRequirementRule[]>([
+    {
+      id: 'DOC-RULE-01',
+      department: 'Transport',
+      designation: 'Driver',
+      requiredDocTypes: ['Aadhaar Card', 'PAN Card', 'Driving License', 'Medical Certificate', 'Police Verification', 'Bank Passbook'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-02',
+      department: 'Transport',
+      designation: 'Bus Attendant',
+      requiredDocTypes: ['Aadhaar Card', 'Medical Certificate', 'Police Verification'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-03',
+      department: 'Hostel',
+      designation: 'Hostel Warden',
+      requiredDocTypes: ['Aadhaar Card', 'PAN Card', 'Police Verification'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-04',
+      department: 'Finance & Accounts',
+      designation: 'Accountant',
+      requiredDocTypes: ['Aadhaar Card', 'PAN Card', 'Bank Passbook'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-05',
+      department: 'Administration',
+      designation: 'Receptionist',
+      requiredDocTypes: ['Aadhaar Card', 'PAN Card'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-06',
+      department: 'Housekeeping',
+      designation: 'Cleaner',
+      requiredDocTypes: ['Aadhaar Card'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-07',
+      department: 'Security',
+      designation: 'Security Guard',
+      requiredDocTypes: ['Aadhaar Card', 'Police Verification', 'Medical Certificate'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-08',
+      department: 'Library',
+      designation: 'Librarian',
+      requiredDocTypes: ['Aadhaar Card', 'Degree Certificate'],
+      status: 'Active'
+    },
+    {
+      id: 'DOC-RULE-09',
+      department: 'Mathematics',
+      designation: 'Subject Teacher',
+      requiredDocTypes: ['Aadhaar Card', 'PAN Card', 'Degree Certificate', 'B.Ed.', 'Experience Letter'],
+      status: 'Active'
+    }
+  ]);
+
+  const getRequiredDocuments = (department?: string, designation?: string): string[] => {
+    if (!department || !designation) return ['Aadhaar Card', 'PAN Card'];
+
+    const exact = documentRequirementRules.find(
+      r => r.status === 'Active' &&
+           r.department.toLowerCase() === department.toLowerCase() &&
+           r.designation.toLowerCase() === designation.toLowerCase()
+    );
+    if (exact) return exact.requiredDocTypes;
+
+    const deptMatch = documentRequirementRules.find(
+      r => r.status === 'Active' &&
+           r.department.toLowerCase() === department.toLowerCase() &&
+           (r.designation === 'All' || r.designation.toLowerCase() === 'all')
+    );
+    if (deptMatch) return deptMatch.requiredDocTypes;
+
+    const desigLower = designation.toLowerCase();
+    const deptLower = department.toLowerCase();
+
+    if (desigLower.includes('driver')) {
+      return ['Aadhaar Card', 'PAN Card', 'Driving License', 'Medical Certificate', 'Police Verification', 'Bank Passbook'];
+    }
+    if (desigLower.includes('attendant') || desigLower.includes('conductor')) {
+      return ['Aadhaar Card', 'Medical Certificate', 'Police Verification'];
+    }
+    if (desigLower.includes('warden')) {
+      return ['Aadhaar Card', 'PAN Card', 'Police Verification'];
+    }
+    if (desigLower.includes('accountant') || desigLower.includes('cashier') || desigLower.includes('billing')) {
+      return ['Aadhaar Card', 'PAN Card', 'Bank Passbook'];
+    }
+    if (desigLower.includes('receptionist')) {
+      return ['Aadhaar Card', 'PAN Card'];
+    }
+    if (desigLower.includes('security') || desigLower.includes('guard')) {
+      return ['Aadhaar Card', 'Police Verification', 'Medical Certificate'];
+    }
+    if (desigLower.includes('cleaner') || desigLower.includes('housekeeping')) {
+      return ['Aadhaar Card'];
+    }
+    if (desigLower.includes('librarian')) {
+      return ['Aadhaar Card', 'Degree Certificate'];
+    }
+
+    const isTeaching = desigLower.includes('teacher') ||
+                       desigLower.includes('hod') ||
+                       desigLower.includes('coordinator') ||
+                       ['mathematics', 'science', 'english', 'social science', 'languages', 'computer science / ict', 'commerce', 'humanities', 'fine arts', 'performing arts', 'physical education', 'pre-primary'].includes(deptLower);
+
+    if (isTeaching) {
+      return ['Aadhaar Card', 'PAN Card', 'Degree Certificate', 'B.Ed.', 'Experience Letter'];
+    }
+
+    return ['Aadhaar Card', 'PAN Card'];
+  };
+
+  const addDocumentRequirementRule = (ruleData: Omit<DocumentRequirementRule, 'id'>) => {
+    const id = 'DOC-RULE-' + Math.floor(10 + Math.random() * 90);
+    const newRule: DocumentRequirementRule = {
+      ...ruleData,
+      id,
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+    setDocumentRequirementRules(prev => [newRule, ...prev]);
+    logActivity('Created Document Requirement Rule', `Configured requirements for ${newRule.department} -> ${newRule.designation}`);
+  };
+
+  const updateDocumentRequirementRule = (id: string, updates: Partial<DocumentRequirementRule>) => {
+    setDocumentRequirementRules(prev => prev.map(r => r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString().split('T')[0] } : r));
+    logActivity('Updated Document Requirement Rule', `Updated rule ID ${id}`);
+  };
+
+  const deleteDocumentRequirementRule = (id: string) => {
+    setDocumentRequirementRules(prev => prev.filter(r => r.id !== id));
+    logActivity('Deleted Document Requirement Rule', `Removed rule ID ${id}`);
+  };
+
+  const verifyStaffDocument = (staffId: string, docId: string, status: 'Pending Verification' | 'Verified' | 'Rejected', remarks?: string) => {
+    setStaff(prev => prev.map(s => {
+      if (s.id !== staffId) return s;
+      return {
+        ...s,
+        documents: (s.documents || []).map(d => {
+          if (d.id !== docId) return d;
+          return {
+            ...d,
+            verificationStatus: status,
+            remarks: remarks !== undefined ? remarks : d.remarks
+          };
+        })
+      };
+    }));
+    logActivity('Verified Staff Document', `Updated document status to ${status} for staff ID ${staffId}`);
+  };
+
+  const replaceStaffDocument = (staffId: string, docId: string, newFileUrl: string, replacedBy = 'HR Admin', remarks?: string) => {
+    setStaff(prev => prev.map(s => {
+      if (s.id !== staffId) return s;
+      return {
+        ...s,
+        documents: (s.documents || []).map(d => {
+          if (d.id !== docId) return d;
+          const currentVersion = d.versionHistory?.length ? Math.max(...d.versionHistory.map(v => v.version)) + 1 : 2;
+          const oldVersionItem = {
+            version: currentVersion - 1,
+            fileUrl: d.fileUrl,
+            replacedDate: new Date().toISOString().split('T')[0],
+            replacedBy
+          };
+          return {
+            ...d,
+            fileUrl: newFileUrl,
+            uploadedDate: new Date().toISOString().split('T')[0],
+            verificationStatus: 'Pending Verification',
+            remarks: remarks !== undefined ? remarks : d.remarks,
+            versionHistory: [...(d.versionHistory || [oldVersionItem]), {
+              version: currentVersion,
+              fileUrl: newFileUrl,
+              replacedDate: new Date().toISOString().split('T')[0],
+              replacedBy
+            }]
+          };
+        })
+      };
+    }));
+    logActivity('Replaced Staff Document', `Uploaded new version of document for staff ID ${staffId}`);
   };
 
   // Admission CRUD
@@ -3630,7 +3833,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         employeeSalaryAssignments: filteredEmployeeSalaryAssignments,
         assignEmployeeSalaryStructure, updateEmployeeSalaryAssignment, deleteEmployeeSalaryAssignment,
         payrollRuns: filteredPayrollRuns,
-        upsertPayrollRun, updatePayrollRun, deletePayrollRun
+        upsertPayrollRun, updatePayrollRun, deletePayrollRun,
+        documentRequirementRules, getRequiredDocuments, addDocumentRequirementRule, updateDocumentRequirementRule, deleteDocumentRequirementRule, verifyStaffDocument, replaceStaffDocument
       }}
     >
       {children}

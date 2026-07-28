@@ -10,7 +10,7 @@ import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
-type TimetableTab = 'class-timetable' | 'period-settings' | 'teacher-timetable' | 'student-timetable' | 'copy-timetable' | 'reports';
+type TimetableTab = 'class-timetable' | 'period-settings' | 'teacher-timetable' | 'student-timetable' | 'copy-timetable';
 
 export const TimetableView: React.FC = () => {
   const {
@@ -510,7 +510,6 @@ export const TimetableView: React.FC = () => {
           { id: 'teacher-timetable', label: 'Teacher Timetable (Auto Generated)', icon: User },
           { id: 'student-timetable', label: 'Student Timetable (Auto Generated)', icon: BookOpen },
           { id: 'copy-timetable', label: 'Copy Timetable', icon: Copy },
-          { id: 'reports', label: 'Timetable Reports', icon: Layers },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -870,67 +869,6 @@ export const TimetableView: React.FC = () => {
           >
             <Copy className="w-4 h-4" /> Copy Schedule Slots
           </button>
-        </div>
-      )}
-
-      {/* TAB 6: TIMETABLE REPORTS & TEACHER WORKLOAD */}
-      {activeTab === 'reports' && (
-        <div className="space-y-6">
-          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">Teacher Workload Report</h3>
-              <button onClick={handlePrint} className="px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-2">
-                <Printer className="w-4 h-4" /> Print Workload Report
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold uppercase tracking-wider">
-                    <th className="py-3 px-4">Teacher Name</th>
-                    <th className="py-3 px-4">Department</th>
-                    <th className="py-3 px-4 text-center">Assigned Weekly Periods</th>
-                    <th className="py-3 px-4 text-center">Weekly Limit</th>
-                    <th className="py-3 px-4 text-center">Daily Limit</th>
-                    <th className="py-3 px-4 text-center">Workload Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {teachingStaff.map(st => {
-                    const fullName = `${st.firstName} ${st.lastName}`;
-                    const assignedWeekly = timetable.filter(t => t.teacherName === fullName).length;
-                    const weeklyLimit = st.weeklyWorkloadLimit || 24;
-                    const dailyLimit = st.dailyWorkloadLimit || 5;
-
-                    const isOverloaded = assignedWeekly > weeklyLimit;
-                    const isNearCapacity = assignedWeekly >= weeklyLimit - 2 && !isOverloaded;
-
-                    return (
-                      <tr key={st.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{fullName}</td>
-                        <td className="py-3 px-4 text-slate-500">{st.department || 'Faculty'}</td>
-                        <td className="py-3 px-4 text-center font-mono font-bold">{assignedWeekly}</td>
-                        <td className="py-3 px-4 text-center font-mono">{weeklyLimit} periods/week</td>
-                        <td className="py-3 px-4 text-center font-mono">{dailyLimit} periods/day</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            isOverloaded
-                              ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                              : isNearCapacity
-                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                          }`}>
-                            {isOverloaded ? 'Overloaded' : isNearCapacity ? 'Near Capacity' : 'Normal'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </div>
       )}
 

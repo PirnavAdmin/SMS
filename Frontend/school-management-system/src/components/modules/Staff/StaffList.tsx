@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   Users, Search, Filter, Plus, Edit, Trash2, Eye,
-  IndianRupee, ChevronLeft, ChevronRight, GraduationCap, Briefcase
+  IndianRupee, ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield
 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -13,6 +13,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { StaffFormModal } from './StaffFormModal';
 import { PayrollDrawer } from './PayrollDrawer';
 import { StaffProfileDrawer } from './StaffProfileDrawer';
+import { DocumentRequirementMasterModal } from './DocumentRequirementMasterModal';
 
 export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({ initialCategory }) => {
   const { staff, updateStaff, deleteStaff, subjects, departments } = useData();
@@ -36,6 +37,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [staffPayroll, setStaffPayroll] = useState<Staff | null>(null);
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
+  const [isRuleMasterOpen, setIsRuleMasterOpen] = useState(false);
 
   // Helper to categorize staff dynamically for backward compatibility
   const getStaffCategory = (s: Staff): 'Teacher' | 'Staff' => {
@@ -119,6 +121,13 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsRuleMasterOpen(true)}
+            className="px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-2 transition-all shadow-xs border border-slate-200 dark:border-slate-700"
+            title="Configure Document Requirement Rules per Department & Designation"
+          >
+            <Shield className="w-4 h-4 text-indigo-600 dark:text-indigo-400" /> Document Rules Master
+          </button>
           <ExportButton data={filtered} filename={`${activeCategory.toLowerCase()}_directory`} />
           <button
             onClick={() => { setStaffToEdit(null); setIsAddOpen(true); }}
@@ -394,6 +403,11 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
           }
         }}
         onCancel={() => setStaffToDelete(null)}
+      />
+
+      <DocumentRequirementMasterModal
+        isOpen={isRuleMasterOpen}
+        onClose={() => setIsRuleMasterOpen(false)}
       />
     </div>
   );
