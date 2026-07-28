@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Building2, Home, Bed, Users, DollarSign, PieChart, Layers } from 'lucide-react';
+import { Building2, Home, Bed, Users, IndianRupee, PieChart, Layers } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { getHostelDashboardMetrics, getHostelBlocks, DashboardMetrics, HostelBlock } from '../../../api/hostel';
 import { useData } from '../../../context/DataContext';

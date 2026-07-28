@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Route, MapPin, Bus, Users, Layers, UserPlus,
-  DollarSign, Wrench, FileSpreadsheet, Navigation, Clock
+  IndianRupee, Wrench, FileSpreadsheet, Navigation, Clock
 } from 'lucide-react';
 
 import { TransportDashboardView } from './TransportDashboardView';

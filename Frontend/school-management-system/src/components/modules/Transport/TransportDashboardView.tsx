@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
-  Bus, Route as RouteIcon, Users, DollarSign, CheckCircle, AlertCircle, TrendingUp,
+  Bus, Route as RouteIcon, Users, IndianRupee, CheckCircle, AlertCircle, TrendingUp,
   BarChart2, PieChart, UserCheck, Wrench, FileText, AlertTriangle, Clock, ArrowRight, Eye, Navigation
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';

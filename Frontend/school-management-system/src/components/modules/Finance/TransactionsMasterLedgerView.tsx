@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   FileSpreadsheet, ArrowUpRight, ArrowDownLeft, Plus, Search, Filter, Calendar,
   Building2, CreditCard, Eye, RotateCcw, AlertTriangle, ShieldCheck, CheckCircle2,
-  Printer, Download, FileText, DollarSign, Layers, SlidersHorizontal, BookOpen, Clock,
+  Printer, Download, FileText, IndianRupee, Layers, SlidersHorizontal, BookOpen, Clock,
   ChevronRight, ExternalLink, X, Paperclip, Lock, RefreshCw, PieChart, Sparkles, TrendingUp
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';

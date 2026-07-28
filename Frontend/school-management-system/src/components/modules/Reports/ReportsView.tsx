@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, Download, FileSpreadsheet, UserCheck, Users, DollarSign, CalendarCheck } from 'lucide-react';
+import { BarChart3, Download, FileSpreadsheet, UserCheck, Users, IndianRupee, CalendarCheck } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 
@@ -52,7 +52,7 @@ export const ReportsView: React.FC = () => {
         <div className="glass-card p-6 rounded-3xl space-y-3">
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
-              <DollarSign className="w-6 h-6" />
+              <IndianRupee className="w-6 h-6" />
             </div>
             <div>
               <h3 className="font-bold text-base text-slate-900 dark:text-white">Financial Fee Ledger Report</h3>

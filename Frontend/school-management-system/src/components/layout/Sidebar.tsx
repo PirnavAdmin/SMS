@@ -190,18 +190,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Brand Header */}
       <div className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800`}>
         {collapsed ? (
-          <div className="flex items-center justify-center w-12 h-10 rounded-xl border border-teal-100 dark:border-teal-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+          <div className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
                onClick={() => setCollapsed(false)}>
-             <span className="text-[8px] font-black italic tracking-wider text-teal-700 dark:text-teal-500">PIRNAV</span>
+             <span className="text-[8px] font-black italic tracking-wider text-sky-700 dark:text-sky-500">PIRNAV</span>
           </div>
         ) : (
-          <div className="flex items-center w-52 select-none cursor-pointer px-4 py-1.5 rounded-2xl border border-teal-100 dark:border-teal-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50">
+          <div className="flex items-center w-52 select-none cursor-pointer px-4 py-1.5 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50">
             <div className="flex flex-col items-center w-full">
               <div className="flex items-center gap-1.5">
-                <GraduationCap className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                <span className="text-xl font-black italic tracking-wider text-teal-700 dark:text-teal-500 leading-none">PIRNAV</span>
+                <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                <span className="text-xl font-black italic tracking-wider text-sky-700 dark:text-sky-500 leading-none">PIRNAV</span>
               </div>
-              <span className="text-[9px] font-bold tracking-widest text-teal-600/80 dark:text-teal-400/80 uppercase mt-0.5 whitespace-nowrap">Schools</span>
+              <span className="text-[9px] font-bold tracking-widest text-sky-600/80 dark:text-sky-400/80 uppercase mt-0.5 whitespace-nowrap">Schools</span>
             </div>
           </div>
         )}
@@ -514,7 +514,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
-                          <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-emerald-500'}`} />
+                          <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-sky-500'}`} />
                           {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff'}</span>}
                         </div>
                         {!collapsed && staffSubItems.length > 0 && (
@@ -523,7 +523,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && staffExpanded && (
-                        <div className="pl-3 border-l-2 border-emerald-200 dark:border-emerald-950 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
                           {staffSubItems.map(sub => {
                             const SubIcon = sub.icon;
                             const isPayroll = sub.id === 'staff-payroll';
@@ -542,7 +542,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   <span className="truncate">{sub.label}</span>
                                 </button>
                                 {isPayroll && isSubActive && (
-                                  <div className="ml-5 border-l border-emerald-100 pl-2 dark:border-emerald-950">
+                                  <div className="ml-5 border-l border-sky-100 pl-2 dark:border-sky-950">
                                     {payrollSubItems.map(payrollSub => {
                                       const PayrollSubIcon = payrollSub.icon;
                                       const isPayrollSubActive = activeModule === payrollSub.id || (activeModule === 'staff-payroll' && payrollSub.id === 'staff-payroll-config');
@@ -552,7 +552,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                           onClick={() => setActiveModule(payrollSub.id)}
                                           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
                                             isPayrollSubActive
-                                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                              ? 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
                                               : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60'
                                           }`}
                                         >

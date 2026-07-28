@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shirt, Package, AlertTriangle, UserCheck, DollarSign, Clock, TrendingUp } from 'lucide-react';
+import { Shirt, Package, AlertTriangle, UserCheck, IndianRupee, Clock, TrendingUp } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { formatCurrency } from '../../../utils/currency';
 
@@ -79,7 +79,7 @@ export const UniformDashboardView: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Addl. Sales</span>
             <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
-              <DollarSign className="w-4 h-4" />
+              <IndianRupee className="w-4 h-4" />
             </div>
           </div>
           <h3 className="text-lg font-black text-slate-900 dark:text-white mt-4">{formatCurrency(additionalSalesValue)}</h3>

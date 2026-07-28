@@ -2638,11 +2638,15 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
   return (
     <div className="space-y-6 text-xs">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h2 className="flex items-center gap-2 text-2xl font-black text-slate-900 dark:text-white">
-            <IndianRupee className="h-6 w-6 text-sky-600" /> Staff Payroll
-          </h2>
-          <p className="text-slate-500">Configurable payroll dashboard, structures, processing, and compliance reporting.</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-brand-500/10 dark:bg-brand-500/20 rounded-2xl shrink-0">
+            <IndianRupee className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+              Staff Payroll
+            </h2>
+          </div>
         </div>
         <div className="rounded-full bg-slate-100 p-1 dark:bg-slate-800 flex flex-wrap gap-1">
           {(['dashboard', 'config', 'structures', 'processing', 'payslips', 'reports'] as MainTab[]).map(tab => (

@@ -126,10 +126,10 @@ export const UniformReportsView: React.FC = () => {
       </div>
 
       {/* Unified Report Selector & Dynamic Filters */}
-      <form onSubmit={handleApplyFilters} className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <form onSubmit={handleApplyFilters} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
+        <div className="flex flex-wrap items-end gap-4">
           {/* Report Type Selector */}
-          <div>
+          <div className="flex-1 min-w-[240px] max-w-sm">
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select Report Type *</label>
             <select
               value={reportType}
@@ -156,7 +156,7 @@ export const UniformReportsView: React.FC = () => {
 
           {/* Dynamic Class Filter */}
           {showClass && (
-            <div>
+            <div className="w-full sm:w-48">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Target Class</label>
               <select
                 value={filterClass}
@@ -173,7 +173,7 @@ export const UniformReportsView: React.FC = () => {
 
           {/* Dynamic Supplier Filter */}
           {showSupplier && (
-            <div>
+            <div className="w-full sm:w-56">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Supplier Partner</label>
               <select
                 value={filterSupplier}
@@ -187,14 +187,24 @@ export const UniformReportsView: React.FC = () => {
               </select>
             </div>
           )}
+          
+          {/* Submit Button (Inline when there's space) */}
+          <div className="ml-auto mt-2 sm:mt-0">
+            <button
+              type="submit"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/20 flex items-center gap-1.5 whitespace-nowrap"
+            >
+              <Filter className="w-3.5 h-3.5" /> Generate / Apply Filters
+            </button>
+          </div>
         </div>
 
         {/* Dynamic Secondary Row Filters */}
         {(showDateRange || showSearch) && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+          <div className="flex flex-wrap items-end gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
             {showDateRange && (
               <>
-                <div>
+                <div className="w-full sm:w-40">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
                   <input
                     type="date"
@@ -203,7 +213,7 @@ export const UniformReportsView: React.FC = () => {
                     className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
                   />
                 </div>
-                <div>
+                <div className="w-full sm:w-40">
                   <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
                   <input
                     type="date"
@@ -216,7 +226,7 @@ export const UniformReportsView: React.FC = () => {
             )}
 
             {showSearch && (
-              <div className="col-span-1 sm:col-span-2">
+              <div className="flex-1 min-w-[200px]">
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">General search</label>
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
@@ -232,15 +242,6 @@ export const UniformReportsView: React.FC = () => {
             )}
           </div>
         )}
-
-        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-          <button
-            type="submit"
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-500/20 flex items-center gap-1.5"
-          >
-            <Filter className="w-3.5 h-3.5" /> Generate / Apply Filters
-          </button>
-        </div>
       </form>
 
       {/* Dynamic Results Grid */}
