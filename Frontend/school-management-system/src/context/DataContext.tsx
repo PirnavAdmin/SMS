@@ -14,7 +14,9 @@ import {
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
-  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DocumentRequirementRule
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DocumentRequirementRule,
+  FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionAuditLog,
+  SchoolEvent, UnifiedCalendarEvent, EventCategory, HolidayType
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -241,6 +243,29 @@ interface DataContextType {
   studentTransports: StudentTransport[];
   assignStudentTransport: (st: Omit<StudentTransport, 'id'>) => void;
   removeStudentTransport: (id: string) => void;
+
+  // Master Finance Ledger & Transactions System
+  financeTransactions: FinanceTransaction[];
+  addFinanceTransaction: (txn: Omit<FinanceTransaction, 'id' | 'transactionId'>) => FinanceTransaction;
+  reverseFinanceTransaction: (transactionId: string, reason: string, user: string) => void;
+  cancelFinanceTransaction: (transactionId: string, reason: string, user: string) => void;
+
+  financialAccounts: FinancialAccount[];
+  addFinancialAccount: (account: Omit<FinancialAccount, 'id'>) => void;
+  updateFinancialAccount: (id: string, updates: Partial<FinancialAccount>) => void;
+
+  financialCategories: FinancialCategory[];
+  addFinancialCategory: (category: Omit<FinancialCategory, 'id'>) => void;
+  updateFinancialCategory: (id: string, updates: Partial<FinancialCategory>) => void;
+
+  financialBudgets: FinancialBudget[];
+  updateFinancialBudget: (id: string, allocatedAmount: number) => void;
+
+  // Academic Calendar & School Events System
+  schoolEvents: SchoolEvent[];
+  addSchoolEvent: (event: Omit<SchoolEvent, 'id'>) => SchoolEvent;
+  updateSchoolEvent: (id: string, updates: Partial<SchoolEvent>) => void;
+  deleteSchoolEvent: (id: string) => void;
 
   hostelMasters: HostelMaster[];
   addHostelMaster: (h: Omit<HostelMaster, 'id'>) => void;
@@ -544,6 +569,370 @@ const defaultExamSchedules: ExamSchedule[] = [
   }
 ];
 
+const initialFinanceTransactions: FinanceTransaction[] = [
+  {
+    id: 'TXN-001',
+    transactionId: 'TXN-2026-891001',
+    date: '2026-07-28',
+    time: '10:15 AM',
+    type: 'Income',
+    category: 'Student Tuition Fees',
+    sourceModule: 'Student Fee Collection',
+    referenceNumber: 'REC-2026-1001',
+    description: 'Term 1 Tuition Fee Collection for Aarav Sharma (Class 10-A)',
+    amount: 18500,
+    paymentMode: 'UPI',
+    account: 'Main Bank Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Accounts Officer (Venkat)',
+    approvedBy: 'Chief Accountant',
+    auditTrail: [
+      { id: 'AUD-1', action: 'Created', user: 'System Auto-Ledger', timestamp: '2026-07-28 10:15 AM', notes: 'Auto-recorded from Fee Payment REC-2026-1001' }
+    ]
+  },
+  {
+    id: 'TXN-002',
+    transactionId: 'TXN-2026-891002',
+    date: '2026-07-28',
+    time: '11:00 AM',
+    type: 'Income',
+    category: 'Admission Fees',
+    sourceModule: 'Admissions',
+    referenceNumber: 'ADM-2026-054',
+    description: 'New Student Admission & Registration Fee for Priya Patel (Class 1-B)',
+    amount: 25000,
+    paymentMode: 'Bank Transfer',
+    account: 'Main Bank Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Admission Officer',
+    approvedBy: 'Principal',
+    auditTrail: [
+      { id: 'AUD-2', action: 'Created', user: 'Admissions Module', timestamp: '2026-07-28 11:00 AM', notes: 'Admission confirmation fee' }
+    ]
+  },
+  {
+    id: 'TXN-003',
+    transactionId: 'TXN-2026-891003',
+    date: '2026-07-27',
+    time: '04:30 PM',
+    type: 'Expense',
+    category: 'Employee Salaries',
+    sourceModule: 'Payroll',
+    referenceNumber: 'PAYROLL-JUL-2026',
+    description: 'Monthly Faculty & Staff Payroll Disbursement (July 2026 Batch)',
+    amount: 145000,
+    paymentMode: 'Bank Transfer',
+    account: 'Salary Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'HR Manager',
+    approvedBy: 'Chief Accountant',
+    auditTrail: [
+      { id: 'AUD-3', action: 'Created', user: 'Payroll Module', timestamp: '2026-07-27 04:30 PM', notes: 'Batch salary payout for 32 employees' }
+    ]
+  },
+  {
+    id: 'TXN-004',
+    transactionId: 'TXN-2026-891004',
+    date: '2026-07-26',
+    time: '02:15 PM',
+    type: 'Income',
+    category: 'Hostel Fees',
+    sourceModule: 'Hostel',
+    referenceNumber: 'HST-REC-088',
+    description: 'Hostel Accommodation & Mess Fee Quarter 2 for Rohan Verma (Boys Block A)',
+    amount: 32000,
+    paymentMode: 'Online',
+    account: 'Hostel Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Chief Warden',
+    approvedBy: 'Accounts Officer',
+    auditTrail: [
+      { id: 'AUD-4', action: 'Created', user: 'Hostel Module', timestamp: '2026-07-26 02:15 PM', notes: 'Hostel booking payment' }
+    ]
+  },
+  {
+    id: 'TXN-005',
+    transactionId: 'TXN-2026-891005',
+    date: '2026-07-25',
+    time: '09:45 AM',
+    type: 'Income',
+    category: 'Transport Fees',
+    sourceModule: 'Transport',
+    referenceNumber: 'TRP-REC-112',
+    description: 'Bus Route #4 Monthly Pass Fee for Ananya Reddy',
+    amount: 4500,
+    paymentMode: 'Cash',
+    account: 'Transport Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Transport Manager',
+    approvedBy: 'Accounts Officer',
+    auditTrail: [
+      { id: 'AUD-5', action: 'Created', user: 'Transport Module', timestamp: '2026-07-25 09:45 AM', notes: 'Transport pass issued' }
+    ]
+  },
+  {
+    id: 'TXN-006',
+    transactionId: 'TXN-2026-891006',
+    date: '2026-07-24',
+    time: '03:20 PM',
+    type: 'Expense',
+    category: 'Fuel Expenses',
+    sourceModule: 'Transport',
+    referenceNumber: 'TRP-EXP-034',
+    description: 'Diesel Refueling for School Buses KA-01-F-1234 & KA-01-F-5678',
+    amount: 18400,
+    paymentMode: 'Card',
+    account: 'Transport Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Transport Manager',
+    approvedBy: 'Chief Accountant',
+    auditTrail: [
+      { id: 'AUD-6', action: 'Created', user: 'Transport Expense Entry', timestamp: '2026-07-24 03:20 PM', notes: 'Indian Oil petrol bunk receipt #9921' }
+    ]
+  },
+  {
+    id: 'TXN-007',
+    transactionId: 'TXN-2026-891007',
+    date: '2026-07-23',
+    time: '11:30 AM',
+    type: 'Expense',
+    category: 'Vendor Payments',
+    sourceModule: 'Inventory',
+    referenceNumber: 'PO-2026-789',
+    description: 'Purchase of Physics & Chemistry Laboratory Chemicals & Apparatus (Apex Scientific)',
+    amount: 42500,
+    paymentMode: 'Bank Transfer',
+    account: 'Main Bank Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Store Keeper',
+    approvedBy: 'Principal',
+    auditTrail: [
+      { id: 'AUD-7', action: 'Created', user: 'Inventory Module', timestamp: '2026-07-23 11:30 AM', notes: 'Purchase Order #PO-2026-789 settled' }
+    ]
+  },
+  {
+    id: 'TXN-008',
+    transactionId: 'TXN-2026-891008',
+    date: '2026-07-22',
+    time: '01:10 PM',
+    type: 'Income',
+    category: 'Library Fines',
+    sourceModule: 'Library',
+    referenceNumber: 'LIB-FINE-044',
+    description: 'Overdue Book Return Fine Collection (5 Days Late)',
+    amount: 150,
+    paymentMode: 'Cash',
+    account: 'Cash',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Librarian',
+    auditTrail: [
+      { id: 'AUD-8', action: 'Created', user: 'Library Module', timestamp: '2026-07-22 01:10 PM', notes: 'Book issue ID ISS-104 fine' }
+    ]
+  },
+  {
+    id: 'TXN-009',
+    transactionId: 'TXN-2026-891009',
+    date: '2026-07-21',
+    time: '10:00 AM',
+    type: 'Income',
+    category: 'Donations & Grants',
+    sourceModule: 'Manual',
+    referenceNumber: 'DON-2026-004',
+    description: 'Alumni Trust Annual Education Infrastructure Sponsorship & Endowment Fund',
+    amount: 100000,
+    paymentMode: 'Cheque',
+    account: 'Main Bank Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Principal',
+    approvedBy: 'School Management Board',
+    auditTrail: [
+      { id: 'AUD-9', action: 'Created', user: 'Manual Transaction Entry', timestamp: '2026-07-21 10:00 AM', notes: 'Cheque No. 445902 deposited' }
+    ]
+  },
+  {
+    id: 'TXN-010',
+    transactionId: 'TXN-2026-891010',
+    date: '2026-07-20',
+    time: '05:00 PM',
+    type: 'Expense',
+    category: 'Electricity Bills',
+    sourceModule: 'Manual',
+    referenceNumber: 'UTIL-ELEC-JUL26',
+    description: 'Monthly Campus Electricity Tariff Payment (State Power Utility Board)',
+    amount: 38700,
+    paymentMode: 'Bank Transfer',
+    account: 'Main Bank Account',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    status: 'Completed',
+    createdBy: 'Accounts Officer',
+    approvedBy: 'Principal',
+    auditTrail: [
+      { id: 'AUD-10', action: 'Created', user: 'Accounts Entry', timestamp: '2026-07-20 05:00 PM', notes: 'Consumer Account #998124501' }
+    ]
+  }
+];
+
+const initialFinancialAccounts: FinancialAccount[] = [
+  { id: 'ACC-01', accountName: 'Cash in Hand', accountType: 'Cash', currentBalance: 48500, currency: 'INR', status: 'Active' },
+  { id: 'ACC-02', accountName: 'State Bank of India (Main Account)', accountType: 'Main Bank Account', accountNumber: '30998124501', bankName: 'State Bank of India', branchName: 'MG Road Branch', currentBalance: 1245000, currency: 'INR', status: 'Active' },
+  { id: 'ACC-03', accountName: 'HDFC Salary Disbursement Account', accountType: 'Salary Account', accountNumber: '50100234891', bankName: 'HDFC Bank', branchName: 'City Center', currentBalance: 450000, currency: 'INR', status: 'Active' },
+  { id: 'ACC-04', accountName: 'ICICI Hostel & Operations Account', accountType: 'Hostel Account', accountNumber: '00120500981', bankName: 'ICICI Bank', branchName: 'Campus Branch', currentBalance: 320000, currency: 'INR', status: 'Active' },
+  { id: 'ACC-05', accountName: 'Axis Bank Transport Account', accountType: 'Transport Account', accountNumber: '91802004561', bankName: 'Axis Bank', branchName: 'Industrial Suburb', currentBalance: 185000, currency: 'INR', status: 'Active' },
+  { id: 'ACC-06', accountName: 'Office Petty Cash Vault', accountType: 'Petty Cash Account', currentBalance: 15000, currency: 'INR', status: 'Active' }
+];
+
+const initialFinancialCategories: FinancialCategory[] = [
+  { id: 'CAT-INC-01', name: 'Student Tuition Fees', type: 'Income', sourceModule: 'Student Fee Collection', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-02', name: 'Admission Fees', type: 'Income', sourceModule: 'Admissions', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-03', name: 'Registration Fees', type: 'Income', sourceModule: 'Admissions', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-04', name: 'Examination Fees', type: 'Income', sourceModule: 'Examination', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-05', name: 'Hostel Fees', type: 'Income', sourceModule: 'Hostel', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-06', name: 'Transport Fees', type: 'Income', sourceModule: 'Transport', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-07', name: 'Library Fines', type: 'Income', sourceModule: 'Library', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-08', name: 'Certificate Fees', type: 'Income', sourceModule: 'Student Management', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-09', name: 'Uniform Sales', type: 'Income', sourceModule: 'Uniform', status: 'Active', isSystem: true },
+  { id: 'CAT-INC-10', name: 'Donations & Grants', type: 'Income', sourceModule: 'Manual', status: 'Active', isSystem: false },
+  { id: 'CAT-INC-11', name: 'Miscellaneous Income', type: 'Income', sourceModule: 'Manual', status: 'Active', isSystem: false },
+  { id: 'CAT-EXP-01', name: 'Employee Salaries', type: 'Expense', sourceModule: 'Payroll', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-02', name: 'Vendor Payments', type: 'Expense', sourceModule: 'Inventory', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-03', name: 'Fuel Expenses', type: 'Expense', sourceModule: 'Transport', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-04', name: 'Vehicle Maintenance', type: 'Expense', sourceModule: 'Transport', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-05', name: 'Hostel Expenses', type: 'Expense', sourceModule: 'Hostel', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-06', name: 'Library Purchases', type: 'Expense', sourceModule: 'Library', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-07', name: 'Laboratory Equipment', type: 'Expense', sourceModule: 'Inventory', status: 'Active', isSystem: true },
+  { id: 'CAT-EXP-08', name: 'Electricity Bills', type: 'Expense', sourceModule: 'Manual', status: 'Active', isSystem: false },
+  { id: 'CAT-EXP-09', name: 'Water & Internet Bills', type: 'Expense', sourceModule: 'Manual', status: 'Active', isSystem: false },
+  { id: 'CAT-EXP-10', name: 'Building & Furniture Maintenance', type: 'Expense', sourceModule: 'Manual', status: 'Active', isSystem: false },
+  { id: 'CAT-EXP-11', name: 'Event & Festival Expenses', type: 'Expense', sourceModule: 'Manual', status: 'Active', isSystem: false },
+  { id: 'CAT-EXP-12', name: 'Petty Cash Expenses', type: 'Expense', sourceModule: 'Manual', status: 'Active', isSystem: false }
+];
+
+const initialFinancialBudgets: FinancialBudget[] = [
+  { id: 'BDG-01', categoryName: 'Employee Salaries', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 2000000, consumedAmount: 145000, remainingAmount: 1855000, status: 'Active' },
+  { id: 'BDG-02', categoryName: 'Fuel Expenses', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 250000, consumedAmount: 18400, remainingAmount: 231600, status: 'Active' },
+  { id: 'BDG-03', categoryName: 'Laboratory Equipment', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 500000, consumedAmount: 42500, remainingAmount: 457500, status: 'Active' },
+  { id: 'BDG-04', categoryName: 'Electricity Bills', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 400000, consumedAmount: 38700, remainingAmount: 361300, status: 'Active' },
+  { id: 'BDG-05', categoryName: 'Event & Festival Expenses', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 300000, consumedAmount: 0, remainingAmount: 300000, status: 'Active' }
+];
+
+const initialSchoolEvents: SchoolEvent[] = [
+  {
+    id: 'EVT-001',
+    title: 'Annual Sports Day & Athletic Meet 2026',
+    category: 'Sports Day',
+    description: 'Grand Annual Sports Day featuring track & field competitions, march past, relay races, and trophy distribution.',
+    organizer: 'Physical Education Dept',
+    venue: 'Main Campus Stadium Ground',
+    startDate: '2026-08-15',
+    endDate: '2026-08-15',
+    startTime: '08:30 AM',
+    endTime: '04:30 PM',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    applicableClasses: ['Class 1', 'Class 2', 'Class 5', 'Class 8', 'Class 10', 'Class 12'],
+    participants: 'All Students & Faculty',
+    attachments: [
+      { id: 'ATT-1', name: 'Sports_Day_Schedule.pdf', url: '#', type: 'PDF' },
+      { id: 'ATT-2', name: 'Track_Events_Rules.pdf', url: '#', type: 'PDF' }
+    ],
+    status: 'Published',
+    createdBy: 'PE Director (Jonathan Miller)'
+  },
+  {
+    id: 'EVT-002',
+    title: 'Inter-House Science & Robotics Exhibition',
+    category: 'Science Exhibition',
+    description: 'Student project showcases in AI, Renewable Energy, Physics Experiments, and Robotics Prototypes.',
+    organizer: 'Department of Science & Tech',
+    venue: 'Auditorium & STEM Lab 1',
+    startDate: '2026-08-22',
+    endDate: '2026-08-22',
+    startTime: '10:00 AM',
+    endTime: '03:00 PM',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    applicableClasses: ['Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'],
+    participants: 'Class 8-12 Students',
+    attachments: [
+      { id: 'ATT-3', name: 'Science_Fair_Guidelines.pdf', url: '#', type: 'PDF' }
+    ],
+    status: 'Published',
+    createdBy: 'HOD Science (Dr. Sarah Jenkins)'
+  },
+  {
+    id: 'EVT-003',
+    title: 'Term 1 Parent Teacher Meeting (PTM)',
+    category: 'Parent Teacher Meeting',
+    description: 'Quarterly review meeting to discuss academic progress, attendance, and holistic student growth with parents.',
+    organizer: 'Academic Committee',
+    venue: 'Respective Classrooms',
+    startDate: '2026-08-28',
+    endDate: '2026-08-28',
+    startTime: '09:00 AM',
+    endTime: '01:00 PM',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    applicableClasses: ['All Classes'],
+    participants: 'Parents, Students & Class Teachers',
+    status: 'Published',
+    createdBy: 'Vice Principal'
+  },
+  {
+    id: 'EVT-004',
+    title: 'Grand Cultural Fest & Musical Night',
+    category: 'Cultural Fest',
+    description: 'Annual cultural extravaganza featuring classical dance, drama performance, school choir, and band live show.',
+    organizer: 'Cultural Arts Association',
+    venue: 'Open Air Amphitheatre',
+    startDate: '2026-09-05',
+    endDate: '2026-09-05',
+    startTime: '04:00 PM',
+    endTime: '08:30 PM',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    participants: 'All Students, Staff & Alumni',
+    status: 'Published',
+    createdBy: 'Arts Coordinator'
+  },
+  {
+    id: 'EVT-005',
+    title: 'Career Guidance & University Fair Seminar',
+    category: 'Workshop & Seminar',
+    description: 'Interactive session with global university delegates and career counselors for Senior Secondary Students.',
+    organizer: 'Student Counseling Cell',
+    venue: 'Conference Hall B',
+    startDate: '2026-09-18',
+    endDate: '2026-09-18',
+    startTime: '11:00 AM',
+    endTime: '02:00 PM',
+    branch: 'Main Campus',
+    academicYear: '2025-2026',
+    applicableClasses: ['Class 11', 'Class 12'],
+    participants: 'Class 11 & 12 Students',
+    status: 'Published',
+    createdBy: 'Senior Counselor'
+  }
+];
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -588,6 +977,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [inventory, setInventory] = useState<InventoryItem[]>(() => getStored('inventory', initialInventory));
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => getStored('announcements', initialAnnouncements));
   const [holidays, setHolidays] = useState<Holiday[]>(() => getStored('holidays', initialHolidays));
+  const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => getStored('school_events', initialSchoolEvents));
   const [birthdays] = useState<Birthday[]>(() => getStored('birthdays', initialBirthdays));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getStored('audit_logs', initialAuditLogs));
 
@@ -649,6 +1039,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Permanent Student Fee Ledger State
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<StudentFeeLedger[]>(() => getStored('student_fee_ledgers', initialStudentFeeLedgers));
 
+  // Master Finance Ledger & Transactions States
+  const [financeTransactions, setFinanceTransactions] = useState<FinanceTransaction[]>(() => getStored('finance_transactions', initialFinanceTransactions));
+  const [financialAccounts, setFinancialAccounts] = useState<FinancialAccount[]>(() => getStored('financial_accounts', initialFinancialAccounts));
+  const [financialCategories, setFinancialCategories] = useState<FinancialCategory[]>(() => getStored('financial_categories', initialFinancialCategories));
+  const [financialBudgets, setFinancialBudgets] = useState<FinancialBudget[]>(() => getStored('financial_budgets', initialFinancialBudgets));
+
   useEffect(() => { localStorage.setItem('edu_db_profile', JSON.stringify(schoolProfile)); }, [schoolProfile]);
   useEffect(() => { localStorage.setItem('edu_db_students', JSON.stringify(students)); }, [students]);
   useEffect(() => { localStorage.setItem('edu_db_staff', JSON.stringify(staff)); }, [staff]);
@@ -660,8 +1056,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_hostel_beds', JSON.stringify(hostelBeds)); }, [hostelBeds]);
   useEffect(() => { localStorage.setItem('edu_db_uniforms', JSON.stringify(uniforms)); }, [uniforms]);
   useEffect(() => { localStorage.setItem('edu_db_custom_roles', JSON.stringify(customRoles)); }, [customRoles]);
-  useEffect(() => { localStorage.setItem('edu_db_fee_structures', JSON.stringify(feeStructures)); }, [feeStructures]);
   useEffect(() => { localStorage.setItem('edu_db_fee_payments', JSON.stringify(feePayments)); }, [feePayments]);
+  useEffect(() => { localStorage.setItem('edu_db_finance_transactions', JSON.stringify(financeTransactions)); }, [financeTransactions]);
+  useEffect(() => { localStorage.setItem('edu_db_financial_accounts', JSON.stringify(financialAccounts)); }, [financialAccounts]);
+  useEffect(() => { localStorage.setItem('edu_db_financial_categories', JSON.stringify(financialCategories)); }, [financialCategories]);
+  useEffect(() => { localStorage.setItem('edu_db_financial_budgets', JSON.stringify(financialBudgets)); }, [financialBudgets]);
+  useEffect(() => { localStorage.setItem('edu_db_school_events', JSON.stringify(schoolEvents)); }, [schoolEvents]);
 
   // ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_fee_heads', JSON.stringify(feeHeads)); }, [feeHeads]);
@@ -1723,7 +2123,173 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }));
 
     logActivity('Collected Fee', `Processed payment of ${formatCurrency(newPayment.amountPaid)} for ${newPayment.studentName}`);
+
+    // Automatic Master Finance Ledger Entry Creation
+    const autoLedgerTxn: FinanceTransaction = {
+      id: 'TXN-' + Date.now(),
+      transactionId: 'TXN-2026-' + Math.floor(100000 + Math.random() * 900000),
+      date: newPayment.paymentDate || new Date().toISOString().split('T')[0],
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: 'Income',
+      category: (newPayment as any).feeType || 'Student Tuition Fees',
+      sourceModule: 'Student Fee Collection',
+      referenceNumber: newPayment.receiptNo,
+      referenceRecordId: newPayment.id,
+      description: `Student Fee Collection from ${newPayment.studentName} (${newPayment.className})`,
+      amount: newPayment.amountPaid,
+      paymentMode: (newPayment.paymentMode as any) || 'Cash',
+      account: newPayment.paymentMode === 'Cash' ? 'Cash' : 'Main Bank Account',
+      branch: (newPayment as any).branch || selectedBranch || 'Main Campus',
+      academicYear: '2025-2026',
+      status: 'Completed',
+      createdBy: 'System Auto-Ledger',
+      auditTrail: [
+        {
+          id: 'AUD-AUTO-' + Date.now(),
+          action: 'Created',
+          user: 'System Auto-Ledger',
+          timestamp: new Date().toLocaleString(),
+          notes: `Automatically recorded from Student Fee Payment ${newPayment.receiptNo}`
+        }
+      ]
+    };
+
+    setFinanceTransactions(prev => [autoLedgerTxn, ...prev]);
+
+    // Update Financial Account Balance
+    setFinancialAccounts(prev => prev.map(acc => {
+      if (acc.accountType === autoLedgerTxn.account) {
+        return { ...acc, currentBalance: acc.currentBalance + autoLedgerTxn.amount };
+      }
+      return acc;
+    }));
+
     return newPayment;
+  };
+
+  // Master Finance Ledger CRUD Engine
+  const addFinanceTransaction = (txnData: Omit<FinanceTransaction, 'id' | 'transactionId'>): FinanceTransaction => {
+    const id = 'TXN-' + Date.now();
+    const transactionId = 'TXN-2026-' + Math.floor(100000 + Math.random() * 900000);
+    const newTxn: FinanceTransaction = {
+      ...txnData,
+      id,
+      transactionId,
+      branch: txnData.branch || selectedBranch || 'Main Campus',
+      auditTrail: [
+        {
+          id: 'AUD-' + Date.now(),
+          action: 'Created',
+          user: txnData.createdBy || 'Finance Admin',
+          timestamp: new Date().toLocaleString(),
+          notes: 'Master Ledger Entry Created'
+        }
+      ]
+    };
+
+    setFinanceTransactions(prev => [newTxn, ...prev]);
+
+    // Update Account Balance
+    setFinancialAccounts(prev => prev.map(acc => {
+      if (acc.accountType === newTxn.account) {
+        const delta = newTxn.type === 'Income' ? newTxn.amount : -newTxn.amount;
+        return { ...acc, currentBalance: acc.currentBalance + delta };
+      }
+      return acc;
+    }));
+
+    // Update Budget if Expense
+    if (newTxn.type === 'Expense') {
+      setFinancialBudgets(prev => prev.map(b => {
+        if (b.categoryName === newTxn.category) {
+          const newConsumed = b.consumedAmount + newTxn.amount;
+          const newRemaining = Math.max(0, b.allocatedAmount - newConsumed);
+          return {
+            ...b,
+            consumedAmount: newConsumed,
+            remainingAmount: newRemaining,
+            status: newConsumed > b.allocatedAmount ? 'Exceeded' : 'Active'
+          };
+        }
+        return b;
+      }));
+    }
+
+    logActivity('Recorded Financial Transaction', `Added ${newTxn.type} ${transactionId} for ${formatCurrency(newTxn.amount)}`);
+    return newTxn;
+  };
+
+  const reverseFinanceTransaction = (transactionId: string, reason: string, user: string) => {
+    setFinanceTransactions(prev => prev.map(t => {
+      if (t.transactionId === transactionId || t.id === transactionId) {
+        const logItem: TransactionAuditLog = {
+          id: 'AUD-REV-' + Date.now(),
+          action: 'Reversed',
+          user: user,
+          timestamp: new Date().toLocaleString(),
+          notes: `Transaction Reversed: ${reason}`
+        };
+
+        // Offset Account Balance
+        setFinancialAccounts(accs => accs.map(acc => {
+          if (acc.accountType === t.account) {
+            const offsetDelta = t.type === 'Income' ? -t.amount : t.amount;
+            return { ...acc, currentBalance: acc.currentBalance + offsetDelta };
+          }
+          return acc;
+        }));
+
+        return {
+          ...t,
+          status: 'Reversed',
+          auditTrail: [...(t.auditTrail || []), logItem]
+        };
+      }
+      return t;
+    }));
+
+    logActivity('Reversed Financial Transaction', `Reversed ${transactionId}. Reason: ${reason}`);
+  };
+
+  const cancelFinanceTransaction = (transactionId: string, reason: string, user: string) => {
+    reverseFinanceTransaction(transactionId, reason, user);
+  };
+
+  const addFinancialAccount = (accountData: Omit<FinancialAccount, 'id'>) => {
+    const id = 'ACC-' + Math.floor(10 + Math.random() * 90);
+    const newAcc: FinancialAccount = { ...accountData, id };
+    setFinancialAccounts(prev => [...prev, newAcc]);
+    logActivity('Created Financial Account', `Added Account ${newAcc.accountName}`);
+  };
+
+  const updateFinancialAccount = (id: string, updates: Partial<FinancialAccount>) => {
+    setFinancialAccounts(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+  };
+
+  const addFinancialCategory = (categoryData: Omit<FinancialCategory, 'id'>) => {
+    const id = 'CAT-' + Math.floor(100 + Math.random() * 900);
+    const newCat: FinancialCategory = { ...categoryData, id };
+    setFinancialCategories(prev => [...prev, newCat]);
+    logActivity('Created Financial Category', `Added ${newCat.type} Category ${newCat.name}`);
+  };
+
+  const updateFinancialCategory = (id: string, updates: Partial<FinancialCategory>) => {
+    setFinancialCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  };
+
+  const updateFinancialBudget = (id: string, allocatedAmount: number) => {
+    setFinancialBudgets(prev => prev.map(b => {
+      if (b.id === id) {
+        const remaining = Math.max(0, allocatedAmount - b.consumedAmount);
+        return {
+          ...b,
+          allocatedAmount,
+          remainingAmount: remaining,
+          status: b.consumedAmount > allocatedAmount ? 'Exceeded' : 'Active'
+        };
+      }
+      return b;
+    }));
   };
 
   // ==========================================
@@ -3474,6 +4040,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setHolidays(prev => prev.filter(h => h.id !== id));
   };
 
+  // School Events CRUD
+  const addSchoolEvent = (eventData: Omit<SchoolEvent, 'id'>): SchoolEvent => {
+    const id = 'EVT-' + Math.floor(100 + Math.random() * 900);
+    const newEvent: SchoolEvent = {
+      ...eventData,
+      id,
+      branch: eventData.branch || selectedBranch || 'Main Campus',
+      status: eventData.status || 'Published',
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+    setSchoolEvents(prev => [newEvent, ...prev]);
+    logActivity('Created School Event', `Scheduled event ${newEvent.title} on ${newEvent.startDate}`);
+    return newEvent;
+  };
+
+  const updateSchoolEvent = (id: string, updates: Partial<SchoolEvent>) => {
+    setSchoolEvents(prev => prev.map(e => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString().split('T')[0] } : e));
+    logActivity('Updated School Event', `Updated event ID ${id}`);
+  };
+
+  const deleteSchoolEvent = (id: string) => {
+    setSchoolEvents(prev => prev.filter(e => e.id !== id));
+    logActivity('Deleted School Event', `Removed event ID ${id}`);
+  };
+
   // Payslip handler
   const disburseSalary = (pData: Omit<Payslip, 'id'>) => {
     const id = 'PAY-' + Math.floor(100 + Math.random() * 900);
@@ -3834,7 +4425,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         assignEmployeeSalaryStructure, updateEmployeeSalaryAssignment, deleteEmployeeSalaryAssignment,
         payrollRuns: filteredPayrollRuns,
         upsertPayrollRun, updatePayrollRun, deletePayrollRun,
-        documentRequirementRules, getRequiredDocuments, addDocumentRequirementRule, updateDocumentRequirementRule, deleteDocumentRequirementRule, verifyStaffDocument, replaceStaffDocument
+        documentRequirementRules, getRequiredDocuments, addDocumentRequirementRule, updateDocumentRequirementRule, deleteDocumentRequirementRule, verifyStaffDocument, replaceStaffDocument,
+
+        // MASTER FINANCE LEDGER MAPPINGS
+        financeTransactions, addFinanceTransaction, reverseFinanceTransaction, cancelFinanceTransaction,
+        financialAccounts, addFinancialAccount, updateFinancialAccount,
+        financialCategories, addFinancialCategory, updateFinancialCategory,
+        financialBudgets, updateFinancialBudget,
+
+        // ACADEMIC CALENDAR & SCHOOL EVENTS MAPPINGS
+        schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent
       }}
     >
       {children}

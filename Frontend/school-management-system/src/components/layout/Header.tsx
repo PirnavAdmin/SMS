@@ -166,6 +166,33 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     setShowBranchMenu(false);
   };
 
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('read_notif_ids');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('read_notif_ids', JSON.stringify(readNotifIds));
+  }, [readNotifIds]);
+
+  const unreadAnnouncements = useMemo(() => {
+    return announcements.filter(a => !readNotifIds.includes(a.id));
+  }, [announcements, readNotifIds]);
+
+  const toggleNotifMenu = () => {
+    const nextState = !showNotifMenu;
+    setShowNotifMenu(nextState);
+    if (nextState && unreadAnnouncements.length > 0) {
+      const allIds = announcements.map(a => a.id);
+      setReadNotifIds(prev => Array.from(new Set([...prev, ...allIds])));
+    }
+  };
+
+  const markAllAsRead = () => {
+    const allIds = announcements.map(a => a.id);
+    setReadNotifIds(Array.from(new Set([...readNotifIds, ...allIds])));
+  };
+
   return (
     <header
       className={`fixed top-0 right-0 z-50 h-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
@@ -322,12 +349,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         {/* Notifications Bell */}
         <div className="relative">
           <button
-            onClick={() => setShowNotifMenu(!showNotifMenu)}
+            onClick={toggleNotifMenu}
             className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
+            title={unreadAnnouncements.length > 0 ? `${unreadAnnouncements.length} unread notifications` : 'Notifications'}
           >
             <Bell className="w-4 h-4" />
-            {announcements.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            {unreadAnnouncements.length > 0 && (
+              <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
             )}
           </button>
 
@@ -335,17 +363,43 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             <div className="absolute right-0 mt-2 w-80 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-3 animate-in fade-in zoom-in-95 space-y-2">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
                 <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Megaphone className="w-4 h-4 text-brand-600" /> Recent Notifications
+                  <Megaphone className="w-4 h-4 text-brand-600" /> Notifications
                 </h4>
-                <span className="text-[10px] text-slate-400">{announcements.length} new</span>
+                {unreadAnnouncements.length > 0 ? (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-[10px] font-bold text-brand-600 dark:text-brand-400 hover:underline"
+                  >
+                    Mark all as read
+                  </button>
+                ) : (
+                  <span className="text-[10px] text-slate-400">All read</span>
+                )}
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {announcements.map(a => (
-                  <div key={a.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-white">{a.title}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{a.content}</p>
-                  </div>
-                ))}
+                {announcements.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400">No notifications</div>
+                ) : (
+                  announcements.map(a => {
+                    const isUnread = !readNotifIds.includes(a.id);
+                    return (
+                      <div
+                        key={a.id}
+                        className={`p-2.5 rounded-xl border transition-colors ${
+                          isUnread
+                            ? 'bg-brand-50/70 dark:bg-brand-950/40 border-brand-200 dark:border-brand-800/60'
+                            : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-slate-900 dark:text-white">{a.title}</p>
+                          {isUnread && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />}
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{a.content}</p>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

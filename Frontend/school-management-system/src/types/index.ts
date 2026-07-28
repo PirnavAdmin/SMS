@@ -556,14 +556,97 @@ export interface Announcement {
   category?: string;
 }
 
+export type HolidayType =
+  | 'National'
+  | 'State'
+  | 'School'
+  | 'Emergency'
+  | 'Optional'
+  | 'Gazetted'
+  | 'Restricted'
+  | 'Vacation'
+  | 'Festival'
+  | 'Branch';
+
 export interface Holiday {
   id: string;
   name: string;
   startDate: string;
   endDate: string;
-  type: 'Gazetted' | 'Restricted' | 'Vacation' | 'National' | 'School' | 'Festival' | 'Branch';
+  type: HolidayType;
   branch?: string;
+  applicableClasses?: string[];
   description?: string;
+  status?: 'Active' | 'Inactive';
+}
+
+export type EventCategory =
+  | 'Academic Activity'
+  | 'Annual Day'
+  | 'Sports Day'
+  | 'Cultural Fest'
+  | 'Science Exhibition'
+  | 'School Tour'
+  | 'Awareness Program'
+  | 'Competition'
+  | 'Workshop & Seminar'
+  | 'Graduation Ceremony'
+  | 'Celebration'
+  | 'Parent Teacher Meeting'
+  | 'Staff Meeting'
+  | 'Admission Event'
+  | 'Examination'
+  | 'Custom Event';
+
+export interface SchoolEvent {
+  id: string;
+  title: string;
+  category: EventCategory;
+  description: string;
+  organizer: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startTime?: string;
+  endTime?: string;
+  branch: string;
+  academicYear: string;
+  applicableClasses?: string[];
+  participants?: string;
+  attachments?: { id: string; name: string; url: string; type: string }[];
+  status: 'Published' | 'Draft' | 'Completed' | 'Cancelled';
+  createdBy?: string;
+  updatedAt?: string;
+  sourceModule?: string;
+  referenceId?: string;
+}
+
+export type UnifiedEventType =
+  | 'School Event'
+  | 'Holiday'
+  | 'Examination'
+  | 'Parent Teacher Meeting'
+  | 'Staff Meeting'
+  | 'Birthday'
+  | 'Admission Event'
+  | 'Custom Event';
+
+export interface UnifiedCalendarEvent {
+  id: string;
+  title: string;
+  date: string;
+  endDate?: string;
+  time?: string;
+  type: UnifiedEventType;
+  category?: string;
+  venue?: string;
+  organizer?: string;
+  description?: string;
+  color: 'blue' | 'green' | 'red' | 'orange' | 'purple' | 'yellow' | 'teal' | 'gray';
+  sourceModule: string;
+  branch?: string;
+  applicableClasses?: string[];
+  rawItem: any;
 }
 
 export interface Birthday {
@@ -571,6 +654,7 @@ export interface Birthday {
   name: string;
   role: 'Student' | 'Staff';
   className?: string;
+  department?: string;
   avatar: string;
   dob: string;
 }
@@ -847,6 +931,94 @@ export interface FinanceSettings {
     taxName: string;
     percentage: number;
   };
+}
+
+// ==========================================
+// MASTER FINANCE LEDGER & TRANSACTIONS MODELS
+// ==========================================
+
+export type TransactionType = 'Income' | 'Expense';
+
+export type FinancialAccountType =
+  | 'Cash'
+  | 'Main Bank Account'
+  | 'Salary Account'
+  | 'Hostel Account' | 'Transport Account' | 'Petty Cash Account';
+
+export interface TransactionAuditLog {
+  id: string;
+  action: 'Created' | 'Updated' | 'Approved' | 'Cancelled' | 'Reversed';
+  user: string;
+  timestamp: string;
+  previousValue?: string;
+  newValue?: string;
+  notes?: string;
+}
+
+export interface FinanceTransaction {
+  id: string;
+  transactionId: string;
+  date: string;
+  time?: string;
+  type: TransactionType;
+  category: string;
+  sourceModule:
+    | 'Student Fee Collection'
+    | 'Admissions'
+    | 'Payroll'
+    | 'Hostel'
+    | 'Transport'
+    | 'Library'
+    | 'Inventory'
+    | 'Vendor Management'
+    | 'Manual'
+    | 'Accounts';
+  referenceNumber: string;
+  referenceRecordId?: string;
+  description: string;
+  amount: number;
+  paymentMode: 'Cash' | 'Bank Transfer' | 'Cheque' | 'UPI' | 'Card' | 'DD' | 'Online';
+  account: FinancialAccountType;
+  branch: string;
+  academicYear: string;
+  status: 'Completed' | 'Pending' | 'Approved' | 'Cancelled' | 'Reversed';
+  createdBy: string;
+  approvedBy?: string;
+  attachments?: string[];
+  notes?: string;
+  auditTrail?: TransactionAuditLog[];
+}
+
+export interface FinancialAccount {
+  id: string;
+  accountName: string;
+  accountType: FinancialAccountType;
+  accountNumber?: string;
+  bankName?: string;
+  branchName?: string;
+  currentBalance: number;
+  currency: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface FinancialCategory {
+  id: string;
+  name: string;
+  type: TransactionType;
+  sourceModule?: string;
+  status: 'Active' | 'Inactive';
+  isSystem?: boolean;
+}
+
+export interface FinancialBudget {
+  id: string;
+  categoryName: string;
+  academicYear: string;
+  branch: string;
+  allocatedAmount: number;
+  consumedAmount: number;
+  remainingAmount: number;
+  status: 'Active' | 'Exceeded' | 'Closed';
 }
 
 // ==========================================

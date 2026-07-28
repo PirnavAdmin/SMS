@@ -9,6 +9,7 @@ import { FinanceDashboardView } from './FinanceDashboardView';
 import { FinanceMastersView } from './FinanceMastersView';
 import { FeeCollectionContainerView } from './FeeCollectionContainerView';
 import { FinanceReportsView } from './FinanceReportsView';
+import { TransactionsMasterLedgerView } from './TransactionsMasterLedgerView';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 
 interface FinanceContainerViewProps {
@@ -27,8 +28,9 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'masters', label: 'Finance Setup', icon: SlidersHorizontal },
+    { id: 'transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee },
+    { id: 'masters', label: 'Finance Setup', icon: SlidersHorizontal },
     { id: 'reports', label: 'Finance Reports', icon: FileSpreadsheet },
   ];
 
@@ -40,6 +42,10 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     switch (activeTab) {
       case 'dashboard':
         return <FinanceDashboardView />;
+      case 'transactions':
+      case 'ledger':
+      case 'master-ledger':
+        return <TransactionsMasterLedgerView />;
       case 'masters':
       case 'fee-heads':
       case 'fee-structure':
