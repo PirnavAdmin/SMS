@@ -12,6 +12,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 import { validateDOB } from '../../../utils/dateValidation';
 import { formatCurrency } from '../../../utils/currency';
+import { getHostelBlocks, getRooms, getRoomTypes, getAllocations, HostelBlock, HostelRoom, RoomType, BedAllocation } from '../../../api/hostel';
 
 interface AdmissionsViewProps {
   onSelectStudentProfile?: (student: Student) => void;
@@ -56,6 +57,34 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [selectedAppForView, setSelectedAppForView] = useState<AdmissionApplication | null>(null);
   const [confirmingApp, setConfirmingApp] = useState<{ app: AdmissionApplication; status: AdmissionApplication['status'] } | null>(null);
   const [feeSummaryStudentId, setFeeSummaryStudentId] = useState<string | null>(null);
+
+  // Dynamic Hostel States
+  const [dynamicHostelBlocks, setDynamicHostelBlocks] = useState<HostelBlock[]>([]);
+  const [dynamicHostelRooms, setDynamicHostelRooms] = useState<HostelRoom[]>([]);
+  const [dynamicRoomTypes, setDynamicRoomTypes] = useState<RoomType[]>([]);
+  const [dynamicAllocations, setDynamicAllocations] = useState<BedAllocation[]>([]);
+  const [loadingHostels, setLoadingHostels] = useState(false);
+
+  useEffect(() => {
+    if (isFormView) {
+      setLoadingHostels(true);
+      Promise.all([
+        getHostelBlocks(),
+        getRooms(),
+        getRoomTypes(),
+        getAllocations()
+      ]).then(([blocks, rooms, roomTypes, allocs]) => {
+        setDynamicHostelBlocks(blocks);
+        setDynamicHostelRooms(rooms);
+        setDynamicRoomTypes(roomTypes);
+        setDynamicAllocations(allocs);
+      }).catch(err => {
+        console.error("Failed to load dynamic hostel data:", err);
+      }).finally(() => {
+        setLoadingHostels(false);
+      });
+    }
+  }, [isFormView]);
 
   // Form Fields State
   const [firstName, setFirstName] = useState('');
@@ -855,16 +884,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <select
                         value={formData.hostelBlock}
                         onChange={e => {
-                          const blockRooms = roomMasters.filter(r => r.hostelId === e.target.value);
+                          const blockRooms = dynamicHostelRooms.filter(r => r.hostelId === Number(e.target.value));
                           const firstRoom = blockRooms[0];
                           let firstAvailBed = 'BED-1';
                           if (firstRoom) {
-                            const rtObj = roomTypeMasters.find(rt => rt.id === firstRoom.roomTypeId);
-                            const rCap = rtObj ? rtObj.capacity : (firstRoom.capacity || 2);
+                            const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === firstRoom.roomTypeId);
+                            const rCap = rtObj ? rtObj.bedCapacity : (firstRoom.bedCapacity || 2);
                             for (let i = 1; i <= rCap; i++) {
                               const bedName = `BED-${i}`;
-                              const isTaken = studentHostelAssignments.some(
-                                a => a.roomId === firstRoom.id && a.bedNo === bedName && a.status === 'Active'
+                              const isTaken = dynamicAllocations.some(
+                                a => a.roomId === firstRoom.roomId && a.bedNumber === bedName && a.status === 'Active'
                               );
                               if (!isTaken) {
                                 firstAvailBed = bedName;
@@ -875,13 +904,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           setFormData({
                             ...formData,
                             hostelBlock: e.target.value,
-                            hostelRoom: firstRoom?.id || '',
+                            hostelRoom: firstRoom ? firstRoom.roomId.toString() : '',
                             hostelBed: firstAvailBed
                           });
                         }}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
                       >
-                        {hostelMasters.map(b => <option key={b.id} value={b.id}>{b.hostelName} ({b.hostelType})</option>)}
+                        <option value="">Select Hostel Block</option>
+                        {dynamicHostelBlocks.map(b => <option key={b.hostelId} value={b.hostelId}>{b.hostelName} ({b.hostelType})</option>)}
                       </select>
                     </div>
                     <div>
@@ -889,16 +919,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <select
                         value={formData.hostelRoom}
                         onChange={e => {
-                          const selectedRoomId = e.target.value;
-                          const selectedRoomObj = roomMasters.find(r => r.id === selectedRoomId);
+                          const selectedRoomId = Number(e.target.value);
+                          const selectedRoomObj = dynamicHostelRooms.find(r => r.roomId === selectedRoomId);
                           let firstAvailBed = 'BED-1';
                           if (selectedRoomObj) {
-                            const rtObj = roomTypeMasters.find(rt => rt.id === selectedRoomObj.roomTypeId);
-                            const rCap = rtObj ? rtObj.capacity : (selectedRoomObj.capacity || 2);
+                            const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === selectedRoomObj.roomTypeId);
+                            const rCap = rtObj ? rtObj.bedCapacity : (selectedRoomObj.bedCapacity || 2);
                             for (let i = 1; i <= rCap; i++) {
                               const bedName = `BED-${i}`;
-                              const isTaken = studentHostelAssignments.some(
-                                a => a.roomId === selectedRoomId && a.bedNo === bedName && a.status === 'Active'
+                              const isTaken = dynamicAllocations.some(
+                                a => a.roomId === selectedRoomId && a.bedNumber === bedName && a.status === 'Active'
                               );
                               if (!isTaken) {
                                 firstAvailBed = bedName;
@@ -908,33 +938,34 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           }
                           setFormData({
                             ...formData,
-                            hostelRoom: selectedRoomId,
+                            hostelRoom: selectedRoomId.toString(),
                             hostelBed: firstAvailBed
                           });
                         }}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
                       >
-                        {roomMasters
-                          .filter(r => r.hostelId === formData.hostelBlock)
+                        <option value="">Select Room</option>
+                        {dynamicHostelRooms
+                          .filter(r => r.hostelId.toString() === formData.hostelBlock)
                           .map(r => {
-                            const rtObj = roomTypeMasters.find(rt => rt.id === r.roomTypeId);
-                            const rCap = rtObj ? rtObj.capacity : (r.capacity || 2);
-                            const rName = rtObj ? rtObj.roomTypeName : (r.roomTypeName || 'Standard Room');
+                            const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === r.roomTypeId);
+                            const rCap = rtObj ? rtObj.bedCapacity : (r.bedCapacity || 2);
+                            const rName = rtObj ? rtObj.roomTypeSpecification : (r.roomTypeSpecification || 'Standard Room');
                             const acLabel = rtObj?.acType || 'Non-AC';
-                            const occupied = studentHostelAssignments.filter(a => a.roomId === r.id && a.status === 'Active').length;
+                            const occupied = dynamicAllocations.filter(a => a.roomId === r.roomId && a.status === 'Active').length;
                             return (
-                              <option key={r.id} value={r.id} disabled={occupied >= rCap}>
+                              <option key={r.roomId} value={r.roomId} disabled={occupied >= rCap}>
                                 Room #{r.roomNumber} ({rName} - {acLabel}) {occupied >= rCap ? '[FULLY OCCUPIED]' : ''}
                               </option>
                             );
                           })}
                       </select>
                       {(() => {
-                        const selRoom = roomMasters.find(r => r.id === formData.hostelRoom);
+                        const selRoom = dynamicHostelRooms.find(r => r.roomId.toString() === formData.hostelRoom);
                         if (selRoom) {
-                          const rtObj = roomTypeMasters.find(rt => rt.id === selRoom.roomTypeId);
-                          const rCap = rtObj ? rtObj.capacity : (selRoom.capacity || 2);
-                          const occupied = studentHostelAssignments.filter(a => a.roomId === selRoom.id && a.status === 'Active').length;
+                          const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === selRoom.roomTypeId);
+                          const rCap = rtObj ? rtObj.bedCapacity : (selRoom.bedCapacity || 2);
+                          const occupied = dynamicAllocations.filter(a => a.roomId === selRoom.roomId && a.status === 'Active').length;
                           const avail = Math.max(0, rCap - occupied);
                           return (
                             <p className="text-[10px] text-slate-400 mt-1 font-bold">
@@ -953,14 +984,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 font-bold outline-none animate-in fade-in"
                       >
                         {(() => {
-                          const selRoom = roomMasters.find(r => r.id === formData.hostelRoom);
-                          const rtObj = selRoom ? roomTypeMasters.find(rt => rt.id === selRoom.roomTypeId) : null;
-                          const rCap = rtObj ? rtObj.capacity : (selRoom ? (selRoom.capacity || 2) : 2);
+                          const selRoom = dynamicHostelRooms.find(r => r.roomId.toString() === formData.hostelRoom);
+                          const rtObj = selRoom ? dynamicRoomTypes.find(rt => rt.roomTypeId === selRoom.roomTypeId) : null;
+                          const rCap = rtObj ? rtObj.bedCapacity : (selRoom ? (selRoom.bedCapacity || 2) : 2);
                           const beds = Array.from({ length: rCap }, (_, idx) => `BED-${idx + 1}`);
 
                           return beds.map(bed => {
-                            const isTaken = studentHostelAssignments.some(
-                              a => a.roomId === formData.hostelRoom && a.bedNo === bed && a.status === 'Active'
+                            const isTaken = dynamicAllocations.some(
+                              a => a.roomId.toString() === formData.hostelRoom && a.bedNumber === bed && a.status === 'Active'
                             ) || (admissions.some(
                               app => app.hostelRoom === formData.hostelRoom && app.hostelBed === bed && app.status === 'Pending' && app.id !== editingApp?.id
                             ));

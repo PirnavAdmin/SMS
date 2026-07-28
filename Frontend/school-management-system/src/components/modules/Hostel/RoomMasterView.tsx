@@ -1,95 +1,132 @@
-import React, { useState } from 'react';
-import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
-import { RoomMaster } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { getRooms, createRoom, updateRoom, deleteRoom, getHostelBlocks, getRoomTypes, HostelRoom, HostelBlock, RoomType } from '../../../api/hostel';
 
 export const RoomMasterView: React.FC = () => {
-  const { hostelMasters, roomTypeMasters, roomMasters, addRoomMaster, updateRoomMaster, deleteRoomMaster, studentHostelAssignments } = useData();
   const { addToast } = useToast();
+
+  const [rooms, setRooms] = useState<HostelRoom[]>([]);
+  const [blocks, setBlocks] = useState<HostelBlock[]>([]);
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  
+  const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHostel, setFilterHostel] = useState('All');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<RoomMaster | null>(null);
-  const [deletingRoom, setDeletingRoom] = useState<RoomMaster | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<HostelRoom | null>(null);
+  const [deletingRoom, setDeletingRoom] = useState<HostelRoom | null>(null);
 
-  const [form, setForm] = useState<Partial<RoomMaster>>({
-    hostelId: hostelMasters[0]?.id || '',
-    hostelName: hostelMasters[0]?.hostelName || '',
-    floor: '1st Floor',
-    roomNumber: '101',
-    roomTypeId: roomTypeMasters[0]?.id || '',
-    roomTypeName: roomTypeMasters[0]?.roomTypeName || '',
-    capacity: roomTypeMasters[0]?.capacity || 2,
-    status: 'Active'
-  });
+  const [formHostelId, setFormHostelId] = useState('');
+  const [formFloorLevel, setFormFloorLevel] = useState('1st Floor');
+  const [formRoomNumber, setFormRoomNumber] = useState('');
+  const [formRoomTypeId, setFormRoomTypeId] = useState('');
+  const [formStatus, setFormStatus] = useState('Active');
+
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [roomsData, blocksData, rtsData] = await Promise.all([
+        getRooms(),
+        getHostelBlocks(),
+        getRoomTypes()
+      ]);
+      setRooms(roomsData);
+      setBlocks(blocksData);
+      setRoomTypes(rtsData);
+
+      if (blocksData.length > 0) setFormHostelId(blocksData[0].hostelId.toString());
+      if (rtsData.length > 0) setFormRoomTypeId(rtsData[0].roomTypeId.toString());
+      
+    } catch (error: any) {
+      addToast('error', 'Failed to load room data', error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleOpenAdd = () => {
     setEditingRoom(null);
-    const defaultRt = roomTypeMasters[0];
-    setForm({
-      hostelId: hostelMasters[0]?.id || '',
-      hostelName: hostelMasters[0]?.hostelName || '',
-      floor: '1st Floor',
-      roomNumber: String(100 + Math.floor(1 + Math.random() * 90)),
-      roomTypeId: defaultRt?.id || '',
-      roomTypeName: defaultRt?.roomTypeName || 'Double Sharing',
-      capacity: defaultRt?.capacity || 2,
-      status: 'Active'
-    });
+    setFormRoomNumber('101');
+    setFormFloorLevel('1st Floor');
+    setFormStatus('Active');
+    
+    if (blocks.length > 0) setFormHostelId(blocks[0].hostelId.toString());
+    if (roomTypes.length > 0) setFormRoomTypeId(roomTypes[0].roomTypeId.toString());
+    
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (rm: RoomMaster) => {
+  const handleOpenEdit = (rm: HostelRoom) => {
     setEditingRoom(rm);
-    setForm(rm);
+    setFormHostelId(rm.hostelId.toString());
+    setFormFloorLevel(rm.floorLevel || '1st Floor');
+    setFormRoomNumber(rm.roomNumber || '');
+    setFormRoomTypeId(rm.roomTypeId.toString());
+    setFormStatus(rm.status || 'Active');
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.SyntheticEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.hostelId || !form.roomNumber) {
-      addToast('error', 'Validation Error', 'Please select hostel and enter room number');
+    if (!formHostelId || !formRoomNumber || !formRoomTypeId) {
+      addToast('error', 'Validation Error', 'Please complete all required fields');
       return;
     }
 
-    const hObj = hostelMasters.find(h => h.id === form.hostelId);
+    try {
+      setIsSubmitting(true);
+      const payload = {
+        hostelId: Number(formHostelId),
+        roomTypeId: Number(formRoomTypeId),
+        floorLevel: formFloorLevel,
+        roomNumber: formRoomNumber,
+        status: formStatus
+      };
 
-    const roomData = {
-      ...form,
-      hostelName: hObj?.hostelName || form.hostelName || 'Hostel Block',
-      roomTypeName: undefined,
-      capacity: undefined
-    };
-
-    if (editingRoom) {
-      updateRoomMaster(editingRoom.id, roomData);
-      addToast('success', 'Room Master Updated');
-    } else {
-      addRoomMaster(roomData as Omit<RoomMaster, 'id'>);
-      addToast('success', 'Room Master Created');
+      if (editingRoom) {
+        await updateRoom(editingRoom.roomId, payload);
+        addToast('success', 'Room Updated', `Room ${formRoomNumber} updated successfully.`);
+      } else {
+        await createRoom(payload);
+        addToast('success', 'Room Created', `Room ${formRoomNumber} created successfully.`);
+      }
+      setIsModalOpen(false);
+      fetchData(); // refresh grid
+    } catch (error: any) {
+      addToast('error', editingRoom ? 'Update Failed' : 'Creation Failed', error.message);
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsModalOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (deletingRoom) {
-      deleteRoomMaster(deletingRoom.id);
-      addToast('success', 'Room Master Deleted');
-      setDeletingRoom(null);
+      try {
+        await deleteRoom(deletingRoom.roomId);
+        addToast('success', 'Room Deleted', 'Room deleted successfully.');
+        fetchData();
+      } catch (error: any) {
+        addToast('error', 'Delete Failed', error.message);
+      } finally {
+        setDeletingRoom(null);
+      }
     }
   };
 
-  const filteredRooms = roomMasters.filter(rm => {
-    const rtObj = roomTypeMasters.find(rt => rt.id === rm.roomTypeId);
-    const rName = rtObj ? rtObj.roomTypeName : (rm.roomTypeName || '');
-    const matchQuery = rm.roomNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       rm.hostelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       rName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchHostel = filterHostel === 'All' || rm.hostelId === filterHostel;
+  const filteredRooms = rooms.filter(rm => {
+    const matchQuery = rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       rm.hostelName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       rm.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchHostel = filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
     return matchQuery && matchHostel;
   });
 
@@ -98,220 +135,161 @@ export const RoomMasterView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Home className="w-6 h-6 text-indigo-500" /> Room Master Management
+            <Home className="w-6 h-6 text-sky-500" /> Room Master Management
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Manage individual hostel rooms, floor levels, bed capacities, and dynamic live occupancy engine</p>
+          <p className="text-xs text-slate-500">Configure hostel rooms with strict hierarchy</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition-all"
+          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Room Record
+          <Plus className="w-4 h-4" /> Add New Room
         </button>
       </div>
 
-      {/* Search & Filter */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 justify-between">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder="Search room number, hostel, room type..."
+            placeholder="Search room number, hostel..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
 
-        <select
-          value={filterHostel}
-          onChange={e => setFilterHostel(e.target.value)}
-          className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none"
-        >
-          <option value="All">All Hostels ({hostelMasters.length})</option>
-          {hostelMasters.map(h => <option key={h.id} value={h.id}>{h.hostelName}</option>)}
-        </select>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <select
+            value={filterHostel}
+            onChange={e => setFilterHostel(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Hostels</option>
+            {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
+          </select>
+        </div>
       </div>
 
-      {/* Grid of Room Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredRooms.map(rm => {
-          const rtObj = roomTypeMasters.find(rt => rt.id === rm.roomTypeId);
-          const roomTypeName = rtObj ? rtObj.roomTypeName : (rm.roomTypeName || 'Standard Room');
-          const capacity = rtObj ? rtObj.capacity : (rm.capacity || 2);
-          const currentOccupancy = studentHostelAssignments.filter(a => (a.roomId === rm.id || a.roomNo === rm.roomNumber) && a.status === 'Active').length;
-          const availableBeds = Math.max(0, capacity - currentOccupancy);
-          const occupancyPct = Math.min(100, Math.round((currentOccupancy / capacity) * 100));
-
-          return (
-            <div key={rm.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg space-y-4">
-              <div className="flex items-start justify-between">
+      {loading ? (
+        <div className="py-12 text-center text-slate-400 font-bold">Loading rooms...</div>
+      ) : filteredRooms.length === 0 ? (
+        <div className="py-12 text-center text-slate-400 font-bold">No rooms found.</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredRooms.map(rm => (
+            <div key={rm.roomId} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-extrabold text-[10px]">
-                    {rm.floor}
-                  </span>
-                  <h3 className="font-black text-lg text-slate-900 dark:text-white mt-1">Room #{rm.roomNumber}</h3>
-                  <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">{rm.hostelName}</p>
+                  <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">Room #{rm.roomNumber}</span>
+                  <h3 className="font-black text-base text-slate-900 dark:text-white">{rm.hostelName}</h3>
                 </div>
-
-                {rm.status === 'Active' ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">Active</span>
-                ) : rm.status === 'Maintenance' ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px]">Maintenance</span>
-                ) : (
-                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 font-bold text-[10px]">Inactive</span>
-                )}
+                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                  {rm.roomTypeSpecification || 'Standard Room'}
+                </span>
               </div>
 
-              {/* Room Spec & Occupancy */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-2 text-xs">
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300">
-                  <span>Room Type:</span>
-                  <span className="text-slate-900 dark:text-white font-extrabold">{roomTypeName}</span>
-                </div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300">
-                  <span>Capacity / Occupancy:</span>
-                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{currentOccupancy} / {capacity} Beds</span>
-                </div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300">
-                  <span>Available Vacant Beds:</span>
-                  <span className={`font-black ${availableBeds > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                    {availableBeds} Vacant
-                  </span>
-                </div>
-
-                {/* Progress Indicator */}
-                <div className="space-y-1 pt-1">
-                  <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                    <div
-                      className={`h-full transition-all ${
-                        occupancyPct >= 100 ? 'bg-rose-500' : occupancyPct >= 75 ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
-                      style={{ width: `${occupancyPct}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold">
-                    <span>Occupancy Rate</span>
-                    <span>{occupancyPct}%</span>
-                  </div>
-                </div>
+              <div className="space-y-1.5 text-xs">
+                <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{rm.hostelName} → {rm.floorLevel}</strong></p>
+                <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{rm.occupiedBeds || 0} / {rm.bedCapacity} Beds Occupied</strong></p>
+                <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
               </div>
 
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-1 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                <button onClick={() => handleOpenEdit(rm)} className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-800">
-                  <Edit className="w-4 h-4" />
-                </button>
-                <button onClick={() => setDeletingRoom(rm)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                <button onClick={() => handleOpenEdit(rm)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
+                <button onClick={() => setDeletingRoom(rm)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="glass-card w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Home className="w-5 h-5 text-indigo-500" />
-              {editingRoom ? 'Edit Room Master' : 'Add Room Master'}
-            </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingRoom ? 'Edit Room' : 'Create Room'}</h3>
+              <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Block *</label>
+                <label className="block font-semibold mb-1">Select Hostel Block *</label>
                 <select
+                  value={formHostelId}
+                  onChange={e => setFormHostelId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  disabled={isSubmitting}
                   required
-                  value={form.hostelId}
-                  onChange={e => {
-                    const hObj = hostelMasters.find(h => h.id === e.target.value);
-                    setForm({ ...form, hostelId: e.target.value, hostelName: hObj?.hostelName || '' });
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
                 >
-                  {hostelMasters.map(h => (
-                    <option key={h.id} value={h.id}>{h.hostelName} ({h.hostelType})</option>
-                  ))}
+                  <option value="" disabled>Select Hostel Block</option>
+                  {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold mb-1">Floor Level *</label>
+                <select 
+                  value={formFloorLevel} 
+                  onChange={e => setFormFloorLevel(e.target.value)} 
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600"
+                  disabled={isSubmitting}
+                >
+                  <option value="Ground Floor">Ground Floor</option>
+                  <option value="1st Floor">1st Floor</option>
+                  <option value="2nd Floor">2nd Floor</option>
+                  <option value="3rd Floor">3rd Floor</option>
+                  <option value="4th Floor">4th Floor</option>
+                  <option value="5th Floor">5th Floor</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Floor Level *</label>
+                  <label className="block font-semibold mb-1">Room Number *</label>
                   <input
                     type="text"
                     required
-                    maxLength={30}
-                    placeholder="e.g. Ground Floor, 1st Floor"
-                    value={form.floor || ''}
-                    onChange={e => setForm({ ...form, floor: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
+                    value={formRoomNumber}
+                    onChange={e => setFormRoomNumber(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                    disabled={isSubmitting}
                   />
                 </div>
-
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Room Number *</label>
-                  <input
-                    type="text"
+                  <label className="block font-semibold mb-1">Room Category *</label>
+                  <select 
+                    value={formRoomTypeId} 
+                    onChange={e => setFormRoomTypeId(e.target.value)} 
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                    disabled={isSubmitting}
                     required
-                    placeholder="101"
-                    value={form.roomNumber}
-                    onChange={e => setForm({ ...form, roomNumber: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-                  />
+                  >
+                    <option value="" disabled>Select Type</option>
+                    {roomTypes.map(rt => <option key={rt.roomTypeId} value={rt.roomTypeId.toString()}>{rt.roomTypeSpecification} (Cap: {rt.bedCapacity})</option>)}
+                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Room Type *</label>
-                  <select
-                    value={form.roomTypeId}
-                    onChange={e => {
-                      const rtObj = roomTypeMasters.find(rt => rt.id === e.target.value);
-                      setForm({
-                        ...form,
-                        roomTypeId: e.target.value,
-                        roomTypeName: rtObj?.roomTypeName || '',
-                        capacity: rtObj ? rtObj.capacity : 2
-                      });
-                    }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-                  >
-                    {roomTypeMasters
-                      .filter(rt => rt.status === 'Active' || rt.id === form.roomTypeId)
-                      .map(rt => (
-                        <option key={rt.id} value={rt.id}>
-                          {rt.roomTypeName} ({rt.acType || 'Non-AC'})
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Status</label>
-                  <select
-                    value={form.status}
-                    onChange={e => setForm({ ...form, status: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Maintenance">Maintenance</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold mb-1">Status</label>
+                <select 
+                  value={formStatus} 
+                  onChange={e => setFormStatus(e.target.value)} 
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  disabled={isSubmitting}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                  <option value="Maintenance">Maintenance</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 font-bold">
-                  Cancel
-                </button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md shadow-indigo-500/20">
-                  Save Room Record
+                <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="px-5 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 disabled:opacity-50">
+                  {isSubmitting ? 'Saving...' : (editingRoom ? 'Update Room' : 'Save Room')}
                 </button>
               </div>
             </form>
@@ -322,10 +300,10 @@ export const RoomMasterView: React.FC = () => {
       {deletingRoom && (
         <ConfirmModal
           isOpen={true}
-          title="Delete Room Record"
-          message={`Are you sure you want to delete Room #${deletingRoom.roomNumber}?`}
-          onConfirm={handleDelete}
           onCancel={() => setDeletingRoom(null)}
+          onConfirm={handleDelete}
+          title="Delete Room"
+          message={`Delete room ${deletingRoom.roomNumber}?`}
         />
       )}
     </div>

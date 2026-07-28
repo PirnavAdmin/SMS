@@ -12,8 +12,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
 
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState('javvadivenkat999@gmail.com');
+  const [password, setPassword] = useState('venkat');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<UserRole>('Admin');
   

@@ -1,82 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UserCheck, Calendar, Search, Filter, Save, Home } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
-import { HostelAttendanceLog } from '../../../types';
+import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNightAttendance, HostelBlock, HostelRoom, BedAllocation, NightAttendanceRecord } from '../../../api/hostel';
 
 export const HostelAttendanceView: React.FC = () => {
-  const {
-    hostelMasters,
-    roomMasters,
-    roomTypeMasters,
-    studentHostelAssignments,
-    hostelAttendanceLogs,
-    recordHostelAttendance
-  } = useData();
-  
   const { addToast } = useToast();
 
+  const [blocks, setBlocks] = useState<HostelBlock[]>([]);
+  const [rooms, setRooms] = useState<HostelRoom[]>([]);
+  const [allocations, setAllocations] = useState<BedAllocation[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<NightAttendanceRecord[]>([]);
+  
+  const [loading, setLoading] = useState(true);
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedBlock, setSelectedBlock] = useState(hostelMasters[0]?.id || '');
+  const [selectedBlockId, setSelectedBlockId] = useState('');
   const [selectedFloor, setSelectedFloor] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState('');
-  const [selectedRoomType, setSelectedRoomType] = useState('All');
+  const [selectedRoomId, setSelectedRoomId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Dynamically query floors based on selected block
-  const floors = Array.from(
-    new Set(
-      roomMasters
-        .filter(rm => rm.hostelId === selectedBlock)
-        .map(rm => rm.floor)
-    )
-  ).sort();
+  const [attendanceState, setAttendanceState] = useState<Record<string, string>>({});
 
-  // Reset floor and room selections when block changes
-  useEffect(() => {
-    if (floors.length > 0) {
-      setSelectedFloor(floors[0]);
-    } else {
-      setSelectedFloor('');
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [blocksData, roomsData, allocationsData] = await Promise.all([
+        getHostelBlocks(),
+        getRooms(),
+        getAllocations()
+      ]);
+      setBlocks(blocksData);
+      setRooms(roomsData);
+      setAllocations(allocationsData);
+    } catch (error: any) {
+      addToast('error', 'Failed to load data', error.message);
+    } finally {
+      setLoading(false);
     }
-  }, [selectedBlock]);
+  }, [addToast]);
 
-  // Dynamically query rooms based on selected block & floor
-  const rooms = roomMasters.filter(
-    rm => rm.hostelId === selectedBlock && rm.floor === selectedFloor
-  );
-
-  // Reset room selection when floor changes
   useEffect(() => {
-    if (rooms.length > 0) {
-      setSelectedRoom(rooms[0].id);
-    } else {
-      setSelectedRoom('');
-    }
-  }, [selectedFloor, selectedBlock]);
+    fetchData();
+  }, [fetchData]);
 
-  // Resolve active room name/number
-  const activeRoomObj = roomMasters.find(rm => rm.id === selectedRoom);
+  // Fetch Attendance when Date or Block changes
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      if (selectedDate && selectedBlockId) {
+        try {
+          const records = await getNightAttendance(selectedDate, Number(selectedBlockId));
+          setAttendanceRecords(records);
+          
+          // Hydrate local state
+          const newState: Record<string, string> = {};
+          records.forEach(r => {
+            newState[r.studentId.toString()] = r.curfewStatus;
+          });
+          setAttendanceState(newState);
+        } catch (error: any) {
+          addToast('error', 'Failed to load attendance', error.message);
+        }
+      } else {
+        setAttendanceRecords([]);
+        setAttendanceState({});
+      }
+    };
+    fetchAttendance();
+  }, [selectedDate, selectedBlockId, addToast]);
 
-  // Query students assigned to this block -> floor -> room
-  const matchedAssignments = studentHostelAssignments.filter(a => {
+  // Derived filters
+  const floors = Array.from(new Set(rooms.filter(rm => rm.hostelId.toString() === selectedBlockId).map(rm => rm.floorLevel))).sort();
+  
+  useEffect(() => {
+    if (floors.length > 0) setSelectedFloor(floors[0]);
+    else setSelectedFloor('');
+  }, [selectedBlockId]); // only trigger when block changes
+
+  const filteredRooms = rooms.filter(rm => rm.hostelId.toString() === selectedBlockId && rm.floorLevel === selectedFloor);
+  
+  useEffect(() => {
+    if (filteredRooms.length > 0) setSelectedRoomId(filteredRooms[0].roomId.toString());
+    else setSelectedRoomId('');
+  }, [selectedFloor, selectedBlockId]);
+
+  const activeRoomObj = rooms.find(rm => rm.roomId.toString() === selectedRoomId);
+
+  const matchedAssignments = allocations.filter(a => {
     if (a.status !== 'Active') return false;
-    if (a.hostelId !== selectedBlock) return false;
+    if (a.hostelId.toString() !== selectedBlockId) return false;
     
-    // Match exact room
-    if (activeRoomObj && a.roomId !== activeRoomObj.id && a.roomNo !== activeRoomObj.roomNumber) {
-      return false;
-    } else if (!activeRoomObj && selectedRoom) {
-      return false;
-    }
+    if (activeRoomObj && a.roomId !== activeRoomObj.roomId) return false;
+    else if (!activeRoomObj && selectedRoomId) return false;
 
-    // Filter by Room Type if selected
-    if (selectedRoomType !== 'All') {
-      const room = roomMasters.find(r => r.id === a.roomId || r.roomNumber === a.roomNo);
-      if (!room || room.roomTypeId !== selectedRoomType) return false;
-    }
-
-    // Filter by search query (Name or Admission Number)
     if (searchQuery.trim() !== '') {
       const query = searchQuery.toLowerCase();
       const nameMatch = a.studentName.toLowerCase().includes(query);
@@ -87,26 +102,16 @@ export const HostelAttendanceView: React.FC = () => {
     return true;
   });
 
-  const [attendanceState, setAttendanceState] = useState<Record<string, 'Present' | 'Absent' | 'Leave'>>({});
-
-  const getAttendanceStatus = (studentId: string): 'Present' | 'Absent' | 'Leave' => {
-    if (attendanceState[studentId]) return attendanceState[studentId];
-    const existing = hostelAttendanceLogs.find(
-      a => a.studentId === studentId && a.date === selectedDate
-    );
-    if (existing) {
-      if (existing.status === 'Late') return 'Present'; // Map late back to present safely
-      return existing.status as 'Present' | 'Absent' | 'Leave';
-    }
-    return 'Present';
+  const getAttendanceStatus = (studentId: string): string => {
+    return attendanceState[studentId] || 'Present';
   };
 
-  const handleStatusChange = (studentId: string, status: 'Present' | 'Absent' | 'Leave') => {
+  const handleStatusChange = (studentId: string, status: string) => {
     setAttendanceState(prev => ({ ...prev, [studentId]: status }));
   };
 
-  const handleSaveAttendance = () => {
-    if (!selectedBlock || !selectedFloor || !selectedRoom) {
+  const handleSaveAttendance = async () => {
+    if (!selectedBlockId || !selectedFloor || !selectedRoomId) {
       addToast('error', 'Select Required Filters', 'Please select a Block, Floor, and Room first.');
       return;
     }
@@ -116,21 +121,24 @@ export const HostelAttendanceView: React.FC = () => {
       return;
     }
 
-    matchedAssignments.forEach(a => {
-      const currentSt = getAttendanceStatus(a.studentId);
-      recordHostelAttendance({
-        studentId: a.studentId,
-        studentName: a.studentName,
-        hostelId: a.hostelId,
-        hostelName: a.hostelName,
-        roomNo: a.roomNo,
-        date: selectedDate,
-        status: currentSt,
-        remarks: 'Night Roll Call'
-      });
-    });
+    const records = matchedAssignments.map(a => ({
+      allocationId: a.allocationId,
+      studentId: a.studentId,
+      curfewStatus: getAttendanceStatus(a.studentId.toString()),
+      remarks: 'Night Roll Call'
+    }));
 
-    addToast('success', 'Attendance Saved', `Hostel attendance saved for ${matchedAssignments.length} students.`);
+    try {
+      await saveNightAttendance({
+        date: selectedDate,
+        hostelId: Number(selectedBlockId),
+        floorLevel: selectedFloor,
+        records
+      });
+      addToast('success', 'Attendance Saved', `Hostel attendance saved for ${records.length} students.`);
+    } catch (error: any) {
+      addToast('error', 'Save Failed', error.message);
+    }
   };
 
   return (
@@ -151,14 +159,12 @@ export const HostelAttendanceView: React.FC = () => {
         </button>
       </div>
 
-      {/* Workflow Filter panel */}
       <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
         <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
           <Filter className="w-4 h-4 text-indigo-500" /> Step-wise Filter Workflow
         </h3>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {/* 1. Date Selector */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Date</label>
             <input
@@ -169,28 +175,26 @@ export const HostelAttendanceView: React.FC = () => {
             />
           </div>
 
-          {/* 2. Block Selector */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Block *</label>
             <select
-              value={selectedBlock}
-              onChange={e => setSelectedBlock(e.target.value)}
+              value={selectedBlockId}
+              onChange={e => setSelectedBlockId(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
             >
               <option value="">-- Choose Block --</option>
-              {hostelMasters.map(h => (
-                <option key={h.id} value={h.id}>{h.hostelName}</option>
+              {blocks.map(h => (
+                <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>
               ))}
             </select>
           </div>
 
-          {/* 3. Floor Selector */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Floor *</label>
             <select
               value={selectedFloor}
               onChange={e => setSelectedFloor(e.target.value)}
-              disabled={!selectedBlock}
+              disabled={!selectedBlockId}
               className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none disabled:opacity-50"
             >
               <option value="">-- Choose Floor --</option>
@@ -200,30 +204,23 @@ export const HostelAttendanceView: React.FC = () => {
             </select>
           </div>
 
-          {/* 4. Room Selector */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Select Room *</label>
             <select
-              value={selectedRoom}
-              onChange={e => setSelectedRoom(e.target.value)}
+              value={selectedRoomId}
+              onChange={e => setSelectedRoomId(e.target.value)}
               disabled={!selectedFloor}
               className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none disabled:opacity-50"
             >
               <option value="">-- Choose Room --</option>
-              {rooms.map(r => {
-                const rtObj = roomTypeMasters.find(rt => rt.id === r.roomTypeId);
-                const rName = rtObj ? rtObj.roomTypeName : (r.roomTypeName || 'Standard Room');
-                return (
-                  <option key={r.id} value={r.id}>Room {r.roomNumber} ({rName})</option>
-                );
-              })}
+              {filteredRooms.map(r => (
+                <option key={r.roomId} value={r.roomId.toString()}>Room {r.roomNumber} ({r.roomTypeSpecification})</option>
+              ))}
             </select>
           </div>
         </div>
 
-        {/* Dynamic Filters */}
         <div className="flex flex-col sm:flex-row gap-4 pt-2 border-t border-slate-100 dark:border-slate-800/80 items-center justify-between">
-          {/* Search Student */}
           <div className="relative w-full sm:max-w-xs">
             <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
             <input
@@ -234,25 +231,9 @@ export const HostelAttendanceView: React.FC = () => {
               className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
             />
           </div>
-
-          {/* Filter by Room Type */}
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs font-bold text-slate-500 shrink-0">Filter by Room Type:</span>
-            <select
-              value={selectedRoomType}
-              onChange={e => setSelectedRoomType(e.target.value)}
-              className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-            >
-              <option value="All">All Room Types</option>
-              {roomTypeMasters.map(rt => (
-                <option key={rt.id} value={rt.id}>{rt.roomTypeName}</option>
-              ))}
-            </select>
-          </div>
         </div>
       </div>
 
-      {/* Roll Call Table Section */}
       <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300 border-collapse">
@@ -267,7 +248,9 @@ export const HostelAttendanceView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {!selectedBlock || !selectedFloor || !selectedRoom ? (
+              {loading ? (
+                <tr><td colSpan={6} className="py-12 text-center text-slate-400 font-bold">Loading...</td></tr>
+              ) : !selectedBlockId || !selectedFloor || !selectedRoomId ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
                     Please complete the workflow filters to load room student directory.
@@ -281,21 +264,21 @@ export const HostelAttendanceView: React.FC = () => {
                 </tr>
               ) : (
                 matchedAssignments.map(a => {
-                  const currentSt = getAttendanceStatus(a.studentId);
+                  const currentSt = getAttendanceStatus(a.studentId.toString());
                   return (
-                    <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    <tr key={a.allocationId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{a.studentName}</td>
                       <td className="py-3 px-4 font-mono text-slate-500">{a.admissionNo}</td>
                       <td className="py-3 px-4 font-semibold text-indigo-600 dark:text-indigo-400">{a.hostelName}</td>
-                      <td className="py-3 px-4 font-black">Room #{a.roomNo}</td>
-                      <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">{a.bedNo}</td>
+                      <td className="py-3 px-4 font-black">Room #{a.roomNumber}</td>
+                      <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">{a.bedNumber}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center gap-1.5">
                           {(['Present', 'Absent', 'Leave'] as const).map(st => (
                             <button
                               key={st}
                               type="button"
-                              onClick={() => handleStatusChange(a.studentId, st)}
+                              onClick={() => handleStatusChange(a.studentId.toString(), st)}
                               className={`px-3.5 py-1.5 rounded-xl text-[11px] font-extrabold transition-all ${
                                 currentSt === st
                                   ? st === 'Present' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/25 scale-[1.02]' :
