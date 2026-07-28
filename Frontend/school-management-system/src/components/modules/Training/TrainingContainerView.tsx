@@ -443,14 +443,14 @@ export const TrainingContainerView: React.FC = () => {
             onClick={() => setIsAddAssessmentModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
           >
-            <FileCheck className="w-3.5 h-3.5" /> + Schedule Evaluation
+             Schedule Evaluation
           </button>
 
           <button
             onClick={() => setIsAddWorkshopModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
           >
-            <Plus className="w-3.5 h-3.5" />Create Workshop / FDP
+            Create Workshop / FDP
           </button>
         </div>
       </div>

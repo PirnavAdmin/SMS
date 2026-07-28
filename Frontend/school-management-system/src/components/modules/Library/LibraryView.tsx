@@ -80,7 +80,7 @@ export const LibraryView: React.FC = () => {
           </button>
           <button
             onClick={() => setIsAddBookOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-600 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" /> Add New Book
           </button>

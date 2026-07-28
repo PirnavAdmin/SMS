@@ -97,19 +97,19 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith('finance-')) {
-      return <FinanceContainerView initialTab={activeModule} />;
+      return <FinanceContainerView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     if (activeModule.startsWith('transport-')) {
-      return <TransportContainerView initialTab={activeModule} />;
+      return <TransportContainerView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     if (activeModule.startsWith('hostel-')) {
-      return <HostelContainerView initialTab={activeModule} />;
+      return <HostelContainerView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     if (activeModule.startsWith('uniform-')) {
-      return <UniformContainerView initialTab={activeModule} />;
+      return <UniformContainerView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     switch (activeModule) {
@@ -131,7 +131,7 @@ const MainLayout: React.FC = () => {
       case 'staff-payroll-structures':
       case 'staff-payroll-processing':
       case 'staff-payroll-payslips':
-        return <StaffPayrollView initialTab={activeModule as any} />;
+        return <StaffPayrollView initialTab={activeModule as any} onTabChange={setActiveModule} />;
       case 'staff-payslips':
         return <StaffPayslipView />;
       case 'admissions':
@@ -155,15 +155,15 @@ const MainLayout: React.FC = () => {
       case 'homework':
         return userRole === 'parent' || userRole === 'student' ? <ParentHomeworkView /> : <HomeworkView />;
       case 'fees':
-        return <FinanceContainerView initialTab="fee-collection" />;
+        return <FinanceContainerView initialTab="fee-collection" onTabChange={setActiveModule} />;
       case 'uniforms':
-        return <UniformContainerView initialTab="uniform-dashboard" />;
+        return <UniformContainerView initialTab="uniform-dashboard" onTabChange={setActiveModule} />;
       case 'library':
         return <LibraryView />;
       case 'transport':
-        return <TransportContainerView initialTab="transport-dashboard" />;
+        return <TransportContainerView initialTab="transport-dashboard" onTabChange={setActiveModule} />;
       case 'hostel':
-        return <HostelContainerView initialTab="hostel-dashboard" />;
+        return <HostelContainerView initialTab="hostel-dashboard" onTabChange={setActiveModule} />
       case 'inventory':
         return <InventoryView />;
       case 'communication':

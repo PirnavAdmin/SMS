@@ -439,7 +439,7 @@ export const EventsView: React.FC = () => {
             onClick={() => setIsAddHolidayModalOpen(true)}
             className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
           >
-            <Sparkles className="w-3.5 h-3.5" /> + Add Holiday
+           <Plus className="w-3.5 h-3.5" /> Add Holiday
           </button>
 
           <button

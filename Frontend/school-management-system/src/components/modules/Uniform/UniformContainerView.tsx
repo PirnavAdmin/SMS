@@ -7,9 +7,10 @@ import { UniformReportsView } from './UniformReportsView';
 
 interface UniformContainerViewProps {
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ initialTab = 'dashboard' }) => {
+export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
   const normalizedTab = initialTab.startsWith('uniform-') ? initialTab.replace('uniform-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
 
@@ -17,6 +18,11 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
     const cleanTab = initialTab.startsWith('uniform-') ? initialTab.replace('uniform-', '') : initialTab;
     setActiveTab(cleanTab);
   }, [initialTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onTabChange) onTabChange(`uniform-${tabId}`);
+  };
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -58,7 +64,7 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
             return (
               <button
                 key={t.id}
-                onClick={() => setActiveTab(t.id)}
+                onClick={() => handleTabChange(t.id)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-extrabold scale-[1.02]'

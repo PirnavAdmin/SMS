@@ -10,9 +10,10 @@ import { HostelReportsView } from './HostelReportsView';
 
 interface HostelContainerViewProps {
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard' }) => {
+export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
   const normalizedTab = initialTab.startsWith('hostel-') ? initialTab.replace('hostel-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
 
@@ -20,6 +21,11 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
     const cleanTab = initialTab.startsWith('hostel-') ? initialTab.replace('hostel-', '') : initialTab;
     setActiveTab(cleanTab);
   }, [initialTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onTabChange) onTabChange(`hostel-${tabId}`);
+  };
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -62,7 +68,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
             return (
               <button
                 key={t.id}
-                onClick={() => setActiveTab(t.id)}
+                onClick={() => handleTabChange(t.id)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                   isActive
                     ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-extrabold scale-[1.02]'

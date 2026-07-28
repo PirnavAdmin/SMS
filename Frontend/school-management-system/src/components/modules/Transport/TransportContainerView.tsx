@@ -12,9 +12,10 @@ import { TransportReportsView } from './TransportReportsView';
 
 interface TransportContainerViewProps {
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ initialTab = 'transport-dashboard' }) => {
+export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ initialTab = 'transport-dashboard', onTabChange }) => {
   const normalizedTab = initialTab.startsWith('transport-') ? initialTab : `transport-${initialTab}`;
   const [activeTab, setActiveTab] = useState(normalizedTab);
 
@@ -22,6 +23,11 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
     const cleanTab = initialTab.startsWith('transport-') ? initialTab : `transport-${initialTab}`;
     setActiveTab(cleanTab);
   }, [initialTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onTabChange) onTabChange(tabId);
+  };
 
   const tabs = [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -34,7 +40,7 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'transport-dashboard':
-        return <TransportDashboardView onNavigateToTrips={() => setActiveTab('transport-trips')} />;
+        return <TransportDashboardView onNavigateToTrips={() => handleTabChange('transport-trips')} />;
       case 'transport-trips':
         return <VehicleTripsView />;
       case 'transport-masters':
@@ -44,7 +50,7 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
       case 'transport-reports':
         return <TransportReportsView />;
       default:
-        return <TransportDashboardView onNavigateToTrips={() => setActiveTab('transport-trips')} />;
+        return <TransportDashboardView onNavigateToTrips={() => handleTabChange('transport-trips')} />;
     }
   };
 
@@ -58,7 +64,7 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
                 isActive
                   ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'

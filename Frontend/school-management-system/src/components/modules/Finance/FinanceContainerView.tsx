@@ -14,9 +14,10 @@ import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 
 interface FinanceContainerViewProps {
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard' }) => {
+export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
   const normalizedTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
   const [receiptToPrint, setReceiptToPrint] = useState<FeePayment | null>(null);
@@ -25,6 +26,11 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     const cleanTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
     setActiveTab(cleanTab);
   }, [initialTab]);
+
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    if (onTabChange) onTabChange(`finance-${tabId}`);
+  };
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -35,7 +41,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
   ];
 
   const handleCollectStudentFee = (student: Student) => {
-    setActiveTab('fee-collection');
+    handleTabChange('fee-collection');
   };
 
   const renderTabContent = () => {
@@ -82,7 +88,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
                 isActive
                   ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'

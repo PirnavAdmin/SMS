@@ -176,9 +176,10 @@ const AVAILABLE_DEDUCTIONS = [
 
 interface StaffPayrollViewProps {
   initialTab?: 'staff-payroll-config' | 'staff-payroll-structures' | 'staff-payroll-processing' | 'staff-payroll-payslips';
+  onTabChange?: (tab: string) => void;
 }
 
-export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }) => {
+export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, onTabChange }) => {
   const data = useData();
   const { user, role, selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -188,6 +189,31 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
     initialTab === 'staff-payroll-payslips' ? 'payslips' :
     'dashboard'
   );
+
+  useEffect(() => {
+    if (initialTab) {
+      setMainTab(
+        initialTab === 'staff-payroll-structures' ? 'structures' :
+        initialTab === 'staff-payroll-processing' ? 'processing' :
+        initialTab === 'staff-payroll-payslips' ? 'payslips' :
+        initialTab === 'staff-payroll-config' ? 'config' :
+        'dashboard'
+      );
+    }
+  }, [initialTab]);
+
+  const handleTabChange = (tabId: MainTab) => {
+    setMainTab(tabId);
+    if (onTabChange) {
+      const mappedId = tabId === 'dashboard' ? 'staff-payroll' :
+                       tabId === 'config' ? 'staff-payroll-config' :
+                       tabId === 'structures' ? 'staff-payroll-structures' :
+                       tabId === 'processing' ? 'staff-payroll-processing' :
+                       tabId === 'payslips' ? 'staff-payroll-payslips' :
+                       'staff-payroll';
+      onTabChange(mappedId);
+    }
+  };
   const [configTab, setConfigTab] = useState<ConfigTab>('general');
   const [payrollMonth, setPayrollMonth] = useState(monthName());
   const [department, setDepartment] = useState('All');
@@ -2652,7 +2678,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
           {(['dashboard', 'config', 'structures', 'processing', 'payslips', 'reports'] as MainTab[]).map(tab => (
             <button
               key={tab}
-              onClick={() => setMainTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`rounded-full px-3 py-1.5 font-bold text-[10px] capitalize transition-all ${
                 mainTab === tab
                   ? 'bg-white text-sky-700 shadow-sm dark:bg-slate-950'

@@ -89,9 +89,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'parent-fee-receipts', label: 'Receipt Register', icon: FileSpreadsheet }
   ] : [
     { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance-masters', label: 'Fee Configurator', icon: SlidersHorizontal },
+    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'finance-reports', label: 'Fee Reports', icon: FileSpreadsheet },
+    { id: 'finance-masters', label: 'Finance Setup', icon: SlidersHorizontal },
+    { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet },
   ];
 
   const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
@@ -168,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'communication', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Notifications' : 'Communication Hub', icon: Megaphone },
         { id: 'events', label: 'Events & Holidays', icon: Calendar },
-        { id: 'training', label: 'Staff Professional Development', icon: GraduationCap },
+        { id: 'training', label: 'Staff Training', icon: GraduationCap },
         { id: 'reports', label: 'School Reports', icon: BarChart3 },
         { id: 'users', label: 'Roles', icon: ShieldCheck },
         { id: 'settings', label: 'Settings', icon: Settings },
