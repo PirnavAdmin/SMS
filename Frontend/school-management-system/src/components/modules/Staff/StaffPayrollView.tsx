@@ -203,6 +203,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
   const [newCompAmount, setNewCompAmount] = useState<number | ''>('');
   const [newCompType, setNewCompType] = useState<'earnings' | 'deductions'>('earnings');
   const [activeReport, setActiveReport] = useState<'pf' | 'esi' | 'tds' | 'expense' | 'bank'>('expense');
+  const [editingConfigModal, setEditingConfigModal] = useState<PayrollConfiguration | null>(null);
+  const [isNewConfig, setIsNewConfig] = useState(false);
 
   const [processingStep, setProcessingStep] = useState(1);
   const [adjustmentEmployeeId, setAdjustmentEmployeeId] = useState<string | null>(null);
@@ -872,27 +874,218 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
     );
   };
 
+  const handleOpenAddConfig = () => {
+    const newConfig: PayrollConfiguration = {
+      id: 'PAY-CFG-' + Math.floor(1000 + Math.random() * 9000),
+      ...defaultConfig(selectedBranch, data.leaveTypes)
+    };
+    setEditingConfigModal(newConfig);
+    setIsNewConfig(true);
+  };
+
+  const handleOpenEditConfig = (config: PayrollConfiguration) => {
+    setEditingConfigModal({ ...config });
+    setIsNewConfig(false);
+  };
+
+  const handleInitializeDefaultConfig = () => {
+    const newConfig: PayrollConfiguration = {
+      id: 'PAY-CFG-' + Math.floor(1000 + Math.random() * 9000),
+      ...defaultConfig(selectedBranch, data.leaveTypes),
+      status: 'Active'
+    };
+    data.addPayrollConfiguration(newConfig);
+    addToast('success', 'Setup Complete', `Initialized default payroll configuration for ${selectedBranch}`);
+  };
+
+  const handleSaveGeneralConfig = () => {
+    if (!editingConfigModal) return;
+    if (!editingConfigModal.payrollName.trim()) {
+      addToast('error', 'Validation Error', 'Payroll Name is required.');
+      return;
+    }
+    if (isNewConfig) {
+      data.addPayrollConfiguration(editingConfigModal);
+      addToast('success', 'Configuration Added', `Created ${editingConfigModal.payrollName}`);
+    } else {
+      data.updatePayrollConfiguration(editingConfigModal.id, editingConfigModal);
+      addToast('success', 'Configuration Updated', `Updated ${editingConfigModal.payrollName}`);
+    }
+    setEditingConfigModal(null);
+  };
+
   const renderGeneral = () => (
     <div className="space-y-4">
-      <div className="flex justify-end"><Button variant="primary" onClick={() => data.addPayrollConfiguration(defaultConfig(selectedBranch, data.leaveTypes))} disabled={!canManage}><Plus className="w-4 h-4" /> Add Configuration</Button></div>
-      <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500"><tr><th className="p-3">Payroll</th><th className="p-3">Branch</th><th className="p-3">Financial Year</th><th className="p-3">Currency</th><th className="p-3">Effective</th><th className="p-3">Status</th><th className="p-3 text-right">Actions</th></tr></thead>
-          <tbody className="divide-y">
-            {data.payrollConfigurations.map(c => (
-              <tr key={c.id}>
-                <td className="p-3 font-bold">{c.payrollName}</td><td className="p-3">{c.branch}</td><td className="p-3">{c.financialYear}</td><td className="p-3">{c.currency}</td><td className="p-3">{c.effectiveFrom} to {c.effectiveTo || 'Open'}</td>
-                <td className="p-3"><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${c.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{c.status}</span></td>
-                <td className="p-3 text-right space-x-1">
-                  <Button onClick={() => data.updatePayrollConfiguration(c.id, { payrollName: `${c.payrollName} Updated` })} disabled={!canManage}><Pencil className="w-3.5 h-3.5" /></Button>
-                  {c.status === 'Active' ? <Button onClick={() => data.deactivatePayrollConfiguration(c.id)} disabled={!canManage}>Deactivate</Button> : <Button onClick={() => data.activatePayrollConfiguration(c.id)} disabled={!canManage}>Activate</Button>}
-                  <Button variant="danger" onClick={() => data.deletePayrollConfiguration(c.id)} disabled={!canManage}><Trash2 className="w-3.5 h-3.5" /></Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">General Configurations</h3>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={handleInitializeDefaultConfig} disabled={!canManage}>
+            <RotateCcw className="w-4 h-4 text-sky-600" /> Initialize Default Setup
+          </Button>
+          <Button variant="primary" onClick={handleOpenAddConfig} disabled={!canManage}>
+            <Plus className="w-4 h-4" /> Add Configuration
+          </Button>
+        </div>
       </div>
+
+      {data.payrollConfigurations.length === 0 ? (
+        <div className="rounded-2xl border border-sky-150 bg-sky-50/30 p-8 text-center dark:bg-slate-900 space-y-4 shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-950 text-sky-600">
+            <Settings className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-base font-black text-slate-800 dark:text-slate-100">No Payroll Configurations Found</h4>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              There is currently no payroll configuration defined for <strong>{selectedBranch}</strong>. Click below to initialize default setup or create a custom configuration.
+            </p>
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button variant="primary" onClick={handleInitializeDefaultConfig} disabled={!canManage}>
+              <RotateCcw className="w-4 h-4" /> Initialize Default Setup
+            </Button>
+            <Button variant="secondary" onClick={handleOpenAddConfig} disabled={!canManage}>
+              <Plus className="w-4 h-4" /> Custom Configuration
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+              <tr>
+                <th className="p-3">Payroll</th>
+                <th className="p-3">Branch</th>
+                <th className="p-3">Financial Year</th>
+                <th className="p-3">Currency</th>
+                <th className="p-3">Effective</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {data.payrollConfigurations.map(c => (
+                <tr key={c.id}>
+                  <td className="p-3 font-bold text-slate-800 dark:text-slate-200">{c.payrollName}</td>
+                  <td className="p-3">{c.branch}</td>
+                  <td className="p-3">{c.financialYear}</td>
+                  <td className="p-3">{c.currency}</td>
+                  <td className="p-3">{c.effectiveFrom} to {c.effectiveTo || 'Open'}</td>
+                  <td className="p-3">
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${c.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                      {c.status}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right space-x-1">
+                    <Button onClick={() => handleOpenEditConfig(c)} disabled={!canManage} title="Edit Configuration">
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    {c.status === 'Active' ? (
+                      <Button onClick={() => data.deactivatePayrollConfiguration(c.id)} disabled={!canManage}>Deactivate</Button>
+                    ) : (
+                      <Button onClick={() => data.activatePayrollConfiguration(c.id)} disabled={!canManage}>Activate</Button>
+                    )}
+                    <Button variant="danger" onClick={() => data.deletePayrollConfiguration(c.id)} disabled={!canManage} title="Delete Configuration">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {editingConfigModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-black text-slate-800 dark:text-slate-100">
+                {isNewConfig ? 'Add Payroll Configuration' : 'Edit Payroll Configuration'}
+              </h3>
+              <button
+                onClick={() => setEditingConfigModal(null)}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-3">
+              <Field label="Payroll Name">
+                <Input
+                  value={editingConfigModal.payrollName}
+                  onChange={e => setEditingConfigModal({ ...editingConfigModal, payrollName: e.target.value })}
+                  placeholder="e.g. Main Campus Payroll"
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Branch">
+                  <Input
+                    value={editingConfigModal.branch}
+                    onChange={e => setEditingConfigModal({ ...editingConfigModal, branch: e.target.value })}
+                    placeholder="Branch Name"
+                  />
+                </Field>
+                <Field label="Financial Year">
+                  <Select
+                    value={editingConfigModal.financialYear}
+                    onChange={e => setEditingConfigModal({ ...editingConfigModal, financialYear: e.target.value })}
+                  >
+                    <option value="2024-2025">2024-2025</option>
+                    <option value="2025-2026">2025-2026</option>
+                    <option value="2026-2027">2026-2027</option>
+                    <option value="2027-2028">2027-2028</option>
+                  </Select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Currency">
+                  <Select
+                    value={editingConfigModal.currency}
+                    onChange={e => setEditingConfigModal({ ...editingConfigModal, currency: e.target.value })}
+                  >
+                    <option value="INR">INR (₹)</option>
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                  </Select>
+                </Field>
+                <Field label="Status">
+                  <Select
+                    value={editingConfigModal.status}
+                    onChange={e => setEditingConfigModal({ ...editingConfigModal, status: e.target.value as any })}
+                  >
+                    <option value="Draft">Draft</option>
+                    <option value="Active">Active</option>
+                    <option value="Archived">Archived</option>
+                  </Select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Effective From">
+                  <Input
+                    type="date"
+                    value={editingConfigModal.effectiveFrom}
+                    onChange={e => setEditingConfigModal({ ...editingConfigModal, effectiveFrom: e.target.value })}
+                  />
+                </Field>
+                <Field label="Effective To">
+                  <Input
+                    type="date"
+                    value={editingConfigModal.effectiveTo || ''}
+                    onChange={e => setEditingConfigModal({ ...editingConfigModal, effectiveTo: e.target.value })}
+                  />
+                </Field>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t pt-4 border-slate-100 dark:border-slate-800">
+              <Button variant="secondary" onClick={() => setEditingConfigModal(null)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSaveGeneralConfig}>
+                <CheckCircle2 className="w-4 h-4" /> Save Configuration
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -928,9 +1121,27 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
   };
 
   const renderConfigDetails = () => {
-    if (!activeConfig) return null;
     if (configTab === 'general') return renderGeneral();
     if (configTab === 'components') return renderComponents();
+
+    if (!activeConfig) {
+      return (
+        <div className="rounded-2xl border border-sky-150 bg-sky-50/30 p-8 text-center dark:bg-slate-900 space-y-4 shadow-sm">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-950 text-sky-600">
+            <Settings className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="text-base font-black text-slate-800 dark:text-slate-100">No Active Payroll Configuration</h4>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              There is currently no active payroll configuration for <strong>{selectedBranch}</strong>. Initialize default setup to configure rules.
+            </p>
+          </div>
+          <Button variant="primary" onClick={handleInitializeDefaultConfig} disabled={!canManage}>
+            <RotateCcw className="w-4 h-4" /> Initialize Default Setup
+          </Button>
+        </div>
+      );
+    }
 
     const tabTitle = configTab.charAt(0).toUpperCase() + configTab.slice(1) + " Configuration";
 

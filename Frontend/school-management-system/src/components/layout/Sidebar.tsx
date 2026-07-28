@@ -107,6 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'parent-bus-info', label: 'Bus Route Details', icon: Bus }
   ] : [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'transport-trips', label: 'Vehicle Trips', icon: Bus },
     { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
     { id: 'transport-student-assignment', label: 'Student Transport Assignment', icon: UserPlus },
     { id: 'transport-reports', label: 'Transport Reports', icon: FileSpreadsheet },

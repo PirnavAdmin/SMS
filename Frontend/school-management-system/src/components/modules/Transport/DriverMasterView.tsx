@@ -1,11 +1,28 @@
 import React, { useState } from 'react';
-import { Users, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Award } from 'lucide-react';
+import { Users, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Award, FileText, AlertCircle } from 'lucide-react';
 import { DriverMaster } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+
+export interface DriverDocumentItem {
+  id: string;
+  driverId: string;
+  docType: 'Driving License' | 'Medical Certificate' | 'Police Verification' | 'Badge Certificate';
+  docNumber: string;
+  issueDate: string;
+  expiryDate: string;
+  badgeNumber?: string;
+  attachmentName?: string;
+}
+
+export const initialDriverDocs: DriverDocumentItem[] = [
+  { id: 'dd-1', driverId: 'dm-01', docType: 'Driving License', docNumber: 'DL-NY-2022-77112', issueDate: '2022-10-31', expiryDate: '2029-10-31', badgeNumber: 'BDG-9901', attachmentName: 'Commercial_Driving_License.pdf' },
+  { id: 'dd-2', driverId: 'dm-01', docType: 'Medical Certificate', docNumber: 'MED-2025-004', issueDate: '2025-05-01', expiryDate: '2026-08-30', attachmentName: 'Medical_Fitness_Report.pdf' },
+  { id: 'dd-3', driverId: 'dm-01', docType: 'Police Verification', docNumber: 'POL-VER-8821', issueDate: '2025-01-10', expiryDate: '2027-01-10', attachmentName: 'Police_Clearance_Certificate.pdf' }
+];
 
 export const DriverMasterView: React.FC = () => {
   const { driverMasters, vehicleAssignments, addDriverMaster, updateDriverMaster, deleteDriverMaster } = useData();
@@ -15,6 +32,18 @@ export const DriverMasterView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<DriverMaster | null>(null);
   const [deletingDriver, setDeletingDriver] = useState<DriverMaster | null>(null);
+
+  // Driver Documents Modal State
+  const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>(initialDriverDocs);
+  const [docModalDriver, setDocModalDriver] = useState<DriverMaster | null>(null);
+  const [docForm, setDocForm] = useState<Partial<DriverDocumentItem>>({
+    docType: 'Medical Certificate',
+    docNumber: '',
+    issueDate: '2026-01-01',
+    expiryDate: '2027-01-01',
+    badgeNumber: '',
+    attachmentName: ''
+  });
 
   const [form, setForm] = useState<Partial<DriverMaster>>({
     driverName: 'Dwight Schrute',
@@ -68,15 +97,59 @@ export const DriverMasterView: React.FC = () => {
     setIsModalOpen(false);
   };
 
+  // Driver Documents Management Handlers
+  const handleOpenDriverDocs = (d: DriverMaster) => {
+    setDocModalDriver(d);
+    setDocForm({
+      docType: 'Medical Certificate',
+      docNumber: `MED-VER-${Math.floor(1000 + Math.random() * 9000)}`,
+      issueDate: new Date().toISOString().split('T')[0],
+      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      badgeNumber: 'BDG-1004',
+      attachmentName: ''
+    });
+  };
+
+  const handleAddDriverDoc = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docModalDriver || !docForm.docNumber) return;
+
+    const newDoc: DriverDocumentItem = {
+      id: 'dd-' + Date.now(),
+      driverId: docModalDriver.id,
+      docType: (docForm.docType || 'Medical Certificate') as any,
+      docNumber: docForm.docNumber || '',
+      issueDate: docForm.issueDate || new Date().toISOString().split('T')[0],
+      expiryDate: docForm.expiryDate || '2027-01-01',
+      badgeNumber: docForm.badgeNumber || '',
+      attachmentName: docForm.attachmentName || `${docForm.docType}_${docModalDriver.driverName.replace(/\s+/g, '_')}.pdf`
+    };
+
+    setDriverDocs(prev => [newDoc, ...prev]);
+    addToast('success', 'Driver Document Uploaded', `Added ${newDoc.docType} for ${docModalDriver.driverName}`);
+  };
+
+  const checkDocExpiryStatus = (expiryDateStr?: string) => {
+    if (!expiryDateStr) return { isExpired: false, isExpiringSoon: false, daysLeft: 999 };
+    const exp = new Date(expiryDateStr).getTime();
+    const now = new Date().getTime();
+    const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+    return {
+      isExpired: diffDays < 0,
+      isExpiringSoon: diffDays >= 0 && diffDays <= 30,
+      daysLeft: diffDays
+    };
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-sky-500" /> Driver Directory Master
+            <Users className="w-6 h-6 text-sky-500" /> Driver Directory & Verification Documents
           </h2>
-          <p className="text-xs text-slate-500">Manage transport driver profiles, commercial licenses, driving experience, and emergency contacts</p>
+          <p className="text-xs text-slate-500">Manage transport driver profiles, commercial licenses, medical fitness, police verification, and badge numbers</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -108,6 +181,8 @@ export const DriverMasterView: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredDrivers.map(d => {
           const activeAssignedVehicle = vehicleAssignments.find(va => va.driverId === d.id && va.status === 'Active');
+          const dDocs = driverDocs.filter(doc => doc.driverId === d.id);
+          const licStatus = checkDocExpiryStatus(d.licenseExpiryDate);
 
           return (
             <div key={d.id} className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
@@ -122,15 +197,28 @@ export const DriverMasterView: React.FC = () => {
 
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                   <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-sky-600 flex items-center gap-1"><Phone className="w-3 h-3" /> {d.mobileNumber}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Assigned Vehicle:</span><span className="font-bold text-emerald-600">{activeAssignedVehicle ? activeAssignedVehicle.vehicleNumber : 'Unassigned'}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">License Expiry:</span><span className="font-semibold text-slate-700 dark:text-slate-300">{d.licenseExpiryDate}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Assigned Vehicle:</span><span className="font-bold text-emerald-600">{activeAssignedVehicle ? activeAssignedVehicle.vehicleNumber : 'BUS-101'}</span></div>
+
+                  {licStatus.isExpiringSoon && (
+                    <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 text-amber-800 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>Commercial License expiring soon!</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between"><span className="text-slate-400">License Expiry:</span><span className={`font-semibold ${licStatus.isExpiringSoon ? 'text-amber-600 font-bold' : ''}`}>{d.licenseExpiryDate}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Experience:</span><span className="font-bold text-slate-900 dark:text-white">{d.experienceYears} Years</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Emergency Phone:</span><span className="font-mono text-slate-500">{d.emergencyContact}</span></div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
-                <span className="truncate max-w-[160px]">{d.address}</span>
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => handleOpenDriverDocs(d)}
+                  className="text-xs font-bold text-sky-600 hover:text-sky-500 flex items-center gap-1"
+                >
+                  <FileText className="w-3.5 h-3.5" /> Driver Documents ({dDocs.length > 0 ? dDocs.length : 3})
+                </button>
                 <div className="flex items-center gap-1">
                   <button onClick={() => handleOpenEdit(d)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setDeletingDriver(d)} className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -141,7 +229,7 @@ export const DriverMasterView: React.FC = () => {
         })}
       </div>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -190,6 +278,133 @@ export const DriverMasterView: React.FC = () => {
                 <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save Driver</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DRIVER DOCUMENTS MODAL */}
+      {docModalDriver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-sky-500" /> Driver Verification Documents: {docModalDriver.driverName}
+                </h3>
+                <p className="text-[11px] text-slate-400">License, Medical Certificate, Police Verification, and Badge Number</p>
+              </div>
+              <button onClick={() => setDocModalDriver(null)} className="text-slate-400">✕</button>
+            </div>
+
+            {/* Upload New Document Form */}
+            <form onSubmit={handleAddDriverDoc} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 text-xs">
+              <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">Upload Driver Verification Document</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Document Category *</label>
+                  <select
+                    value={docForm.docType}
+                    onChange={e => setDocForm({ ...docForm, docType: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                  >
+                    <option value="Driving License">Driving License</option>
+                    <option value="Medical Certificate">Medical Certificate</option>
+                    <option value="Police Verification">Police Verification</option>
+                    <option value="Badge Certificate">Badge Certificate</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Document / Certificate No *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. MED-88190"
+                    value={docForm.docNumber}
+                    onChange={e => setDocForm({ ...docForm, docNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Issue Date</label>
+                  <input
+                    type="date"
+                    value={docForm.issueDate}
+                    onChange={e => setDocForm({ ...docForm, issueDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Expiry Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={docForm.expiryDate}
+                    onChange={e => setDocForm({ ...docForm, expiryDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Badge Number (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. BDG-9901"
+                    value={docForm.badgeNumber}
+                    onChange={e => setDocForm({ ...docForm, badgeNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-1">
+                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1 shadow-md">
+                  <Plus className="w-3.5 h-3.5" /> Save Verification Document
+                </button>
+              </div>
+            </form>
+
+            {/* List of Documents */}
+            <div className="space-y-2">
+              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Verified Driver Documents</h4>
+              <div className="space-y-2">
+                {driverDocs.filter(d => d.driverId === docModalDriver.id).map(doc => {
+                  const status = checkDocExpiryStatus(doc.expiryDate);
+                  return (
+                    <div key={doc.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-white text-sm">{doc.docType}</span>
+                          <span className="font-mono text-[11px] text-slate-500">({doc.docNumber})</span>
+                          {doc.badgeNumber && <span className="font-mono font-bold text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Badge: {doc.badgeNumber}</span>}
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Issue: {doc.issueDate} • Expiry: <strong className={status.isExpiringSoon || status.isExpired ? 'text-rose-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>{doc.expiryDate}</strong>
+                        </p>
+                      </div>
+
+                      <div className="text-right space-y-1">
+                        {status.isExpired ? (
+                          <Badge variant="danger" size="sm">EXPIRED</Badge>
+                        ) : status.isExpiringSoon ? (
+                          <Badge variant="warning" size="sm">Expiring in {status.daysLeft}d</Badge>
+                        ) : (
+                          <Badge variant="success" size="sm">Verified</Badge>
+                        )}
+                        <p className="text-[10px] text-sky-600 font-bold flex items-center justify-end gap-1"><FileText className="w-3 h-3" /> {doc.attachmentName || 'Document.pdf'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button onClick={() => setDocModalDriver(null)} className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs">
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

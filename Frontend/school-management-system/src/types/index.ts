@@ -294,6 +294,10 @@ export interface DailyAttendance {
   entityId: string;
   status: 'Present' | 'Absent' | 'Late' | 'HalfDay' | 'Leave';
   remarks?: string;
+  inTime?: string;
+  outTime?: string;
+  department?: string;
+  designation?: string;
 }
 
 export interface ExamSetup {
