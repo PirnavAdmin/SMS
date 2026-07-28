@@ -218,7 +218,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Monthly Gross Salary:</span>
-                    <span className="font-extrabold text-emerald-600">{formatCurrency(activeAssignment.monthlyGross || 0)}</span>
+                    <span className="font-extrabold text-brand-600">{formatCurrency(activeAssignment.monthlyGross || 0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Effective Date:</span>
@@ -241,7 +241,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                   <h4 className="font-bold text-slate-900 dark:text-white pb-2 border-b border-slate-200 dark:border-slate-700">Structure Components</h4>
                   <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
                     {structure.earnings.map(e => (
-                      <div key={e.name} className="flex justify-between text-[11px]"><span className="text-slate-400">{e.name}:</span><span className="font-semibold text-emerald-600">+{formatCurrency(e.amount)}</span></div>
+                      <div key={e.name} className="flex justify-between text-[11px]"><span className="text-slate-400">{e.name}:</span><span className="font-semibold text-brand-600">+{formatCurrency(e.amount)}</span></div>
                     ))}
                     {structure.deductions.map(d => (
                       <div key={d.name} className="flex justify-between text-[11px]"><span className="text-slate-400">{d.name}:</span><span className="font-semibold text-rose-500">-{formatCurrency(d.amount)}</span></div>
@@ -278,7 +278,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                       <td className="py-2.5 px-3 font-semibold">{h.effectiveDate}</td>
                       <td className="py-2.5 px-3">{h.salaryStructureName}</td>
                       <td className="py-2.5 px-3 text-right text-slate-400">{h.previousGross ? formatCurrency(h.previousGross) : '—'}</td>
-                      <td className="py-2.5 px-3 text-right font-bold text-emerald-600">{formatCurrency(h.monthlyGross || 0)}</td>
+                      <td className="py-2.5 px-3 text-right font-bold text-brand-600">{formatCurrency(h.monthlyGross || 0)}</td>
                       <td className="py-2.5 px-3 text-slate-400">{h.updatedBy || 'System'}</td>
                       <td className="py-2.5 px-3 text-slate-500 italic max-w-[120px] truncate" title={h.reason}>{h.reason || '—'}</td>
                     </tr>
@@ -296,7 +296,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 w-full max-w-2xl h-full flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white relative">
+        <div className="p-6 bg-gradient-to-r from-brand-600 to-indigo-600 text-white relative">
           <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white">
             <X className="w-5 h-5" />
           </button>
@@ -320,7 +320,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                 <h2 className="text-xl font-bold">{staff.firstName} {staff.lastName}</h2>
                 <Badge variant="success" size="sm">{staff.status}</Badge>
               </div>
-              <p className="text-xs text-emerald-100">{staff.designation} • {staff.department} • Emp ID: {staff.empId}</p>
+              <p className="text-xs text-brand-100">{staff.designation} • {staff.department} • Emp ID: {staff.empId}</p>
             </div>
           </div>
         </div>
@@ -330,7 +330,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
           <button
             onClick={() => setActiveTab('info')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'info' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm' : 'text-slate-500'
+              activeTab === 'info' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
             }`}
           >
             Personal & HR Info
@@ -338,7 +338,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
           <button
             onClick={() => setActiveTab('docs')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'docs' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm' : 'text-slate-500'
+              activeTab === 'docs' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
             }`}
           >
             Employee Documents ({staff.documents?.length || 0})
@@ -346,7 +346,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
           <button
             onClick={() => setActiveTab('bank')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'bank' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm' : 'text-slate-500'
+              activeTab === 'bank' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
             }`}
           >
             Bank Account Info
@@ -355,7 +355,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
             type="button"
             onClick={() => setActiveTab('payroll')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'payroll' ? 'bg-white dark:bg-slate-900 text-emerald-600 shadow-sm' : 'text-slate-500'
+              activeTab === 'payroll' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
             }`}
           >
             Payroll & History
@@ -377,7 +377,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                 {(staff.employeeCategory === 'Teacher' || staff.role === 'Teacher') && (
                   <>
                     <div className="col-span-2 border-t border-slate-100 dark:border-slate-800 pt-2 grid grid-cols-2 gap-4">
-                      <div><span className="text-slate-400">Primary Subject:</span> <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{staff.primarySubject || (staff.assignedSubjects?.[0]) || 'Mathematics'}</p></div>
+                      <div><span className="text-slate-400">Primary Subject:</span> <p className="font-bold text-brand-600 dark:text-brand-400 mt-0.5">{staff.primarySubject || (staff.assignedSubjects?.[0]) || 'Mathematics'}</p></div>
                       <div><span className="text-slate-400">Secondary Subject:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.secondarySubject || 'None'}</p></div>
                       <div><span className="text-slate-400">Specialization:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.specialization || 'Algebra & Calculus'}</p></div>
                       <div><span className="text-slate-400">Class Teacher Eligible:</span> <p className="font-bold text-slate-900 dark:text-white mt-0.5">{staff.isClassTeacherEligible !== false ? 'Yes' : 'No'}</p></div>
@@ -397,7 +397,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                 <h3 className="font-bold uppercase text-slate-400 text-[11px]">HR Verification Documents</h3>
                 <button
                   onClick={() => setIsAddDocOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-brand-600 text-white font-bold flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" /> Upload Document
                 </button>
@@ -410,7 +410,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                   staff.documents.map(doc => (
                     <div key={doc.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <FileText className="w-5 h-5 text-emerald-600" />
+                        <FileText className="w-5 h-5 text-brand-600" />
                         <div>
                           <p className="font-bold text-slate-900 dark:text-white">{doc.title}</p>
                           <p className="text-[10px] text-slate-400">{doc.type} • Uploaded {doc.uploadedDate}</p>
@@ -466,7 +466,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
                 </div>
                 <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
                   <span className="text-slate-400">IFSC Code:</span>
-                  <span className="font-mono font-bold text-emerald-600">{staff.bankDetails?.ifscCode}</span>
+                  <span className="font-mono font-bold text-brand-600">{staff.bankDetails?.ifscCode}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">UPI ID:</span>
@@ -518,7 +518,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff, i
 
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddDocOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-emerald-600 text-white rounded-xl">Save Document</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-brand-600 text-white rounded-xl">Save Document</button>
               </div>
             </form>
           </div>

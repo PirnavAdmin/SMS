@@ -356,7 +356,7 @@ export const LeaveManagementView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-6 h-6 text-emerald-600" /> Leave Management
+            <FileText className="w-6 h-6 text-brand-600" /> Leave Management
           </h2>
           <p className="text-xs text-slate-500">Configure leave settings, monitor balances, process approvals, and manage school calendars</p>
         </div>
@@ -364,7 +364,7 @@ export const LeaveManagementView: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => { setEditingApplication(null); resetApplyForm(); setIsApplyOpen(true); }}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" /> Submit Leave Application
           </button>
@@ -382,8 +382,8 @@ export const LeaveManagementView: React.FC = () => {
           <p className="text-lg font-black text-amber-600 mt-1">{pendingCount} Applications</p>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-emerald-500">Approved Leaves</span>
-          <p className="text-lg font-black text-emerald-600 mt-1">{approvedCount} Leaves</p>
+          <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
+          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} Leaves</p>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
@@ -396,7 +396,7 @@ export const LeaveManagementView: React.FC = () => {
         <button
           onClick={() => setActiveTab('applications')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'applications' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:bg-slate-50'
+            activeTab === 'applications' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           Leave Applications
@@ -404,7 +404,7 @@ export const LeaveManagementView: React.FC = () => {
         <button
           onClick={() => setActiveTab('types')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'types' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:bg-slate-50'
+            activeTab === 'types' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           Leave Types Master
@@ -412,7 +412,7 @@ export const LeaveManagementView: React.FC = () => {
         <button
           onClick={() => setActiveTab('balance')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'balance' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:bg-slate-50'
+            activeTab === 'balance' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           Leave Balance
@@ -421,7 +421,7 @@ export const LeaveManagementView: React.FC = () => {
           <button
             onClick={() => setActiveTab('queue')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all relative ${
-              activeTab === 'queue' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:bg-slate-50'
+              activeTab === 'queue' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
             }`}
           >
             Approval Queue
@@ -435,7 +435,7 @@ export const LeaveManagementView: React.FC = () => {
         <button
           onClick={() => setActiveTab('holidays')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'holidays' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : 'text-slate-500 hover:bg-slate-50'
+            activeTab === 'holidays' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
           Holiday Calendar
@@ -527,7 +527,7 @@ export const LeaveManagementView: React.FC = () => {
                             <button onClick={() => setViewingApplication(app)} className="p-1 rounded hover:bg-slate-100 text-slate-500" title="View Details">
                               <Eye className="w-4 h-4" />
                             </button>
-                            <button onClick={() => handlePrintApplication(app)} className="p-1 rounded hover:bg-slate-100 text-emerald-600" title="Print Request">
+                            <button onClick={() => handlePrintApplication(app)} className="p-1 rounded hover:bg-slate-100 text-brand-600" title="Print Request">
                               <Printer className="w-4 h-4" />
                             </button>
                             {app.status === 'Pending' && (
@@ -558,7 +558,7 @@ export const LeaveManagementView: React.FC = () => {
             <h3 className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">Leave Category Configuration</h3>
             <button
               onClick={() => { setEditingType(null); setIsTypeModalOpen(true); }}
-              className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-brand-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" /> Configure Leave Type
             </button>
@@ -579,7 +579,7 @@ export const LeaveManagementView: React.FC = () => {
                   <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800">{t.annualAllowance} Days/yr</span></div>
                   <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800">{t.carryForward ? 'Yes' : 'No'}</span></div>
                   <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800">{t.maxConsecutiveDays} Days</span></div>
-                  <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-emerald-600' : 'text-amber-600'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
+                  <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600' : 'text-amber-600'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
                 </div>
 
                 <div className="flex justify-end gap-2 pt-3 border-t opacity-0 group-hover:opacity-100 transition-opacity">
@@ -639,7 +639,7 @@ export const LeaveManagementView: React.FC = () => {
                         <td className="py-3 px-4 font-mono font-bold text-slate-700">{bal.casual} Days</td>
                         <td className="py-3 px-4 font-mono font-bold text-slate-700">{bal.sick} Days</td>
                         <td className="py-3 px-4 font-mono font-bold text-slate-700">{bal.paid} Days</td>
-                        <td className="py-3 px-4 font-mono font-black text-emerald-600">{totalRemaining} Days</td>
+                        <td className="py-3 px-4 font-mono font-black text-brand-600">{totalRemaining} Days</td>
                       </tr>
                     );
                   })}
@@ -686,7 +686,7 @@ export const LeaveManagementView: React.FC = () => {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => { setSelectedQueueApp(app); setQueueActionType('Approved'); }}
-                              className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg"
+                              className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 font-bold rounded-lg"
                             >
                               Approve
                             </button>
@@ -720,7 +720,7 @@ export const LeaveManagementView: React.FC = () => {
             <h3 className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">Holidays Calendar</h3>
             <button
               onClick={() => { setEditingHoliday(null); setIsHolidayModalOpen(true); }}
-              className="px-3 py-1.5 bg-emerald-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-brand-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" /> Add Holiday
             </button>
@@ -773,7 +773,7 @@ export const LeaveManagementView: React.FC = () => {
             
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-emerald-600" />
+                <Calendar className="w-5 h-5 text-brand-600" />
                 {editingApplication ? 'Edit Leave Application' : 'Apply For Leave'}
               </h3>
               <button onClick={() => setIsApplyOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><XCircle className="w-5 h-5" /></button>
@@ -800,7 +800,7 @@ export const LeaveManagementView: React.FC = () => {
                   <div><span className="text-slate-400">Branch:</span> <span className="font-bold">{(selectedStaffMember as any).branch || 'Main Campus'}</span></div>
                   <div><span className="text-slate-400">Department:</span> <span className="font-bold">{selectedStaffMember.department}</span></div>
                   <div><span className="text-slate-400">Designation:</span> <span className="font-bold">{selectedStaffMember.designation}</span></div>
-                  <div className="col-span-2 pt-1.5 mt-1 border-t text-emerald-700 font-bold flex gap-3">
+                  <div className="col-span-2 pt-1.5 mt-1 border-t text-brand-700 font-bold flex gap-3">
                     <span>Casual Leave: {selectedStaffMember.leaveBalance?.casual || 0}</span>
                     <span>Sick Leave: {selectedStaffMember.leaveBalance?.sick || 0}</span>
                     <span>Paid Leave: {selectedStaffMember.leaveBalance?.paid || 0}</span>
@@ -860,7 +860,7 @@ export const LeaveManagementView: React.FC = () => {
                         toDate: checked ? applyForm.fromDate : applyForm.toDate
                       });
                     }}
-                    className="rounded text-emerald-600"
+                    className="rounded text-brand-600"
                   />
                   <span>Apply Half Day Leave</span>
                 </label>
@@ -896,7 +896,7 @@ export const LeaveManagementView: React.FC = () => {
                 </span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                  <button type="submit" className="px-5 py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md">
+                  <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-md">
                     {editingApplication ? 'Save Changes' : 'Submit Leave Request'}
                   </button>
                 </div>
@@ -933,7 +933,7 @@ export const LeaveManagementView: React.FC = () => {
               <button
                 type="button"
                 onClick={handleContinueAsLop}
-                className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md"
+                className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-md"
               >
                 Continue as LOP
               </button>
@@ -976,7 +976,7 @@ export const LeaveManagementView: React.FC = () => {
                 <button
                   type="submit"
                   className={`px-4 py-2 text-xs font-bold text-white rounded-xl ${
-                    queueActionType === 'Approved' ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-rose-600 hover:bg-rose-500'
+                    queueActionType === 'Approved' ? 'bg-brand-600 hover:bg-brand-500' : 'bg-rose-600 hover:bg-rose-500'
                   }`}
                 >
                   Confirm {queueActionType}
@@ -1021,7 +1021,7 @@ export const LeaveManagementView: React.FC = () => {
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => handlePrintApplication(viewingApplication)} className="px-4 py-2 text-xs bg-emerald-50 text-emerald-700 font-bold rounded-xl flex items-center gap-1">
+              <button onClick={() => handlePrintApplication(viewingApplication)} className="px-4 py-2 text-xs bg-brand-50 text-brand-700 font-bold rounded-xl flex items-center gap-1">
                 <Printer className="w-3.5 h-3.5" /> Print Slip
               </button>
               <button onClick={() => setViewingApplication(null)} className="px-4 py-2 text-xs bg-slate-100 font-semibold rounded-xl">Close</button>
@@ -1101,7 +1101,7 @@ export const LeaveManagementView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsTypeModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-emerald-600 rounded-xl">Save Configuration</button>
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 rounded-xl">Save Configuration</button>
               </div>
             </form>
           </div>
@@ -1152,7 +1152,7 @@ export const LeaveManagementView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsHolidayModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-emerald-600 rounded-xl">Save Holiday</button>
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 rounded-xl">Save Holiday</button>
               </div>
             </form>
           </div>

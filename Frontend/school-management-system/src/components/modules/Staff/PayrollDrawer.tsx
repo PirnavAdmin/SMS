@@ -41,7 +41,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 w-full max-w-lg h-full flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white relative">
+        <div className="p-6 bg-gradient-to-r from-brand-600 to-indigo-600 text-white relative">
           <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white">
             <X className="w-5 h-5" />
           </button>
@@ -49,7 +49,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
             <img src={staff.avatar} alt="" className="w-14 h-14 rounded-2xl object-cover ring-4 ring-white/20" />
             <div>
               <h2 className="text-xl font-bold">{staff.firstName} {staff.lastName}</h2>
-              <p className="text-xs text-emerald-100">{staff.designation} • Emp ID: {staff.empId}</p>
+              <p className="text-xs text-brand-100">{staff.designation} • Emp ID: {staff.empId}</p>
             </div>
           </div>
         </div>
@@ -59,19 +59,19 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
           {/* Salary Breakdown Card */}
           <div className="glass-card p-5 rounded-2xl space-y-3">
             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <IndianRupee className="w-4 h-4 text-emerald-600" /> Monthly Salary Breakdown
+              <IndianRupee className="w-4 h-4 text-brand-600" /> Monthly Salary Breakdown
             </h3>
             <div className="space-y-2 pt-1 border-t border-slate-100 dark:border-slate-800">
               <div className="flex justify-between"><span className="text-slate-500">Basic Salary:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(basicSalary)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">House Rent Allowance (HRA 20%):</span><span className="font-semibold text-emerald-600">+{formatCurrency(hra)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-500">Dearness Allowance (DA 10%):</span><span className="font-semibold text-emerald-600">+{formatCurrency(da)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">House Rent Allowance (HRA 20%):</span><span className="font-semibold text-brand-600">+{formatCurrency(hra)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Dearness Allowance (DA 10%):</span><span className="font-semibold text-brand-600">+{formatCurrency(da)}</span></div>
               <div className="flex justify-between"><span className="text-slate-500">Provident Fund Deduction (PF 8%):</span><span className="font-semibold text-rose-500">-{formatCurrency(pfDeduction)}</span></div>
               {lopDays > 0 && (
                 <div className="flex justify-between"><span className="text-rose-500 font-semibold">Loss of Pay Deduction ({lopDays} days):</span><span className="font-semibold text-rose-500">-{formatCurrency(lopDeduction)}</span></div>
               )}
               <div className="pt-2 border-t border-slate-200 dark:border-slate-700 flex justify-between text-sm font-black">
                 <span className="text-slate-900 dark:text-white">Net Salary Disbursal:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(netSalary)}</span>
+                <span className="text-brand-600 dark:text-brand-400">{formatCurrency(netSalary)}</span>
               </div>
             </div>
           </div>
@@ -100,7 +100,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
         {/* Footer Actions */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <button onClick={onClose} className="px-4 py-2 font-semibold text-slate-700 dark:text-slate-300 rounded-xl">Close</button>
-          <button onClick={handleProcessPayroll} className="px-5 py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-md flex items-center gap-2">
+          <button onClick={handleProcessPayroll} className="px-5 py-2 font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-md flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4" /> Disburse Salary
           </button>
         </div>

@@ -191,13 +191,14 @@ const MainLayout: React.FC = () => {
 
       <Header
         collapsed={collapsed}
+        setCollapsed={setCollapsed}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenChangePass={() => setChangePassOpen(true)}
       />
 
       <main
-        className={`pt-20 pb-12 px-4 sm:px-8 transition-all duration-300 ${
-          collapsed ? 'pl-24' : 'pl-24 sm:pl-72'
+        className={`pt-20 pb-12 px-4 sm:px-6 transition-all duration-300 ${
+          collapsed ? 'ml-20' : 'ml-64'
         }`}
       >
         {renderModuleContent()}

@@ -104,7 +104,7 @@ export const StaffPayslipView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-6 h-6 text-emerald-600" /> Employee Payslips Registry
+            <FileText className="w-6 h-6 text-brand-600" /> Employee Payslips Registry
           </h2>
           <p className="text-xs text-slate-500">Search and print historical salary slips disbursed to school staff members</p>
         </div>
@@ -163,12 +163,12 @@ export const StaffPayslipView: React.FC = () => {
                   <td className="py-3.5 px-4 font-semibold text-slate-700">{p.month}</td>
                   <td className="py-3.5 px-4 font-mono text-slate-600">{p.bankAccount}</td>
                   <td className="py-3.5 px-4">{p.disbursedDate}</td>
-                  <td className="py-3.5 px-4 font-mono font-black text-emerald-600 text-sm">{formatCurrency(p.netSalary)}</td>
-                  <td className="py-3.5 px-4"><span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px]">Released</span></td>
+                  <td className="py-3.5 px-4 font-mono font-black text-brand-600 text-sm">{formatCurrency(p.netSalary)}</td>
+                  <td className="py-3.5 px-4"><span className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 font-bold text-[10px]">Released</span></td>
                   <td className="py-3.5 px-4 text-right">
                     <button
                       onClick={() => handlePrint(p)}
-                      className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold rounded-lg flex items-center gap-1 transition-all inline-flex align-middle"
+                      className="px-2.5 py-1.5 bg-brand-50 text-brand-700 hover:bg-brand-100 font-bold rounded-lg flex items-center gap-1 transition-all inline-flex align-middle"
                     >
                       <Printer className="w-3.5 h-3.5" /> Print Payslip
                     </button>

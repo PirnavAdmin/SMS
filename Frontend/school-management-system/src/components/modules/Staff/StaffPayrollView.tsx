@@ -649,7 +649,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="p-5 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between space-y-3">
             <span className="block text-slate-400 font-bold uppercase text-[9px] tracking-wider">Total Net Salary Disbursed</span>
-            <span className="text-2xl font-black text-emerald-600 font-mono">{formatCurrency(totalNetDisbursed)}</span>
+            <span className="text-2xl font-black text-brand-600 font-mono">{formatCurrency(totalNetDisbursed)}</span>
             <span className="text-[10px] text-slate-400">Month: {payrollMonth} ({currentMonthPayslips.length} slips)</span>
           </div>
           <div className="p-5 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between space-y-3">
@@ -688,11 +688,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                     <div key={dept} className="space-y-1">
                       <div className="flex justify-between font-bold text-[10px]">
                         <span className="text-slate-700 dark:text-slate-300">{dept} ({data.count} employees)</span>
-                        <span className="font-mono text-emerald-600">{formatCurrency(data.net)}</span>
+                        <span className="font-mono text-brand-600">{formatCurrency(data.net)}</span>
                       </div>
                       <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-3.5 overflow-hidden">
                         <div
-                          className="bg-gradient-to-r from-emerald-500 to-sky-500 h-full rounded-full transition-all duration-500"
+                          className="bg-gradient-to-r from-brand-500 to-sky-500 h-full rounded-full transition-all duration-500"
                           style={{ width: `${pct}%` }}
                         />
                       </div>
@@ -780,7 +780,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                   String(slips.length),
                   formatCurrency(gross),
                   formatCurrency(deductions),
-                  <span className="font-extrabold text-emerald-600" key={dept}>{formatCurrency(net)}</span>
+                  <span className="font-extrabold text-brand-600" key={dept}>{formatCurrency(net)}</span>
                 ];
               })}
             />
@@ -863,8 +863,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                   p.employeeName,
                   p.bankAccount,
                   emp?.bankDetails?.ifscCode || 'N/A',
-                  <span className="font-extrabold text-emerald-600 font-mono" key={idx}>{formatCurrency(p.netSalary)}</span>,
-                  <span className="text-emerald-500 font-bold" key={`stat-${idx}`}>Disbursed</span>
+                  <span className="font-extrabold text-brand-600 font-mono" key={idx}>{formatCurrency(p.netSalary)}</span>,
+                  <span className="text-brand-500 font-bold" key={`stat-${idx}`}>Disbursed</span>
                 ];
               })}
             />
@@ -971,7 +971,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                   <td className="p-3">{c.currency}</td>
                   <td className="p-3">{c.effectiveFrom} to {c.effectiveTo || 'Open'}</td>
                   <td className="p-3">
-                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${c.status === 'Active' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${c.status === 'Active' ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-600'}`}>
                       {c.status}
                     </span>
                   </td>
@@ -1657,7 +1657,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                   type="number"
                   value={draft.grossSalary || 0}
                   onChange={e => setStructureDraft({ ...draft, grossSalary: Number(e.target.value) })}
-                  className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 font-extrabold font-mono"
+                  className="bg-brand-50 dark:bg-brand-950/20 text-brand-600 font-extrabold font-mono"
                 />
               </Field>
             </div>
@@ -1674,7 +1674,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                       <div key={idx} className="flex justify-between items-center bg-white dark:bg-slate-950 p-2 rounded-lg border text-xs">
                         <span className="font-bold text-slate-800 dark:text-slate-200">{e.name}</span>
                         <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-emerald-600 font-mono">+{formatCurrency(e.amount)}</span>
+                          <span className="font-extrabold text-brand-600 font-mono">+{formatCurrency(e.amount)}</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -1935,7 +1935,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                   s.structureName || '',
                   s.branch || '',
                   s.employeeCategory || 'Teacher',
-                  <span className="font-extrabold text-emerald-600 font-mono" key={`gross-${s.id}`}>{formatCurrency(s.grossSalary || 0)}</span>,
+                  <span className="font-extrabold text-brand-600 font-mono" key={`gross-${s.id}`}>{formatCurrency(s.grossSalary || 0)}</span>,
                   <button
                     type="button"
                     key={`earn-${s.id}`}
@@ -2020,7 +2020,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                     list.map((c, idx) => (
                       <div key={idx} className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border text-xs">
                         <span className="font-bold text-slate-800 dark:text-slate-200">{c.name}</span>
-                        <span className={`font-extrabold font-mono ${type === 'earnings' ? 'text-emerald-600' : 'text-rose-500'}`}>
+                        <span className={`font-extrabold font-mono ${type === 'earnings' ? 'text-brand-600' : 'text-rose-500'}`}>
                           {type === 'earnings' ? '+' : '-'}{formatCurrency(c.amount)}
                         </span>
                       </div>
@@ -2066,14 +2066,14 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                 <div key={s.number} className="flex items-center gap-2 flex-shrink-0">
                   <span className={`w-6 h-6 rounded-full flex items-center justify-center font-bold border text-[10px] transition-colors ${
                     isActive ? 'bg-sky-600 border-sky-600 text-white shadow' :
-                    isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' :
+                    isCompleted ? 'bg-brand-500 border-brand-500 text-white' :
                     'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400'
                   }`}>
                     {s.number}
                   </span>
                   <span className={`font-bold transition-colors text-[10px] uppercase tracking-wide ${
                     isActive ? 'text-slate-900 dark:text-white' :
-                    isCompleted ? 'text-emerald-500' :
+                    isCompleted ? 'text-brand-500' :
                     'text-slate-400'
                   }`}>
                     {s.name}
@@ -2150,7 +2150,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
                         <td className="p-3 text-slate-500">{s.employeeCategory}</td>
-                        <td className="p-3 font-bold text-emerald-600">{present} Days</td>
+                        <td className="p-3 font-bold text-brand-600">{present} Days</td>
                         <td className="p-3 text-amber-600">{late} Entries</td>
                         <td className="p-3 text-sky-600">{half} Days</td>
                         <td className="p-3 font-bold text-rose-500">{unpaid} Days</td>
@@ -2194,7 +2194,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/20">
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
-                        <td className="p-3 font-bold text-emerald-600">{calc.leaveDetails?.paidLeaveDays || 0} Days</td>
+                        <td className="p-3 font-bold text-brand-600">{calc.leaveDetails?.paidLeaveDays || 0} Days</td>
                         <td className="p-3 font-bold text-rose-500">{calc.leaveDetails?.unpaidLeaveDays || 0} Days</td>
                         <td className="p-3 font-black text-rose-600 font-mono">{calc.leaveDetails?.unpaidLeaveDays || 0} LOP</td>
                         <td className="p-3 font-mono font-extrabold text-rose-600">-{formatCurrency(calc.leaveDeduction)}</td>
@@ -2241,14 +2241,14 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                         <td className="p-3 font-bold text-slate-850 dark:text-slate-200">{s.firstName} {s.lastName}</td>
                         <td className="p-3">
                           {activeConfig?.overtime.enabled ? (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600">Active</span>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 text-brand-600">Active</span>
                           ) : (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Disabled</span>
                           )}
                         </td>
                         <td className="p-3 font-mono">{activeConfig?.overtime.enabled ? formatCurrency(activeConfig.overtime.hourlyRate) + '/hr' : '—'}</td>
                         <td className="p-3 font-bold font-mono">{hours} hrs</td>
-                        <td className="p-3 font-mono font-extrabold text-emerald-600">+{formatCurrency(amount)}</td>
+                        <td className="p-3 font-mono font-extrabold text-brand-600">+{formatCurrency(amount)}</td>
                       </tr>
                     );
                   })}
@@ -2293,7 +2293,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                         <td className="p-3 font-mono font-bold text-slate-850 dark:text-slate-200">{formatCurrency(calc.grossSalary)}</td>
                         <td className="p-3 font-mono text-rose-500">-{formatCurrency(calc.leaveDeduction)}</td>
                         <td className="p-3 font-mono text-rose-500">-{formatCurrency(calc.otherDeductions)}</td>
-                        <td className="p-3 font-mono font-black text-emerald-600">{formatCurrency(calc.netSalary)}</td>
+                        <td className="p-3 font-mono font-black text-brand-600">{formatCurrency(calc.netSalary)}</td>
                       </tr>
                     );
                   })}
@@ -2358,7 +2358,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
                           <td className="p-3 font-mono font-bold">{formatCurrency(run.grossSalary)}</td>
                           <td className="p-3 font-mono text-rose-500">-{formatCurrency(run.leaveDeduction)}</td>
                           <td className="p-3 font-mono text-rose-500">-{formatCurrency(run.otherDeductions)}</td>
-                          <td className="p-3 font-mono font-black text-emerald-600">{formatCurrency(run.netSalary)}</td>
+                          <td className="p-3 font-mono font-black text-brand-600">{formatCurrency(run.netSalary)}</td>
                           <td className="p-3 max-w-[200px] truncate text-slate-500 italic" title={run.notes || ''}>{run.notes || 'No manual adjustments logged.'}</td>
                           <td className="p-3 text-right">
                             <Button
@@ -2566,8 +2566,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
             </h3>
             
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="p-5 border rounded-2xl bg-emerald-50/20 dark:bg-emerald-950/10 space-y-3 text-center">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+              <div className="p-5 border rounded-2xl bg-brand-50/20 dark:bg-brand-950/10 space-y-3 text-center">
+                <CheckCircle2 className="w-10 h-10 text-brand-500 mx-auto" />
                 <h4 className="font-black text-sm text-slate-800 dark:text-slate-200">Bulk Payslip Generator</h4>
                 <p className="text-slate-500 max-w-sm mx-auto text-[11px]">Generate and publish final digital payslips with QR codes and digital signatures for all employees.</p>
                 <Button
@@ -2892,7 +2892,7 @@ const AssignmentPanel = ({
                       {activeAss ? (
                         <div className="flex items-center gap-2">
                           <span className="font-bold">{activeAss.salaryStructureName}</span>
-                          <span className="font-mono text-emerald-600 font-extrabold">({formatCurrency(activeAss.monthlyGross || 0)})</span>
+                          <span className="font-mono text-brand-600 font-extrabold">({formatCurrency(activeAss.monthlyGross || 0)})</span>
                         </div>
                       ) : (
                         <span className="text-slate-400 italic">Not Assigned</span>
@@ -2900,7 +2900,7 @@ const AssignmentPanel = ({
                     </td>
                     <td className="p-3">
                       {activeAss ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border border-emerald-100 dark:border-emerald-900/30">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 dark:bg-brand-950/20 text-brand-600 border border-brand-100 dark:border-brand-900/30">
                           Assigned
                         </span>
                       ) : (
@@ -3031,7 +3031,7 @@ const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
                     <p className="text-slate-500 text-[10px]">Sector 15, Campus Drive, Bangalore</p>
                     <p className="text-slate-400 text-[10px] font-bold mt-1">Salary Slip: {p.month}</p>
                   </div>
-                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600 border border-emerald-100 dark:border-emerald-900/30">
+                  <span className="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold bg-brand-50 dark:bg-brand-950/20 text-brand-600 border border-brand-100 dark:border-brand-900/30">
                     {p.status}
                   </span>
                 </div>
@@ -3088,7 +3088,7 @@ const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
                     {Array.from({ length: Math.max(p.earnings?.length || 0, (p.deductions?.length || 0) + 1) }).map((_, i) => (
                       <tr key={i} className="border-t border-slate-100 dark:border-slate-850">
                         <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold">{p.earnings?.[i]?.name || ''}</td>
-                        <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-right font-mono font-bold text-emerald-600">
+                        <td className="p-2 border-r border-slate-200 dark:border-slate-800 text-right font-mono font-bold text-brand-600">
                           {p.earnings?.[i] ? '+' + formatCurrency(p.earnings[i].amount) : ''}
                         </td>
                         <td className="p-2 border-r border-slate-200 dark:border-slate-800 font-semibold">
@@ -3107,7 +3107,7 @@ const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
                 {/* Net Salary display */}
                 <div className="flex justify-between items-center border-t-2 border-slate-200 dark:border-slate-800 pt-3">
                   <span className="font-black text-slate-800 dark:text-slate-200 text-xs">Total Net Disbursed Salary:</span>
-                  <span className="text-lg font-black text-emerald-600 font-mono">{formatCurrency(p.netSalary)}</span>
+                  <span className="text-lg font-black text-brand-600 font-mono">{formatCurrency(p.netSalary)}</span>
                 </div>
 
                 {/* Footer details (QR + Digital Signature Block) */}
@@ -3128,8 +3128,8 @@ const StaffPayslipsInline = ({ canDownload }: { canDownload: boolean }) => {
                   </div>
                   {/* Digital Signature */}
                   <div className="text-right space-y-1">
-                    <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1 justify-end">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <div className="text-[10px] text-brand-600 font-bold flex items-center gap-1 justify-end">
+                      <ShieldCheck className="w-3.5 h-3.5 text-brand-500" />
                       <span>Digitally Signed</span>
                     </div>
                     <span className="block text-[8px] text-slate-400">Accounts Officer</span>

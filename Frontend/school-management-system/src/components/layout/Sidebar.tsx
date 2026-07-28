@@ -187,25 +187,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }`}
     >
       {/* Brand Header */}
-      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 flex items-center justify-center text-white font-black shadow-md shrink-0">
-            {schoolProfile.name ? schoolProfile.name.charAt(0) : 'E'}
+      <div className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800`}>
+        {collapsed ? (
+          <div className="flex items-center justify-center w-12 h-10 rounded-xl border border-teal-100 dark:border-teal-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+               onClick={() => setCollapsed(false)}>
+             <span className="text-[8px] font-black italic tracking-wider text-teal-700 dark:text-teal-500">PIRNAV</span>
           </div>
-          {!collapsed && (
-            <div className="truncate">
-              <h1 className="font-bold text-sm text-slate-900 dark:text-white truncate">{schoolProfile.name}</h1>
-              <p className="text-[10px] font-semibold text-brand-600 dark:text-brand-400 tracking-wider uppercase">Admin Portal</p>
+        ) : (
+          <div className="flex items-center w-52 select-none cursor-pointer px-4 py-1.5 rounded-2xl border border-teal-100 dark:border-teal-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50">
+            <div className="flex flex-col items-center w-full">
+              <div className="flex items-center gap-1.5">
+                <GraduationCap className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span className="text-xl font-black italic tracking-wider text-teal-700 dark:text-teal-500 leading-none">PIRNAV</span>
+              </div>
+              <span className="text-[9px] font-bold tracking-widest text-teal-600/80 dark:text-teal-400/80 uppercase mt-0.5 whitespace-nowrap">Schools</span>
             </div>
-          )}
-        </div>
-
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-        >
-          <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${collapsed ? '' : 'rotate-180'}`} />
-        </button>
+          </div>
+        )}
       </div>
 
       {/* Nav Menu */}

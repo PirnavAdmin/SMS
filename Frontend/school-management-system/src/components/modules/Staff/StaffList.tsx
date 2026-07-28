@@ -113,7 +113,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-emerald-600" /> {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
+            <Users className="w-6 h-6 text-brand-600" /> {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
           </h2>
           <p className="text-xs text-slate-500">Manage academic faculty, operational employees, and payroll settings</p>
         </div>
@@ -122,7 +122,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
           <ExportButton data={filtered} filename={`${activeCategory.toLowerCase()}_directory`} />
           <button
             onClick={() => { setStaffToEdit(null); setIsAddOpen(true); }}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" /> {activeCategory === 'Teacher' ? 'Add Teaching Staff' : 'Add Non-Teaching Staff'}
           </button>
@@ -135,7 +135,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
           onClick={() => handleTabChange('Teacher')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
             activeCategory === 'Teacher'
-              ? 'bg-white dark:bg-slate-950 text-emerald-600 dark:text-emerald-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-sm'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
           }`}
         >
@@ -145,7 +145,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
           onClick={() => handleTabChange('Staff')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
             activeCategory === 'Staff'
-              ? 'bg-white dark:bg-slate-950 text-emerald-600 dark:text-emerald-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-sm'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
           }`}
         >
@@ -285,11 +285,11 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">{st.empId}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
                     
                     {activeCategory === 'Teacher' ? (
                       <>
-                        <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-3 px-4 font-bold text-brand-600 dark:text-brand-400">
                           {st.primarySubject || (st.assignedSubjects?.[0]) || 'Mathematics'}
                         </td>
                         <td className="py-3 px-4">
@@ -324,7 +324,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
                         </button>
                         <button
                           onClick={() => setStaffPayroll(st)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-emerald-600"
+                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600"
                           title="Payroll Setup"
                         >
                           <IndianRupee className="w-4 h-4" />
