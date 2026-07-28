@@ -196,7 +196,7 @@ export const WardenMasterView: React.FC = () => {
                       <p className="font-mono font-bold text-sky-600">{a.mobileNumber}</p>
                       <p className="text-[10px] text-slate-400">{a.emailAddress}</p>
                     </td>
-                    <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400">{a.hostelName}</td>
+                    <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => setDeletingWarden(a)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600" title="Revoke Assignment"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -242,7 +242,7 @@ export const WardenMasterView: React.FC = () => {
                 <select
                   value={selectedHostelId}
                   onChange={e => setSelectedHostelId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-indigo-600"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
                 >
                   {hostels.map(h => (
                     <option key={h.hostelId} value={h.hostelId}>

@@ -130,7 +130,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <UserPlus className="w-6 h-6 text-indigo-500" /> Student Hostel Allocation
+            <UserPlus className="w-6 h-6 text-sky-500" /> Student Hostel Allocation
           </h2>
           <p className="text-xs text-slate-500">Allocate rooms and beds to Hostellers with automatic inheritance of Wardens</p>
         </div>
@@ -273,12 +273,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 block">
+              <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300 block">
                   Automatically Inherited Management Crew
                 </span>
                 <div className="flex items-center justify-between font-bold text-xs text-slate-800 dark:text-slate-200">
-                  <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-indigo-600" /> Warden: <strong>{inheritedWardenName}</strong></span>
+                  <span className="flex items-center gap-1"><Shield className="w-3.5 h-3.5 text-sky-600" /> Warden: <strong>{inheritedWardenName}</strong></span>
                 </div>
               </div>
 

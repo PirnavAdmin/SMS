@@ -154,7 +154,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[92vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
 
         {/* TOP HEADER SUMMARY CARD */}
-        <div className="p-6 bg-gradient-to-r from-sky-600 via-indigo-600 to-brand-600 text-white relative shrink-0">
+        <div className="p-6 bg-gradient-to-r from-sky-600 via-sky-600 to-brand-600 text-white relative shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
@@ -299,7 +299,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Distance Remaining</span>
-                  <p className="text-xl font-black text-indigo-600 font-mono">{distanceKmRemaining} km</p>
+                  <p className="text-xl font-black text-sky-600 font-mono">{distanceKmRemaining} km</p>
                   <span className="text-[10px] text-slate-400 font-bold">To School Campus</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
@@ -398,7 +398,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
               <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <QrCode className="w-4 h-4 text-indigo-500" /> RFID / QR Student Boarding & Drop-off Tracker
+                    <QrCode className="w-4 h-4 text-sky-500" /> RFID / QR Student Boarding & Drop-off Tracker
                   </h4>
                   <span className="text-xs font-bold text-sky-600">{boardedStudentIds.length} / {totalAssignedStudents} Students On-Board</span>
                 </div>
@@ -439,8 +439,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <p className="text-2xl font-black text-slate-900 dark:text-white mt-1 font-mono">{totalAssignedStudents}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-                  <span className="text-[10px] font-bold uppercase text-indigo-500 block">Boys</span>
-                  <p className="text-2xl font-black text-indigo-600 mt-1 font-mono">{boysCount}</p>
+                  <span className="text-[10px] font-bold uppercase text-sky-500 block">Boys</span>
+                  <p className="text-2xl font-black text-sky-600 mt-1 font-mono">{boysCount}</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
                   <span className="text-[10px] font-bold uppercase text-rose-500 block">Girls</span>
@@ -465,7 +465,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Vehicle Number:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.vehicleNumber || assignment.vehicleNumber}</span></div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Registration Number:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.registrationNumber || 'NY-99-AB-1001'}</span></div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Assigned Route:</span><span className="font-bold text-sky-600">{route?.routeName || assignment.routeName}</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Commercial Driver:</span><span className="font-bold text-indigo-600">{driver?.driverName || assignment.driverName} ({driver?.mobileNumber})</span></div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Commercial Driver:</span><span className="font-bold text-sky-600">{driver?.driverName || assignment.driverName} ({driver?.mobileNumber})</span></div>
                     <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Bus Attendant:</span><span className="font-bold text-emerald-600">{attendantName} ({attendantMobile})</span></div>
                   </div>
                 </div>

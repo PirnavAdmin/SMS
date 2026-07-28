@@ -374,7 +374,7 @@ export const StaffAttendanceView: React.FC = () => {
           onClick={() => setActiveTab('register')}
           className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
             activeTab === 'register'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+              ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
               : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
           }`}
         >
@@ -385,7 +385,7 @@ export const StaffAttendanceView: React.FC = () => {
           onClick={() => setActiveTab('reports')}
           className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
             activeTab === 'reports'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+              ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
               : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
           }`}
         >
@@ -506,12 +506,12 @@ export const StaffAttendanceView: React.FC = () => {
           )}
 
           {isExistingAttendanceForDate && !isFutureDate && (
-            <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-800 dark:text-indigo-300 text-xs font-bold flex items-center justify-between">
+            <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-sky-800 dark:text-sky-300 text-xs font-bold flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                <CheckCircle2 className="w-4 h-4 text-sky-600" />
                 Existing Attendance Log Loaded for {attendanceDate} (Edit Mode Active)
               </span>
-              <span className="text-[10px] font-mono bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md text-indigo-700 dark:text-indigo-300">
+              <span className="text-[10px] font-mono bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md text-sky-700 dark:text-sky-300">
                 Logged Records Present
               </span>
             </div>
@@ -543,9 +543,9 @@ export const StaffAttendanceView: React.FC = () => {
                 <p className="text-lg font-black text-rose-800 dark:text-rose-300 mt-0.5">{liveSummaryStats.absent}</p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 text-center">
-                <p className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase">On Leave</p>
-                <p className="text-lg font-black text-purple-800 dark:text-purple-300 mt-0.5">{liveSummaryStats.leave}</p>
+              <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-center">
+                <p className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase">On Leave</p>
+                <p className="text-lg font-black text-sky-800 dark:text-sky-300 mt-0.5">{liveSummaryStats.leave}</p>
               </div>
 
               <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-center col-span-2 sm:col-span-1">
@@ -576,7 +576,7 @@ export const StaffAttendanceView: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => handleBulkAction('Leave')}
-                    className="px-3 py-1.5 rounded-xl bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 hover:bg-purple-200 font-bold text-[11px] transition-colors"
+                    className="px-3 py-1.5 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 hover:bg-sky-200 font-bold text-[11px] transition-colors"
                   >
                     Mark All Leave
                   </button>
@@ -664,7 +664,7 @@ export const StaffAttendanceView: React.FC = () => {
                                 if (st === 'Present') activeStyle = 'bg-brand-600 text-white font-black border-brand-600 shadow-sm';
                                 else if (st === 'Absent') activeStyle = 'bg-rose-600 text-white font-black border-rose-600 shadow-sm';
                                 else if (st === 'HalfDay') activeStyle = 'bg-amber-600 text-white font-black border-amber-600 shadow-sm';
-                                else if (st === 'Leave') activeStyle = 'bg-purple-600 text-white font-black border-purple-600 shadow-sm';
+                                else if (st === 'Leave') activeStyle = 'bg-sky-600 text-white font-black border-sky-600 shadow-sm';
 
                                 return (
                                   <button
@@ -686,17 +686,17 @@ export const StaffAttendanceView: React.FC = () => {
                               {/* Approved Leave Badge & Unlock Button */}
                               {approvedLeave && (
                                 <div className="flex items-center gap-1 ml-1.5">
-                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 font-bold border border-purple-200 dark:border-purple-800">
+                                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-bold border border-sky-200 dark:border-sky-800">
                                     Approved Leave
                                   </span>
                                   {canOverrideLeave && (
                                     <button
                                       type="button"
                                       onClick={() => handleToggleOverrideLeave(s.id)}
-                                      className="p-1 text-slate-400 hover:text-purple-600"
+                                      className="p-1 text-slate-400 hover:text-sky-600"
                                       title={overrideLeaveSet.has(s.id) ? 'Relock Leave Status' : 'Override & Unlock Leave Status'}
                                     >
-                                      {overrideLeaveSet.has(s.id) ? <Unlock className="w-3.5 h-3.5 text-rose-500" /> : <Lock className="w-3.5 h-3.5 text-purple-600" />}
+                                      {overrideLeaveSet.has(s.id) ? <Unlock className="w-3.5 h-3.5 text-rose-500" /> : <Lock className="w-3.5 h-3.5 text-sky-600" />}
                                     </button>
                                   )}
                                 </div>
@@ -837,13 +837,13 @@ export const StaffAttendanceView: React.FC = () => {
           <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
+                <FileSpreadsheet className="w-4 h-4 text-sky-600" />
                 Monthly Register: {monthNames[regMonth]} {regYear} ({regEmpType})
               </h3>
               <div className="flex items-center gap-2 text-[10px] font-bold">
                 <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-800">P = Present</span>
                 <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800">A = Absent</span>
-                <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-800">L = Leave</span>
+                <span className="px-2 py-0.5 rounded bg-sky-100 text-sky-800">L = Leave</span>
                 <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800">HD = Half Day</span>
               </div>
             </div>
@@ -858,8 +858,8 @@ export const StaffAttendanceView: React.FC = () => {
                     ))}
                     <th className="py-2.5 px-2 text-center text-brand-600">P</th>
                     <th className="py-2.5 px-2 text-center text-rose-600">A</th>
-                    <th className="py-2.5 px-2 text-center text-purple-600">L</th>
-                    <th className="py-2.5 px-2 text-center text-indigo-600">%</th>
+                    <th className="py-2.5 px-2 text-center text-sky-600">L</th>
+                    <th className="py-2.5 px-2 text-center text-sky-600">%</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y font-semibold">
@@ -892,7 +892,7 @@ export const StaffAttendanceView: React.FC = () => {
                             if (record) {
                               if (record.status === 'Present') { code = 'P'; pCount++; }
                               else if (record.status === 'Absent') { code = 'A'; aCount++; badgeStyle = 'text-rose-700 bg-rose-100 font-bold'; }
-                              else if (record.status === 'Leave') { code = 'L'; lCount++; badgeStyle = 'text-purple-700 bg-purple-100 font-bold'; }
+                              else if (record.status === 'Leave') { code = 'L'; lCount++; badgeStyle = 'text-sky-700 bg-sky-100 font-bold'; }
                               else if (record.status === 'HalfDay' || record.status === 'Late') { code = 'HD'; pCount += 0.5; badgeStyle = 'text-amber-700 bg-amber-100 font-bold'; }
                             } else {
                               pCount++;
@@ -907,8 +907,8 @@ export const StaffAttendanceView: React.FC = () => {
 
                           <td className="py-2 px-2 text-center font-bold text-brand-600">{pCount}</td>
                           <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
-                          <td className="py-2 px-2 text-center font-bold text-purple-600">{lCount}</td>
-                          <td className="py-2 px-2 text-center font-extrabold text-indigo-600">
+                          <td className="py-2 px-2 text-center font-bold text-sky-600">{lCount}</td>
+                          <td className="py-2 px-2 text-center font-extrabold text-sky-600">
                             {Math.round((pCount / daysInSelectedMonth) * 100)}%
                           </td>
                         </tr>
@@ -977,7 +977,7 @@ export const StaffAttendanceView: React.FC = () => {
                   onClick={() => window.print()}
                   className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-xs"
                 >
-                  <Printer className="w-4 h-4 text-indigo-600" /> Print
+                  <Printer className="w-4 h-4 text-sky-600" /> Print
                 </button>
                 <button
                   type="button"
@@ -1006,7 +1006,7 @@ export const StaffAttendanceView: React.FC = () => {
                 </h3>
                 <p className="text-xs text-slate-500">Institution-wide staff presence analysis & leave logs for Payroll integration</p>
               </div>
-              <span className="px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-mono font-bold text-xs">
+              <span className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-mono font-bold text-xs">
                 Verified ERP Data
               </span>
             </div>
@@ -1021,9 +1021,9 @@ export const StaffAttendanceView: React.FC = () => {
                 <p className="text-[10px] font-bold text-brand-700 dark:text-brand-400 uppercase">Avg Presence Rate</p>
                 <p className="text-xl font-black text-brand-800 dark:text-brand-300 mt-1">94.2%</p>
               </div>
-              <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900">
-                <p className="text-[10px] font-bold text-purple-700 dark:text-purple-400 uppercase">Approved Leave Logs</p>
-                <p className="text-xl font-black text-purple-800 dark:text-purple-300 mt-1">{(leaveApplications || []).filter(l => l.status === 'Approved').length}</p>
+              <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900">
+                <p className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase">Approved Leave Logs</p>
+                <p className="text-xl font-black text-sky-800 dark:text-sky-300 mt-1">{(leaveApplications || []).filter(l => l.status === 'Approved').length}</p>
               </div>
               <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
                 <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase">Unexcused Absences</p>
@@ -1040,8 +1040,8 @@ export const StaffAttendanceView: React.FC = () => {
                     <th className="py-3 px-4 text-center">Head Count</th>
                     <th className="py-3 px-4 text-center text-brand-600">Present</th>
                     <th className="py-3 px-4 text-center text-rose-600">Absent</th>
-                    <th className="py-3 px-4 text-center text-purple-600">On Leave</th>
-                    <th className="py-3 px-4 text-center text-indigo-600">Payroll Availability</th>
+                    <th className="py-3 px-4 text-center text-sky-600">On Leave</th>
+                    <th className="py-3 px-4 text-center text-sky-600">Payroll Availability</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y font-semibold">
@@ -1051,7 +1051,7 @@ export const StaffAttendanceView: React.FC = () => {
                       <td className="py-3 px-4 text-center font-mono">12</td>
                       <td className="py-3 px-4 text-center font-bold text-brand-600">11</td>
                       <td className="py-3 px-4 text-center font-bold text-rose-600">0</td>
-                      <td className="py-3 px-4 text-center font-bold text-purple-600">1</td>
+                      <td className="py-3 px-4 text-center font-bold text-sky-600">1</td>
                       <td className="py-3 px-4 text-center">
                         <span className="px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-300 font-extrabold text-[10px]">
                           ✓ Synced to Payroll

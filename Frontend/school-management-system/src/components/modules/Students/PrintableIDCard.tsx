@@ -42,9 +42,9 @@ export const PrintableIDCard: React.FC<PrintableIDCardProps> = ({
 
         {/* Printable ID Card Container */}
         <div className="flex justify-center my-2">
-          <div className="w-80 rounded-2xl bg-gradient-to-b from-slate-900 via-slate-900 to-indigo-950 text-white p-5 shadow-2xl border border-slate-700/80 space-y-4 relative overflow-hidden font-sans print:w-[3.375in] print:h-[5.375in] print:rounded-none print:shadow-none print:border print:border-slate-300 print:text-black print:bg-white">
+          <div className="w-80 rounded-2xl bg-gradient-to-b from-slate-900 via-slate-900 to-sky-950 text-white p-5 shadow-2xl border border-slate-700/80 space-y-4 relative overflow-hidden font-sans print:w-[3.375in] print:h-[5.375in] print:rounded-none print:shadow-none print:border print:border-slate-300 print:text-black print:bg-white">
             {/* Holographic accent stripe */}
-            <div className="absolute top-0 right-0 left-0 h-2 bg-gradient-to-r from-brand-500 via-indigo-500 to-amber-400" />
+            <div className="absolute top-0 right-0 left-0 h-2 bg-gradient-to-r from-brand-500 via-sky-500 to-amber-400" />
 
             {/* School Header */}
             <div className="flex items-center gap-3 border-b border-slate-800 pb-3">

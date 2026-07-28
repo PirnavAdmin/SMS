@@ -118,7 +118,7 @@ export const TransportFeeConfigView: React.FC = () => {
                       {isEditing ? (
                         <input type="number" value={editForm.annualFee} onChange={e => setEditForm({ ...editForm, annualFee: Number(e.target.value) })} className="w-24 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 border font-bold" />
                       ) : (
-                        <span className="font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(p.annualFee || 0)}</span>
+                        <span className="font-extrabold text-sky-600 dark:text-sky-400">{formatCurrency(p.annualFee || 0)}</span>
                       )}
                     </td>
                     <td className="py-3 px-4 text-right">

@@ -377,7 +377,7 @@ export const DriverMasterView: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-900 dark:text-white text-sm">{doc.docType}</span>
                           <span className="font-mono text-[11px] text-slate-500">({doc.docNumber})</span>
-                          {doc.badgeNumber && <span className="font-mono font-bold text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">Badge: {doc.badgeNumber}</span>}
+                          {doc.badgeNumber && <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 px-2 py-0.5 rounded">Badge: {doc.badgeNumber}</span>}
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">
                           Issue: {doc.issueDate} • Expiry: <strong className={status.isExpiringSoon || status.isExpired ? 'text-rose-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>{doc.expiryDate}</strong>

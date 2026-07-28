@@ -666,7 +666,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab }
           </div>
           <div className="p-5 border rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between space-y-3">
             <span className="block text-slate-400 font-bold uppercase text-[9px] tracking-wider">Active Salary Structures</span>
-            <span className="text-2xl font-black text-indigo-600 font-mono">
+            <span className="text-2xl font-black text-sky-600 font-mono">
               {data.salaryStructures.filter(s => s.status === 'Active').length}
             </span>
             <span className="text-[10px] text-slate-400">Total structures defined: {data.salaryStructures.length}</span>

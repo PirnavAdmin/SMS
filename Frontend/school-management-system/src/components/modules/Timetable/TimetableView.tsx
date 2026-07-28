@@ -425,9 +425,6 @@ export const TimetableView: React.FC = () => {
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
               Class Timetable
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Enterprise school timetable engine based on Period Settings, Subject Mapping, and Teacher Assignment
-            </p>
           </div>
         </div>
 

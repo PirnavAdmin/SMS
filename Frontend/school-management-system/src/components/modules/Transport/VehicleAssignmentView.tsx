@@ -253,7 +253,7 @@ export const VehicleAssignmentView: React.FC = () => {
                     <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200">
                       <span className="flex items-center gap-1.5"><Bus className="w-4 h-4 text-sky-500" /> Vehicle: {a.vehicleNumber}</span>
                       <ArrowRight className="w-4 h-4 text-slate-400" />
-                      <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-indigo-500" /> Driver: {a.driverName}</span>
+                      <span className="flex items-center gap-1.5"><Users className="w-4 h-4 text-sky-500" /> Driver: {a.driverName}</span>
                     </div>
 
                     <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 pt-1 border-t border-slate-100 dark:border-slate-700/60">
@@ -299,7 +299,7 @@ export const VehicleAssignmentView: React.FC = () => {
                   return (
                     <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{log.vehicleNumber}</td>
-                      <td className="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400">{log.driverName}</td>
+                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{log.driverName}</td>
                       <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400">{log.attendantName}</td>
                       <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{log.routeName}</td>
                       <td className="py-3 px-4 text-slate-500">{log.effectiveFrom} {log.effectiveTo ? ` to ${log.effectiveTo}` : ' (Current)'}</td>

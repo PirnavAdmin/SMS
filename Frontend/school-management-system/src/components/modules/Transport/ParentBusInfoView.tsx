@@ -71,7 +71,7 @@ export const ParentBusInfoView: React.FC = () => {
 
         <button
           onClick={() => setIsTrackModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-extrabold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
         >
           <Navigation className="w-4 h-4" /> 📍 Track Bus Live Map
         </button>
@@ -138,8 +138,8 @@ export const ParentBusInfoView: React.FC = () => {
                 <span className="font-bold text-sky-600 dark:text-sky-400 text-sm font-mono">{busInfo.dropTime}</span>
               </div>
               <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-xs text-slate-500 flex items-center gap-1"><Bell className="w-4 h-4 text-indigo-500" /> RFID Boarding Status</span>
-                <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-xs">{busInfo.boardingStatus}</span>
+                <span className="text-xs text-slate-500 flex items-center gap-1"><Bell className="w-4 h-4 text-sky-500" /> RFID Boarding Status</span>
+                <span className="font-extrabold text-sky-600 dark:text-sky-400 text-xs">{busInfo.boardingStatus}</span>
               </div>
             </div>
           </div>
@@ -162,7 +162,7 @@ export const ParentBusInfoView: React.FC = () => {
 
               {/* Driver Contact Card */}
               <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-2 shadow-sm">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-indigo-500" /> Commercial Driver</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-sky-500" /> Commercial Driver</p>
                 <div className="flex justify-between items-center">
                   <span className="font-black text-slate-900 dark:text-white text-sm">{busInfo.driverName}</span>
                   <a href={`tel:${busInfo.driverPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors">

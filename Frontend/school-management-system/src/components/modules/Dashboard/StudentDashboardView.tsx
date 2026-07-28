@@ -87,7 +87,7 @@ export const StudentDashboardView: React.FC = () => {
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard title="Attendance Ledger" value={`${attPercentage}%`} subtitle="Target: 95%" change={attPercentage > 90 ? 'Looking good' : 'Needs attention'} isPositive={attPercentage > 90} icon={Target} color="emerald" />
-        <StatCard title="Academic Schedule" value={todaysSchedule.length} subtitle="Today's classes" change="Check timetable" isPositive={true} icon={Clock} color="indigo" />
+        <StatCard title="Academic Schedule" value={todaysSchedule.length} subtitle="Today's classes" change="Check timetable" isPositive={true} icon={Clock} color="sky" />
         <StatCard title="Homework" value={pendingHomework.length} subtitle="Pending submissions" change="Due soon" isPositive={pendingHomework.length === 0} icon={BookOpen} color="amber" />
         <StatCard title="Fee Details" value={`₹${dueBalance.toLocaleString()}`} subtitle={isFeeCleared ? "No outstanding dues" : "Outstanding balance"} change={isFeeCleared ? "All cleared" : "Action required"} isPositive={isFeeCleared} icon={AlertCircle} color="sky" />
       </div>
@@ -206,7 +206,7 @@ export const StudentDashboardView: React.FC = () => {
               {recentNotices.length > 0 ? recentNotices.map((item, i) => (
                 <div key={i} className="relative flex items-center group is-active">
                   <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white dark:border-slate-950 bg-slate-200 dark:bg-slate-800 text-slate-500 shadow shrink-0 z-10">
-                    <div className={`w-3 h-3 rounded-full ${item.type === 'notice' ? 'bg-indigo-500' : item.type === 'event' ? 'bg-sky-500' : 'bg-emerald-500'}`} />
+                    <div className={`w-3 h-3 rounded-full ${item.type === 'notice' ? 'bg-sky-500' : item.type === 'event' ? 'bg-sky-500' : 'bg-emerald-500'}`} />
                   </div>
                   <div className="ml-4 w-[calc(100%-3rem)] p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
                     <div className="flex items-center justify-between mb-1">
@@ -257,23 +257,23 @@ export const StudentDashboardView: React.FC = () => {
             return (
               <div className="glass-card p-6 rounded-3xl space-y-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Users className="w-5 h-5 text-indigo-500" />
+                  <Users className="w-5 h-5 text-sky-500" />
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">My Scheduled Meetings</h3>
                 </div>
 
                 <div className="space-y-3">
                   {studentMeetings.map(m => (
-                    <div key={m.id} className="p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/40 bg-indigo-50/20 dark:bg-indigo-950/20 space-y-2 text-xs">
+                    <div key={m.id} className="p-4 rounded-2xl border border-sky-100 dark:border-sky-900/40 bg-sky-50/20 dark:bg-sky-950/20 space-y-2 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                           {m.meetingAudience} ({m.meetingMode})
                         </span>
                         <span className="font-mono text-slate-500 font-bold">{m.meetingDate}</span>
                       </div>
                       <h4 className="font-extrabold text-slate-900 dark:text-white">{m.title}</h4>
-                      <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-indigo-100/60 dark:border-indigo-900/30">
+                      <div className="flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-sky-100/60 dark:border-sky-900/30">
                         <span>{m.meetingMode === 'In-Person' ? `📍 ${m.roomVenue}` : `🔗 ${m.onlineMeetingUrl}`}</span>
-                        <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{m.startTime} - {m.endTime}</span>
+                        <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{m.startTime} - {m.endTime}</span>
                       </div>
                     </div>
                   ))}

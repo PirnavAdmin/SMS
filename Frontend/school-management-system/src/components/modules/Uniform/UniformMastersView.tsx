@@ -47,7 +47,7 @@ export const UniformMastersView: React.FC = () => {
               onClick={() => setActiveSubTab(tab.id)}
               className={`px-4.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
                 isActive
-                  ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`}
             >

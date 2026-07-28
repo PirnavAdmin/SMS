@@ -10,7 +10,7 @@ export const ReportsView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-brand-600" /> Reports & Analytics Hub
+          <BarChart3 className="w-6 h-6 text-brand-600" /> Reports
         </h2>
         <p className="text-xs text-slate-500">Generate executive summary reports, financial statement exports, and attendance metrics</p>
       </div>
@@ -19,7 +19,7 @@ export const ReportsView: React.FC = () => {
         {/* Student Master Report */}
         <div className="glass-card p-6 rounded-3xl space-y-3">
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+            <div className="p-3 rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
               <UserCheck className="w-6 h-6" />
             </div>
             <div>

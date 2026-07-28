@@ -132,7 +132,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-3xl max-h-[90vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden">
         
         {/* Read-Only Profile Header */}
-        <div className="p-6 bg-gradient-to-r from-brand-600 to-indigo-600 text-white relative">
+        <div className="p-6 bg-gradient-to-r from-brand-600 to-sky-600 text-white relative">
           <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white">
             <X className="w-5 h-5" />
           </button>
@@ -232,10 +232,10 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             <div className="space-y-6">
               
               {/* Document Summary Card */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/80 to-slate-50 dark:from-indigo-950/20 dark:to-slate-800/50 border border-indigo-200 dark:border-indigo-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50/80 to-slate-50 dark:from-sky-950/20 dark:to-slate-800/50 border border-sky-200 dark:border-sky-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
                 <div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                    <ShieldCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
                       Document Compliance Checklist
                     </h4>
@@ -248,7 +248,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center">
                     <span className="block text-[10px] font-bold text-slate-400 uppercase">Required</span>
-                    <span className="font-black text-xs text-indigo-600 dark:text-indigo-400">{requiredUploadedCount} / {requiredDocTypeList.length} Uploaded</span>
+                    <span className="font-black text-xs text-sky-600 dark:text-sky-400">{requiredUploadedCount} / {requiredDocTypeList.length} Uploaded</span>
                   </div>
                   <div className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 text-center">
                     <span className="block text-[10px] font-bold text-emerald-600 uppercase">Verified</span>
@@ -344,7 +344,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold uppercase text-slate-500 text-[11px] tracking-wider flex items-center gap-1.5">
-                    <Layers className="w-4 h-4 text-indigo-500" />
+                    <Layers className="w-4 h-4 text-sky-500" />
                     Additional Documents ({uploadedDocs.filter(d => !requiredDocTypeList.some(r => findMatchingUploadedDoc([d], r))).length})
                   </h4>
                 </div>
@@ -360,7 +360,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                       .map(doc => (
                         <div key={doc.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 shrink-0">
+                            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 shrink-0">
                               <FileText className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">

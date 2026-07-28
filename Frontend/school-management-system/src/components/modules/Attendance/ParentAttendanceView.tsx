@@ -95,9 +95,9 @@ export const ParentAttendanceView: React.FC = () => {
       case 'Late':
         return { color: 'amber', bg: 'bg-amber-50 dark:bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', icon: Clock };
       case 'HalfDay':
-        return { color: 'indigo', bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-700 dark:text-indigo-400', icon: CalendarDays };
+        return { color: 'sky', bg: 'bg-sky-50 dark:bg-sky-500/10', text: 'text-sky-700 dark:text-sky-400', icon: CalendarDays };
       case 'Leave':
-        return { color: 'purple', bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-700 dark:text-purple-400', icon: CalendarCheck };
+        return { color: 'sky', bg: 'bg-sky-50 dark:bg-sky-500/10', text: 'text-sky-700 dark:text-sky-400', icon: CalendarCheck };
       default:
         return { color: 'slate', bg: 'bg-slate-50', text: 'text-slate-700', icon: AlertCircle };
     }
@@ -110,7 +110,7 @@ export const ParentAttendanceView: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <CalendarCheck className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+            <CalendarCheck className="w-8 h-8 text-sky-600 dark:text-sky-400" />
             Attendance Register
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
@@ -147,7 +147,7 @@ export const ParentAttendanceView: React.FC = () => {
           <select 
             value={selectedAcademicYear}
             onChange={(e) => setSelectedAcademicYear(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/50 outline-none"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
           >
             {academicYears.map(year => (
               <option key={year} value={year}>{year}</option>
@@ -161,7 +161,7 @@ export const ParentAttendanceView: React.FC = () => {
           <select 
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/50 outline-none"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
           >
             {months.map(m => (
               <option key={m.value} value={m.value}>{m.label}</option>
@@ -175,7 +175,7 @@ export const ParentAttendanceView: React.FC = () => {
           <select 
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500/50 outline-none"
+            className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
           >
             {years.map(year => (
               <option key={year} value={year}>{year}</option>
@@ -188,7 +188,7 @@ export const ParentAttendanceView: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-            <CheckCircle2 className="w-16 h-16 text-indigo-600" />
+            <CheckCircle2 className="w-16 h-16 text-sky-600" />
           </div>
           <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Attendance %</h3>
           <p className="text-3xl font-black text-slate-900 dark:text-white">{attendancePercentage}%</p>

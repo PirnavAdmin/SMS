@@ -510,7 +510,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                   {/* Total Net Payable Row */}
                   <div className="flex justify-between items-center py-1 font-black text-slate-900 dark:text-white text-sm">
                     <span className="uppercase tracking-wider">Total Payable</span>
-                    <span className="text-base text-indigo-600 dark:text-indigo-400">{formatCurrency(netPayable)}</span>
+                    <span className="text-base text-sky-600 dark:text-sky-400">{formatCurrency(netPayable)}</span>
                   </div>
                 </div>
               </div>

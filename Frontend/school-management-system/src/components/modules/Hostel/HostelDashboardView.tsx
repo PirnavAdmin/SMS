@@ -38,7 +38,7 @@ export const HostelDashboardView: React.FC = () => {
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Home className="w-6 h-6 text-indigo-500" /> Hostel Dashboard
+          <Home className="w-6 h-6 text-sky-500" /> Hostel Dashboard
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400">Live operational oversight for hostel blocks, room utilization, bed inventory, and hostel revenue</p>
       </div>
@@ -55,9 +55,9 @@ export const HostelDashboardView: React.FC = () => {
                 <p className="text-xl font-black text-slate-900 dark:text-white font-mono">{metrics.totalHostels}</p>
               </div>
 
-              <div className="glass-card p-4 rounded-2xl border-l-4 border-l-purple-500 space-y-1">
-                <span className="text-[10px] font-bold text-purple-500 uppercase block">Total Bed Capacity</span>
-                <p className="text-xl font-black text-purple-600 font-mono">{metrics.totalBedCapacity}</p>
+              <div className="glass-card p-4 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+                <span className="text-[10px] font-bold text-sky-500 uppercase block">Total Bed Capacity</span>
+                <p className="text-xl font-black text-sky-600 font-mono">{metrics.totalBedCapacity}</p>
               </div>
 
               <div className="glass-card p-4 rounded-2xl border-l-4 border-l-sky-600 space-y-1">
@@ -102,7 +102,7 @@ export const HostelDashboardView: React.FC = () => {
                   </div>
                   <div className="text-xs space-y-1 text-slate-500">
                     <p>Code: <strong className="text-slate-700 dark:text-slate-300">{b.hostelCode}</strong></p>
-                    <p>Warden: <strong className="text-indigo-600">{b.wardenName}</strong></p>
+                    <p>Warden: <strong className="text-sky-600">{b.wardenName}</strong></p>
                     <p>Rooms: <strong>{b.totalRooms}</strong> | Occupied Beds: <strong>{b.occupiedBeds}/{b.totalCapacity}</strong></p>
                     <p>Status: <span className="text-emerald-600 font-bold">{b.status}</span></p>
                   </div>
@@ -134,7 +134,7 @@ export const HostelDashboardView: React.FC = () => {
                         <p className="text-[10px] text-slate-400">Total Rooms: {countRooms} | Bed Cap: {rt.capacity}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(configPricing?.hostelFee || 40000)}</p>
+                        <p className="font-extrabold text-sky-600 dark:text-sky-400">{formatCurrency(configPricing?.hostelFee || 40000)}</p>
                         <p className="text-[10px] text-slate-400">Configured Fee</p>
                       </div>
                     </div>

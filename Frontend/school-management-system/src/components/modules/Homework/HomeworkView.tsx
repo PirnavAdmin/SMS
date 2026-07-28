@@ -318,7 +318,7 @@ export const HomeworkView: React.FC = () => {
                     onChange={e => setNewAttName(e.target.value)}
                     className="flex-1 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                   />
-                  <button type="button" onClick={handleAddAttachment} className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold">Add</button>
+                  <button type="button" onClick={handleAddAttachment} className="px-3 py-1.5 rounded-xl bg-sky-600 text-white font-bold">Add</button>
                 </div>
               </div>
 

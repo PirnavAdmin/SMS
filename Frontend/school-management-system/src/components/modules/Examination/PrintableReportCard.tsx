@@ -62,13 +62,13 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         {/* Top Control Bar */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800 flex items-center justify-between border-b shrink-0">
           <h3 className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-2">
-            <Award className="w-4 h-4 text-amber-500" /> Academic Report Card Viewer
+            <Award className="w-4 h-4 text-sky-500" /> Academic Report Card Viewer
           </h3>
           
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold flex items-center gap-1.5 shadow transition-all"
+              className="px-3.5 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold flex items-center gap-1.5 shadow transition-all"
             >
               <Printer className="w-3.5 h-3.5" /> Print / Save PDF
             </button>
@@ -180,7 +180,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </div>
             <div className="space-y-1">
               <span className="block text-[8px] uppercase text-slate-400">GPA / Final Grade</span>
-              <p className="text-amber-500 text-sm">{gpa.toFixed(1)} / {finalGrade}</p>
+              <p className="text-sky-500 text-sm">{gpa.toFixed(1)} / {finalGrade}</p>
             </div>
             <div className="space-y-1">
               <span className="block text-[8px] uppercase text-slate-400">Result Status</span>

@@ -344,7 +344,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                 {studentHistory.map(hist => (
                   <tr key={hist.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{hist.studentName} <span className="font-mono text-slate-400 font-normal">({hist.admissionNo})</span></td>
-                    <td className="py-3 px-4 font-bold text-indigo-600">{hist.academicYear}</td>
+                    <td className="py-3 px-4 font-bold text-sky-600">{hist.academicYear}</td>
                     <td className="py-3 px-4 font-bold text-sky-600">{hist.routeName}</td>
                     <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{hist.pickupPoint}</td>
                     <td className="py-3 px-4 font-mono font-bold text-emerald-600">{hist.vehicleNumber}</td>
@@ -428,7 +428,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Auto-Loaded Crew Details</p>
                 <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 text-[11px]">
-                  <span>Driver: <strong className="text-indigo-600">{autoDriverName}</strong></span>
+                  <span>Driver: <strong className="text-sky-600">{autoDriverName}</strong></span>
                   <span>Attendant: <strong className="text-emerald-600">{autoAttendantName}</strong></span>
                 </div>
               </div>

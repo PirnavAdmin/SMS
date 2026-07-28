@@ -66,7 +66,7 @@ export const LibraryView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Library className="w-6 h-6 text-amber-500" /> Library Directory
+            <Library className="w-6 h-6 text-sky-500" /> Library Directory
           </h2>
           <p className="text-xs text-slate-500">Book inventory catalog, issue & return workflow, fine calculation</p>
         </div>
@@ -74,13 +74,13 @@ export const LibraryView: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsIssueOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
           >
             <BookOpen className="w-4 h-4" /> Issue Book
           </button>
           <button
             onClick={() => setIsAddBookOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+            className="px-3.5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
           >
             <Plus className="w-4 h-4" /> Add New Book
           </button>
@@ -113,7 +113,7 @@ export const LibraryView: React.FC = () => {
           {books.map(b => (
             <div key={b.id} className="glass-card p-5 rounded-3xl space-y-2">
               <div className="flex items-start justify-between">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950">{b.category}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 dark:bg-sky-950">{b.category}</span>
                 <span className="text-xs font-mono text-slate-400">{b.rackNo}</span>
               </div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white">{b.title}</h3>
@@ -196,7 +196,7 @@ export const LibraryView: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddBookOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-amber-500 text-white rounded-xl">Register Book</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-500 text-white rounded-xl">Register Book</button>
               </div>
             </form>
           </div>
@@ -226,7 +226,7 @@ export const LibraryView: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsIssueOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-indigo-600 text-white rounded-xl">Confirm Issue</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Confirm Issue</button>
               </div>
             </form>
           </div>

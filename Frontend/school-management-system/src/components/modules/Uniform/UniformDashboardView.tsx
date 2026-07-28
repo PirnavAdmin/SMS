@@ -34,7 +34,7 @@ export const UniformDashboardView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Total Items</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-500 flex items-center justify-center">
               <Shirt className="w-4 h-4" />
             </div>
           </div>
@@ -132,12 +132,12 @@ export const UniformDashboardView: React.FC = () => {
         <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
             <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">Category-wise Stock Levels</h4>
-            <span className="text-[10px] text-indigo-500 font-bold bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded">Inventory Share</span>
+            <span className="text-[10px] text-sky-500 font-bold bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded">Inventory Share</span>
           </div>
 
           <div className="space-y-3">
             {uniforms.slice(0, 4).map((u, i) => {
-              const colors = ['bg-purple-500', 'bg-blue-500', 'bg-emerald-500', 'bg-sky-500'];
+              const colors = ['bg-sky-500', 'bg-blue-500', 'bg-emerald-500', 'bg-sky-500'];
               const uStock = uniformInventory.find(inv => inv.itemId === u.id)?.currentStock || 50;
               const percent = Math.min(100, Math.round((uStock / 200) * 100));
 

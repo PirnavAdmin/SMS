@@ -41,7 +41,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 w-full max-w-lg h-full flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="p-6 bg-gradient-to-r from-brand-600 to-indigo-600 text-white relative">
+        <div className="p-6 bg-gradient-to-r from-brand-600 to-sky-600 text-white relative">
           <button onClick={onClose} className="absolute top-4 right-4 p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white">
             <X className="w-5 h-5" />
           </button>

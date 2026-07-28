@@ -922,17 +922,16 @@ export const ExaminationView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in text-xs">
       
-      {/* Top Header Card */}
-      <div className="glass-card p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-gradient-to-tr from-amber-500 to-orange-400 text-white rounded-2xl shadow-lg shadow-amber-500/20">
-            <Award className="w-6 h-6" />
+        {/* Top Header Card */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-brand-500/10 dark:bg-brand-500/20 rounded-2xl shrink-0">
+              <Award className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Examinations</h2>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Examinations</h2>
-            <p className="text-[10px] text-slate-500 mt-0.5">Define exam setups, subject schedules, invigilators, grading configurations, recalculate GPAs & print progress reports</p>
-          </div>
-        </div>
 
         {/* Global Selectors */}
         <div className="flex flex-wrap items-center gap-2.5">
@@ -977,10 +976,13 @@ export const ExaminationView: React.FC = () => {
           ].map(t => (
             <button
               key={t.id}
-              onClick={() => setActiveTab(t.id as MainTab)}
+              onClick={(e) => {
+                setActiveTab(t.id as MainTab);
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+              }}
               className={`px-4 py-2 font-bold rounded-xl flex items-center gap-2 whitespace-nowrap transition-all ${
                 activeTab === t.id
-                  ? 'bg-amber-500 text-white shadow-md'
+                  ? 'bg-sky-600 text-white shadow-md'
                   : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
@@ -1001,7 +1003,7 @@ export const ExaminationView: React.FC = () => {
             {isAdminOrPrincipal && (
               <button
                 onClick={handleOpenAddExam}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold flex items-center gap-1.5 shadow-sm text-[11px]"
+                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold flex items-center gap-1.5 shadow-sm text-[11px]"
               >
                 <Plus className="w-4 h-4" /> Set Up Examination
               </button>
@@ -1022,7 +1024,7 @@ export const ExaminationView: React.FC = () => {
                   <div key={ex.id} className="bg-white dark:bg-slate-900 border rounded-2xl p-5 space-y-4 hover:shadow-md transition-shadow relative overflow-hidden">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[9px] font-extrabold uppercase bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+                        <span className="text-[9px] font-extrabold uppercase bg-sky-600/10 text-sky-600 px-2 py-0.5 rounded-full">
                           {ex.examType || 'Term Exam'}
                         </span>
                         <h4 className="font-black text-slate-800 dark:text-slate-100 text-sm mt-1.5">{ex.name}</h4>
@@ -1056,7 +1058,7 @@ export const ExaminationView: React.FC = () => {
                       <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold ${
                         ex.status === 'Results Published' ? 'text-emerald-600' :
                         ex.status === 'Completed' ? 'text-blue-600' :
-                        ex.status === 'In Progress' ? 'text-indigo-600 animate-pulse' : 'text-slate-600'
+                        ex.status === 'In Progress' ? 'text-sky-600 animate-pulse' : 'text-slate-600'
                       }`}>
                         {ex.status === 'Results Published' && <CheckCircle className="w-3 h-3" />}
                         {ex.status}
@@ -1112,7 +1114,7 @@ export const ExaminationView: React.FC = () => {
                   });
                   setIsScheduleModalOpen(true);
                 }}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold flex items-center gap-1.5 shadow-sm text-[11px]"
+                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold flex items-center gap-1.5 shadow-sm text-[11px]"
               >
                 <PlusCircle className="w-4 h-4" /> Add Subject Schedule
               </button>
@@ -1145,7 +1147,7 @@ export const ExaminationView: React.FC = () => {
                       <tr key={sch.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                         <td className="py-3 px-4 font-black text-slate-800 dark:text-slate-200">{exam?.name || 'Unknown Exam'}</td>
                         <td className="py-3 px-4">{sch.className} - {sch.section}</td>
-                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-bold">{formatSubject(sch.subject)}</td>
+                        <td className="py-3 px-4 text-sky-600 dark:text-sky-400 font-bold">{formatSubject(sch.subject)}</td>
                         <td className="py-3 px-4">
                           <span className="block font-mono">{sch.date}</span>
                           <span className="text-[10px] text-slate-400 font-normal">{sch.startTime} - {sch.endTime}</span>
@@ -1220,7 +1222,7 @@ export const ExaminationView: React.FC = () => {
                   onClick={handlePrintPreview}
                   className="px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold hover:bg-slate-100 flex items-center gap-1.5 text-[11px]"
                 >
-                  <Printer className="w-3.5 h-3.5 text-amber-600" /> Print / PDF
+                  <Printer className="w-3.5 h-3.5 text-sky-600" /> Print / PDF
                 </button>
                 <button
                   type="button"
@@ -1330,7 +1332,7 @@ export const ExaminationView: React.FC = () => {
                   ) : (
                     previewTimetableRows.map(row => (
                       <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
-                        <td className="py-3 px-4 text-amber-600 dark:text-amber-400 font-black">{formatSubject(row.subject)}</td>
+                        <td className="py-3 px-4 text-sky-600 dark:text-sky-400 font-black">{formatSubject(row.subject)}</td>
                         <td className="py-3 px-4 font-mono">{row.date}</td>
                         <td className="py-3 px-4 font-mono">{row.startTime}</td>
                         <td className="py-3 px-4 font-mono">{row.endTime}</td>
@@ -1354,7 +1356,7 @@ export const ExaminationView: React.FC = () => {
           {/* Action Header Card */}
           <div className="glass-card p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl">
+              <div className="p-2.5 bg-sky-600/10 text-sky-600 dark:text-sky-400 rounded-2xl">
                 <FileText className="w-5 h-5" />
               </div>
               <div>
@@ -1366,7 +1368,7 @@ export const ExaminationView: React.FC = () => {
             {(isAdminOrPrincipal || isTeacher) && (
               <button
                 onClick={handleOpenAddPaper}
-                className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-2xl shadow-lg shadow-amber-500/20 flex items-center gap-2 text-xs transition-all self-start md:self-auto"
+                className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl shadow-lg shadow-sky-600/20 flex items-center gap-2 text-xs transition-all self-start md:self-auto"
               >
                 <Upload className="w-4 h-4" />
                 Upload Question Paper
@@ -1494,11 +1496,11 @@ export const ExaminationView: React.FC = () => {
                       <tr key={paper.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40">
+                            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/30 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-900/40">
                               <FileText className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="font-extrabold text-slate-900 dark:text-white hover:text-amber-600 transition-colors">{paper.paperTitle}</p>
+                              <p className="font-extrabold text-slate-900 dark:text-white hover:text-sky-600 transition-colors">{paper.paperTitle}</p>
                               <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400 font-mono">
                                 <span>{paper.fileName}</span>
                                 <span>•</span>
@@ -1508,8 +1510,8 @@ export const ExaminationView: React.FC = () => {
                           </div>
                         </td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{paper.examName}</td>
-                        <td className="p-4 font-bold">{paper.className} <span className="text-amber-600 font-extrabold">({paper.section || 'All'})</span></td>
-                        <td className="p-4 font-bold text-amber-600 dark:text-amber-400">{formatSubject(paper.subject)}</td>
+                        <td className="p-4 font-bold">{paper.className} <span className="text-sky-600 font-extrabold">({paper.section || 'All'})</span></td>
+                        <td className="p-4 font-bold text-sky-600 dark:text-sky-400">{formatSubject(paper.subject)}</td>
                         <td className="p-4">{paper.uploadedBy}</td>
                         <td className="p-4 font-mono text-slate-500">{paper.uploadedOn}</td>
                         <td className="p-4">
@@ -1535,7 +1537,7 @@ export const ExaminationView: React.FC = () => {
                                 addToast('success', 'Download Started', `Downloading '${paper.fileName}'...`);
                               }}
                               title="Download File"
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                              className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors"
                             >
                               <Download className="w-4 h-4" />
                             </button>
@@ -1545,7 +1547,7 @@ export const ExaminationView: React.FC = () => {
                                   onClick={() => handleTogglePublishPaper(paper)}
                                   title={paper.status === 'Published' ? 'Unpublish Paper' : 'Publish Paper'}
                                   className={`p-1.5 rounded-lg transition-colors ${
-                                    paper.status === 'Published' ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                    paper.status === 'Published' ? 'text-sky-600 hover:bg-sky-50' : 'text-emerald-600 hover:bg-emerald-50'
                                   }`}
                                 >
                                   {paper.status === 'Published' ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
@@ -1728,7 +1730,7 @@ export const ExaminationView: React.FC = () => {
 
             if (classSchedules.length === 0) {
               return (
-                <div className="bg-amber-50 border border-amber-200 dark:bg-amber-955/20 dark:border-amber-900 rounded-2xl p-5 text-amber-800 dark:text-amber-300 font-bold">
+                <div className="bg-sky-50 border border-sky-200 dark:bg-sky-955/20 dark:border-sky-900 rounded-2xl p-5 text-sky-800 dark:text-sky-300 font-bold">
                   No scheduled exams found for {marksClass}-{marksSection}. Please schedule subjects in the Schedule tab first.
                 </div>
               );
@@ -1820,7 +1822,7 @@ export const ExaminationView: React.FC = () => {
                             </td>
                             
                             <td className="py-3 px-3 text-center">
-                              <span className={`text-xs font-black ${isLocked ? 'text-slate-400' : 'text-amber-600'}`}>{grade}</span>
+                              <span className={`text-xs font-black ${isLocked ? 'text-slate-400' : 'text-sky-600'}`}>{grade}</span>
                             </td>
                             
                             <td className="py-3 px-3">
@@ -1881,7 +1883,7 @@ export const ExaminationView: React.FC = () => {
             {isAdminOrPrincipal && (
               <button
                 onClick={handleSaveGrades}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold flex items-center gap-1 shadow-sm text-[11px]"
+                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold flex items-center gap-1 shadow-sm text-[11px]"
               >
                 <Save className="w-4 h-4" /> Save Grade Ranges
               </button>
@@ -2021,7 +2023,7 @@ export const ExaminationView: React.FC = () => {
                   <>
                     <button
                       onClick={handleProcessResults}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold flex items-center gap-1.5 text-[11px]"
+                      className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold flex items-center gap-1.5 text-[11px]"
                     >
                       <RefreshCw className="w-3.5 h-3.5" /> Process & Calculate
                     </button>
@@ -2082,9 +2084,9 @@ export const ExaminationView: React.FC = () => {
                         <td className="py-2 px-3 font-mono">{res.rollNo}</td>
                         <td className="py-2 px-3 text-center">{res.totalObtainedMarks}</td>
                         <td className="py-2 px-3 text-center">{res.totalMaxMarks}</td>
-                        <td className="py-2 px-3 text-center font-bold text-amber-600">{res.percentage}%</td>
+                        <td className="py-2 px-3 text-center font-bold text-sky-600">{res.percentage}%</td>
                         <td className="py-2 px-3 text-center font-mono">{res.gpa}</td>
-                        <td className="py-2 px-3 text-center text-indigo-600 font-bold">{res.finalGrade}</td>
+                        <td className="py-2 px-3 text-center text-sky-600 font-bold">{res.finalGrade}</td>
                         <td className="py-2 px-3 text-center">
                           {res.passStatus === 'Pass' ? (
                             <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-950/20">Pass</span>
@@ -2111,7 +2113,7 @@ export const ExaminationView: React.FC = () => {
             {allMarksWithRevaluation.length > 0 && (
               <div className="border-t pt-5 mt-4 space-y-3">
                 <h4 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <History className="w-4 h-4 text-amber-500" /> Grace Marks & Revaluation Revision Audit Logs
+                  <History className="w-4 h-4 text-sky-500" /> Grace Marks & Revaluation Revision Audit Logs
                 </h4>
                 <div className="space-y-2.5 max-h-40 overflow-y-auto pr-1">
                   {allMarksWithRevaluation.flatMap(m => {
@@ -2123,7 +2125,7 @@ export const ExaminationView: React.FC = () => {
                             {student?.firstName} {student?.lastName} ({m.subject})
                           </p>
                           <p className="text-slate-400 mt-0.5">
-                            Type: <strong className="text-amber-600">{h.type} Adjustment</strong> • Reason: "{h.reason}"
+                            Type: <strong className="text-sky-600">{h.type} Adjustment</strong> • Reason: "{h.reason}"
                           </p>
                         </div>
                         <div className="text-right">
@@ -2319,7 +2321,7 @@ export const ExaminationView: React.FC = () => {
                             }}
                             className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 ml-auto text-[11px] ${
                               isPublished
-                                ? 'bg-amber-500 hover:bg-amber-400 text-white shadow-sm'
+                                ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sm'
                                 : 'bg-slate-100 text-slate-400 dark:bg-slate-800 cursor-not-allowed'
                             }`}
                           >
@@ -2444,7 +2446,7 @@ export const ExaminationView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setExamFormData({ ...examFormData, applicableClasses: classOptions })}
-                        className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold text-[10px] hover:bg-amber-100"
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-bold text-[10px] hover:bg-sky-100"
                       >
                         All Classes
                       </button>
@@ -2475,7 +2477,7 @@ export const ExaminationView: React.FC = () => {
                                   : current.filter(item => item !== className)
                               });
                             }}
-                            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                            className="rounded border-slate-300 text-sky-500 focus:ring-sky-500"
                           />
                           <span>{className}</span>
                         </label>
@@ -2501,7 +2503,7 @@ export const ExaminationView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t">
                 <button type="button" onClick={() => setIsExamModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-amber-500 hover:bg-amber-400 rounded-xl shadow-md">
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
                   {editingExam ? 'Save Changes' : 'Configure Exam'}
                 </button>
               </div>
@@ -2544,7 +2546,7 @@ export const ExaminationView: React.FC = () => {
                   <select
                     value={scheduleForm.subject}
                     onChange={e => setScheduleForm({ ...scheduleForm, subject: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-amber-600 dark:text-amber-400"
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400"
                   >
                     {(() => {
                       const selClass = selectedScheduleClasses[0] || 'Class 10';
@@ -2590,7 +2592,7 @@ export const ExaminationView: React.FC = () => {
                             setSelectedScheduleClasses(classOptions);
                             setScheduleForm({ ...scheduleForm, className: classOptions[0] || '', section: 'All Sections' });
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold text-[10px] hover:bg-amber-100"
+                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 font-bold text-[10px] hover:bg-sky-100"
                         >
                           All Classes
                         </button>
@@ -2623,7 +2625,7 @@ export const ExaminationView: React.FC = () => {
                                   section: 'All Sections'
                                 });
                               }}
-                              className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                              className="rounded border-slate-300 text-sky-500 focus:ring-sky-500"
                             />
                             <span>{className}</span>
                           </label>
@@ -2636,7 +2638,7 @@ export const ExaminationView: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-[10px] font-bold text-slate-455">Section *</label>
-                    <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                    <label className="inline-flex items-center gap-1 cursor-pointer text-[10px] font-bold text-sky-600 dark:text-sky-400">
                       <input
                         type="checkbox"
                         checked={applyToAllSections}
@@ -2646,7 +2648,7 @@ export const ExaminationView: React.FC = () => {
                             setScheduleForm({ ...scheduleForm, section: 'All Sections' });
                           }
                         }}
-                        className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                        className="rounded border-slate-300 text-sky-500 focus:ring-sky-500"
                       />
                       <span>Apply to All Sections</span>
                     </label>
@@ -2720,7 +2722,7 @@ export const ExaminationView: React.FC = () => {
                           placeholder="Search teacher..."
                           value={teacherSearch[`${cls}-${sec}`] || ''}
                           onChange={e => setTeacherSearch({...teacherSearch, [`${cls}-${sec}`]: e.target.value})}
-                          className="w-full px-2 py-1 mb-2 text-[10px] rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                          className="w-full px-2 py-1 mb-2 text-[10px] rounded border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-sky-500"
                         />
                         <div className="max-h-28 overflow-y-auto border rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 p-2 space-y-1">
                           {staff
@@ -2747,7 +2749,7 @@ export const ExaminationView: React.FC = () => {
                                       setInvigilatorAssignments({...invigilatorAssignments, [`${cls}-${sec}`]: curr.filter(id => id !== t.id)});
                                     }
                                   }}
-                                  className="w-3.5 h-3.5 rounded text-amber-500 focus:ring-amber-500 border-slate-300"
+                                  className="w-3.5 h-3.5 rounded text-sky-500 focus:ring-sky-500 border-slate-300"
                                 />
                                 <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                                   {t.name || `${t.firstName} ${t.lastName}`} <span className="text-[9px] text-slate-400 font-normal">({t.empId})</span>
@@ -2764,7 +2766,7 @@ export const ExaminationView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t">
                 <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-amber-500 hover:bg-amber-400 rounded-xl shadow-md">
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
                   {editingSchedule ? 'Save Changes' : 'Schedule Subject'}
                 </button>
               </div>
@@ -2830,7 +2832,7 @@ export const ExaminationView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-1.5">
-                <History className="w-4 h-4 text-amber-500" /> Apply Adjustments / Grace Marks
+                <History className="w-4 h-4 text-sky-500" /> Apply Adjustments / Grace Marks
               </h3>
               <button onClick={() => setRevalueMark(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-5 h-5" />
@@ -2901,7 +2903,7 @@ export const ExaminationView: React.FC = () => {
                     addToast('success', 'Amendment Applied', 'Successfully updated score and appended to timeline.');
                     setRevalueMark(null);
                   }}
-                  className="px-5 py-2 font-bold text-white bg-amber-500 hover:bg-amber-400 rounded-xl shadow-md"
+                  className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md"
                 >
                   Apply Amendment
                 </button>
@@ -2930,7 +2932,7 @@ export const ExaminationView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                <FileText className="w-4 h-4 text-amber-500" />
+                <FileText className="w-4 h-4 text-sky-500" />
                 {editingPaper ? 'Modify Question Paper' : 'Upload Question Paper'}
               </h3>
               <button onClick={() => setIsPaperModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
@@ -2998,7 +3000,7 @@ export const ExaminationView: React.FC = () => {
                     required
                     value={paperFormData.subject}
                     onChange={e => setPaperFormData({ ...paperFormData, subject: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-amber-600 dark:text-amber-400"
+                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-sky-600 dark:text-sky-400"
                   >
                     {(() => {
                       const selClass = paperFormData.className || 'Class 10';
@@ -3109,9 +3111,9 @@ export const ExaminationView: React.FC = () => {
                       });
                     }
                   }}
-                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 cursor-pointer"
+                  className="block w-full text-xs text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 cursor-pointer"
                 />
-                <p className="text-[10px] text-slate-400">Current file: <span className="font-mono text-amber-600">{paperFormData.fileName || 'None'}</span> ({paperFormData.fileSize || '0 KB'})</p>
+                <p className="text-[10px] text-slate-400">Current file: <span className="font-mono text-sky-600">{paperFormData.fileName || 'None'}</span> ({paperFormData.fileSize || '0 KB'})</p>
               </div>
 
               <div>
@@ -3128,7 +3130,7 @@ export const ExaminationView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t">
                 <button type="button" onClick={() => setIsPaperModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-amber-500 hover:bg-amber-400 rounded-xl shadow-md flex items-center gap-2">
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md flex items-center gap-2">
                   <Upload className="w-4 h-4" />
                   {editingPaper ? 'Save Changes' : 'Upload Paper'}
                 </button>
@@ -3144,7 +3146,7 @@ export const ExaminationView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400">
+                <div className="p-2 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
@@ -3165,7 +3167,7 @@ export const ExaminationView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Class & Section</span>
-                  <span className="text-amber-600 dark:text-amber-400 font-extrabold">{viewingPaper.className} ({viewingPaper.section || 'All'})</span>
+                  <span className="text-sky-600 dark:text-sky-400 font-extrabold">{viewingPaper.className} ({viewingPaper.section || 'All'})</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Subject</span>
@@ -3186,8 +3188,8 @@ export const ExaminationView: React.FC = () => {
               </div>
 
               {viewingPaper.instructions && (
-                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-amber-50/20 dark:bg-amber-950/10 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-wider">Examination Instructions</span>
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-sky-50/20 dark:bg-sky-950/10 space-y-1">
+                  <span className="text-[10px] font-black uppercase text-sky-700 dark:text-sky-400 tracking-wider">Examination Instructions</span>
                   <p className="text-slate-700 dark:text-slate-300 font-medium whitespace-pre-line leading-relaxed">{viewingPaper.instructions}</p>
                 </div>
               )}
@@ -3201,7 +3203,7 @@ export const ExaminationView: React.FC = () => {
                   onClick={() => {
                     addToast('success', 'Download Triggered', `Downloading '${viewingPaper.fileName}'`);
                   }}
-                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm"
+                  className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-sm"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download

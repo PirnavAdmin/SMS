@@ -59,7 +59,7 @@ export const UniformCategoryView: React.FC = () => {
         </div>
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-500/20 flex items-center gap-1.5 transition-all"
+          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> Add Category
         </button>
@@ -99,7 +99,7 @@ export const UniformCategoryView: React.FC = () => {
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{c.name}</td>
                     <td className="py-3 px-4 text-slate-500">{c.description || 'N/A'}</td>
                     <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
-                      <button onClick={() => handleOpenEdit(c)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleOpenEdit(c)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={() => setDeletingCategory(c)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
                     </td>
                   </tr>
@@ -137,7 +137,7 @@ export const UniformCategoryView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all">Save Category</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Category</button>
               </div>
             </form>
           </div>

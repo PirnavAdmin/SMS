@@ -57,12 +57,12 @@ export const FinanceDashboardView: React.FC = () => {
           <p className="text-[10px] text-rose-500 font-semibold">Action required</p>
         </div>
 
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-indigo-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">Today's Collection</span>
-            <TrendingUp className="w-5 h-5 text-indigo-500" />
+            <TrendingUp className="w-5 h-5 text-sky-500" />
           </div>
-          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{formatCurrency(todaysCollection)}</h3>
+          <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">{formatCurrency(todaysCollection)}</h3>
           <p className="text-[10px] text-slate-400">Daily receipt total</p>
         </div>
       </div>
@@ -82,7 +82,7 @@ export const FinanceDashboardView: React.FC = () => {
             <p className="text-[11px] font-bold text-slate-500 uppercase">Hostel Revenue</p>
             <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(hostelCollection)}</h4>
           </div>
-          <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400"><Home className="w-5 h-5" /></div>
+          <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400"><Home className="w-5 h-5" /></div>
         </div>
 
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
@@ -134,7 +134,7 @@ export const FinanceDashboardView: React.FC = () => {
         {/* Fee Head Wise Breakdown */}
         <div className="glass-card p-6 rounded-3xl space-y-4">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-indigo-500" /> Fee Head Master Share
+            <PieChart className="w-5 h-5 text-sky-500" /> Fee Head Master Share
           </h3>
           <div className="space-y-3">
             {feeHeads.slice(0, 5).map(h => (

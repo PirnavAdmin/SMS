@@ -90,7 +90,7 @@ export const ParentExaminationView: React.FC = () => {
       </div>
 
       {!hasMatchedWards && (
-         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
+         <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-4 flex items-start gap-3">
             <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
             <div className="text-sm">
                <p className="font-bold">Demo Mode Active</p>
@@ -197,7 +197,7 @@ export const ParentExaminationView: React.FC = () => {
                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
                           sub.grade.includes('A') ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
                           sub.grade.includes('B') ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400' :
-                          sub.grade.includes('C') ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' :
+                          sub.grade.includes('C') ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400' :
                           'bg-rose-100 text-rose-700 dark:bg-rose-500/20 dark:text-rose-400'
                         }`}>
                           {sub.grade}
@@ -251,7 +251,7 @@ export const ParentExaminationView: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm mt-6">
               <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+                  <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
@@ -267,7 +267,7 @@ export const ParentExaminationView: React.FC = () => {
                     <div className="space-y-1">
                       <p className="font-extrabold text-slate-900 dark:text-white text-xs">{paper.paperTitle}</p>
                       <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                        <span className="font-bold text-amber-600 dark:text-amber-400">{paper.subject}</span>
+                        <span className="font-bold text-sky-600 dark:text-sky-400">{paper.subject}</span>
                         <span>•</span>
                         <span>{paper.duration}</span>
                         <span>•</span>
@@ -276,7 +276,7 @@ export const ParentExaminationView: React.FC = () => {
                     </div>
                     <button
                       onClick={() => alert(`Downloading '${paper.fileName}'...`)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                      className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
                     >
                       <Download className="w-3.5 h-3.5" />
                       Download

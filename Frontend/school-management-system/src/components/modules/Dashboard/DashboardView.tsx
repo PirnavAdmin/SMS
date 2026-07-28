@@ -45,7 +45,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 p-6 sm:p-8 text-white shadow-xl shadow-brand-500/20">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 via-sky-600 to-sky-600 p-6 sm:p-8 text-white shadow-xl shadow-brand-500/20">
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-2">
@@ -80,7 +80,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Students" value={totalStudents} subtitle="Enrolled active students" change="+12% vs last term" isPositive={true} icon={UserCheck} color="indigo" />
+        <StatCard title="Total Students" value={totalStudents} subtitle="Enrolled active students" change="+12% vs last term" isPositive={true} icon={UserCheck} color="sky" />
         <StatCard title="Total Staff" value={totalStaff} subtitle="Faculty & administration" change="100% active" isPositive={true} icon={Users} color="emerald" />
         <StatCard title="Fee Collected" value={formatCurrency(feeCollected)} subtitle="Total revenue processed" change="+18.5% growth" isPositive={true} icon={IndianRupee} color="sky" />
         <StatCard title="Due Fees" value={formatCurrency(feeDue)} subtitle="Pending student dues" change="Action required" isPositive={false} icon={AlertCircle} color="rose" />
@@ -149,7 +149,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                     <span className="font-bold text-slate-900 dark:text-white">{count} Students</span>
                   </div>
                   <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden p-0.5">
-                    <div className="h-full bg-gradient-to-r from-brand-500 to-indigo-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                    <div className="h-full bg-gradient-to-r from-brand-500 to-sky-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );

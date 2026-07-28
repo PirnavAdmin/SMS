@@ -472,8 +472,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
             )}
 
             {formData.studentType === 'Hosteller' && (
-              <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 space-y-3 animate-in fade-in">
-                <h5 className="font-bold text-indigo-900 dark:text-indigo-200">Hostel Bed Allocation</h5>
+              <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
+                <h5 className="font-bold text-sky-900 dark:text-sky-200">Hostel Bed Allocation</h5>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Block</label>

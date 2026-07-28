@@ -664,7 +664,7 @@ export const MeetingsView: React.FC = () => {
       {/* Top Header */}
       <div className="glass-card p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-gradient-to-tr from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg shadow-indigo-500/20">
+          <div className="p-3 bg-gradient-to-tr from-sky-600 to-sky-600 text-white rounded-2xl shadow-lg shadow-sky-500/20">
             <Users className="w-6 h-6" />
           </div>
           <div>
@@ -676,7 +676,7 @@ export const MeetingsView: React.FC = () => {
         {canManageMeetings && (
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg shadow-indigo-600/20 flex items-center gap-2 text-xs transition-all self-start md:self-auto"
+            className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl shadow-lg shadow-sky-600/20 flex items-center gap-2 text-xs transition-all self-start md:self-auto"
           >
             <Plus className="w-4 h-4" />
             Schedule Meeting
@@ -773,8 +773,8 @@ export const MeetingsView: React.FC = () => {
                 <div className="flex items-start justify-between gap-2">
                   <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
                     meeting.meetingAudience === 'Individual'
-                      ? 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border border-purple-200'
-                      : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200'
+                      ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200'
+                      : 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200'
                   }`}>
                     {meeting.meetingAudience} Meeting
                   </span>
@@ -789,7 +789,7 @@ export const MeetingsView: React.FC = () => {
                   </span>
                 </div>
 
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm hover:text-indigo-600 transition-colors leading-tight">
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm hover:text-sky-600 transition-colors leading-tight">
                   {meeting.title}
                 </h3>
                 {meeting.description && (
@@ -800,7 +800,7 @@ export const MeetingsView: React.FC = () => {
               <div className="space-y-2 text-xs font-semibold pt-2 border-t border-slate-100 dark:border-slate-800">
                 {/* Participant Info */}
                 <div className="flex items-center gap-2">
-                  <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <User className="w-3.5 h-3.5 text-sky-500 shrink-0" />
                   <div className="truncate">
                     {meeting.meetingAudience === 'Individual' ? (
                       <span className="font-extrabold text-slate-800 dark:text-slate-200">
@@ -908,7 +908,7 @@ export const MeetingsView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                <Users className="w-4 h-4 text-indigo-600" />
+                <Users className="w-4 h-4 text-sky-600" />
                 {editingMeeting ? 'Modify Meeting Details' : 'Schedule New Meeting'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
@@ -926,7 +926,7 @@ export const MeetingsView: React.FC = () => {
                     onClick={() => setMeetingAudience('Individual')}
                     className={`py-2.5 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                       meetingAudience === 'Individual'
-                        ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20'
+                        ? 'bg-sky-600 text-white border-sky-600 shadow-md shadow-sky-600/20'
                         : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
                   >
@@ -938,7 +938,7 @@ export const MeetingsView: React.FC = () => {
                     onClick={() => setMeetingAudience('Group')}
                     className={`py-2.5 px-4 rounded-xl border text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                       meetingAudience === 'Group'
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20'
+                        ? 'bg-sky-600 text-white border-sky-600 shadow-md shadow-sky-600/20'
                         : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                     }`}
                   >
@@ -950,9 +950,9 @@ export const MeetingsView: React.FC = () => {
 
               {/* Individual Participant Picker */}
               {meetingAudience === 'Individual' ? (
-                <div className="p-4 rounded-2xl bg-purple-50/40 dark:bg-purple-950/20 border border-purple-100 dark:border-purple-900/40 space-y-3">
+                <div className="p-4 rounded-2xl bg-sky-50/40 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 space-y-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-purple-700 dark:text-purple-300 mb-1">Participant Type *</label>
+                    <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">Participant Type *</label>
                     <select
                       value={participantType}
                       onChange={e => {
@@ -975,13 +975,13 @@ export const MeetingsView: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-purple-700 dark:text-purple-300 mb-1">
+                    <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">
                       Search & Select Participant ({participantType}) *
                     </label>
 
                     {/* Search Bar Input */}
                     <div className="relative">
-                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+                      <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sky-400" />
                       <input
                         type="text"
                         placeholder={
@@ -995,7 +995,7 @@ export const MeetingsView: React.FC = () => {
                           setParticipantSearch(e.target.value);
                           setIsSearchOpen(true);
                         }}
-                        className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-purple-200 dark:border-purple-900 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500/40"
+                        className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white placeholder-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                       />
                       {participantSearch && (
                         <button
@@ -1012,7 +1012,7 @@ export const MeetingsView: React.FC = () => {
 
                       {/* Suggestion Dropdown List (Removes / hides on selection) */}
                       {isSearchOpen && (
-                        <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-800 rounded-2xl shadow-xl divide-y divide-slate-100 dark:divide-slate-800 text-xs scrollbar-thin">
+                        <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-56 overflow-y-auto bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 rounded-2xl shadow-xl divide-y divide-slate-100 dark:divide-slate-800 text-xs scrollbar-thin">
                           {participantType === 'Parent' && (
                             filteredParents.length === 0 ? (
                               <div className="p-3 text-center text-slate-400 font-medium">No matching parents found</div>
@@ -1025,13 +1025,13 @@ export const MeetingsView: React.FC = () => {
                                     setParticipantSearch('');
                                     setIsSearchOpen(false); // REMOVE SUGGEST BOX
                                   }}
-                                  className={`p-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors ${
-                                    selectedParticipantId === p.id ? 'bg-purple-50/80 dark:bg-purple-950/60 font-bold' : ''
+                                  className={`p-3 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors ${
+                                    selectedParticipantId === p.id ? 'bg-sky-50/80 dark:bg-sky-950/60 font-bold' : ''
                                   }`}
                                 >
                                   <div className="font-extrabold text-slate-900 dark:text-white flex items-center justify-between">
                                     <span>Parent: {p.fatherName}</span>
-                                    <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-bold">Adm No: {p.admissionNo}</span>
+                                    <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-bold">Adm No: {p.admissionNo}</span>
                                   </div>
                                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center justify-between">
                                     <span>Ward: <strong className="text-slate-700 dark:text-slate-300">{p.studentName}</strong></span>
@@ -1056,13 +1056,13 @@ export const MeetingsView: React.FC = () => {
                                       setParticipantSearch('');
                                       setIsSearchOpen(false); // REMOVE SUGGEST BOX
                                     }}
-                                    className={`p-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors ${
-                                      selectedParticipantId === s.id ? 'bg-purple-50/80 dark:bg-purple-950/60 font-bold' : ''
+                                    className={`p-3 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors ${
+                                      selectedParticipantId === s.id ? 'bg-sky-50/80 dark:bg-sky-950/60 font-bold' : ''
                                     }`}
                                   >
                                     <div className="font-extrabold text-slate-900 dark:text-white flex items-center justify-between">
                                       <span>{s.firstName} {s.lastName}</span>
-                                      <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-bold">ADM-{s.admissionNo || s.id}</span>
+                                      <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-bold">ADM-{s.admissionNo || s.id}</span>
                                     </div>
                                     <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                       Class {cleanClass}-{s.section}
@@ -1085,13 +1085,13 @@ export const MeetingsView: React.FC = () => {
                                     setParticipantSearch('');
                                     setIsSearchOpen(false); // REMOVE SUGGEST BOX
                                   }}
-                                  className={`p-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors ${
-                                    selectedParticipantId === t.id ? 'bg-purple-50/80 dark:bg-purple-950/60 font-bold' : ''
+                                  className={`p-3 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors ${
+                                    selectedParticipantId === t.id ? 'bg-sky-50/80 dark:bg-sky-950/60 font-bold' : ''
                                   }`}
                                 >
                                   <div className="font-extrabold text-slate-900 dark:text-white flex items-center justify-between">
                                     <span>{t.firstName} {t.lastName}</span>
-                                    <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-bold">{t.empId || t.id}</span>
+                                    <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-bold">{t.empId || t.id}</span>
                                   </div>
                                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                     {t.department || 'Academics'} • {t.designation || 'Teacher'}
@@ -1113,13 +1113,13 @@ export const MeetingsView: React.FC = () => {
                                     setParticipantSearch('');
                                     setIsSearchOpen(false); // REMOVE SUGGEST BOX
                                   }}
-                                  className={`p-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors ${
-                                    selectedParticipantId === st.id ? 'bg-purple-50/80 dark:bg-purple-950/60 font-bold' : ''
+                                  className={`p-3 cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors ${
+                                    selectedParticipantId === st.id ? 'bg-sky-50/80 dark:bg-sky-950/60 font-bold' : ''
                                   }`}
                                 >
                                   <div className="font-extrabold text-slate-900 dark:text-white flex items-center justify-between">
                                     <span>{st.firstName} {st.lastName}</span>
-                                    <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400 font-bold">{st.empId || st.id}</span>
+                                    <span className="text-[10px] font-mono text-sky-600 dark:text-sky-400 font-bold">{st.empId || st.id}</span>
                                   </div>
                                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                                     {st.department || 'Operations'} • {st.designation || 'Staff'}
@@ -1137,16 +1137,16 @@ export const MeetingsView: React.FC = () => {
                       const selectedParent = parentOptions.find(p => p.id === selectedParticipantId);
                       if (!selectedParent) return null;
                       return (
-                        <div className="mt-2.5 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-purple-200 dark:border-purple-800 shadow-sm space-y-2 text-xs animate-in fade-in">
-                          <div className="flex items-center justify-between font-black text-purple-950 dark:text-purple-200">
+                        <div className="mt-2.5 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-sky-200 dark:border-sky-800 shadow-sm space-y-2 text-xs animate-in fade-in">
+                          <div className="flex items-center justify-between font-black text-sky-950 dark:text-sky-200">
                             <span className="flex items-center gap-1.5 text-sm">
                               👨‍👩‍👧 Parent: <strong className="text-slate-900 dark:text-white font-black">{selectedParent.fatherName}</strong>
                             </span>
-                            <span className="font-mono text-xs text-purple-600 dark:text-purple-400 font-bold">📞 {selectedParent.phone}</span>
+                            <span className="font-mono text-xs text-sky-600 dark:text-sky-400 font-bold">📞 {selectedParent.phone}</span>
                           </div>
-                          <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 text-xs font-semibold border-t border-purple-100 dark:border-purple-900/50 pt-2">
+                          <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 text-xs font-semibold border-t border-sky-100 dark:border-sky-900/50 pt-2">
                             <span>🎓 Student / Ward: <strong className="text-slate-900 dark:text-white font-bold">{selectedParent.studentName}</strong></span>
-                            <span className="font-mono bg-purple-100 dark:bg-purple-950/90 px-2.5 py-1 rounded-lg font-extrabold text-purple-800 dark:text-purple-300">
+                            <span className="font-mono bg-sky-100 dark:bg-sky-950/90 px-2.5 py-1 rounded-lg font-extrabold text-sky-800 dark:text-sky-300">
                               Adm No: {selectedParent.admissionNo} • Class {selectedParent.className}
                             </span>
                           </div>
@@ -1159,19 +1159,19 @@ export const MeetingsView: React.FC = () => {
                       if (!selectedStudent) return null;
                       const cleanClass = selectedStudent.className ? selectedStudent.className.replace(/^class\s+/i, '') : '-';
                       return (
-                        <div className="mt-2.5 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-purple-200 dark:border-purple-800 shadow-sm space-y-2 text-xs animate-in fade-in">
-                          <div className="flex items-center justify-between font-black text-purple-950 dark:text-purple-200">
+                        <div className="mt-2.5 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-sky-200 dark:border-sky-800 shadow-sm space-y-2 text-xs animate-in fade-in">
+                          <div className="flex items-center justify-between font-black text-sky-950 dark:text-sky-200">
                             <span className="flex items-center gap-1.5 text-sm">
                               🎓 Student: <strong className="text-slate-900 dark:text-white font-black">{selectedStudent.firstName} {selectedStudent.lastName}</strong>
                             </span>
-                            <span className="font-mono bg-purple-100 dark:bg-purple-950/90 px-2.5 py-1 rounded-lg font-extrabold text-purple-800 dark:text-purple-300">
+                            <span className="font-mono bg-sky-100 dark:bg-sky-950/90 px-2.5 py-1 rounded-lg font-extrabold text-sky-800 dark:text-sky-300">
                               Adm No: ADM-{selectedStudent.admissionNo || selectedStudent.id} • Class {cleanClass}-{selectedStudent.section}
                             </span>
                           </div>
                           {(selectedStudent.fatherName || selectedStudent.fatherPhone) && (
-                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 text-xs font-semibold border-t border-purple-100 dark:border-purple-900/50 pt-2">
+                            <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 text-xs font-semibold border-t border-sky-100 dark:border-sky-900/50 pt-2">
                               <span>👨‍👩‍👧 Parent: <strong className="text-slate-900 dark:text-white font-bold">{selectedStudent.fatherName || 'Parent'}</strong></span>
-                              <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">📞 {selectedStudent.fatherPhone || '-'}</span>
+                              <span className="font-mono text-sky-600 dark:text-sky-400 font-bold">📞 {selectedStudent.fatherPhone || '-'}</span>
                             </div>
                           )}
                         </div>
@@ -1182,34 +1182,34 @@ export const MeetingsView: React.FC = () => {
                       const selectedStaff = staff.find(s => s.id === selectedParticipantId);
                       if (!selectedStaff) return null;
                       return (
-                        <div className="mt-2.5 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-purple-200 dark:border-purple-800 shadow-sm space-y-2 text-xs animate-in fade-in">
-                          <div className="flex items-center justify-between font-black text-purple-950 dark:text-purple-200">
+                        <div className="mt-2.5 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border-2 border-sky-200 dark:border-sky-800 shadow-sm space-y-2 text-xs animate-in fade-in">
+                          <div className="flex items-center justify-between font-black text-sky-950 dark:text-sky-200">
                             <span className="flex items-center gap-1.5 text-sm">
                               👨‍🏫 Staff: <strong className="text-slate-900 dark:text-white font-black">{selectedStaff.firstName} {selectedStaff.lastName}</strong>
                             </span>
-                            <span className="font-mono bg-purple-100 dark:bg-purple-950/90 px-2.5 py-1 rounded-lg font-extrabold text-purple-800 dark:text-purple-300">
+                            <span className="font-mono bg-sky-100 dark:bg-sky-950/90 px-2.5 py-1 rounded-lg font-extrabold text-sky-800 dark:text-sky-300">
                               {selectedStaff.empId || selectedStaff.id}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 text-xs font-semibold border-t border-purple-100 dark:border-purple-900/50 pt-2">
+                          <div className="flex items-center justify-between text-slate-600 dark:text-slate-300 text-xs font-semibold border-t border-sky-100 dark:border-sky-900/50 pt-2">
                             <span>💼 Dept: <strong className="text-slate-900 dark:text-white font-bold">{selectedStaff.department || 'Academics'}</strong> ({selectedStaff.designation || 'Staff'})</span>
-                            <span className="font-mono text-purple-600 dark:text-purple-400 font-bold">📞 {selectedStaff.phone || '-'}</span>
+                            <span className="font-mono text-sky-600 dark:text-sky-400 font-bold">📞 {selectedStaff.phone || '-'}</span>
                           </div>
                         </div>
                       );
                     })()}
 
-                    <p className="text-[10px] text-purple-600 dark:text-purple-400 mt-1.5 font-medium">
+                    <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-1.5 font-medium">
                       Note: Only the selected participant will receive this meeting notification.
                     </p>
                   </div>
                 </div>
               ) : (
-                <div className="p-4.5 rounded-2xl bg-indigo-50/40 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/40 space-y-4">
+                <div className="p-4.5 rounded-2xl bg-sky-50/40 dark:bg-sky-950/20 border border-sky-100 dark:border-sky-900/40 space-y-4">
                   {/* Header & Audience Template Controls */}
-                  <div className="flex items-center justify-between pb-2 border-b border-indigo-100 dark:border-indigo-900/40">
-                    <h4 className="text-xs font-black uppercase tracking-tight text-indigo-900 dark:text-indigo-200 flex items-center gap-2">
-                      <Users className="w-4 h-4 text-indigo-600" />
+                  <div className="flex items-center justify-between pb-2 border-b border-sky-100 dark:border-sky-900/40">
+                    <h4 className="text-xs font-black uppercase tracking-tight text-sky-900 dark:text-sky-200 flex items-center gap-2">
+                      <Users className="w-4 h-4 text-sky-600" />
                       Multi-Target Group Audience Configuration
                     </h4>
                     
@@ -1228,9 +1228,9 @@ export const MeetingsView: React.FC = () => {
                             addToast('success', 'Template Saved', `Saved audience template '${tName}'.`);
                           }
                         }}
-                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800 text-[10px] font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 flex items-center gap-1 shadow-xs transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-[10px] font-bold text-sky-700 dark:text-sky-300 hover:bg-sky-50 flex items-center gap-1 shadow-xs transition-colors"
                       >
-                        <Save className="w-3 h-3 text-indigo-600" />
+                        <Save className="w-3 h-3 text-sky-600" />
                         Save Template
                       </button>
                     </div>
@@ -1239,7 +1239,7 @@ export const MeetingsView: React.FC = () => {
                   {/* Saved Templates Loader Dropdown */}
                   {savedTemplates.length > 0 && (
                     <div className="flex items-center gap-2 text-xs">
-                      <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap flex items-center gap-1">
                         <Bookmark className="w-3.5 h-3.5" /> Preset Templates:
                       </span>
                       <select
@@ -1250,7 +1250,7 @@ export const MeetingsView: React.FC = () => {
                             addToast('info', 'Template Loaded', `Loaded '${tmpl.name}' preset.`);
                           }
                         }}
-                        className="px-2.5 py-1 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-white dark:bg-slate-800 font-bold text-[11px] text-indigo-900 dark:text-indigo-200"
+                        className="px-2.5 py-1 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-[11px] text-sky-900 dark:text-sky-200"
                       >
                         <option value="">-- Load Saved Audience Template --</option>
                         {savedTemplates.map(t => (
@@ -1262,7 +1262,7 @@ export const MeetingsView: React.FC = () => {
 
                   {/* 1. Multiple Participant Types Multi-Select Checkboxes */}
                   <div>
-                    <label className="block text-[10px] font-bold text-indigo-700 dark:text-indigo-300 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1.5 uppercase tracking-wider">
                       1. Select Participant Types (Multi-Selection Allowed) *
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -1285,8 +1285,8 @@ export const MeetingsView: React.FC = () => {
                             }}
                             className={`py-2 px-3 rounded-xl border text-xs font-black transition-all flex items-center justify-between ${
                               isChecked
-                                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-indigo-100 dark:border-indigo-900'
+                                ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-sky-100 dark:border-sky-900'
                             }`}
                           >
                             <span>{pType}</span>
@@ -1301,12 +1301,12 @@ export const MeetingsView: React.FC = () => {
                   
                   {/* TEACHING STAFF FILTER PANEL */}
                   {selectedGroupParticipantTypes.includes('Teaching Staff') && (
-                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-3">
-                      <div className="flex items-center justify-between border-b pb-1.5 border-indigo-50 dark:border-indigo-950">
-                        <span className="text-xs font-black text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 space-y-3">
+                      <div className="flex items-center justify-between border-b pb-1.5 border-sky-50 dark:border-sky-950">
+                        <span className="text-xs font-black text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
                           👨‍🏫 Teaching Staff Target Filters
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 font-mono">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-600 font-mono">
                           {resolvedGroupParticipantsBreakdown.teachingCount} Teachers
                         </span>
                       </div>
@@ -1446,7 +1446,7 @@ export const MeetingsView: React.FC = () => {
                                     if (e.target.checked) setTeachingSelectedIds(prev => [...prev, t.id]);
                                     else setTeachingSelectedIds(prev => prev.filter(id => id !== t.id));
                                   }}
-                                  className="rounded text-indigo-600"
+                                  className="rounded text-sky-600"
                                 />
                                 <span className="font-bold text-slate-800 dark:text-slate-200">{t.firstName} {t.lastName}</span>
                                 <span className="text-[10px] text-slate-400 ml-auto">{t.department || 'Academics'}</span>
@@ -1460,12 +1460,12 @@ export const MeetingsView: React.FC = () => {
 
                   {/* NON-TEACHING STAFF FILTER PANEL */}
                   {selectedGroupParticipantTypes.includes('Non-Teaching Staff') && (
-                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-3">
-                      <div className="flex items-center justify-between border-b pb-1.5 border-indigo-50 dark:border-indigo-950">
-                        <span className="text-xs font-black text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 space-y-3">
+                      <div className="flex items-center justify-between border-b pb-1.5 border-sky-50 dark:border-sky-950">
+                        <span className="text-xs font-black text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
                           🏢 Non-Teaching Staff Target Filters
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 font-mono">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-600 font-mono">
                           {resolvedGroupParticipantsBreakdown.nonTeachingCount} Staff
                         </span>
                       </div>
@@ -1505,12 +1505,12 @@ export const MeetingsView: React.FC = () => {
 
                   {/* STUDENT FILTER PANEL */}
                   {selectedGroupParticipantTypes.includes('Student') && (
-                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-3">
-                      <div className="flex items-center justify-between border-b pb-1.5 border-indigo-50 dark:border-indigo-950">
-                        <span className="text-xs font-black text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 space-y-3">
+                      <div className="flex items-center justify-between border-b pb-1.5 border-sky-50 dark:border-sky-950">
+                        <span className="text-xs font-black text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
                           🎓 Student Target Filters
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 font-mono">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-600 font-mono">
                           {resolvedGroupParticipantsBreakdown.studentCount} Students
                         </span>
                       </div>
@@ -1568,12 +1568,12 @@ export const MeetingsView: React.FC = () => {
 
                   {/* PARENT FILTER PANEL */}
                   {selectedGroupParticipantTypes.includes('Parent') && (
-                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 space-y-3">
-                      <div className="flex items-center justify-between border-b pb-1.5 border-indigo-50 dark:border-indigo-950">
-                        <span className="text-xs font-black text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 space-y-3">
+                      <div className="flex items-center justify-between border-b pb-1.5 border-sky-50 dark:border-sky-950">
+                        <span className="text-xs font-black text-sky-900 dark:text-sky-200 flex items-center gap-1.5">
                           👨‍👩‍👧 Parent Target Filters
                         </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 font-mono">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-600 font-mono">
                           {resolvedGroupParticipantsBreakdown.parentCount} Parents
                         </span>
                       </div>
@@ -1660,11 +1660,11 @@ export const MeetingsView: React.FC = () => {
                   {/* 4. ENTERPRISE ERP PARAMETERS (Priority, Attendance, Recurrence) */}
                   <div className="grid grid-cols-3 gap-3 pt-1">
                     <div>
-                      <label className="block text-[10px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">Priority</label>
+                      <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">Priority</label>
                       <select
                         value={meetingPriority}
                         onChange={e => setMeetingPriority(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-white dark:bg-slate-800 font-bold text-xs"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-xs"
                       >
                         <option value="Low">Low</option>
                         <option value="Normal">Normal</option>
@@ -1674,11 +1674,11 @@ export const MeetingsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">Attendance</label>
+                      <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">Attendance</label>
                       <select
                         value={attendanceRequired}
                         onChange={e => setAttendanceRequired(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-white dark:bg-slate-800 font-bold text-xs"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-xs"
                       >
                         <option value="Mandatory">Mandatory</option>
                         <option value="Optional">Optional</option>
@@ -1686,11 +1686,11 @@ export const MeetingsView: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-bold text-indigo-700 dark:text-indigo-300 mb-1">Recurrence</label>
+                      <label className="block text-[10px] font-bold text-sky-700 dark:text-sky-300 mb-1">Recurrence</label>
                       <select
                         value={recurrence}
                         onChange={e => setRecurrence(e.target.value as any)}
-                        className="w-full px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-900 bg-white dark:bg-slate-800 font-bold text-xs"
+                        className="w-full px-2.5 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 font-bold text-xs"
                       >
                         <option value="None">None (One-time)</option>
                         <option value="Daily">Daily</option>
@@ -1742,7 +1742,7 @@ export const MeetingsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
+                  <p className="text-[10px] text-sky-600 dark:text-sky-400 font-medium">
                     Notifications & dashboard meeting cards will be dispatched strictly to the {resolvedGroupParticipantsBreakdown.totalRecipients} verified recipient(s).
                   </p>
                 </div>
@@ -1916,7 +1916,7 @@ export const MeetingsView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md">
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
                   {editingMeeting ? 'Save Changes' : 'Schedule Meeting'}
                 </button>
               </div>
@@ -1931,7 +1931,7 @@ export const MeetingsView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400">
+                <div className="p-2 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-400">
                   <Users className="w-5 h-5" />
                 </div>
                 <div>
@@ -1948,7 +1948,7 @@ export const MeetingsView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 font-semibold">
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Audience</span>
-                  <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{viewingMeeting.meetingAudience} Meeting</span>
+                  <span className="text-sky-600 dark:text-sky-400 font-extrabold">{viewingMeeting.meetingAudience} Meeting</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Mode</span>

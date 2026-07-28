@@ -107,23 +107,23 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 3: Total Drivers */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-indigo-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Drivers</span>
-            <Users className="w-5 h-5 text-indigo-500" />
+            <Users className="w-5 h-5 text-sky-500" />
           </div>
-          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400">{totalDrivers} <span className="text-xs font-semibold text-indigo-500">({activeDrivers} Active)</span></h3>
+          <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">{totalDrivers} <span className="text-xs font-semibold text-sky-500">({activeDrivers} Active)</span></h3>
           <p className="text-[10px] text-slate-400">Licensed commercial drivers</p>
         </div>
 
         {/* Card 4: Total Bus Attendants */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-purple-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Bus Attendants</span>
-            <UserCheck className="w-5 h-5 text-purple-500" />
+            <UserCheck className="w-5 h-5 text-sky-500" />
           </div>
-          <h3 className="text-2xl font-black text-purple-600 dark:text-purple-400">{totalBusAttendants}</h3>
-          <p className="text-[10px] text-purple-500 font-semibold">Verified bus attendant staff</p>
+          <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">{totalBusAttendants}</h3>
+          <p className="text-[10px] text-sky-500 font-semibold">Verified bus attendant staff</p>
         </div>
 
         {/* Card 5: Students Using Transport */}
@@ -197,9 +197,9 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
             <span className="text-[10px] font-bold uppercase text-emerald-600 dark:text-emerald-400 block">Morning Running</span>
             <p className="text-xl font-black text-emerald-700 dark:text-emerald-300 font-mono mt-0.5">{morningTripsRunning}</p>
           </div>
-          <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800">
-            <span className="text-[10px] font-bold uppercase text-indigo-600 dark:text-indigo-400 block">Morning Completed</span>
-            <p className="text-xl font-black text-indigo-700 dark:text-indigo-300 font-mono mt-0.5">{morningTripsCompleted}</p>
+          <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800">
+            <span className="text-[10px] font-bold uppercase text-sky-600 dark:text-sky-400 block">Morning Completed</span>
+            <p className="text-xl font-black text-sky-700 dark:text-sky-300 font-mono mt-0.5">{morningTripsCompleted}</p>
           </div>
           <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800">
             <span className="text-[10px] font-bold uppercase text-amber-600 dark:text-amber-400 block">Evening Pending</span>
@@ -229,7 +229,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
                   <span className="text-xs font-bold text-slate-900 dark:text-white">{a.routeName}</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Driver: <strong className="text-indigo-600">{a.driverName}</strong> • Attendant: <strong className="text-emerald-600">Mary Smith</strong>
+                  Driver: <strong className="text-sky-600">{a.driverName}</strong> • Attendant: <strong className="text-emerald-600">Mary Smith</strong>
                 </p>
               </div>
 
@@ -280,7 +280,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         {/* Route-wise Student Distribution */}
         <div className="glass-card p-6 rounded-3xl space-y-4">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-indigo-500" /> Route-wise Student Distribution
+            <PieChart className="w-5 h-5 text-sky-500" /> Route-wise Student Distribution
           </h3>
           <div className="space-y-3">
             {routeMasters.map(r => {

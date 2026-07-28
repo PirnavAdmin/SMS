@@ -249,15 +249,15 @@ export const FinanceReportsView: React.FC = () => {
           <span className="text-[9px] text-rose-500 font-bold">Outstanding dues</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-indigo-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Students Paid</span>
-          <h4 className="text-sm sm:text-base font-black text-indigo-600 dark:text-indigo-400 truncate">{distinctPaidStudents} Students</h4>
+          <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400 truncate">{distinctPaidStudents} Students</h4>
           <span className="text-[9px] text-slate-400 font-bold">Distinct Payees</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-purple-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Scholarships & Discounts</span>
-          <h4 className="text-sm sm:text-base font-black text-purple-600 dark:text-purple-400 truncate">{formatCurrency(totalScholarshipsAmount + totalDiscountsAmount)}</h4>
+          <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400 truncate">{formatCurrency(totalScholarshipsAmount + totalDiscountsAmount)}</h4>
           <span className="text-[9px] text-slate-400 font-bold">Total Concessions</span>
         </div>
 

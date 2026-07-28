@@ -162,7 +162,7 @@ export const EventsView: React.FC = () => {
       });
     });
 
-    // 4. Meetings (Purple / Orange)
+    // 4. Meetings (sky / Orange)
     (meetings || []).forEach(m => {
       const isPTM = (m.title || '').toLowerCase().includes('ptm') || (m.title || '').toLowerCase().includes('parent');
       eventsList.push({
@@ -175,7 +175,7 @@ export const EventsView: React.FC = () => {
         venue: m.roomVenue || m.building || 'Conference Hall',
         organizer: m.organizerName,
         description: m.description || m.targetGroupDescription || 'Official School Meeting',
-        color: isPTM ? 'orange' : 'purple',
+        color: isPTM ? 'orange' : 'sky',
         sourceModule: 'Meeting Management',
         branch: m.branch,
         rawItem: m
@@ -396,13 +396,13 @@ export const EventsView: React.FC = () => {
       case 'blue':
         return 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-200 dark:border-sky-800';
       case 'green':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+        return 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-200 dark:border-sky-800';
       case 'red':
         return 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border-rose-200 dark:border-rose-800';
       case 'orange':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800';
-      case 'purple':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+        return 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+      case 'sky':
+        return 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border-sky-200 dark:border-sky-800';
       case 'yellow':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800';
       case 'teal':
@@ -419,7 +419,7 @@ export const EventsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <CalendarIcon className="w-6 h-6 text-indigo-500" />
+            <CalendarIcon className="w-6 h-6 text-sky-500" />
             Academic Calendar & Events
           </h2>
           <p className="text-xs text-slate-500">
@@ -432,21 +432,21 @@ export const EventsView: React.FC = () => {
             onClick={handleExportEventsCSV}
             className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200 dark:border-slate-700"
           >
-            <Download className="w-3.5 h-3.5 text-emerald-600" /> Export CSV
+            <Download className="w-3.5 h-3.5 text-sky-600" /> Export CSV
           </button>
 
           <button
             onClick={() => setIsAddHolidayModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
           >
             <Sparkles className="w-3.5 h-3.5" /> + Add Holiday
           </button>
 
           <button
             onClick={() => setIsAddEventModalOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
           >
-            <Plus className="w-3.5 h-3.5" /> + Add School Event
+            <Plus className="w-3.5 h-3.5" /> Add School Event
           </button>
         </div>
       </div>
@@ -457,7 +457,7 @@ export const EventsView: React.FC = () => {
           onClick={() => setActiveTab('dashboard')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'dashboard'
-              ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -468,7 +468,7 @@ export const EventsView: React.FC = () => {
           onClick={() => setActiveTab('calendar')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'calendar'
-              ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -479,18 +479,18 @@ export const EventsView: React.FC = () => {
           onClick={() => setActiveTab('holidays')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'holidays'
-              ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Holidays ({holidays.length})
+          <Sparkles className="w-3.5 h-3.5 text-sky-500" /> Holidays ({holidays.length})
         </button>
 
         <button
           onClick={() => setActiveTab('school-events')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'school-events'
-              ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -501,7 +501,7 @@ export const EventsView: React.FC = () => {
           onClick={() => setActiveTab('birthdays')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'birthdays'
-              ? 'bg-white dark:bg-slate-950 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -516,11 +516,11 @@ export const EventsView: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div
               onClick={() => setActiveTab('calendar')}
-              className="cursor-pointer p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-slate-50 dark:from-indigo-950/30 dark:to-slate-900 border border-indigo-200 dark:border-indigo-900/40 shadow-xs hover:shadow-md transition-all space-y-2"
+              className="cursor-pointer p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/30 dark:to-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md transition-all space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase text-indigo-600 tracking-wider">Total Academic Events</span>
-                <CalendarIcon className="w-4 h-4 text-indigo-600" />
+                <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Total Academic Events</span>
+                <CalendarIcon className="w-4 h-4 text-sky-600" />
               </div>
               <p className="text-2xl font-black text-slate-900 dark:text-white">{unifiedEvents.length}</p>
               <p className="text-[11px] text-slate-500">Across all ERP integrated modules</p>
@@ -528,11 +528,11 @@ export const EventsView: React.FC = () => {
 
             <div
               onClick={() => setActiveTab('holidays')}
-              className="cursor-pointer p-4 rounded-2xl bg-gradient-to-br from-amber-50 to-slate-50 dark:from-amber-950/30 dark:to-slate-900 border border-amber-200 dark:border-amber-900/40 shadow-xs hover:shadow-md transition-all space-y-2"
+              className="cursor-pointer p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/30 dark:to-slate-900 border border-sky-200 dark:border-sky-900/40 shadow-xs hover:shadow-md transition-all space-y-2"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase text-amber-600 tracking-wider">Gazetted & School Holidays</span>
-                <Sparkles className="w-4 h-4 text-amber-600" />
+                <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Gazetted & School Holidays</span>
+                <Sparkles className="w-4 h-4 text-sky-600" />
               </div>
               <p className="text-2xl font-black text-slate-900 dark:text-white">{holidays.length}</p>
               <p className="text-[11px] text-slate-500">Official Gazetted & School Holidays</p>
@@ -570,9 +570,9 @@ export const EventsView: React.FC = () => {
             <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
               <div className="flex items-center justify-between border-b pb-3">
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" /> Gazetted & Official Holidays
+                  <Sparkles className="w-4 h-4 text-sky-500" /> Gazetted & Official Holidays
                 </h3>
-                <button onClick={() => setActiveTab('holidays')} className="text-xs font-bold text-indigo-600 hover:underline">View All</button>
+                <button onClick={() => setActiveTab('holidays')} className="text-xs font-bold text-sky-600 hover:underline">View All</button>
               </div>
 
               <div className="space-y-2.5">
@@ -582,7 +582,7 @@ export const EventsView: React.FC = () => {
                       <p className="font-bold text-slate-900 dark:text-white">{h.name}</p>
                       <p className="text-[10px] text-slate-500">{h.type} Holiday • {h.branch || 'Main Campus'}</p>
                     </div>
-                    <span className="font-extrabold px-3 py-1 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-mono text-[11px]">
+                    <span className="font-extrabold px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-800 dark:text-sky-300 font-mono text-[11px]">
                       {h.startDate}
                     </span>
                   </div>
@@ -653,7 +653,7 @@ export const EventsView: React.FC = () => {
 
               <button
                 onClick={handleToday}
-                className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-bold text-xs hover:bg-indigo-100 transition-colors"
+                className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold text-xs hover:bg-sky-100 transition-colors"
               >
                 Today
               </button>
@@ -662,10 +662,10 @@ export const EventsView: React.FC = () => {
             {/* Filter Legend Indicators */}
             <div className="hidden xl:flex items-center gap-3 text-[10px] font-bold">
               <span className="flex items-center gap-1 text-sky-600"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> Event</span>
-              <span className="flex items-center gap-1 text-emerald-600"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Holiday</span>
+              <span className="flex items-center gap-1 text-sky-600"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> Holiday</span>
               <span className="flex items-center gap-1 text-rose-600"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Exam</span>
-              <span className="flex items-center gap-1 text-amber-600"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> PTM</span>
-              <span className="flex items-center gap-1 text-purple-600"><span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Meeting</span>
+              <span className="flex items-center gap-1 text-sky-600"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> PTM</span>
+              <span className="flex items-center gap-1 text-sky-600"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> Meeting</span>
               <span className="flex items-center gap-1 text-yellow-600"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500" /> Birthday</span>
             </div>
 
@@ -674,7 +674,7 @@ export const EventsView: React.FC = () => {
               <button
                 onClick={() => setCalendarViewMode('month')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
-                  calendarViewMode === 'month' ? 'bg-white dark:bg-slate-950 text-indigo-600 shadow-xs' : 'text-slate-500'
+                  calendarViewMode === 'month' ? 'bg-white dark:bg-slate-950 text-sky-600 shadow-xs' : 'text-slate-500'
                 }`}
               >
                 Month
@@ -682,7 +682,7 @@ export const EventsView: React.FC = () => {
               <button
                 onClick={() => setCalendarViewMode('agenda')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
-                  calendarViewMode === 'agenda' ? 'bg-white dark:bg-slate-950 text-indigo-600 shadow-xs' : 'text-slate-500'
+                  calendarViewMode === 'agenda' ? 'bg-white dark:bg-slate-950 text-sky-600 shadow-xs' : 'text-slate-500'
                 }`}
               >
                 Agenda List
@@ -715,7 +715,7 @@ export const EventsView: React.FC = () => {
                       className={`min-h-[110px] p-2 rounded-2xl border transition-all flex flex-col justify-between ${
                         cell.isCurrentMonth
                           ? isToday
-                            ? 'bg-indigo-50/60 dark:bg-indigo-950/30 border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-500/20'
+                            ? 'bg-sky-50/60 dark:bg-sky-950/30 border-sky-300 dark:border-sky-700 ring-2 ring-sky-500/20'
                             : 'bg-slate-50/50 dark:bg-slate-800/40 border-slate-200/70 dark:border-slate-800 hover:border-slate-300'
                           : 'bg-slate-100/30 dark:bg-slate-900/20 border-transparent opacity-40'
                       }`}
@@ -723,7 +723,7 @@ export const EventsView: React.FC = () => {
                       {/* Day Number Header */}
                       <div className="flex justify-between items-center mb-1">
                         <span className={`text-xs font-black rounded-lg px-1.5 py-0.5 ${
-                          isToday ? 'bg-indigo-600 text-white' : cell.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'
+                          isToday ? 'bg-sky-600 text-white' : cell.isCurrentMonth ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400'
                         }`}>
                           {cell.dayNumber}
                         </span>
@@ -757,7 +757,7 @@ export const EventsView: React.FC = () => {
           {calendarViewMode === 'agenda' && (
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <List className="w-4 h-4 text-indigo-600" />
+                <List className="w-4 h-4 text-sky-600" />
                 Comprehensive Academic Calendar Agenda ({filteredEvents.length} Events)
               </h3>
 
@@ -766,7 +766,7 @@ export const EventsView: React.FC = () => {
                   <div
                     key={evt.id}
                     onClick={() => setSelectedEventForDetail(evt)}
-                    className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border hover:border-indigo-300 dark:hover:border-indigo-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer"
+                    className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border hover:border-sky-300 dark:hover:border-sky-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer"
                   >
                     <div className="flex items-start gap-3">
                       <div className={`p-3 rounded-2xl border shrink-0 ${getBadgeStyle(evt.color)}`}>
@@ -785,7 +785,7 @@ export const EventsView: React.FC = () => {
                     </div>
 
                     <div className="text-right shrink-0">
-                      <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 block">{evt.date}</span>
+                      <span className="font-mono font-bold text-xs text-sky-600 dark:text-sky-400 block">{evt.date}</span>
                       {evt.time && <span className="text-[11px] text-slate-400">{evt.time}</span>}
                     </div>
                   </div>
@@ -803,14 +803,14 @@ export const EventsView: React.FC = () => {
           <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500" />
+                <Sparkles className="w-4 h-4 text-sky-500" />
                 Holiday Management Master
               </h3>
               <p className="text-[11px] text-slate-400">Manage Gazetted, National, State, and School Holidays</p>
             </div>
             <button
               onClick={() => setIsAddHolidayModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+              className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
             >
               <Plus className="w-4 h-4" /> Add Holiday
             </button>
@@ -820,7 +820,7 @@ export const EventsView: React.FC = () => {
             {holidays.map(h => (
               <div key={h.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                 <div className="flex justify-between items-start">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-100 text-amber-800 border border-amber-200">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-sky-100 text-sky-800 border border-sky-200">
                     {h.type} Holiday
                   </span>
                   <div className="flex items-center gap-1">
@@ -858,7 +858,7 @@ export const EventsView: React.FC = () => {
             </div>
             <button
               onClick={() => setIsAddEventModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
+              className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
             >
               <Plus className="w-4 h-4" /> Create Event
             </button>
@@ -885,7 +885,7 @@ export const EventsView: React.FC = () => {
                         });
                         setIsNotifyModalOpen(true);
                       }}
-                      className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50"
+                      className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50"
                       title="Send Reminders"
                     >
                       <Bell className="w-3.5 h-3.5" />
@@ -1069,7 +1069,7 @@ export const EventsView: React.FC = () => {
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsAddEventModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="px-5 py-2 bg-indigo-600 text-white font-bold rounded-xl shadow-md">Publish to Calendar</button>
+                <button type="submit" className="px-5 py-2 bg-sky-600 text-white font-bold rounded-xl shadow-md">Publish to Calendar</button>
               </div>
             </form>
           </div>
@@ -1111,7 +1111,7 @@ export const EventsView: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsAddHolidayModalOpen(false)} className="px-3 py-1.5 bg-slate-200 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 bg-amber-600 text-white font-bold rounded-xl shadow-md">Record Holiday</button>
+                <button type="submit" className="px-4 py-1.5 bg-sky-600 text-white font-bold rounded-xl shadow-md">Record Holiday</button>
               </div>
             </form>
           </div>
@@ -1123,7 +1123,7 @@ export const EventsView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs">
             <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-indigo-600 flex items-center gap-2">
+              <h3 className="font-bold text-sky-600 flex items-center gap-2">
                 <Bell className="w-4 h-4" /> Send Event Reminder: {eventToNotify.title}
               </h3>
               <button onClick={() => setIsNotifyModalOpen(false)}><X className="w-4 h-4" /></button>
@@ -1139,7 +1139,7 @@ export const EventsView: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsNotifyModalOpen(false)} className="px-3 py-1.5 bg-slate-200 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 bg-indigo-600 text-white font-bold rounded-xl shadow-md">Dispatch Reminders</button>
+                <button type="submit" className="px-4 py-1.5 bg-sky-600 text-white font-bold rounded-xl shadow-md">Dispatch Reminders</button>
               </div>
             </form>
           </div>

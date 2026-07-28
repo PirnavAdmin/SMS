@@ -65,7 +65,7 @@ export const CommunicationView: React.FC = () => {
             onClick={() => setActiveTab('meetings')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === 'meetings'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md'
+                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -168,7 +168,7 @@ export const CommunicationView: React.FC = () => {
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 flex items-center gap-3">
                     <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3 text-emerald-500" /> SMS Sent</span>
                     <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-sky-500" /> Emails Sent</span>
-                    <span className="flex items-center gap-1"><Bell className="w-3 h-3 text-purple-500" /> Push Delivered</span>
+                    <span className="flex items-center gap-1"><Bell className="w-3 h-3 text-sky-500" /> Push Delivered</span>
                   </div>
                 </div>
               ))}

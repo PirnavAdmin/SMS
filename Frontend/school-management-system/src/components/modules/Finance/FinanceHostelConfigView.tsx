@@ -171,7 +171,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                   return (
                     <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Building2 className="w-4 h-4 text-indigo-500 shrink-0" /> {c.hostelName}
+                        <Building2 className="w-4 h-4 text-sky-500 shrink-0" /> {c.hostelName}
                       </td>
                       <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{c.roomTypeName}</td>
                       <td className="py-3 px-4">
@@ -179,7 +179,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                           {c.feePlan}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right font-extrabold text-indigo-600 dark:text-indigo-400">{formatCurrency(c.hostelFee || 0)}</td>
+                      <td className="py-3 px-4 text-right font-extrabold text-sky-600 dark:text-sky-400">{formatCurrency(c.hostelFee || 0)}</td>
                       <td className="py-3 px-4 text-right font-bold text-slate-600 dark:text-slate-400">{formatCurrency(c.securityDeposit || 0)}</td>
                       <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(total)}</td>
                       <td className="py-3 px-4">
@@ -278,7 +278,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                     min={0}
                     value={form.hostelFee}
                     onChange={e => setForm({ ...form, hostelFee: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 font-extrabold outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 font-extrabold outline-none"
                   />
                 </div>
 

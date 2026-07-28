@@ -118,7 +118,7 @@ export const UniformInventoryView: React.FC = () => {
                   <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.itemName}</td>
                     <td className="py-3 px-4 text-slate-500">{i.category}</td>
-                    <td className="py-3 px-4 text-center font-bold text-indigo-600 dark:text-indigo-400">{i.size}</td>
+                    <td className="py-3 px-4 text-center font-bold text-sky-600 dark:text-sky-400">{i.size}</td>
                     <td className="py-3 px-4 text-right">{i.openingStock} Units</td>
                     <td className="py-3 px-4 text-right font-extrabold text-slate-900 dark:text-white">{i.currentStock} Units</td>
                     <td className="py-3 px-4 text-right text-rose-500">{i.minimumStock} Units</td>
@@ -175,7 +175,7 @@ export const UniformInventoryView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all">Confirm Stock Update</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Confirm Stock Update</button>
               </div>
             </form>
           </div>

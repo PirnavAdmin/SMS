@@ -105,7 +105,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Shield className="w-5 h-5 text-indigo-600" />
+              <Shield className="w-5 h-5 text-sky-600" />
               Document Requirement Management
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -116,7 +116,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
             {!isEditing && (
               <button
                 onClick={handleOpenNew}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-all"
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md flex items-center gap-1.5 transition-all"
               >
                 <Plus className="w-4 h-4" /> Add Requirement Rule
               </button>
@@ -187,12 +187,12 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                         onClick={() => handleToggleDoc(docType)}
                         className={`p-2.5 rounded-xl text-xs text-left font-semibold border flex items-center justify-between transition-all ${
                           isChecked
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-500 text-indigo-700 dark:text-indigo-300 shadow-xs'
+                            ? 'bg-sky-50 dark:bg-sky-950/60 border-sky-500 text-sky-700 dark:text-sky-300 shadow-xs'
                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
                         }`}
                       >
                         <span className="truncate">{docType}</span>
-                        {isChecked && <CheckCircle className="w-4 h-4 text-indigo-600 shrink-0" />}
+                        {isChecked && <CheckCircle className="w-4 h-4 text-sky-600 shrink-0" />}
                       </button>
                     );
                   })}
@@ -209,7 +209,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 font-bold bg-indigo-600 text-white rounded-xl text-xs shadow-md hover:bg-indigo-500"
+                  className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl text-xs shadow-md hover:bg-sky-500"
                 >
                   Save Configuration Rule
                 </button>
@@ -229,7 +229,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                         <div className="flex items-center gap-2">
                           <span className="font-extrabold text-slate-900 dark:text-white text-sm">{rule.department}</span>
                           <span className="text-slate-400">•</span>
-                          <span className="font-bold text-indigo-600 dark:text-indigo-400 text-xs">{rule.designation}</span>
+                          <span className="font-bold text-sky-600 dark:text-sky-400 text-xs">{rule.designation}</span>
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rule.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-600'}`}>
                             {rule.status}
                           </span>
@@ -237,7 +237,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                         <div className="flex flex-wrap gap-1.5 pt-1">
                           {rule.requiredDocTypes.map(doc => (
                             <span key={doc} className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                              <FileText className="w-3 h-3 text-indigo-500" />
+                              <FileText className="w-3 h-3 text-sky-500" />
                               {doc}
                             </span>
                           ))}

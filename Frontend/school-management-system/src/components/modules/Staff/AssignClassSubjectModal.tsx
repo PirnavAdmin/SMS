@@ -34,7 +34,7 @@ export const AssignClassSubjectModal: React.FC<AssignClassSubjectModalProps> = (
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400">
+            <div className="p-2.5 rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
@@ -89,7 +89,7 @@ export const AssignClassSubjectModal: React.FC<AssignClassSubjectModalProps> = (
             </button>
             <button
               type="submit"
-              className="px-4 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md shadow-indigo-500/20"
+              className="px-4 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md shadow-sky-500/20"
             >
               Save Allocation
             </button>

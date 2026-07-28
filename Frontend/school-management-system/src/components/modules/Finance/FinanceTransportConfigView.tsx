@@ -177,7 +177,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                     <RouteIcon className="w-3.5 h-3.5 text-sky-500" /> {c.routeName}
                   </td>
                   <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-200">
-                    <span className="flex items-center gap-1"><Bus className="w-3.5 h-3.5 text-indigo-500" /> {c.vehicleNumber}</span>
+                    <span className="flex items-center gap-1"><Bus className="w-3.5 h-3.5 text-sky-500" /> {c.vehicleNumber}</span>
                   </td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
                     <span className="flex items-center gap-1"><User className="w-3.5 h-3.5 text-emerald-500" /> {c.driverName}</span>
@@ -240,7 +240,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase">Assigned Vehicle (Read Only)</label>
                   <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-1 mt-0.5">
-                    <Bus className="w-3.5 h-3.5 text-indigo-500" /> {form.vehicleNumber || 'Unassigned'}
+                    <Bus className="w-3.5 h-3.5 text-sky-500" /> {form.vehicleNumber || 'Unassigned'}
                   </div>
                 </div>
                 <div>

@@ -50,7 +50,7 @@ export const ParentTeacherInfoView: React.FC = () => {
           }
 
           return (
-            <div key={ward.id} className="bg-gradient-to-br from-indigo-500 to-violet-600 rounded-3xl p-6 relative overflow-hidden flex flex-col h-full text-white border border-indigo-400 shadow-sm">
+            <div key={ward.id} className="bg-gradient-to-br from-sky-500 to-violet-600 rounded-3xl p-6 relative overflow-hidden flex flex-col h-full text-white border border-sky-400 shadow-sm">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -z-10" />
               
               {/* Ward Header */}
@@ -59,7 +59,7 @@ export const ParentTeacherInfoView: React.FC = () => {
                   {ward.firstName.charAt(0)}
                 </div>
                 <div>
-                  <p className="text-[10px] uppercase font-bold text-indigo-200 tracking-wider">Ward</p>
+                  <p className="text-[10px] uppercase font-bold text-sky-200 tracking-wider">Ward</p>
                   <p className="font-bold text-white text-sm">
                     {ward.firstName} {ward.lastName} <span className="opacity-75 font-mono text-[10px] ml-1">({ward.className}-{ward.section})</span>
                   </p>
@@ -68,26 +68,26 @@ export const ParentTeacherInfoView: React.FC = () => {
 
               {!classTeacher ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-white/5 rounded-2xl border border-dashed border-white/20">
-                  <GraduationCap className="w-8 h-8 text-indigo-200 mb-2" />
+                  <GraduationCap className="w-8 h-8 text-sky-200 mb-2" />
                   <p className="text-sm font-bold text-white">No Teacher Assigned</p>
-                  <p className="text-xs text-indigo-200 mt-1">Pending assignment for {ward.className}-{ward.section}</p>
+                  <p className="text-xs text-sky-200 mt-1">Pending assignment for {ward.className}-{ward.section}</p>
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col">
-                  <h3 className="font-bold text-lg flex items-center gap-2 border-b border-indigo-400/50 pb-3 mb-4">
-                    <UserCheck className="w-5 h-5 text-indigo-100" /> Teacher Information
+                  <h3 className="font-bold text-lg flex items-center gap-2 border-b border-sky-400/50 pb-3 mb-4">
+                    <UserCheck className="w-5 h-5 text-sky-100" /> Teacher Information
                   </h3>
                   
                   <div className="space-y-4">
                     <div>
-                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Class Teacher</p>
+                      <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-1">Class Teacher</p>
                       <p className="text-xl font-bold">{classTeacher.firstName} {classTeacher.lastName}</p>
                     </div>
 
                     <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">Subjects Dealt</p>
+                      <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-2">Subjects Dealt</p>
                       <div className="flex items-center gap-3">
-                        <BookOpen className="w-5 h-5 text-indigo-200 shrink-0" />
+                        <BookOpen className="w-5 h-5 text-sky-200 shrink-0" />
                         <p className="font-semibold text-sm">
                           {classTeacher.assignedSubjects?.join(', ') || 'General Subjects'}
                         </p>
@@ -95,15 +95,15 @@ export const ParentTeacherInfoView: React.FC = () => {
                     </div>
 
                     <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                      <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">Contact Details</p>
+                      <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-2">Contact Details</p>
                       {classTeacher.phone && (
                         <div className="flex items-center gap-3 mb-3">
-                          <Phone className="w-5 h-5 text-indigo-200 shrink-0" />
+                          <Phone className="w-5 h-5 text-sky-200 shrink-0" />
                           <p className="font-bold text-lg">{classTeacher.phone}</p>
                         </div>
                       )}
-                      <div className="flex items-center gap-3 text-indigo-100">
-                        <Mail className="w-4 h-4 text-indigo-200 shrink-0 opacity-80" />
+                      <div className="flex items-center gap-3 text-sky-100">
+                        <Mail className="w-4 h-4 text-sky-200 shrink-0 opacity-80" />
                         <a href={`mailto:${classTeacher.email}`} className="font-medium text-sm hover:underline hover:text-white transition-colors">{classTeacher.email}</a>
                       </div>
                     </div>

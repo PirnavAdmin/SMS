@@ -152,7 +152,7 @@ export const StudentUniformView: React.FC = () => {
 
         <button
           onClick={handleOpenIssue}
-          className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-500/20 flex items-center gap-1.5 transition-all self-start sm:self-auto"
+          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" /> Issue Uniform / Purchase
         </button>
@@ -220,7 +220,7 @@ export const StudentUniformView: React.FC = () => {
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.studentName}</td>
                     <td className="py-3 px-4 font-mono">{i.admissionNo}</td>
                     <td className="py-3 px-4">{i.className} - {i.section}</td>
-                    <td className="py-3 px-4 font-semibold text-purple-600 dark:text-purple-400">{i.itemName}</td>
+                    <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{i.itemName}</td>
                     <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{i.size}</td>
                     <td className="py-3 px-4 text-right">{i.quantity}</td>
                     <td className="py-3 px-4 font-mono">{i.issueDate}</td>
@@ -248,7 +248,7 @@ export const StudentUniformView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-purple-500" />
+              <UserPlus className="w-5 h-5 text-sky-500" />
               {modalType === 'Issue' ? 'Issue Uniform or Record Sale' : 'Replace Size'}
             </h3>
 
@@ -337,7 +337,7 @@ export const StudentUniformView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all">Confirm Action</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Confirm Action</button>
               </div>
             </form>
           </div>

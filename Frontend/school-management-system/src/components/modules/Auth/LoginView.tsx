@@ -115,9 +115,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
       />
       
       {/* Deep Gradient Overlays */}
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 via-brand-900/60 to-indigo-900/80 z-0" />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-900/80 via-brand-900/60 to-sky-900/80 z-0" />
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/40 rounded-full blur-[120px] z-0 pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/40 rounded-full blur-[100px] z-0 pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-sky-500/40 rounded-full blur-[100px] z-0 pointer-events-none" />
 
       {/* LEFT SIDE: Visual Showcase (Hidden on Mobile) */}
       <div className="hidden lg:flex flex-1 relative items-center justify-center p-12 overflow-hidden z-10">
@@ -180,7 +180,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
           <div className="bg-white dark:bg-slate-950 p-6 sm:p-8 rounded-3xl sm:rounded-[2rem] border border-white/20 dark:border-slate-800/50 shadow-2xl mt-auto mb-auto backdrop-blur-xl bg-opacity-95 dark:bg-opacity-95">
             {/* Minimalist Universal Header */}
           <div className="mb-6">
-            <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-600 shadow-xl shadow-brand-500/30 mb-4">
+            <div className="lg:hidden inline-flex p-3 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-600 shadow-xl shadow-brand-500/30 mb-4">
               <School className="w-6 h-6 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">

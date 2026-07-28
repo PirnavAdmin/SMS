@@ -511,7 +511,7 @@ export const LeaveManagementView: React.FC = () => {
                         <td className="py-3 px-4 font-mono">{app.empId}</td>
                         <td className="py-3 px-4">{app.department}</td>
                         <td className="py-3 px-4">
-                          <span className="font-semibold text-purple-600">{app.leaveTypeName}</span>
+                          <span className="font-semibold text-sky-600">{app.leaveTypeName}</span>
                           {app.isHalfDay && <span className="block text-[9px] text-amber-500">Half Day ({app.halfDayPeriod})</span>}
                         </td>
                         <td className="py-3 px-4">{app.fromDate} to {app.toDate}</td>
@@ -570,7 +570,7 @@ export const LeaveManagementView: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.name}</h4>
-                    <span className="font-mono text-[10px] text-purple-600 font-bold uppercase">{t.code}</span>
+                    <span className="font-mono text-[10px] text-sky-600 font-bold uppercase">{t.code}</span>
                   </div>
                   <Badge variant={t.status === 'Active' ? 'success' : 'neutral'}>{t.status}</Badge>
                 </div>
@@ -677,7 +677,7 @@ export const LeaveManagementView: React.FC = () => {
                           <p className="font-bold text-slate-800">{app.employeeName}</p>
                           <p className="text-[10px] text-slate-400">{app.designation} • {app.empId}</p>
                         </td>
-                        <td className="py-3 px-4 font-semibold text-purple-600">{app.leaveTypeName}</td>
+                        <td className="py-3 px-4 font-semibold text-sky-600">{app.leaveTypeName}</td>
                         <td className="py-3 px-4">{app.appliedDate}</td>
                         <td className="py-3 px-4">{app.fromDate} to {app.toDate}</td>
                         <td className="py-3 px-4 font-bold text-slate-900">{app.numberOfDays} Days</td>
@@ -892,7 +892,7 @@ export const LeaveManagementView: React.FC = () => {
               {/* Submissions */}
               <div className="flex items-center justify-between pt-3 border-t">
                 <span className="font-bold text-slate-900 text-[11px]">
-                  Total Leave duration: <span className="text-purple-600">{requestedDays} Days</span>
+                  Total Leave duration: <span className="text-sky-600">{requestedDays} Days</span>
                 </span>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setIsApplyOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
@@ -1002,7 +1002,7 @@ export const LeaveManagementView: React.FC = () => {
                 <div><span className="text-slate-400">Employee:</span> <p className="font-bold">{viewingApplication.employeeName}</p></div>
                 <div><span className="text-slate-400">Emp ID:</span> <p className="font-mono font-bold">{viewingApplication.empId}</p></div>
                 <div><span className="text-slate-400">Department:</span> <p className="font-semibold">{viewingApplication.department}</p></div>
-                <div><span className="text-slate-400">Leave Type:</span> <p className="font-semibold text-purple-600">{viewingApplication.leaveTypeName}</p></div>
+                <div><span className="text-slate-400">Leave Type:</span> <p className="font-semibold text-sky-600">{viewingApplication.leaveTypeName}</p></div>
                 <div><span className="text-slate-400">Duration:</span> <p className="font-bold">{viewingApplication.numberOfDays} Days</p></div>
                 <div><span className="text-slate-400">Period:</span> <p className="font-semibold">{viewingApplication.fromDate} to {viewingApplication.toDate}</p></div>
               </div>

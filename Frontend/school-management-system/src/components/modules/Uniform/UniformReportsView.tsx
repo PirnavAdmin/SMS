@@ -104,7 +104,7 @@ export const UniformReportsView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-purple-600" /> Uniform Reports
+            <FileSpreadsheet className="w-6 h-6 text-sky-600" /> Uniform Reports
           </h2>
           <p className="text-xs text-slate-500">Analyze current stock registries, replacement operations, low items alerts, and supplier coordinates</p>
         </div>
@@ -118,7 +118,7 @@ export const UniformReportsView: React.FC = () => {
           </button>
           <button
             onClick={handleExport}
-            className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-purple-500/20"
+            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg shadow-sky-500/20"
           >
             <Download className="w-4 h-4" /> Export CSV / Excel
           </button>
@@ -134,7 +134,7 @@ export const UniformReportsView: React.FC = () => {
             <select
               value={reportType}
               onChange={e => setReportType(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 text-purple-900 dark:text-purple-200 font-extrabold outline-none cursor-pointer"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-sky-900 dark:text-sky-200 font-extrabold outline-none cursor-pointer"
             >
               <optgroup label="Inventory Reports">
                 <option value="Current Stock">Current Stock Registry</option>
@@ -236,7 +236,7 @@ export const UniformReportsView: React.FC = () => {
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
           <button
             type="submit"
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white shadow-md shadow-purple-500/20 flex items-center gap-1.5"
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-500/20 flex items-center gap-1.5"
           >
             <Filter className="w-3.5 h-3.5" /> Generate / Apply Filters
           </button>
@@ -294,7 +294,7 @@ export const UniformReportsView: React.FC = () => {
                     <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.itemName}</td>
                       <td className="py-3 px-4 text-slate-500">{i.category}</td>
-                      <td className="py-3 px-4 text-center font-bold text-indigo-600">{i.size}</td>
+                      <td className="py-3 px-4 text-center font-bold text-sky-600">{i.size}</td>
                       <td className="py-3 px-4 text-right">{i.openingStock} Units</td>
                       <td className="py-3 px-4 text-right font-black">{i.currentStock} Units</td>
                       <td className="py-3 px-4 text-right text-amber-600">{i.reorderLevel} Units</td>
@@ -319,7 +319,7 @@ export const UniformReportsView: React.FC = () => {
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.studentName}</td>
                       <td className="py-3 px-4 font-mono">{i.admissionNo}</td>
                       <td className="py-3 px-4">{i.className} - {i.section}</td>
-                      <td className="py-3 px-4 font-semibold text-purple-600">{i.itemName}</td>
+                      <td className="py-3 px-4 font-semibold text-sky-600">{i.itemName}</td>
                       <td className="py-3 px-4 text-center font-bold">{i.size}</td>
                       <td className="py-3 px-4 text-right">{i.quantity}</td>
                       <td className="py-3 px-4 font-mono">{i.issueDate}</td>
@@ -346,7 +346,7 @@ export const UniformReportsView: React.FC = () => {
                       <td className="py-3 px-4 font-semibold">{s.contactPerson}</td>
                       <td className="py-3 px-4 font-mono">{s.mobile}</td>
                       <td className="py-3 px-4">{s.email || 'N/A'}</td>
-                      <td className="py-3 px-4 font-mono text-indigo-600">{s.gstNumber || 'N/A'}</td>
+                      <td className="py-3 px-4 font-mono text-sky-600">{s.gstNumber || 'N/A'}</td>
                       <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{s.address}</td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">{s.status}</span>

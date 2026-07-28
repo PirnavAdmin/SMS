@@ -66,7 +66,7 @@ export const UniformSupplierView: React.FC = () => {
         </div>
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-500/20 flex items-center gap-1.5 transition-all"
+          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> Add Supplier
         </button>
@@ -111,12 +111,12 @@ export const UniformSupplierView: React.FC = () => {
                     <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{s.contactPerson}</td>
                     <td className="py-3 px-4 font-mono">{s.mobile}</td>
                     <td className="py-3 px-4">{s.email || 'N/A'}</td>
-                    <td className="py-3 px-4 font-mono text-indigo-600 dark:text-indigo-400">{s.gstNumber || 'N/A'}</td>
+                    <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400">{s.gstNumber || 'N/A'}</td>
                     <td className="py-3 px-4">
                       <Badge variant={s.status === 'Active' ? 'success' : 'neutral'}>{s.status}</Badge>
                     </td>
                     <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
-                      <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-indigo-600"><Edit className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
                       <button onClick={() => setDeletingSupplier(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
                     </td>
                   </tr>
@@ -212,7 +212,7 @@ export const UniformSupplierView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all">Save Details</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Details</button>
               </div>
             </form>
           </div>

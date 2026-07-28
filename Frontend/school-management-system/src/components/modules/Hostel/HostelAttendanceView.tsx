@@ -146,7 +146,7 @@ export const HostelAttendanceView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <UserCheck className="w-6 h-6 text-indigo-500" /> Hostel Night Attendance
+            <UserCheck className="w-6 h-6 text-sky-500" /> Hostel Night Attendance
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select Hostel Block, Floor, and Room to mark night roll-call attendance</p>
         </div>
@@ -161,7 +161,7 @@ export const HostelAttendanceView: React.FC = () => {
 
       <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
         <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-          <Filter className="w-4 h-4 text-indigo-500" /> Step-wise Filter Workflow
+          <Filter className="w-4 h-4 text-sky-500" /> Step-wise Filter Workflow
         </h3>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -269,7 +269,7 @@ export const HostelAttendanceView: React.FC = () => {
                     <tr key={a.allocationId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{a.studentName}</td>
                       <td className="py-3 px-4 font-mono text-slate-500">{a.admissionNo}</td>
-                      <td className="py-3 px-4 font-semibold text-indigo-600 dark:text-indigo-400">{a.hostelName}</td>
+                      <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
                       <td className="py-3 px-4 font-black">Room #{a.roomNumber}</td>
                       <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">{a.bedNumber}</td>
                       <td className="py-3 px-4">

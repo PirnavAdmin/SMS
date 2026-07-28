@@ -219,7 +219,7 @@ export const RouteMasterView: React.FC = () => {
                   <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3 text-rose-500" /> Destination:</span> <span className="font-semibold text-slate-900 dark:text-white">{r.routeEnd}</span></div>
                   <div className="flex items-center justify-between"><span className="text-slate-400">Total Distance:</span> <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{r.totalDistanceKm} KM</span></div>
                   <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Est. Duration:</span> <span className="font-bold text-emerald-600 dark:text-emerald-400">{r.estimatedTimeMinutes} Mins</span></div>
-                  <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><ListOrdered className="w-3 h-3 text-indigo-500" /> Ordered Stops:</span> <span className="font-bold text-indigo-600 dark:text-indigo-400">{stopsForRoute.length > 0 ? `${stopsForRoute.length} Configured` : '4 Standard Stops'}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><ListOrdered className="w-3 h-3 text-sky-500" /> Ordered Stops:</span> <span className="font-bold text-sky-600 dark:text-sky-400">{stopsForRoute.length > 0 ? `${stopsForRoute.length} Configured` : '4 Standard Stops'}</span></div>
                 </div>
 
                 {/* Ordered Route Stop Preview Sequence */}

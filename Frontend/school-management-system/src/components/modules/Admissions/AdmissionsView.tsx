@@ -876,8 +876,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               {/* Conditional Rendering for Hosteller (Available Rooms & Beds Only) */}
               {formData.studentType === 'Hosteller' && (
-                <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 space-y-3 animate-in fade-in">
-                  <h5 className="font-bold text-indigo-900 dark:text-indigo-200">Hostel Bed Allocation</h5>
+                <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
+                  <h5 className="font-bold text-sky-900 dark:text-sky-200">Hostel Bed Allocation</h5>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Block</label>
@@ -969,7 +969,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           const avail = Math.max(0, rCap - occupied);
                           return (
                             <p className="text-[10px] text-slate-400 mt-1 font-bold">
-                              Occupancy: <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">{occupied} / {rCap}</span> Beds ({avail} Bed{avail !== 1 ? 's' : ''} Available) {avail === 0 && <span className="text-rose-500 font-black ml-1">[Fully Occupied]</span>}
+                              Occupancy: <span className="text-sky-600 dark:text-sky-400 font-extrabold">{occupied} / {rCap}</span> Beds ({avail} Bed{avail !== 1 ? 's' : ''} Available) {avail === 0 && <span className="text-rose-500 font-black ml-1">[Fully Occupied]</span>}
                             </p>
                           );
                         }
@@ -1008,8 +1008,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
               )}
               {/* Financial Benefits Section */}
-              <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 space-y-3 animate-in fade-in">
-                <h5 className="font-bold text-indigo-900 dark:text-indigo-200">Financial Benefits</h5>
+              <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
+                <h5 className="font-bold text-sky-900 dark:text-sky-200">Financial Benefits</h5>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Scholarship</label>

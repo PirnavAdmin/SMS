@@ -214,7 +214,7 @@ export const HostelMasterView: React.FC = () => {
                   <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${
                     h.hostelType?.toLowerCase().includes('boys') ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300' :
                     h.hostelType?.toLowerCase().includes('girls') ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
-                    'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'
+                    'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
                   }`}>
                     {h.hostelType}
                   </span>

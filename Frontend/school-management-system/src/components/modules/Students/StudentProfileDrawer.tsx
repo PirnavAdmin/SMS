@@ -145,7 +145,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         
         {/* Profile Top Header */}
-        <div className="p-6 bg-gradient-to-r from-brand-600 via-indigo-600 to-sky-600 text-white relative flex-shrink-0">
+        <div className="p-6 bg-gradient-to-r from-brand-600 via-sky-600 to-sky-600 text-white relative flex-shrink-0">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
@@ -250,11 +250,11 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                   </p>
                 </div>
                 <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-xs space-y-2">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block">Mother Details</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 block">Mother Details</span>
                   <p className="font-black text-slate-900 dark:text-white text-base">{student.motherName}</p>
                   <p className="text-slate-500 font-medium">Mother</p>
                   <p className="text-slate-700 dark:text-slate-300 font-mono font-bold flex items-center gap-2 pt-1 text-xs">
-                    <Phone className="w-4 h-4 text-indigo-600" /> {student.motherPhone}
+                    <Phone className="w-4 h-4 text-sky-600" /> {student.motherPhone}
                   </p>
                 </div>
               </div>
@@ -740,7 +740,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                         className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 transition-colors"
                         title="Edit Details"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-indigo-600" /> Edit
+                        <Edit3 className="w-3.5 h-3.5 text-sky-600" /> Edit
                       </button>
                       <button
                         onClick={() => handleDownloadDoc(doc)}
@@ -924,7 +924,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-indigo-600" /> Edit Document Details
+                <Edit3 className="w-4 h-4 text-sky-600" /> Edit Document Details
               </h3>
               <button onClick={() => setEditingDoc(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
                 <X className="w-5 h-5" />

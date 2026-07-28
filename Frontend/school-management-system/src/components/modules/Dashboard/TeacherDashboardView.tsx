@@ -43,7 +43,7 @@ export const TeacherDashboardView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/20">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-600 via-sky-600 to-violet-600 p-6 sm:p-8 text-white shadow-xl shadow-blue-500/20">
         <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -73,7 +73,7 @@ export const TeacherDashboardView: React.FC = () => {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Today's Schedule" value={todaysSchedule.length} subtitle="Classes today" change="View timetable" isPositive={true} icon={Clock} color="indigo" />
+        <StatCard title="Today's Schedule" value={todaysSchedule.length} subtitle="Classes today" change="View timetable" isPositive={true} icon={Clock} color="sky" />
         <StatCard title="Total Students" value={totalStudents} subtitle="Across assigned classes" change="Manage students" isPositive={true} icon={Users} color="emerald" />
         <StatCard title="Pending Homework" value={pendingHomework} subtitle="Assignments to review" change={pendingHomework > 0 ? "Action required" : "All clear"} isPositive={pendingHomework === 0} icon={BookOpen} color="amber" />
         <StatCard title="Assigned Subjects" value={teacher.assignedSubjects?.length || 0} subtitle="Syllabus tracking" change="View modules" isPositive={true} icon={FileText} color="sky" />
@@ -82,7 +82,7 @@ export const TeacherDashboardView: React.FC = () => {
       {/* Timetable Widget */}
       <div className="glass-card p-6 rounded-3xl space-y-4">
         <div className="flex items-center gap-2">
-          <Clock className="w-5 h-5 text-indigo-500" />
+          <Clock className="w-5 h-5 text-sky-500" />
           <h3 className="text-base font-bold text-slate-900 dark:text-white">Today's Schedule</h3>
         </div>
 
@@ -90,7 +90,7 @@ export const TeacherDashboardView: React.FC = () => {
           {todaysSchedule.length > 0 ? todaysSchedule.map((cls, idx) => (
             <div key={idx} className="flex items-center justify-between p-4 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
               <div className="flex items-center gap-4">
-                <div className="px-3 py-1.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 font-mono text-xs font-bold">
+                <div className="px-3 py-1.5 rounded-lg bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 font-mono text-xs font-bold">
                   {cls.startTime || cls.timeSlot} {cls.endTime ? `- ${cls.endTime}` : ''}
                 </div>
                 <div>
@@ -123,23 +123,23 @@ export const TeacherDashboardView: React.FC = () => {
         return (
           <div className="glass-card p-6 rounded-3xl space-y-4">
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-purple-600" />
+              <Users className="w-5 h-5 text-sky-600" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">My Scheduled Meetings</h3>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {myMeetings.map(m => (
-                <div key={m.id} className="p-4 rounded-2xl border border-purple-100 dark:border-purple-900/40 bg-purple-50/30 dark:bg-purple-950/20 space-y-2">
+                <div key={m.id} className="p-4 rounded-2xl border border-sky-100 dark:border-sky-900/40 bg-sky-50/30 dark:bg-sky-950/20 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">
                       {m.meetingAudience} ({m.meetingMode})
                     </span>
                     <span className="font-mono text-xs text-slate-500 font-bold">{m.meetingDate}</span>
                   </div>
                   <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{m.title}</h4>
-                  <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-purple-100/60 dark:border-purple-900/30">
+                  <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 font-medium pt-1 border-t border-sky-100/60 dark:border-sky-900/30">
                     <span>{m.meetingMode === 'In-Person' ? `📍 ${m.roomVenue}` : `🔗 ${m.onlineMeetingUrl}`}</span>
-                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">{m.startTime} - {m.endTime}</span>
+                    <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{m.startTime} - {m.endTime}</span>
                   </div>
                 </div>
               ))}

@@ -465,7 +465,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-emerald-600" />
+              <Building2 className="w-5 h-5 text-sky-600" />
               {staffToEdit ? 'Edit Staff Record' : 'Staff Registration'}
             </h3>
             <p className="text-xs text-slate-500">Single Source of Truth: Central staff entry point for all ERP modules</p>
@@ -479,7 +479,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             type="button"
             onClick={() => setActiveTab('personal')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === 'personal' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+              activeTab === 'personal' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <User className="w-3.5 h-3.5" /> Personal Details
@@ -488,7 +488,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             type="button"
             onClick={() => setActiveTab('professional')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === 'professional' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+              activeTab === 'professional' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" /> Employment Information
@@ -497,7 +497,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             type="button"
             onClick={() => setActiveTab('payroll')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === 'payroll' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+              activeTab === 'payroll' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <CreditCard className="w-3.5 h-3.5" /> Payroll
@@ -506,7 +506,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             type="button"
             onClick={() => setActiveTab('documents')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              activeTab === 'documents' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+              activeTab === 'documents' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
           >
             <FileText className="w-3.5 h-3.5" /> Documents ({formData.documents?.length || 0})
@@ -525,7 +525,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   <select
                     value={formData.employeeCategory}
                     onChange={e => setFormData({ ...formData, employeeCategory: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold text-emerald-600"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold text-sky-600"
                   >
                     <option value="Teacher">Teaching Staff</option>
                     <option value="Staff">Non-Teaching Staff</option>
@@ -609,7 +609,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsAddDeptModalOpen(true)}
-                    className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                    className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" /> Add Department
                   </button>
@@ -618,7 +618,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   required
                   value={formData.department || ''}
                   onChange={e => handleDepartmentChange(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-emerald-600 text-xs"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-sky-600 text-xs"
                 >
                   <option value="">-- Select Department --</option>
                   {allAvailableDepartments.map(dept => (
@@ -637,7 +637,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsAddDesigModalOpen(true)}
-                      className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                      className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" /> Add Designation
                     </button>
@@ -663,7 +663,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   <label className="block font-bold text-slate-900 dark:text-white">
                     Step 3: System Role (Auto Suggested) *
                   </label>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-medium flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5" /> Auto Suggested based on designation
                   </span>
                 </div>
@@ -671,7 +671,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                   required
                   value={formData.role || 'Staff'}
                   onChange={e => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800/60 font-black text-emerald-700 dark:text-emerald-300 text-xs"
+                  className="w-full px-3 py-2.5 rounded-xl bg-sky-50/60 dark:bg-sky-950/20 border border-sky-300 dark:border-sky-800/60 font-black text-sky-700 dark:text-sky-300 text-xs"
                 >
                   {allRoles.map(roleName => (
                     <option key={roleName} value={roleName}>{roleName}</option>
@@ -698,7 +698,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
                   <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-xs">
-                    <CreditCard className="w-4 h-4 text-emerald-600" /> Bank Account & Disbursement Information
+                    <CreditCard className="w-4 h-4 text-sky-600" /> Bank Account & Disbursement Information
                   </h4>
                   <span className="text-[10px] text-slate-400 font-medium">Used for direct salary credit & electronic transfers</span>
                 </div>
@@ -840,10 +840,10 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             <div className="space-y-5">
               
               {/* Compliance Summary Header */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-50 dark:from-emerald-950/20 dark:to-slate-800/50 border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-800/50 border border-sky-200 dark:border-sky-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                 <div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    <ShieldCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                     <h4 className="font-extrabold text-xs text-slate-900 dark:text-white">
                       Document Compliance Checklist
                     </h4>
@@ -856,14 +856,14 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                 <div className="flex items-center gap-2 shrink-0">
                   <div className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border text-center">
                     <span className="block text-[9px] font-bold text-slate-400 uppercase">Required Checklist</span>
-                    <span className="font-black text-xs text-emerald-600 dark:text-emerald-400">
+                    <span className="font-black text-xs text-sky-600 dark:text-sky-400">
                       {formRequiredDocTypeList.filter(req => (formData.documents || []).some(d => (d.type || d.title).toLowerCase().includes(req.toLowerCase()))).length} / {formRequiredDocTypeList.length} Attached
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsRuleMasterOpen(true)}
-                    className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-xs"
+                    className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-xs"
                     title="Configure Document Rules Master"
                   >
                     <Shield className="w-4 h-4" />
@@ -875,7 +875,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold uppercase text-slate-500 text-[11px] tracking-wider flex items-center gap-1.5">
-                    <FileCheck className="w-4 h-4 text-emerald-600" />
+                    <FileCheck className="w-4 h-4 text-sky-600" />
                     Required Credentials Checklist ({formRequiredDocTypeList.length})
                   </h4>
                   <span className="text-[10px] text-slate-400">Upload mandatory documents for this designation</span>
@@ -895,14 +895,14 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                           <div>
                             <div className="flex items-center gap-2">
                               <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">{reqType}</h5>
-                              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">Required</span>
+                              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">Required</span>
                             </div>
                             <p className="text-[10px] text-slate-400 mt-0.5">
                               {uploadedDoc ? `Attached on ${uploadedDoc.uploadedDate}` : 'Mandatory credential file'}
                             </p>
                           </div>
                           {uploadedDoc ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200">
                               ✓ Attached
                             </span>
                           ) : (
@@ -919,7 +919,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                               <button
                                 type="button"
                                 onClick={() => setPostviewDoc(uploadedDoc)}
-                                className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                                className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950"
                                 title="Preview Document"
                               >
                                 <Eye className="w-3.5 h-3.5" />
@@ -949,7 +949,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                             <button
                               type="button"
                               onClick={() => formFileInputRefs.current[reqType]?.click()}
-                              className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                              className="w-full py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs"
                             >
                               <Upload className="w-3.5 h-3.5" /> Upload {reqType}
                             </button>
@@ -965,7 +965,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold uppercase text-slate-500 text-[11px] tracking-wider flex items-center gap-1.5">
-                    <Paperclip className="w-4 h-4 text-emerald-600" />
+                    <Paperclip className="w-4 h-4 text-sky-600" />
                     Additional Documents (Optional)
                   </h4>
                   <button
@@ -1021,7 +1021,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                       />
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setIsAddAdditionalOpen(false)} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 font-semibold text-xs">Cancel</button>
-                        <button type="button" onClick={handleAttachCustomDoc} className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs shadow-md">Attach Document</button>
+                        <button type="button" onClick={handleAttachCustomDoc} className="px-4 py-1.5 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md">Attach Document</button>
                       </div>
                     </div>
                   </div>
@@ -1037,7 +1037,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                     additionalDocsInForm.map(doc => (
                       <div key={doc.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 shrink-0">
+                          <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 shrink-0">
                             <FileText className="w-4 h-4" />
                           </div>
                           <div className="min-w-0">
@@ -1047,7 +1047,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                         </div>
 
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <button type="button" onClick={() => setPostviewDoc(doc)} className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50" title="Preview"><Eye className="w-4 h-4" /></button>
+                          <button type="button" onClick={() => setPostviewDoc(doc)} className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50" title="Preview"><Eye className="w-4 h-4" /></button>
                           <button type="button" onClick={() => setFormData(prev => ({ ...prev, documents: (prev.documents || []).filter(d => d.id !== doc.id) }))} className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50" title="Delete"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </div>
@@ -1063,7 +1063,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             <span className="text-[10px] text-slate-400 italic">Master Repository Entry</span>
             <div className="flex items-center gap-2">
               <button type="button" onClick={onClose} className="px-4 py-2 font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl">Cancel</button>
-              <button type="submit" className="px-5 py-2 font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl shadow-lg shadow-emerald-600/20 flex items-center gap-1">
+              <button type="submit" className="px-5 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-600/20 flex items-center gap-1">
                 {staffToEdit ? 'Update Employee Record' : 'Complete Registration'}
               </button>
             </div>
@@ -1077,7 +1077,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-emerald-600" />
+                <Building2 className="w-5 h-5 text-sky-600" />
                 Add New Department
               </h3>
               <button type="button" onClick={() => setIsAddDeptModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -1109,7 +1109,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsAddDeptModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-emerald-600 text-white rounded-xl shadow-md">Create Department</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-md">Create Department</button>
               </div>
             </form>
           </div>
@@ -1122,7 +1122,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Briefcase className="w-5 h-5 text-emerald-600" />
+                <Briefcase className="w-5 h-5 text-sky-600" />
                 Add Designation for {formData.department}
               </h3>
               <button type="button" onClick={() => setIsAddDesigModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
@@ -1146,7 +1146,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
                 <select
                   value={newDesigForm.defaultRole}
                   onChange={e => setNewDesigForm({ ...newDesigForm, defaultRole: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
                 >
                   {allRoles.map(r => (
                     <option key={r} value={r}>{r}</option>
@@ -1156,7 +1156,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => setIsAddDesigModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-emerald-600 text-white rounded-xl shadow-md">Create Designation</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-md">Create Designation</button>
               </div>
             </form>
           </div>
@@ -1169,7 +1169,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-emerald-600" />
+                <FileText className="w-4 h-4 text-sky-600" />
                 {postviewDoc.title}
               </h3>
               <button type="button" onClick={() => setPostviewDoc(null)} className="p-1 rounded-full text-slate-400 hover:bg-slate-100"><X className="w-5 h-5" /></button>

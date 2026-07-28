@@ -98,9 +98,9 @@ export const VehicleTripsView: React.FC = () => {
           <p className="text-lg font-black text-amber-600 font-mono">0</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-indigo-500 space-y-1">
-          <span className="text-[10px] font-bold text-indigo-500 uppercase block">Offline GPS Devices</span>
-          <p className="text-lg font-black text-indigo-600 font-mono">0</p>
+        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+          <span className="text-[10px] font-bold text-sky-500 uppercase block">Offline GPS Devices</span>
+          <p className="text-lg font-black text-sky-600 font-mono">0</p>
         </div>
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-600 space-y-1">
@@ -108,9 +108,9 @@ export const VehicleTripsView: React.FC = () => {
           <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono">{filteredAssignments.length}</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-purple-500 space-y-1">
-          <span className="text-[10px] font-bold text-purple-500 uppercase block">Active Evening Trips</span>
-          <p className="text-lg font-black text-purple-600 font-mono">{filteredAssignments.length}</p>
+        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+          <span className="text-[10px] font-bold text-sky-500 uppercase block">Active Evening Trips</span>
+          <p className="text-lg font-black text-sky-600 font-mono">{filteredAssignments.length}</p>
         </div>
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-emerald-600 space-y-1">
@@ -242,7 +242,7 @@ export const VehicleTripsView: React.FC = () => {
               {/* Crew Details: Driver & Bus Attendant */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1"><Users className="w-3 h-3 text-indigo-500" /> Commercial Driver</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1"><Users className="w-3 h-3 text-sky-500" /> Commercial Driver</span>
                   <p className="font-bold text-slate-900 dark:text-white">{drv?.driverName || a.driverName}</p>
                   <p className="text-[11px] text-sky-600 font-mono font-bold flex items-center gap-1"><Phone className="w-3 h-3" /> {drv?.mobileNumber || '+1 555-333-333'}</p>
                 </div>
@@ -277,7 +277,7 @@ export const VehicleTripsView: React.FC = () => {
                     e.stopPropagation();
                     handleOpenTripDetails(a, 'gps');
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20"
+                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20"
                 >
                   <Navigation className="w-3.5 h-3.5" /> 📍 Live GPS Tracking
                 </button>

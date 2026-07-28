@@ -374,7 +374,7 @@ export const SubjectsView: React.FC = () => {
       {/* Top Header & Navigation Tabs */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-tr from-brand-600 to-indigo-600 rounded-2xl text-white shadow-md shadow-brand-500/20">
+          <div className="p-2.5 bg-gradient-to-tr from-brand-600 to-sky-600 rounded-2xl text-white shadow-md shadow-brand-500/20">
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
@@ -400,7 +400,7 @@ export const SubjectsView: React.FC = () => {
             onClick={() => setActiveTab('departments')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
               activeTab === 'departments'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-md'
+                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -460,7 +460,7 @@ export const SubjectsView: React.FC = () => {
                           <td className="py-3.5 px-2 font-extrabold text-slate-900 dark:text-white">{sub.name}</td>
                           <td className="py-3.5 px-2 text-slate-500 font-mono text-xs">{sub.code || sub.subjectId}</td>
                           <td className="py-3.5 px-2">
-                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
                               {sub.department || 'General'}
                             </span>
                           </td>
@@ -527,13 +527,13 @@ export const SubjectsView: React.FC = () => {
                 placeholder="Search departments or code..."
                 value={deptQuery}
                 onChange={e => setDeptQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 shadow-sm"
+                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
               />
             </div>
 
             <button
               onClick={handleOpenAddDept}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
             >
               <Plus className="w-4 h-4" /> Create Department
             </button>
@@ -616,7 +616,7 @@ export const SubjectsView: React.FC = () => {
                                 </button>
                                 <button
                                   onClick={() => handleOpenEditDept(dept)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors"
                                   title="Edit Department"
                                 >
                                   <Edit className="w-4 h-4" />
@@ -717,7 +717,7 @@ export const SubjectsView: React.FC = () => {
           <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-indigo-600" />
+                <Building2 className="w-5 h-5 text-sky-600" />
                 {editingDepartment ? 'Modify Department' : 'Create New Department'}
               </h3>
               <button onClick={() => setIsDeptModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
@@ -774,7 +774,7 @@ export const SubjectsView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsDeptModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-md">
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
                   {editingDepartment ? 'Save Changes' : 'Create Department'}
                 </button>
               </div>
@@ -848,7 +848,7 @@ export const SubjectsView: React.FC = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900">
+                <div className="p-2.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-900">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>

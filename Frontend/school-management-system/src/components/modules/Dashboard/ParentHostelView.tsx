@@ -42,7 +42,7 @@ export const ParentHostelView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-indigo-500" /> Hostel Accommodation
+          <Building2 className="w-6 h-6 text-sky-500" /> Hostel Accommodation
         </h2>
         <p className="text-xs text-slate-500 mt-1">Review hostel allocation and warden contact details</p>
       </div>
@@ -66,7 +66,7 @@ export const ParentHostelView: React.FC = () => {
               onClick={() => setSelectedChildIdx(idx)}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
                 selectedChildIdx === idx
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
@@ -89,19 +89,19 @@ export const ParentHostelView: React.FC = () => {
           {/* Allocation Details */}
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
             <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
-              <BedDouble className="w-5 h-5 text-indigo-500" /> Room Allocation
+              <BedDouble className="w-5 h-5 text-sky-500" /> Room Allocation
             </h3>
             
             <div className="space-y-4">
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
-                  <Building2 className="w-5 h-5 text-indigo-600" />
+                <div className="w-10 h-10 rounded-full bg-sky-50 flex items-center justify-center shrink-0">
+                  <Building2 className="w-5 h-5 text-sky-600" />
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Hostel Name</p>
                   <p className="font-semibold text-slate-900 dark:text-white text-base">{hostelAssignment.hostelName}</p>
                   {hostelMaster?.hostelType && (
-                    <span className="inline-block mt-1 text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-bold">
+                    <span className="inline-block mt-1 text-[10px] px-2 py-0.5 bg-sky-50 text-sky-700 rounded-full font-bold">
                       {hostelMaster.hostelType} Hostel
                     </span>
                   )}
@@ -124,25 +124,25 @@ export const ParentHostelView: React.FC = () => {
 
           {/* Warden Details */}
           {hostelMaster && (
-            <div className="bg-gradient-to-br from-indigo-500 to-violet-600 p-6 rounded-3xl border border-indigo-400 shadow-sm text-white space-y-6">
-              <h3 className="font-bold text-lg flex items-center gap-2 border-b border-indigo-400/50 pb-3">
-                <UserCircle className="w-5 h-5 text-indigo-100" /> Warden Information
+            <div className="bg-gradient-to-br from-sky-500 to-violet-600 p-6 rounded-3xl border border-sky-400 shadow-sm text-white space-y-6">
+              <h3 className="font-bold text-lg flex items-center gap-2 border-b border-sky-400/50 pb-3">
+                <UserCircle className="w-5 h-5 text-sky-100" /> Warden Information
               </h3>
               
               <div className="space-y-4">
                 <div>
-                  <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-1">Chief Warden</p>
+                  <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-1">Chief Warden</p>
                   <p className="text-xl font-bold">{hostelMaster.wardenName}</p>
                 </div>
 
                 <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                  <p className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-2">Emergency Contact</p>
+                  <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-2">Emergency Contact</p>
                   <div className="flex items-center gap-3">
-                    <Phone className="w-5 h-5 text-indigo-200" />
+                    <Phone className="w-5 h-5 text-sky-200" />
                     <p className="font-bold text-lg">{hostelMaster.wardenMobile}</p>
                   </div>
                   {hostelMaster.wardenAlternateMobile && (
-                    <div className="flex items-center gap-3 mt-2 text-indigo-100">
+                    <div className="flex items-center gap-3 mt-2 text-sky-100">
                       <Phone className="w-4 h-4 opacity-50" />
                       <p className="font-medium text-sm">{hostelMaster.wardenAlternateMobile}</p>
                     </div>
@@ -154,7 +154,7 @@ export const ParentHostelView: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-center max-w-2xl mx-auto mt-10">
-          <BedDouble className="w-16 h-16 text-indigo-200 mx-auto mb-4" />
+          <BedDouble className="w-16 h-16 text-sky-200 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Residential Allocation Processing</h3>
           <p className="text-slate-500 text-sm">
             {currentWard.firstName} is registered as a Residential student, but specific room and bed allocation has not been finalized yet. Please contact the administration.

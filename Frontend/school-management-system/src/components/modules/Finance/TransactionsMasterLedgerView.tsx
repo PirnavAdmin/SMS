@@ -326,10 +326,10 @@ export const TransactionsMasterLedgerView: React.FC = () => {
         </div>
 
         {/* Net Surplus / Balance */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50 to-slate-50 dark:from-indigo-950/20 dark:to-slate-900 border border-indigo-200/80 dark:border-indigo-900/40 shadow-xs space-y-2">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase text-indigo-600 tracking-wider">Net Financial Balance</span>
-            <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+            <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Net Financial Balance</span>
+            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
@@ -723,7 +723,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
             <div className="flex items-center justify-between border-b pb-3">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <PieChart className="w-4 h-4 text-indigo-600" />
+                  <PieChart className="w-4 h-4 text-sky-600" />
                   Budget Allocation & Consumption Tracking
                 </h3>
                 <p className="text-[11px] text-slate-400">Automated budget deduction based on Master Ledger expenses</p>
@@ -749,7 +749,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
 
                     <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
                       <div
-                        className={`h-full transition-all ${percent >= 90 ? 'bg-rose-500' : 'bg-indigo-600'}`}
+                        className={`h-full transition-all ${percent >= 90 ? 'bg-rose-500' : 'bg-sky-600'}`}
                         style={{ width: `${percent}%` }}
                       />
                     </div>

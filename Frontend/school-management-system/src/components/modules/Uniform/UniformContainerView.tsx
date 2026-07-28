@@ -61,11 +61,11 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
                 onClick={() => setActiveTab(t.id)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20 font-extrabold scale-[1.02]'
+                    ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-extrabold scale-[1.02]'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-purple-500'}`} />
+                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-sky-500'}`} />
                 <span>{t.label}</span>
               </button>
             );

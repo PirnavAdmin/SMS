@@ -29,21 +29,25 @@ export const InventoryView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Package className="w-6 h-6 text-emerald-600" /> Inventory Management
-          </h2>
-          <p className="text-xs text-slate-500">Track equipment, lab assets, stationery stock levels & purchase orders</p>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-brand-500/10 dark:bg-brand-500/20 rounded-2xl shrink-0">
+              <Package className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
+                Inventory Management
+              </h2>
+            </div>
+          </div>
+  
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" /> Add Inventory Item
+          </button>
         </div>
-
-        <button
-          onClick={() => setIsAddOpen(true)}
-          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" /> Add Inventory Item
-        </button>
-      </div>
 
       <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
         <table className="w-full text-left border-collapse text-xs">
@@ -99,7 +103,7 @@ export const InventoryView: React.FC = () => {
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-emerald-600 text-white rounded-xl">Add Item</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl">Add Item</button>
               </div>
             </form>
           </div>
