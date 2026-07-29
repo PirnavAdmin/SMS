@@ -135,49 +135,17 @@ export const ParentExaminationView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div>
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
           <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
             <Award className="w-6 h-6 text-sky-600 dark:text-sky-400" />
           </div>
           Reports
         </h2>
-        <p className="text-xs text-slate-500 mt-1">Review academic assessments and term reports</p>
-      </div>
-
-      {!hasMatchedWards && (
-         <div className="bg-sky-50 border border-sky-200 text-sky-800 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="text-sm">
-               <p className="font-bold">Demo Mode Active</p>
-               <p>Your login email/phone ({user?.email}) did not match any guardian records in the database. Showing sample wards for demonstration.</p>
-            </div>
-         </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
-        {role !== 'Student' && (
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max">
-            {parentWards.map((ward, idx) => (
-              <button
-                key={ward.id}
-                onClick={() => setSelectedChildIdx(idx)}
-                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  selectedChildIdx === idx
-                    ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-              >
-                {ward.firstName} {ward.lastName} <span className="text-[10px] font-medium opacity-70 ml-1">({ward.className}-{ward.section})</span>
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Assessment Dropdown */}
         {childExams.length > 0 && (
-          <div className="relative min-w-[250px]">
+          <div className="relative min-w-[250px] no-print">
             <select
               value={selectedExamId}
               onChange={(e) => setSelectedExamId(e.target.value)}
@@ -194,9 +162,28 @@ export const ParentExaminationView: React.FC = () => {
         )}
       </div>
 
+      {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
+      {role !== 'Student' && (
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max no-print">
+          {parentWards.map((ward, idx) => (
+            <button
+              key={ward.id}
+              onClick={() => setSelectedChildIdx(idx)}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                selectedChildIdx === idx
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              {ward.firstName} {ward.lastName} <span className="text-[10px] font-medium opacity-70 ml-1">({ward.className}-{ward.section})</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6">
         {activeExam ? (
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+          <div id="printable-content" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             
             {childExamsRaw.length === 0 && (
                <div className="bg-sky-50 p-3 text-sky-700 text-xs font-semibold text-center border-b border-sky-100">
@@ -205,7 +192,7 @@ export const ParentExaminationView: React.FC = () => {
             )}
 
             {/* Exam Header */}
-            <div className="bg-sky-50 dark:bg-sky-900/10 p-6 sm:p-8 border-b border-sky-100 dark:border-sky-900/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="bg-sky-50 dark:bg-sky-900/10 px-6 py-5 border-b border-sky-100 dark:border-sky-900/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-400 text-xs font-bold mb-3">
                   <BookOpen className="w-3.5 h-3.5" />
@@ -229,8 +216,8 @@ export const ParentExaminationView: React.FC = () => {
                   <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{activeExam.overallGrade}</p>
                 </div>
                 <button 
-                  onClick={() => handleDownload(`${activeExam.examName}_Report_Card.pdf`)}
-                  className="hidden sm:flex p-3 rounded-2xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 items-center justify-center" title="Download Report Card"
+                  onClick={() => window.print()}
+                  className="no-print hidden sm:flex p-3 rounded-2xl bg-sky-600 text-white hover:bg-sky-700 transition-colors shadow-lg shadow-sky-600/20 items-center justify-center" title="Download Report Card"
                 >
                   <Download className="w-5 h-5" />
                 </button>
@@ -242,17 +229,17 @@ export const ParentExaminationView: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-900/50 text-xs uppercase tracking-wider text-slate-500 font-bold border-b border-slate-200 dark:border-slate-800">
-                    <th className="p-4 pl-6 sm:pl-8">Subjects</th>
-                    <th className="p-4 text-center">Score</th>
-                    <th className="p-4 pr-6 sm:pr-8 text-right">Grade</th>
+                    <th className="px-6 py-3.5">Subjects</th>
+                    <th className="px-6 py-3.5 text-center">Score</th>
+                    <th className="px-6 py-3.5 text-right">Grade</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                   {activeExam.subjects.map((sub: any, sIdx: number) => (
                     <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="p-4 pl-6 sm:pl-8 font-bold text-slate-900 dark:text-white text-sm">{sub.name}</td>
-                      <td className="p-4 text-center font-mono text-slate-600 dark:text-slate-300 font-semibold">{sub.marks}</td>
-                      <td className="p-4 pr-6 sm:pr-8 text-right">
+                      <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white text-sm">{sub.name}</td>
+                      <td className="px-6 py-3.5 text-center font-mono text-slate-600 dark:text-slate-300 font-semibold">{sub.marks}</td>
+                      <td className="px-6 py-3.5 text-right">
                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
                           sub.grade.includes('A') ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
                           sub.grade.includes('B') ? 'bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-400' :

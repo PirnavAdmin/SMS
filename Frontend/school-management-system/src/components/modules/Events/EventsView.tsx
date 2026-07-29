@@ -427,17 +427,12 @@ export const EventsView: React.FC = () => {
             Academic Calendar & Events
           </h2>
           <p className="text-xs text-slate-500">
-            Centralized school event schedules, gazetted holidays, exams, meetings, and birthday celebrations
+            Centralized school event schedules, gazetted holidays, exams, and meetings
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportEventsCSV}
-            className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all border border-slate-200 dark:border-slate-700"
-          >
-            <Download className="w-3.5 h-3.5 text-sky-600" /> Export CSV
-          </button>
+
 
           {canManageEvents && (
             <>
@@ -462,17 +457,6 @@ export const EventsView: React.FC = () => {
       {/* SUB-NAVIGATION TABS */}
       <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 max-w-2xl border border-slate-200/60 dark:border-slate-800 overflow-x-auto no-scrollbar">
         <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'dashboard'
-              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" /> Dashboard
-        </button>
-
-        <button
           onClick={() => setActiveTab('calendar')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'calendar'
@@ -480,7 +464,7 @@ export const EventsView: React.FC = () => {
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <CalendarIcon className="w-3.5 h-3.5" /> Interactive Calendar
+          <CalendarIcon className="w-3.5 h-3.5" /> Calendar
         </button>
 
         <button
@@ -505,16 +489,6 @@ export const EventsView: React.FC = () => {
           <Award className="w-3.5 h-3.5 text-sky-500" /> School Events ({schoolEvents.length})
         </button>
 
-        <button
-          onClick={() => setActiveTab('birthdays')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'birthdays'
-              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Cake className="w-3.5 h-3.5 text-rose-500" /> Birthdays ({birthdays.length})
-        </button>
       </div>
 
       {/* SUB-TAB 1: DASHBOARD */}
@@ -693,7 +667,7 @@ export const EventsView: React.FC = () => {
                   calendarViewMode === 'agenda' ? 'bg-white dark:bg-slate-950 text-sky-600 shadow-xs' : 'text-slate-500'
                 }`}
               >
-                Agenda List
+                Upcoming Events
               </button>
             </div>
           </div>
@@ -703,7 +677,7 @@ export const EventsView: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden p-4">
               
               {/* Day Headers (Sun-Sat) */}
-              <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-extrabold uppercase tracking-wider text-slate-400">
+              <div className="grid grid-cols-7 gap-1 mb-2 text-center text-xs font-extrabold uppercase tracking-wider text-slate-400">
                 <div className="py-2 text-rose-500">Sun</div>
                 <div className="py-2">Mon</div>
                 <div className="py-2">Tue</div>
@@ -714,7 +688,7 @@ export const EventsView: React.FC = () => {
               </div>
 
               {/* 42-Day Month Grid Cells */}
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1">
                 {calendarGridDays.map((cell, idx) => {
                   const isToday = cell.dateString === '2026-07-28';
                   return (
@@ -808,23 +782,6 @@ export const EventsView: React.FC = () => {
       {/* SUB-TAB 3: HOLIDAYS MANAGEMENT */}
       {activeTab === 'holidays' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white dark:bg-slate-900 p-4 rounded-2xl border">
-            <div>
-              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-sky-500" />
-                Holiday Management Master
-              </h3>
-              <p className="text-[11px] text-slate-400">Manage Gazetted, National, State, and School Holidays</p>
-            </div>
-            {canManageEvents && (
-              <button
-                onClick={() => setIsAddHolidayModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-              >
-                <Plus className="w-4 h-4" /> Add Holiday
-              </button>
-            )}
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {holidays.map(h => (

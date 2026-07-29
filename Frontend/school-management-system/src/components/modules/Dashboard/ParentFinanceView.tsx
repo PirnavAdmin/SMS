@@ -5,9 +5,10 @@ import { useAuth } from '../../../context/AuthContext';
 
 interface ParentFinanceViewProps {
   activeTab: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab }) => {
+export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab, onTabChange }) => {
   const { students } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
@@ -114,7 +115,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
           {activeTab === 'parent-fee-dues' ? (
@@ -123,18 +124,33 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
             <><div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl"><Receipt className="w-6 h-6 text-sky-600 dark:text-sky-400" /></div> Payment History</>
           )}
         </h2>
-        <p className="text-xs text-slate-500 mt-1">Manage finances and clear outstanding dues for your wards</p>
       </div>
 
-      {!hasMatchedWards && (
-         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="text-sm">
-               <p className="font-bold">Demo Mode Active</p>
-               <p>Your login email/phone ({user?.email}) did not match any guardian records in the database. Showing sample wards for demonstration.</p>
-            </div>
-         </div>
-      )}
+      {/* Sub-Tabs */}
+      <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => onTabChange && onTabChange('parent-fee-dues')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            activeTab === 'parent-fee-dues'
+              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          Fee Details
+        </button>
+        <button
+          onClick={() => onTabChange && onTabChange('parent-fee-receipts')}
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+            activeTab === 'parent-fee-receipts'
+              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          Receipt Register
+        </button>
+      </div>
+
+
 
       {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
       {role !== 'Student' && (
@@ -156,22 +172,22 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
       )}
 
       {activeTab === 'parent-fee-dues' ? (
-        <div className="space-y-6">
-          <div className={`bg-gradient-to-br ${totalDue > 0 ? 'from-rose-500 to-orange-500 shadow-rose-500/20' : 'from-emerald-500 to-teal-500 shadow-emerald-500/20'} rounded-2xl p-4 sm:p-5 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg`}>
+        <div className="space-y-3">
+          <div className={`bg-gradient-to-br ${totalDue > 0 ? 'from-rose-500 to-orange-500 shadow-rose-500/20' : 'from-emerald-500 to-teal-500 shadow-emerald-500/20'} rounded-2xl p-3 px-4 sm:px-5 text-white flex flex-col md:flex-row items-center justify-between gap-3 shadow-sm`}>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
-                {totalDue > 0 ? <AlertCircle className="w-6 h-6 text-white" /> : <CheckCircle2 className="w-6 h-6 text-white" />}
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
+                {totalDue > 0 ? <AlertCircle className="w-5 h-5 text-white" /> : <CheckCircle2 className="w-5 h-5 text-white" />}
               </div>
               <div>
-                <p className={`text-sm ${totalDue > 0 ? 'text-rose-100' : 'text-emerald-100'} font-medium mb-0.5`}>Total Outstanding Dues</p>
-                <h2 className="text-2xl sm:text-3xl font-black">₹{totalDue.toLocaleString()}</h2>
+                <p className={`text-xs ${totalDue > 0 ? 'text-rose-100' : 'text-emerald-100'} font-medium mb-0.5`}>Total Outstanding Dues</p>
+                <h2 className="text-xl sm:text-2xl font-black">₹{totalDue.toLocaleString()}</h2>
               </div>
             </div>
             {totalDue > 0 && (
               <button 
                 onClick={handlePayAll}
                 disabled={processing !== null}
-                className="px-6 py-2.5 bg-white text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors w-full md:w-auto shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+                className="px-5 py-2 bg-white text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors w-full md:w-auto shadow-sm disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
                 {processing === 'all' ? <div className="w-4 h-4 border-2 border-rose-600/30 border-t-rose-600 rounded-full animate-spin" /> : 'Pay All Dues Now'}
               </button>
@@ -179,24 +195,24 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
           </div>
 
           <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-800">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Fee Breakdown</h3>
+            <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Fee Breakdown</h3>
             </div>
             <div className="divide-y divide-slate-100 dark:divide-slate-800/50">
               {childDues.length > 0 ? childDues.map((due) => (
-                <div key={due.id} className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                <div key={due.id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                   <div>
-                    <h4 className="font-bold text-slate-900 dark:text-white text-base">{due.term}</h4>
-                    <p className="text-sm text-slate-500 mt-1 flex items-center gap-2">
+                    <h4 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base">{due.term}</h4>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-0.5 flex items-center gap-1.5">
                       <Calendar className="w-4 h-4" /> Due Date: {due.dueDate}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
-                    <span className="text-xl font-black text-slate-900 dark:text-white">₹{due.amount.toLocaleString()}</span>
+                    <span className="text-lg font-black text-slate-900 dark:text-white">₹{due.amount.toLocaleString()}</span>
                     <button 
                       onClick={() => handlePayDue(due.id)}
                       disabled={processing !== null}
-                      className="min-w-[100px] px-4 py-2 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold rounded-lg hover:bg-brand-100 dark:hover:bg-brand-500/20 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="min-w-[80px] px-3 py-1.5 bg-brand-50 dark:bg-brand-500/10 text-brand-600 dark:text-brand-400 font-bold rounded-lg hover:bg-brand-100 dark:hover:bg-brand-500/20 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                       {processing === due.id ? <div className="w-4 h-4 border-2 border-brand-600/30 border-t-brand-600 rounded-full animate-spin" /> : 'Pay'}
                     </button>
@@ -213,8 +229,8 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Receipt className="w-5 h-5 text-emerald-500" />
               Payment History
             </h3>
@@ -223,30 +239,30 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 text-xs uppercase tracking-wider text-slate-500 font-bold bg-slate-50 dark:bg-slate-900/50">
-                  <th className="p-4 pl-6">Receipt No</th>
-                  <th className="p-4">Fee Head / Term</th>
-                  <th className="p-4">Date</th>
-                  <th className="p-4">Mode</th>
-                  <th className="p-4 text-right">Amount</th>
-                  <th className="p-4 pr-6 text-right">Action</th>
+                  <th className="p-3 pl-5">Receipt No</th>
+                  <th className="p-3">Fee Head / Term</th>
+                  <th className="p-3">Date</th>
+                  <th className="p-3">Mode</th>
+                  <th className="p-3 text-right">Amount</th>
+                  <th className="p-3 pr-5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                 {childReceipts.length > 0 ? childReceipts.map((rec, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="p-4 pl-6 font-mono text-sm font-semibold text-slate-900 dark:text-white">{rec.receiptNo}</td>
-                    <td className="p-4 font-semibold text-slate-700 dark:text-slate-300 text-sm">{rec.term}</td>
-                    <td className="p-4 text-sm text-slate-500">{rec.date}</td>
-                    <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold">
+                    <td className="p-3 pl-5 font-mono text-sm font-semibold text-slate-900 dark:text-white">{rec.receiptNo}</td>
+                    <td className="p-3 font-semibold text-slate-700 dark:text-slate-300 text-sm">{rec.term}</td>
+                    <td className="p-3 text-sm text-slate-500">{rec.date}</td>
+                    <td className="p-3">
+                      <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[11px] font-bold">
                         {rec.mode}
                       </span>
                     </td>
-                    <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400">
+                    <td className="p-3 text-right font-black text-emerald-600 dark:text-emerald-400">
                       ₹{rec.amount.toLocaleString()}
                     </td>
-                    <td className="p-4 pr-6 text-right">
-                      <button className="p-2 text-slate-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition-colors" title="Download Receipt">
+                    <td className="p-3 pr-5 text-right">
+                      <button className="p-1.5 text-slate-400 hover:text-brand-500 hover:bg-brand-50 dark:hover:bg-brand-500/10 rounded-lg transition-colors" title="Download Receipt">
                         <Download className="w-4 h-4" />
                       </button>
                     </td>

@@ -47,18 +47,9 @@ export const ParentHostelView: React.FC = () => {
           </div>
           Hostel Accommodation
         </h2>
-        <p className="text-xs text-slate-500 mt-1">Review hostel allocation and warden contact details</p>
       </div>
 
-      {!hasMatchedWards && (
-         <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-            <div className="text-sm">
-               <p className="font-bold">Demo Mode Active</p>
-               <p>Your login ({user?.email}) did not match any records in the database. Showing sample wards for demonstration.</p>
-            </div>
-         </div>
-      )}
+
 
       {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
       {role !== 'Student' && (
@@ -78,7 +69,7 @@ export const ParentHostelView: React.FC = () => {
           ))}
         </div>
       )}
-
+      
       {currentWard.studentType === 'Day Scholar' ? (
         <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-center max-w-2xl mx-auto mt-10">
           <Home className="w-16 h-16 text-slate-300 mx-auto mb-4" />

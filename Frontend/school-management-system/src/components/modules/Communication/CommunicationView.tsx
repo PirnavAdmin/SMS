@@ -3,7 +3,6 @@ import { Megaphone, Send, Mail, MessageSquare, Bell, Users, Calendar } from 'luc
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
-import { MeetingsView } from './MeetingsView';
 
 export const CommunicationView: React.FC = () => {
   const { announcements, addAnnouncement } = useData();
@@ -12,7 +11,6 @@ export const CommunicationView: React.FC = () => {
   
   const canModify = role === 'Super Admin' || role === 'Teacher';
 
-  const [activeTab, setActiveTab] = useState<'circulars' | 'meetings'>('circulars');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [target, setTarget] = useState<'All' | 'Students' | 'Staff' | 'Parents'>('All');
@@ -43,42 +41,13 @@ export const CommunicationView: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-brand-600" /> Communications
+            <Megaphone className="w-6 h-6 text-brand-600" /> Notifications
           </h2>
-          <p className="text-xs text-slate-500">Broadcast circulars, instant SMS alerts, emails, push notifications & meeting scheduling</p>
-        </div>
-
-        {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl self-start">
-          <button
-            onClick={() => setActiveTab('circulars')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'circulars'
-                ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Megaphone className="w-4 h-4" />
-            Broadcast Circulars
-          </button>
-          <button
-            onClick={() => setActiveTab('meetings')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              activeTab === 'meetings'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Meetings Management
-          </button>
+          <p className="text-xs text-slate-500">Broadcast circulars, instant SMS alerts, emails & push notifications</p>
         </div>
       </div>
 
-      {activeTab === 'meetings' ? (
-        <MeetingsView />
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Composer Form */}
           {canModify && (
             <div className="glass-card p-6 rounded-3xl space-y-4">
@@ -175,7 +144,6 @@ export const CommunicationView: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
     </div>
   );
 };

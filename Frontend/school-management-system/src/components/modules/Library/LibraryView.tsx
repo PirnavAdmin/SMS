@@ -68,7 +68,6 @@ export const LibraryView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Library className="w-6 h-6 text-sky-500" /> Library
           </h2>
-          <p className="text-xs text-slate-500">Book inventory catalog, issue & return workflow, fine calculation</p>
         </div>
 
         <div className="flex items-center gap-2">

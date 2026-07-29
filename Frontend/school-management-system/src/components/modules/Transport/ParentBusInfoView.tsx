@@ -64,8 +64,7 @@ export const ParentBusInfoView: React.FC = () => {
             <Bus className="w-6 h-6 text-sky-600 dark:text-sky-400" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Student Transport Information</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Live transport details, real-time bus location, pickup ETA, and RFID boarding updates</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Transport Management</h2>
           </div>
         </div>
 
@@ -99,7 +98,6 @@ export const ParentBusInfoView: React.FC = () => {
           </span>
         </div>
       </div>
-
       {!busInfo.hasTransport ? (
         <div className="glass-card p-12 text-center rounded-3xl">
           <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
