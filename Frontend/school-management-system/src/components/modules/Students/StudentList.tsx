@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   UserCheck, Search, Filter, Edit, Trash2, ArrowUpRight, ArrowRightLeft,
@@ -15,10 +15,13 @@ import { StudentFormModal } from './StudentFormModal';
 import { StudentProfileDrawer } from './StudentProfileDrawer';
 import { PromoteStudentModal } from './PromoteStudentModal';
 import { TransferStudentModal } from './TransferStudentModal';
+import { fetchAdmissionsApi } from '../../../api/admission';
 import { BRANCHES } from '../../../utils/validation';
 
 export const StudentList: React.FC = () => {
-  const { students, deleteStudent, academicClasses, staff } = useData();
+  const { deleteStudent, academicClasses, staff } = useData();
+  const [apiStudents, setApiStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
   const { user, role } = useAuth();
 
@@ -28,7 +31,45 @@ export const StudentList: React.FC = () => {
     assignedClasses: ['10-A', '9-B']
   } : null);
   const assignedClasses = teacher?.assignedClasses || [];
-  const rbacStudents = role === 'Teacher' ? students.filter(s => assignedClasses.includes(`${s.className}-${s.section}`)) : students;
+  const rbacStudents = role === 'Teacher' ? apiStudents.filter(s => assignedClasses.includes(`${s.className}-${s.section}`)) : apiStudents;
+
+  useEffect(() => {
+    const loadStudents = async () => {
+      try {
+        setLoading(true);
+        const response = await fetchAdmissionsApi();
+        if (response && response.data) {
+          const enrolled = response.data.filter((a: any) => a.status === 'Enrolled');
+          const mappedStudents: Student[] = enrolled.map((a: any) => ({
+            id: a.id.toString(),
+            firstName: a.firstName || a.applicantName?.split(' ')[0] || 'Unknown',
+            lastName: a.lastName || a.applicantName?.split(' ').slice(1).join(' ') || '',
+            className: a.appliedClass || '10',
+            section: 'A',
+            rollNo: a.registrationNo || a.applicationNo || a.id.toString(),
+            admissionNo: a.registrationNo || a.applicationNo || a.id.toString(),
+            fatherName: a.parentName || 'N/A',
+            fatherPhone: a.phone || 'N/A',
+            status: 'Active',
+            dueFee: 0,
+            branch: a.branch || 'Main Campus',
+            avatar: a.avatar || '',
+            gender: a.gender || 'Other',
+            dob: a.dob || '',
+            bloodGroup: a.bloodGroup || '',
+            category: a.category || ''
+          }));
+          setApiStudents(mappedStudents);
+        }
+      } catch (error) {
+        console.error('Failed to fetch students:', error);
+        addToast('error', 'Failed to fetch student data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadStudents();
+  }, [addToast]);
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
@@ -120,7 +161,7 @@ export const StudentList: React.FC = () => {
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Branches</option>
-              {Array.from(new Set(students.map(s => s.branch || 'Main Campus'))).sort().map(b => (
+              {Array.from(new Set(apiStudents.map(s => s.branch || 'Main Campus'))).sort().map(b => (
                 <option key={b} value={b}>{b}</option>
               ))}
             </select>
@@ -133,7 +174,7 @@ export const StudentList: React.FC = () => {
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Classes</option>
-              {Array.from(new Set(students.map(s => s.className))).sort().map(c => (
+              {Array.from(new Set(apiStudents.map(s => s.className))).sort().map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -146,7 +187,7 @@ export const StudentList: React.FC = () => {
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Sec</option>
-              {Array.from(new Set(students.map(s => s.section))).sort().map(sec => (
+              {Array.from(new Set(apiStudents.map(s => s.section))).sort().map(sec => (
                 <option key={sec} value={sec}>Sec {sec}</option>
               ))}
             </select>
@@ -159,7 +200,7 @@ export const StudentList: React.FC = () => {
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Status</option>
-              {Array.from(new Set(students.map(s => s.status))).sort().map(s => (
+              {Array.from(new Set(apiStudents.map(s => s.status))).sort().map(s => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -183,7 +224,9 @@ export const StudentList: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {paginated.length === 0 ? (
+              {loading ? (
+                <tr><td colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500"><div className="animate-pulse">Loading student records...</div></td></tr>
+              ) : paginated.length === 0 ? (
                 <tr><td colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">No matching student records found.</td></tr>
               ) : (
                 paginated.map(st => (

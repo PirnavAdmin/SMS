@@ -1966,7 +1966,7 @@ export const ExaminationView: React.FC = () => {
       {activeTab === 'results' && !isStudentOrParent && (
         <div className="space-y-4">
           <div className="glass-card p-5 rounded-3xl space-y-4">
-            <h4 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">Result Engine Parameters</h4>
+            <h4 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">Report Card Settings</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1">Target Exam Setup</label>

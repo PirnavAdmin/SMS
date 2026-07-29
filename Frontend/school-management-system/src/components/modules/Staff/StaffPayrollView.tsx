@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   IndianRupee, Settings, Layers, PlayCircle, FileText, Plus, Pencil, Trash2,
   Copy, Lock, Unlock, RotateCcw, Printer, Mail, Download, CheckCircle2, ShieldCheck
@@ -615,9 +615,9 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
     // Filter relevant activities for payroll
     const payrollActivities = (data.auditLogs || [])
       .filter((log: any) => 
-        log.action?.toLowerCase().includes('payroll') || 
-        log.action?.toLowerCase().includes('salary') || 
-        log.action?.toLowerCase().includes('payslip')
+        log.action?.toLowerCase()?.includes('payroll') || 
+        log.action?.toLowerCase()?.includes('salary') || 
+        log.action?.toLowerCase()?.includes('payslip')
       )
       .slice(0, 5);
 
@@ -864,7 +864,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
               headers={['Employee Name', 'PAN Details', 'Monthly Gross', 'Annualized Gross', 'TDS Deduction']}
               rows={currentMonthPayslips.map((p, idx) => {
                 const gross = p.grossSalary || 0;
-                const tds = p.deductions?.find((d: any) => d.name.toLowerCase().includes('tds') || d.name.toLowerCase().includes('tax'))?.amount || 0;
+                const tds = p.deductions?.find((d: any) => d.name?.toLowerCase()?.includes('tds') || d.name?.toLowerCase()?.includes('tax'))?.amount || 0;
                 const emp = data.staff.find((s: any) => s.id === p.employeeId) as any;
                 return [
                   p.employeeName,
@@ -2608,10 +2608,10 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                           empId: s.empId,
                           department: s.department,
                           month: payrollMonth,
-                          basicSalary: run.earnings.find(e => e.name.toLowerCase().includes('basic'))?.amount || 0,
-                          hra: run.earnings.find(e => e.name.toLowerCase().includes('hra'))?.amount || 0,
-                          da: run.earnings.find(e => e.name.toLowerCase().includes('da'))?.amount || 0,
-                          pfDeduction: run.deductions.find(d => d.name.toLowerCase().includes('pf') || d.name.toLowerCase().includes('provident'))?.amount || 0,
+                          basicSalary: run.earnings.find(e => e.name?.toLowerCase()?.includes('basic'))?.amount || 0,
+                          hra: run.earnings.find(e => e.name?.toLowerCase()?.includes('hra'))?.amount || 0,
+                          da: run.earnings.find(e => e.name?.toLowerCase()?.includes('da'))?.amount || 0,
+                          pfDeduction: run.deductions.find(d => d.name?.toLowerCase()?.includes('pf') || d.name?.toLowerCase()?.includes('provident'))?.amount || 0,
                           lopDeduction: run.leaveDeduction,
                           disbursedDate: today(),
                           grossSalary: run.grossSalary,

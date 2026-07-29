@@ -21,7 +21,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const hostellerStudents = students.filter(s => s.studentType === 'Hosteller');
-  const displayHostellers = hostellerStudents.length > 0 ? hostellerStudents : students.slice(0, 5);
+  const displayHostellers = hostellerStudents;
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedHostelId, setSelectedHostelId] = useState('');
@@ -52,7 +52,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   }, [fetchData]);
 
   const handleOpenAdd = () => {
-    setSelectedStudentId(displayHostellers[0]?.id || '');
+    setSelectedStudentId('');
     if (blocks.length > 0) {
       const firstHostelId = blocks[0].hostelId.toString();
       setSelectedHostelId(firstHostelId);
@@ -212,7 +212,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Allocate Student Room & Inherit Hierarchy</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Allocate Student Room</h3>
               <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
@@ -220,6 +220,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Hosteller Student *</label>
                 <select value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" disabled={isSubmitting}>
+                  <option value="" disabled>Select Student...</option>
                   {displayHostellers.map(st => (
                     <option key={st.id} value={st.id}>{st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo})</option>
                   ))}

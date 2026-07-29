@@ -213,9 +213,9 @@ export const StudentTransportAssignmentView: React.FC = () => {
       </div>
 
       {/* Multi-level Filters: Academic Year, Branch, Class, Section */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+      <div className="glass-card p-4 rounded-2xl flex items-center justify-between gap-4 overflow-x-auto w-full">
+        <div className="relative w-64 shrink-0 pt-3">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-5" />
           <input
             type="text"
             placeholder="Search student or adm no..."
@@ -225,7 +225,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-3 shrink-0">
           <div>
             <label className="block text-[9px] uppercase font-bold text-slate-400">Academic Year</label>
             <select

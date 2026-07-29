@@ -224,7 +224,7 @@ export const FinanceReportsView: React.FC = () => {
       {/* Title */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Financial Reports & Audit Analytics
+          <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Fee & Finance Reports
         </h2>
         <p className="text-xs text-slate-500 font-medium">Configure advanced search filters, generate ledgers, print reports and audit details</p>
       </div>

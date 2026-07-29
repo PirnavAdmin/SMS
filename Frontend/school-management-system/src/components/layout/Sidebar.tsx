@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'communication', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Notifications' : 'Communication Hub', icon: Megaphone },
         { id: 'events', label: 'Events & Holidays', icon: Calendar },
-        { id: 'training', label: 'Staff Training', icon: GraduationCap },
+        { id: 'training', label: 'Faculty Training', icon: GraduationCap },
         { id: 'reports', label: 'School Reports', icon: BarChart3 },
         { id: 'users', label: 'Roles', icon: ShieldCheck },
         { id: 'settings', label: 'Settings', icon: Settings },
