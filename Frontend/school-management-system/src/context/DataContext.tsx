@@ -1061,7 +1061,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
-  const { selectedBranch, isAuthenticated } = useAuth();
+  const { selectedBranch, isAuthenticated, role } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
@@ -1239,7 +1239,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch API data on mount
   useEffect(() => {
-    if (!isAuthenticated) return;
+    const allowedTransportRoles = ['Super Admin', 'Admin', 'Transport Manager', 'Principal', 'Receptionist'];
+    if (!isAuthenticated || !allowedTransportRoles.includes(role)) return;
     const fetchTransportData = async () => {
       try {
         const results = await Promise.allSettled([
@@ -1372,10 +1373,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    const allowedAdmissionsRoles = ['Super Admin', 'Admin', 'Principal', 'Receptionist'];
+    if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, role]);
 
   const logActivity = (action: string, details: string, userName = 'Admin User', role = 'Admin') => {
     const newLog: AuditLog = {

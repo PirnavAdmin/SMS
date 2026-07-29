@@ -56,10 +56,13 @@ export const ParentTimetableView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Clock className="w-6 h-6 text-brand-600" /> Student Timetable (Auto Generated)
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <Clock className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          </div>
+          Student Timetable
         </h2>
-        <p className="text-xs text-slate-500 mt-1">Review auto-generated weekly class timetable for your ward(s)</p>
+        <p className="text-xs text-slate-500 mt-2">Review auto-generated weekly class timetable for your ward(s)</p>
       </div>
 
       {!hasMatchedWards && (
@@ -120,27 +123,21 @@ export const ParentTimetableView: React.FC = () => {
               {wardTimetable.map((slot: any, idx) => (
                 <div 
                   key={slot.id || idx} 
-                  className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl border bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 transition-colors"
+                  className="flex flex-col gap-2 p-4 rounded-2xl border bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-sm hover:border-brand-300 transition-colors"
                 >
-                  <div className="shrink-0 w-44 px-3 py-2 rounded-xl text-center font-mono text-xs font-bold bg-brand-100 dark:bg-brand-500/20 text-brand-700 dark:text-brand-300">
+                  <div className="w-max px-3 py-1.5 rounded-lg font-mono text-xs font-bold bg-brand-50 dark:bg-brand-500/10 text-brand-700 dark:text-brand-300 border border-brand-100 dark:border-brand-500/20">
                     {slot.timeSlot}
                   </div>
                   
-                  <div className="flex-1">
+                  <div className="mt-1">
                     <h4 className="font-bold text-base text-slate-900 dark:text-white">
                       {slot.subject}
                     </h4>
-                    <div className="flex items-center gap-4 mt-1.5">
+                    <div className="mt-1">
                       <span className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5" />
                         {slot.teacherName}
                       </span>
-                      {slot.roomNo && (
-                        <span className="text-xs font-medium text-slate-500 flex items-center gap-1.5">
-                          <CalendarIcon className="w-3.5 h-3.5" />
-                          {slot.roomNo}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>

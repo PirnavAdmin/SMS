@@ -70,16 +70,25 @@ export const ParentHomeworkView: React.FC = () => {
   // Derive subjects for filter
   const subjects = Array.from(new Set(wardHomework.map(h => h.subject)));
   const [filterSubject, setFilterSubject] = useState('All');
+  const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Previous'>('Upcoming');
+  const [filterDate, setFilterDate] = useState<string>('');
 
-  const filteredHomework = wardHomework.filter(h => filterSubject === 'All' || h.subject === filterSubject);
+  const filteredHomework = wardHomework.filter(h => {
+    const isSubjectMatch = filterSubject === 'All' || h.subject === filterSubject;
+    const isDateMatch = filterDate ? h.dueDate === filterDate : true;
+    const isPast = new Date(h.dueDate).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
+    const isStatusMatch = filterDate ? true : (filterStatus === 'Previous' ? isPast : !isPast);
+    return isSubjectMatch && isStatusMatch && isDateMatch;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in">
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <FileText className="w-6 h-6 text-amber-500" /> Homework
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+            <FileText className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          Homework
         </h2>
-        <p className="text-xs text-slate-500 mt-1">Review pending homework and assignments</p>
+        <p className="text-xs text-slate-500 mt-2">Review pending homework and assignments</p>
       </div>
 
       {!hasMatchedWards && (
@@ -95,12 +104,12 @@ export const ParentHomeworkView: React.FC = () => {
       {/* Header controls: Ward Selector (if parent) & Subject Filter */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         {role !== 'Student' && (
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max">
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max overflow-x-auto max-w-full">
             {parentWards.map((ward, idx) => (
               <button
                 key={ward.id}
                 onClick={() => setSelectedChildIdx(idx)}
-                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
                   selectedChildIdx === idx
                     ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
@@ -112,17 +121,58 @@ export const ParentHomeworkView: React.FC = () => {
           </div>
         )}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
+            <button
+              onClick={() => setFilterStatus('Upcoming')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterStatus === 'Upcoming'
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              Upcoming Tasks
+            </button>
+            <button
+              onClick={() => setFilterStatus('Previous')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterStatus === 'Previous'
+                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              Previous Works
+            </button>
+          </div>
+          
           <select
             value={filterSubject}
             onChange={e => setFilterSubject(e.target.value)}
-            className="pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all"
+            className="pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all"
           >
             <option value="All">All Subjects</option>
             {subjects.map(s => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+
+          <div className="flex items-center gap-2">
+            <input 
+              type="date"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 shadow-sm transition-all"
+            />
+            {filterDate && (
+              <button 
+                onClick={() => setFilterDate('')} 
+                className="px-2 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                title="Clear date filter"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

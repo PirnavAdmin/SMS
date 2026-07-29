@@ -33,6 +33,7 @@ export const HomeworkView: React.FC = () => {
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSubject, setFilterSubject] = useState('All');
+  const [filterDate, setFilterDate] = useState<string>('');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingHomework, setEditingHomework] = useState<Homework | null>(null);
@@ -57,7 +58,8 @@ export const HomeworkView: React.FC = () => {
     const matchQuery = h.title.toLowerCase().includes(query.toLowerCase()) || h.description.toLowerCase().includes(query.toLowerCase());
     const matchClass = filterClass === 'All' || h.className === filterClass;
     const matchSubject = filterSubject === 'All' || h.subject === filterSubject;
-    return matchQuery && matchClass && matchSubject;
+    const matchDate = filterDate ? h.dueDate === filterDate || h.assignedDate === filterDate : true;
+    return matchQuery && matchClass && matchSubject && matchDate;
   });
 
   const handleOpenAdd = () => {
@@ -124,10 +126,13 @@ export const HomeworkView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-6 h-6 text-brand-600" /> Homework & Assignments
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+            <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+              <FileText className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+            </div>
+            Homework & Assignments
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 mt-2">
             {canModify ? 'Create, edit & assign class homework with file attachments' : 'Admin View: Search, filter & monitor submission statistics'}
           </p>
         </div>
@@ -181,6 +186,24 @@ export const HomeworkView: React.FC = () => {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+
+          <div className="flex items-center gap-2">
+            <input 
+              type="date"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            />
+            {filterDate && (
+              <button 
+                onClick={() => setFilterDate('')} 
+                className="px-2 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                title="Clear date filter"
+              >
+                Clear
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

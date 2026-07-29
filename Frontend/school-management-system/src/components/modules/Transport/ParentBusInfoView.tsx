@@ -60,12 +60,12 @@ export const ParentBusInfoView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-brand-500/10 dark:bg-brand-500/20 rounded-lg hidden sm:block">
-            <Bus className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <Bus className="w-6 h-6 text-sky-600 dark:text-sky-400" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Parent Transport Information & Live Tracking</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Live transport details, real-time bus location, pickup ETA, and RFID boarding updates</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Student Transport Information</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Live transport details, real-time bus location, pickup ETA, and RFID boarding updates</p>
           </div>
         </div>
 

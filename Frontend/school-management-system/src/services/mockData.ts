@@ -561,7 +561,42 @@ export const initialExamMarks: ExamMark[] = [
 ];
 
 export const initialTimetable: TimetableSlot[] = [
-  { id: "TT-01", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101" }
+  { id: "TT-01", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  // Class 1 - Section A - Monday
+  { id: "TT-C1A-M1", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", startTime: "08:30 AM", endTime: "09:15 AM", className: "Class 1", section: "A", subject: "English", teacherName: "Sarah Jenkins", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-M2", day: "Monday", timeSlot: "09:15 AM - 10:00 AM", startTime: "09:15 AM", endTime: "10:00 AM", className: "Class 1", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-M3", day: "Monday", timeSlot: "10:15 AM - 11:00 AM", startTime: "10:15 AM", endTime: "11:00 AM", className: "Class 1", section: "A", subject: "Environmental Studies", teacherName: "Dr. Eleanor Vance", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-M4", day: "Monday", timeSlot: "11:00 AM - 11:45 AM", startTime: "11:00 AM", endTime: "11:45 AM", className: "Class 1", section: "A", subject: "Hindi", teacherName: "Anita Sharma", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-M5", day: "Monday", timeSlot: "12:30 PM - 01:15 PM", startTime: "12:30 PM", endTime: "01:15 PM", className: "Class 1", section: "A", subject: "Art & Craft", teacherName: "Priya Patel", roomNo: "Art Room", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-M6", day: "Monday", timeSlot: "01:15 PM - 02:00 PM", startTime: "01:15 PM", endTime: "02:00 PM", className: "Class 1", section: "A", subject: "Computer Science", teacherName: "Robert Langdon", roomNo: "Lab 1", academicYear: "2026-2027", branch: "Main Campus" },
+  // Tuesday
+  { id: "TT-C1A-T1", day: "Tuesday", timeSlot: "08:30 AM - 09:15 AM", startTime: "08:30 AM", endTime: "09:15 AM", className: "Class 1", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-T2", day: "Tuesday", timeSlot: "09:15 AM - 10:00 AM", startTime: "09:15 AM", endTime: "10:00 AM", className: "Class 1", section: "A", subject: "English", teacherName: "Sarah Jenkins", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-T3", day: "Tuesday", timeSlot: "10:15 AM - 11:00 AM", startTime: "10:15 AM", endTime: "11:00 AM", className: "Class 1", section: "A", subject: "Hindi", teacherName: "Anita Sharma", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-T4", day: "Tuesday", timeSlot: "11:00 AM - 11:45 AM", startTime: "11:00 AM", endTime: "11:45 AM", className: "Class 1", section: "A", subject: "Environmental Studies", teacherName: "Dr. Eleanor Vance", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-T5", day: "Tuesday", timeSlot: "12:30 PM - 01:15 PM", startTime: "12:30 PM", endTime: "01:15 PM", className: "Class 1", section: "A", subject: "Physical Education", teacherName: "Vikram Singh", roomNo: "Ground", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-T6", day: "Tuesday", timeSlot: "01:15 PM - 02:00 PM", startTime: "01:15 PM", endTime: "02:00 PM", className: "Class 1", section: "A", subject: "Music", teacherName: "Meera Bai", roomNo: "Music Room", academicYear: "2026-2027", branch: "Main Campus" },
+  // Wednesday
+  { id: "TT-C1A-W1", day: "Wednesday", timeSlot: "08:30 AM - 09:15 AM", startTime: "08:30 AM", endTime: "09:15 AM", className: "Class 1", section: "A", subject: "Environmental Studies", teacherName: "Dr. Eleanor Vance", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-W2", day: "Wednesday", timeSlot: "09:15 AM - 10:00 AM", startTime: "09:15 AM", endTime: "10:00 AM", className: "Class 1", section: "A", subject: "Hindi", teacherName: "Anita Sharma", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-W3", day: "Wednesday", timeSlot: "10:15 AM - 11:00 AM", startTime: "10:15 AM", endTime: "11:00 AM", className: "Class 1", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-W4", day: "Wednesday", timeSlot: "11:00 AM - 11:45 AM", startTime: "11:00 AM", endTime: "11:45 AM", className: "Class 1", section: "A", subject: "English", teacherName: "Sarah Jenkins", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-W5", day: "Wednesday", timeSlot: "12:30 PM - 01:15 PM", startTime: "12:30 PM", endTime: "01:15 PM", className: "Class 1", section: "A", subject: "Library", teacherName: "Librarian", roomNo: "Library", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-W6", day: "Wednesday", timeSlot: "01:15 PM - 02:00 PM", startTime: "01:15 PM", endTime: "02:00 PM", className: "Class 1", section: "A", subject: "Art & Craft", teacherName: "Priya Patel", roomNo: "Art Room", academicYear: "2026-2027", branch: "Main Campus" },
+  // Thursday
+  { id: "TT-C1A-TH1", day: "Thursday", timeSlot: "08:30 AM - 09:15 AM", startTime: "08:30 AM", endTime: "09:15 AM", className: "Class 1", section: "A", subject: "English", teacherName: "Sarah Jenkins", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-TH2", day: "Thursday", timeSlot: "09:15 AM - 10:00 AM", startTime: "09:15 AM", endTime: "10:00 AM", className: "Class 1", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-TH3", day: "Thursday", timeSlot: "10:15 AM - 11:00 AM", startTime: "10:15 AM", endTime: "11:00 AM", className: "Class 1", section: "A", subject: "Environmental Studies", teacherName: "Dr. Eleanor Vance", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-TH4", day: "Thursday", timeSlot: "11:00 AM - 11:45 AM", startTime: "11:00 AM", endTime: "11:45 AM", className: "Class 1", section: "A", subject: "Hindi", teacherName: "Anita Sharma", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-TH5", day: "Thursday", timeSlot: "12:30 PM - 01:15 PM", startTime: "12:30 PM", endTime: "01:15 PM", className: "Class 1", section: "A", subject: "Computer Science", teacherName: "Robert Langdon", roomNo: "Lab 1", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-TH6", day: "Thursday", timeSlot: "01:15 PM - 02:00 PM", startTime: "01:15 PM", endTime: "02:00 PM", className: "Class 1", section: "A", subject: "Physical Education", teacherName: "Vikram Singh", roomNo: "Ground", academicYear: "2026-2027", branch: "Main Campus" },
+  // Friday
+  { id: "TT-C1A-F1", day: "Friday", timeSlot: "08:30 AM - 09:15 AM", startTime: "08:30 AM", endTime: "09:15 AM", className: "Class 1", section: "A", subject: "Hindi", teacherName: "Anita Sharma", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-F2", day: "Friday", timeSlot: "09:15 AM - 10:00 AM", startTime: "09:15 AM", endTime: "10:00 AM", className: "Class 1", section: "A", subject: "Environmental Studies", teacherName: "Dr. Eleanor Vance", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-F3", day: "Friday", timeSlot: "10:15 AM - 11:00 AM", startTime: "10:15 AM", endTime: "11:00 AM", className: "Class 1", section: "A", subject: "English", teacherName: "Sarah Jenkins", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-F4", day: "Friday", timeSlot: "11:00 AM - 11:45 AM", startTime: "11:00 AM", endTime: "11:45 AM", className: "Class 1", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-F5", day: "Friday", timeSlot: "12:30 PM - 01:15 PM", startTime: "12:30 PM", endTime: "01:15 PM", className: "Class 1", section: "A", subject: "Music", teacherName: "Meera Bai", roomNo: "Music Room", academicYear: "2026-2027", branch: "Main Campus" },
+  { id: "TT-C1A-F6", day: "Friday", timeSlot: "01:15 PM - 02:00 PM", startTime: "01:15 PM", endTime: "02:00 PM", className: "Class 1", section: "A", subject: "Library", teacherName: "Librarian", roomNo: "Library", academicYear: "2026-2027", branch: "Main Campus" }
 ];
 
 export const initialHomework: Homework[] = [
@@ -1144,6 +1179,61 @@ export const initialStudentFeeLedgers: StudentFeeLedger[] = [
     scholarshipAmount: 2000,
     discountAmount: 1000,
     fineAmount: 0,
+    previousDue: 0
+  },
+  {
+    id: 'LED-002',
+    studentId: 'STU-002',
+    studentName: 'Sophia Chen',
+    admissionNo: 'ADM2024-002',
+    className: 'Class 10',
+    section: 'A',
+    studentType: 'Hosteller',
+    academicYear: '2025-2026',
+    feeItems: [
+      { headId: 'FH-01', headName: 'Tuition Fee', category: 'Tuition Fee', originalAmount: 25000, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 25000, isApplicable: true, status: 'Paid' },
+      { headId: 'FH-HST', headName: 'Hostel Fee', category: 'Hostel Fee', originalAmount: 40000, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 0, finalAmount: 40000, isApplicable: true, status: 'Pending' }
+    ],
+    totalOriginalAmount: 65000,
+    grossAmount: 65000,
+    totalScholarship: 0,
+    totalDiscount: 0,
+    totalFine: 0,
+    totalPayable: 65000,
+    paidAmount: 25000,
+    dueBalance: 40000,
+    createdAt: '2026-06-01',
+    updatedAt: '2026-07-21',
+    scholarshipAmount: 0,
+    discountAmount: 0,
+    fineAmount: 0,
+    previousDue: 0
+  },
+  {
+    id: 'LED-003',
+    studentId: 'STU-003',
+    studentName: 'Aarav Patel',
+    admissionNo: 'ADM2024-003',
+    className: 'Class 10',
+    section: 'B',
+    studentType: 'Day Scholar',
+    academicYear: '2025-2026',
+    feeItems: [
+      { headId: 'FH-01', headName: 'Tuition Fee', category: 'Tuition Fee', originalAmount: 25000, scholarshipDeduction: 0, discountDeduction: 0, fineAmount: 500, finalAmount: 25500, isApplicable: true, status: 'Pending' }
+    ],
+    totalOriginalAmount: 25000,
+    grossAmount: 25000,
+    totalScholarship: 0,
+    totalDiscount: 0,
+    totalFine: 500,
+    totalPayable: 25500,
+    paidAmount: 10000,
+    dueBalance: 15500,
+    createdAt: '2026-06-01',
+    updatedAt: '2026-07-21',
+    scholarshipAmount: 0,
+    discountAmount: 0,
+    fineAmount: 500,
     previousDue: 0
   }
 ];

@@ -36,8 +36,8 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'timetable', 'examination', 'communication', 'events', 'reports', 'settings', 'training'
   ],
   'Teacher': [
-    'dashboard', 'students', 'academics', 'subjects', 'attendance',
-    'timetable', 'examination', 'homework', 'library', 'communication', 'events', 'training'
+    'dashboard', 'students', 'attendance', 'timetable', 'examination', 
+    'homework', 'communication', 'events', 'staff', 'fees'
   ],
   'HR': [
     'dashboard', 'staff', 'communication', 'events', 'training'

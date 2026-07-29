@@ -88,11 +88,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'parent-fee-dues', label: 'Student Fee Details', icon: IndianRupee },
     { id: 'parent-fee-receipts', label: 'Receipt Register', icon: FileSpreadsheet }
   ] : [
-    { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
-    { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'finance-masters', label: 'Finance Setup', icon: SlidersHorizontal },
-    { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet },
+    { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Accountant', 'Principal'] },
+    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet, roles: ['Super Admin', 'Admin', 'Accountant'] },
+    { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee, roles: ['Super Admin', 'Admin', 'Accountant', 'Teacher', 'Principal'] },
+    { id: 'finance-masters', label: 'Finance Setup', icon: SlidersHorizontal, roles: ['Super Admin', 'Admin', 'Accountant'] },
+    { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet, roles: ['Super Admin', 'Admin', 'Accountant', 'Principal'] },
   ];
 
   const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
@@ -122,10 +122,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const staffSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'staff-directory', label: 'Staff Directory', icon: Users },
-    { id: 'staff-attendance', label: 'Attendance Register', icon: CalendarCheck },
-    { id: 'staff-leave', label: 'Leave Management', icon: FileText },
-    { id: 'staff-payroll', label: 'Payroll Processing', icon: IndianRupee },
+    { id: 'staff-directory', label: 'Staff Directory', icon: Users, roles: ['Super Admin', 'Admin', 'Principal', 'HR', 'Teacher', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Staff'] },
+    { id: 'staff-attendance', label: 'Attendance Register', icon: CalendarCheck, roles: ['Super Admin', 'Admin', 'HR', 'Principal'] },
+    { id: 'staff-leave', label: 'Leave Management', icon: FileText, roles: ['Super Admin', 'Admin', 'Principal', 'HR', 'Teacher', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Staff'] },
+    { id: 'staff-payroll', label: 'Payroll Processing', icon: IndianRupee, roles: ['Super Admin', 'Admin', 'HR', 'Accountant'] },
   ];
 
   const payrollSubItems = [
@@ -241,7 +241,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setUniformExpanded(false);
                           }
                         if (!isFinanceActive) {
-                          setActiveModule((role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'parent-fee-dues' : 'finance-dashboard');
+                          if (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') {
+                            setActiveModule('parent-fee-dues');
+                          } else if (role === 'Teacher') {
+                            setActiveModule('finance-fee-collection');
+                          } else {
+                            setActiveModule('finance-dashboard');
+                          }
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
@@ -264,6 +270,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {!collapsed && financeExpanded && (
                       <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
                         {financeSubItems.map(sub => {
+                          if (sub.roles && !sub.roles.includes(role)) return null;
                           const SubIcon = sub.icon;
                           const isSubActive = 
                             activeModule === sub.id || 
@@ -526,6 +533,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       {!collapsed && staffExpanded && (
                         <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
                           {staffSubItems.map(sub => {
+                            if (sub.roles && !sub.roles.includes(role)) return null;
                             const SubIcon = sub.icon;
                             const isPayroll = sub.id === 'staff-payroll';
                             const isSubActive = activeModule === sub.id || (isPayroll && activeModule.startsWith('staff-payroll-'));

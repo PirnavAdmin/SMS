@@ -157,7 +157,7 @@ export const AttendanceView: React.FC = () => {
             classStudents.map(s => {
               const currentStatus = getAttendanceStatus(s.id);
               return (
-                <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-xs">
+                <div key={s.id} className="px-4 py-2.5 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-xs">
                   <div className="flex items-center gap-3">
                     <img src={s.avatar} alt="" className="w-8 h-8 rounded-xl object-cover" />
                     <div>

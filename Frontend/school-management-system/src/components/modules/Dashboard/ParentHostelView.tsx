@@ -41,8 +41,11 @@ export const ParentHostelView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <Building2 className="w-6 h-6 text-sky-500" /> Hostel Accommodation
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <Building2 className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          </div>
+          Hostel Accommodation
         </h2>
         <p className="text-xs text-slate-500 mt-1">Review hostel allocation and warden contact details</p>
       </div>

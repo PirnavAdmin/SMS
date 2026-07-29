@@ -69,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       return ['Main Campus'];
     }
     if (currentRole === 'Teacher') {
-      return ['West Campus'];
+      return ['West Campus', 'Main Campus'];
     }
     return [userBranch || 'Main Campus'];
   };

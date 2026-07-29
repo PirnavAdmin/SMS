@@ -4,6 +4,7 @@ import {
   Home, Bed, IndianRupee, Receipt, Clock, RotateCcw, FileSpreadsheet, SlidersHorizontal
 } from 'lucide-react';
 import { Student, FeePayment } from '../../../types';
+import { useAuth } from '../../../context/AuthContext';
 
 import { FinanceDashboardView } from './FinanceDashboardView';
 import { FinanceMastersView } from './FinanceMastersView';
@@ -18,6 +19,7 @@ interface FinanceContainerViewProps {
 }
 
 export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
+  const { role } = useAuth();
   const normalizedTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
   const [receiptToPrint, setReceiptToPrint] = useState<FeePayment | null>(null);
@@ -33,11 +35,11 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
   };
 
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
-    { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'masters', label: 'Finance Setup', icon: SlidersHorizontal },
-    { id: 'reports', label: 'Finance Reports', icon: FileSpreadsheet },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Accountant', 'Principal'] },
+    { id: 'transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet, roles: ['Super Admin', 'Admin', 'Accountant'] },
+    { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee, roles: ['Super Admin', 'Admin', 'Accountant', 'Teacher', 'Principal'] },
+    { id: 'masters', label: 'Finance Setup', icon: SlidersHorizontal, roles: ['Super Admin', 'Admin', 'Accountant'] },
+    { id: 'reports', label: 'Finance Reports', icon: FileSpreadsheet, roles: ['Super Admin', 'Admin', 'Accountant', 'Principal'] },
   ];
 
   const handleCollectStudentFee = (student: Student) => {
@@ -83,6 +85,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
       {/* Sticky Sub-Navigation Header */}
       <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
         {tabs.map(tab => {
+          if (tab.roles && !tab.roles.includes(role)) return null;
           const Icon = tab.icon;
           const isActive = activeTab === tab.id || (tab.id === 'fee-collection' && activeTab === 'fees');
           return (

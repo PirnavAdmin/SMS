@@ -116,11 +116,11 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
   return (
     <div className="space-y-6 animate-in fade-in">
       <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
           {activeTab === 'parent-fee-dues' ? (
-            <><IndianRupee className="w-6 h-6 text-emerald-500" /> Fee Details</>
+            <><div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl"><IndianRupee className="w-6 h-6 text-sky-600 dark:text-sky-400" /></div> Fee Details</>
           ) : (
-            <><Receipt className="w-6 h-6 text-emerald-500" /> Payment History</>
+            <><div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl"><Receipt className="w-6 h-6 text-sky-600 dark:text-sky-400" /></div> Payment History</>
           )}
         </h2>
         <p className="text-xs text-slate-500 mt-1">Manage finances and clear outstanding dues for your wards</p>
@@ -157,23 +157,23 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab 
 
       {activeTab === 'parent-fee-dues' ? (
         <div className="space-y-6">
-          <div className={`bg-gradient-to-br ${totalDue > 0 ? 'from-rose-500 to-orange-500 shadow-rose-500/20' : 'from-emerald-500 to-teal-500 shadow-emerald-500/20'} rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl`}>
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
-                {totalDue > 0 ? <AlertCircle className="w-8 h-8 text-white" /> : <CheckCircle2 className="w-8 h-8 text-white" />}
+          <div className={`bg-gradient-to-br ${totalDue > 0 ? 'from-rose-500 to-orange-500 shadow-rose-500/20' : 'from-emerald-500 to-teal-500 shadow-emerald-500/20'} rounded-2xl p-4 sm:p-5 text-white flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg`}>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
+                {totalDue > 0 ? <AlertCircle className="w-6 h-6 text-white" /> : <CheckCircle2 className="w-6 h-6 text-white" />}
               </div>
               <div>
-                <p className={`${totalDue > 0 ? 'text-rose-100' : 'text-emerald-100'} font-medium mb-1`}>Total Outstanding Dues</p>
-                <h2 className="text-3xl sm:text-4xl font-black">₹{totalDue.toLocaleString()}</h2>
+                <p className={`text-sm ${totalDue > 0 ? 'text-rose-100' : 'text-emerald-100'} font-medium mb-0.5`}>Total Outstanding Dues</p>
+                <h2 className="text-2xl sm:text-3xl font-black">₹{totalDue.toLocaleString()}</h2>
               </div>
             </div>
             {totalDue > 0 && (
               <button 
                 onClick={handlePayAll}
                 disabled={processing !== null}
-                className="px-8 py-3.5 bg-white text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors w-full md:w-auto shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="px-6 py-2.5 bg-white text-rose-600 hover:bg-rose-50 rounded-xl font-bold transition-colors w-full md:w-auto shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
               >
-                {processing === 'all' ? <div className="w-5 h-5 border-2 border-rose-600/30 border-t-rose-600 rounded-full animate-spin" /> : 'Pay All Dues Now'}
+                {processing === 'all' ? <div className="w-4 h-4 border-2 border-rose-600/30 border-t-rose-600 rounded-full animate-spin" /> : 'Pay All Dues Now'}
               </button>
             )}
           </div>

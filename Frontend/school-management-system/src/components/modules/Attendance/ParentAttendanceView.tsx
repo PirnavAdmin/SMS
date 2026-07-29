@@ -110,10 +110,12 @@ export const ParentAttendanceView: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <CalendarCheck className="w-8 h-8 text-sky-600 dark:text-sky-400" />
+            <div className="p-3 bg-sky-100 dark:bg-sky-500/20 rounded-2xl">
+              <CalendarCheck className="w-8 h-8 text-sky-600 dark:text-sky-400" />
+            </div>
             Attendance Register
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-slate-500 dark:text-slate-400 mt-2">
             Track daily attendance records and statistics.
           </p>
         </div>
@@ -205,7 +207,7 @@ export const ParentAttendanceView: React.FC = () => {
         </div>
 
         <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Late/Leave</h3>
+          <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1">Late</h3>
           <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{lateDays + leaveDays}</p>
         </div>
       </div>
@@ -239,13 +241,13 @@ export const ParentAttendanceView: React.FC = () => {
               const StatusIcon = config.icon;
               
               return (
-                <div key={record.id} className="p-4 sm:p-6 flex flex-col sm:flex-row justify-between sm:items-center gap-4 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${config.bg} ${config.text}`}>
-                      <StatusIcon className="w-6 h-6" />
+                <div key={record.id} className="px-4 py-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-700/20 transition-colors">
+                  <div className="flex items-center gap-3.5">
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${config.bg} ${config.text}`}>
+                      <StatusIcon className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="font-bold text-slate-900 dark:text-white text-lg">
+                      <h4 className="font-bold text-slate-900 dark:text-white text-base">
                         {new Date(record.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
                       </h4>
                       {record.remarks && (
