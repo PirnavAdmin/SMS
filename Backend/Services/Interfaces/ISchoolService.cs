@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 public interface ISchoolService
 {
     // Staff Operations
+    Task<string> GetNextEmployeeIdAsync();
     Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department);
     Task<StaffResponseDto> GetStaffByIdAsync(int id);
     Task<List<StaffDropdownDto>> GetTeachersForDropdownAsync(string? search);
@@ -51,4 +52,21 @@ public interface ISchoolService
     Task<bool> RejectApplicationAsync(int id);
     Task<bool> EnrollStudentAsync(int id);
     Task<bool> UpdateApplicationStatusAsync(int id, string status);
+
+    // Attendance Operations
+    Task<DailyAttendanceSummaryDto> GetDailyAttendanceSummaryAsync(string date, string? department);
+    Task<bool> SaveBulkAttendanceAsync(BulkAttendanceDto dto);
+
+    // Leave Management Operations
+    Task<List<LeaveTypeConfigDto>> GetAllLeaveTypesAsync();
+    Task<LeaveTypeConfigDto> CreateLeaveTypeAsync(LeaveTypeConfigDto dto);
+    Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status);
+    Task<LeaveApplicationResponseDto> SubmitLeaveApplicationAsync(LeaveApplicationCreateDto dto);
+    Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status);
+    Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync();
+
+    // Holiday Calendar Operations
+    Task<List<HolidayCalendarDto>> GetAllHolidaysAsync();
+    Task<HolidayCalendarDto> CreateHolidayAsync(HolidayCalendarDto dto);
+    Task<bool> DeleteHolidayAsync(int id);
 }

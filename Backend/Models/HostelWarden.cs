@@ -22,13 +22,11 @@ public class HostelWarden
     [ForeignKey("StaffId")]
     public virtual Staff? Staff { get; set; }
 
-    [Required]
     [MaxLength(150)]
-    public string WardenName { get; set; } = string.Empty;
+    public string? WardenName { get; set; }
 
-    [Required]
     [MaxLength(20)]
-    public string MobileNumber { get; set; } = string.Empty;
+    public string? MobileNumber { get; set; }
 
     [MaxLength(20)]
     public string? AlternateMobile { get; set; }
@@ -36,5 +34,5 @@ public class HostelWarden
     [MaxLength(150)]
     public string? EmailAddress { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 }

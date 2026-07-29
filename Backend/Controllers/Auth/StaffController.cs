@@ -19,6 +19,10 @@ public class StaffController : ControllerBase
         _schoolService = schoolService;
     }
 
+    [HttpGet("next-emp-id")]
+    public async Task<IActionResult> GetNextEmployeeId() =>
+        Ok(new { success = true, data = new { nextEmployeeId = await _schoolService.GetNextEmployeeIdAsync() } });
+
     [HttpGet]
     public async Task<IActionResult> GetAllStaff([FromQuery] string? search, [FromQuery] string? department) =>
         Ok(new { success = true, data = await _schoolService.GetAllStaffAsync(search, department) });

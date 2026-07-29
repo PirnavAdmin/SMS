@@ -24,18 +24,13 @@ public class HostelService : IHostelService
     // --- DASHBOARD METRICS ---
     public async Task<HostelDashboardMetricsDto> GetExecutiveDashboardMetricsAsync()
     {
-        var blocks = await _hostelRepo.GetAllHostelBlocksAsync(null, null);
-        var rooms = await _hostelRepo.GetAllRoomsAsync(null, null, null, null);
-        var allocations = await _hostelRepo.GetAllBedAllocationsAsync(null, null, null);
-
-        int totalHostels = blocks.Count;
-        int totalRooms = rooms.Count;
-        int totalBedCapacity = rooms.Sum(r => r.RoomType?.BedCapacity ?? 0);
-        int activeOccupiedBeds = allocations.Count(a => a.Status == "Active");
+        int totalHostels = await _hostelRepo.GetHostelCountAsync();
+        int totalRooms = await _hostelRepo.GetRoomCountAsync();
+        int totalBedCapacity = await _hostelRepo.GetTotalBedCapacityAsync();
+        int activeOccupiedBeds = await _hostelRepo.GetActiveOccupiedBedCountAsync();
         int availableVacantBeds = Math.Max(0, totalBedCapacity - activeOccupiedBeds);
-        int enrolledHostellers = allocations.Select(a => a.StudentId).Distinct().Count();
+        int enrolledHostellers = activeOccupiedBeds;
 
-        // Estimated Revenue based on sample monthly fee per student (e.g. ₹7,500)
         decimal estMonthlyRevenue = activeOccupiedBeds * 7500m;
         double occupancyPercentage = totalBedCapacity > 0 ? Math.Round((double)activeOccupiedBeds / totalBedCapacity * 100, 1) : 0.0;
 
@@ -339,7 +334,7 @@ public class HostelService : IHostelService
     public async Task<List<StaffWardenCandidateDto>> GetStaffCandidatesAsync(string? search)
     {
         var staffList = await _schoolRepo.GetAllStaffAsync(search, null);
-        return staffList.Where(s => s.IsActive).Select(s => new StaffWardenCandidateDto
+        return staffList.Where(s => s.IsActive == true).Select(s => new StaffWardenCandidateDto
         {
             StaffId = s.StaffId,
             EmployeeId = s.EmployeeId,
@@ -521,7 +516,7 @@ public class HostelService : IHostelService
                 HostelName = att.Allocation?.Hostel?.HostelName ?? "N/A",
                 RoomNumber = att.Allocation?.Room?.RoomNumber ?? "N/A",
                 BedNumber = att.Allocation?.BedNumber ?? "N/A",
-                Date = att.Date,
+                Date = att.Date ?? DateTime.UtcNow,
                 CurfewStatus = att.CurfewStatus,
                 Remarks = att.Remarks
             }).ToList();
@@ -628,7 +623,7 @@ public class HostelService : IHostelService
             Email = b.Email,
             Status = b.Status,
             Address = b.Address,
-            CreatedAt = b.CreatedAt,
+            CreatedAt = b.CreatedAt ?? DateTime.UtcNow,
             TotalRooms = b.Rooms?.Count ?? 0,
             OccupiedBeds = activeOccupied,
             TotalCapacity = totalCapacity
@@ -643,7 +638,7 @@ public class HostelService : IHostelService
         AcType = r.AcType,
         Status = r.Status,
         Description = r.Description,
-        CreatedAt = r.CreatedAt
+        CreatedAt = r.CreatedAt ?? DateTime.UtcNow
     };
 
     private static RoomMasterDto MapToRoomMasterDto(RoomMaster r)
@@ -666,7 +661,7 @@ public class HostelService : IHostelService
             Status = r.Status,
             OccupiedBeds = occupied,
             VacantBeds = vacant,
-            CreatedAt = r.CreatedAt
+            CreatedAt = r.CreatedAt ?? DateTime.UtcNow
         };
     }
 
@@ -681,7 +676,7 @@ public class HostelService : IHostelService
         MobileNumber = !string.IsNullOrWhiteSpace(w.MobileNumber) ? w.MobileNumber : (w.Staff?.Phone ?? string.Empty),
         AlternateMobile = w.AlternateMobile,
         EmailAddress = !string.IsNullOrWhiteSpace(w.EmailAddress) ? w.EmailAddress : (w.Staff?.Email ?? string.Empty),
-        CreatedAt = w.CreatedAt
+        CreatedAt = w.CreatedAt ?? DateTime.UtcNow
     };
 
     private static BedAllocationDto MapToBedAllocationDto(StudentBedAllocation a) => new()
@@ -697,9 +692,9 @@ public class HostelService : IHostelService
         RoomNumber = a.Room?.RoomNumber ?? string.Empty,
         FloorLevel = a.Room?.FloorLevel ?? string.Empty,
         BedNumber = a.BedNumber,
-        JoiningDate = a.JoiningDate,
+        JoiningDate = a.JoiningDate ?? DateTime.UtcNow,
         Status = a.Status,
         CurfewStatus = a.AttendanceRecords?.OrderByDescending(att => att.Date).FirstOrDefault()?.CurfewStatus ?? "Present",
-        CreatedAt = a.CreatedAt
+        CreatedAt = a.CreatedAt ?? DateTime.UtcNow
     };
 }

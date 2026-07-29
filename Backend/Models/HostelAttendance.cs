@@ -17,15 +17,13 @@ public class HostelAttendance
     [ForeignKey("AllocationId")]
     public virtual StudentBedAllocation? Allocation { get; set; }
 
-    [Required]
-    public DateTime Date { get; set; }
+    public DateTime? Date { get; set; }
 
-    [Required]
     [MaxLength(20)]
-    public string CurfewStatus { get; set; } = "Present";
+    public string? CurfewStatus { get; set; } = "Present";
 
     [MaxLength(255)]
     public string? Remarks { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 }

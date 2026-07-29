@@ -271,7 +271,7 @@ using (var scope = app.Services.CreateScope())
             services.GetRequiredService<AppDbContext>();
 
         // Ensure EF Core Database and Schema are Created
-        context.Database.EnsureCreated();
+        try { context.Database.EnsureCreated(); } catch { }
 
         // Safe Schema Auto-Initialization for Core, Transport, Hostel & Timetable Modules
         var tableSqls = new[]
@@ -656,6 +656,36 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
         try { context.Database.ExecuteSqlRaw("ALTER TABLE `student_bed_allocations` MODIFY COLUMN `StudentId` int NULL;"); } catch { }
+
+        var staffTables = new[] { "Staff", "staff" };
+        foreach (var tbl in staffTables)
+        {
+            EnsureColumnExists(tbl, "AccountHolderName", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "AccountNumber", "varchar(50) NULL");
+            EnsureColumnExists(tbl, "BankName", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "BranchName", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "IfscCode", "varchar(50) NULL");
+            EnsureColumnExists(tbl, "UpiId", "varchar(100) NULL");
+            EnsureColumnExists(tbl, "Gender", "varchar(20) NULL");
+            EnsureColumnExists(tbl, "ResidentialAddress", "varchar(500) NULL");
+            EnsureColumnExists(tbl, "EmployeeCategory", "varchar(100) NULL");
+            EnsureColumnExists(tbl, "JoiningDate", "datetime NULL");
+            EnsureColumnExists(tbl, "Qualification", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "PrimarySubject", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "Specialization", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "SystemRole", "varchar(100) NULL");
+        }
+
+        try
+        {
+            context.Database.ExecuteSqlRaw("UPDATE `Staff` SET `FirstName` = '' WHERE `FirstName` IS NULL;");
+            context.Database.ExecuteSqlRaw("UPDATE `Staff` SET `LastName` = '' WHERE `LastName` IS NULL;");
+            context.Database.ExecuteSqlRaw("UPDATE `Staff` SET `Email` = '' WHERE `Email` IS NULL;");
+            context.Database.ExecuteSqlRaw("UPDATE `Staff` SET `EmployeeId` = CONCAT('EMP', `StaffId`) WHERE `EmployeeId` IS NULL OR `EmployeeId` = '';");
+            context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectCode` = CONCAT('SUB', `SubjectId`) WHERE `SubjectCode` IS NULL OR `SubjectCode` = '';");
+            context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectName` = 'General Subject' WHERE `SubjectName` IS NULL OR `SubjectName` = '';");
+        }
+        catch { }
 
         var defaultRoles = new[]
         {
@@ -1205,7 +1235,7 @@ using (var scope = app.Services.CreateScope())
             var firstClass = await context.Classes.FirstOrDefaultAsync();
             var firstSec = await context.ClassSections.FirstOrDefaultAsync();
             var firstSub = await context.Subjects.FirstOrDefaultAsync();
-            var firstTeacher = await context.Staff.FirstOrDefaultAsync(s => s.IsActive);
+            var firstTeacher = await context.Staff.FirstOrDefaultAsync(s => s.IsActive == true);
 
             if (firstClass != null && firstSec != null && firstSub != null && firstTeacher != null)
             {

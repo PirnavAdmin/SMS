@@ -12,13 +12,11 @@ public class StudentBedAllocation
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int AllocationId { get; set; }
 
-    [Required]
     [MaxLength(100)]
-    public string RegistrationNo { get; set; } = string.Empty;
+    public string? RegistrationNo { get; set; }
 
-    [Required]
     [MaxLength(150)]
-    public string StudentName { get; set; } = string.Empty;
+    public string? StudentName { get; set; }
 
     public int? StudentId { get; set; }
 
@@ -37,17 +35,15 @@ public class StudentBedAllocation
     [ForeignKey("RoomId")]
     public virtual RoomMaster? Room { get; set; }
 
-    [Required]
     [MaxLength(50)]
-    public string BedNumber { get; set; } = string.Empty;
+    public string? BedNumber { get; set; }
 
-    public DateTime JoiningDate { get; set; } = DateTime.UtcNow;
+    public DateTime? JoiningDate { get; set; } = DateTime.UtcNow;
 
-    [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "Active";
+    public string? Status { get; set; } = "Active";
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
     public virtual ICollection<HostelAttendance> AttendanceRecords { get; set; } = new List<HostelAttendance>();
 }

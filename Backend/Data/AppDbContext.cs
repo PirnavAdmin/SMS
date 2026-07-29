@@ -31,16 +31,43 @@ namespace SMS.Api.Data
         public DbSet<Subject> Subjects { get; set; } = null!;
 
         public DbSet<Staff> Staff { get; set; } = null!;
+        public DbSet<StaffDocument> StaffDocuments { get; set; } = null!;
+        public DbSet<StaffAttendance> StaffAttendances { get; set; } = null!;
+        public DbSet<LeaveTypeConfig> LeaveTypeConfigs { get; set; } = null!;
+        public DbSet<LeaveApplication> LeaveApplications { get; set; } = null!;
+        public DbSet<HolidayCalendar> HolidayCalendars { get; set; } = null!;
 
         public DbSet<ClassGrade> Classes { get; set; } = null!;
-
         public DbSet<ClassSection> ClassSections { get; set; } = null!;
-
         public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
-
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-
         public DbSet<Admission> Admissions { get; set; } = null!;
+
+        // Homework Module
+        public DbSet<Homework> Homeworks { get; set; } = null!;
+        public DbSet<HomeworkSubmission> HomeworkSubmissions { get; set; } = null!;
+
+        // Communications Module
+        public DbSet<Circular> Circulars { get; set; } = null!;
+        public DbSet<Meeting> Meetings { get; set; } = null!;
+
+        // Academic Calendar & Events Module
+        public DbSet<SchoolEvent> SchoolEvents { get; set; } = null!;
+
+        // HR & Payroll Module
+        public DbSet<PayrollConfig> PayrollConfigs { get; set; } = null!;
+        public DbSet<SalaryComponent> SalaryComponents { get; set; } = null!;
+        public DbSet<SalaryStructure> SalaryStructures { get; set; } = null!;
+        public DbSet<SalaryStructureItem> SalaryStructureItems { get; set; } = null!;
+        public DbSet<Payslip> Payslips { get; set; } = null!;
+
+        // Examination & Invigilation Module
+        public DbSet<ExamSchedule> ExamSchedules { get; set; } = null!;
+        public DbSet<ExamInvigilatorAssignment> ExamInvigilatorAssignments { get; set; } = null!;
+        public DbSet<QuestionPaper> QuestionPapers { get; set; } = null!;
+        public DbSet<ExamMark> ExamMarks { get; set; } = null!;
+        public DbSet<GradeConfiguration> GradeConfigurations { get; set; } = null!;
+        public DbSet<ExamResult> ExamResults { get; set; } = null!;
 
         // =====================================================
         // Transport Module
@@ -175,8 +202,8 @@ namespace SMS.Api.Data
             {
                 entity.ToTable("student_bed_allocations");
                 entity.HasKey(x => x.AllocationId);
-                entity.Property(x => x.RegistrationNo).HasMaxLength(100).IsRequired();
-                entity.Property(x => x.StudentName).HasMaxLength(150).IsRequired();
+                entity.Property(x => x.RegistrationNo).HasMaxLength(100).IsRequired(false);
+                entity.Property(x => x.StudentName).HasMaxLength(150).IsRequired(false);
                 entity.HasIndex(x => new { x.RegistrationNo, x.Status });
                 entity.HasOne(x => x.Student)
                     .WithMany()

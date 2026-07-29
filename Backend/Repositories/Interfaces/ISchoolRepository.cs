@@ -1,6 +1,7 @@
 namespace SMS.Api.Repositories.Interfaces;
 
 using SMS.Api.Models;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -12,6 +13,7 @@ public interface ISchoolRepository
     Task<List<Staff>> GetTeachersForDropdownAsync(string? search);
     Task AddStaffAsync(Staff staff);
     void RemoveStaff(Staff staff);
+    Task<List<string>> GetAllEmployeeIdsAsync();
 
     // Department Operations
     Task<List<Department>> GetAllDepartmentsAsync(string? search);
@@ -40,6 +42,24 @@ public interface ISchoolRepository
     Task<AdmissionApplication?> GetApplicationByIdAsync(int id);
     Task AddApplicationAsync(AdmissionApplication application);
     void RemoveApplication(AdmissionApplication application);
+
+    // Staff Attendance Operations
+    Task<List<StaffAttendance>> GetStaffAttendanceAsync(DateTime date, string? department);
+    Task AddStaffAttendanceRangeAsync(IEnumerable<StaffAttendance> attendances);
+
+    // Leave Management Operations
+    Task<List<LeaveTypeConfig>> GetAllLeaveTypesAsync();
+    Task<LeaveTypeConfig?> GetLeaveTypeByIdAsync(int id);
+    Task AddLeaveTypeAsync(LeaveTypeConfig leaveType);
+    Task<List<LeaveApplication>> GetAllLeaveApplicationsAsync(string? status);
+    Task<LeaveApplication?> GetLeaveApplicationByIdAsync(int id);
+    Task AddLeaveApplicationAsync(LeaveApplication leaveApplication);
+
+    // Holiday Calendar Operations
+    Task<List<HolidayCalendar>> GetAllHolidaysAsync();
+    Task<HolidayCalendar?> GetHolidayByIdAsync(int id);
+    Task AddHolidayAsync(HolidayCalendar holiday);
+    void RemoveHoliday(HolidayCalendar holiday);
 
     Task SaveChangesAsync();
 }

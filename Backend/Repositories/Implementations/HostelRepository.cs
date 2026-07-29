@@ -18,6 +18,19 @@ public class HostelRepository : IHostelRepository
         _context = context;
     }
 
+    // --- DASHBOARD AGGREGATES ---
+    public async Task<int> GetHostelCountAsync() =>
+        await _context.HostelBlocks.CountAsync();
+
+    public async Task<int> GetRoomCountAsync() =>
+        await _context.RoomMasters.CountAsync();
+
+    public async Task<int> GetTotalBedCapacityAsync() =>
+        await _context.RoomTypeConfigs.SumAsync(r => (int?)r.BedCapacity) ?? 0;
+
+    public async Task<int> GetActiveOccupiedBedCountAsync() =>
+        await _context.StudentBedAllocations.CountAsync(a => a.Status == "Active");
+
     // --- HOSTEL BLOCKS ---
     public async Task<List<HostelBlock>> GetAllHostelBlocksAsync(string? search, string? type)
     {
@@ -26,6 +39,7 @@ public class HostelRepository : IHostelRepository
             .Include(h => h.Wardens)
             .Include(h => h.Allocations)
             .AsNoTracking()
+            .AsSplitQuery()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("All Hostel Types", StringComparison.OrdinalIgnoreCase))
@@ -161,6 +175,7 @@ public class HostelRepository : IHostelRepository
             .Include(a => a.Room!).ThenInclude(r => r.RoomType)
             .Include(a => a.AttendanceRecords)
             .AsNoTracking()
+            .AsSplitQuery()
             .AsQueryable();
 
         if (hostelId.HasValue && hostelId.Value > 0)
@@ -208,7 +223,7 @@ public class HostelRepository : IHostelRepository
             .Include(att => att.Allocation!).ThenInclude(al => al.Hostel)
             .Include(att => att.Allocation!).ThenInclude(al => al.Room)
             .AsNoTracking()
-            .Where(att => att.Date.Date == date.Date)
+            .Where(att => att.Date.HasValue && att.Date.Value.Date == date.Date)
             .AsQueryable();
 
         if (hostelId.HasValue && hostelId.Value > 0)

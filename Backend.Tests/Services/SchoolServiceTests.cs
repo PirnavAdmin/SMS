@@ -59,36 +59,74 @@ namespace Backend.Tests.Services
         }
 
         [Fact]
-        public async Task UpdateStaffAsync_NotFound_ThrowsNotFoundException()
+        public async Task GetNextEmployeeIdAsync_NoExistingStaff_ReturnsEMP001()
         {
-            _repoMock.Setup(r => r.GetStaffByIdAsync(99)).ReturnsAsync((Staff?)null);
+            _repoMock.Setup(r => r.GetAllEmployeeIdsAsync()).ReturnsAsync(new List<string>());
 
-            var dto = new StaffCreateDto { FirstName = "New", LastName = "Name" };
-            await Assert.ThrowsAsync<NotFoundException>(() => _service.UpdateStaffAsync(99, dto));
+            var nextId = await _service.GetNextEmployeeIdAsync();
+
+            Assert.Equal("EMP001", nextId);
         }
 
         [Fact]
-        public async Task UpdateStaffAsync_ValidId_UpdatesAndReturnsDto()
+        public async Task GetNextEmployeeIdAsync_ExistingEMP006_ReturnsEMP007()
         {
-            var staff = new Staff { StaffId = 2, FirstName = "Old", LastName = "Name", IsActive = true };
-            _repoMock.Setup(r => r.GetStaffByIdAsync(2)).ReturnsAsync(staff);
+            var existingIds = new List<string> { "EMP001", "EMP002", "EMP003", "EMP004", "EMP005", "EMP006" };
+            _repoMock.Setup(r => r.GetAllEmployeeIdsAsync()).ReturnsAsync(existingIds);
+
+            var nextId = await _service.GetNextEmployeeIdAsync();
+
+            Assert.Equal("EMP007", nextId);
+        }
+
+        [Fact]
+        public async Task CreateStaffAsync_AutoGeneratesSequentialEmployeeId()
+        {
+            var existingIds = new List<string> { "EMP001", "EMP006" };
+            _repoMock.Setup(r => r.GetAllEmployeeIdsAsync()).ReturnsAsync(existingIds);
 
             var dto = new StaffCreateDto
             {
-                FirstName = "Updated",
-                LastName = "Name",
-                Email = "up@school.com",
-                Phone = "111",
-                Designation = "Lead",
-                Department = "Math",
-                MonthlySalary = 60000
+                FirstName = "Test",
+                LastName = "Employee",
+                Email = "test.emp@school.com",
+                Designation = "Teacher",
+                Department = "Mathematics",
+                MonthlySalary = 50000
             };
 
-            var result = await _service.UpdateStaffAsync(2, dto);
+            var result = await _service.CreateStaffAsync(dto);
 
-            Assert.Equal("Updated", result.FirstName);
-            Assert.Equal("Lead", result.Designation);
-            _repoMock.Verify(r => r.SaveChangesAsync(), Times.Once);
+            Assert.Equal("EMP007", result.EmployeeId);
+            _repoMock.Verify(r => r.AddStaffAsync(It.Is<Staff>(s => s.EmployeeId == "EMP007")), Times.Once);
+        }
+
+        [Fact]
+        public async Task SubmitLeaveApplicationAsync_ValidRequest_CreatesApplication()
+        {
+            var staff = new Staff { StaffId = 10, EmployeeId = "EMP010", FirstName = "John", LastName = "Doe", Designation = "Teacher" };
+            var leaveType = new LeaveTypeConfig { LeaveTypeId = 1, Name = "Casual Leave", Code = "CL" };
+
+            _repoMock.Setup(r => r.GetStaffByIdAsync(10)).ReturnsAsync(staff);
+            _repoMock.Setup(r => r.GetLeaveTypeByIdAsync(1)).ReturnsAsync(leaveType);
+
+            var dto = new LeaveApplicationCreateDto
+            {
+                StaffId = 10,
+                LeaveTypeId = 1,
+                FromDate = "2026-07-28",
+                ToDate = "2026-07-29",
+                IsHalfDay = false,
+                Reason = "Family function"
+            };
+
+            var result = await _service.SubmitLeaveApplicationAsync(dto);
+
+            Assert.Equal(10, result.StaffId);
+            Assert.Equal("EMP010", result.EmployeeId);
+            Assert.Equal("Casual Leave", result.LeaveTypeName);
+            Assert.Equal("Pending", result.Status);
+            Assert.Equal(2, result.RequestedDays);
         }
 
         // --- SUBJECT TESTS ---

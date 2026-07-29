@@ -24,19 +24,16 @@ public class RoomMaster
     [ForeignKey("RoomTypeId")]
     public virtual RoomTypeConfig? RoomType { get; set; }
 
-    [Required]
     [MaxLength(50)]
-    public string FloorLevel { get; set; } = "1st Floor";
+    public string? FloorLevel { get; set; } = "1st Floor";
 
-    [Required]
     [MaxLength(50)]
-    public string RoomNumber { get; set; } = string.Empty;
+    public string? RoomNumber { get; set; }
 
-    [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "Active";
+    public string? Status { get; set; } = "Active";
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
     public virtual ICollection<StudentBedAllocation> Allocations { get; set; } = new List<StudentBedAllocation>();
 }

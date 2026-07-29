@@ -7,6 +7,12 @@ using System.Threading.Tasks;
 
 public interface IHostelRepository
 {
+    // Dashboard Aggregate Metrics
+    Task<int> GetHostelCountAsync();
+    Task<int> GetRoomCountAsync();
+    Task<int> GetTotalBedCapacityAsync();
+    Task<int> GetActiveOccupiedBedCountAsync();
+
     // Hostel Blocks
     Task<List<HostelBlock>> GetAllHostelBlocksAsync(string? search, string? type);
     Task<HostelBlock?> GetHostelBlockByIdAsync(int hostelId);

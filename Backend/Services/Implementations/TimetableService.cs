@@ -250,9 +250,9 @@ public class TimetableService : ITimetableService
             {
                 // Fallback to first active teacher in department
                 assignedStaff = await _context.Staff
-                    .Where(s => s.IsActive && s.Department.ToLower() == subject.DepartmentId.ToString())
+                    .Where(s => s.IsActive == true && s.Department != null && s.Department.ToLower() == subject.DepartmentId.ToString())
                     .FirstOrDefaultAsync()
-                    ?? await _context.Staff.FirstOrDefaultAsync(s => s.IsActive)
+                    ?? await _context.Staff.FirstOrDefaultAsync(s => s.IsActive == true)
                     ?? throw new BadRequestException($"No assigned teacher found for subject '{subject.SubjectName}'. Please assign a teacher to this class subject.");
             }
             teacherId = assignedStaff.StaffId;

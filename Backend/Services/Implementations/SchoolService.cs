@@ -22,6 +22,25 @@ public class SchoolService : ISchoolService
 	}
 
 	// --- STAFF ---
+	public async Task<string> GetNextEmployeeIdAsync()
+	{
+		var existingIds = await _schoolRepository.GetAllEmployeeIdsAsync();
+		int maxNumber = 0;
+
+		foreach (var id in existingIds)
+		{
+			if (string.IsNullOrWhiteSpace(id)) continue;
+			var match = System.Text.RegularExpressions.Regex.Match(id, @"\d+");
+			if (match.Success && int.TryParse(match.Value, out int num))
+			{
+				if (num > maxNumber) maxNumber = num;
+			}
+		}
+
+		int nextNumber = maxNumber + 1;
+		return $"EMP{nextNumber:D3}";
+	}
+
 	public async Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department)
 	{
 		var list = await _schoolRepository.GetAllStaffAsync(search, department);
@@ -49,20 +68,38 @@ public class SchoolService : ISchoolService
 
 	public async Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto)
 	{
+		var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) 
+			? dto.EmployeeId 
+			: await GetNextEmployeeIdAsync();
+
 		var staff = new Staff
 		{
-			EmployeeId = $"EMP{new Random().Next(100, 999)}",
+			EmployeeId = empId,
+			EmployeeCategory = string.IsNullOrWhiteSpace(dto.EmployeeCategory) ? "Teaching Staff" : dto.EmployeeCategory,
 			FirstName = dto.FirstName,
 			LastName = dto.LastName,
 			Email = dto.Email,
 			Phone = dto.Phone,
+			Gender = dto.Gender,
+			ResidentialAddress = dto.ResidentialAddress,
 			Designation = dto.Designation,
 			Department = dto.Department,
+			SystemRole = dto.SystemRole,
+			Qualification = dto.Qualification,
+			PrimarySubject = dto.PrimarySubject,
+			Specialization = dto.Specialization,
 			MonthlySalary = dto.MonthlySalary,
+			AccountHolderName = dto.AccountHolderName,
+			AccountNumber = dto.AccountNumber,
+			BankName = dto.BankName,
+			BranchName = dto.BranchName,
+			IfscCode = dto.IfscCode,
+			UpiId = dto.UpiId,
 			IsActive = true
 		};
 
 		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) staff.DateOfBirth = parsedDob;
+		if (DateTime.TryParse(dto.JoiningDate, out var parsedJoining)) staff.JoiningDate = parsedJoining;
 
 		await _schoolRepository.AddStaffAsync(staff);
 		await _schoolRepository.SaveChangesAsync();
@@ -74,15 +111,30 @@ public class SchoolService : ISchoolService
 		var staff = await _schoolRepository.GetStaffByIdAsync(id)
 			?? throw new NotFoundException($"Staff member with ID '{id}' not found.");
 
+		if (!string.IsNullOrWhiteSpace(dto.EmployeeCategory)) staff.EmployeeCategory = dto.EmployeeCategory;
 		staff.FirstName = dto.FirstName;
 		staff.LastName = dto.LastName;
 		staff.Email = dto.Email;
 		staff.Phone = dto.Phone;
+		if (dto.Gender != null) staff.Gender = dto.Gender;
+		if (dto.ResidentialAddress != null) staff.ResidentialAddress = dto.ResidentialAddress;
 		staff.Designation = dto.Designation;
 		staff.Department = dto.Department;
+		if (dto.SystemRole != null) staff.SystemRole = dto.SystemRole;
+		if (dto.Qualification != null) staff.Qualification = dto.Qualification;
+		if (dto.PrimarySubject != null) staff.PrimarySubject = dto.PrimarySubject;
+		if (dto.Specialization != null) staff.Specialization = dto.Specialization;
 		staff.MonthlySalary = dto.MonthlySalary;
 
+		if (dto.AccountHolderName != null) staff.AccountHolderName = dto.AccountHolderName;
+		if (dto.AccountNumber != null) staff.AccountNumber = dto.AccountNumber;
+		if (dto.BankName != null) staff.BankName = dto.BankName;
+		if (dto.BranchName != null) staff.BranchName = dto.BranchName;
+		if (dto.IfscCode != null) staff.IfscCode = dto.IfscCode;
+		if (dto.UpiId != null) staff.UpiId = dto.UpiId;
+
 		if (DateTime.TryParse(dto.DateOfBirth, out var parsedDob)) staff.DateOfBirth = parsedDob;
+		if (DateTime.TryParse(dto.JoiningDate, out var parsedJoining)) staff.JoiningDate = parsedJoining;
 
 		await _schoolRepository.SaveChangesAsync();
 		return MapToStaffResponseDto(staff);
@@ -101,15 +153,29 @@ public class SchoolService : ISchoolService
 	{
 		StaffId = s.StaffId,
 		EmployeeId = s.EmployeeId,
+		EmployeeCategory = s.EmployeeCategory,
 		FirstName = s.FirstName,
 		LastName = s.LastName,
 		Email = s.Email,
 		Phone = s.Phone,
+		Gender = s.Gender,
+		DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-dd"),
+		ResidentialAddress = s.ResidentialAddress,
 		Designation = s.Designation,
 		Department = s.Department,
-		MonthlySalary = s.MonthlySalary,
-		DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-dd"),
-		IsActive = s.IsActive
+		SystemRole = s.SystemRole,
+		JoiningDate = s.JoiningDate?.ToString("yyyy-MM-dd"),
+		Qualification = s.Qualification,
+		PrimarySubject = s.PrimarySubject,
+		Specialization = s.Specialization,
+		MonthlySalary = s.MonthlySalary ?? 0m,
+		AccountHolderName = s.AccountHolderName,
+		AccountNumber = s.AccountNumber,
+		BankName = s.BankName,
+		BranchName = s.BranchName,
+		IfscCode = s.IfscCode,
+		UpiId = s.UpiId,
+		IsActive = s.IsActive ?? true
 	};
 
 	// --- DEPARTMENTS ---
@@ -711,7 +777,7 @@ public class SchoolService : ISchoolService
 					BloodGroup = app.BloodGroup,
 					Caste = app.Caste,
 					BranchId = 1,
-					ClassId = app.AppliedClassId > 0 ? app.AppliedClassId : 1,
+					ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1,
 					AdmissionType = "Regular",
 					Status = app.Status,
 					IsDeleted = isDeleted,
@@ -728,7 +794,7 @@ public class SchoolService : ISchoolService
 				existing.FatherMobile = app.FatherContact;
 				existing.BloodGroup = app.BloodGroup;
 				existing.Caste = app.Caste;
-				existing.ClassId = app.AppliedClassId > 0 ? app.AppliedClassId : 1;
+				existing.ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1;
 				existing.Status = app.Status;
 				existing.IsDeleted = isDeleted;
 				existing.ModifiedDate = DateTime.UtcNow;
@@ -769,10 +835,10 @@ public class SchoolService : ISchoolService
 		District = a.District,
 		State = a.State,
 		PinCode = a.PinCode,
-		NumberOfSiblings = a.NumberOfSiblings,
+		NumberOfSiblings = a.NumberOfSiblings ?? 0,
 		ExistingSiblingLookup = a.ExistingSiblingLookup,
 		StudentType = a.StudentType,
-		TransportRequired = a.TransportRequired,
+		TransportRequired = a.TransportRequired ?? false,
 		TransportType = a.TransportType,
 		BusRoute = a.BusRoute,
 		PickupPoint = a.PickupPoint,
@@ -865,5 +931,264 @@ public class SchoolService : ISchoolService
 		{
 			Console.WriteLine($"Error syncing hostel allocation: {ex.Message}");
 		}
+	}
+
+	// --- ATTENDANCE & LEAVE MANAGEMENT IMPLEMENTATIONS ---
+	public async Task<DailyAttendanceSummaryDto> GetDailyAttendanceSummaryAsync(string date, string? department)
+	{
+		DateTime parsedDate = DateTime.TryParse(date, out var d) ? d : DateTime.UtcNow.Date;
+		var attendances = await _schoolRepository.GetStaffAttendanceAsync(parsedDate, department);
+		var allStaff = await _schoolRepository.GetAllStaffAsync(null, department);
+
+		int total = allStaff.Count;
+		int present = attendances.Count(a => a.Status.Equals("Present", StringComparison.OrdinalIgnoreCase));
+		int absent = attendances.Count(a => a.Status.Equals("Absent", StringComparison.OrdinalIgnoreCase));
+		int onLeave = attendances.Count(a => a.Status.Equals("On Leave", StringComparison.OrdinalIgnoreCase));
+		int halfDay = attendances.Count(a => a.Status.Equals("Half Day", StringComparison.OrdinalIgnoreCase));
+
+		double rate = total > 0 ? Math.Round(((double)present / total) * 100, 1) : 0;
+
+		var holidays = await _schoolRepository.GetAllHolidaysAsync();
+		var matchedHoliday = holidays.FirstOrDefault(h => parsedDate.Date >= h.FromDate.Date && parsedDate.Date <= h.ToDate.Date);
+
+		return new DailyAttendanceSummaryDto
+		{
+			TotalStaff = total,
+			PresentCount = present,
+			AbsentCount = absent,
+			OnLeaveCount = onLeave,
+			HalfDayCount = halfDay,
+			PresenceRatePercentage = rate,
+			HolidayAlert = matchedHoliday != null ? $"Selected date is configured as a school holiday: {matchedHoliday.Name} ({matchedHoliday.Type} Holiday). Attendance is read-only unless overridden." : null
+		};
+	}
+
+	public async Task<bool> SaveBulkAttendanceAsync(BulkAttendanceDto dto)
+	{
+		DateTime parsedDate = DateTime.TryParse(dto.Date, out var d) ? d : DateTime.UtcNow.Date;
+		var newRecords = new List<StaffAttendance>();
+
+		foreach (var rec in dto.Records)
+		{
+			var staff = await _schoolRepository.GetStaffByIdAsync(rec.StaffId);
+			if (staff == null) continue;
+
+			newRecords.Add(new StaffAttendance
+			{
+				StaffId = staff.StaffId,
+				Date = parsedDate,
+				Status = rec.Status,
+				AcademicYear = dto.AcademicYear ?? "2026-2027",
+				Branch = dto.Branch ?? "Main Campus",
+				Department = staff.Department,
+				Designation = staff.Designation,
+				Remarks = rec.Remarks
+			});
+		}
+
+		await _schoolRepository.AddStaffAttendanceRangeAsync(newRecords);
+		await _schoolRepository.SaveChangesAsync();
+		return true;
+	}
+
+	public async Task<List<LeaveTypeConfigDto>> GetAllLeaveTypesAsync()
+	{
+		var list = await _schoolRepository.GetAllLeaveTypesAsync();
+		return list.Select(l => new LeaveTypeConfigDto
+		{
+			LeaveTypeId = l.LeaveTypeId,
+			Name = l.Name,
+			Code = l.Code,
+			AnnualAllowance = l.AnnualAllowance,
+			CarryForward = l.CarryForward,
+			MaxConsecutiveDays = l.MaxConsecutiveDays,
+			RequiresAttachment = l.RequiresAttachment,
+			IsPaid = l.IsPaid,
+			Status = l.Status
+		}).ToList();
+	}
+
+	public async Task<LeaveTypeConfigDto> CreateLeaveTypeAsync(LeaveTypeConfigDto dto)
+	{
+		var entity = new LeaveTypeConfig
+		{
+			Name = dto.Name,
+			Code = dto.Code,
+			AnnualAllowance = dto.AnnualAllowance,
+			CarryForward = dto.CarryForward,
+			MaxConsecutiveDays = dto.MaxConsecutiveDays,
+			RequiresAttachment = dto.RequiresAttachment,
+			IsPaid = dto.IsPaid,
+			Status = dto.Status
+		};
+		await _schoolRepository.AddLeaveTypeAsync(entity);
+		await _schoolRepository.SaveChangesAsync();
+		dto.LeaveTypeId = entity.LeaveTypeId;
+		return dto;
+	}
+
+	public async Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status)
+	{
+		var list = await _schoolRepository.GetAllLeaveApplicationsAsync(status);
+		return list.Select(l => new LeaveApplicationResponseDto
+		{
+			LeaveApplicationId = l.LeaveApplicationId,
+			StaffId = l.StaffId,
+			EmployeeId = l.Staff?.EmployeeId ?? "N/A",
+			StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}" : "N/A",
+			Designation = l.Staff?.Designation ?? "N/A",
+			LeaveTypeName = l.LeaveType?.Name ?? "N/A",
+			LeaveTypeCode = l.LeaveType?.Code ?? "N/A",
+			FromDate = l.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = l.ToDate.ToString("yyyy-MM-dd"),
+			IsHalfDay = l.IsHalfDay,
+			RequestedDays = l.RequestedDays,
+			Reason = l.Reason,
+			AppliedDate = l.AppliedDate.ToString("yyyy-MM-dd"),
+			Status = l.Status
+		}).ToList();
+	}
+
+	public async Task<LeaveApplicationResponseDto> SubmitLeaveApplicationAsync(LeaveApplicationCreateDto dto)
+	{
+		var staff = await _schoolRepository.GetStaffByIdAsync(dto.StaffId)
+			?? throw new NotFoundException($"Staff member with ID {dto.StaffId} not found.");
+
+		DateTime from = DateTime.TryParse(dto.FromDate, out var f) ? f : DateTime.UtcNow;
+		DateTime to = DateTime.TryParse(dto.ToDate, out var t) ? t : DateTime.UtcNow;
+		int days = Math.Max(1, (int)(to - from).TotalDays + 1);
+
+		var entity = new LeaveApplication
+		{
+			StaffId = dto.StaffId,
+			LeaveTypeId = dto.LeaveTypeId,
+			FromDate = from,
+			ToDate = to,
+			IsHalfDay = dto.IsHalfDay,
+			RequestedDays = dto.IsHalfDay ? 1 : days,
+			Reason = dto.Reason,
+			AppliedDate = DateTime.UtcNow,
+			Status = "Pending"
+		};
+
+		await _schoolRepository.AddLeaveApplicationAsync(entity);
+		await _schoolRepository.SaveChangesAsync();
+
+		var leaveType = await _schoolRepository.GetLeaveTypeByIdAsync(dto.LeaveTypeId);
+
+		return new LeaveApplicationResponseDto
+		{
+			LeaveApplicationId = entity.LeaveApplicationId,
+			StaffId = staff.StaffId,
+			EmployeeId = staff.EmployeeId,
+			StaffName = $"{staff.FirstName} {staff.LastName}",
+			Designation = staff.Designation,
+			LeaveTypeName = leaveType?.Name ?? "Leave",
+			LeaveTypeCode = leaveType?.Code ?? "LV",
+			FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = entity.ToDate.ToString("yyyy-MM-dd"),
+			IsHalfDay = entity.IsHalfDay,
+			RequestedDays = entity.RequestedDays,
+			Reason = entity.Reason,
+			AppliedDate = entity.AppliedDate.ToString("yyyy-MM-dd"),
+			Status = entity.Status
+		};
+	}
+
+	public async Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status)
+	{
+		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(applicationId)
+			?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
+
+		application.Status = status;
+		await _schoolRepository.SaveChangesAsync();
+
+		return new LeaveApplicationResponseDto
+		{
+			LeaveApplicationId = application.LeaveApplicationId,
+			StaffId = application.StaffId,
+			EmployeeId = application.Staff?.EmployeeId ?? "N/A",
+			StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}" : "N/A",
+			Designation = application.Staff?.Designation ?? "N/A",
+			LeaveTypeName = application.LeaveType?.Name ?? "N/A",
+			LeaveTypeCode = application.LeaveType?.Code ?? "N/A",
+			FromDate = application.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = application.ToDate.ToString("yyyy-MM-dd"),
+			IsHalfDay = application.IsHalfDay,
+			RequestedDays = application.RequestedDays,
+			Reason = application.Reason,
+			AppliedDate = application.AppliedDate.ToString("yyyy-MM-dd"),
+			Status = application.Status
+		};
+	}
+
+	public async Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync()
+	{
+		var allStaff = await _schoolRepository.GetAllStaffAsync(null, null);
+		var result = new List<LeaveBalanceDto>();
+
+		foreach (var s in allStaff)
+		{
+			result.Add(new LeaveBalanceDto
+			{
+				StaffId = s.StaffId,
+				EmployeeId = s.EmployeeId,
+				StaffName = $"{s.FirstName} {s.LastName}",
+				Designation = s.Designation,
+				CasualLeaveBalance = 10,
+				SickLeaveBalance = 10,
+				EarnedLeaveBalance = 15,
+				TotalRemainingBalance = 35
+			});
+		}
+
+		return result;
+	}
+
+	public async Task<List<HolidayCalendarDto>> GetAllHolidaysAsync()
+	{
+		var holidays = await _schoolRepository.GetAllHolidaysAsync();
+		return holidays.Select(h => new HolidayCalendarDto
+		{
+			HolidayId = h.HolidayId,
+			Name = h.Name,
+			Type = h.Type,
+			FromDate = h.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = h.ToDate.ToString("yyyy-MM-dd"),
+			ApplicableBranch = h.ApplicableBranch,
+			Description = h.Description
+		}).ToList();
+	}
+
+	public async Task<HolidayCalendarDto> CreateHolidayAsync(HolidayCalendarDto dto)
+	{
+		DateTime from = DateTime.TryParse(dto.FromDate, out var f) ? f : DateTime.UtcNow;
+		DateTime to = DateTime.TryParse(dto.ToDate, out var t) ? t : DateTime.UtcNow;
+
+		var holiday = new HolidayCalendar
+		{
+			Name = dto.Name,
+			Type = dto.Type,
+			FromDate = from,
+			ToDate = to,
+			ApplicableBranch = dto.ApplicableBranch,
+			Description = dto.Description
+		};
+
+		await _schoolRepository.AddHolidayAsync(holiday);
+		await _schoolRepository.SaveChangesAsync();
+
+		dto.HolidayId = holiday.HolidayId;
+		return dto;
+	}
+
+	public async Task<bool> DeleteHolidayAsync(int id)
+	{
+		var holiday = await _schoolRepository.GetHolidayByIdAsync(id)
+			?? throw new NotFoundException($"Holiday with ID {id} not found.");
+
+		_schoolRepository.RemoveHoliday(holiday);
+		await _schoolRepository.SaveChangesAsync();
+		return true;
 	}
 }

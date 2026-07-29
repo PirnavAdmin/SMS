@@ -35,7 +35,7 @@ public class SchoolRepository : ISchoolRepository
 
 	public async Task<List<Staff>> GetTeachersForDropdownAsync(string? search)
 	{
-		var query = _context.Staff.AsNoTracking().Where(s => s.IsActive).AsQueryable();
+		var query = _context.Staff.AsNoTracking().Where(s => s.IsActive == true).AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(search))
 			query = query.Where(s => s.FirstName.Contains(search) || s.LastName.Contains(search) || s.EmployeeId.Contains(search));
@@ -201,6 +201,98 @@ public class SchoolRepository : ISchoolRepository
 		await _context.AdmissionApplications.AddAsync(application);
 
 	public void RemoveApplication(AdmissionApplication application) => _context.AdmissionApplications.Remove(application);
+
+	public async Task<List<string>> GetAllEmployeeIdsAsync()
+	{
+		return await _context.Staff
+			.AsNoTracking()
+			.Select(s => s.EmployeeId)
+			.ToListAsync();
+	}
+
+	// --- STAFF ATTENDANCE ---
+	public async Task<List<StaffAttendance>> GetStaffAttendanceAsync(System.DateTime date, string? department)
+	{
+		var query = _context.StaffAttendances
+			.AsNoTracking()
+			.Include(sa => sa.Staff)
+			.Where(sa => sa.Date.Date == date.Date)
+			.AsQueryable();
+
+		if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
+			query = query.Where(sa => sa.Department != null && sa.Department.ToLower() == department.ToLower());
+
+		return await query.ToListAsync();
+	}
+
+	public async Task AddStaffAttendanceRangeAsync(IEnumerable<StaffAttendance> attendances)
+	{
+		await _context.StaffAttendances.AddRangeAsync(attendances);
+	}
+
+	// --- LEAVE MANAGEMENT ---
+	public async Task<List<LeaveTypeConfig>> GetAllLeaveTypesAsync()
+	{
+		return await _context.LeaveTypeConfigs.AsNoTracking().ToListAsync();
+	}
+
+	public async Task<LeaveTypeConfig?> GetLeaveTypeByIdAsync(int id)
+	{
+		return await _context.LeaveTypeConfigs.FindAsync(id);
+	}
+
+	public async Task AddLeaveTypeAsync(LeaveTypeConfig leaveType)
+	{
+		await _context.LeaveTypeConfigs.AddAsync(leaveType);
+	}
+
+	public async Task<List<LeaveApplication>> GetAllLeaveApplicationsAsync(string? status)
+	{
+		var query = _context.LeaveApplications
+			.AsNoTracking()
+			.Include(l => l.Staff)
+			.Include(l => l.LeaveType)
+			.AsQueryable();
+
+		if (!string.IsNullOrWhiteSpace(status))
+			query = query.Where(l => l.Status.ToLower() == status.ToLower());
+
+		return await query.OrderByDescending(l => l.AppliedDate).ToListAsync();
+	}
+
+	public async Task<LeaveApplication?> GetLeaveApplicationByIdAsync(int id)
+	{
+		return await _context.LeaveApplications
+			.Include(l => l.Staff)
+			.Include(l => l.LeaveType)
+			.FirstOrDefaultAsync(l => l.LeaveApplicationId == id);
+	}
+
+	public async Task AddLeaveApplicationAsync(LeaveApplication leaveApplication)
+	{
+		await _context.LeaveApplications.AddAsync(leaveApplication);
+	}
+
+	// --- HOLIDAY CALENDAR ---
+	public async Task<List<HolidayCalendar>> GetAllHolidaysAsync()
+	{
+		return await _context.HolidayCalendars.AsNoTracking().OrderBy(h => h.FromDate).ToListAsync();
+	}
+
+	public async Task<HolidayCalendar?> GetHolidayByIdAsync(int id)
+	{
+		return await _context.HolidayCalendars.FindAsync(id);
+	}
+
+	public async Task AddHolidayAsync(HolidayCalendar holiday)
+	{
+		await _context.HolidayCalendars.AddAsync(holiday);
+	}
+
+	public void RemoveHoliday(HolidayCalendar holiday)
+	{
+		_context.HolidayCalendars.Remove(holiday);
+	}
 
 	public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 }

@@ -12,25 +12,22 @@ public class RoomTypeConfig
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int RoomTypeId { get; set; }
 
-    [Required]
     [MaxLength(150)]
-    public string RoomTypeSpecification { get; set; } = string.Empty;
+    public string? RoomTypeSpecification { get; set; }
 
     [Required]
     public int BedCapacity { get; set; } = 1;
 
-    [Required]
     [MaxLength(20)]
-    public string AcType { get; set; } = "AC";
+    public string? AcType { get; set; } = "AC";
 
-    [Required]
     [MaxLength(20)]
-    public string Status { get; set; } = "Active";
+    public string? Status { get; set; } = "Active";
 
     [MaxLength(500)]
     public string? Description { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 
     public virtual ICollection<RoomMaster> Rooms { get; set; } = new List<RoomMaster>();
 }

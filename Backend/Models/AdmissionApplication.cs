@@ -8,42 +8,36 @@ public class AdmissionApplication
     [Key]
     public int Id { get; set; }
 
-    [Required]
-    public string RegistrationNo { get; set; } = string.Empty; // e.g. "REG-8244"
+    public string? RegistrationNo { get; set; } // e.g. "REG-8244"
 
     // Profile Photo
     public string? ProfilePhotoUrl { get; set; }
 
     // 1. Student Personal Details
-    [Required]
-    public string FirstName { get; set; } = string.Empty;
+    public string? FirstName { get; set; }
 
-    [Required]
-    public string LastName { get; set; } = string.Empty;
+    public string? LastName { get; set; }
 
     public DateTime? DateOfBirth { get; set; }
 
-    public string Gender { get; set; } = "Male";
+    public string? Gender { get; set; } = "Male";
 
-    public int AppliedClassId { get; set; }
-    public ClassGrade AppliedClass { get; set; } = null!;
+    public int? AppliedClassId { get; set; }
+    public ClassGrade? AppliedClass { get; set; }
 
-    [Required]
-    public string BranchName { get; set; } = "Main Campus";
+    public string? BranchName { get; set; } = "Main Campus";
 
     public string? BloodGroup { get; set; }
     public string? Religion { get; set; }
     public string? Caste { get; set; }
 
     // 2. Parent & Mobile Information
-    [Required]
-    public string FatherName { get; set; } = string.Empty;
+    public string? FatherName { get; set; }
 
     public string? MotherName { get; set; }
 
-    [Required]
     [Phone]
-    public string FatherContact { get; set; } = string.Empty;
+    public string? FatherContact { get; set; }
 
     public string? MotherMobileNumber { get; set; }
 
@@ -62,12 +56,12 @@ public class AdmissionApplication
     public string? PinCode { get; set; }
 
     // 4. Sibling Information
-    public int NumberOfSiblings { get; set; } = 0;
+    public int? NumberOfSiblings { get; set; } = 0;
     public string? ExistingSiblingLookup { get; set; }
 
     // 5. Student Type & Facility Allocation - Transport
-    public string StudentType { get; set; } = "Day Scholar"; // "Day Scholar", "Hosteller"
-    public bool TransportRequired { get; set; } = false;
+    public string? StudentType { get; set; } = "Day Scholar"; // "Day Scholar", "Hosteller"
+    public bool? TransportRequired { get; set; } = false;
     public string? TransportType { get; set; }
     public string? BusRoute { get; set; }
     public string? PickupPoint { get; set; }
@@ -84,8 +78,7 @@ public class AdmissionApplication
     public string? Scholarship { get; set; } = "None";
     public string? Discount { get; set; } = "None";
 
-    [Required]
-    public string Status { get; set; } = "Pending"; // "Pending", "Rejected", "Enrolled"
+    public string? Status { get; set; } = "Pending"; // "Pending", "Rejected", "Enrolled"
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 }
