@@ -138,14 +138,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'staff-directory', label: 'Staff Directory', icon: Users },
     { id: 'staff-attendance', label: 'Attendance Register', icon: CalendarCheck },
     { id: 'staff-leave', label: 'Leave Management', icon: FileText },
-    { id: 'staff-payroll', label: 'Payroll Processing', icon: IndianRupee },
+    { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
   ];
 
   const payrollSubItems = [
-    { id: 'staff-payroll-config', label: 'Payroll Configuration', icon: SlidersHorizontal },
-    { id: 'staff-payroll-structures', label: 'Salary Structures', icon: Layers },
-    { id: 'staff-payroll-processing', label: 'Payroll Processing', icon: IndianRupee },
-    { id: 'staff-payroll-payslips', label: 'Payslips', icon: Receipt },
+    { id: 'staff-payroll-employees', label: 'Employees', icon: Users },
+    { id: 'staff-payroll-structures', label: 'Salary Structure', icon: Layers },
+    { id: 'staff-payroll-payslips', label: 'Generate Payslips', icon: Receipt },
+    { id: 'staff-payroll-history', label: 'Payslip History', icon: Clock },
   ];
 
   const menuGroups = [
@@ -548,11 +548,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           {staffSubItems.map(sub => {
                             const SubIcon = sub.icon;
                             const isPayroll = sub.id === 'staff-payroll';
-                            const isSubActive = activeModule === sub.id || (isPayroll && activeModule.startsWith('staff-payroll-'));
+                            const isSubActive =
+                              activeModule === sub.id ||
+                              (sub.id === 'staff-directory' && activeModule === 'staff-add') ||
+                              (isPayroll && (activeModule === 'staff-payroll' || activeModule === 'staff-payroll-employees' || activeModule.startsWith('staff-payroll-') || activeModule === 'staff-payslips'));
                             return (
                               <React.Fragment key={sub.id}>
                                 <button
-                                  onClick={() => setActiveModule(isPayroll ? 'staff-payroll-config' : sub.id)}
+                                  onClick={() => setActiveModule(isPayroll ? 'staff-payroll-employees' : sub.id)}
                                   className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                     isSubActive
                                       ? 'bg-sky-600 text-white font-bold'
@@ -566,7 +569,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   <div className="ml-5 border-l border-sky-100 pl-2 dark:border-sky-950">
                                     {payrollSubItems.map(payrollSub => {
                                       const PayrollSubIcon = payrollSub.icon;
-                                      const isPayrollSubActive = activeModule === payrollSub.id || (activeModule === 'staff-payroll' && payrollSub.id === 'staff-payroll-config');
+                                      const isPayrollSubActive =
+                                        activeModule === payrollSub.id ||
+                                        (payrollSub.id === 'staff-payroll-employees' && ['staff-payroll', 'staff-payroll-employees'].includes(activeModule)) ||
+                                        (payrollSub.id === 'staff-payroll-payslips' && ['staff-payroll', 'staff-payroll-payslips', 'staff-payroll-assignment', 'staff-payroll-processing', 'staff-payroll-reports', 'staff-payslips'].includes(activeModule));
                                       return (
                                         <button
                                           key={payrollSub.id}

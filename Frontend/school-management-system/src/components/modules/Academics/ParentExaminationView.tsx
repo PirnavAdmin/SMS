@@ -364,19 +364,39 @@ export const ParentExaminationView: React.FC = () => {
             displayPapers = [
               {
                 id: 'mock-qp-1',
+                academicYear: '2026-2027',
+                branch: currentWard.branch || 'Main Campus',
+                examId: 'mock-exam-1',
+                examName: 'Mid-Term Examination',
+                className: currentWard.className,
+                section: currentWard.section,
                 paperTitle: 'Mid-Term Mathematics Paper',
                 subject: 'Mathematics',
                 duration: '3 Hours',
                 maxMarks: 100,
-                fileName: 'Mathematics_Mid_Term_2026.pdf'
+                fileUrl: '#',
+                fileName: 'Mathematics_Mid_Term_2026.pdf',
+                uploadedBy: 'System',
+                uploadedOn: '2026-07-30',
+                status: 'Published'
               },
               {
                 id: 'mock-qp-2',
+                academicYear: '2026-2027',
+                branch: currentWard.branch || 'Main Campus',
+                examId: 'mock-exam-1',
+                examName: 'Mid-Term Examination',
+                className: currentWard.className,
+                section: currentWard.section,
                 paperTitle: 'Mid-Term Science Paper',
                 subject: 'Science',
                 duration: '3 Hours',
                 maxMarks: 100,
-                fileName: 'Science_Mid_Term_2026.pdf'
+                fileUrl: '#',
+                fileName: 'Science_Mid_Term_2026.pdf',
+                uploadedBy: 'System',
+                uploadedOn: '2026-07-30',
+                status: 'Published'
               }
             ] as any[];
           }
