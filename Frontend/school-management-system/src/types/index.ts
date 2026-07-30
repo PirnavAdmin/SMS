@@ -554,6 +554,8 @@ export interface Announcement {
   date: string;
   author: string;
   category?: string;
+  targetClass?: string;
+  targetSection?: string;
 }
 
 export type HolidayType =
@@ -612,6 +614,8 @@ export interface SchoolEvent {
   branch: string;
   academicYear: string;
   applicableClasses?: string[];
+  targetClass?: string;
+  targetSection?: string;
   participants?: string;
   attachments?: { id: string; name: string; url: string; type: string }[];
   status: 'Published' | 'Draft' | 'Completed' | 'Cancelled';

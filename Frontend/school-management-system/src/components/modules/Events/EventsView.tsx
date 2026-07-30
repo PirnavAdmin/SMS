@@ -66,7 +66,9 @@ export const EventsView: React.FC = () => {
     participants: 'All Students & Staff',
     applicableClasses: ['All Classes'],
     status: 'Published' as const,
-    attachmentName: ''
+    attachmentName: '',
+    targetClass: 'Class 10',
+    targetSection: 'A'
   });
 
   // Add Holiday Form State
@@ -111,6 +113,8 @@ export const EventsView: React.FC = () => {
         sourceModule: 'School Events Module',
         branch: evt.branch,
         applicableClasses: evt.applicableClasses,
+        targetClass: evt.targetClass,
+        targetSection: evt.targetSection,
         rawItem: evt
       });
     });
@@ -334,17 +338,17 @@ export const EventsView: React.FC = () => {
       title: eventForm.title.trim(),
       category: eventForm.category,
       description: eventForm.description,
-      organizer: eventForm.organizer || 'School Administration',
+      organizer: eventForm.organizer || (role === 'Teacher' ? 'Teacher' : 'School Administration'),
       venue: eventForm.venue || 'Main Auditorium',
       startDate: eventForm.startDate,
-      endDate: eventForm.endDate,
-      startTime: eventForm.startTime,
-      endTime: eventForm.endTime,
+      endDate: eventForm.endDate || eventForm.startDate,
       branch: eventForm.branch,
       academicYear: eventForm.academicYear,
       participants: eventForm.participants,
       applicableClasses: eventForm.applicableClasses,
       status: eventForm.status,
+      targetClass: role === 'Teacher' ? eventForm.targetClass : undefined,
+      targetSection: role === 'Teacher' ? eventForm.targetSection : undefined,
       attachments: eventForm.attachmentName ? [{ id: 'ATT-NEW', name: eventForm.attachmentName, url: '#', type: 'PDF' }] : []
     });
 
@@ -959,7 +963,7 @@ export const EventsView: React.FC = () => {
               <div className="flex justify-between"><span>🏢 <strong>Branch:</strong></span><span>{selectedEventForDetail.branch || 'Main Campus'}</span></div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
+            <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setSelectedEventForDetail(null)} className="px-4 py-2 bg-slate-800 text-white font-bold rounded-xl">Close</button>
             </div>
           </div>
@@ -970,8 +974,8 @@ export const EventsView: React.FC = () => {
       {isAddEventModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Create School Event</h3>
+            <div className="flex justify-between items-center pb-3">
+              <h3 className="font-black text-sm text-slate-900 dark:text-white">Add School Event</h3>
               <button onClick={() => setIsAddEventModalOpen(false)}><X className="w-5 h-5" /></button>
             </div>
 
@@ -1042,6 +1046,29 @@ export const EventsView: React.FC = () => {
                 </div>
               </div>
 
+              {role === 'Teacher' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold mb-1">Target Class</label>
+                    <select value={eventForm.targetClass} onChange={e => setEventForm({ ...eventForm, targetClass: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                      <option value="Class 8">Class 8</option>
+                      <option value="Class 9">Class 9</option>
+                      <option value="Class 10">Class 10</option>
+                      <option value="Class 11">Class 11</option>
+                      <option value="Class 12">Class 12</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-bold mb-1">Target Section</label>
+                    <select value={eventForm.targetSection} onChange={e => setEventForm({ ...eventForm, targetSection: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                      <option value="A">Section A</option>
+                      <option value="B">Section B</option>
+                      <option value="C">Section C</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block font-bold mb-1">Event Description</label>
                 <textarea
@@ -1053,7 +1080,7 @@ export const EventsView: React.FC = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddEventModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold">Cancel</button>
                 <button type="submit" className="px-5 py-2 bg-sky-600 text-white font-bold rounded-xl shadow-md">Publish to Calendar</button>
               </div>
@@ -1066,8 +1093,8 @@ export const EventsView: React.FC = () => {
       {isAddHolidayModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs">
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="font-bold text-slate-900 dark:text-white">Add Official Holiday</h3>
+            <div className="flex justify-between items-center pb-2">
+              <h3 className="font-bold text-slate-900 dark:text-white">Add Holiday</h3>
               <button onClick={() => setIsAddHolidayModalOpen(false)}><X className="w-4 h-4" /></button>
             </div>
             <form onSubmit={handleAddHolidaySubmit} className="space-y-3">
@@ -1095,7 +1122,7 @@ export const EventsView: React.FC = () => {
                   <input type="date" required value={holidayForm.endDate} onChange={e => setHolidayForm({ ...holidayForm, endDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsAddHolidayModalOpen(false)} className="px-3 py-1.5 bg-slate-200 rounded-xl font-bold">Cancel</button>
                 <button type="submit" className="px-4 py-1.5 bg-sky-600 text-white font-bold rounded-xl shadow-md">Record Holiday</button>
               </div>
@@ -1108,7 +1135,7 @@ export const EventsView: React.FC = () => {
       {isNotifyModalOpen && eventToNotify && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-3 text-xs">
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center pb-2">
               <h3 className="font-bold text-sky-600 flex items-center gap-2">
                 <Bell className="w-4 h-4" /> Send Event Reminder: {eventToNotify.title}
               </h3>
@@ -1123,7 +1150,7 @@ export const EventsView: React.FC = () => {
                   <label className="flex items-center gap-1 font-semibold"><input type="checkbox" /> SMS</label>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setIsNotifyModalOpen(false)} className="px-3 py-1.5 bg-slate-200 rounded-xl font-bold">Cancel</button>
                 <button type="submit" className="px-4 py-1.5 bg-sky-600 text-white font-bold rounded-xl shadow-md">Dispatch Reminders</button>
               </div>

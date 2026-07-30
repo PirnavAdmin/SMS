@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'School Administration',
       items: [
-        { id: 'communication', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Notifications' : 'Communication Hub', icon: Megaphone },
+        { id: 'communication', label: 'Notifications', icon: Megaphone },
         { id: 'events', label: 'Events & Holidays', icon: Calendar },
         { id: 'training', label: 'Faculty Training', icon: GraduationCap },
         { id: 'reports', label: 'School Reports', icon: BarChart3 },
@@ -226,7 +226,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {menuGroups.map((group, idx) => {
           const visibleItems = group.items.filter((item: any) => !item.roles || item.roles.includes(role || ''));
 
-          if (visibleItems.length === 0 && !group.isFinanceSection && !(group as any).isTransportSection) return null;
+          const hasCustomModules = group.isFinanceSection && (
+            hasModuleAccess(role, 'fees') || 
+            hasModuleAccess(role, 'hostel') || 
+            hasModuleAccess(role, 'transport') || 
+            hasModuleAccess(role, 'uniforms')
+          );
+
+          if (visibleItems.length === 0 && !hasCustomModules) return null;
 
           return (
             <div key={idx} className="space-y-1.5">

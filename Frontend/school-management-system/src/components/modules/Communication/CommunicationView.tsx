@@ -17,6 +17,8 @@ export const CommunicationView: React.FC = () => {
   const [category, setCategory] = useState<'General' | 'Urgent' | 'Academic' | 'Sports'>('General');
   const [sendSMS, setSendSMS] = useState(true);
   const [sendEmail, setSendEmail] = useState(true);
+  const [targetClass, setTargetClass] = useState('Class 10');
+  const [targetSection, setTargetSection] = useState('A');
 
   const handleBroadcast = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -27,8 +29,10 @@ export const CommunicationView: React.FC = () => {
       content,
       targetAudience: target,
       date: new Date().toISOString().split('T')[0],
-      author: 'Administration',
-      category
+      author: role === 'Teacher' ? 'Teacher' : 'Administration',
+      category,
+      targetClass: role === 'Teacher' ? targetClass : undefined,
+      targetSection: role === 'Teacher' ? targetSection : undefined
     });
 
     addToast('success', 'Announcement Broadcasted', `Dispatched to ${target} via ${sendSMS ? 'SMS, ' : ''}${sendEmail ? 'Email, ' : ''}Push`);
@@ -88,6 +92,29 @@ export const CommunicationView: React.FC = () => {
                 </div>
               </div>
 
+              {role === 'Teacher' && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">Target Class</label>
+                    <select value={targetClass} onChange={e => setTargetClass(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                      <option value="Class 8">Class 8</option>
+                      <option value="Class 9">Class 9</option>
+                      <option value="Class 10">Class 10</option>
+                      <option value="Class 11">Class 11</option>
+                      <option value="Class 12">Class 12</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">Target Section</label>
+                    <select value={targetSection} onChange={e => setTargetSection(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                      <option value="A">Section A</option>
+                      <option value="B">Section B</option>
+                      <option value="C">Section C</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block font-semibold mb-1">Notification Channels</label>
                 <div className="flex items-center gap-4 pt-1">
@@ -129,7 +156,10 @@ export const CommunicationView: React.FC = () => {
               {announcements.map(a => (
                 <div key={a.id} className="glass-card p-5 rounded-3xl space-y-2 text-xs">
                   <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950 font-bold uppercase">{a.category} • {a.targetAudience}</span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950 font-bold uppercase">
+                      {a.category} • {a.targetAudience}
+                      {a.targetClass ? ` • ${a.targetClass} ${a.targetSection}` : ''}
+                    </span>
                     <span className="text-slate-400">{a.date}</span>
                   </div>
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">{a.title}</h4>

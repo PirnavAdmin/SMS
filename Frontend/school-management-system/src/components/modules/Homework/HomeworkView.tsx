@@ -132,9 +132,6 @@ export const HomeworkView: React.FC = () => {
             </div>
             Homework & Assignments
           </h2>
-          <p className="text-xs text-slate-500 mt-2">
-            {canModify ? 'Create, edit & assign class homework with file attachments' : 'Admin View: Search, filter & monitor submission statistics'}
-          </p>
         </div>
 
         {canModify ? (
@@ -325,6 +322,7 @@ export const HomeworkView: React.FC = () => {
                 <label className="block font-semibold mb-1">Due Date</label>
                 <input
                   type="date"
+                  lang="en-GB"
                   value={formData.dueDate}
                   onChange={e => setFormData({ ...formData, dueDate: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
