@@ -25,7 +25,7 @@ namespace SMS.Api.Repositories.Interfaces
             long? userId);
 
         Task<bool> HasOverlappingAssignmentAsync(
-            long studentId,
+            string admissionNo,
             DateTime effectiveFrom,
             DateTime? effectiveTo,
             long? excludeAssignmentId = null);

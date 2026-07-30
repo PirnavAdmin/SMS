@@ -8,7 +8,8 @@ namespace SMS.Api.Models
         [Key]
         public long StudentTransportAssignmentId { get; set; }
 
-        public long StudentId { get; set; }
+        [MaxLength(50)]
+        public string AdmissionNo { get; set; } = string.Empty;
 
         public long RouteId { get; set; }
 

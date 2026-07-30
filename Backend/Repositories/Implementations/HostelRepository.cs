@@ -44,14 +44,14 @@ public class HostelRepository : IHostelRepository
 
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("All Hostel Types", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(h => h.HostelType.ToLower() == type.ToLower());
+            query = query.Where(h => h.HostelType != null && h.HostelType.ToLower() == type.ToLower());
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.ToLower();
-            query = query.Where(h => h.HostelName.ToLower().Contains(q) ||
-                                     h.HostelCode.ToLower().Contains(q) ||
+            query = query.Where(h => (h.HostelName != null && h.HostelName.ToLower().Contains(q)) ||
+                                     (h.HostelCode != null && h.HostelCode.ToLower().Contains(q)) ||
                                      (h.WardenName != null && h.WardenName.ToLower().Contains(q)));
         }
 
@@ -77,8 +77,8 @@ public class HostelRepository : IHostelRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.ToLower();
-            query = query.Where(r => r.RoomTypeSpecification.ToLower().Contains(q) ||
-                                     r.AcType.ToLower().Contains(q));
+            query = query.Where(r => (r.RoomTypeSpecification != null && r.RoomTypeSpecification.ToLower().Contains(q)) ||
+                                     (r.AcType != null && r.AcType.ToLower().Contains(q)));
         }
 
         return await query.OrderBy(r => r.RoomTypeSpecification).ToListAsync();
@@ -105,7 +105,7 @@ public class HostelRepository : IHostelRepository
             query = query.Where(r => r.HostelId == hostelId.Value);
 
         if (!string.IsNullOrWhiteSpace(floor) && !floor.Equals("All Floors", StringComparison.OrdinalIgnoreCase))
-            query = query.Where(r => r.FloorLevel.ToLower() == floor.ToLower());
+            query = query.Where(r => r.FloorLevel != null && r.FloorLevel.ToLower() == floor.ToLower());
 
         if (roomTypeId.HasValue && roomTypeId.Value > 0)
             query = query.Where(r => r.RoomTypeId == roomTypeId.Value);
@@ -113,9 +113,9 @@ public class HostelRepository : IHostelRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.ToLower();
-            query = query.Where(r => r.RoomNumber.ToLower().Contains(q) ||
-                                     r.FloorLevel.ToLower().Contains(q) ||
-                                     (r.Hostel != null && r.Hostel.HostelName.ToLower().Contains(q)));
+            query = query.Where(r => (r.RoomNumber != null && r.RoomNumber.ToLower().Contains(q)) ||
+                                     (r.FloorLevel != null && r.FloorLevel.ToLower().Contains(q)) ||
+                                     (r.Hostel != null && r.Hostel.HostelName != null && r.Hostel.HostelName.ToLower().Contains(q)));
         }
 
         return await query.OrderBy(r => r.RoomNumber).ToListAsync();
@@ -147,10 +147,10 @@ public class HostelRepository : IHostelRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.ToLower();
-            query = query.Where(w => w.WardenName.ToLower().Contains(q) ||
-                                     w.MobileNumber.ToLower().Contains(q) ||
-                                     (w.Staff != null && (w.Staff.FirstName.ToLower().Contains(q) || w.Staff.LastName.ToLower().Contains(q) || w.Staff.EmployeeId.ToLower().Contains(q))) ||
-                                     (w.Hostel != null && w.Hostel.HostelName.ToLower().Contains(q)));
+            query = query.Where(w => (w.WardenName != null && w.WardenName.ToLower().Contains(q)) ||
+                                     (w.MobileNumber != null && w.MobileNumber.ToLower().Contains(q)) ||
+                                     (w.Staff != null && ((w.Staff.FirstName != null && w.Staff.FirstName.ToLower().Contains(q)) || (w.Staff.LastName != null && w.Staff.LastName.ToLower().Contains(q)) || (w.Staff.EmployeeId != null && w.Staff.EmployeeId.ToLower().Contains(q)))) ||
+                                     (w.Hostel != null && w.Hostel.HostelName != null && w.Hostel.HostelName.ToLower().Contains(q)));
         }
 
         return await query.OrderBy(w => w.WardenName).ToListAsync();
@@ -187,11 +187,11 @@ public class HostelRepository : IHostelRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var q = search.ToLower();
-            query = query.Where(a => (a.Student != null && (a.Student.FirstName.ToLower().Contains(q) || a.Student.LastName.ToLower().Contains(q) || a.Student.RegistrationNo.ToLower().Contains(q))) ||
+            query = query.Where(a => (a.Student != null && ((a.Student.FirstName != null && a.Student.FirstName.ToLower().Contains(q)) || (a.Student.LastName != null && a.Student.LastName.ToLower().Contains(q)) || (a.Student.RegistrationNo != null && a.Student.RegistrationNo.ToLower().Contains(q)))) ||
                                      (a.RegistrationNo != null && a.RegistrationNo.ToLower().Contains(q)) ||
                                      (a.StudentName != null && a.StudentName.ToLower().Contains(q)) ||
-                                     a.BedNumber.ToLower().Contains(q) ||
-                                     (a.Room != null && a.Room.RoomNumber.ToLower().Contains(q)));
+                                     (a.BedNumber != null && a.BedNumber.ToLower().Contains(q)) ||
+                                     (a.Room != null && a.Room.RoomNumber != null && a.Room.RoomNumber.ToLower().Contains(q)));
         }
 
         return await query.OrderByDescending(a => a.JoiningDate).ToListAsync();
@@ -230,7 +230,7 @@ public class HostelRepository : IHostelRepository
             query = query.Where(att => att.Allocation != null && att.Allocation.HostelId == hostelId.Value);
 
         if (!string.IsNullOrWhiteSpace(floor) && !floor.Equals("All Floors", StringComparison.OrdinalIgnoreCase))
-            query = query.Where(att => att.Allocation != null && att.Allocation.Room != null && att.Allocation.Room.FloorLevel.ToLower() == floor.ToLower());
+            query = query.Where(att => att.Allocation != null && att.Allocation.Room != null && att.Allocation.Room.FloorLevel != null && att.Allocation.Room.FloorLevel.ToLower() == floor.ToLower());
 
         if (roomId.HasValue && roomId.Value > 0)
             query = query.Where(att => att.Allocation != null && att.Allocation.RoomId == roomId.Value);

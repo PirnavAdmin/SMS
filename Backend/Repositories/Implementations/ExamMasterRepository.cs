@@ -106,7 +106,7 @@ namespace SMS.Api.Repositories.Implementations
                     .Select(c => new ExamClassDto
                     {
                         ClassId = c.ClassId,
-                        ClassName = c.ClassName
+                        ClassName = c.ClassName ?? ""
                     })
                     .ToList();
 
@@ -174,7 +174,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new ExamClassDto
                 {
                     ClassId = x.ClassId,
-                    ClassName = x.Class.ClassName
+                    ClassName = x.Class != null ? (x.Class.ClassName ?? "") : ""
                 })
                 .ToListAsync();
 

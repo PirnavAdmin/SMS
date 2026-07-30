@@ -198,9 +198,9 @@ public class TimetableService : ITimetableService
             AcademicYear = header.AcademicYear,
             BranchName = header.BranchName,
             ClassId = classId,
-            ClassName = classGrade.ClassName,
+            ClassName = classGrade.ClassName ?? "",
             SectionId = sectionId,
-            SectionName = section.SectionName,
+            SectionName = section.SectionName ?? "",
             Status = header.Status,
             IncludeSaturday = header.IncludeSaturday,
             Periods = periods,
@@ -330,11 +330,11 @@ public class TimetableService : ITimetableService
             StartTime = FormatTime(slot.StartTime),
             EndTime = FormatTime(slot.EndTime),
             SubjectId = slot.SubjectId,
-            SubjectName = subject.SubjectName,
-            SubjectCode = subject.SubjectCode,
+            SubjectName = subject.SubjectName ?? "",
+            SubjectCode = subject.SubjectCode ?? "",
             TeacherId = teacher.StaffId,
             TeacherName = $"{teacher.FirstName} {teacher.LastName}",
-            EmployeeId = teacher.EmployeeId,
+            EmployeeId = teacher.EmployeeId ?? "",
             RoomNo = slot.RoomNo
         };
     }
@@ -399,7 +399,7 @@ public class TimetableService : ITimetableService
                     SubjectCode = s.Subject?.SubjectCode ?? "",
                     TeacherId = teacher.StaffId,
                     TeacherName = $"{teacher.FirstName} {teacher.LastName}",
-                    EmployeeId = teacher.EmployeeId,
+                    EmployeeId = teacher.EmployeeId ?? "",
                     RoomNo = s.RoomNo
                 }).ToList();
 
@@ -414,8 +414,8 @@ public class TimetableService : ITimetableService
         {
             TeacherId = teacher.StaffId,
             TeacherName = $"{teacher.FirstName} {teacher.LastName}",
-            EmployeeId = teacher.EmployeeId,
-            Department = teacher.Department,
+            EmployeeId = teacher.EmployeeId ?? "",
+            Department = teacher.Department ?? "",
             Days = daySchedules
         };
     }
@@ -464,9 +464,9 @@ public class TimetableService : ITimetableService
         return new StudentTimetableDto
         {
             ClassId = classId,
-            ClassName = classGrade.ClassName,
+            ClassName = classGrade.ClassName ?? "",
             SectionId = sectionId,
-            SectionName = section.SectionName,
+            SectionName = section.SectionName ?? "",
             AcademicYear = academicYear,
             Days = daySchedules
         };
@@ -536,8 +536,8 @@ public class TimetableService : ITimetableService
             result.Add(new ClassSubjectQuotaDto
             {
                 SubjectId = sub.SubjectId,
-                SubjectName = sub.SubjectName,
-                SubjectCode = sub.SubjectCode,
+                SubjectName = sub.SubjectName ?? "",
+                SubjectCode = sub.SubjectCode ?? "",
                 AssignedTeacherId = teacher?.StaffId ?? 0,
                 AssignedTeacherName = teacher != null ? $"{teacher.FirstName} {teacher.LastName} ({teacher.EmployeeId})" : "Unassigned Faculty",
                 AssignedPeriodsPerWeek = 0,

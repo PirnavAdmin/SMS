@@ -60,9 +60,9 @@ public class SchoolService : ISchoolService
 		return list.Select(s => new StaffDropdownDto
 		{
 			StaffId = s.StaffId,
-			EmployeeId = s.EmployeeId,
+			EmployeeId = s.EmployeeId ?? "",
 			FullName = $"{s.FirstName} {s.LastName}",
-			Designation = s.Designation
+			Designation = s.Designation ?? ""
 		}).ToList();
 	}
 
@@ -152,17 +152,17 @@ public class SchoolService : ISchoolService
 	private static StaffResponseDto MapToStaffResponseDto(Staff s) => new()
 	{
 		StaffId = s.StaffId,
-		EmployeeId = s.EmployeeId,
-		EmployeeCategory = s.EmployeeCategory,
-		FirstName = s.FirstName,
-		LastName = s.LastName,
-		Email = s.Email,
+		EmployeeId = s.EmployeeId ?? "",
+		EmployeeCategory = s.EmployeeCategory ?? "",
+		FirstName = s.FirstName ?? "",
+		LastName = s.LastName ?? "",
+		Email = s.Email ?? "",
 		Phone = s.Phone,
 		Gender = s.Gender,
 		DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-dd"),
 		ResidentialAddress = s.ResidentialAddress,
-		Designation = s.Designation,
-		Department = s.Department,
+		Designation = s.Designation ?? "",
+		Department = s.Department ?? "",
 		SystemRole = s.SystemRole,
 		JoiningDate = s.JoiningDate?.ToString("yyyy-MM-dd"),
 		Qualification = s.Qualification,
@@ -344,8 +344,8 @@ public class SchoolService : ISchoolService
 		return list.Select(s => new SubjectDropdownDto
 		{
 			SubjectId = s.SubjectId,
-			SubjectCode = s.SubjectCode,
-			SubjectName = s.SubjectName,
+			SubjectCode = s.SubjectCode ?? "",
+			SubjectName = s.SubjectName ?? "",
 			DepartmentId = s.DepartmentId,
 			DepartmentName = s.Department?.DepartmentName ?? string.Empty
 		}).ToList();
@@ -445,9 +445,9 @@ public class SchoolService : ISchoolService
 	private static SubjectDto MapToSubjectDto(Subject s) => new()
 	{
 		SubjectId = s.SubjectId,
-		SubjectCode = s.SubjectCode,
-		SubjectName = s.SubjectName,
-		CourseCode = s.CourseCode,
+		SubjectCode = s.SubjectCode ?? "",
+		SubjectName = s.SubjectName ?? "",
+		CourseCode = s.CourseCode ?? "",
 		DepartmentId = s.DepartmentId,
 		DepartmentName = s.Department?.DepartmentName ?? string.Empty,
 		DepartmentCode = s.Department?.DepartmentCode
@@ -553,7 +553,7 @@ public class SchoolService : ISchoolService
 	private static ClassGradeResponseDto MapToClassGradeResponseDto(ClassGrade c) => new()
 	{
 		ClassId = c.ClassId,
-		ClassName = c.ClassName,
+		ClassName = c.ClassName ?? "",
 		Sections = c.Sections.Select(s => new SectionResponseDto
 		{
 			SectionId = s.SectionId,
@@ -565,9 +565,9 @@ public class SchoolService : ISchoolService
 		CurriculumSubjects = c.CurriculumSubjects.Select(cs => new SubjectDto
 		{
 			SubjectId = cs.Subject.SubjectId,
-			SubjectCode = cs.Subject.SubjectCode,
-			SubjectName = cs.Subject.SubjectName,
-			CourseCode = cs.Subject.CourseCode
+			SubjectCode = cs.Subject.SubjectCode ?? "",
+			SubjectName = cs.Subject.SubjectName ?? "",
+			CourseCode = cs.Subject.CourseCode ?? ""
 		}).ToList()
 	};
 
@@ -575,6 +575,13 @@ public class SchoolService : ISchoolService
 	public async Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status)
 	{
 		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
+		foreach (var a in list)
+		{
+			if (a.TransportRequired == true || (!string.IsNullOrWhiteSpace(a.StudentType) && a.StudentType.Contains("Transport", StringComparison.OrdinalIgnoreCase)) || !string.IsNullOrWhiteSpace(a.BusRoute))
+			{
+				await SyncTransportAllocationAsync(a);
+			}
+		}
 		return list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 	}
 
@@ -605,9 +612,27 @@ public class SchoolService : ISchoolService
 				targetClassId = allClasses.First().ClassId;
 		}
 
+		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
+		var allApps = await _schoolRepository.GetAllApplicationsAsync(null, null, null, null);
+		int maxSeq = 1000;
+		if (allApps != null)
+		{
+			foreach (var a in allApps)
+			{
+				if (!string.IsNullOrWhiteSpace(a.RegistrationNo) && a.RegistrationNo.StartsWith("REG-"))
+				{
+					if (int.TryParse(a.RegistrationNo.Substring(4), out int seqNum) && seqNum > maxSeq)
+					{
+						maxSeq = seqNum;
+					}
+				}
+			}
+		}
+		string nextRegNo = $"REG-{maxSeq + 1}";
+
 		var app = new AdmissionApplication
 		{
-			RegistrationNo = $"REG-{new Random().Next(1000, 9999)}",
+			RegistrationNo = nextRegNo,
 			ProfilePhotoUrl = dto.ProfilePhotoUrl,
 			FirstName = dto.FirstName ?? "",
 			LastName = dto.LastName ?? "",
@@ -655,6 +680,7 @@ public class SchoolService : ISchoolService
 
 		await SyncToAdmissionsTableAsync(app);
 		await SyncHostelAllocationAsync(app);
+		await SyncTransportAllocationAsync(app);
 
 		return MapToAdmissionResponseDto(app);
 	}
@@ -707,6 +733,7 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
 		await SyncHostelAllocationAsync(app);
+		await SyncTransportAllocationAsync(app);
 
 		return MapToAdmissionResponseDto(app);
 	}
@@ -717,6 +744,7 @@ public class SchoolService : ISchoolService
 			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
 
 		app.Status = "Deleted";
+		app.IsDeleted = true;
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app, isDeleted: true);
 		return true;
@@ -768,7 +796,7 @@ public class SchoolService : ISchoolService
 			{
 				var newAdmission = new Admission
 				{
-					ApplicationNo = app.RegistrationNo,
+					ApplicationNo = app.RegistrationNo ?? "",
 					StudentName = $"{app.FirstName} {app.LastName}".Trim(),
 					Dob = app.DateOfBirth,
 					Gender = app.Gender,
@@ -779,7 +807,7 @@ public class SchoolService : ISchoolService
 					BranchId = 1,
 					ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1,
 					AdmissionType = "Regular",
-					Status = app.Status,
+					Status = app.Status ?? "",
 					IsDeleted = isDeleted,
 					CreatedDate = DateTime.UtcNow
 				};
@@ -795,7 +823,7 @@ public class SchoolService : ISchoolService
 				existing.BloodGroup = app.BloodGroup;
 				existing.Caste = app.Caste;
 				existing.ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1;
-				existing.Status = app.Status;
+				existing.Status = app.Status ?? "";
 				existing.IsDeleted = isDeleted;
 				existing.ModifiedDate = DateTime.UtcNow;
 			}
@@ -811,20 +839,20 @@ public class SchoolService : ISchoolService
 	private static AdmissionApplicationResponseDto MapToAdmissionResponseDto(AdmissionApplication a) => new()
 	{
 		Id = a.Id,
-		RegistrationNo = a.RegistrationNo,
+		RegistrationNo = a.RegistrationNo ?? "",
 		ProfilePhotoUrl = a.ProfilePhotoUrl,
-		FirstName = a.FirstName,
-		LastName = a.LastName,
+		FirstName = a.FirstName ?? "",
+		LastName = a.LastName ?? "",
 		DateOfBirth = a.DateOfBirth?.ToString("yyyy-MM-dd"),
-		Gender = a.Gender,
-		AppliedClassGrade = a.AppliedClass != null ? a.AppliedClass.ClassName : "N/A",
-		BranchName = a.BranchName,
+		Gender = a.Gender ?? "",
+		AppliedClassGrade = a.AppliedClass != null ? a.AppliedClass.ClassName ?? "N/A" : "N/A",
+		BranchName = a.BranchName ?? "",
 		BloodGroup = a.BloodGroup,
 		Religion = a.Religion,
 		Caste = a.Caste,
-		FatherName = a.FatherName,
+		FatherName = a.FatherName ?? "",
 		MotherName = a.MotherName,
-		FatherContact = a.FatherContact,
+		FatherContact = a.FatherContact ?? "",
 		MotherMobileNumber = a.MotherMobileNumber,
 		AlternateMobileNumber = a.AlternateMobileNumber,
 		ParentEmail = a.ParentEmail,
@@ -837,7 +865,7 @@ public class SchoolService : ISchoolService
 		PinCode = a.PinCode,
 		NumberOfSiblings = a.NumberOfSiblings ?? 0,
 		ExistingSiblingLookup = a.ExistingSiblingLookup,
-		StudentType = a.StudentType,
+		StudentType = a.StudentType ?? "",
 		TransportRequired = a.TransportRequired ?? false,
 		TransportType = a.TransportType,
 		BusRoute = a.BusRoute,
@@ -849,7 +877,7 @@ public class SchoolService : ISchoolService
 		AvailableBed = a.AvailableBed,
 		Scholarship = a.Scholarship,
 		Discount = a.Discount,
-		Status = a.Status
+		Status = a.Status ?? ""
 	};
 
 	private async Task SyncHostelAllocationAsync(AdmissionApplication app)
@@ -930,6 +958,134 @@ public class SchoolService : ISchoolService
 		catch (Exception ex)
 		{
 			Console.WriteLine($"Error syncing hostel allocation: {ex.Message}");
+		}
+	}
+
+	private async Task SyncTransportAllocationAsync(AdmissionApplication app)
+	{
+		try
+		{
+			bool isTransportReq = app.TransportRequired == true || 
+				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
+				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Equals("Day Scholar", StringComparison.OrdinalIgnoreCase) && app.TransportRequired == true) ||
+				!string.IsNullOrWhiteSpace(app.BusRoute) ||
+				!string.IsNullOrWhiteSpace(app.PickupPoint);
+
+			string admissionNo = !string.IsNullOrWhiteSpace(app.RegistrationNo) ? app.RegistrationNo : $"REG-{app.Id}";
+
+			if (isTransportReq)
+			{
+				string routeName = !string.IsNullOrWhiteSpace(app.BusRoute) ? app.BusRoute : "Main Route";
+				string pickupName = !string.IsNullOrWhiteSpace(app.PickupPoint) ? app.PickupPoint : "Main Stop";
+
+				// Get or create route
+				var route = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.TransportRoutes, r => r.RouteName == routeName && !r.IsDeleted);
+
+				if (route == null)
+				{
+					route = new TransportRoute { RouteName = routeName, RouteCode = "RT-" + new Random().Next(100, 999), Status = true, IsDeleted = false, CreatedAt = DateTime.UtcNow };
+					await _context.TransportRoutes.AddAsync(route);
+					await _context.SaveChangesAsync();
+				}
+
+				// Get or create pickup point linked to the route
+				var pickup = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.PickupPoints, p => p.PickupPointName == pickupName && p.RouteId == route.RouteId && !p.IsDeleted);
+
+				if (pickup == null)
+				{
+					pickup = new PickupPoint { PickupPointName = pickupName, RouteId = route.RouteId, Status = true, IsDeleted = false, CreatedAt = DateTime.UtcNow };
+					await _context.PickupPoints.AddAsync(pickup);
+					await _context.SaveChangesAsync();
+				}
+
+				// Get or create vehicle assignment linked to the route
+				var vehicleAssignment = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.TransportVehicleAssignments, va => va.RouteId == route.RouteId && !va.IsDeleted);
+
+				if (vehicleAssignment == null)
+				{
+					var vehicle = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+						_context.TransportVehicles, v => !v.IsDeleted)
+						?? new TransportVehicle { VehicleNumber = "BUS-" + new Random().Next(100, 999), Capacity = 40, Status = true };
+
+					if (vehicle.VehicleId <= 0)
+					{
+						await _context.TransportVehicles.AddAsync(vehicle);
+						await _context.SaveChangesAsync();
+					}
+
+					var driver = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+						_context.TransportDrivers, d => !d.IsDeleted)
+						?? new TransportDriver { DriverName = "Main Driver", MobileNumber = "9876543210", Status = true };
+
+					if (driver.DriverId <= 0)
+					{
+						await _context.TransportDrivers.AddAsync(driver);
+						await _context.SaveChangesAsync();
+					}
+
+					vehicleAssignment = new TransportVehicleAssignment
+					{
+						RouteId = route.RouteId,
+						VehicleId = vehicle.VehicleId,
+						DriverId = driver.DriverId,
+						Status = true,
+						IsDeleted = false,
+						EffectiveFrom = DateTime.UtcNow
+					};
+					await _context.TransportVehicleAssignments.AddAsync(vehicleAssignment);
+					await _context.SaveChangesAsync();
+				}
+
+				// Sync student assignment
+				var existingAssignment = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.StudentTransportAssignments, sta => sta.AdmissionNo == admissionNo && !sta.IsDeleted);
+
+				if (existingAssignment == null)
+				{
+					var assignment = new StudentTransportAssignment
+					{
+						AdmissionNo = admissionNo,
+						RouteId = route.RouteId,
+						PickupPointId = pickup.PickupPointId,
+						VehicleAssignmentId = vehicleAssignment.AssignmentId,
+						EffectiveFrom = DateTime.UtcNow,
+						TransportType = !string.IsNullOrWhiteSpace(app.TransportType) ? app.TransportType : "Both",
+						Status = true,
+						IsDeleted = false
+					};
+					await _context.StudentTransportAssignments.AddAsync(assignment);
+				}
+				else
+				{
+					existingAssignment.RouteId = route.RouteId;
+					existingAssignment.PickupPointId = pickup.PickupPointId;
+					existingAssignment.VehicleAssignmentId = vehicleAssignment.AssignmentId;
+					existingAssignment.TransportType = !string.IsNullOrWhiteSpace(app.TransportType) ? app.TransportType : "Both";
+					existingAssignment.Status = true;
+				}
+
+				await _context.SaveChangesAsync();
+			}
+			else
+			{
+				// Deactivate any active transport assignment if transport is no longer requested
+				var existingAssignment = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.StudentTransportAssignments, sta => sta.AdmissionNo == admissionNo && !sta.IsDeleted);
+
+				if (existingAssignment != null)
+				{
+					existingAssignment.Status = false;
+					existingAssignment.IsDeleted = true;
+					await _context.SaveChangesAsync();
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error syncing transport allocation: {ex.Message}");
 		}
 	}
 
@@ -1080,9 +1236,9 @@ public class SchoolService : ISchoolService
 		{
 			LeaveApplicationId = entity.LeaveApplicationId,
 			StaffId = staff.StaffId,
-			EmployeeId = staff.EmployeeId,
+			EmployeeId = staff.EmployeeId ?? "",
 			StaffName = $"{staff.FirstName} {staff.LastName}",
-			Designation = staff.Designation,
+			Designation = staff.Designation ?? "",
 			LeaveTypeName = leaveType?.Name ?? "Leave",
 			LeaveTypeCode = leaveType?.Code ?? "LV",
 			FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
@@ -1132,9 +1288,9 @@ public class SchoolService : ISchoolService
 			result.Add(new LeaveBalanceDto
 			{
 				StaffId = s.StaffId,
-				EmployeeId = s.EmployeeId,
+				EmployeeId = s.EmployeeId ?? "",
 				StaffName = $"{s.FirstName} {s.LastName}",
-				Designation = s.Designation,
+				Designation = s.Designation ?? "",
 				CasualLeaveBalance = 10,
 				SickLeaveBalance = 10,
 				EarnedLeaveBalance = 15,

@@ -653,6 +653,7 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("AdmissionApplications", "AllocatedBedId", "varchar(50) NULL");
         EnsureColumnExists("admissionapplications", "StudentType", "varchar(50) NOT NULL DEFAULT 'Day Scholar'");
         EnsureColumnExists("admissionapplications", "AllocatedBedId", "varchar(50) NULL");
+        EnsureColumnExists("admissionapplications", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
         try { context.Database.ExecuteSqlRaw("ALTER TABLE `student_bed_allocations` MODIFY COLUMN `StudentId` int NULL;"); } catch { }

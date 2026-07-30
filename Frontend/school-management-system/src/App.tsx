@@ -116,7 +116,7 @@ const MainLayout: React.FC = () => {
       case 'dashboard':
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'students':
-        return <StudentList />;
+        return <StudentList onNavigate={(mod) => setActiveModule(mod)} />;
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':
@@ -149,7 +149,7 @@ const MainLayout: React.FC = () => {
       case 'attendance':
         return userRole === 'parent' || userRole === 'student' ? <ParentAttendanceView /> : <AttendanceView />;
       case 'timetable':
-        return userRole === 'parent' || userRole === 'student' ? <ParentTimetableView /> : <TimetableView />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentTimetableView /> : <TimetableView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'examination':
         return userRole === 'parent' || userRole === 'student' ? <ParentExaminationView /> : <ExaminationView />;
       case 'homework':

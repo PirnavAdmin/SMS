@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'academics', label: 'Class Management', icon: Presentation },
         { id: 'subjects', label: 'Subject Management', icon: BookOpen },
         { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
-        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Student Timetable' : 'Class Timetable', icon: Clock },
+        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Student Timetable' : 'Time Table', icon: Clock },
         { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
         { id: 'homework', label: 'Homework', icon: FileText },
       ]

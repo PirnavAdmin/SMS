@@ -80,5 +80,7 @@ public class AdmissionApplication
 
     public string? Status { get; set; } = "Pending"; // "Pending", "Rejected", "Enrolled"
 
+    public bool IsDeleted { get; set; } = false;
+
     public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 }

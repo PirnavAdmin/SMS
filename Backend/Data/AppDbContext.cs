@@ -424,6 +424,8 @@ namespace SMS.Api.Data
         {
             modelBuilder.Entity<AdmissionApplication>(entity =>
             {
+                entity.ToTable("admissionapplications");
+                entity.HasQueryFilter(x => !x.IsDeleted);
                 entity.HasOne(x => x.AppliedClass)
                     .WithMany(classGrade =>
                         classGrade.AdmissionApplications)
@@ -693,7 +695,11 @@ namespace SMS.Api.Data
                             x => x.VehicleAssignmentId)
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    entity.HasIndex(x => x.StudentId);
+                    entity.Property(x => x.AdmissionNo)
+                        .HasMaxLength(50)
+                        .IsRequired();
+
+                    entity.HasIndex(x => x.AdmissionNo);
 
                     entity.HasIndex(x => x.RouteId);
 
@@ -703,7 +709,7 @@ namespace SMS.Api.Data
 
                     entity.HasIndex(x => new
                     {
-                        x.StudentId,
+                        x.AdmissionNo,
                         x.EffectiveFrom,
                         x.EffectiveTo
                     });

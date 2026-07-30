@@ -138,7 +138,7 @@ namespace Backend.Migrations
                     b.Property<string>("AlternateMobileNumber")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("AppliedClassId")
+                    b.Property<int?>("AppliedClassId")
                         .HasColumnType("int");
 
                     b.Property<string>("AreaLocality")
@@ -151,7 +151,6 @@ namespace Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("BranchName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("BusRoute")
@@ -163,7 +162,7 @@ namespace Backend.Migrations
                     b.Property<string>("City")
                         .HasColumnType("longtext");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("DateOfBirth")
@@ -182,22 +181,18 @@ namespace Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("FatherContact")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("FatherName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("FirstName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("FloorLevel")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Gender")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("HostelBlock")
@@ -209,8 +204,10 @@ namespace Backend.Migrations
                     b.Property<string>("HouseNo")
                         .HasColumnType("longtext");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("LastName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("MotherMobileNumber")
@@ -219,7 +216,7 @@ namespace Backend.Migrations
                     b.Property<string>("MotherName")
                         .HasColumnType("longtext");
 
-                    b.Property<int>("NumberOfSiblings")
+                    b.Property<int?>("NumberOfSiblings")
                         .HasColumnType("int");
 
                     b.Property<string>("ParentEmail")
@@ -235,7 +232,6 @@ namespace Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("RegistrationNo")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Religion")
@@ -248,17 +244,15 @@ namespace Backend.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<string>("Street")
                         .HasColumnType("longtext");
 
                     b.Property<string>("StudentType")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<bool>("TransportRequired")
+                    b.Property<bool?>("TransportRequired")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("TransportType")
@@ -268,7 +262,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("AppliedClassId");
 
-                    b.ToTable("AdmissionApplications");
+                    b.ToTable("admissionapplications", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Branch", b =>
@@ -358,7 +352,6 @@ namespace Backend.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ClassId"));
 
                     b.Property<string>("ClassName")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.HasKey("ClassId");
@@ -915,15 +908,14 @@ namespace Backend.Migrations
                     b.Property<int>("AllocationId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("CurfewStatus")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<DateTime>("Date")
+                    b.Property<DateTime?>("Date")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Remarks")
@@ -953,7 +945,7 @@ namespace Backend.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Email")
@@ -961,17 +953,14 @@ namespace Backend.Migrations
                         .HasColumnType("varchar(150)");
 
                     b.Property<string>("HostelCode")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
                     b.Property<string>("HostelName")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
                     b.Property<string>("HostelType")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
@@ -980,7 +969,6 @@ namespace Backend.Migrations
                         .HasColumnType("varchar(20)");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
@@ -1005,7 +993,7 @@ namespace Backend.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("EmailAddress")
@@ -1016,7 +1004,6 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("MobileNumber")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
@@ -1024,7 +1011,6 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("WardenName")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
@@ -1553,11 +1539,10 @@ namespace Backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("RoomId"));
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("FloorLevel")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
@@ -1565,7 +1550,6 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("RoomNumber")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
@@ -1573,7 +1557,6 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
@@ -1595,14 +1578,13 @@ namespace Backend.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("RoomTypeId"));
 
                     b.Property<string>("AcType")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
                     b.Property<int>("BedCapacity")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
@@ -1610,12 +1592,10 @@ namespace Backend.Migrations
                         .HasColumnType("varchar(500)");
 
                     b.Property<string>("RoomTypeSpecification")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
@@ -1872,7 +1852,7 @@ namespace Backend.Migrations
                     b.Property<string>("IfscCode")
                         .HasColumnType("longtext");
 
-                    b.Property<bool>("IsActive")
+                    b.Property<bool?>("IsActive")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime?>("JoiningDate")
@@ -1881,7 +1861,7 @@ namespace Backend.Migrations
                     b.Property<string>("LastName")
                         .HasColumnType("longtext");
 
-                    b.Property<decimal>("MonthlySalary")
+                    b.Property<decimal?>("MonthlySalary")
                         .HasColumnType("decimal(65,30)");
 
                     b.Property<string>("Phone")
@@ -1994,21 +1974,19 @@ namespace Backend.Migrations
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("AllocationId"));
 
                     b.Property<string>("BedNumber")
-                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
-                    b.Property<DateTime>("CreatedAt")
+                    b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<int>("HostelId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("JoiningDate")
+                    b.Property<DateTime?>("JoiningDate")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("RegistrationNo")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
 
@@ -2016,7 +1994,6 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
@@ -2024,7 +2001,6 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("StudentName")
-                        .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("varchar(150)");
 
@@ -2048,6 +2024,11 @@ namespace Backend.Migrations
                         .HasColumnType("bigint");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("StudentTransportAssignmentId"));
+
+                    b.Property<string>("AdmissionNo")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<DateTime>("EffectiveFrom")
                         .HasColumnType("datetime(6)");
@@ -2075,9 +2056,6 @@ namespace Backend.Migrations
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(true);
 
-                    b.Property<long>("StudentId")
-                        .HasColumnType("bigint");
-
                     b.Property<string>("TransportType")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -2088,15 +2066,15 @@ namespace Backend.Migrations
 
                     b.HasKey("StudentTransportAssignmentId");
 
+                    b.HasIndex("AdmissionNo");
+
                     b.HasIndex("PickupPointId");
 
                     b.HasIndex("RouteId");
 
-                    b.HasIndex("StudentId");
-
                     b.HasIndex("VehicleAssignmentId");
 
-                    b.HasIndex("StudentId", "EffectiveFrom", "EffectiveTo");
+                    b.HasIndex("AdmissionNo", "EffectiveFrom", "EffectiveTo");
 
                     b.HasIndex("RouteId", "PickupPointId", "VehicleAssignmentId", "Status", "IsDeleted")
                         .HasDatabaseName("IX_STA_Route_Pickup_Vehicle");
@@ -2735,8 +2713,7 @@ namespace Backend.Migrations
                     b.HasOne("SMS.Api.Models.ClassGrade", "AppliedClass")
                         .WithMany("AdmissionApplications")
                         .HasForeignKey("AppliedClassId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AppliedClass");
                 });

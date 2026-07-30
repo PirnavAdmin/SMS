@@ -276,7 +276,7 @@ public class HostelService : IHostelService
         else if (!string.IsNullOrWhiteSpace(dto.EmployeeId))
         {
             var staffList = await _schoolRepo.GetAllStaffAsync(dto.EmployeeId.Trim(), null);
-            staff = staffList.FirstOrDefault(s => s.EmployeeId.Equals(dto.EmployeeId.Trim(), StringComparison.OrdinalIgnoreCase));
+            staff = staffList.FirstOrDefault(s => s.EmployeeId != null && s.EmployeeId.Equals(dto.EmployeeId.Trim(), StringComparison.OrdinalIgnoreCase));
         }
 
         string wardenName = dto.WardenName?.Trim() ?? string.Empty;
@@ -337,11 +337,11 @@ public class HostelService : IHostelService
         return staffList.Where(s => s.IsActive == true).Select(s => new StaffWardenCandidateDto
         {
             StaffId = s.StaffId,
-            EmployeeId = s.EmployeeId,
+            EmployeeId = s.EmployeeId ?? "",
             StaffName = $"{s.FirstName} {s.LastName}".Trim(),
-            Designation = s.Designation,
-            Department = s.Department,
-            Email = s.Email,
+            Designation = s.Designation ?? "",
+            Department = s.Department ?? "",
+            Email = s.Email ?? "",
             Phone = s.Phone ?? string.Empty
         }).ToList();
     }
@@ -517,7 +517,7 @@ public class HostelService : IHostelService
                 RoomNumber = att.Allocation?.Room?.RoomNumber ?? "N/A",
                 BedNumber = att.Allocation?.BedNumber ?? "N/A",
                 Date = att.Date ?? DateTime.UtcNow,
-                CurfewStatus = att.CurfewStatus,
+                CurfewStatus = att.CurfewStatus ?? "Present",
                 Remarks = att.Remarks
             }).ToList();
         }
@@ -526,7 +526,7 @@ public class HostelService : IHostelService
         var allocations = await _hostelRepo.GetAllBedAllocationsAsync(hostelId, roomId, null);
         if (!string.IsNullOrWhiteSpace(floor) && !floor.Equals("All Floors", StringComparison.OrdinalIgnoreCase))
         {
-            allocations = allocations.Where(a => a.Room != null && a.Room.FloorLevel.ToLower() == floor.ToLower()).ToList();
+            allocations = allocations.Where(a => a.Room != null && a.Room.FloorLevel != null && a.Room.FloorLevel.ToLower() == floor.ToLower()).ToList();
         }
 
         return allocations.Where(a => a.Status == "Active").Select(a => new HostelAttendanceDto
@@ -538,7 +538,7 @@ public class HostelService : IHostelService
             AdmissionNo = a.Student?.RegistrationNo ?? "N/A",
             HostelName = a.Hostel?.HostelName ?? "N/A",
             RoomNumber = a.Room?.RoomNumber ?? "N/A",
-            BedNumber = a.BedNumber,
+            BedNumber = a.BedNumber ?? "",
             Date = date,
             CurfewStatus = "Present",
             Remarks = null
@@ -587,10 +587,10 @@ public class HostelService : IHostelService
         var allocations = await _hostelRepo.GetAllBedAllocationsAsync(filter.HostelId, filter.RoomId, filter.Search);
 
         if (!string.IsNullOrWhiteSpace(filter.FloorLevel) && !filter.FloorLevel.Equals("All Floors", StringComparison.OrdinalIgnoreCase))
-            allocations = allocations.Where(a => a.Room != null && a.Room.FloorLevel.ToLower() == filter.FloorLevel.ToLower()).ToList();
+            allocations = allocations.Where(a => a.Room != null && a.Room.FloorLevel != null && a.Room.FloorLevel.ToLower() == filter.FloorLevel.ToLower()).ToList();
 
         if (!string.IsNullOrWhiteSpace(filter.Status) && !filter.Status.Equals("All States", StringComparison.OrdinalIgnoreCase) && !filter.Status.Equals("All Status", StringComparison.OrdinalIgnoreCase))
-            allocations = allocations.Where(a => a.Status.ToLower() == filter.Status.ToLower()).ToList();
+            allocations = allocations.Where(a => a.Status != null && a.Status.ToLower() == filter.Status.ToLower()).ToList();
 
         return allocations.Select(a => new HostelReportItemDto
         {
@@ -600,8 +600,8 @@ public class HostelService : IHostelService
             BlockCode = a.Hostel?.HostelCode ?? "N/A",
             FloorLevel = a.Room?.FloorLevel ?? "N/A",
             RoomNumber = a.Room?.RoomNumber ?? "N/A",
-            BedNumber = a.BedNumber,
-            Status = a.Status
+            BedNumber = a.BedNumber ?? "",
+            Status = a.Status ?? ""
         }).ToList();
     }
 
@@ -614,14 +614,14 @@ public class HostelService : IHostelService
         return new HostelBlockDto
         {
             HostelId = b.HostelId,
-            HostelName = b.HostelName,
-            HostelCode = b.HostelCode,
-            HostelType = b.HostelType,
+            HostelName = b.HostelName ?? "",
+            HostelCode = b.HostelCode ?? "",
+            HostelType = b.HostelType ?? "",
             WardenName = b.WardenName,
             PrimaryMobileNumber = b.PrimaryMobileNumber,
             AlternateMobileNumber = b.AlternateMobileNumber,
             Email = b.Email,
-            Status = b.Status,
+            Status = b.Status ?? "",
             Address = b.Address,
             CreatedAt = b.CreatedAt ?? DateTime.UtcNow,
             TotalRooms = b.Rooms?.Count ?? 0,
@@ -633,10 +633,10 @@ public class HostelService : IHostelService
     private static RoomTypeConfigDto MapToRoomTypeConfigDto(RoomTypeConfig r) => new()
     {
         RoomTypeId = r.RoomTypeId,
-        RoomTypeSpecification = r.RoomTypeSpecification,
+        RoomTypeSpecification = r.RoomTypeSpecification ?? "",
         BedCapacity = r.BedCapacity,
-        AcType = r.AcType,
-        Status = r.Status,
+        AcType = r.AcType ?? "",
+        Status = r.Status ?? "",
         Description = r.Description,
         CreatedAt = r.CreatedAt ?? DateTime.UtcNow
     };
@@ -656,9 +656,9 @@ public class HostelService : IHostelService
             RoomTypeId = r.RoomTypeId,
             RoomTypeSpecification = r.RoomType?.RoomTypeSpecification ?? string.Empty,
             BedCapacity = capacity,
-            FloorLevel = r.FloorLevel,
-            RoomNumber = r.RoomNumber,
-            Status = r.Status,
+            FloorLevel = r.FloorLevel ?? "",
+            RoomNumber = r.RoomNumber ?? "",
+            Status = r.Status ?? "",
             OccupiedBeds = occupied,
             VacantBeds = vacant,
             CreatedAt = r.CreatedAt ?? DateTime.UtcNow
@@ -672,7 +672,7 @@ public class HostelService : IHostelService
         HostelName = w.Hostel?.HostelName ?? string.Empty,
         StaffId = w.StaffId,
         EmployeeId = w.Staff?.EmployeeId,
-        WardenName = w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}".Trim() : w.WardenName,
+        WardenName = w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}".Trim() : (w.WardenName ?? ""),
         MobileNumber = !string.IsNullOrWhiteSpace(w.MobileNumber) ? w.MobileNumber : (w.Staff?.Phone ?? string.Empty),
         AlternateMobile = w.AlternateMobile,
         EmailAddress = !string.IsNullOrWhiteSpace(w.EmailAddress) ? w.EmailAddress : (w.Staff?.Email ?? string.Empty),
@@ -691,9 +691,9 @@ public class HostelService : IHostelService
         RoomId = a.RoomId,
         RoomNumber = a.Room?.RoomNumber ?? string.Empty,
         FloorLevel = a.Room?.FloorLevel ?? string.Empty,
-        BedNumber = a.BedNumber,
+        BedNumber = a.BedNumber ?? "",
         JoiningDate = a.JoiningDate ?? DateTime.UtcNow,
-        Status = a.Status,
+        Status = a.Status ?? "",
         CurfewStatus = a.AttendanceRecords?.OrderByDescending(att => att.Date).FirstOrDefault()?.CurfewStatus ?? "Present",
         CreatedAt = a.CreatedAt ?? DateTime.UtcNow
     };

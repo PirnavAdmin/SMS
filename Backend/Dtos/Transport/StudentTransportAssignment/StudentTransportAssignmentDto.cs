@@ -3,7 +3,7 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
     public class StudentTransportAssignmentDto
     {
         public long StudentTransportAssignmentId { get; set; }
-        public long StudentId { get; set; }
+        public string AdmissionNo { get; set; } = string.Empty;
 
         public long RouteId { get; set; }
         public string? RouteName { get; set; }

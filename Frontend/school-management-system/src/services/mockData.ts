@@ -561,7 +561,39 @@ export const initialExamMarks: ExamMark[] = [
 ];
 
 export const initialTimetable: TimetableSlot[] = [
-  { id: "TT-01", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101" }
+  // Jonathan Miller Schedule (Math)
+  { id: "TT-01", day: "Monday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-02", day: "Monday", timeSlot: "10:15 AM - 11:00 AM", className: "Class 11", section: "B", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 104", startTime: "10:15", endTime: "11:00" },
+  
+  { id: "TT-03", day: "Tuesday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-04", day: "Tuesday", timeSlot: "01:15 PM - 02:00 PM", className: "Class 11", section: "B", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 104", startTime: "13:15", endTime: "14:00" },
+  
+  { id: "TT-05", day: "Wednesday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-06", day: "Wednesday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 11", section: "B", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 104", startTime: "11:00", endTime: "11:45" },
+  
+  { id: "TT-07", day: "Thursday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-08", day: "Thursday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 11", section: "B", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 104", startTime: "11:00", endTime: "11:45" },
+  { id: "TT-09", day: "Thursday", timeSlot: "01:15 PM - 02:00 PM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "13:15", endTime: "14:00" },
+  
+  { id: "TT-10", day: "Friday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 10", section: "A", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 101", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-11", day: "Friday", timeSlot: "10:15 AM - 11:00 AM", className: "Class 11", section: "B", subject: "Mathematics", teacherName: "Jonathan Miller", roomNo: "Room 104", startTime: "10:15", endTime: "11:00" },
+
+  // Sarah Jenkins Schedule (Physics)
+  { id: "TT-12", day: "Monday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-13", day: "Monday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "11:00", endTime: "11:45" },
+  
+  { id: "TT-14", day: "Tuesday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-15", day: "Tuesday", timeSlot: "12:30 PM - 01:15 PM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "12:30", endTime: "13:15" },
+  
+  { id: "TT-16", day: "Wednesday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-17", day: "Wednesday", timeSlot: "01:15 PM - 02:00 PM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "13:15", endTime: "14:00" },
+  
+  { id: "TT-18", day: "Thursday", timeSlot: "08:30 AM - 09:15 AM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "08:30", endTime: "09:15" },
+  { id: "TT-19", day: "Thursday", timeSlot: "10:15 AM - 11:00 AM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "10:15", endTime: "11:00" },
+  { id: "TT-20", day: "Thursday", timeSlot: "12:30 PM - 01:15 PM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "12:30", endTime: "13:15" },
+  
+  { id: "TT-21", day: "Friday", timeSlot: "09:15 AM - 10:00 AM", className: "Class 9", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 202", startTime: "09:15", endTime: "10:00" },
+  { id: "TT-22", day: "Friday", timeSlot: "11:00 AM - 11:45 AM", className: "Class 12", section: "A", subject: "Physics", teacherName: "Sarah Jenkins", roomNo: "Room 303", startTime: "11:00", endTime: "11:45" }
 ];
 
 export const initialHomework: Homework[] = [
@@ -638,7 +670,9 @@ export const initialInventory: InventoryItem[] = [
 ];
 
 export const initialAnnouncements: Announcement[] = [
-  { id: "ANC-01", title: "Annual Sports Meet Registration Open", content: "Submit entries to PE department before August 5th.", targetAudience: "All", date: "2026-07-20", author: "PE Department", category: "Sports" }
+  { id: "ANC-01", title: "Annual Sports Meet Registration Open", content: "Submit entries to PE department before August 5th.", targetAudience: "All", date: "2026-07-20", author: "PE Department", category: "Sports" },
+  { id: "ANC-02", title: "Mid-Term Review & Pedagogical Standards Alignment", content: "All teachers are requested to update their lesson plans and student progress reports by this Friday. We will have a short alignment briefing during department meetings.", targetAudience: "Staff", date: "2026-07-30", author: "Dr. Eleanor Vance (Head Principal)", category: "Academic" },
+  { id: "ANC-03", title: "All-School Morning Assembly & Leadership Talk", content: "A special morning assembly will be held tomorrow at 08:30 AM in the Main Campus Auditorium. Attendance is mandatory for all students and faculty members. Dr. Eleanor Vance will present the new student council members.", targetAudience: "All", date: "2026-07-30", author: "Dr. Eleanor Vance", category: "Assembly" }
 ];
 
 export const initialHolidays: Holiday[] = [
@@ -1574,6 +1608,43 @@ export const initialMeetings: SchoolMeeting[] = [
     organizerName: "Dr. Eleanor Vance",
     organizerRole: "Principal",
     createdAt: "2026-07-26"
+  },
+  {
+    id: "MTG-103",
+    title: "Science & Mathematics Joint Curriculum Sync",
+    description: "Joint alignment meeting between Science and Mathematics departments to discuss interdisciplinary STEM topics and laboratory schedules.",
+    academicYear: "2025-2026",
+    branch: "Main Campus",
+    meetingAudience: "Group",
+    targetGroupDescription: "Science & Mathematics Faculty",
+    participants: [
+      {
+        id: "STF-002",
+        name: "Jonathan Miller",
+        type: "Teaching Staff",
+        details: "EMP002 • Mathematics • HOD",
+        email: "jonathan.m@school.edu"
+      },
+      {
+        id: "STF-003",
+        name: "Sarah Jenkins",
+        type: "Teaching Staff",
+        details: "EMP003 • Science • HOD",
+        email: "sarah.j@school.edu"
+      }
+    ],
+    meetingMode: "In-Person",
+    building: "Main Administration Block",
+    floor: "1st Floor",
+    roomVenue: "Principal Conference Hall",
+    roomCapacity: 20,
+    meetingDate: "2026-07-30",
+    startTime: "14:30",
+    endTime: "15:30",
+    status: "Scheduled",
+    organizerName: "Dr. Eleanor Vance",
+    organizerRole: "Principal",
+    createdAt: "2026-07-28"
   }
 ];
 

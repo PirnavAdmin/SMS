@@ -23,10 +23,10 @@ public class SchoolRepository : ISchoolRepository
 		var query = _context.Staff.AsNoTracking().AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
-			query = query.Where(s => s.Department.ToLower() == department.ToLower());
+			query = query.Where(s => s.Department != null && s.Department.ToLower() == department.ToLower());
 
 		if (!string.IsNullOrWhiteSpace(search))
-			query = query.Where(s => s.FirstName.Contains(search) || s.LastName.Contains(search) || s.EmployeeId.Contains(search));
+			query = query.Where(s => (s.FirstName != null && s.FirstName.Contains(search)) || (s.LastName != null && s.LastName.Contains(search)) || (s.EmployeeId != null && s.EmployeeId.Contains(search)));
 
 		return await query.ToListAsync();
 	}
@@ -38,7 +38,7 @@ public class SchoolRepository : ISchoolRepository
 		var query = _context.Staff.AsNoTracking().Where(s => s.IsActive == true).AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(search))
-			query = query.Where(s => s.FirstName.Contains(search) || s.LastName.Contains(search) || s.EmployeeId.Contains(search));
+			query = query.Where(s => (s.FirstName != null && s.FirstName.Contains(search)) || (s.LastName != null && s.LastName.Contains(search)) || (s.EmployeeId != null && s.EmployeeId.Contains(search)));
 
 		return await query.ToListAsync();
 	}
@@ -135,10 +135,10 @@ public class SchoolRepository : ISchoolRepository
 
 		if (!string.IsNullOrWhiteSpace(search))
 		{
-			query = query.Where(s => s.SubjectName.Contains(search) || 
-			                         s.SubjectCode.Contains(search) || 
-			                         s.CourseCode.Contains(search) || 
-			                         (s.Department != null && s.Department.DepartmentName.Contains(search)));
+			query = query.Where(s => (s.SubjectName != null && s.SubjectName.Contains(search)) || 
+			                         (s.SubjectCode != null && s.SubjectCode.Contains(search)) || 
+			                         (s.CourseCode != null && s.CourseCode.Contains(search)) || 
+			                         (s.Department != null && s.Department.DepartmentName != null && s.Department.DepartmentName.Contains(search)));
 		}
 
 		return await query.OrderBy(s => s.SubjectName).ToListAsync();
@@ -180,16 +180,16 @@ public class SchoolRepository : ISchoolRepository
 			.AsQueryable();
 
 		if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
-			query = query.Where(a => a.BranchName.ToLower() == branch.ToLower());
+			query = query.Where(a => a.BranchName != null && a.BranchName.ToLower() == branch.ToLower());
 
 		if (classId.HasValue && classId.Value > 0)
 			query = query.Where(a => a.AppliedClassId == classId.Value);
 
 		if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All Status", System.StringComparison.OrdinalIgnoreCase))
-			query = query.Where(a => a.Status.ToLower() == status.ToLower());
+			query = query.Where(a => a.Status != null && a.Status.ToLower() == status.ToLower());
 
 		if (!string.IsNullOrWhiteSpace(search))
-			query = query.Where(a => a.FirstName.Contains(search) || a.LastName.Contains(search) || a.RegistrationNo.Contains(search) || a.FatherName.Contains(search));
+			query = query.Where(a => (a.FirstName != null && a.FirstName.Contains(search)) || (a.LastName != null && a.LastName.Contains(search)) || (a.RegistrationNo != null && a.RegistrationNo.Contains(search)) || (a.FatherName != null && a.FatherName.Contains(search)));
 
 		return await query.ToListAsync();
 	}
@@ -206,7 +206,8 @@ public class SchoolRepository : ISchoolRepository
 	{
 		return await _context.Staff
 			.AsNoTracking()
-			.Select(s => s.EmployeeId)
+			.Where(s => s.EmployeeId != null)
+			.Select(s => s.EmployeeId!)
 			.ToListAsync();
 	}
 

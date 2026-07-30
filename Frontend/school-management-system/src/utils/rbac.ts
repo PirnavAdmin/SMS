@@ -68,8 +68,12 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ]
 };
 
-export const hasModuleAccess = (role: Role, moduleId: ModuleId | string): boolean => {
+export const hasModuleAccess = (role: any, moduleId: ModuleId | string): boolean => {
   const baseModule = moduleId.split('-')[0] as ModuleId;
-  const allowedModules = ROLE_PERMISSIONS[role] || [];
+  let lookupRole = role;
+  if (role === 'Class Teacher') {
+    lookupRole = 'Teacher';
+  }
+  const allowedModules = ROLE_PERMISSIONS[lookupRole as Role] || [];
   return allowedModules.includes(baseModule) || allowedModules.includes(moduleId as ModuleId);
 };

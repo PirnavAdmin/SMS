@@ -175,7 +175,7 @@ export const EventsView: React.FC = () => {
         venue: m.roomVenue || m.building || 'Conference Hall',
         organizer: m.organizerName,
         description: m.description || m.targetGroupDescription || 'Official School Meeting',
-        color: isPTM ? 'orange' : 'sky',
+        color: isPTM ? 'orange' : 'blue',
         sourceModule: 'Meeting Management',
         branch: m.branch,
         rawItem: m

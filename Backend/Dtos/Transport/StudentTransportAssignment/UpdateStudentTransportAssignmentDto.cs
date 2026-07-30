@@ -7,9 +7,8 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
 {
     public class UpdateStudentTransportAssignmentDto
     {
-        [JsonPropertyName("studentId")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
-        public long StudentId { get; set; } = 1;
+        [JsonPropertyName("admissionNo")]
+        public string AdmissionNo { get; set; } = string.Empty;
 
         [JsonPropertyName("routeId")]
         [JsonConverter(typeof(FlexibleLongConverter))]

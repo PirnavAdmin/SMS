@@ -27,7 +27,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   if (userRole === 'student') return <StudentDashboardView />;
   if (userRole === 'parent') return <ParentDashboardView />;
-  if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView />;
+  if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView onNavigate={onNavigate} />;
 
   const totalStudents = students.length;
   const totalStaff = staff.length;

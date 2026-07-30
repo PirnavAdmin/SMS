@@ -91,11 +91,15 @@ namespace SMS.Api.Services.Implementations
                 if (activeVa != null) dto.VehicleAssignmentId = activeVa.AssignmentId;
             }
 
-            // Auto-resolve student ID if <= 0
-            if (dto.StudentId <= 0) dto.StudentId = 1;
+            // Auto-resolve AdmissionNo if empty
+            if (string.IsNullOrWhiteSpace(dto.AdmissionNo))
+            {
+                var latestApp = await _context.AdmissionApplications.AsNoTracking().OrderByDescending(a => a.Id).FirstOrDefaultAsync();
+                dto.AdmissionNo = latestApp?.RegistrationNo ?? "REG-1001";
+            }
 
             await ValidateAssignmentAsync(
-                dto.StudentId,
+                dto.AdmissionNo,
                 dto.RouteId,
                 dto.PickupPointId,
                 dto.VehicleAssignmentId,
@@ -103,9 +107,9 @@ namespace SMS.Api.Services.Implementations
                 dto.EffectiveTo,
                 dto.TransportType);
 
-            // Deactivate prior active assignments for this student
+            // Deactivate prior active assignments for this admission number
             var priorAssignments = await _context.StudentTransportAssignments
-                .Where(x => x.StudentId == dto.StudentId && x.Status && !x.IsDeleted)
+                .Where(x => x.AdmissionNo == dto.AdmissionNo && x.Status && !x.IsDeleted)
                 .ToListAsync();
             foreach (var prior in priorAssignments)
             {
@@ -136,8 +140,13 @@ namespace SMS.Api.Services.Implementations
 
             NormalizeDto(dto);
 
+            if (string.IsNullOrWhiteSpace(dto.AdmissionNo))
+            {
+                dto.AdmissionNo = existing.AdmissionNo;
+            }
+
             await ValidateAssignmentAsync(
-                dto.StudentId,
+                dto.AdmissionNo,
                 dto.RouteId,
                 dto.PickupPointId,
                 dto.VehicleAssignmentId,
@@ -147,7 +156,7 @@ namespace SMS.Api.Services.Implementations
 
             var overlapExists =
                 await _repository.HasOverlappingAssignmentAsync(
-                    dto.StudentId,
+                    dto.AdmissionNo,
                     dto.EffectiveFrom,
                     dto.EffectiveTo,
                     studentTransportAssignmentId);
@@ -155,7 +164,7 @@ namespace SMS.Api.Services.Implementations
             if (overlapExists)
             {
                 throw new InvalidOperationException(
-                    "The selected student already has another active transport assignment during the specified date range.");
+                    "The selected student/admission already has another active transport assignment during the specified date range.");
             }
 
             return await _repository.UpdateAsync(
@@ -193,7 +202,7 @@ namespace SMS.Api.Services.Implementations
         // Validate Assignment
         // ---------------------------------------------------------
         private async Task ValidateAssignmentAsync(
-            long studentId,
+            string admissionNo,
             long routeId,
             long pickupPointId,
             long vehicleAssignmentId,
@@ -201,8 +210,7 @@ namespace SMS.Api.Services.Implementations
             DateTime? effectiveTo,
             string transportType)
         {
-            // Student validation
-            if (studentId <= 0) studentId = 1;
+            if (string.IsNullOrWhiteSpace(admissionNo)) admissionNo = "REG-1001";
 
             // Route validation
             if (routeId <= 0) routeId = 1;

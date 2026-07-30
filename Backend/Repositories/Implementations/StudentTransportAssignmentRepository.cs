@@ -25,7 +25,7 @@ namespace SMS.Api.Repositories.Implementations
         {
             var query = _context.StudentTransportAssignments
                 .AsNoTracking()
-                .Where(x => !x.IsDeleted)
+                .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.AdmissionNo))
                 .AsQueryable();
 
             // Search
@@ -34,7 +34,7 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim();
 
                 query = query.Where(x =>
-                    x.StudentId.ToString().Contains(search) ||
+                    x.AdmissionNo.Contains(search) ||
                     (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.Contains(search)) ||
                     (x.PickupPoint != null && x.PickupPoint.PickupPointName != null && x.PickupPoint.PickupPointName.Contains(search)) ||
                     (x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null && x.VehicleAssignment.Vehicle.VehicleNumber != null && x.VehicleAssignment.Vehicle.VehicleNumber.Contains(search)) ||
@@ -42,12 +42,11 @@ namespace SMS.Api.Repositories.Implementations
                     (x.TransportType != null && x.TransportType.Contains(search)));
             }
 
-            // Student filter
-            if (filter.StudentId.HasValue &&
-                filter.StudentId.Value > 0)
+            // AdmissionNo filter
+            if (!string.IsNullOrWhiteSpace(filter.AdmissionNo))
             {
                 query = query.Where(x =>
-                    x.StudentId == filter.StudentId.Value);
+                    x.AdmissionNo == filter.AdmissionNo.Trim());
             }
 
             // Route filter
@@ -106,7 +105,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
-                    StudentId = x.StudentId,
+                    AdmissionNo = x.AdmissionNo,
 
                     RouteId = x.RouteId,
                     RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
@@ -159,7 +158,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
-                    StudentId = x.StudentId,
+                    AdmissionNo = x.AdmissionNo,
 
                     RouteId = x.RouteId,
                     RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
@@ -197,7 +196,7 @@ namespace SMS.Api.Repositories.Implementations
         {
             var entity = new StudentTransportAssignment
             {
-                StudentId = dto.StudentId,
+                AdmissionNo = dto.AdmissionNo ?? string.Empty,
                 RouteId = dto.RouteId,
                 PickupPointId = dto.PickupPointId,
                 VehicleAssignmentId = dto.VehicleAssignmentId,
@@ -239,7 +238,7 @@ namespace SMS.Api.Repositories.Implementations
             if (entity == null)
                 return false;
 
-            entity.StudentId = dto.StudentId;
+            entity.AdmissionNo = dto.AdmissionNo ?? string.Empty;
             entity.RouteId = dto.RouteId;
             entity.PickupPointId = dto.PickupPointId;
             entity.VehicleAssignmentId =
@@ -298,13 +297,13 @@ namespace SMS.Api.Repositories.Implementations
                 .Where(x =>
                     !x.IsDeleted &&
                     x.Status)
-                .OrderBy(x => x.StudentId)
+                .OrderBy(x => x.AdmissionNo)
                 .Select(x =>
                     new StudentTransportAssignmentLookupDto
                     {
                         StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
-                        StudentId = x.StudentId,
+                        AdmissionNo = x.AdmissionNo,
 
                         RouteId = x.RouteId,
                         RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
@@ -318,7 +317,7 @@ namespace SMS.Api.Repositories.Implementations
 
                         DriverName = x.VehicleAssignment != null && x.VehicleAssignment.Driver != null ? x.VehicleAssignment.Driver.DriverName : "Main Driver",
 
-                        DisplayName = x.StudentId + " - " + (x.Route != null ? x.Route.RouteName : "Main Route") + " - " + (x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop")
+                        DisplayName = x.AdmissionNo + " - " + (x.Route != null ? x.Route.RouteName : "Main Route") + " - " + (x.PickupPoint != null ? x.PickupPoint.PickupPointName : "Main Stop")
                     })
                 .ToListAsync();
         }
@@ -327,7 +326,7 @@ namespace SMS.Api.Repositories.Implementations
         // Check Student Assignment Date Overlap
         // ---------------------------------------------------------
         public async Task<bool> HasOverlappingAssignmentAsync(
-            long studentId,
+            string admissionNo,
             DateTime effectiveFrom,
             DateTime? effectiveTo,
             long? excludeAssignmentId = null)
@@ -340,7 +339,7 @@ namespace SMS.Api.Repositories.Implementations
             var query = _context.StudentTransportAssignments
                 .AsNoTracking()
                 .Where(x =>
-                    x.StudentId == studentId &&
+                    x.AdmissionNo == admissionNo &&
                     !x.IsDeleted &&
                     x.Status);
 
@@ -374,9 +373,9 @@ namespace SMS.Api.Repositories.Implementations
 
             return sortBy?.Trim().ToLowerInvariant() switch
             {
-                "studentid" => descending
-                    ? query.OrderByDescending(x => x.StudentId)
-                    : query.OrderBy(x => x.StudentId),
+                "admissionno" => descending
+                    ? query.OrderByDescending(x => x.AdmissionNo)
+                    : query.OrderBy(x => x.AdmissionNo),
 
                 "routename" => descending
                     ? query.OrderByDescending(x =>
