@@ -513,7 +513,7 @@ interface DataContextType {
   loadSalaryStructures: (structures: SalaryStructure[]) => void;
 
   employeeSalaryAssignments: EmployeeSalaryAssignment[];
-  assignEmployeeSalaryStructure: (assignment: Omit<EmployeeSalaryAssignment, 'id'>) => void;
+  assignEmployeeSalaryStructure: (assignment: Omit<EmployeeSalaryAssignment, 'id'>) => EmployeeSalaryAssignment;
   updateEmployeeSalaryAssignment: (id: string, updates: Partial<EmployeeSalaryAssignment>) => void;
   deleteEmployeeSalaryAssignment: (id: string) => void;
 
@@ -4408,15 +4408,83 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPayrollComponents(prev => prev.filter(c => c.id !== id));
   };
 
+  const roundAmount = (amount: number, rule?: SalaryStructure['roundOffRule']) => {
+    if (!rule || rule === 'No Round Off') return amount;
+    if (rule === 'Nearest 1') return Math.round(amount);
+    if (rule === 'Nearest 10') return Math.round(amount / 10) * 10;
+    if (rule === 'Nearest 50') return Math.round(amount / 50) * 50;
+    return amount;
+  };
+
+  const getStructureBreakdown = (structure?: SalaryStructure) => {
+    const basicLine = structure?.earnings.find(line => /basic/i.test(line.name)) || structure?.earnings[0];
+    const basicSalary = basicLine?.amount || 0;
+    const allowances = Math.max(0, (structure?.earnings || []).reduce((sum, line) => sum + line.amount, 0) - basicSalary);
+    const deductions = (structure?.deductions || []).reduce(
+      (sum, line) => sum + (/employer\s*pf/i.test(line.name) ? 0 : line.amount),
+      0
+    );
+    const grossSalary = structure?.grossSalary || basicSalary + allowances;
+    const netSalary = roundAmount(Math.max(0, grossSalary - deductions), structure?.roundOffRule);
+    return { basicSalary, allowances, deductions, grossSalary, netSalary };
+  };
+
   const addSalaryStructure = (structureData: Omit<SalaryStructure, 'id'>) => {
     const id = 'SAL-STR-' + Math.floor(100 + Math.random() * 900);
     setSalaryStructures(prev => [...prev, { ...structureData, id, branch: structureData.branch || selectedBranch || 'Main Campus' }]);
   };
   const updateSalaryStructure = (id: string, updates: Partial<SalaryStructure>) => {
+    const nextStructure = salaryStructures.find(s => s.id === id);
+    const mergedStructure = nextStructure ? { ...nextStructure, ...updates } as SalaryStructure : null;
+    const breakdown = getStructureBreakdown(mergedStructure || undefined);
+
     setSalaryStructures(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+
+    if (mergedStructure) {
+      setEmployeeSalaryAssignments(prev => prev.map(assignment => {
+        if (assignment.salaryStructureId !== id || assignment.status !== 'Active' || assignment.salaryOverride) return assignment;
+        return {
+          ...assignment,
+          salaryStructureName: mergedStructure.structureName,
+          monthlyGross: breakdown.grossSalary,
+          overrideBasicSalary: breakdown.basicSalary,
+          overrideAllowances: breakdown.allowances,
+          overrideDeductions: breakdown.deductions,
+          overrideNetSalary: breakdown.netSalary,
+          updatedAt: new Date().toISOString(),
+          reason: assignment.reason || 'Synced after salary structure update'
+        };
+      }));
+
+      setStaff(prev => prev.map(member => {
+        const assignment = employeeSalaryAssignments.find(item => item.employeeId === member.id && item.salaryStructureId === id && item.status === 'Active');
+        if (!assignment || assignment.salaryOverride) return member;
+        return {
+          ...member,
+          salary: breakdown.grossSalary,
+          grossSalary: breakdown.grossSalary,
+          netSalary: breakdown.netSalary,
+          salaryStructureName: mergedStructure.structureName,
+          salaryStructureEffectiveDate: assignment.effectiveDate
+        };
+      }));
+    }
   };
   const deleteSalaryStructure = (id: string) => {
+    const affectedAssignments = employeeSalaryAssignments.filter(a => a.salaryStructureId === id && a.status === 'Active');
     setSalaryStructures(prev => prev.filter(s => s.id !== id));
+    if (affectedAssignments.length > 0) {
+      setEmployeeSalaryAssignments(prev => prev.map(a => a.salaryStructureId === id ? { ...a, status: 'Inactive' as const } : a));
+      setStaff(prev => prev.map(member => affectedAssignments.some(a => a.employeeId === member.id) ? {
+        ...member,
+        salaryStructureId: undefined,
+        salaryStructureName: undefined,
+        salaryStructureEffectiveDate: undefined,
+        salary: 0,
+        grossSalary: undefined,
+        netSalary: undefined
+      } : member));
+    }
   };
   const cloneSalaryStructure = (id: string) => {
     const source = salaryStructures.find(s => s.id === id);
@@ -4436,7 +4504,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const assignEmployeeSalaryStructure = (assignmentData: Omit<EmployeeSalaryAssignment, 'id'>) => {
     const id = 'ESA-' + Math.floor(100 + Math.random() * 900);
     const structure = salaryStructures.find(s => s.id === assignmentData.salaryStructureId);
-    const gross = structure ? structure.grossSalary : 0;
+    const breakdown = getStructureBreakdown(structure);
+    const salaryOverride = !!assignmentData.salaryOverride;
+    const basicSalary = salaryOverride ? Number(assignmentData.overrideBasicSalary ?? breakdown.basicSalary) : breakdown.basicSalary;
+    const allowances = salaryOverride ? Number(assignmentData.overrideAllowances ?? breakdown.allowances) : breakdown.allowances;
+    const deductions = salaryOverride ? Number(assignmentData.overrideDeductions ?? breakdown.deductions) : breakdown.deductions;
+    const gross = Math.max(0, basicSalary + allowances);
+    const net = Math.max(0, Number(assignmentData.overrideNetSalary ?? (gross - deductions)));
     
     const prevActive = employeeSalaryAssignments.find(a => a.employeeId === assignmentData.employeeId && a.status === 'Active');
     const prevGross = prevActive ? prevActive.monthlyGross || 0 : 0;
@@ -4445,6 +4519,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ...assignmentData,
       id,
       branch: assignmentData.branch || selectedBranch || 'Main Campus',
+      salaryOverride,
+      overrideBasicSalary: salaryOverride ? basicSalary : undefined,
+      overrideAllowances: salaryOverride ? allowances : undefined,
+      overrideDeductions: salaryOverride ? deductions : undefined,
+      overrideNetSalary: salaryOverride ? net : undefined,
       monthlyGross: gross,
       previousGross: prevGross,
       updatedBy: 'Admin',
@@ -4461,14 +4540,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       salaryStructureId: assignmentData.salaryStructureId,
       salaryStructureName: assignmentData.salaryStructureName,
       salaryStructureEffectiveDate: assignmentData.effectiveDate,
-      salary: gross
+      salary: gross,
+      grossSalary: gross,
+      netSalary: net
     } : s));
+
+    return newAssignment;
   };
   const updateEmployeeSalaryAssignment = (id: string, updates: Partial<EmployeeSalaryAssignment>) => {
     setEmployeeSalaryAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
   };
   const deleteEmployeeSalaryAssignment = (id: string) => {
+    const assignment = employeeSalaryAssignments.find(a => a.id === id);
     setEmployeeSalaryAssignments(prev => prev.filter(a => a.id !== id));
+    if (assignment?.status === 'Active') {
+      setStaff(prev => prev.map(s => s.id === assignment.employeeId ? {
+        ...s,
+        salaryStructureId: undefined,
+        salaryStructureName: undefined,
+        salaryStructureEffectiveDate: undefined,
+        salary: 0,
+        grossSalary: undefined,
+        netSalary: undefined
+      } : s));
+    }
   };
 
   const upsertPayrollRun = (runData: Omit<PayrollRun, 'id'>): PayrollRun => {
