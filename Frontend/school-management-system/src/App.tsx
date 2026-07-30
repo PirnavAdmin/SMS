@@ -15,10 +15,10 @@ import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordMod
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
 import { StaffList } from './components/modules/Staff/StaffList';
+import { StaffRegistrationPage } from './components/modules/Staff/StaffRegistrationPage';
 import { LeaveManagementView } from './components/modules/Staff/LeaveManagementView';
 import { StaffAttendanceView } from './components/modules/Staff/StaffAttendanceView';
-import { StaffPayrollView } from './components/modules/Staff/StaffPayrollView';
-import { StaffPayslipView } from './components/modules/Staff/StaffPayslipView';
+import { PayrollModuleView } from './components/modules/Staff/PayrollModuleViewSimple';
 import { AdmissionsView } from './components/modules/Admissions/AdmissionsView';
 import { AcademicsView } from './components/modules/Academics/AcademicsView';
 import { SubjectsView } from './components/modules/Academics/SubjectsView';
@@ -112,6 +112,10 @@ const MainLayout: React.FC = () => {
       return <UniformContainerView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
+    if (activeModule.startsWith('staff-payroll')) {
+      return <PayrollModuleView initialTab={activeModule} onTabChange={setActiveModule} />;
+    }
+
     switch (activeModule) {
       case 'dashboard':
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
@@ -120,20 +124,13 @@ const MainLayout: React.FC = () => {
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':
-        return <StaffList />;
+        return <StaffList onNavigate={setActiveModule} />;
+      case 'staff-add':
+        return <StaffRegistrationPage onNavigate={setActiveModule} />;
       case 'staff-attendance':
         return <StaffAttendanceView />;
       case 'staff-leave':
         return <LeaveManagementView />;
-      case 'staff-payroll':
-        return <StaffPayrollView />;
-      case 'staff-payroll-config':
-      case 'staff-payroll-structures':
-      case 'staff-payroll-processing':
-      case 'staff-payroll-payslips':
-        return <StaffPayrollView initialTab={activeModule as any} onTabChange={setActiveModule} />;
-      case 'staff-payslips':
-        return <StaffPayslipView />;
       case 'admissions':
       case 'admissions-add':
         return (

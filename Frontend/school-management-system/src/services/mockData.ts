@@ -12,7 +12,7 @@ import {
   FinanceTransportConfig, StudentFeeLedger, LedgerFeeItem,
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
-  LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
+  LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent, PayrollAmountLine,
   SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department
 } from '../types';
 
@@ -1445,50 +1445,278 @@ export const initialPayrollConfigurations: PayrollConfiguration[] = [
   }
 ];
 
+const sumLines = (lines: PayrollAmountLine[] = []) => lines.reduce((total, line) => total + line.amount, 0);
+
+const makeStructure = (draft: {
+  id?: string;
+  structureCode: string;
+  structureName: string;
+  employeeCategory: 'Teacher' | 'Staff';
+  branch: string;
+  designation: string;
+  employmentType: string;
+  salaryPaymentDay?: string;
+  pfApplicable?: boolean;
+  pfPercentage?: number;
+  esiApplicable?: boolean;
+  esiPercentage?: number;
+  professionalTaxApplicable?: boolean;
+  professionalTaxAmount?: number;
+  roundOffRule?: 'No Round Off' | 'Nearest 1' | 'Nearest 10' | 'Nearest 50';
+  payrollFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly';
+  basicSalary: number;
+  hra: number;
+  da: number;
+  medicalAllowance: number;
+  conveyance?: number;
+  travelAllowance?: number;
+  specialAllowance: number;
+  performanceAllowance?: number;
+  otherAllowance?: number;
+  pf?: number;
+  employeePf?: number;
+  employerPf?: number;
+  esi: number;
+  professionalTax: number;
+  incomeTax?: number;
+  loanDeduction?: number;
+  otherDeductions?: number;
+  otherDeduction?: number;
+  effectiveDate?: string;
+  status: 'Active' | 'Inactive';
+  notes?: string;
+}): SalaryStructure => {
+  const employeePf = draft.employeePf ?? draft.pf ?? 0;
+  const employerPf = draft.employerPf ?? draft.pf ?? employeePf;
+  const travelAllowance = draft.travelAllowance ?? draft.conveyance ?? 0;
+  const performanceAllowance = draft.performanceAllowance ?? 0;
+  const otherAllowance = draft.otherAllowance ?? 0;
+  const incomeTax = draft.incomeTax ?? 0;
+  const loanDeduction = draft.loanDeduction ?? 0;
+  const otherDeduction = draft.otherDeduction ?? draft.otherDeductions ?? 0;
+  const earnings: PayrollAmountLine[] = [
+    { name: 'Basic Salary', amount: draft.basicSalary, type: 'Fixed', value: draft.basicSalary },
+    { name: 'HRA', amount: draft.hra, type: 'Fixed', value: draft.hra },
+    { name: 'DA', amount: draft.da, type: 'Fixed', value: draft.da },
+    { name: 'Medical Allowance', amount: draft.medicalAllowance, type: 'Fixed', value: draft.medicalAllowance },
+    { name: 'Travel Allowance', amount: travelAllowance, type: 'Fixed', value: travelAllowance },
+    { name: 'Special Allowance', amount: draft.specialAllowance, type: 'Fixed', value: draft.specialAllowance }
+    ,{ name: 'Performance Allowance', amount: performanceAllowance, type: 'Fixed', value: performanceAllowance },
+    { name: 'Other Allowance', amount: otherAllowance, type: 'Fixed', value: otherAllowance }
+  ];
+
+  const deductions: PayrollAmountLine[] = [
+    { name: 'Employee PF', amount: employeePf, type: 'Fixed', value: employeePf },
+    { name: 'Employer PF', amount: employerPf, type: 'Fixed', value: employerPf },
+    { name: 'Employee State Insurance (ESI)', amount: draft.esi, type: 'Fixed', value: draft.esi },
+    { name: 'Professional Tax', amount: draft.professionalTax, type: 'Fixed', value: draft.professionalTax },
+    { name: 'Income Tax', amount: incomeTax, type: 'Fixed', value: incomeTax },
+    { name: 'Loan Deduction', amount: loanDeduction, type: 'Fixed', value: loanDeduction },
+    { name: 'Other Deduction', amount: otherDeduction, type: 'Fixed', value: otherDeduction }
+  ];
+
+  return {
+    id: draft.id || draft.structureCode,
+    structureCode: draft.structureCode,
+    structureName: draft.structureName,
+    employeeCategory: draft.employeeCategory,
+    branch: draft.branch,
+    earnings,
+    deductions,
+    grossSalary: sumLines(earnings),
+    netSalaryFormula: 'Gross Salary - Total Deductions',
+    status: draft.status,
+    designation: draft.designation,
+    department: draft.designation === 'Principal' || draft.designation === 'Vice Principal' ? 'Administration' : draft.employeeCategory === 'Teacher' ? 'Academics' : 'Operations',
+    employmentType: draft.employmentType,
+    payrollFrequency: draft.payrollFrequency || 'Monthly',
+    salaryPaymentDay: draft.salaryPaymentDay || '5',
+    pfApplicable: draft.pfApplicable ?? employeePf > 0,
+    pfPercentage: draft.pfPercentage ?? 12,
+    esiApplicable: draft.esiApplicable ?? draft.esi > 0,
+    esiPercentage: draft.esiPercentage ?? 1.75,
+    professionalTaxApplicable: draft.professionalTaxApplicable ?? draft.professionalTax > 0,
+    professionalTaxAmount: draft.professionalTaxAmount ?? draft.professionalTax,
+    roundOffRule: draft.roundOffRule || 'Nearest 1',
+    notes: draft.notes,
+    effectiveDate: draft.effectiveDate || '2026-04-01'
+  };
+};
+
 export const initialSalaryStructures: SalaryStructure[] = [
-  {
+  makeStructure({
     id: 'SAL-STR-01',
-    structureName: 'Principal',
-    employeeCategory: 'Staff',
-    branch: 'Main Campus',
-    earnings: [
-      { name: 'Basic Salary', amount: 11000, type: 'Fixed', value: 11000 },
-      { name: 'House Rent Allowance (HRA)', amount: 2200, type: 'Percentage', value: 20 },
-      { name: 'Dearness Allowance (DA)', amount: 1100, type: 'Percentage', value: 10 },
-      { name: 'Special Allowance', amount: 2500, type: 'Fixed', value: 2500 }
-    ],
-    deductions: [
-      { name: 'Provident Fund (PF)', amount: 880, type: 'Percentage', value: 8 },
-      { name: 'Professional Tax', amount: 200, type: 'Fixed', value: 200 }
-    ],
-    grossSalary: 16800,
-    netSalaryFormula: 'Gross Salary - Deductions - Leave Deduction',
-    status: 'Active'
-  },
-  {
-    id: 'SAL-STR-02',
-    structureName: 'Teacher',
+    structureCode: 'PRI-01',
+    structureName: 'Principal Scale',
     employeeCategory: 'Teacher',
     branch: 'Main Campus',
-    earnings: [
-      { name: 'Basic Salary', amount: 7500, type: 'Fixed', value: 7500 },
-      { name: 'House Rent Allowance (HRA)', amount: 1500, type: 'Percentage', value: 20 },
-      { name: 'Dearness Allowance (DA)', amount: 750, type: 'Percentage', value: 10 },
-      { name: 'Transport Allowance', amount: 1200, type: 'Fixed', value: 1200 }
-    ],
-    deductions: [
-      { name: 'Provident Fund (PF)', amount: 600, type: 'Percentage', value: 8 },
-      { name: 'Professional Tax', amount: 200, type: 'Fixed', value: 200 }
-    ],
-    grossSalary: 10950,
-    netSalaryFormula: 'Gross Salary - Deductions - Leave Deduction',
-    status: 'Active'
-  }
+    designation: 'Principal',
+    employmentType: 'Permanent',
+    basicSalary: 45000,
+    hra: 12000,
+    da: 8000,
+    medicalAllowance: 4000,
+    conveyance: 3000,
+    specialAllowance: 15000,
+    pf: 5400,
+    esi: 585,
+    professionalTax: 200,
+    otherDeductions: 500,
+    status: 'Active',
+    notes: 'Leadership scale for the school head office.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-02',
+    structureCode: 'VPR-01',
+    structureName: 'Vice Principal Scale',
+    employeeCategory: 'Teacher',
+    branch: 'Main Campus',
+    designation: 'Vice Principal',
+    employmentType: 'Permanent',
+    basicSalary: 38000,
+    hra: 9500,
+    da: 6200,
+    medicalAllowance: 3200,
+    conveyance: 2800,
+    specialAllowance: 9800,
+    pf: 4560,
+    esi: 495,
+    professionalTax: 200,
+    otherDeductions: 300,
+    status: 'Active',
+    notes: 'Used for vice principal and senior academic administration roles.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-03',
+    structureCode: 'PGT-01',
+    structureName: 'PGT Scale',
+    employeeCategory: 'Teacher',
+    branch: 'Main Campus',
+    designation: 'PGT Teacher',
+    employmentType: 'Permanent',
+    basicSalary: 32000,
+    hra: 8200,
+    da: 5200,
+    medicalAllowance: 2500,
+    conveyance: 2200,
+    specialAllowance: 6000,
+    pf: 3840,
+    esi: 396,
+    professionalTax: 200,
+    otherDeductions: 250,
+    status: 'Active',
+    notes: 'Senior teaching scale for postgraduate subject teachers.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-04',
+    structureCode: 'TGT-01',
+    structureName: 'TGT Scale',
+    employeeCategory: 'Teacher',
+    branch: 'Main Campus',
+    designation: 'TGT Teacher',
+    employmentType: 'Permanent',
+    basicSalary: 26000,
+    hra: 6400,
+    da: 3900,
+    medicalAllowance: 2200,
+    conveyance: 2000,
+    specialAllowance: 4200,
+    pf: 3120,
+    esi: 303,
+    professionalTax: 200,
+    otherDeductions: 200,
+    status: 'Active',
+    notes: 'Standard teaching scale for trained graduate teachers.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-05',
+    structureCode: 'PRT-01',
+    structureName: 'PRT Scale',
+    employeeCategory: 'Teacher',
+    branch: 'Main Campus',
+    designation: 'PRT Teacher',
+    employmentType: 'Permanent',
+    basicSalary: 22000,
+    hra: 5200,
+    da: 3100,
+    medicalAllowance: 2000,
+    conveyance: 1800,
+    specialAllowance: 3500,
+    pf: 2640,
+    esi: 255,
+    professionalTax: 200,
+    otherDeductions: 150,
+    status: 'Active',
+    notes: 'Primary teacher scale for early learning and foundation classes.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-06',
+    structureCode: 'ACC-01',
+    structureName: 'Accountant Scale',
+    employeeCategory: 'Staff',
+    branch: 'Main Campus',
+    designation: 'Accountant',
+    employmentType: 'Permanent',
+    basicSalary: 26000,
+    hra: 6000,
+    da: 3600,
+    medicalAllowance: 2200,
+    conveyance: 1800,
+    specialAllowance: 4200,
+    pf: 3120,
+    esi: 303,
+    professionalTax: 200,
+    otherDeductions: 200,
+    status: 'Active',
+    notes: 'Accounts and finance operations scale.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-07',
+    structureCode: 'REC-01',
+    structureName: 'Receptionist Scale',
+    employeeCategory: 'Staff',
+    branch: 'Main Campus',
+    designation: 'Receptionist',
+    employmentType: 'Permanent',
+    basicSalary: 18000,
+    hra: 4000,
+    da: 2500,
+    medicalAllowance: 1800,
+    conveyance: 1500,
+    specialAllowance: 3000,
+    pf: 2160,
+    esi: 220,
+    professionalTax: 200,
+    otherDeductions: 120,
+    status: 'Active',
+    notes: 'Front desk and admission support scale.'
+  }),
+  makeStructure({
+    id: 'SAL-STR-08',
+    structureCode: 'OPS-01',
+    structureName: 'Office Assistant Scale',
+    employeeCategory: 'Staff',
+    branch: 'Main Campus',
+    designation: 'Office Assistant',
+    employmentType: 'Permanent',
+    basicSalary: 17000,
+    hra: 3800,
+    da: 2200,
+    medicalAllowance: 1500,
+    conveyance: 1400,
+    specialAllowance: 2800,
+    pf: 2040,
+    esi: 205,
+    professionalTax: 200,
+    otherDeductions: 100,
+    status: 'Active',
+    notes: 'Administrative support scale for office operations.'
+  })
 ];
 
 export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [
-  { id: 'ESA-01', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-01', salaryStructureName: 'Principal', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-02', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Mathematics', salaryStructureId: 'SAL-STR-02', salaryStructureName: 'Teacher', effectiveDate: '2026-04-01', status: 'Active' }
+  { id: 'ESA-01', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-01', salaryStructureName: 'Principal Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-02', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Mathematics', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' }
 ];
 
 export const initialPayrollRuns: PayrollRun[] = [];

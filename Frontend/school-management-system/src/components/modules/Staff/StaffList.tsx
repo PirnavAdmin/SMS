@@ -12,10 +12,10 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { StaffFormModal } from './StaffFormModal';
 import { PayrollDrawer } from './PayrollDrawer';
-import { StaffProfileDrawer } from './StaffProfileDrawer';
+import { StaffProfileDrawer } from './StaffProfileDrawerEnhanced';
 import { DocumentRequirementMasterModal } from './DocumentRequirementMasterModal';
 
-export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({ initialCategory }) => {
+export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavigate?: (module: string) => void }> = ({ initialCategory, onNavigate }) => {
   const { staff, updateStaff, deleteStaff, subjects, departments } = useData();
   const { addToast } = useToast();
 
@@ -42,6 +42,24 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
   // Helper to categorize staff dynamically for backward compatibility
   const getStaffCategory = (s: Staff): 'Teacher' | 'Staff' => {
     return s.employeeCategory || (s.role === 'Teacher' ? 'Teacher' : 'Staff');
+  };
+
+  const getCategoryLabel = (category: 'Teacher' | 'Staff') => category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff';
+
+  const openStaffRegistration = () => {
+    try {
+      sessionStorage.setItem('staff-registration-category', activeCategory);
+    } catch {
+      // Ignore storage failures and keep navigation working.
+    }
+
+    if (onNavigate) {
+      onNavigate('staff-add');
+      return;
+    }
+
+    setStaffToEdit(null);
+    setIsAddOpen(true);
   };
 
   const categoryStaffList = staff.filter(s => getStaffCategory(s) === activeCategory);
@@ -115,7 +133,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-brand-600" /> {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
+            <Users className="w-6 h-6 text-brand-600" /> {getCategoryLabel(activeCategory)}
           </h2>
           <p className="text-xs text-slate-500">Manage academic faculty, operational employees, and payroll settings</p>
         </div>
@@ -130,10 +148,10 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
           </button>
           <ExportButton data={filtered} filename={`${activeCategory.toLowerCase()}_directory`} />
           <button
-            onClick={() => { setStaffToEdit(null); setIsAddOpen(true); }}
+            onClick={openStaffRegistration}
             className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> {activeCategory === 'Teacher' ? 'Add Teaching Staff' : 'Add Non-Teaching Staff'}
+            <Plus className="w-4 h-4" /> {`Add ${getCategoryLabel(activeCategory)}`}
           </button>
         </div>
       </div>
@@ -255,11 +273,17 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
             <thead>
               {activeCategory === 'Teacher' ? (
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Teacher</th>
+                  <th className="py-3.5 px-4">Profile</th>
                   <th className="py-3.5 px-4 font-mono">Employee ID</th>
+                  <th className="py-3.5 px-4">Employee Name</th>
+                  <th className="py-3.5 px-4">Department</th>
+                  <th className="py-3.5 px-4">Designation</th>
                   <th className="py-3.5 px-4">Primary Subject</th>
-                  <th className="py-3.5 px-4">Specialization</th>
-                  <th className="py-3.5 px-4">Salary</th>
+                  <th className="py-3.5 px-4">Classes</th>
+                  <th className="py-3.5 px-4">Branch</th>
+                  <th className="py-3.5 px-4">Joining Date</th>
+                  <th className="py-3.5 px-4">Gross Salary</th>
+                  <th className="py-3.5 px-4">Net Salary</th>
                   <th className="py-3.5 px-4">Status</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
@@ -278,43 +302,69 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-slate-400">
+                  <td colSpan={activeCategory === 'Teacher' ? 13 : 7} className="text-center py-8 text-slate-400">
                     No {activeCategory.toLowerCase()} records match search filters.
                   </td>
                 </tr>
               ) : (
                 paginated.map(st => (
                   <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-3">
-                        <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</p>
-                          <p className="text-[10px] text-slate-400">{st.role || 'Staff'}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
-                    
                     {activeCategory === 'Teacher' ? (
                       <>
+                        <td className="py-3 px-4">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStaff(st)}
+                            className="shrink-0"
+                            title="Open teacher profile"
+                          >
+                            <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
+                        <td className="py-3 px-4">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedStaff(st)}
+                            className="text-left"
+                            title="Open teacher profile"
+                          >
+                            <p className="font-bold text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                              {st.firstName} {st.lastName}
+                            </p>
+                            <p className="text-[10px] text-slate-400">{st.role || 'Teacher'}</p>
+                          </button>
+                        </td>
+                        <td className="py-3 px-4">{st.department || 'N/A'}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.designation || 'N/A'}</td>
                         <td className="py-3 px-4 font-bold text-brand-600 dark:text-brand-400">
                           {st.primarySubject || (st.assignedSubjects?.[0]) || 'Mathematics'}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">
-                            {st.specialization || st.qualification || 'M.Sc. Education'}
-                          </span>
+                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">
+                          {st.assignedClasses?.length ? st.assignedClasses.join(', ') : 'Not Assigned'}
                         </td>
+                        <td className="py-3 px-4">{(st as any).branch || 'Main Campus'}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.joiningDate || 'N/A'}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency((st.grossSalary ?? st.salary) || 0)}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency((st.netSalary ?? st.salary) || 0)}</td>
                       </>
                     ) : (
                       <>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-3">
+                            <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
+                            <div>
+                              <p className="font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</p>
+                              <p className="text-[10px] text-slate-400">{st.role || 'Staff'}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
                         <td className="py-3 px-4">{st.department || 'N/A'}</td>
                         <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.designation || 'N/A'}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency(st.salary * 12)}/yr</td>
                       </>
                     )}
-
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency(st.salary * 12)}/yr</td>
                     <td className="py-3 px-4">
                       <button onClick={() => toggleStatus(st)}>
                         <Badge variant={st.status === 'Active' ? 'success' : (st.status === 'On Leave' ? 'warning' : 'neutral')}>
