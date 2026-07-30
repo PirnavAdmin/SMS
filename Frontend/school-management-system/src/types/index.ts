@@ -196,6 +196,8 @@ export interface Staff {
   qualification: string;
   experienceYears: number;
   salary: number;
+  grossSalary?: number;
+  netSalary?: number;
   status: 'Active' | 'Inactive' | 'On Leave';
   avatar: string;
   address: string;
@@ -1569,6 +1571,15 @@ export interface SalaryStructure {
   designation?: string;
   department?: string;
   employmentType?: string;
+  payrollFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly';
+  salaryPaymentDay?: string;
+  pfApplicable?: boolean;
+  pfPercentage?: number;
+  esiApplicable?: boolean;
+  esiPercentage?: number;
+  professionalTaxApplicable?: boolean;
+  professionalTaxAmount?: number;
+  roundOffRule?: 'No Round Off' | 'Nearest 1' | 'Nearest 10' | 'Nearest 50';
   notes?: string;
   branchId?: string;
   effectiveDate?: string;
@@ -1591,6 +1602,11 @@ export interface EmployeeSalaryAssignment {
   updatedBy?: string;
   updatedAt?: string;
   reason?: string;
+  salaryOverride?: boolean;
+  overrideBasicSalary?: number;
+  overrideAllowances?: number;
+  overrideDeductions?: number;
+  overrideNetSalary?: number;
 }
 
 export interface PayrollRun {
