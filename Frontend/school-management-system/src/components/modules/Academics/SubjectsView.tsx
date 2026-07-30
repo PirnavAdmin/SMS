@@ -372,39 +372,36 @@ export const SubjectsView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Top Header & Navigation Tabs */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-tr from-brand-600 to-sky-600 rounded-2xl text-white shadow-md shadow-brand-500/20">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Curriculum & Departments</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Manage academic subjects, course codes, and organizational department structures</p>
-          </div>
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="space-y-1">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Curriculum & Departments
+          </h2>
+          <p className="text-slate-500 font-bold">Manage academic subjects, course codes, and organizational department structures</p>
         </div>
 
         {/* Sub-Navigation Tabs */}
-        <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl self-start sm:self-auto">
+        <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
           <button
             onClick={() => setActiveTab('subjects')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'subjects'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
             }`}
           >
-            <BookOpen className="w-4 h-4" />
+            <BookOpen className="w-3.5 h-3.5" />
             Curriculum Subjects ({subjects.length})
           </button>
           <button
             onClick={() => setActiveTab('departments')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'departments'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-md'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
             }`}
           >
-            <Building2 className="w-4 h-4" />
+            <Building2 className="w-3.5 h-3.5" />
             Departments ({departments.length})
           </button>
         </div>

@@ -165,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'subjects', label: 'Subject Management', icon: BookOpen },
         { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
         { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Timetable' : 'Time Table', icon: Clock },
-        { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
+        { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : (((role as any) === 'Teacher' || (role as any) === 'Class Teacher') ? 'Marks Entry' : 'Examinations'), icon: Award },
         { id: 'homework', label: 'Homework', icon: FileText },
       ]
     },

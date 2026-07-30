@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search, Sun, Moon, Bell, Shield, LogOut, Key, Clock, CheckCircle2,
   Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu
@@ -41,6 +41,29 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   const [branchDraftName, setBranchDraftName] = useState('');
   const [editingBranchName, setEditingBranchName] = useState<string | null>(null);
   const [deactivatingBranch, setDeactivatingBranch] = useState<string | null>(null);
+
+  const notifRef = useRef<HTMLDivElement>(null);
+  const branchRef = useRef<HTMLDivElement>(null);
+  const userRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const targetNode = e.target as Node;
+      if (showNotifMenu && notifRef.current && !notifRef.current.contains(targetNode)) {
+        setShowNotifMenu(false);
+      }
+      if (showBranchMenu && branchRef.current && !branchRef.current.contains(targetNode)) {
+        setShowBranchMenu(false);
+      }
+      if (showUserMenu && userRef.current && !userRef.current.contains(targetNode)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [showNotifMenu, showBranchMenu, showUserMenu]);
 
   useEffect(() => {
     const updateClock = () => {
@@ -220,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
         {/* Global Branch Selector with Permissions */}
         {canViewBranch && authorizedBranches.length > 0 && (
-          <div className="relative animate-in fade-in">
+          <div className="relative animate-in fade-in" ref={branchRef}>
             <button
               onClick={() => setShowBranchMenu(!showBranchMenu)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
@@ -318,7 +341,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         </button>
 
         {/* Notifications Bell */}
-        <div className="relative">
+        <div className="relative" ref={notifRef}>
           <button
             onClick={toggleNotifMenu}
             className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
@@ -377,7 +400,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         </div>
 
         {/* User Profile */}
-        <div className="relative">
+        <div className="relative" ref={userRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"

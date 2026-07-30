@@ -32,10 +32,29 @@ export const ParentHomeworkView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
-  // Filter the global homework data for this specific ward's class and section
-  const wardHomeworkRaw = homework.filter(h => 
-    h.className === currentWard.className && h.section === currentWard.section
-  ).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+  // Helper to normalize class names
+  const cleanClassName = (cls: string) => {
+    if (!cls) return '';
+    return cls.replace('Class ', '').replace('Grade ', '').trim();
+  };
+
+  // Filter the global homework data for this specific ward's class and section, ensuring publication checks
+  const wardHomeworkRaw = homework.filter(h => {
+    const classMatch = cleanClassName(h.className) === cleanClassName(currentWard.className) && 
+                       h.section === currentWard.section;
+    if (!classMatch) return false;
+
+    // Show homework that is published (default to published if status is not set)
+    const isPublished = h.status === 'Published' || h.status === undefined;
+    if (!isPublished) return false;
+
+    // Show only if targeted to this student specifically or distributed to class-wide audience
+    if (h.publishToType === 'Students') {
+      return h.publishedStudentIds?.includes(currentWard.id);
+    }
+
+    return true;
+  }).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
 
   // Static Fallback if the mock database is empty for this class
   const staticFallbackHomework = [

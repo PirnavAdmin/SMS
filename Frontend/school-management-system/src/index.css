@@ -26,14 +26,14 @@
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  @apply bg-slate-100 dark:bg-slate-900/60 rounded-full;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
+  @apply bg-slate-400 dark:bg-slate-600 rounded-full hover:bg-slate-500 dark:hover:bg-slate-500;
 }
 
 /* Glassmorphism utility */
@@ -76,4 +76,23 @@ input::-webkit-inner-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+}
+
+/* Lined Notepad Styling */
+.notepad-lines {
+  background-color: #fffdf5 !important;
+  background-image: linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px) !important;
+  background-size: 100% 24px !important;
+  line-height: 24px !important;
+  border-left: 3px double #f87171 !important; /* Red notebook double line margin */
+  padding-left: 14px !important;
+  font-family: 'Courier New', Courier, monospace !important;
+  color: #1e293b !important;
+}
+
+.dark .notepad-lines {
+  background-color: #1e293b !important;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
+  border-left: 3px double #ef4444 !important;
+  color: #f8fafc !important;
 }

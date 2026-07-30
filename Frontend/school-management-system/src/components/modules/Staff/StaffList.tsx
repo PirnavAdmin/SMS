@@ -112,18 +112,18 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-brand-600" /> {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="space-y-1">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}
           </h2>
-          <p className="text-xs text-slate-500">Manage academic faculty, operational employees, and payroll settings</p>
+          <p className="text-slate-500 font-bold">Manage academic faculty, operational employees, and payroll settings</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setIsRuleMasterOpen(true)}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-2 transition-all shadow-xs border border-slate-200 dark:border-slate-700"
+            className="px-3 py-1.5 rounded-xl bg-slate-105 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-705 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 border border-slate-200 dark:border-slate-700"
             title="Configure Document Requirement Rules per Department & Designation"
           >
             <Shield className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Document Rules Master
@@ -131,9 +131,9 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff' }> = ({
           <ExportButton data={filtered} filename={`${activeCategory.toLowerCase()}_directory`} />
           <button
             onClick={() => { setStaffToEdit(null); setIsAddOpen(true); }}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
+            className="btn-primary py-1.5 px-3.5 flex items-center gap-1.5 text-[10.5px] font-black"
           >
-            <Plus className="w-4 h-4" /> {activeCategory === 'Teacher' ? 'Add Teaching Staff' : 'Add Non-Teaching Staff'}
+            <Plus className="w-4 h-4" /> Add {activeCategory === 'Teacher' ? 'Teaching Staff' : 'Add Non-Teaching Staff'}
           </button>
         </div>
       </div>

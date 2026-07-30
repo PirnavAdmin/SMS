@@ -312,8 +312,8 @@ export const ParentExaminationView: React.FC = () => {
                 const targetScheme = validSchemes.length > 0 ? validSchemes[0] : gradeConfigurations[0].schemeName;
                 const displayConfigs = gradeConfigurations.filter((g: any) => g.schemeName === targetScheme).map((g: any) => ({
                   ...g,
-                  minPercent: activeExam.isFiftyMarks ? g.minPercent / 2 : g.minPercent,
-                  maxPercent: activeExam.isFiftyMarks ? g.maxPercent / 2 : g.maxPercent
+                  minPercent: (activeExam as any).isFiftyMarks ? g.minPercent / 2 : g.minPercent,
+                  maxPercent: (activeExam as any).isFiftyMarks ? g.maxPercent / 2 : g.maxPercent
                 }));
 
                 return (
@@ -378,7 +378,7 @@ export const ParentExaminationView: React.FC = () => {
                 maxMarks: 100,
                 fileName: 'Science_Mid_Term_2026.pdf'
               }
-            ];
+            ] as any[];
           }
 
           return (

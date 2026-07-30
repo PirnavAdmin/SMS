@@ -56,6 +56,7 @@ export const StaffAttendanceView: React.FC = () => {
   
   // Correction Form state
   const [correctionDate, setCorrectionDate] = useState(todayStr);
+  const [correctionTime, setCorrectionTime] = useState('09:00 AM');
   const [correctionType, setCorrectionType] = useState<'Missed Check-In' | 'Missed Check-Out'>('Missed Check-In');
   const [correctionReason, setCorrectionReason] = useState('');
 

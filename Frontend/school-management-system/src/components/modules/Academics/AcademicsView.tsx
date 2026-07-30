@@ -395,17 +395,17 @@ export const AcademicsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <School className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Class Management
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="space-y-1">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <School className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Class Management
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Configure classes, sections, and class teacher assignments</p>
+          <p className="text-slate-500 font-bold">Configure classes, sections, and class teacher assignments</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+          className="btn-primary py-1.5 px-3.5 flex items-center gap-1.5 text-[10.5px] font-black"
         >
           <Plus className="w-4 h-4" /> Add Class
         </button>

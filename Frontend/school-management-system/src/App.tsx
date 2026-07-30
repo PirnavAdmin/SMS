@@ -25,6 +25,7 @@ import { SubjectsView } from './components/modules/Academics/SubjectsView';
 import { AttendanceView } from './components/modules/Attendance/AttendanceView';
 import { TimetableView } from './components/modules/Timetable/TimetableView';
 import { ExaminationView } from './components/modules/Examination/ExaminationView';
+import { MarksEntryView } from './components/modules/Examination/MarksEntryView';
 import { HomeworkView } from './components/modules/Homework/HomeworkView';
 import { ParentHomeworkView } from './components/modules/Academics/ParentHomeworkView';
 import { ParentTimetableView } from './components/modules/Academics/ParentTimetableView';
@@ -151,7 +152,11 @@ const MainLayout: React.FC = () => {
       case 'timetable':
         return userRole === 'parent' || userRole === 'student' ? <ParentTimetableView /> : <TimetableView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'examination':
-        return userRole === 'parent' || userRole === 'student' ? <ParentExaminationView /> : <ExaminationView />;
+        return userRole === 'parent' || userRole === 'student' 
+          ? <ParentExaminationView /> 
+          : ((userRole === 'teacher' || userRole === 'class teacher') 
+              ? <MarksEntryView /> 
+              : <ExaminationView />);
       case 'homework':
         return userRole === 'parent' || userRole === 'student' ? <ParentHomeworkView /> : <HomeworkView />;
       case 'fees':

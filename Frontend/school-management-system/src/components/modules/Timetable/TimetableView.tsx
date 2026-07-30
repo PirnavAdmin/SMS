@@ -33,7 +33,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [staff]
   );
 
-  const isTeacher = role === 'Teacher' || role === 'Class Teacher';
+  const isTeacher = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
   
   // Find logged-in teacher profile
   const dbTeacher = staff.find(s => s.email && user?.email && s.email === user.email && s.employeeCategory === 'Teacher') || 
@@ -525,19 +525,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
     return (
       <div className="space-y-6 animate-in fade-in duration-300 text-xs pb-12">
-        <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Clock className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+        <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+          <div className="space-y-1">
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
               Teacher Timetable
             </h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-slate-500 font-bold">
-              <span>👤 Teacher: <strong className="text-slate-850 dark:text-slate-200">{teacherFullName}</strong></span>
-              <span>🏢 Dept: <strong className="text-slate-850 dark:text-slate-200">{teacher.department}</strong></span>
-              <span>📅 Today: <strong className="text-slate-850 dark:text-slate-200">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 font-bold">
+              <span>👤 Teacher: <strong className="text-slate-855 dark:text-slate-200">{teacherFullName}</strong></span>
+              <span>🏢 Dept: <strong className="text-slate-855 dark:text-slate-200">{teacher.department}</strong></span>
+              <span>📅 Today: <strong className="text-slate-855 dark:text-slate-200">{new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}</strong></span>
             </div>
           </div>
-
           <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
             <button
               onClick={() => setViewMode('today')}
@@ -863,16 +862,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header & Global Filters */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-brand-500/10 dark:bg-brand-500/20 rounded-2xl shrink-0">
-            <Clock className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-          </div>
-          <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-              Class Timetable
-            </h2>
-          </div>
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="space-y-1">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Class Timetable
+          </h2>
+          <p className="text-slate-500 font-bold">Configure weekly timetable schedules, period durations, and room allocations</p>
         </div>
 
         {/* Global Timetable Filters */}

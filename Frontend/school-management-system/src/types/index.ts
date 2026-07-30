@@ -461,6 +461,9 @@ export interface Homework {
   description: string;
   totalSubmissions?: number;
   attachments?: HomeworkAttachment[];
+  status?: 'Draft' | 'Published';
+  publishToType?: 'Class' | 'Students';
+  publishedStudentIds?: string[];
 }
 
 export interface HostelBlock {
@@ -650,6 +653,8 @@ export interface UnifiedCalendarEvent {
   sourceModule: string;
   branch?: string;
   applicableClasses?: string[];
+  targetClass?: string;
+  targetSection?: string;
   rawItem: any;
 }
 
