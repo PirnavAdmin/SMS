@@ -141,13 +141,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
   ];
 
-  const payrollSubItems = [
-    { id: 'staff-payroll-employees', label: 'Employees', icon: Users },
-    { id: 'staff-payroll-structures', label: 'Salary Structure', icon: Layers },
-    { id: 'staff-payroll-payslips', label: 'Generate Payslips', icon: Receipt },
-    { id: 'staff-payroll-history', label: 'Payslip History', icon: Clock },
-  ];
-
   const menuGroups = [
     {
       title: 'Core Operations',
@@ -551,46 +544,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isSubActive =
                               activeModule === sub.id ||
                               (sub.id === 'staff-directory' && activeModule === 'staff-add') ||
-                              (isPayroll && (activeModule === 'staff-payroll' || activeModule === 'staff-payroll-employees' || activeModule.startsWith('staff-payroll-') || activeModule === 'staff-payslips'));
+                              (isPayroll && (activeModule === 'staff-payroll' || activeModule.startsWith('staff-payroll-')));
                             return (
-                              <React.Fragment key={sub.id}>
-                                <button
-                                  onClick={() => setActiveModule(isPayroll ? 'staff-payroll-employees' : sub.id)}
-                                  className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                    isSubActive
-                                      ? 'bg-sky-600 text-white font-bold'
-                                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
-                                  }`}
-                                >
-                                  <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                                  <span className="truncate">{sub.label}</span>
-                                </button>
-                                {isPayroll && isSubActive && (
-                                  <div className="ml-5 border-l border-sky-100 pl-2 dark:border-sky-950">
-                                    {payrollSubItems.map(payrollSub => {
-                                      const PayrollSubIcon = payrollSub.icon;
-                                      const isPayrollSubActive =
-                                        activeModule === payrollSub.id ||
-                                        (payrollSub.id === 'staff-payroll-employees' && ['staff-payroll', 'staff-payroll-employees'].includes(activeModule)) ||
-                                        (payrollSub.id === 'staff-payroll-payslips' && ['staff-payroll', 'staff-payroll-payslips', 'staff-payroll-assignment', 'staff-payroll-processing', 'staff-payroll-reports', 'staff-payslips'].includes(activeModule));
-                                      return (
-                                        <button
-                                          key={payrollSub.id}
-                                          onClick={() => setActiveModule(payrollSub.id)}
-                                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                                            isPayrollSubActive
-                                              ? 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
-                                              : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                                          }`}
-                                        >
-                                          <PayrollSubIcon className="w-3 h-3 shrink-0" />
-                                          <span className="truncate">{payrollSub.label}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              </React.Fragment>
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? 'bg-sky-600 text-white font-bold'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
                             );
                           })}
                         </div>

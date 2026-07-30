@@ -33,7 +33,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     [staff]
   );
 
-  const isTeacher = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
+  const normalizedRole = (role || '').toString().trim().toLowerCase().replace(/-/g, ' ');
+  const isTeacher = normalizedRole === 'teacher' || normalizedRole === 'class teacher';
   
   // Find logged-in teacher profile
   const dbTeacher = staff.find(s => s.email && user?.email && s.email === user.email && s.employeeCategory === 'Teacher') || 

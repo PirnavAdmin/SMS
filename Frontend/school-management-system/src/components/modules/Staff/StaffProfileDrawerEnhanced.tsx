@@ -4,15 +4,10 @@ import {
   UserRound,
   Briefcase,
   CalendarCheck2,
-  BookOpen,
-  School2,
-  Clock3,
-  BadgeIndianRupee,
   WalletCards,
   FileText,
   CalendarDays,
   Award,
-  ListChecks,
   LayoutGrid,
   Eye,
   Download,
@@ -20,20 +15,21 @@ import {
   Sparkles,
   ChevronRight
 } from 'lucide-react';
-import { Staff, StaffDocument } from '../../../types';
+import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
 
 type DrawerTab =
   | 'overview'
-  | 'personal'
   | 'employment'
-  | 'qualification'
-  | 'attendance'
-  | 'subjects'
-  | 'payroll'
+  | 'personal'
+  | 'education'
+  | 'experience'
+  | 'bank'
   | 'documents'
+  | 'payroll'
+  | 'attendance'
   | 'leave'
 ;
 
@@ -45,13 +41,14 @@ interface StaffProfileDrawerProps {
 
 const tabs: { id: DrawerTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutGrid },
-  { id: 'personal', label: 'Personal Details', icon: UserRound },
   { id: 'employment', label: 'Employment', icon: Briefcase },
-  { id: 'qualification', label: 'Qualification', icon: Award },
-  { id: 'attendance', label: 'Attendance', icon: CalendarCheck2 },
-  { id: 'subjects', label: 'Subjects', icon: BookOpen },
-  { id: 'payroll', label: 'Payroll', icon: WalletCards },
+  { id: 'personal', label: 'Personal', icon: UserRound },
+  { id: 'education', label: 'Education', icon: Award },
+  { id: 'experience', label: 'Experience', icon: Briefcase },
+  { id: 'bank', label: 'Bank', icon: WalletCards },
   { id: 'documents', label: 'Documents', icon: FileText },
+  { id: 'payroll', label: 'Payroll', icon: WalletCards },
+  { id: 'attendance', label: 'Attendance', icon: CalendarCheck2 },
   { id: 'leave', label: 'Leave', icon: CalendarDays },
 ];
 
@@ -186,6 +183,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
 
   const grossSalary = staff.grossSalary ?? staff.salary ?? 0;
   const netSalary = staff.netSalary ?? staff.salary ?? 0;
+  const profileStatus = staff.profileStatus || ((staff.currentAddress || staff.residentialAddress || staff.permanentAddress || staff.bankDetails?.accountNumber) ? 'Completed' : 'Incomplete');
   const subjectList = Array.from(
     new Set([
       ...(staff.assignedSubjects || []),
@@ -195,17 +193,19 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   );
   const classList = Array.from(new Set([...(staff.assignedClasses || []), ...classAssignments.map(c => `${c.className}-${c.section}`)]));
   const qualificationDocs = staffDocs.filter(doc => /certificate|degree|qualification|resume/i.test(`${doc.title || ''} ${doc.type || ''}`));
-  const isTeachingStaff = staff.employeeCategory === 'Teacher' || staff.role === 'Teacher';
-  const visibleTabs = tabs.filter(tab => tab.id !== 'subjects' || isTeachingStaff);
+  const educationRecords = (staff.qualifications || []) as StaffEducationRecord[];
+  const experienceRecords = (staff.experienceRecords || []) as StaffExperienceRecord[];
+  const visibleTabs = tabs;
 
   const renderOverview = () => (
     <div className="space-y-5">
       <SectionBlock title="Profile Summary" subtitle="A quick glance at the staff record.">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
           <MetricCard label="Status" value={staff.status} tone={staff.status === 'Active' ? 'emerald' : 'amber'} />
           <MetricCard label="Employee ID" value={staff.empId} tone="brand" />
           <MetricCard label="Department" value={department} tone="slate" />
           <MetricCard label="Designation" value={designation} tone="slate" />
+          <MetricCard label="Profile Status" value={profileStatus} tone={profileStatus === 'Completed' ? 'emerald' : 'amber'} />
         </div>
       </SectionBlock>
 
@@ -215,6 +215,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           <InfoLine label="Branch" value={staff.branch || 'Main Campus'} />
           <InfoLine label="Joining Date" value={staff.joiningDate} />
           <InfoLine label="Experience" value={`${staff.experienceYears || 0} years`} />
+          <InfoLine label="Profile Status" value={profileStatus} />
           <InfoLine label="Primary Subject" value={staff.primarySubject || 'Not Assigned'} />
           <InfoLine label="Classes" value={classList.length > 0 ? classList.join(', ') : 'Not Assigned'} />
         </div>
@@ -276,6 +277,113 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Employee Code" value={staff.teacherCode || (staff as any).employeeCode} />
         <InfoLine label="Biometric ID" value={(staff as any).biometricId} />
         <InfoLine label="Staff Role" value={staff.role || 'Staff'} />
+      </div>
+    </SectionBlock>
+  );
+
+  const renderEducation = () => (
+    <SectionBlock title="Education" subtitle="Multiple qualification records and degree documents.">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <MetricCard label="Records" value={educationRecords.length || (staff.qualification ? 1 : 0)} tone="brand" />
+        <MetricCard label="Highest Qualification" value={staff.highestQualification || staff.qualification || 'Not Provided'} tone="emerald" />
+        <MetricCard label="Qualification Docs" value={qualificationDocs.length} tone="amber" />
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {educationRecords.length > 0 ? (
+          educationRecords.map((record, index) => (
+            <div key={record.id || `${index}`} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{record.highestQualification}</p>
+                  <p className="text-[10px] text-slate-500">{record.university} | {record.year}</p>
+                </div>
+                <Badge variant="info" size="sm">{record.percentage || 'N/A'}%</Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <InfoLine label="B.Ed" value={record.bed || 'Not Provided'} />
+                <InfoLine label="M.Ed" value={record.med || 'Not Provided'} />
+                <InfoLine label="Ph.D" value={record.phd || 'Not Provided'} />
+                <InfoLine label="Specialization" value={record.specialization || 'Not Provided'} />
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InfoLine label="Highest Qualification" value={staff.highestQualification || staff.qualification} />
+            <InfoLine label="Qualification Summary" value={staff.qualification} />
+            <InfoLine label="Specialization" value={staff.specialization || 'Not Provided'} />
+            <InfoLine label="Experience" value={`${staff.experienceYears || 0} years`} />
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5 space-y-2">
+        {qualificationDocs.length === 0 ? (
+          <p className="text-sm text-slate-500 italic">No qualification certificates or degree files are attached.</p>
+        ) : (
+          qualificationDocs.map(doc => (
+            <div key={doc.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{doc.title}</p>
+                <p className="text-[10px] text-slate-500">{doc.type} | Uploaded {doc.uploadedDate}</p>
+              </div>
+              <Badge variant="info" size="sm">{doc.verificationStatus || 'Pending Verification'}</Badge>
+            </div>
+          ))
+        )}
+      </div>
+    </SectionBlock>
+  );
+
+  const renderExperience = () => (
+    <SectionBlock title="Experience" subtitle="Previous organizations and work history.">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <MetricCard label="Records" value={experienceRecords.length || (staff.experienceYears ? 1 : 0)} tone="brand" />
+        <MetricCard label="Total Experience" value={`${staff.experienceYears || 0} years`} tone="emerald" />
+        <MetricCard label="Certificates" value={experienceRecords.filter(record => record.certificateFileUrl).length} tone="amber" />
+      </div>
+
+      <div className="mt-5 space-y-3">
+        {experienceRecords.length > 0 ? (
+          experienceRecords.map((record, index) => (
+            <div key={record.id || `${index}`} className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{record.organization || record.previousSchool || 'Experience Record'}</p>
+                  <p className="text-[10px] text-slate-500">{record.designation || 'Designation not provided'}</p>
+                </div>
+                <Badge variant="info" size="sm">{record.totalExperience || 'N/A'}</Badge>
+              </div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <InfoLine label="Joining Date" value={record.joiningDate || 'Not Provided'} />
+                <InfoLine label="Relieving Date" value={record.relievingDate || 'Not Provided'} />
+                <InfoLine label="Certificate" value={record.certificateFileName || 'Not Uploaded'} />
+                <InfoLine label="Previous School" value={record.previousSchool || 'Not Provided'} />
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <InfoLine label="Total Experience" value={`${staff.experienceYears || 0} years`} />
+            <InfoLine label="Previous Organization" value={(staff as any).previousOrganization || 'Not Provided'} />
+            <InfoLine label="Designation" value={(staff as any).previousDesignation || 'Not Provided'} />
+            <InfoLine label="Experience Certificate" value={(staff as any).experienceCertificate || 'Not Uploaded'} />
+          </div>
+        )}
+      </div>
+    </SectionBlock>
+  );
+
+  const renderBank = () => (
+    <SectionBlock title="Bank Details" subtitle="Read-only salary disbursement account information.">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <InfoLine label="Account Holder Name" value={staff.bankDetails?.accountHolderName} />
+        <InfoLine label="Bank Name" value={staff.bankDetails?.bankName} />
+        <InfoLine label="Branch" value={staff.bankDetails?.branch} />
+        <InfoLine label="Account Number" value={staff.bankDetails?.accountNumber} />
+        <InfoLine label="IFSC Code" value={staff.bankDetails?.ifscCode} />
+        <InfoLine label="UPI ID" value={staff.bankDetails?.upiId || 'Not Provided'} />
       </div>
     </SectionBlock>
   );
@@ -479,6 +587,12 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
 
   const renderDocuments = () => (
     <SectionBlock title="Documents" subtitle="Uploaded employee records and requirement checklist.">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+        <MetricCard label="Uploaded" value={staffDocs.length} tone="brand" />
+        <MetricCard label="Pending" value={staffDocs.filter(doc => !doc.verificationStatus || doc.verificationStatus === 'Pending Verification').length} tone="amber" />
+        <MetricCard label="Verified" value={staffDocs.filter(doc => doc.verificationStatus === 'Verified').length} tone="emerald" />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -621,20 +735,22 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     switch (activeTab) {
       case 'overview':
         return renderOverview();
-      case 'personal':
-        return renderPersonal();
       case 'employment':
         return renderEmployment();
-      case 'qualification':
-        return renderQualification();
-      case 'attendance':
-        return renderAttendance();
-      case 'subjects':
-        return renderSubjects();
-      case 'payroll':
-        return renderPayroll();
+      case 'personal':
+        return renderPersonal();
+      case 'education':
+        return renderEducation();
+      case 'experience':
+        return renderExperience();
+      case 'bank':
+        return renderBank();
       case 'documents':
         return renderDocuments();
+      case 'payroll':
+        return renderPayroll();
+      case 'attendance':
+        return renderAttendance();
       case 'leave':
         return renderLeave();
       default:
@@ -712,8 +828,8 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             <aside className="space-y-5 lg:sticky lg:top-5">
               <SectionBlock title="Snapshot" subtitle="Quick profile metrics and completion status.">
                 <div className="space-y-3">
-                  <MetricCard label="Subjects" value={subjectList.length} tone="brand" />
-                  <MetricCard label="Qualification Docs" value={qualificationDocs.length} tone="emerald" />
+                  <MetricCard label="Profile Status" value={profileStatus} tone={profileStatus === 'Completed' ? 'emerald' : 'amber'} />
+                  <MetricCard label="Education Records" value={educationRecords.length || (staff.qualification ? 1 : 0)} tone="brand" />
                   <MetricCard label="Required Docs" value={`${uploadedRequiredCount} / ${requiredDocs.length}`} tone="amber" />
                   <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-4">
                     <div className="flex items-center justify-between">
@@ -724,7 +840,10 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                       {[
                         ['Overview', 'overview'],
                         ['Employment', 'employment'],
-                        ['Qualification', 'qualification'],
+                        ['Personal', 'personal'],
+                        ['Education', 'education'],
+                        ['Experience', 'experience'],
+                        ['Bank', 'bank'],
                         ['Payroll', 'payroll'],
                         ['Attendance', 'attendance'],
                         ['Documents', 'documents'],

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { formatCurrency } from '../../../utils/currency';
 import {
-  Users, Search, Filter, Plus, Edit, Trash2, Eye,
-  IndianRupee, ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield
+  Users, Search, Plus, Edit, Trash2, Eye,
+  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield
 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -11,7 +10,6 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { StaffFormModal } from './StaffFormModal';
-import { PayrollDrawer } from './PayrollDrawer';
 import { StaffProfileDrawer } from './StaffProfileDrawerEnhanced';
 import { DocumentRequirementMasterModal } from './DocumentRequirementMasterModal';
 
@@ -35,7 +33,6 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [staffToEdit, setStaffToEdit] = useState<Staff | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
-  const [staffPayroll, setStaffPayroll] = useState<Staff | null>(null);
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
   const [isRuleMasterOpen, setIsRuleMasterOpen] = useState(false);
 
@@ -45,6 +42,13 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
   };
 
   const getCategoryLabel = (category: 'Teacher' | 'Staff') => category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff';
+
+  const getProfileStatus = (s: Staff) => {
+    if (s.profileStatus) return s.profileStatus;
+    return s.currentAddress || s.residentialAddress || s.permanentAddress || s.bankDetails?.accountNumber || s.documents?.length
+      ? 'Completed'
+      : 'Incomplete';
+  };
 
   const openStaffRegistration = () => {
     try {
@@ -135,7 +139,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-brand-600" /> {getCategoryLabel(activeCategory)}
           </h2>
-          <p className="text-xs text-slate-500">Manage academic faculty, operational employees, and payroll settings</p>
+          <p className="text-xs text-slate-500">Manage basic staff records, profile completion, and employee status.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -271,141 +275,113 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              {activeCategory === 'Teacher' ? (
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Profile</th>
-                  <th className="py-3.5 px-4 font-mono">Employee ID</th>
-                  <th className="py-3.5 px-4">Employee Name</th>
-                  <th className="py-3.5 px-4">Department</th>
-                  <th className="py-3.5 px-4">Designation</th>
-                  <th className="py-3.5 px-4">Primary Subject</th>
-                  <th className="py-3.5 px-4">Classes</th>
-                  <th className="py-3.5 px-4">Branch</th>
-                  <th className="py-3.5 px-4">Joining Date</th>
-                  <th className="py-3.5 px-4">Gross Salary</th>
-                  <th className="py-3.5 px-4">Net Salary</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              ) : (
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Staff Member</th>
-                  <th className="py-3.5 px-4 font-mono">Employee ID</th>
-                  <th className="py-3.5 px-4">Department</th>
-                  <th className="py-3.5 px-4">Designation</th>
-                  <th className="py-3.5 px-4">Salary</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              )}
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                <th className="py-3.5 px-4">Photo</th>
+                <th className="py-3.5 px-4 font-mono">Employee ID</th>
+                <th className="py-3.5 px-4">Employee Name</th>
+                <th className="py-3.5 px-4">Category</th>
+                <th className="py-3.5 px-4">Department</th>
+                <th className="py-3.5 px-4">Designation</th>
+                <th className="py-3.5 px-4">Branch</th>
+                <th className="py-3.5 px-4">Email</th>
+                <th className="py-3.5 px-4">Mobile</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4">Profile Status</th>
+                <th className="py-3.5 px-4 text-right">Actions</th>
+              </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={activeCategory === 'Teacher' ? 13 : 7} className="text-center py-8 text-slate-400">
+                  <td colSpan={12} className="text-center py-8 text-slate-400">
                     No {activeCategory.toLowerCase()} records match search filters.
                   </td>
                 </tr>
               ) : (
-                paginated.map(st => (
-                  <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    {activeCategory === 'Teacher' ? (
-                      <>
-                        <td className="py-3 px-4">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedStaff(st)}
-                            className="shrink-0"
-                            title="Open teacher profile"
-                          >
-                            <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
-                          </button>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
-                        <td className="py-3 px-4">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedStaff(st)}
-                            className="text-left"
-                            title="Open teacher profile"
-                          >
-                            <p className="font-bold text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
-                              {st.firstName} {st.lastName}
-                            </p>
-                            <p className="text-[10px] text-slate-400">{st.role || 'Teacher'}</p>
-                          </button>
-                        </td>
-                        <td className="py-3 px-4">{st.department || 'N/A'}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.designation || 'N/A'}</td>
-                        <td className="py-3 px-4 font-bold text-brand-600 dark:text-brand-400">
-                          {st.primarySubject || (st.assignedSubjects?.[0]) || 'Mathematics'}
-                        </td>
-                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">
-                          {st.assignedClasses?.length ? st.assignedClasses.join(', ') : 'Not Assigned'}
-                        </td>
-                        <td className="py-3 px-4">{(st as any).branch || 'Main Campus'}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.joiningDate || 'N/A'}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency((st.grossSalary ?? st.salary) || 0)}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency((st.netSalary ?? st.salary) || 0)}</td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
-                            <div>
-                              <p className="font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</p>
-                              <p className="text-[10px] text-slate-400">{st.role || 'Staff'}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
-                        <td className="py-3 px-4">{st.department || 'N/A'}</td>
-                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.designation || 'N/A'}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{formatCurrency(st.salary * 12)}/yr</td>
-                      </>
-                    )}
-                    <td className="py-3 px-4">
-                      <button onClick={() => toggleStatus(st)}>
-                        <Badge variant={st.status === 'Active' ? 'success' : (st.status === 'On Leave' ? 'warning' : 'neutral')}>
+                paginated.map(st => {
+                  const profileStatus = getProfileStatus(st);
+                  const categoryLabel = getCategoryLabel(getStaffCategory(st));
+                  return (
+                    <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStaff(st)}
+                          className="shrink-0"
+                          title="Open staff profile"
+                        >
+                          <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>
+                      <td className="py-3 px-4">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStaff(st)}
+                          className="text-left"
+                          title="Open staff profile"
+                        >
+                          <p className="font-bold text-slate-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
+                            {st.firstName} {st.lastName}
+                          </p>
+                          <p className="text-[10px] text-slate-400">{st.role || 'Staff'}</p>
+                        </button>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={getStaffCategory(st) === 'Teacher' ? 'info' : 'neutral'} size="sm">
+                          {categoryLabel}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4">{st.department || 'N/A'}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.designation || 'N/A'}</td>
+                      <td className="py-3 px-4">{st.branch || 'Main Campus'}</td>
+                      <td className="py-3 px-4">{st.email || 'N/A'}</td>
+                      <td className="py-3 px-4">{st.phone || 'N/A'}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={st.status === 'Active' ? 'success' : (st.status === 'On Leave' ? 'warning' : 'neutral')} size="sm">
                           {st.status}
                         </Badge>
-                      </button>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => setSelectedStaff(st)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                          title="View Profile Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setStaffPayroll(st)}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600"
-                          title="Payroll Setup"
-                        >
-                          <IndianRupee className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => { setStaffToEdit(st); setIsAddOpen(true); }}
-                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600"
-                          title="Edit Information"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setStaffToDelete(st)}
-                          className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"
-                          title="Remove Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={profileStatus === 'Completed' ? 'success' : 'warning'} size="sm">
+                          {profileStatus}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedStaff(st)}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                            title="View Profile Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => { setStaffToEdit(st); setIsAddOpen(true); }}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600"
+                            title="Edit Basic Details"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => toggleStatus(st)}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                            title={st.status === 'Active' ? 'Deactivate' : 'Activate'}
+                          >
+                            <Shield className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setStaffToDelete(st)}
+                            className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -433,12 +409,6 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
         staff={selectedStaff}
         isOpen={!!selectedStaff}
         onClose={() => setSelectedStaff(null)}
-      />
-
-      <PayrollDrawer
-        staff={staffPayroll}
-        isOpen={!!staffPayroll}
-        onClose={() => setStaffPayroll(null)}
       />
 
       <ConfirmModal

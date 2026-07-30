@@ -69,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let mappedRole: UserRole = 'Admin';
       let realToken = 'mock-jwt-token-' + Date.now();
       let userName = emailOrPhone.split('@')[0] || 'User';
+      const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
 
       // Check for mock credentials first
       if (emailOrPhone === 'teacher@pirnavschools.com' && password === 'Teacher@123') {
@@ -86,14 +87,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         realToken = response?.token || response?.accessToken || realToken;
         
         const roles = response?.roles || [];
+        const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
+
         if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
           mappedRole = 'Admin';
-        } else if (roles.includes("Teacher")) {
-          mappedRole = 'Teacher';
-        } else if (roles.includes("Student")) {
-          mappedRole = 'Student';
-        } else if (roles.includes("Parent")) {
-          mappedRole = 'Parent';
+        } else {
+          const resolvedRole = priorityRoles.find(role => roles.includes(role));
+          if (resolvedRole) {
+            mappedRole = resolvedRole;
+          }
         }
 
         if (response?.user?.name) {
@@ -109,7 +111,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
         lastLogin: new Date().toLocaleString(),
         status: 'Active',
-        isFirstLogin: false
+        isFirstLogin: employeeRoles.includes(mappedRole) || mappedRole === 'Teacher'
       };
 
       setUser(loggedUser);

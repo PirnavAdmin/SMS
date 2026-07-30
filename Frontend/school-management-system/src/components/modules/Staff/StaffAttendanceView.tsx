@@ -216,6 +216,7 @@ export const StaffAttendanceView: React.FC = () => {
     addToast('success', 'Correction Request Submitted', `Attendance correction request for ${correctionDate} is pending approval.`);
     setShowCorrectionModal(false);
     setCorrectionReason('');
+    setCorrectionTime('');
   };
 
   const handleDownloadReport = () => {

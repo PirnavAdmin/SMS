@@ -1465,7 +1465,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Staff CRUD
   const addStaff = (staffData: Omit<Staff, 'id'>): Staff => {
     const id = 'STF-' + Math.floor(100 + Math.random() * 900);
-    const newStaff: Staff = { ...staffData, id, branch: staffData.branch || selectedBranch || 'Main Campus' };
+    const newStaff: Staff = {
+      ...staffData,
+      id,
+      branch: staffData.branch || selectedBranch || 'Main Campus',
+      profileStatus: staffData.profileStatus || 'Incomplete'
+    };
     setStaff(prev => [...prev, newStaff]);
     logActivity('Hired Staff Member', `Registered ${newStaff.firstName} ${newStaff.lastName}`);
     return newStaff;

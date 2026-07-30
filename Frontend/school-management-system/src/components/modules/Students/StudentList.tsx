@@ -817,7 +817,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             {(role as any) === 'Teacher' ? 'My Students' : 'Student Directory'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {(role as any) === 'Teacher' 
+            {role === 'Teacher' 
               ? 'View profiles and manage records for students in your assigned classes' 
               : 'Manage student directory records, generate student ID cards, perform branch transfers, and export registers.'}
           </p>
@@ -826,7 +826,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         <div className="flex items-center gap-3">
           {/* Filter-Aware Export Button */}
           <ExportButton data={filtered} filename="student_records" filteredCount={filtered.length} />
-          {((role as any) !== 'Teacher') && (
+          {role !== 'Teacher' && (
             <button 
               onClick={() => {
                 setStudentToEdit(null);

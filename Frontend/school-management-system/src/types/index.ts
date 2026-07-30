@@ -79,6 +79,31 @@ export interface StaffDocument {
   versionHistory?: StaffDocumentVersion[];
 }
 
+export interface StaffEducationRecord {
+  id: string;
+  highestQualification: string;
+  university: string;
+  year: string;
+  percentage: string;
+  bed?: string;
+  med?: string;
+  phd?: string;
+  specialization?: string;
+}
+
+export interface StaffExperienceRecord {
+  id: string;
+  totalExperience: string;
+  previousSchool?: string;
+  organization?: string;
+  designation?: string;
+  joiningDate?: string;
+  relievingDate?: string;
+  certificateFileName?: string;
+  certificateFileUrl?: string;
+  certificateUploadedAt?: string;
+}
+
 export interface DocumentRequirementRule {
   id: string;
   department: string;
@@ -136,6 +161,7 @@ export interface Student {
   fatherName: string;
   fatherPhone: string;
   fatherOccupation: string;
+  fatherEmail?: string;
   motherName: string;
   motherPhone: string;
   guardianEmail?: string;
@@ -185,25 +211,46 @@ export interface Staff {
   name?: string;
   firstName: string;
   lastName: string;
+  middleName?: string;
   designation: string;
   department: string;
   role?: string;
   email: string;
   phone: string;
+  alternateMobile?: string;
   gender: 'Male' | 'Female' | 'Other';
   dob: string;
+  bloodGroup?: BloodGroup | string;
+  nationality?: string;
+  religion?: string;
+  maritalStatus?: string;
+  fatherName?: string;
+  motherName?: string;
   joiningDate: string;
   qualification: string;
   experienceYears: number;
   salary: number;
   grossSalary?: number;
   netSalary?: number;
+  profileStatus?: 'Incomplete' | 'Completed';
+  employmentType?: string;
+  reportingManager?: string;
+  currentAddress?: string;
+  residentialAddress?: string;
+  permanentAddress?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  country?: string;
+  pinCode?: string;
   status: 'Active' | 'Inactive' | 'On Leave';
   avatar: string;
   address: string;
   assignedClasses: string[];
   assignedSubjects: string[];
   documents: StaffDocument[];
+  qualifications?: StaffEducationRecord[];
+  experienceRecords?: StaffExperienceRecord[];
   bankDetails: BankDetails;
   leaveBalance: {
     casual: number;

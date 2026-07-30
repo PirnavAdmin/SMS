@@ -285,7 +285,7 @@ const normalizePayrollTab = (tab?: string): PayrollTabId => {
     case 'staff-payroll-assignment':
     case 'staff-payroll-processing':
     case 'staff-payroll-reports':
-      return 'staff-payroll-payslips';
+      return 'staff-payroll-employees';
     default:
       return 'staff-payroll-employees';
   }
@@ -1475,22 +1475,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <p className="mt-2 text-sm text-slate-500">
               A simple payroll workspace for employee salary assignment, salary structures, payslip generation, and payslip history.
             </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => openAssignmentModal()}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <Plus className="h-4 w-4" /> Assign Salary
-            </button>
-            <button
-              type="button"
-              onClick={() => openStructureModal('add')}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
-            >
-              <Layers className="h-4 w-4" /> Create Structure
-            </button>
           </div>
         </div>
       </section>
