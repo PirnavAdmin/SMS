@@ -97,15 +97,15 @@ const MetricCard: React.FC<{ label: string; value: string | number; tone?: 'bran
           : 'from-slate-100 to-slate-50 text-slate-900 dark:from-slate-800 dark:to-slate-900 dark:text-white';
 
   return (
-    <div className={`rounded-2xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br ${toneClass} p-4`}>
+    <div className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br ${toneClass} p-3`}>
       <p className="text-[10px] uppercase tracking-[0.35em] font-black opacity-80">{label}</p>
-      <p className="text-lg font-black mt-2">{value}</p>
+      <p className="text-base font-black mt-1.5">{value}</p>
     </div>
   );
 };
 
 const InfoLine: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
-  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-4 py-3">
+  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-3 py-2.5">
     <p className="text-[10px] uppercase tracking-[0.3em] font-black text-slate-400">{label}</p>
     <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value || 'Not Provided'}</div>
   </div>
@@ -116,12 +116,11 @@ const SectionBlock: React.FC<{ title: string; subtitle?: string; children: React
   subtitle,
   children
 }) => (
-  <section className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+  <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
       <h3 className="text-sm font-black text-slate-900 dark:text-white">{title}</h3>
-      {subtitle && <p className="text-[11px] text-slate-500 mt-1">{subtitle}</p>}
     </div>
-    <div className="p-5">{children}</div>
+    <div className="p-4">{children}</div>
   </section>
 );
 
@@ -200,7 +199,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   const renderOverview = () => (
     <div className="space-y-5">
       <SectionBlock title="Profile Summary" subtitle="A quick glance at the staff record.">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <MetricCard label="Status" value={staff.status} tone={staff.status === 'Active' ? 'emerald' : 'amber'} />
           <MetricCard label="Employee ID" value={staff.empId} tone="brand" />
           <MetricCard label="Department" value={department} tone="slate" />
@@ -759,8 +758,8 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-6xl h-full bg-slate-50 dark:bg-slate-950 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-6xl max-h-[95vh] rounded-3xl bg-slate-50 dark:bg-slate-950 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4 min-w-0">

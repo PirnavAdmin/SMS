@@ -1015,9 +1015,6 @@ export const StaffAttendanceView: React.FC = () => {
             <CalendarCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" /> 
             Staff Attendance
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Enterprise attendance workflow, daily registers, leave integration, and payroll summary logs
-          </p>
         </div>
 
         {(activeTab === 'teaching' || activeTab === 'non-teaching') && canMarkAttendance && (

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Users, Search, Plus, Edit, Trash2, Eye,
-  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield
+  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield, ChevronDown
 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -19,12 +19,30 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
 
   const [activeCategory, setActiveCategory] = useState<'Teacher' | 'Staff'>(initialCategory || 'Teacher');
 
+  const subjectDropdownRef = useRef<HTMLDivElement>(null);
+  const deptDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (subjectDropdownRef.current && !subjectDropdownRef.current.contains(event.target as Node)) {
+        setSubjectDropdownOpen(false);
+      }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target as Node)) {
+        setDeptDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   // Filters state
   const [query, setQuery] = useState('');
   const [filterDept, setFilterDept] = useState('All');
+  const [deptSearch, setDeptSearch] = useState('');
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
   const [filterSubject, setFilterSubject] = useState('All');
+  const [subjectSearch, setSubjectSearch] = useState('');
+  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const [filterDesignation, setFilterDesignation] = useState('All');
-  const [filterBranch, setFilterBranch] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
@@ -82,13 +100,10 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                        filterDesignation === 'All' ||
                        s.designation === filterDesignation;
 
-    const branchMatch = filterBranch === 'All' ||
-                        (s as any).branch === filterBranch;
-
     const statusMatch = filterStatus === 'All' ||
                         s.status === filterStatus;
 
-    return nameMatch && deptMatch && subjectMatch && desigMatch && branchMatch && statusMatch;
+    return nameMatch && deptMatch && subjectMatch && desigMatch && statusMatch;
   });
 
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
@@ -119,14 +134,11 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
     ...categoryStaffList.map(s => s.department).filter(Boolean)
   ]));
   const uniqueDesignations = Array.from(new Set(categoryStaffList.map(s => s.designation).filter(Boolean)));
-  const uniqueBranches = Array.from(new Set(categoryStaffList.map(s => (s as any).branch).filter(Boolean)));
-
   const handleTabChange = (cat: 'Teacher' | 'Staff') => {
     setActiveCategory(cat);
     setFilterDept('All');
     setFilterSubject('All');
     setFilterDesignation('All');
-    setFilterBranch('All');
     setFilterStatus('All');
     setCurrentPage(1);
   };
@@ -139,17 +151,10 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-brand-600" /> {getCategoryLabel(activeCategory)}
           </h2>
-          <p className="text-xs text-slate-500">Manage basic staff records, profile completion, and employee status.</p>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsRuleMasterOpen(true)}
-            className="px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-2 transition-all shadow-xs border border-slate-200 dark:border-slate-700"
-            title="Configure Document Requirement Rules per Department & Designation"
-          >
-            <Shield className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Document Rules Master
-          </button>
+
           <ExportButton data={filtered} filename={`${activeCategory.toLowerCase()}_directory`} />
           <button
             onClick={openStaffRegistration}
@@ -186,13 +191,13 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
 
       {/* Advanced Filters Block */}
       <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="flex flex-col md:flex-row flex-wrap items-center gap-3">
           {/* Query search */}
-          <div className="relative col-span-1 md:col-span-2">
+          <div className="relative flex-[2] min-w-[200px] w-full">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3" />
             <input
               type="text"
-              placeholder="Search by name, employee ID..."
+              placeholder="Search..."
               value={query}
               onChange={e => { setQuery(e.target.value); setCurrentPage(1); }}
               className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -200,23 +205,56 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
           </div>
 
           {/* Department */}
-          <div>
-            <select
-              value={filterDept}
-              onChange={e => { setFilterDept(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+          <div ref={deptDropdownRef} className="relative flex-1 min-w-[140px] w-full">
+            <div 
+              className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+              onClick={() => setDeptDropdownOpen(!deptDropdownOpen)}
             >
-              <option value="All">All Departments</option>
-              {uniqueDepts.map(dept => <option key={dept} value={dept}>{dept}</option>)}
-            </select>
+               <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
+                 {filterDept === 'All' ? 'All Departments' : filterDept}
+               </span>
+               <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
+            </div>
+            
+            {deptDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                 <div className="p-2 border-b border-slate-100 dark:border-slate-700">
+                    <input 
+                      type="text" 
+                      placeholder="Search departments..." 
+                      value={deptSearch}
+                      onChange={e => setDeptSearch(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
+                      onClick={e => e.stopPropagation()}
+                    />
+                 </div>
+                 <div className="max-h-[160px] overflow-y-auto py-1">
+                    <div 
+                      className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDept === 'All' ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
+                      onClick={() => { setFilterDept('All'); setCurrentPage(1); setDeptDropdownOpen(false); setDeptSearch(''); }}
+                    >
+                      All Departments
+                    </div>
+                    {uniqueDepts.filter(d => d.toLowerCase().includes(deptSearch.toLowerCase())).map(dept => (
+                      <div 
+                        key={dept}
+                        className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDept === dept ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
+                        onClick={() => { setFilterDept(dept); setCurrentPage(1); setDeptDropdownOpen(false); setDeptSearch(''); }}
+                      >
+                        {dept}
+                      </div>
+                    ))}
+                 </div>
+              </div>
+            )}
           </div>
 
           {/* Status */}
-          <div>
+          <div className="flex-1 min-w-[140px] w-full">
             <select
               value={filterStatus}
               onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+              className="w-full pl-3 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer h-full"
             >
               <option value="All">All Statuses</option>
               <option value="Active">Active</option>
@@ -225,49 +263,69 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
             </select>
           </div>
 
-          {/* Branch */}
-          <div>
-            <select
-              value={filterBranch}
-              onChange={e => { setFilterBranch(e.target.value); setCurrentPage(1); }}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
-            >
-              <option value="All">All Branches</option>
-              {uniqueBranches.map(br => <option key={br} value={br}>{br}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Dynamic Second Filter Row */}
-        {((activeCategory === 'Teacher' && subjects.length > 0) || (activeCategory === 'Staff' && uniqueDesignations.length > 0)) && (
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
-            {activeCategory === 'Teacher' ? (
-              <div className="col-span-1 sm:col-span-2 flex items-center gap-2">
-                <span className="text-[10px] font-extrabold uppercase text-slate-400">Subject:</span>
-                <select
-                  value={filterSubject}
-                  onChange={e => { setFilterSubject(e.target.value); setCurrentPage(1); }}
-                  className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold cursor-pointer outline-none"
+          {/* Dynamic Second Filter (Subject/Designation) */}
+          {activeCategory === 'Teacher' && subjects.length > 0 && (
+             <div ref={subjectDropdownRef} className="relative flex-1 min-w-[140px] w-full">
+                <div 
+                  className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+                  onClick={() => setSubjectDropdownOpen(!subjectDropdownOpen)}
                 >
-                  <option value="All">All Subjects</option>
-                  {subjects.map(sub => <option key={sub.id} value={sub.name}>{sub.name}</option>)}
-                </select>
-              </div>
-            ) : (
-              <div className="col-span-1 sm:col-span-2 flex items-center gap-2">
-                <span className="text-[10px] font-extrabold uppercase text-slate-400">Designation:</span>
+                   <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
+                     {filterSubject === 'All' ? 'All Subjects' : filterSubject}
+                   </span>
+                   <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
+                </div>
+                
+                {subjectDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                     <div className="p-2 border-b border-slate-100 dark:border-slate-700">
+                        <input 
+                          type="text" 
+                          placeholder="Search subjects..." 
+                          value={subjectSearch}
+                          onChange={e => setSubjectSearch(e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
+                          onClick={e => e.stopPropagation()}
+                        />
+                     </div>
+                     <div className="max-h-[160px] overflow-y-auto py-1">
+                        <div 
+                          className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterSubject === 'All' ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
+                          onClick={() => { setFilterSubject('All'); setCurrentPage(1); setSubjectDropdownOpen(false); setSubjectSearch(''); }}
+                        >
+                          All Subjects
+                        </div>
+                        {subjects.filter(s => s.name.toLowerCase().includes(subjectSearch.toLowerCase()) || s.code.toLowerCase().includes(subjectSearch.toLowerCase())).map(sub => (
+                          <div 
+                            key={sub.id}
+                            className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterSubject === sub.name ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
+                            onClick={() => { setFilterSubject(sub.name); setCurrentPage(1); setSubjectDropdownOpen(false); setSubjectSearch(''); }}
+                          >
+                            <div className="flex flex-col gap-0.5">
+                              <span>{sub.name}</span>
+                              <span className="text-[10px] text-slate-400 font-normal">Code: {sub.code}</span>
+                            </div>
+                          </div>
+                        ))}
+                     </div>
+                  </div>
+                )}
+             </div>
+          )}
+          
+          {activeCategory === 'Staff' && uniqueDesignations.length > 0 && (
+             <div className="flex-1 min-w-[140px] w-full flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 h-full">
                 <select
                   value={filterDesignation}
                   onChange={e => { setFilterDesignation(e.target.value); setCurrentPage(1); }}
-                  className="px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold cursor-pointer outline-none"
+                  className="bg-transparent text-xs text-slate-900 dark:text-white font-semibold cursor-pointer outline-none w-full py-2 pr-6"
                 >
                   <option value="All">All Designations</option>
                   {uniqueDesignations.map(ds => <option key={ds} value={ds}>{ds}</option>)}
                 </select>
-              </div>
-            )}
-          </div>
-        )}
+             </div>
+          )}
+        </div>
       </div>
 
       {/* Directory Table Grid */}
@@ -276,24 +334,22 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Photo</th>
-                <th className="py-3.5 px-4 font-mono">Employee ID</th>
-                <th className="py-3.5 px-4">Employee Name</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Department</th>
-                <th className="py-3.5 px-4">Designation</th>
-                <th className="py-3.5 px-4">Branch</th>
-                <th className="py-3.5 px-4">Email</th>
-                <th className="py-3.5 px-4">Mobile</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4">Profile Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Photo</th>
+                <th className="py-3.5 px-4 font-mono whitespace-nowrap">Employee ID</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Employee Name</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Department</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Designation</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Email</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Mobile</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 whitespace-nowrap">Profile Status</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="text-center py-8 text-slate-400">
+                  <td colSpan={10} className="text-center py-8 text-slate-400">
                     No {activeCategory.toLowerCase()} records match search filters.
                   </td>
                 </tr>
@@ -327,14 +383,8 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                           <p className="text-[10px] text-slate-400">{st.role || 'Staff'}</p>
                         </button>
                       </td>
-                      <td className="py-3 px-4">
-                        <Badge variant={getStaffCategory(st) === 'Teacher' ? 'info' : 'neutral'} size="sm">
-                          {categoryLabel}
-                        </Badge>
-                      </td>
                       <td className="py-3 px-4">{st.department || 'N/A'}</td>
                       <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">{st.designation || 'N/A'}</td>
-                      <td className="py-3 px-4">{st.branch || 'Main Campus'}</td>
                       <td className="py-3 px-4">{st.email || 'N/A'}</td>
                       <td className="py-3 px-4">{st.phone || 'N/A'}</td>
                       <td className="py-3 px-4">
@@ -347,8 +397,8 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                           {profileStatus}
                         </Badge>
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => setSelectedStaff(st)}
                             className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
@@ -363,13 +413,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                          <button
-                            onClick={() => toggleStatus(st)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
-                            title={st.status === 'Active' ? 'Deactivate' : 'Activate'}
-                          >
-                            <Shield className="w-4 h-4" />
-                          </button>
+
                           <button
                             onClick={() => setStaffToDelete(st)}
                             className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"

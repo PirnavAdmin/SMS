@@ -280,6 +280,7 @@ const normalizePayrollTab = (tab?: string): PayrollTabId => {
     case 'staff-payroll-history':
       return 'staff-payroll-history';
     case 'staff-payroll-payslips':
+      return 'staff-payroll-payslips';
     case 'staff-payslips':
     case 'staff-payroll':
     case 'staff-payroll-assignment':
@@ -329,11 +330,11 @@ const Panel: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ title, subtitle, action, children, className = '' }) => (
-  <section className={`rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${className}`}>
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+  <section className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${className}`}>
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <h3 className="text-base font-black text-slate-900 dark:text-white">{title}</h3>
-        {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
+        <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
+        {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
       </div>
       {action}
     </div>
@@ -935,23 +936,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Employees" value={String(totalEmployees)} helper="Staff available for payroll" icon={Users} tone="sky" />
-          <StatCard label="Assigned" value={String(activeEmployees)} helper="Salary structures linked" icon={CheckCircle2} tone="emerald" />
-          <StatCard label="Unassigned" value={String(unassignedEmployees)} helper="Awaiting payroll mapping" icon={AlertTriangle} tone="amber" />
-          <StatCard label="Overrides" value={String(overrideEmployeeCount)} helper="Employee-specific salary edits" icon={ShieldCheck} tone="brand" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <StatCard label="Employees" value={String(totalEmployees)} icon={Users} tone="sky" />
+          <StatCard label="Assigned" value={String(activeEmployees)} icon={CheckCircle2} tone="emerald" />
+          <StatCard label="Unassigned" value={String(unassignedEmployees)} icon={AlertTriangle} tone="amber" />
+          <StatCard label="Overrides" value={String(overrideEmployeeCount)} icon={ShieldCheck} tone="brand" />
         </div>
 
         <Panel
           title="Employee Payroll"
-          subtitle="Assign salary structures to employees. Every new staff member appears here as Not Assigned until payroll mapping is completed."
           action={(
             <button
               type="button"
               onClick={() => openAssignmentModal()}
-              className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
             >
-              <Plus className="h-4 w-4" /> Assign Salary
+              <Plus className="h-3.5 w-3.5" /> Assign Salary
             </button>
           )}
         >
@@ -1035,16 +1035,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                           <button
                             type="button"
                             onClick={() => setDrawerStaff(row.member)}
-                            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            title="View Profile"
                           >
-                            <Eye className="h-3.5 w-3.5" /> View
+                            <Eye className="h-4 w-4" />
                           </button>
                           <button
                             type="button"
                             onClick={() => openAssignmentModal(row.member)}
-                            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-50 px-3 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50"
+                            title={row.assignment ? 'Edit Salary' : 'Assign Salary'}
                           >
-                            <Edit3 className="h-3.5 w-3.5" /> {row.assignment ? 'Edit Salary' : 'Assign Salary'}
+                            <Edit3 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>
@@ -1068,23 +1070,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const renderStructureTab = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Active Structures" value={String(activeStructureCount)} helper="Available for assignment" icon={BadgeIndianRupee} tone="emerald" />
-        <StatCard label="Total Structures" value={String(salaryStructures.length)} helper="Salary templates in library" icon={Layers} tone="sky" />
-        <StatCard label="Employees Assigned" value={String(assignedEmployeeCount)} helper="Linked active payroll maps" icon={Users} tone="brand" />
-        <StatCard label="Net Salary Preview" value={formatCurrency(totalPreviewNet)} helper="All template net amounts combined" icon={CheckCircle2} tone="amber" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <StatCard label="Active Structures" value={String(activeStructureCount)} icon={BadgeIndianRupee} tone="emerald" />
+        <StatCard label="Total Structures" value={String(salaryStructures.length)} icon={Layers} tone="sky" />
+        <StatCard label="Employees Assigned" value={String(assignedEmployeeCount)} icon={Users} tone="brand" />
+        <StatCard label="Net Salary Preview" value={formatCurrency(totalPreviewNet)} icon={CheckCircle2} tone="amber" />
       </div>
 
       <Panel
         title="Salary Structures"
-        subtitle="Create and reuse salary templates for teaching and non-teaching staff."
         action={(
           <button
             type="button"
             onClick={() => openStructureModal('add')}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
           >
-            <Plus className="h-4 w-4" /> Create Structure
+            <Plus className="h-3.5 w-3.5" /> Create Structure
           </button>
         )}
       >
@@ -1162,16 +1163,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       <button
                         type="button"
                         onClick={() => openStructureModal('edit', row.structure)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        title="Edit Structure"
                       >
-                        <Edit3 className="h-3.5 w-3.5" /> Edit
+                        <Edit3 className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
                         onClick={() => openStructureModal('duplicate', row.structure)}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-50 px-3 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50"
+                        title="Duplicate Structure"
                       >
-                        <Copy className="h-3.5 w-3.5" /> Duplicate
+                        <Copy className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
@@ -1180,9 +1183,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                           deleteSalaryStructure(row.structure.id);
                           addToast('info', 'Structure deleted', `${row.structure.structureName} was removed from the library.`);
                         }}
-                        className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-50 px-3 text-xs font-bold text-rose-700 dark:bg-rose-950/30 dark:text-rose-300"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-900/50"
+                        title="Delete Structure"
                       >
-                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -1204,26 +1208,25 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const renderPayslipGenerationTab = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Eligible Employees" value={String(generationRows.length)} helper="Ready for payslip generation" icon={Users} tone="sky" />
-        <StatCard label="Existing Payslips" value={String(generationRows.filter(row => row.existing).length)} helper="Already generated for this period" icon={ReceiptText} tone="emerald" />
-        <StatCard label="Total Gross" value={formatCurrency(generationRows.reduce((sum, row) => sum + row.breakdown.grossSalary, 0))} helper={payrollMonthLabel} icon={BadgeIndianRupee} tone="brand" />
-        <StatCard label="Total Net" value={formatCurrency(generationRows.reduce((sum, row) => sum + row.netSalary, 0))} helper="After attendance and deductions" icon={CheckCircle2} tone="amber" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <StatCard label="Eligible Employees" value={String(generationRows.length)} icon={Users} tone="sky" />
+        <StatCard label="Existing Payslips" value={String(generationRows.filter(row => row.existing).length)} icon={ReceiptText} tone="emerald" />
+        <StatCard label="Total Gross" value={formatCurrency(generationRows.reduce((sum, row) => sum + row.breakdown.grossSalary, 0))} icon={BadgeIndianRupee} tone="brand" />
+        <StatCard label="Total Net" value={formatCurrency(generationRows.reduce((sum, row) => sum + row.netSalary, 0))} icon={CheckCircle2} tone="amber" />
       </div>
 
       <Panel
         title="Generate Payslips"
-        subtitle="HR selects a month and year, and the system reads attendance, leave, and salary structure data to produce payslips."
         action={(
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={handleBulkGenerate} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20">
-              <ReceiptText className="h-4 w-4" /> Generate All
+            <button type="button" onClick={handleBulkGenerate} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-lg shadow-brand-500/20">
+              <ReceiptText className="h-3.5 w-3.5" /> Generate All
             </button>
-            <button type="button" onClick={handleBulkDownload} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Download className="h-4 w-4" /> Download All
+            <button type="button" onClick={handleBulkDownload} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <Download className="h-3.5 w-3.5" /> Download All
             </button>
-            <button type="button" onClick={handleBulkEmail} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Mail className="h-4 w-4" /> Email All
+            <button type="button" onClick={handleBulkEmail} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <Mail className="h-3.5 w-3.5" /> Email All
             </button>
           </div>
         )}
@@ -1306,20 +1309,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
                   <td className="rounded-r-[18px] px-3 py-4">
                     <div className="flex items-center justify-end gap-2">
-                      <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                        <Eye className="h-3.5 w-3.5" /> Preview
+                      <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Preview Profile">
+                        <Eye className="h-4 w-4" />
                       </button>
                       <button type="button" onClick={() => {
                         createPayslipForRow(row);
                         addToast('success', 'Payslip ready', `${row.member.firstName} ${row.member.lastName} ${row.existing ? 'payslip already existed' : 'payslip generated'} for ${payrollMonthLabel}.`);
-                      }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-50 px-3 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">
-                        <FileText className="h-3.5 w-3.5" /> Generate PDF
+                      }} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" title="Generate PDF">
+                        <FileText className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => addToast('info', 'Download queued', `${row.member.firstName} ${row.member.lastName} payslip download prepared.`)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                        <Download className="h-3.5 w-3.5" /> Download PDF
+                      <button type="button" onClick={() => addToast('info', 'Download queued', `${row.member.firstName} ${row.member.lastName} payslip download prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Download PDF">
+                        <Download className="h-4 w-4" />
                       </button>
-                      <button type="button" onClick={() => addToast('info', 'Email queued', `${row.member.firstName} ${row.member.lastName} payslip email prepared.`)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                        <Mail className="h-3.5 w-3.5" /> Email
+                      <button type="button" onClick={() => addToast('info', 'Email queued', `${row.member.firstName} ${row.member.lastName} payslip email prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Email Payslip">
+                        <Mail className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
@@ -1341,16 +1344,15 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const renderHistoryTab = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="History Rows" value={String(historyRows.length)} helper="Payslips generated so far" icon={Clock3} tone="sky" />
-        <StatCard label="Paid" value={String(historyRows.filter(item => item.status === 'Paid').length)} helper="Disbursed salary records" icon={CheckCircle2} tone="emerald" />
-        <StatCard label="Generated" value={String(historyRows.filter(item => item.status === 'Generated').length)} helper="Awaiting payment" icon={ReceiptText} tone="amber" />
-        <StatCard label="Selected Period" value={historyRows.length > 0 ? activePreviewMonth : payrollMonthLabel} helper="Latest matching payslip window" icon={CalendarDays} tone="brand" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <StatCard label="History Rows" value={String(historyRows.length)} icon={Clock3} tone="sky" />
+        <StatCard label="Paid" value={String(historyRows.filter(item => item.status === 'Paid').length)} icon={CheckCircle2} tone="emerald" />
+        <StatCard label="Generated" value={String(historyRows.filter(item => item.status === 'Generated').length)} icon={ReceiptText} tone="amber" />
+        <StatCard label="Selected Period" value={historyRows.length > 0 ? activePreviewMonth : payrollMonthLabel} icon={CalendarDays} tone="brand" />
       </div>
 
       <Panel
         title="Payslip History"
-        subtitle="Review all previously generated payslips and use the filters to find a specific month, year, or employee."
       >
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
           <div>
@@ -1419,14 +1421,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     </td>
                     <td className="rounded-r-[18px] px-3 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                          <Eye className="h-3.5 w-3.5" /> View
+                        <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="View Details">
+                          <Eye className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => addToast('info', 'Download queued', `${item.employeeName} payslip download prepared.`)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-50 px-3 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">
-                          <Download className="h-3.5 w-3.5" /> Download PDF
+                        <button type="button" onClick={() => addToast('info', 'Download queued', `${item.employeeName} payslip download prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" title="Download PDF">
+                          <Download className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                          <Mail className="h-3.5 w-3.5" /> Email
+                        <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Email Payslip">
+                          <Mail className="h-4 w-4" />
                         </button>
                       </div>
                     </td>
@@ -1463,56 +1465,47 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="info" size="sm">Faculty & Staff</Badge>
-              <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Payroll</span>
-            </div>
-            <h1 className="mt-3 text-2xl font-black text-slate-900 dark:text-white">Payroll</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              A simple payroll workspace for employee salary assignment, salary structures, payslip generation, and payslip history.
-            </p>
-          </div>
+    <div className="space-y-6 animate-in fade-in pb-12 max-w-[1600px] mx-auto w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <BadgeIndianRupee className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+            Payroll
+          </h2>
         </div>
-      </section>
+      </div>
 
-      <section className="overflow-x-auto rounded-[22px] border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="min-w-[960px] grid grid-cols-4 gap-3">
-          {payrollTabs.map(tab => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex min-h-[84px] items-center gap-3 rounded-[18px] border px-4 py-4 text-left transition-all ${
-                  active
-                    ? 'border-brand-600 bg-brand-600 text-white shadow-lg shadow-brand-500/20'
-                    : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
-                }`}
-              >
-                <div className={`flex h-10 w-10 items-center justify-center rounded-2xl ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span className="text-[11px] font-black uppercase tracking-[0.28em]">{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <div className="grid grid-cols-4 gap-4">
+        {payrollTabs.map(tab => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex min-h-[52px] items-center justify-center xl:justify-start gap-2 rounded-2xl border px-3 py-2 text-left transition-all ${
+                active
+                  ? 'border-brand-600 bg-brand-600 text-white shadow-md shadow-brand-500/20'
+                  : 'border-slate-200 bg-white shadow-sm text-slate-600 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
+              }`}
+            >
+              <div className={`hidden sm:flex h-7 w-7 shrink-0 items-center justify-center rounded-xl ${active ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-center xl:text-left leading-tight">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {renderTabContent()}
 
       {structureModalOpen && (
         <ModalShell
           title={structureMode === 'add' ? 'Create Salary Structure' : structureMode === 'edit' ? 'Edit Salary Structure' : 'Duplicate Salary Structure'}
-          subtitle="Create a reusable salary template with detailed earnings and deductions."
           onClose={closeStructureModal}
-          maxWidth="max-w-5xl"
+          maxWidth="max-w-3xl"
         >
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
             <div className="space-y-5">
@@ -1750,11 +1743,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       {assignmentModalOpen && (
         <ModalShell
           title="Assign Salary"
-          subtitle="Choose the employee, category, designation, and structure. Override stays off by default."
           onClose={closeAssignmentModal}
-          maxWidth="max-w-5xl"
+          maxWidth="max-w-2xl"
         >
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(300px,0.8fr)]">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[1.2fr_0.8fr]">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>

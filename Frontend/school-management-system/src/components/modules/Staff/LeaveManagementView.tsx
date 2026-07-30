@@ -21,7 +21,7 @@ export const LeaveManagementView: React.FC = () => {
   const { addToast } = useToast();
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>('applications');
+  const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>('queue');
 
   // Filter States
   const [query, setQuery] = useState('');
@@ -358,13 +358,14 @@ export const LeaveManagementView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileText className="w-6 h-6 text-brand-600" /> Leave Management
           </h2>
-          <p className="text-xs text-slate-500">Configure leave settings, monitor balances, process approvals, and manage school calendars</p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => { setEditingApplication(null); resetApplyForm(); setIsApplyOpen(true); }}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
+            disabled={hasApprovalPermission}
+            title={hasApprovalPermission ? "Admins/Approvers cannot apply for leaves here" : ""}
+            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" /> Submit Leave Application
           </button>
@@ -374,25 +375,40 @@ export const LeaveManagementView: React.FC = () => {
       {/* Dashboard Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-slate-400">Total Leave Balance</span>
-          <p className="text-lg font-black text-slate-800 dark:text-white mt-1">{totalBalance} Days</p>
+          <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
+          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} Leaves</p>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-amber-500">Pending Approvals</span>
           <p className="text-lg font-black text-amber-600 mt-1">{pendingCount} Applications</p>
         </div>
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
-          <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} Leaves</p>
-        </div>
-        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
           <p className="text-lg font-black text-rose-600 mt-1">{rejectedCount} Leaves</p>
+        </div>
+        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
+          <span className="text-[10px] uppercase font-bold text-slate-400">Total Leave Balance</span>
+          <p className="text-lg font-black text-slate-800 dark:text-white mt-1">{totalBalance} Days</p>
         </div>
       </div>
 
       {/* Internal Tabs Layout */}
       <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 py-1">
+        {hasApprovalPermission && (
+          <button
+            onClick={() => setActiveTab('queue')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all relative ${
+              activeTab === 'queue' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            Approval Queue
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white font-mono text-[9px] flex items-center justify-center">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('applications')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -417,36 +433,13 @@ export const LeaveManagementView: React.FC = () => {
         >
           Leave Balance
         </button>
-        {hasApprovalPermission && (
-          <button
-            onClick={() => setActiveTab('queue')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all relative ${
-              activeTab === 'queue' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            Approval Queue
-            {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white font-mono text-[9px] flex items-center justify-center">
-                {pendingCount}
-              </span>
-            )}
-          </button>
-        )}
-        <button
-          onClick={() => setActiveTab('holidays')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'holidays' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
-          }`}
-        >
-          Holiday Calendar
-        </button>
       </div>
 
       {/* TAB CONTENT: APPLICATIONS */}
       {activeTab === 'applications' && (
         <div className="space-y-4">
           {/* Advanced Filter Header */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center gap-3">
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-60">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
               <input
@@ -771,12 +764,11 @@ export const LeaveManagementView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh] space-y-4">
             
-            <div className="flex items-center justify-between border-b pb-3">
+            <div className="flex items-center justify-between pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-brand-600" />
                 {editingApplication ? 'Edit Leave Application' : 'Apply For Leave'}
               </h3>
-              <button onClick={() => setIsApplyOpen(false)} className="p-1 text-slate-400 hover:text-slate-600"><XCircle className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleApplySubmit} className="space-y-4 text-xs">
@@ -788,7 +780,7 @@ export const LeaveManagementView: React.FC = () => {
                   required
                   value={applyForm.employeeId}
                   onChange={e => setApplyForm({ ...applyForm, employeeId: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
+                  className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
                 >
                   <option value="">Choose Employee</option>
                   {staff.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.empId})</option>)}
@@ -815,7 +807,7 @@ export const LeaveManagementView: React.FC = () => {
                   required
                   value={applyForm.leaveTypeId}
                   onChange={e => setApplyForm({ ...applyForm, leaveTypeId: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
+                  className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
                 >
                   <option value="">Select Leave Type</option>
                   {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
@@ -869,7 +861,7 @@ export const LeaveManagementView: React.FC = () => {
                   <select
                     value={applyForm.halfDayPeriod}
                     onChange={e => setApplyForm({ ...applyForm, halfDayPeriod: e.target.value as any })}
-                    className="px-2.5 py-1 text-[11px] rounded-lg bg-slate-50 border cursor-pointer outline-none"
+                    className="pl-2.5 pr-7 py-1 text-[11px] rounded-lg bg-slate-50 border cursor-pointer outline-none"
                   >
                     <option value="First Half">First Half Session</option>
                     <option value="Second Half">Second Half Session</option>
@@ -890,7 +882,7 @@ export const LeaveManagementView: React.FC = () => {
               </div>
 
               {/* Submissions */}
-              <div className="flex items-center justify-between pt-3 border-t">
+              <div className="flex items-center justify-between pt-3">
                 <span className="font-bold text-slate-900 text-[11px]">
                   Total Leave duration: <span className="text-sky-600">{requestedDays} Days</span>
                 </span>
@@ -1099,7 +1091,7 @@ export const LeaveManagementView: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <div className="flex items-center justify-end gap-2 pt-4">
                 <button type="button" onClick={() => setIsTypeModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
                 <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 rounded-xl">Save Configuration</button>
               </div>

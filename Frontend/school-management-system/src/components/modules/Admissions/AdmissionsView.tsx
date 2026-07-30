@@ -1186,12 +1186,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Admissions
           </h2>
-          <p className="text-slate-500 font-bold">View admission applications, update candidate details, and enroll applicants into designated classes.</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="btn-primary py-1.5 px-3.5 flex items-center gap-1.5 text-[10.5px] font-black"
+          className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
         >
           <Plus className="w-4 h-4" /> New Admission Registration
         </button>

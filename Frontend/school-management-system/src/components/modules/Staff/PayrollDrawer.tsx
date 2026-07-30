@@ -40,10 +40,10 @@ const DrawerCard: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ title, subtitle, children, className = '' }) => (
-  <section className={`rounded-[20px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950 ${className}`}>
-    <div className="mb-3">
+  <section className={`space-y-4 pt-2 ${className}`}>
+    <div className="mb-2">
       <h4 className="text-sm font-black text-slate-900 dark:text-white">{title}</h4>
-      {subtitle && <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>}
+      {subtitle && <p className="mt-0.5 text-[11px] text-slate-500">{subtitle}</p>}
     </div>
     {children}
   </section>
@@ -88,8 +88,8 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   const structureDeductions = structure?.deductions || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-5xl flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm sm:p-6">
+      <div className="flex w-full max-w-5xl max-h-[90vh] flex-col rounded-[24px] border border-slate-200 bg-white shadow-2xl overflow-hidden dark:border-slate-800 dark:bg-slate-950">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800">
           <div className="flex min-w-0 items-center gap-4">
             <img src={staff.avatar} alt={`${staff.firstName} ${staff.lastName}`} className="h-16 w-16 rounded-3xl object-cover ring-4 ring-slate-100 dark:ring-slate-800" />
@@ -108,7 +108,7 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
         </div>
 
         <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-7">
+          <div className="flex flex-wrap gap-2">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -117,16 +117,16 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex min-h-[72px] items-center gap-3 rounded-[18px] border p-4 text-left transition-all ${
+                  className={`flex h-10 items-center gap-2 rounded-xl border px-3 transition-all ${
                     active
-                      ? 'border-brand-600 bg-brand-600 text-white shadow-lg shadow-brand-500/20'
+                      ? 'border-brand-600 bg-brand-600 text-white shadow-md shadow-brand-500/20'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
                   }`}
                 >
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                    <Icon className="h-4 w-4" />
+                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    <Icon className="h-3.5 w-3.5" />
                   </div>
-                  <span className="text-[11px] font-black uppercase tracking-[0.28em]">{tab.label}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
                 </button>
               );
             })}
@@ -327,9 +327,6 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
           )}
         </div>
 
-        <div className="border-t border-slate-100 px-6 py-4 text-xs text-slate-500 dark:border-slate-800">
-          Employee payroll details use static data only and are designed to be opened from the staff directory or payroll tables.
-        </div>
       </div>
     </div>
   );

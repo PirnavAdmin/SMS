@@ -109,42 +109,33 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   const summaryCategory = form.employeeCategory ? getEmployeeCategoryLabel(form.employeeCategory) : 'Select category';
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="rounded-[28px] border border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl shadow-lg overflow-hidden">
-        <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-5 sm:px-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="info" size="sm">Faculty & Staff</Badge>
-                <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Staff Directory / Add Staff</span>
-              </div>
-              <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white">Add Staff</h1>
-              <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                Create the basic employee record only. The employee will complete the rest of the profile after logging in.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => onNavigate('staff-directory')}
-                className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-brand-600/20 disabled:opacity-70"
-              >
-                <CheckCircle2 className="h-4 w-4" /> {submitting ? 'Creating...' : 'Create Employee'}
-              </button>
-            </div>
-          </div>
+    <div className="space-y-6 animate-in fade-in pb-10 max-w-6xl mx-auto w-full">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onNavigate('staff-directory')}
+            className="p-2 -ml-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+            title="Go Back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-2xl font-black text-slate-900 dark:text-white">Add Staff</h1>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 px-5 py-6 xl:grid-cols-[minmax(0,1fr)_360px] sm:px-6">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-brand-600/20 hover:bg-brand-500 transition-colors disabled:opacity-70"
+          >
+            <CheckCircle2 className="h-4 w-4" /> {submitting ? 'Creating...' : 'Create Employee'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <SectionCard title="Basic Information" subtitle="Enter only the core staff details required to create the employee record.">
             <BasicStaffFormFields
               value={form}
@@ -204,7 +195,6 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
               </div>
             </SectionCard>
           </aside>
-        </div>
       </div>
     </div>
   );
