@@ -140,8 +140,23 @@ export const ParentHomeworkView: React.FC = () => {
 
   const subjects = Array.from(new Set(wardHomework.map(h => h.subject)));
   const [filterSubject, setFilterSubject] = useState('All');
+  const [filterDate, setFilterDate] = useState('');
   const [filterStatus, setFilterStatus] = useState<'Upcoming' | 'Closed'>('Upcoming');
   const [searchQuery, setSearchQuery] = useState('');
+  const [popupDescription, setPopupDescription] = useState<string | null>(null);
+
+  const getSubjectCode = (subjectName: string) => {
+    if (!subjectName) return '';
+    const name = subjectName.toLowerCase();
+    if (name.includes('math')) return 'MAT-101';
+    if (name.includes('english')) return 'ENG-103';
+    if (name.includes('physics')) return 'PHY-102';
+    if (name.includes('chemistry')) return 'CHE-104';
+    if (name.includes('biology')) return 'BIO-105';
+    if (name.includes('science')) return 'SCI-106';
+    if (name.includes('computer')) return 'CS-105';
+    return `${subjectName.substring(0, 3).toUpperCase()}-101`;
+  };
 
   const filteredHomework = wardHomework.filter(h => {
     const isUpcomingTab = filterStatus === 'Upcoming';
@@ -149,8 +164,9 @@ export const ParentHomeworkView: React.FC = () => {
     const tabMatch = isUpcomingTab ? h.status === 'Pending' : h.status !== 'Pending';
     const searchMatch = !searchQuery || h.subject.toLowerCase().includes(searchQuery.toLowerCase()) || (h.title && h.title.toLowerCase().includes(searchQuery.toLowerCase()));
     const subjectMatch = filterSubject === 'All' || h.subject === filterSubject;
+    const dateMatch = !filterDate || h.assignedDate === filterDate || h.dueDate === filterDate;
     
-    return tabMatch && searchMatch && subjectMatch;
+    return tabMatch && searchMatch && subjectMatch && dateMatch;
   });
 
   const getStatusBadge = (status: string) => {
@@ -169,7 +185,7 @@ export const ParentHomeworkView: React.FC = () => {
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '';
     const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? dateStr : `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+    return isNaN(d.getTime()) ? dateStr : `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   };
 
   return (
@@ -215,7 +231,7 @@ export const ParentHomeworkView: React.FC = () => {
                   : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
             >
-              Upcoming Homework
+              Homework
             </button>
             <button
               onClick={() => setFilterStatus('Closed')}
@@ -228,7 +244,13 @@ export const ParentHomeworkView: React.FC = () => {
               Closed Homework
             </button>
           </div>
-          <div className="px-4 py-2 sm:p-0 w-full sm:w-auto border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
+          <div className="flex px-4 py-2 sm:p-0 w-full sm:w-auto border-t sm:border-t-0 border-slate-100 dark:border-slate-800 gap-2 items-center">
+            <input 
+              type="date"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+              className="w-full sm:w-auto pl-3 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer"
+            />
             <select
               value={filterSubject}
               onChange={e => setFilterSubject(e.target.value)}
@@ -249,7 +271,7 @@ export const ParentHomeworkView: React.FC = () => {
             <thead>
               <tr className="bg-white dark:bg-slate-900 border-b-2 border-slate-100 dark:border-slate-800">
                 <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Subject</th>
-                <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Title</th>
+                <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Description</th>
                 <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Homework Date</th>
                 <th className="py-3 px-4 font-bold text-xs text-slate-900 dark:text-white">Submission Date</th>
               </tr>
@@ -258,8 +280,24 @@ export const ParentHomeworkView: React.FC = () => {
               {filteredHomework.length > 0 ? (
                 filteredHomework.map((hw: any, idx: number) => (
                   <tr key={hw.id || idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3 px-4 text-xs font-bold text-slate-900 dark:text-white">{hw.subject}</td>
-                    <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{hw.title}</td>
+                    <td className="py-3 px-4 text-xs font-bold text-slate-900 dark:text-white">
+                      <div className="flex flex-col">
+                        <span>{hw.subject.split('(')[0].trim()}</span>
+                        <span className="opacity-60 text-[10px] font-normal lowercase">
+                          ({hw.subject.includes('(') ? hw.subject.split('(')[1].replace(')', '').trim().toLowerCase() : getSubjectCode(hw.subject).toLowerCase()})
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">
+                      {hw.description && hw.description.length > 30 ? (
+                        <div className="flex items-center gap-2">
+                          <span>{hw.description.substring(0, 30)}...</span>
+                          <button onClick={() => setPopupDescription(hw.description)} className="text-sky-600 hover:underline text-[10px] font-bold uppercase tracking-wider">Show</button>
+                        </div>
+                      ) : (
+                        hw.description || hw.title
+                      )}
+                    </td>
                     <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatDate(hw.assignedDate)}</td>
                     <td className="py-3 px-4 text-xs text-slate-600 dark:text-slate-400">{formatDate(hw.dueDate)}</td>
                   </tr>
@@ -287,6 +325,22 @@ export const ParentHomeworkView: React.FC = () => {
           </div>
         </div>
       </div>
+      {popupDescription && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPopupDescription(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-xl max-w-md w-full p-6 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Description</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{popupDescription}</p>
+            <div className="mt-6 flex justify-end">
+              <button 
+                onClick={() => setPopupDescription(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-bold transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -38,6 +38,7 @@ export const EventsView: React.FC = () => {
   const [branchFilter, setBranchFilter] = useState('All');
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
+  const [agendaDateFilter, setAgendaDateFilter] = useState('');
 
   // Modals State
   const [selectedEventForDetail, setSelectedEventForDetail] = useState<UnifiedCalendarEvent | null>(null);
@@ -254,10 +255,11 @@ export const EventsView: React.FC = () => {
       const matchesBranch = branchFilter === 'All' || !evt.branch || evt.branch === branchFilter || evt.branch === 'All Branches';
       const matchesType = eventTypeFilter === 'All' || evt.type === eventTypeFilter;
       const matchesCategory = categoryFilter === 'All' || evt.category === categoryFilter;
+      const matchesAgendaDate = !agendaDateFilter || evt.date === agendaDateFilter;
 
-      return matchesSearch && matchesBranch && matchesType && matchesCategory;
+      return matchesSearch && matchesBranch && matchesType && matchesCategory && matchesAgendaDate;
     });
-  }, [unifiedEvents, searchQuery, branchFilter, eventTypeFilter, categoryFilter]);
+  }, [unifiedEvents, searchQuery, branchFilter, eventTypeFilter, categoryFilter, agendaDateFilter]);
 
   // ==========================================
   // CALENDAR GRID COMPUTATION (Month View)
@@ -421,14 +423,13 @@ export const EventsView: React.FC = () => {
       
       {/* Top Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <CalendarIcon className="w-6 h-6 text-sky-500" />
-            Academic Calendar & Events
-          </h2>
-          <p className="text-xs text-slate-500">
-            Centralized school event schedules, gazetted holidays, exams, and meetings
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <CalendarIcon className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Events & Holidays</h2>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -455,10 +456,10 @@ export const EventsView: React.FC = () => {
       </div>
 
       {/* SUB-NAVIGATION TABS */}
-      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 max-w-2xl border border-slate-200/60 dark:border-slate-800 overflow-x-auto no-scrollbar">
+      <div className="inline-flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-800 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('calendar')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-6 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'calendar'
               ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -469,7 +470,7 @@ export const EventsView: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('holidays')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
+          className={`py-2 px-6 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
             activeTab === 'holidays'
               ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -477,18 +478,6 @@ export const EventsView: React.FC = () => {
         >
           <Sparkles className="w-3.5 h-3.5 text-sky-500" /> Holidays ({holidays.length})
         </button>
-
-        <button
-          onClick={() => setActiveTab('school-events')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'school-events'
-              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Award className="w-3.5 h-3.5 text-sky-500" /> School Events ({schoolEvents.length})
-        </button>
-
       </div>
 
       {/* SUB-TAB 1: DASHBOARD */}
@@ -667,7 +656,7 @@ export const EventsView: React.FC = () => {
                   calendarViewMode === 'agenda' ? 'bg-white dark:bg-slate-950 text-sky-600 shadow-xs' : 'text-slate-500'
                 }`}
               >
-                Upcoming Events
+                Upcoming Schedules
               </button>
             </div>
           </div>
@@ -738,10 +727,32 @@ export const EventsView: React.FC = () => {
           {/* AGENDA LIST VIEW */}
           {calendarViewMode === 'agenda' && (
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
-              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <List className="w-4 h-4 text-sky-600" />
-                Comprehensive Academic Calendar Agenda ({filteredEvents.length} Events)
-              </h3>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                  <List className="w-4 h-4 text-sky-600" />
+                  Comprehensive Academic Calendar Agenda ({filteredEvents.length} Events)
+                </h3>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search events..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs focus:ring-2 focus:ring-sky-500/20 outline-none"
+                    />
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={agendaDateFilter}
+                      onChange={e => setAgendaDateFilter(e.target.value)}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div className="space-y-3">
                 {filteredEvents.map(evt => (

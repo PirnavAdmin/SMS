@@ -39,11 +39,13 @@ export const CommunicationView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-brand-600" /> Notifications
-          </h2>
-          <p className="text-xs text-slate-500">Broadcast circulars, instant SMS alerts, emails & push notifications</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <Megaphone className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Notifications</h2>
+          </div>
         </div>
       </div>
 
@@ -122,9 +124,7 @@ export const CommunicationView: React.FC = () => {
           </div>
           )}
 
-          {/* Live Broadcast Feed */}
           <div className={`${canModify ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4`}>
-            <h3 className="font-bold text-sm text-slate-900 dark:text-white">Active Circular Feed</h3>
             <div className="space-y-3">
               {announcements.map(a => (
                 <div key={a.id} className="glass-card p-5 rounded-3xl space-y-2 text-xs">
@@ -134,11 +134,6 @@ export const CommunicationView: React.FC = () => {
                   </div>
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">{a.title}</h4>
                   <p className="text-slate-600 dark:text-slate-300 leading-relaxed">{a.content}</p>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 flex items-center gap-3">
-                    <span className="flex items-center gap-1"><MessageSquare className="w-3 h-3 text-emerald-500" /> SMS Sent</span>
-                    <span className="flex items-center gap-1"><Mail className="w-3 h-3 text-sky-500" /> Emails Sent</span>
-                    <span className="flex items-center gap-1"><Bell className="w-3 h-3 text-sky-500" /> Push Delivered</span>
-                  </div>
                 </div>
               ))}
             </div>

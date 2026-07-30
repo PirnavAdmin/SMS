@@ -25,6 +25,19 @@ export const ParentExaminationView: React.FC = () => {
 
   const getSubjectName = (id: string) => subjects.find(s => s.id === id)?.name || id;
 
+  const getSubjectCode = (subjectName: string) => {
+    if (!subjectName) return '';
+    const name = subjectName.toLowerCase();
+    if (name.includes('math')) return 'MAT-101';
+    if (name.includes('english')) return 'ENG-103';
+    if (name.includes('physics')) return 'PHY-102';
+    if (name.includes('chemistry')) return 'CHE-104';
+    if (name.includes('biology')) return 'BIO-105';
+    if (name.includes('science')) return 'SCI-106';
+    if (name.includes('computer')) return 'CS-105';
+    return `${subjectName.substring(0, 3).toUpperCase()}-101`;
+  };
+
   if (parentWards.length === 0) {
     return (
       <div className="p-8 text-center text-slate-500">
@@ -38,17 +51,31 @@ export const ParentExaminationView: React.FC = () => {
   // Get real results from Context (Published or Locked only)
   const wardResultsRaw = processedResults.filter(r => r.studentId === currentWard.id && (r.status === 'Published' || r.status === 'Locked'));
 
-  const staticFallbackExam = [{
+  const staticFallbackExams = [{
     examName: 'Mid-Term Assessment 2026',
     date: '2026-09-15',
     overallGrade: 'A',
     percentage: '88.5%',
     remarks: 'Excellent performance. Keep it up!',
+    isFiftyMarks: false,
     subjects: [
       { name: 'Mathematics', marks: '92/100', grade: 'A1' },
       { name: 'Physics', marks: '85/100', grade: 'A2' },
       { name: 'Chemistry', marks: '88/100', grade: 'A2' },
       { name: 'English', marks: '89/100', grade: 'A2' }
+    ]
+  }, {
+    examName: 'Unit Test 1',
+    date: '2026-08-10',
+    overallGrade: 'A',
+    percentage: '90.0%',
+    remarks: 'Good start to the term.',
+    isFiftyMarks: true,
+    subjects: [
+      { name: 'Mathematics', marks: '45/50', grade: 'A1' },
+      { name: 'Physics', marks: '40/50', grade: 'B1' },
+      { name: 'Chemistry', marks: '48/50', grade: 'A1' },
+      { name: 'English', marks: '42/50', grade: 'A2' }
     ]
   }];
 
@@ -88,7 +115,7 @@ export const ParentExaminationView: React.FC = () => {
     };
   });
 
-  const childExams = childExamsRaw.length > 0 ? childExamsRaw : staticFallbackExam;
+  const childExams = childExamsRaw.length > 0 ? [...childExamsRaw, staticFallbackExams[1]] : staticFallbackExams;
   const activeExam = childExams.find((e: any) => e.examName === selectedExamId) || childExams[0];
 
   // Set default selected exam on mount or if child changes
@@ -237,7 +264,14 @@ export const ParentExaminationView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                   {activeExam.subjects.map((sub: any, sIdx: number) => (
                     <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white text-sm">{sub.name}</td>
+                      <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white text-sm">
+                        <div className="flex flex-col">
+                          <span>{sub.name.split('(')[0].trim()}</span>
+                          <span className="opacity-60 text-[10px] font-normal lowercase">
+                            ({sub.name.includes('(') ? sub.name.split('(')[1].replace(')', '').trim().toLowerCase() : getSubjectCode(sub.name).toLowerCase()})
+                          </span>
+                        </div>
+                      </td>
                       <td className="px-6 py-3.5 text-center font-mono text-slate-600 dark:text-slate-300 font-semibold">{sub.marks}</td>
                       <td className="px-6 py-3.5 text-right">
                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
@@ -276,7 +310,11 @@ export const ParentExaminationView: React.FC = () => {
                 
                 // Use the first valid 100-mark scheme, or fallback to all if none found
                 const targetScheme = validSchemes.length > 0 ? validSchemes[0] : gradeConfigurations[0].schemeName;
-                const displayConfigs = gradeConfigurations.filter((g: any) => g.schemeName === targetScheme);
+                const displayConfigs = gradeConfigurations.filter((g: any) => g.schemeName === targetScheme).map((g: any) => ({
+                  ...g,
+                  minPercent: activeExam.isFiftyMarks ? g.minPercent / 2 : g.minPercent,
+                  maxPercent: activeExam.isFiftyMarks ? g.maxPercent / 2 : g.maxPercent
+                }));
 
                 return (
                   <div className="p-6 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
