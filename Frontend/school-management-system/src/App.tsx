@@ -82,7 +82,7 @@ const MainLayout: React.FC = () => {
 
   const renderModuleContent = () => {
     if (activeModule.startsWith('parent-fee-')) {
-      return <ParentFinanceView activeTab={activeModule} />;
+      return <ParentFinanceView activeTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     switch (activeModule) {

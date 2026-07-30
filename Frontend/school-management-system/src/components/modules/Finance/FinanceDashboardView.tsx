@@ -23,7 +23,7 @@ export const FinanceDashboardView: React.FC = () => {
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <TrendingUp className="w-6 h-6 text-sky-500" /> Finance Dashboard
+          <TrendingUp className="w-6 h-6 text-sky-500" /> Finance
         </h2>
         <p className="text-xs text-slate-500">Real-time revenue metrics, transport/hostel collections, scholarship grants & class collection breakdown</p>
       </div>

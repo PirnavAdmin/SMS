@@ -1,11 +1,14 @@
-import React from 'react';
-import { UserCheck, BookOpen, GraduationCap, Phone, Mail } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 
 export const ParentTeacherInfoView: React.FC = () => {
-  const { students, staff, academicClasses } = useData();
+  const { students } = useData();
   const { user, role } = useAuth();
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('All');
 
   let parentWards = students.filter(s => 
     s.status === 'Active' && 
@@ -19,100 +22,129 @@ export const ParentTeacherInfoView: React.FC = () => {
     parentWards = students.filter(s => s.status === 'Active').slice(0, 1);
   }
 
+  // Static data for all section teachers as requested
+  const staticTeachers = [
+    { id: 't1', firstName: 'Eleanor', lastName: 'Vance', subject: 'Mathematics', subjectCode: 'MAT-101', phone: '+1 555-888-001', email: 'eleanor.vance@stxaviers.edu', isClassTeacher: true },
+    { id: 't2', firstName: 'Robert', lastName: 'Chen', subject: 'Physics', subjectCode: 'PHY-102', phone: '+1 555-888-002', email: 'robert.chen@stxaviers.edu', isClassTeacher: false },
+    { id: 't3', firstName: 'Sarah', lastName: 'Jenkins', subject: 'English Literature', subjectCode: 'ENG-103', phone: '+1 555-888-003', email: 'sarah.jenkins@stxaviers.edu', isClassTeacher: false },
+    { id: 't4', firstName: 'Michael', lastName: 'Chang', subject: 'Chemistry', subjectCode: 'CHE-104', phone: '+1 555-888-004', email: 'michael.chang@stxaviers.edu', isClassTeacher: false },
+    { id: 't5', firstName: 'Anita', lastName: 'Patel', subject: 'Computer Science', subjectCode: 'CS-105', phone: '+1 555-888-005', email: 'anita.patel@stxaviers.edu', isClassTeacher: false },
+    { id: 't6', firstName: 'David', lastName: 'Miller', subject: 'Physical Education', subjectCode: 'PE-106', phone: '+1 555-888-006', email: 'david.miller@stxaviers.edu', isClassTeacher: false },
+  ];
+
+  const subjects = ['All', ...Array.from(new Set(staticTeachers.map(t => `${t.subject} (${t.subjectCode})`)))];
+
+  const filteredTeachers = useMemo(() => {
+    return staticTeachers.filter(teacher => {
+      const matchesSearch = 
+        `${teacher.firstName} ${teacher.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        teacher.email.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const teacherFullSubject = `${teacher.subject} (${teacher.subjectCode})`;
+      const matchesSubject = subjectFilter === 'All' || teacherFullSubject === subjectFilter;
+      
+      return matchesSearch && matchesSubject;
+    });
+  }, [searchQuery, subjectFilter]);
+
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-brand-500/10 dark:bg-brand-500/20 rounded-lg hidden sm:block">
-            <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <UserCheck className="w-6 h-6 text-sky-600 dark:text-sky-400" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Teacher Information</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">View basic details about your ward's class teacher</p>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Teachers Information</h2>
+
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search teachers..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/50 outline-none transition-all shadow-sm"
+            />
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <select
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              className="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/50 outline-none transition-all appearance-none shadow-sm cursor-pointer"
+            >
+              {subjects.map(sub => (
+                <option key={sub} value={sub}>{sub === 'All' ? 'All Subjects' : sub}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {parentWards.map(ward => {
-          const academicClass = academicClasses.find(c => c.name === ward.className);
-          const teacherName = academicClass?.sectionTeachers?.[ward.section] || academicClass?.teacher;
-          
-          let classTeacher = staff.find(teacher => 
-            teacherName && `${teacher.firstName} ${teacher.lastName}` === teacherName
-          );
-
-          if (!classTeacher) {
-             classTeacher = staff.find(teacher => 
-               (teacher.role === 'Teacher' || teacher.employeeCategory === 'Teacher') && 
-               teacher.assignedClasses?.includes(`${ward.className}-${ward.section}`)
-             );
-          }
-
-          return (
-            <div key={ward.id} className="bg-gradient-to-br from-sky-500 to-violet-600 rounded-3xl p-6 relative overflow-hidden flex flex-col h-full text-white border border-sky-400 shadow-sm">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full -z-10" />
-              
-              {/* Ward Header */}
-              <div className="mb-6 flex items-center gap-3 bg-white/10 p-3 rounded-2xl backdrop-blur-sm border border-white/20">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-bold text-white shadow-sm shrink-0">
-                  {ward.firstName.charAt(0)}
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase font-bold text-sky-200 tracking-wider">Ward</p>
-                  <p className="font-bold text-white text-sm">
-                    {ward.firstName} {ward.lastName} <span className="opacity-75 font-mono text-[10px] ml-1">({ward.className}-{ward.section})</span>
-                  </p>
-                </div>
-              </div>
-
-              {!classTeacher ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-white/5 rounded-2xl border border-dashed border-white/20">
-                  <GraduationCap className="w-8 h-8 text-sky-200 mb-2" />
-                  <p className="text-sm font-bold text-white">No Teacher Assigned</p>
-                  <p className="text-xs text-sky-200 mt-1">Pending assignment for {ward.className}-{ward.section}</p>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col">
-                  <h3 className="font-bold text-lg flex items-center gap-2 border-b border-sky-400/50 pb-3 mb-4">
-                    <UserCheck className="w-5 h-5 text-sky-100" /> Teacher Information
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-1">Class Teacher</p>
-                      <p className="text-xl font-bold">{classTeacher.firstName} {classTeacher.lastName}</p>
-                    </div>
-
-                    <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                      <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-2">Subjects Dealt</p>
-                      <div className="flex items-center gap-3">
-                        <BookOpen className="w-5 h-5 text-sky-200 shrink-0" />
-                        <p className="font-semibold text-sm">
-                          {classTeacher.assignedSubjects?.join(', ') || 'General Subjects'}
-                        </p>
+      <div className="flex flex-col gap-8">
+        {parentWards.map(ward => (
+          <div key={ward.id} className="space-y-5">
+            {/* Teachers Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredTeachers.map(teacher => (
+                <div key={teacher.id} className="glass-card p-4 rounded-xl flex flex-col gap-3 group hover:-translate-y-1 transition-all duration-300">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-100 to-indigo-100 dark:from-brand-900/40 dark:to-indigo-900/40 text-brand-700 dark:text-brand-300 flex items-center justify-center text-lg font-bold border border-brand-200 dark:border-brand-800 group-hover:scale-110 transition-transform duration-300 shrink-0">
+                        {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0)}
                       </div>
-                    </div>
-
-                    <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm">
-                      <p className="text-sky-200 text-xs font-bold uppercase tracking-wider mb-2">Contact Details</p>
-                      {classTeacher.phone && (
-                        <div className="flex items-center gap-3 mb-3">
-                          <Phone className="w-5 h-5 text-sky-200 shrink-0" />
-                          <p className="font-bold text-lg">{classTeacher.phone}</p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-base truncate">{teacher.firstName} {teacher.lastName}</h3>
+                        <div className="flex items-center gap-1.5 mt-1 text-slate-500 dark:text-slate-400 text-xs font-medium">
+                          <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{teacher.subject}</span>
+                          <span className="opacity-60 text-[10px] whitespace-nowrap">({teacher.subjectCode})</span>
                         </div>
-                      )}
-                      <div className="flex items-center gap-3 text-sky-100">
-                        <Mail className="w-4 h-4 text-sky-200 shrink-0 opacity-80" />
-                        <a href={`mailto:${classTeacher.email}`} className="font-medium text-sm hover:underline hover:text-white transition-colors">{classTeacher.email}</a>
+                        {teacher.isClassTeacher && (
+                          <div className="mt-2 w-max px-2 py-1 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-500/20 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                            <UserCheck className="w-3 h-3" />
+                            Class Teacher
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
+                  
+                  <div className="flex flex-col gap-1.5 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                    <a href={`tel:${teacher.phone}`} className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-slate-600 dark:text-slate-300">
+                      <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Phone className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-sm font-medium">{teacher.phone}</span>
+                    </a>
+                    <a href={`mailto:${teacher.email}`} className="flex items-center gap-3 p-2 -mx-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-slate-600 dark:text-slate-300">
+                      <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Mail className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-sm font-medium truncate">{teacher.email}</span>
+                    </a>
+                  </div>
+                </div>
+              ))}
+              
+              {filteredTeachers.length === 0 && (
+                <div className="col-span-full py-12 text-center bg-white/50 dark:bg-slate-800/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-700">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
+                    <Search className="w-6 h-6 text-slate-400" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 dark:text-white">No teachers found</h3>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Try adjusting your search query or subject filter.</p>
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -114,10 +114,10 @@ export const ParentDashboardView: React.FC = () => {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Attendance Register" value={`${attPercentage}%`} subtitle="Academic session" change={attPercentage > 90 ? 'Good standing' : 'Needs attention'} isPositive={attPercentage > 90} icon={Activity} color="emerald" />
-        <StatCard title="Reports" value="View" subtitle="Formative Assessment" change="Check updates" isPositive={true} icon={GraduationCap} color="sky" />
-        <StatCard title="Fee Details" value={`₹${dueBalance.toLocaleString()}`} subtitle={isFeeCleared ? "No outstanding dues" : "Outstanding balance"} change={isFeeCleared ? "All cleared" : "Action required"} isPositive={isFeeCleared} icon={AlertCircle} color="sky" />
-        <StatCard title="Homework" value={pendingHomework.toString()} subtitle="Pending assignments" change="Action required" isPositive={pendingHomework === 0} icon={Clock} color="amber" />
+        <StatCard title="Attendance Register" value={`${attPercentage}%`} icon={Activity} color="emerald" />
+        <StatCard title="Reports" value="View" icon={GraduationCap} color="sky" />
+        <StatCard title="Fee Due" value={`₹${dueBalance.toLocaleString()}`} icon={AlertCircle} color="sky" />
+        <StatCard title="Homework" value={pendingHomework.toString()} icon={Clock} color="amber" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

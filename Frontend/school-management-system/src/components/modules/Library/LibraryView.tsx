@@ -64,11 +64,13 @@ export const LibraryView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Library className="w-6 h-6 text-sky-500" /> Library Directory
-          </h2>
-          <p className="text-xs text-slate-500">Book inventory catalog, issue & return workflow, fine calculation</p>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
+            <Library className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+          </div>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Library</h2>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -88,7 +90,7 @@ export const LibraryView: React.FC = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => setActiveTab('inventory')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
