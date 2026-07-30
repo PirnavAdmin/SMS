@@ -4,7 +4,11 @@ import { StatCard } from '../../common/StatCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 
-export const ParentDashboardView: React.FC = () => {
+interface ParentDashboardViewProps {
+  onNavigate?: (module: string) => void;
+}
+
+export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
@@ -114,10 +118,10 @@ export const ParentDashboardView: React.FC = () => {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Attendance Register" value={`${attPercentage}%`} icon={Activity} color="emerald" />
-        <StatCard title="Reports" value="View" icon={GraduationCap} color="sky" />
-        <StatCard title="Fee Due" value={`₹${dueBalance.toLocaleString()}`} icon={AlertCircle} color="sky" />
-        <StatCard title="Homework" value={pendingHomework.toString()} icon={Clock} color="amber" />
+        <StatCard title="Attendance Register" value={`${attPercentage}%`} icon={Activity} color="emerald" onClick={() => onNavigate?.('attendance')} />
+        <StatCard title="Reports" value="View" icon={GraduationCap} color="sky" onClick={() => onNavigate?.('examination')} />
+        <StatCard title="Fee Due" value={`₹${dueBalance.toLocaleString()}`} icon={AlertCircle} color="sky" onClick={() => onNavigate?.('parent-fee-dues')} />
+        <StatCard title="Homework" value={pendingHomework.toString()} icon={Clock} color="amber" onClick={() => onNavigate?.('homework')} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

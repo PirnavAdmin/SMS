@@ -9,6 +9,7 @@ interface StatCardProps {
   isPositive?: boolean;
   icon: LucideIcon;
   color: 'indigo' | 'emerald' | 'rose' | 'amber' | 'sky' | 'purple';
+  onClick?: () => void;
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -18,7 +19,8 @@ export const StatCard: React.FC<StatCardProps> = ({
   change,
   isPositive = true,
   icon: Icon,
-  color
+  color,
+  onClick
 }) => {
   const colorMap = {
     indigo: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50',
@@ -30,7 +32,10 @@ export const StatCard: React.FC<StatCardProps> = ({
   };
 
   return (
-    <div className="glass-card p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group">
+    <div 
+      className={`glass-card p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>

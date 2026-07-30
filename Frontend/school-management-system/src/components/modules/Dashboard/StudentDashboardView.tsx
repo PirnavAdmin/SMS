@@ -4,7 +4,11 @@ import { StatCard } from '../../common/StatCard';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 
-export const StudentDashboardView: React.FC = () => {
+interface StudentDashboardViewProps {
+  onNavigate?: (module: string) => void;
+}
+
+export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, timetable, subjects, staff, studentFeeLedgers, meetings } = useData();
   
@@ -79,9 +83,9 @@ export const StudentDashboardView: React.FC = () => {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Attendance" value={`${attPercentage}%`} icon={Target} color="emerald" />
-        <StatCard title="Homework" value={pendingHomework.length} icon={BookOpen} color="amber" />
-        <StatCard title="Fee Due" value={`₹${dueBalance.toLocaleString()}`} icon={AlertCircle} color="sky" />
+        <StatCard title="Attendance" value={`${attPercentage}%`} icon={Target} color="emerald" onClick={() => onNavigate?.('attendance')} />
+        <StatCard title="Homework" value={pendingHomework.length} icon={BookOpen} color="amber" onClick={() => onNavigate?.('homework')} />
+        <StatCard title="Fee Due" value={`₹${dueBalance.toLocaleString()}`} icon={AlertCircle} color="sky" onClick={() => onNavigate?.('parent-fee-dues')} />
       </div>
 
       {/* Hostel Boarding Widget */}

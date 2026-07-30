@@ -24,8 +24,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
   collapsed,
   setCollapsed
 }) => {
-  const { role } = useAuth();
-  const { schoolProfile, admissions } = useData();
+  const { role, user } = useAuth();
+  const { schoolProfile, admissions, students } = useData();
+
+  let isHosteller = false;
+  let usesTransport = false;
+
+  if (role.toLowerCase() !== 'student' && role.toLowerCase() !== 'parent') {
+    isHosteller = true;
+    usesTransport = true;
+  } else {
+    const parentWards = students.filter(s => 
+      s.status === 'Active' && 
+      (
+        role === 'Student' ? s.id === user?.id : 
+        (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
+      )
+    );
+    if (parentWards.length > 0) {
+       isHosteller = parentWards.some(w => w.studentType === 'Hosteller');
+       usesTransport = parentWards.some(w => w.transportRequired || w.busRoute || w.transportType || w.routeId);
+    }
+  }
 
   const [financeExpanded, setFinanceExpanded] = useState(true);
   const [hostelExpanded, setHostelExpanded] = useState(true);
@@ -84,10 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const pendingAdmissions = admissions.filter(a => a.status === 'Pending').length;
 
-  const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
-    { id: 'parent-fee-dues', label: 'Student Fee Details', icon: IndianRupee },
-    { id: 'parent-fee-receipts', label: 'Receipt Register', icon: FileSpreadsheet }
-  ] : [
+  const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
@@ -95,18 +112,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet },
   ];
 
-  const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
-    { id: 'parent-hostel-details', label: 'Accommodation Details', icon: Building2 }
-  ] : [
+  const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'hostel-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'hostel-masters', label: 'Hostel Master Setup', icon: Building2 },
     { id: 'hostel-student-hostel', label: 'Room Allocation', icon: UserPlus },
     { id: 'hostel-reports', label: 'Hostel Reports', icon: FileSpreadsheet },
   ];
 
-  const transportSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [
-    { id: 'parent-bus-info', label: 'Bus Route Details', icon: Bus }
-  ] : [
+  const transportSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'transport-trips', label: 'Vehicle Trips', icon: Bus },
     { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
@@ -150,8 +163,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'academics', label: 'Class Management', icon: Presentation },
         { id: 'subjects', label: 'Subject Management', icon: BookOpen },
-        { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
-        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Student Timetable' : 'Time Table', icon: Clock },
+        { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Timetable' : 'Time Table', icon: Clock },
         { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
         { id: 'homework', label: 'Homework', icon: FileText },
       ]
@@ -256,7 +269,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Fee Details' : 'Finance & Fees'}
                           </span>}
                       </div>
-                      {!collapsed && (
+                      {!collapsed && financeSubItems.length > 0 && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${financeExpanded ? 'rotate-180' : ''}`} />
                       )}
                     </button>
@@ -318,10 +331,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex items-center gap-3 truncate">
                         <Home className={`w-4 h-4 shrink-0 ${isHostelActive ? 'text-white' : 'text-indigo-500'}`} />
                         {!collapsed && <span className="font-bold">
-                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Hostel Accommodation' : 'Hostel Management'}
+                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Hostel' : 'Hostel Management'}
                           </span>}
                       </div>
-                      {!collapsed && (
+                      {!collapsed && hostelSubItems.length > 0 && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${hostelExpanded ? 'rotate-180' : ''}`} />
                       )}
                     </button>
@@ -386,9 +399,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-center gap-3 truncate">
                         <Bus className={`w-4 h-4 shrink-0 ${isTransportActive ? 'text-white' : 'text-slate-400'}`} />
-                        {!collapsed && <span className="font-bold">Transport Management</span>}
+                        {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Transport' : 'Transport Management'}</span>}
                       </div>
-                      {!collapsed && (
+                      {!collapsed && transportSubItems.length > 0 && (
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${transportExpanded ? 'rotate-180' : ''}`} />
                       )}
                     </button>
