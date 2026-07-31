@@ -46,10 +46,11 @@ export function ExportButton<T extends Record<string, any>>({
   return (
     <button
       onClick={handleExportExcel}
-      className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20"
+      className="px-4 py-2 flex items-center gap-2 rounded-xl font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20"
       title="Download Excel Report"
     >
       <Download className="w-5 h-5" />
+      <span>Export</span>
     </button>
   );
 }

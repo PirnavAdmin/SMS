@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BookOpen, Plus, Edit, Trash2, Search, X, Loader2, Building2, Layers, 
+  BookOpen, Plus, Edit, Trash2, Search, X, Loader2, Building2, Layers, Briefcase, 
   AlertCircle, CheckCircle2, ShieldAlert, FolderPlus, Eye 
 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useData } from '../../../context/DataContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { SubjectItem, Department } from '../../../types';
+import { SubjectItem, Department, DesignationMaster } from '../../../types';
 import { 
   fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi,
   fetchDepartmentsApi, createDepartmentApi, updateDepartmentApi, deleteDepartmentApi
@@ -15,15 +15,17 @@ import {
 export const SubjectsView: React.FC = () => {
   const { 
     departments: contextDepartments, addDepartment, updateDepartment, deleteDepartment,
-    subjects: contextSubjects, addSubject, updateSubject, deleteSubject
+    subjects: contextSubjects, addSubject, updateSubject, deleteSubject,
+    designations: contextDesignations, addDesignation, updateDesignation, deleteDesignation
   } = useData();
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'subjects' | 'departments'>('subjects');
+  const [activeTab, setActiveTab] = useState<'subjects' | 'departments' | 'designations'>('subjects');
 
   // Subjects & Departments State
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const [designations, setDesignations] = useState<DesignationMaster[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -87,6 +89,19 @@ export const SubjectsView: React.FC = () => {
       (d.description || '').toLowerCase().includes(q);
   });
 
+  // Filtered Designations
+  const [desigQuery, setDesigQuery] = useState('');
+  const [desigCategoryFilter, setDesigCategoryFilter] = useState<'All' | 'Teaching' | 'Non-Teaching'>('All');
+  
+  const filteredDesignations = designations.filter(d => {
+    const q = desigQuery.toLowerCase();
+    const matchesSearch = d.designationName.toLowerCase().includes(q) ||
+                          d.employeeCategory.toLowerCase().includes(q);
+    const matchesCategory = desigCategoryFilter === 'All' || d.employeeCategory === desigCategoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+
   const loadSubjects = async () => {
     try {
       setLoading(true);
@@ -105,7 +120,7 @@ export const SubjectsView: React.FC = () => {
         setSubjects([]);
       }
     } catch (error) {
-      addToast('error', 'Error Fetching Subjects', 'Failed to load curriculum subjects.');
+      addToast('error', 'Error Fetching Subjects', 'Failed to load subjects.');
     } finally {
       setLoading(false);
     }
@@ -125,6 +140,7 @@ export const SubjectsView: React.FC = () => {
           status: item.status || 'Active'
         }));
         setDepartments(mappedData);
+        if (contextDesignations) setDesignations(contextDesignations);
       } else {
         setDepartments([]);
       }
@@ -132,8 +148,9 @@ export const SubjectsView: React.FC = () => {
       if (contextDepartments && contextDepartments.length > 0) {
         setDepartments(contextDepartments);
       } else {
-        addToast('error', 'Error Fetching Departments', 'Failed to load curriculum departments.');
+        addToast('error', 'Error Fetching Departments', 'Failed to load departments.');
       }
+      if (contextDesignations) setDesignations(contextDesignations);
     } finally {
       setLoading(false);
     }
@@ -231,6 +248,62 @@ export const SubjectsView: React.FC = () => {
       addToast('success', 'Subject Created', `Added subject '${formData.name}' assigned to '${formData.department}'.`);
     }
     setIsFormOpen(false);
+  };
+
+
+  // Designation State
+  const [isDesigModalOpen, setIsDesigModalOpen] = useState(false);
+  const [editingDesignation, setEditingDesignation] = useState<DesignationMaster | null>(null);
+  const [deletingDesignation, setDeletingDesignation] = useState<DesignationMaster | null>(null);
+  const [desigFormData, setDesigFormData] = useState<{
+    designationName: string;
+    employeeCategory: 'Teaching' | 'Non-Teaching';
+    status: 'Active' | 'Inactive';
+  }>({ designationName: '', employeeCategory: 'Teaching', status: 'Active' });
+
+  const handleOpenAddDesig = () => {
+    setEditingDesignation(null);
+    setDesigFormData({ designationName: '', employeeCategory: 'Teaching', status: 'Active' });
+    setIsDesigModalOpen(true);
+  };
+
+  const handleOpenEditDesig = (desig: DesignationMaster) => {
+    setEditingDesignation(desig);
+    setDesigFormData({
+      designationName: desig.designationName,
+      employeeCategory: desig.employeeCategory,
+      status: desig.status
+    });
+    setIsDesigModalOpen(true);
+  };
+
+  const handleDesigSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = desigFormData.designationName.trim();
+    if (!name) {
+      addToast('warning', 'Validation Warning', 'Designation Name is required.');
+      return;
+    }
+    if (editingDesignation) {
+      updateDesignation(editingDesignation.id, desigFormData);
+      addToast('success', 'Designation Updated', `Updated designation '${name}'.`);
+    } else {
+      addDesignation(desigFormData as any);
+      addToast('success', 'Designation Created', `Created designation '${name}'.`);
+    }
+    setIsDesigModalOpen(false);
+  };
+
+  const handleAttemptDeleteDesig = (desig: DesignationMaster) => {
+    setDeletingDesignation(desig);
+  };
+
+  const handleConfirmDeleteDesig = () => {
+    if (deletingDesignation) {
+      deleteDesignation(deletingDesignation.id);
+      addToast('success', 'Designation Deleted', `Removed designation '${deletingDesignation.designationName}'.`);
+      setDeletingDesignation(null);
+    }
   };
 
   // Department Form Handlers
@@ -375,7 +448,7 @@ export const SubjectsView: React.FC = () => {
       <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
         <div className="space-y-1">
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Curriculum & Departments
+            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Academic & Organizational Structure
           </h2>
         </div>
 
@@ -390,7 +463,7 @@ export const SubjectsView: React.FC = () => {
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            Curriculum Subjects ({subjects.length})
+            Subjects ({subjects.length})
           </button>
           <button
             onClick={() => setActiveTab('departments')}
@@ -402,6 +475,18 @@ export const SubjectsView: React.FC = () => {
           >
             <Building2 className="w-3.5 h-3.5" />
             Departments ({departments.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('designations')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'designations'
+                ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+            }`}
+          >
+            <Briefcase className="w-3.5 h-3.5" />
+            Designations ({designations.length})
           </button>
         </div>
       </div>
@@ -638,6 +723,96 @@ export const SubjectsView: React.FC = () => {
         </div>
       )}
 
+      
+      {/* TAB 3: DESIGNATIONS MANAGEMENT SCREEN */}
+      {activeTab === 'designations' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div className="relative flex-1 sm:w-72">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search designations..."
+                value={desigQuery}
+                onChange={e => setDesigQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
+              />
+            </div>
+            
+            <select
+              value={desigCategoryFilter}
+              onChange={e => setDesigCategoryFilter(e.target.value as any)}
+              className="px-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-sm"
+            >
+              <option value="All">All Categories</option>
+              <option value="Teaching">Teaching</option>
+              <option value="Non-Teaching">Non-Teaching</option>
+            </select>
+            
+            <button
+              onClick={handleOpenAddDesig}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/20 flex items-center gap-2 transition-all self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4" /> Create Designation
+            </button>
+          </div>
+
+          <div className="glass-card bg-white dark:bg-[#0B1121] rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800/50 flex flex-col overflow-hidden">
+            <div className="w-full px-6 flex-1 py-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-[13px]">
+                  <thead>
+                    <tr className="text-slate-400 dark:text-slate-500 font-extrabold uppercase tracking-wider text-[10px] border-b border-slate-100 dark:border-slate-800/50">
+                      <th className="py-3 px-2">S.No</th>
+                      <th className="py-3 px-2">Designation Name</th>
+                      <th className="py-3 px-2">Category</th>
+                      <th className="py-3 px-2">Status</th>
+                      <th className="py-3 px-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-medium">
+                    {filteredDesignations.length === 0 ? (
+                      <tr><td colSpan={5} className="text-center py-8 text-slate-500 font-bold">No designations found.</td></tr>
+                    ) : (
+                      filteredDesignations.map((desig, index) => (
+                        <tr key={desig.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                          <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{index + 1}</td>
+                          <td className="py-3.5 px-2">
+                            <div className="font-extrabold text-slate-900 dark:text-white">{desig.designationName}</div>
+                          </td>
+                          <td className="py-3.5 px-2 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+                            {desig.employeeCategory}
+                          </td>
+                          <td className="py-3.5 px-2">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              desig.status === 'Active'
+                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200'
+                                : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200'
+                            }`}>
+                              {desig.status}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-2 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button onClick={() => handleOpenEditDesig(desig)} className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 transition-colors">
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => handleAttemptDeleteDesig(desig)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* CREATE / EDIT SUBJECT MODAL */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
@@ -778,6 +953,59 @@ export const SubjectsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      
+      {/* CREATE / EDIT DESIGNATION MODAL */}
+      {isDesigModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-sky-600" />
+                {editingDesignation ? 'Modify Designation' : 'Create New Designation'}
+              </h3>
+              <button onClick={() => setIsDesigModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleDesigSubmit} className="space-y-4 text-xs font-semibold">
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Designation Name *</label>
+                <input type="text" required placeholder="e.g. Senior Teacher" value={desigFormData.designationName} onChange={e => setDesigFormData({ ...desigFormData, designationName: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold" />
+              </div>
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Category *</label>
+                <select required value={desigFormData.employeeCategory} onChange={e => setDesigFormData({ ...desigFormData, employeeCategory: e.target.value as any })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold">
+                  <option value="Teaching">Teaching</option>
+                  <option value="Non-Teaching">Non-Teaching</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-200">Status</label>
+                <select value={desigFormData.status} onChange={e => setDesigFormData({ ...desigFormData, status: e.target.value as any })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#1e293b] border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onClick={() => setIsDesigModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">{editingDesignation ? 'Save Changes' : 'Create Designation'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE DESIGNATION CONFIRM MODAL */}
+      <ConfirmModal
+        isOpen={!!deletingDesignation}
+        title="Delete Designation"
+        message={`Are you sure you want to delete the designation '${deletingDesignation?.designationName}'? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleConfirmDeleteDesig}
+        onCancel={() => setDeletingDesignation(null)}
+      />
 
       {/* BLOCKED DELETE DEPARTMENT WARNING MODAL */}
       {blockedDeleteDept && (

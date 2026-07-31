@@ -94,7 +94,7 @@ export const TransportScrollableTabs: React.FC<TransportScrollableTabsProps> = (
       )}
 
       <div className="flex items-center gap-1">
-        {canScrollLeft ? (
+        {canScrollLeft && (
           <button
             type="button"
             onClick={() => scrollTabs('left')}
@@ -103,8 +103,6 @@ export const TransportScrollableTabs: React.FC<TransportScrollableTabsProps> = (
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-        ) : (
-          <div className="shrink-0 w-8 h-8" aria-hidden="true" />
         )}
 
         <div ref={trackRef} className="flex-1 overflow-x-auto no-scrollbar">
@@ -140,7 +138,7 @@ export const TransportScrollableTabs: React.FC<TransportScrollableTabsProps> = (
           </div>
         </div>
 
-        {canScrollRight ? (
+        {canScrollRight && (
           <button
             type="button"
             onClick={() => scrollTabs('right')}
@@ -149,8 +147,6 @@ export const TransportScrollableTabs: React.FC<TransportScrollableTabsProps> = (
           >
             <ChevronRight className="w-4 h-4" />
           </button>
-        ) : (
-          <div className="shrink-0 w-8 h-8" aria-hidden="true" />
         )}
       </div>
     </div>

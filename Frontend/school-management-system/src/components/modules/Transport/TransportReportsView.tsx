@@ -293,7 +293,6 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Transport Reports
           </h2>
-          <p className="text-xs text-slate-500">Enterprise transport reporting focused on dashboard summaries, trips, vehicles, drivers, routes, student allocation, and maintenance.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 justify-end">
@@ -320,8 +319,6 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
       </div>
 
       <TransportScrollableTabs
-        title="Report Catalog"
-        subtitle="Switch between the curated transport reports without crowding the page."
         tabs={REPORT_TABS}
         activeId={selectedReport}
         onChange={tabId => setSelectedReport(tabId as TransportReportTabId)}

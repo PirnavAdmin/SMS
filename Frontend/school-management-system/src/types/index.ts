@@ -474,7 +474,7 @@ export interface PeriodSetting {
   startTime: string;
   endTime: string;
   sequence: number;
-  periodType: 'Teaching' | 'Break' | 'Lunch';
+  periodType: string;
   status: 'Active' | 'Inactive';
 }
 
@@ -732,6 +732,13 @@ export interface Department {
   departmentName: string;
   departmentCode?: string;
   description?: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface DesignationMaster {
+  id: string;
+  designationName: string;
+  employeeCategory: 'Teaching' | 'Non-Teaching' | 'Both';
   status: 'Active' | 'Inactive';
   branch?: string;
   academicYear?: string;

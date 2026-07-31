@@ -702,6 +702,37 @@ export const initialCustomRoles: CustomRole[] = [
   }
 ];
 
+export const initialDesignations: DesignationMaster[] = [
+  // Teaching Staff Designations
+  { id: 'DESIG-T01', designationName: 'Principal', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T02', designationName: 'Vice Principal', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T03', designationName: 'Head of Department', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T04', designationName: 'Coordinator', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T05', designationName: 'Senior PGT Teacher', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T06', designationName: 'PGT Teacher', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T07', designationName: 'TGT Teacher', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T08', designationName: 'PRT Teacher', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T09', designationName: 'Pre-Primary Teacher', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T10', designationName: 'Guest Faculty', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T11', designationName: 'Special Educator', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T12', designationName: 'Physical Education Teacher (PET)', employeeCategory: 'Teaching', status: 'Active' },
+  { id: 'DESIG-T13', designationName: 'Lab Assistant', employeeCategory: 'Teaching', status: 'Active' },
+
+  // Non-Teaching Staff Designations
+  { id: 'DESIG-N01', designationName: 'HR Manager', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N02', designationName: 'Office Superintendent', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N03', designationName: 'Accountant', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N04', designationName: 'Clerk', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N05', designationName: 'Receptionist', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N06', designationName: 'Transport Manager', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N07', designationName: 'Bus Driver', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N08', designationName: 'Bus Attendant', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N09', designationName: 'Hostel Warden', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N10', designationName: 'Security Guard', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N11', designationName: 'Peon', employeeCategory: 'Non-Teaching', status: 'Active' },
+  { id: 'DESIG-N12', designationName: 'Sweeper', employeeCategory: 'Non-Teaching', status: 'Active' }
+];
+
 export const initialDepartments: Department[] = [
   { id: 'DEPT-001', departmentName: 'Mathematics', departmentCode: 'DEPT-MTH', description: 'Department of Mathematics & Statistics', status: 'Active', branch: 'Main Campus' },
   { id: 'DEPT-002', departmentName: 'Science', departmentCode: 'DEPT-SCI', description: 'Physics, Chemistry, Biology & Natural Sciences', status: 'Active', branch: 'Main Campus' },

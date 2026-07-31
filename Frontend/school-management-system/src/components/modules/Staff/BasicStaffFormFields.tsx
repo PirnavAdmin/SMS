@@ -1,4 +1,5 @@
 import React from 'react';
+import { useData } from '../../../context/DataContext';
 import {
   BasicStaffFormState,
   branchOptions,
@@ -6,7 +7,6 @@ import {
   EmployeeCategory,
   employmentTypeOptions,
   getDepartmentOptions,
-  getDesignationOptions,
   getEmployeeCategoryLabel
 } from './staffFlowOptions';
 
@@ -30,8 +30,16 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   employeeIdReadOnly = true,
   compact = false
 }) => {
+  const { designations } = useData();
   const departmentOptions = getDepartmentOptions(value.employeeCategory);
-  const designationOptions = getDesignationOptions(value.employeeCategory);
+  const designationOptions = designations
+    .filter(d => 
+      d.status === 'Active' && 
+      (d.employeeCategory === 'Both' || 
+      (value.employeeCategory === 'Teacher' && d.employeeCategory === 'Teaching') || 
+      (value.employeeCategory === 'Staff' && d.employeeCategory === 'Non-Teaching'))
+    )
+    .map(d => d.designationName);
 
   const gridClass = compact ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : 'grid grid-cols-1 gap-4 lg:grid-cols-2';
 

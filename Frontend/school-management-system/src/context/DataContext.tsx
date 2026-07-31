@@ -14,7 +14,7 @@ import {
   RoomTypeMaster, RoomMaster, StudentHostelAssignment, HostelVisitorLog, HostelAttendanceLog, FinanceHostelConfig,
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent,
-  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DocumentRequirementRule,
+  SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DesignationMaster, DocumentRequirementRule,
   FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionAuditLog,
   SchoolEvent, UnifiedCalendarEvent, EventCategory, HolidayType,
   TrainingCategory, TrainingParticipant, WorkshopTraining, AssessmentType, AssessmentResult, EmployeeAssessment, IssuedCertificate
@@ -40,7 +40,7 @@ import {
   initialStudentUniformIssues, initialFinanceUniformConfigs,
   initialLeaveTypes, initialLeaveApplications, initialPayslips,
   initialPayrollConfigurations, initialPayrollComponents, initialSalaryStructures,
-  initialEmployeeSalaryAssignments, initialPayrollRuns, initialQuestionPapers, initialMeetings, initialDepartments
+  initialEmployeeSalaryAssignments, initialPayrollRuns, initialQuestionPapers, initialMeetings, initialDepartments, initialDesignations
 } from '../services/mockData';
 import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, updateAdmissionStatusApi, deleteAdmissionApi } from '../api/admission';
 import * as TransportAPI from '../api/transport';
@@ -392,6 +392,11 @@ interface DataContextType {
   addDepartment: (dept: Omit<Department, 'id'>) => Department;
   updateDepartment: (id: string, updates: Partial<Department>) => void;
   deleteDepartment: (id: string) => void;
+  
+  designations: DesignationMaster[];
+  addDesignation: (designation: Omit<DesignationMaster, 'id'>) => DesignationMaster;
+  updateDesignation: (id: string, updates: Partial<DesignationMaster>) => void;
+  deleteDesignation: (id: string) => void;
   
   gradeConfigurations: GradeConfig[];
   saveGradeConfiguration: (grades: GradeConfig[]) => void;
@@ -1089,6 +1094,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [questionPapers, setQuestionPapers] = useState<QuestionPaper[]>(() => getStored('question_papers', initialQuestionPapers));
   const [meetings, setMeetings] = useState<SchoolMeeting[]>(() => getStored('school_meetings', initialMeetings));
   const [departments, setDepartments] = useState<Department[]>(() => getStored('departments', initialDepartments));
+  const [designations, setDesignations] = useState<DesignationMaster[]>(() => getStored('designations', initialDesignations));
   const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(() => getStored('grade_configurations', defaultGradeConfigurations));
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(() => getStored('processed_results', []));
 
@@ -1220,6 +1226,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_question_papers', JSON.stringify(questionPapers)); }, [questionPapers]);
   useEffect(() => { localStorage.setItem('edu_db_school_meetings', JSON.stringify(meetings)); }, [meetings]);
   useEffect(() => { localStorage.setItem('edu_db_departments', JSON.stringify(departments)); }, [departments]);
+  useEffect(() => { localStorage.setItem('edu_db_designations', JSON.stringify(designations)); }, [designations]);
 
   // Uniform ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_uniform_categories', JSON.stringify(uniformCategories)); }, [uniformCategories]);
@@ -3992,6 +3999,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('Deleted Department', `Removed department ID ${id}`);
   };
 
+  const addDesignation = (designationData: Omit<DesignationMaster, 'id'>): DesignationMaster => {
+    const id = 'DESIG-' + Math.floor(100 + Math.random() * 900);
+    const newDesignation: DesignationMaster = {
+      ...designationData,
+      id,
+    };
+    setDesignations(prev => [newDesignation, ...prev]);
+    logActivity('Created Designation', `Added designation ${newDesignation.designationName}`);
+    return newDesignation;
+  };
+
+  const updateDesignation = (id: string, updates: Partial<DesignationMaster>) => {
+    setDesignations(prev => prev.map(d => d.id === id ? { ...d, ...updates } : d));
+    logActivity('Updated Designation', `Updated details for designation ID ${id}`);
+  };
+
+  const deleteDesignation = (id: string) => {
+    setDesignations(prev => prev.filter(d => d.id !== id));
+    logActivity('Deleted Designation', `Removed designation ID ${id}`);
+  };
+
   const saveGradeConfiguration = (grades: GradeConfig[]) => {
     setGradeConfigurations(grades);
     logActivity('Saved Grade Configurations', `Updated grade range settings`);
@@ -4915,6 +4943,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         questionPapers, addQuestionPaper, updateQuestionPaper, deleteQuestionPaper,
         meetings, addMeeting, updateMeeting, cancelMeeting, deleteMeeting,
         departments, addDepartment, updateDepartment, deleteDepartment,
+        designations, addDesignation, updateDesignation, deleteDesignation,
         gradeConfigurations, saveGradeConfiguration,
         processedResults, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
         timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,

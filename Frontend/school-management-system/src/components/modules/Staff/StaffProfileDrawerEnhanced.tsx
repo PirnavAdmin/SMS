@@ -758,8 +758,8 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6">
-      <div className="w-full max-w-6xl max-h-[95vh] rounded-3xl bg-slate-50 dark:bg-slate-950 shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex justify-end animate-in fade-in">
+      <div className="w-full max-w-5xl h-full bg-slate-50 dark:bg-slate-950 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in slide-in-from-right-16">
         <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4 min-w-0">

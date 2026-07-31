@@ -170,8 +170,6 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
         return (
           <div className="space-y-5 animate-in fade-in">
             <TransportScrollableTabs
-              title="Transport Operations"
-              subtitle="Assign fleet resources, review trips, monitor GPS, and manage maintenance."
               tabs={OPERATION_TABS}
               activeId={activeOperationTab}
               onChange={tabId => setActiveOperationTab(tabId as TransportOperationTab)}

@@ -25,6 +25,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
+import { ExportButton } from '../../common/ExportButton';
 import { formatCurrency } from '../../../utils/currency';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -54,7 +55,6 @@ type StructureDraft = {
   structureName: string;
   employeeCategory: CategoryValue;
   designation: string;
-  payGrade: string;
   status: 'Active' | 'Inactive';
   effectiveDate: string;
   payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
@@ -65,7 +65,6 @@ type StructureDraft = {
   esiPercentage: string;
   professionalTaxApplicable: boolean;
   professionalTaxAmount: string;
-  roundOffRule: 'No Round Off' | 'Nearest 1' | 'Nearest 10' | 'Nearest 50';
   notes: string;
   basicSalary: string;
   hra: string;
@@ -103,39 +102,7 @@ const payrollTabs: { id: PayrollTabId; label: string; icon: React.ComponentType<
   { id: 'staff-payroll-history', label: 'Payslip History', icon: Clock3 }
 ];
 
-const teacherDesignationOptions = [
-  'Principal',
-  'Vice Principal',
-  'HOD',
-  'PGT Teacher',
-  'TGT Teacher',
-  'PRT Teacher',
-  'PET',
-  'Art Teacher',
-  'Music Teacher',
-  'Dance Teacher',
-  'Computer Teacher',
-  'Librarian',
-  'Special Educator'
-];
 
-const nonTeachingDesignationOptions = [
-  'Administrator',
-  'HR Executive',
-  'Accountant',
-  'Receptionist',
-  'Office Assistant',
-  'Admission Counselor',
-  'IT Support',
-  'Lab Assistant',
-  'Store Keeper',
-  'Transport Manager',
-  'Driver',
-  'Security Guard',
-  'Cleaner',
-  'Nurse',
-  'Hostel Warden'
-];
 
 const monthOptions = [
   'January',
@@ -170,11 +137,7 @@ const resolveCategory = (staff: Staff): CategoryValue => {
   return staff.role === 'Teacher' ? 'Teacher' : 'Staff';
 };
 
-const designationOptionsForCategory = (category: CategoryValue | '') => {
-  if (category === 'Teacher') return teacherDesignationOptions;
-  if (category === 'Staff') return nonTeachingDesignationOptions;
-  return [];
-};
+
 
 const roundAmount = (amount: number, rule?: 'No Round Off' | 'Nearest 1' | 'Nearest 10' | 'Nearest 50') => {
   if (!rule || rule === 'No Round Off') return amount;
@@ -429,6 +392,13 @@ const ModalShell: React.FC<{
           <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
           {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
       <div className="max-h-[calc(100vh-140px)] overflow-y-auto p-5">{children}</div>
     </div>
@@ -441,7 +411,6 @@ const structureDraftDefaults: StructureDraft = {
   structureName: '',
   employeeCategory: 'Teacher',
   designation: '',
-  payGrade: '',
   status: 'Active',
   effectiveDate: defaultEffectiveDate,
   payrollFrequency: 'Monthly',
@@ -452,7 +421,6 @@ const structureDraftDefaults: StructureDraft = {
   esiPercentage: '1.75',
   professionalTaxApplicable: true,
   professionalTaxAmount: '200',
-  roundOffRule: 'Nearest 1',
   notes: '',
   basicSalary: '0',
   hra: '0',
@@ -483,7 +451,6 @@ const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' 
   structureName: mode === 'duplicate' ? `${structure.structureName} Copy` : structure.structureName,
   employeeCategory: structure.employeeCategory,
   designation: structure.designation || '',
-  payGrade: '',
   status: mode === 'duplicate' ? 'Inactive' : structure.status,
   effectiveDate: structure.effectiveDate || defaultEffectiveDate,
   payrollFrequency: 'Monthly',
@@ -494,7 +461,6 @@ const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' 
   esiPercentage: String(structure.esiPercentage ?? 1.75),
   professionalTaxApplicable: structure.professionalTaxApplicable ?? findLineAmount(structure.deductions, ['professional tax']) > 0,
   professionalTaxAmount: String(structure.professionalTaxAmount ?? (findLineAmount(structure.deductions, ['professional tax']) || 200)),
-  roundOffRule: structure.roundOffRule || 'Nearest 1',
   notes: structure.notes || '',
   basicSalary: String(findLineAmount(structure.earnings, ['basic salary', 'basic'])),
   hra: String(findLineAmount(structure.earnings, ['hra', 'house rent allowance'])),
@@ -539,7 +505,7 @@ const getStructureDraftTotals = (draft: StructureDraft) => {
     grossSalary: totalEarnings,
     totalEarnings,
     totalDeductions,
-    netSalary: roundAmount(Math.max(0, totalEarnings - totalDeductions), draft.roundOffRule)
+    netSalary: roundAmount(Math.max(0, totalEarnings - totalDeductions), 'Nearest 1')
   };
 };
 
@@ -580,7 +546,7 @@ const buildStructurePayload = (draft: StructureDraft): Omit<SalaryStructure, 'id
     esiPercentage: Number(draft.esiPercentage) || 0,
     professionalTaxApplicable: draft.professionalTaxApplicable,
     professionalTaxAmount: Number(draft.professionalTaxAmount) || 0,
-    roundOffRule: draft.roundOffRule,
+    roundOffRule: 'Nearest 1',
     notes: draft.notes.trim() || undefined,
     effectiveDate: draft.effectiveDate || defaultEffectiveDate
   };
@@ -611,9 +577,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     deleteSalaryStructure,
     cloneSalaryStructure,
     assignEmployeeSalaryStructure,
-    disburseSalary
+    disburseSalary,
+    designations
   } = useData();
   const { addToast } = useToast();
+
+  const getDesignationOptions = (category: CategoryValue | '') => {
+    if (!category) return [];
+    return designations
+      .filter(d => 
+        d.status === 'Active' && 
+        (d.employeeCategory === 'Both' || 
+        (category === 'Teacher' && d.employeeCategory === 'Teaching') || 
+        (category === 'Staff' && d.employeeCategory === 'Non-Teaching'))
+      )
+      .map(d => d.designationName);
+  };
 
   const [activeTab, setActiveTab] = useState<PayrollTabId>('staff-payroll-employees');
   const [employeeSearch, setEmployeeSearch] = useState('');
@@ -768,6 +747,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     });
   }, [attendance, generationCandidates, leaveApplications, payrollMonthLabel, payslips]);
 
+  const pendingGenerationRows = useMemo(() => generationRows.filter(row => !row.existing), [generationRows]);
+
   const historyRows = useMemo(() => {
     return payslips.filter(item => {
       const { month, year } = splitMonthYear(item.month);
@@ -826,11 +807,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     setAssignmentDraft(assignmentDraftDefaults);
   };
 
+
   const filteredDesignationOptions = useMemo(() => {
-    if (assignmentDraft.employeeCategory === 'Teacher') return teacherDesignationOptions;
-    if (assignmentDraft.employeeCategory === 'Staff') return nonTeachingDesignationOptions;
-    return [];
-  }, [assignmentDraft.employeeCategory]);
+    return getDesignationOptions(assignmentDraft.employeeCategory);
+  }, [assignmentDraft.employeeCategory, designations]);
 
   const structureOptionsForAssignment = useMemo(() => {
     const category = assignmentDraft.employeeCategory;
@@ -1027,6 +1007,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   Bulk Actions ({selectedEmployeeIds.length})
                 </button>
               )}
+              <ExportButton
+                data={filteredEmployeeRows.map(r => ({
+                  'Employee ID': r.member.empId,
+                  'Employee Name': `${r.member.firstName} ${r.member.lastName}`,
+                  'Category': getCategoryLabel(r.category),
+                  'Department': r.member.department,
+                  'Designation': r.member.designation,
+                  'Salary Structure': r.structure?.structureName || 'Not Assigned',
+                  'Payroll Status': r.payrollStatus
+                }))}
+                filename="employee_payroll"
+              />
               <button
                 type="button"
                 onClick={() => openAssignmentModal()}
@@ -1078,20 +1070,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <table className="min-w-[1100px] w-full border-separate border-spacing-y-3">
               <thead>
                 <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-                  <th className="px-3 py-2 w-10">
-                    <input 
-                      type="checkbox" 
-                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                      checked={filteredEmployeeRows.length > 0 && selectedEmployeeIds.length === filteredEmployeeRows.length}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedEmployeeIds(filteredEmployeeRows.map(r => r.member.id));
-                        } else {
-                          setSelectedEmployeeIds([]);
-                        }
-                      }}
-                    />
-                  </th>
+                  <th className="px-3 py-2 w-10"></th>
                   <th className="px-3 py-2">Employee ID</th>
                   <th className="px-3 py-2">Employee Name</th>
                   <th className="px-3 py-2">Category</th>
@@ -1199,6 +1178,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 Bulk Actions ({selectedStructureIds.length})
               </button>
             )}
+            <ExportButton
+              data={filteredStructureRows.map(r => ({
+                'Structure Name': r.structure.structureName,
+                'Category': getCategoryLabel(r.structure.employeeCategory),
+                'Designation': r.structure.designation || 'Not set',
+                'Effective From': r.structure.effectiveDate || 'Not set',
+                'Frequency': r.structure.payrollFrequency || 'Monthly',
+                'Gross Salary': r.breakdown.grossSalary,
+                'Total Deductions': r.breakdown.deductions,
+                'Net Salary': r.breakdown.netSalary,
+                'Status': r.structure.status,
+                'Employees Assigned': r.assignedCount
+              }))}
+              filename="salary_structures"
+            />
             <button
               type="button"
               onClick={() => openStructureModal('add')}
@@ -1245,20 +1239,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <table className="min-w-[1200px] w-full border-separate border-spacing-y-3">
             <thead>
               <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
-                <th className="px-3 py-2 w-10">
-                  <input 
-                    type="checkbox" 
-                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                    checked={filteredStructureRows.length > 0 && selectedStructureIds.length === filteredStructureRows.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedStructureIds(filteredStructureRows.map(r => r.structure.id));
-                      } else {
-                        setSelectedStructureIds([]);
-                      }
-                    }}
-                  />
-                </th>
+                <th className="px-3 py-2 w-10"></th>
                 <th className="px-3 py-2">Structure Name</th>
                 <th className="px-3 py-2">Category</th>
                 <th className="px-3 py-2">Designation</th>
@@ -1367,16 +1348,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         title="Generate Payslips"
         action={(
           <div className="flex flex-wrap items-center gap-2">
-            {selectedGenerationIds.length > 0 && (
-              <button
-                type="button"
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
-              >
-                Bulk Actions ({selectedGenerationIds.length})
-              </button>
-            )}
             <button type="button" onClick={handleBulkGenerate} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-lg shadow-brand-500/20">
-              <ReceiptText className="h-3.5 w-3.5" /> Generate All
+              <ReceiptText className="h-3.5 w-3.5" /> {selectedGenerationIds.length === 1 ? 'Generate' : 'Generate All'}
             </button>
             <button type="button" onClick={handleBulkDownload} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
               <Download className="h-3.5 w-3.5" /> Download All
@@ -1432,10 +1405,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   <input 
                     type="checkbox" 
                     className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                    checked={generationRows.length > 0 && selectedGenerationIds.length === generationRows.length}
+                    checked={pendingGenerationRows.length > 0 && selectedGenerationIds.length === pendingGenerationRows.length}
                     onChange={(e) => {
                       if (e.target.checked) {
-                        setSelectedGenerationIds(generationRows.map(r => r.member.id));
+                        setSelectedGenerationIds(pendingGenerationRows.map(r => r.member.id));
                       } else {
                         setSelectedGenerationIds([]);
                       }
@@ -1455,7 +1428,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </tr>
             </thead>
             <tbody>
-              {generationRows.map(row => (
+              {pendingGenerationRows.map(row => (
                 <tr key={row.member.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
                   <td className="rounded-l-[18px] px-3 py-4">
                     <input 
@@ -1535,16 +1508,42 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         title="Payslip History"
         action={(
           <div className="flex items-center gap-2">
-            {selectedHistoryIds.length > 0 && (
-              <button
-                type="button"
-                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
-              >
-                Bulk Actions ({selectedHistoryIds.length})
-              </button>
-            )}
-            <button type="button" onClick={() => addToast('success', 'Export Started', 'History export will download shortly.')} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-4 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Download className="h-3.5 w-3.5" /> Export History
+            <button 
+              type="button" 
+              onClick={() => {
+                const count = selectedHistoryIds.length > 0 ? selectedHistoryIds.length : historyRows.length;
+                if (count === 0) return;
+                
+                // Create CSV string
+                const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
+                const rowsToDownload = selectedHistoryIds.length > 0 ? historyRows.filter(r => selectedHistoryIds.includes(r.id)) : historyRows;
+                const csvRows = rowsToDownload.map(row => [
+                  row.month,
+                  `"${row.employeeName}"`,
+                  row.empId,
+                  row.grossSalary,
+                  row.deductions,
+                  row.netSalary,
+                  row.paymentDate || 'Pending',
+                  row.status
+                ]);
+                const csvContent = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
+                
+                // Download
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url);
+                link.setAttribute('download', `payslips_${new Date().getTime()}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                addToast('success', 'Download Started', `Downloading ${count} payslip(s) data.`);
+              }} 
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
+            >
+              <Download className="h-3.5 w-3.5" /> {selectedHistoryIds.length > 0 ? `Download (${selectedHistoryIds.length})` : 'Download All'}
             </button>
           </div>
         )}
@@ -1643,7 +1642,34 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                         <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="View Details">
                           <Eye className="h-4 w-4" />
                         </button>
-                        <button type="button" onClick={() => addToast('info', 'Download queued', `${item.employeeName} payslip download prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" title="Download PDF">
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
+                            const csvRows = [[
+                              item.month,
+                              `"${item.employeeName}"`,
+                              item.empId,
+                              item.grossSalary,
+                              item.deductions,
+                              item.netSalary,
+                              item.paymentDate || 'Pending',
+                              item.status
+                            ]];
+                            const csvContent = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
+                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.setAttribute('href', url);
+                            link.setAttribute('download', `payslip_${item.empId}_${item.month.replace(' ', '_')}.csv`);
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            addToast('success', 'Download Complete', `${item.employeeName} payslip data downloaded.`);
+                          }} 
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" 
+                          title="Download Data"
+                        >
                           <Download className="h-4 w-4" />
                         </button>
                         <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Email Payslip">
@@ -1746,14 +1772,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     <SearchableSelect
                       value={structureDraft.designation}
                       onChange={(val: string) => setStructureDraft(prev => ({ ...prev, designation: val }))}
-                      options={designationOptionsForCategory(structureDraft.employeeCategory)}
+                      options={getDesignationOptions(structureDraft.employeeCategory)}
                       placeholder="e.g. Mathematics Teacher"
                     />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Pay Grade</label>
-                    <input value={structureDraft.payGrade} onChange={e => setStructureDraft(prev => ({ ...prev, payGrade: e.target.value }))} className={inputClass} placeholder="e.g., Grade A" />
-                  </div>
+
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Effective From</label>
                     <input type="date" value={structureDraft.effectiveDate} onChange={e => setStructureDraft(prev => ({ ...prev, effectiveDate: e.target.value }))} className={inputClass} />
@@ -1793,9 +1816,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Earnings</h3>
-                    <p className="mt-1 text-xs text-slate-500">These components build the gross salary.</p>
                   </div>
-                  <Badge variant="info" size="sm">{structureEarningFields.length} Fields</Badge>
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                   {structureEarningFields.map(field => (
@@ -1818,9 +1839,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Deductions</h3>
-                    <p className="mt-1 text-xs text-slate-500">Employee PF and other deductions impact net salary. Employer PF is stored separately.</p>
                   </div>
-                  <Badge variant="info" size="sm">{structureDeductionFields.length} Fields</Badge>
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                   {structureDeductionFields.map(field => (
@@ -1843,9 +1862,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-[0.28em] text-slate-500">Payroll Rules</h3>
-                    <p className="mt-1 text-xs text-slate-500">These rules belong to the salary template, not a separate settings page.</p>
                   </div>
-                  <Badge variant="info" size="sm">Template Config</Badge>
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
@@ -1857,16 +1874,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       placeholder="5"
                     />
                   </div>
-                  <div>
-                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Round Off Rule</label>
-                    <select
-                      value={structureDraft.roundOffRule}
-                      onChange={e => setStructureDraft(prev => ({ ...prev, roundOffRule: e.target.value as StructureDraft['roundOffRule'] }))}
-                      className={selectClass}
-                    >
-                      {roundOffOptions.map(option => <option key={option}>{option}</option>)}
-                    </select>
-                  </div>
+
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Applicable</label>
                     <select
@@ -1960,16 +1968,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </div>
               </div>
 
-              <div className="rounded-[20px] border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400 mb-3">Payroll Rules Guide</p>
-                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> Basic Salary is typically 40%-50% of Gross.</li>
-                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> PF (12%) applies if Basic + DA ≤ ₹15,000.</li>
-                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> ESI (0.75%) applies if Gross ≤ ₹21,000.</li>
-                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> PT is deducted per state slabs (e.g., ₹200).</li>
-                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> LOP deduction = (Gross / Days in month) × Leave days.</li>
-                </ul>
-              </div>
+
               <div className="flex gap-3 mt-6">
                 <button
                   type="button"

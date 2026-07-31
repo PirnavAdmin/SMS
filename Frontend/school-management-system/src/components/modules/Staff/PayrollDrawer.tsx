@@ -88,8 +88,8 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   const structureDeductions = structure?.deductions || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm sm:p-6">
-      <div className="flex w-full max-w-5xl max-h-[90vh] flex-col rounded-[24px] border border-slate-200 bg-white shadow-2xl overflow-hidden dark:border-slate-800 dark:bg-slate-950">
+    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+      <div className="flex w-full max-w-5xl h-full flex-col border-l border-slate-200 bg-white shadow-2xl overflow-hidden dark:border-slate-800 dark:bg-slate-950 animate-in slide-in-from-right-16">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800">
           <div className="flex min-w-0 items-center gap-4">
             <img src={staff.avatar} alt={`${staff.firstName} ${staff.lastName}`} className="h-16 w-16 rounded-3xl object-cover ring-4 ring-slate-100 dark:ring-slate-800" />

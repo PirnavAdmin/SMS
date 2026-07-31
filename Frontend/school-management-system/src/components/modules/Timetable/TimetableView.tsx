@@ -11,7 +11,7 @@ import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
-type TimetableTab = 'class-timetable' | 'period-settings' | 'teacher-timetable' | 'student-timetable' | 'copy-timetable';
+type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
 
 export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
@@ -23,7 +23,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const { user, role, selectedBranch, setSelectedBranch } = useAuth();
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<TimetableTab>('class-timetable');
+  const [activeTab, setActiveTab] = useState<TimetableTab>('period-settings');
   const [academicYear, setAcademicYear] = useState('2026-2027');
   const [includeSaturday, setIncludeSaturday] = useState(false);
 
@@ -207,11 +207,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   const [selectedTeacherName, setSelectedTeacherName] = useState<string>(teacherFullName);
 
-  const [copySourceClass, setCopySourceClass] = useState(selectedClass);
-  const [copySourceSection, setCopySourceSection] = useState(selectedSection);
-  const [copyTargetClass, setCopyTargetClass] = useState(selectedClass);
-  const [copyTargetSection, setCopyTargetSection] = useState(selectedSection === 'A' ? 'B' : 'A');
-
   const [isPeriodModalOpen, setIsPeriodModalOpen] = useState(false);
   const [periodFormData, setPeriodFormData] = useState<Partial<PeriodSetting>>({
     periodName: 'Period 7',
@@ -221,6 +216,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     periodType: 'Teaching',
     status: 'Active'
   });
+  const [deletingPeriodSetting, setDeletingPeriodSetting] = useState<PeriodSetting | null>(null);
+  const [customPeriodType, setCustomPeriodType] = useState('');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
@@ -464,57 +461,39 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const handleAddPeriodSettingSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!periodFormData.periodName || !periodFormData.startTime || !periodFormData.endTime) return;
-    addPeriodSetting({
-      academicYear,
-      branch: selectedBranch || 'Main Campus',
-      periodName: periodFormData.periodName,
-      startTime: periodFormData.startTime,
-      endTime: periodFormData.endTime,
-      sequence: Number(periodFormData.sequence || 9),
-      periodType: periodFormData.periodType || 'Teaching',
-      status: 'Active'
-    });
+    
+    const finalPeriodType = periodFormData.periodType === 'Other' ? customPeriodType : periodFormData.periodType;
+    
+    if (periodFormData.id) {
+      updatePeriodSetting(periodFormData.id, {
+        ...periodFormData,
+        periodType: finalPeriodType || 'Teaching'
+      });
+      addToast('success', 'Period Configured', `Updated ${periodFormData.periodName}`);
+    } else {
+      addPeriodSetting({
+        academicYear,
+        branch: selectedBranch || 'Main Campus',
+        periodName: periodFormData.periodName,
+        startTime: periodFormData.startTime,
+        endTime: periodFormData.endTime,
+        sequence: Number(periodFormData.sequence || 9),
+        periodType: finalPeriodType || 'Teaching',
+        status: 'Active'
+      });
+      addToast('success', 'Period Configured', `Added ${periodFormData.periodName} to Period Settings`);
+    }
     setIsPeriodModalOpen(false);
-    addToast('success', 'Period Configured', `Added ${periodFormData.periodName} to Period Settings`);
   };
 
-  const handleCopyTimetable = () => {
-    const sourceSlots = timetable.filter(t => t.className === copySourceClass && t.section === copySourceSection);
-    if (sourceSlots.length === 0) {
-      addToast('warning', 'No Source Schedule', `No timetable slots found for ${copySourceClass}-${copySourceSection}.`);
-      return;
-    }
-
-    let copiedCount = 0;
-    let conflictCount = 0;
-
-    sourceSlots.forEach(slot => {
-      const newSlot = {
-        ...slot,
-        className: copyTargetClass,
-        section: copyTargetSection,
-        status: 'Draft' as 'Draft' | 'Published' | 'Archived'
-      };
-      delete (newSlot as any).id;
-
-      const errors = runValidationEngine(newSlot);
-      if (errors.length === 0) {
-        addTimetableSlot(newSlot as Omit<TimetableSlot, 'id'>);
-        copiedCount++;
-      } else {
-        conflictCount++;
-      }
-    });
-
-    if (copiedCount > 0) {
-      addToast('success', 'Timetable Copied', `Successfully copied ${copiedCount} periods to ${copyTargetClass}-${copyTargetSection}.`);
-    }
-    if (conflictCount > 0) {
-      addToast('info', 'Skipped Conflicts', `${conflictCount} period slots were skipped.`);
+  const handlePrint = () => {
+    if (activeTab === 'period-settings') {
+      setActiveTab('class-timetable');
+      setTimeout(() => window.print(), 150);
+    } else {
+      window.print();
     }
   };
-
-  const handlePrint = () => window.print();
 
   if (isTeacher) {
     const weeklyDays = includeSaturday ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] : ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -868,7 +847,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Class Timetable
           </h2>
-          <p className="text-slate-500 font-bold">Configure weekly timetable schedules, period durations, and room allocations</p>
+
         </div>
 
         {/* Global Timetable Filters */}
@@ -945,11 +924,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       {/* Module Navigation Tabs */}
       <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
         {[
-          { id: 'class-timetable', label: 'Class Timetable', icon: Calendar },
           { id: 'period-settings', label: 'Period Settings', icon: SlidersHorizontal },
-          { id: 'teacher-timetable', label: 'Teacher Timetable (Auto Generated)', icon: User },
-          { id: 'student-timetable', label: 'Student Timetable (Auto Generated)', icon: BookOpen },
-          { id: 'copy-timetable', label: 'Copy Timetable', icon: Copy },
+          { id: 'class-timetable', label: 'Class Timetable', icon: Calendar },
+          { id: 'teacher-timetable', label: 'Teacher Timetable', icon: User },
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -972,7 +949,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
       {/* TAB 1: CLASS TIMETABLE (WEEKLY GRID) */}
       {activeTab === 'class-timetable' && (
-        <div className="space-y-4">
+        <div id="printable-content" className="space-y-4">
+          <div className="hidden print:block mb-4 text-center border-b pb-4">
+            <h1 className="text-2xl font-black">Class Timetable</h1>
+            <p className="text-sm font-bold text-slate-600 mt-2">Class: {selectedClass} | Section: {selectedSection} | Year: {academicYear}</p>
+          </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <span className="px-3 py-1 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-xs">
@@ -1112,7 +1093,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">Period Settings Configuration</h3>
-              <p className="text-xs text-slate-500">Foundation for school timetable for {academicYear} • {selectedBranch || 'Main Campus'}</p>
             </div>
             <button
               onClick={() => setIsPeriodModalOpen(true)}
@@ -1134,11 +1114,32 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-extrabold text-sm text-slate-900 dark:text-white">{p.periodName}</span>
-                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                    p.periodType === 'Teaching' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200' : 'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-                  }`}>
-                    {p.periodType}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                      p.periodType === 'Teaching' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200' : 'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                    }`}>
+                      {p.periodType}
+                    </span>
+                    <button 
+                      onClick={() => {
+                        setPeriodFormData(p);
+                        if (!['Teaching', 'Break', 'Lunch'].includes(p.periodType)) {
+                          setCustomPeriodType(p.periodType);
+                          setPeriodFormData({ ...p, periodType: 'Other' });
+                        }
+                        setIsPeriodModalOpen(true);
+                      }} 
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-sky-600"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button 
+                      onClick={() => setDeletingPeriodSetting(p)} 
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-rose-600"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
                   {p.startTime} - {p.endTime}
@@ -1150,9 +1151,13 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         </div>
       )}
 
-      {/* TAB 3: TEACHER TIMETABLE (AUTO GENERATED) */}
+      {/* TAB 3: TEACHER TIMETABLE */}
       {activeTab === 'teacher-timetable' && (
-        <div className="space-y-6">
+        <div id="printable-content" className="space-y-6">
+          <div className="hidden print:block mb-4 text-center border-b pb-4">
+            <h1 className="text-2xl font-black">Teacher Timetable</h1>
+            <p className="text-sm font-bold text-slate-600 mt-2">Teacher: {selectedTeacherName} | Year: {academicYear}</p>
+          </div>
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Teacher:</label>
@@ -1202,115 +1207,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         </div>
       )}
 
-      {/* TAB 4: STUDENT TIMETABLE (AUTO GENERATED) */}
-      {activeTab === 'student-timetable' && (
-        <div className="space-y-6">
-          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  Student Timetable: {selectedClass} - Section {selectedSection}
-                </h3>
-                <p className="text-xs text-slate-500">Auto-generated class schedule for students</p>
-              </div>
-              <button onClick={handlePrint} className="px-4 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold flex items-center gap-2 shadow-md">
-                <Printer className="w-4 h-4" /> Print Student Timetable
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {baseDays.map(day => {
-                const daySlots = classTimetable.filter(t => t.day === day).sort((a, b) => parseSortable(a.timeSlot) - parseSortable(b.timeSlot));
-                return (
-                  <div key={day} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                    <h4 className="font-extrabold text-xs uppercase tracking-wider text-sky-600 dark:text-sky-400 border-b pb-2 border-slate-200 dark:border-slate-700">
-                      {day}
-                    </h4>
-                    {daySlots.length === 0 ? (
-                      <p className="text-[11px] text-slate-400 italic">No periods scheduled</p>
-                    ) : (
-                      daySlots.map(st => (
-                        <div key={st.id} className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
-                          <p className="font-bold text-xs text-slate-900 dark:text-white">{st.subject}</p>
-                          <p className="text-[10px] text-slate-500">{st.teacherName}</p>
-                          <p className="text-[10px] font-mono font-bold text-sky-600">{st.timeSlot}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 5: COPY TIMETABLE */}
-      {activeTab === 'copy-timetable' && (
-        <div className="glass-card p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 max-w-2xl">
-          <div>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">Copy Class Timetable</h3>
-            <p className="text-xs text-slate-500">Duplicate complete period allocations from one Class & Section to another</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">Source Schedule</h4>
-              <div>
-                <label className="block text-xs font-bold mb-1">Source Class</label>
-                <select
-                  value={copySourceClass}
-                  onChange={e => setCopySourceClass(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold"
-                >
-                  {classOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">Source Section</label>
-                <select
-                  value={copySourceSection}
-                  onChange={e => setCopySourceSection(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold"
-                >
-                  {getSectionsForClass(copySourceClass).map(s => <option key={s} value={s}>Section {s}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 space-y-3">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">Target Schedule</h4>
-              <div>
-                <label className="block text-xs font-bold mb-1">Target Class</label>
-                <select
-                  value={copyTargetClass}
-                  onChange={e => setCopyTargetClass(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold"
-                >
-                  {classOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold mb-1">Target Section</label>
-                <select
-                  value={copyTargetSection}
-                  onChange={e => setCopyTargetSection(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold"
-                >
-                  {getSectionsForClass(copyTargetClass).map(s => <option key={s} value={s}>Section {s}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleCopyTimetable}
-            className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg flex items-center gap-2"
-          >
-            <Copy className="w-4 h-4" /> Copy Schedule Slots
-          </button>
-        </div>
-      )}
 
       {/* Add Period Setting Modal */}
       {isPeriodModalOpen && (
@@ -1369,10 +1265,24 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none"
                 >
                   <option value="Teaching">Teaching Period</option>
-                  <option value="Break">Morning / Short Break</option>
+                  <option value="Break">Break</option>
                   <option value="Lunch">Lunch Break</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
+              {periodFormData.periodType === 'Other' && (
+                <div>
+                  <label className="block font-bold mb-1">Custom Period Type *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Assembly, Extracurricular"
+                    value={customPeriodType}
+                    onChange={e => setCustomPeriodType(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none"
+                  />
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsPeriodModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold">Cancel</button>
@@ -1563,6 +1473,20 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           }
         }}
         onCancel={() => setDeletingSlot(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!deletingPeriodSetting}
+        title="Delete Period Setting"
+        message={`Are you sure you want to delete "${deletingPeriodSetting?.periodName}"?`}
+        onConfirm={() => {
+          if (deletingPeriodSetting) {
+            deletePeriodSetting(deletingPeriodSetting.id);
+            addToast('success', 'Period Setting Removed');
+            setDeletingPeriodSetting(null);
+          }
+        }}
+        onCancel={() => setDeletingPeriodSetting(null)}
       />
     </div>
   );

@@ -47,8 +47,15 @@
 
 /* Printing styling */
 @media print {
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
   body * {
     visibility: hidden;
+  }
+  .overflow-x-auto, .overflow-hidden {
+    overflow: visible !important;
   }
   #printable-content, #printable-content * {
     visibility: visible;
@@ -95,4 +102,14 @@ input[type="number"] {
   background-image: linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
   border-left: 3px double #ef4444 !important;
   color: #f8fafc !important;
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }

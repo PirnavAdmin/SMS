@@ -1473,7 +1473,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
                     {selectedAppForView.studentType === 'Hosteller' ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
-                    Logistics & Type
+                    Transport & Accommodation
                   </h4>
                   <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
                     <div className="grid grid-cols-2 gap-4">

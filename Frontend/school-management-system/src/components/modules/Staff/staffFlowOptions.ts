@@ -51,39 +51,6 @@ export const nonTeachingDepartments = [
   'Facilities Management'
 ];
 
-export const teachingDesignationOptions = [
-  'Principal',
-  'Vice Principal',
-  'HOD',
-  'PGT Teacher',
-  'TGT Teacher',
-  'PRT Teacher',
-  'PET',
-  'Art Teacher',
-  'Music Teacher',
-  'Dance Teacher',
-  'Computer Teacher',
-  'Librarian',
-  'Special Educator'
-];
-
-export const nonTeachingDesignationOptions = [
-  'Administrator',
-  'HR Executive',
-  'Accountant',
-  'Receptionist',
-  'Office Assistant',
-  'Admission Counselor',
-  'IT Support',
-  'Lab Assistant',
-  'Store Keeper',
-  'Transport Manager',
-  'Driver',
-  'Security Guard',
-  'Cleaner',
-  'Nurse',
-  'Hostel Warden'
-];
 
 export interface DocumentRequirementSlot {
   label: string;
@@ -157,9 +124,6 @@ export function getDepartmentOptions(category: EmployeeCategory | '') {
   return category === 'Teacher' ? teachingDepartments : category === 'Staff' ? nonTeachingDepartments : [];
 }
 
-export function getDesignationOptions(category: EmployeeCategory | '') {
-  return category === 'Teacher' ? teachingDesignationOptions : category === 'Staff' ? nonTeachingDesignationOptions : [];
-}
 
 export function getDocumentRequirements(category: EmployeeCategory | '') {
   return category === 'Teacher' ? teachingDocumentRequirements : category === 'Staff' ? nonTeachingDocumentRequirements : [];

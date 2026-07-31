@@ -78,8 +78,6 @@ export const TransportMastersView: React.FC<TransportMastersViewProps> = ({ init
   return (
     <div className="space-y-6 animate-in fade-in">
       <TransportScrollableTabs
-        title="Route & Vehicle Setup"
-        subtitle="Create the transport master data in sequence: routes, pickup points, vehicles, drivers, and attendants."
         tabs={SETUP_TABS}
         activeId={activeSubTab}
         onChange={tabId => setActiveSubTab(tabId as TransportSetupTabId)}

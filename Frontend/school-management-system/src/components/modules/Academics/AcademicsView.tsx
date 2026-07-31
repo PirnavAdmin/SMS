@@ -616,7 +616,7 @@ export const AcademicsView: React.FC = () => {
               {/* Linked Searchable Multi-Select for Subjects from Subjects Module */}
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                  Curriculum Subjects (Linked to Subjects Module) *
+                  Subjects (Linked to Subjects Module) *
                 </label>
                 <SubjectSearchMultiSelect
                   selectedSubjects={formData.subjects || []}
