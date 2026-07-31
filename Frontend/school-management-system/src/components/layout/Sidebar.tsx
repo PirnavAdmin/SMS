@@ -173,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'School Administration',
       items: [
-        { id: 'communication', label: 'Notifications', icon: Megaphone },
+        { id: 'communication', label: 'Communication Hub', icon: Megaphone },
         { id: 'events', label: 'Events & Holidays', icon: Calendar },
         { id: 'training', label: 'Faculty Training', icon: GraduationCap },
         { id: 'reports', label: 'School Reports', icon: BarChart3 },

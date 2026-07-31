@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Users, User, Calendar, Clock, MapPin, Video, Plus, X, Search, CheckCircle2, 
   AlertCircle, ShieldAlert, Check, XCircle, Lock, Edit, Trash2, Link as LinkIcon, Building2,
@@ -40,6 +40,19 @@ export const MeetingsView: React.FC = () => {
   const [selectedParticipantId, setSelectedParticipantId] = useState<string>('');
   const [participantSearch, setParticipantSearch] = useState<string>('');
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Form State - Enterprise Multi-Participant Group Meetings Workflow
   const [selectedGroupParticipantTypes, setSelectedGroupParticipantTypes] = useState<MeetingParticipantType[]>([
@@ -980,7 +993,7 @@ export const MeetingsView: React.FC = () => {
                     </label>
 
                     {/* Search Bar Input */}
-                    <div className="relative">
+                    <div ref={searchRef} className="relative">
                       <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-sky-400" />
                       <input
                         type="text"
@@ -994,6 +1007,11 @@ export const MeetingsView: React.FC = () => {
                         onChange={e => {
                           setParticipantSearch(e.target.value);
                           setIsSearchOpen(true);
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            setIsSearchOpen(false);
+                          }
                         }}
                         className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-sky-200 dark:border-sky-900 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white placeholder-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-500/40"
                       />
