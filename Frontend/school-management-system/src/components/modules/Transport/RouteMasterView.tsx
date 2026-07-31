@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Route as RouteIcon, Plus, Search, Edit, Trash2, X, MapPin, Clock, ListOrdered, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Route as RouteIcon, Plus, Search, Edit, Trash2, X, MapPin, Clock, ChevronRight } from 'lucide-react';
 import { RouteMaster } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -22,32 +22,25 @@ export const initialRouteStops: RouteStop[] = [
   { id: 'stop-2', routeId: 'rm-01', stopName: 'Central Bus Stand', stopOrder: 2, pickupTime: '07:15 AM', dropTime: '04:30 PM', distanceKm: 3.5 },
   { id: 'stop-3', routeId: 'rm-01', stopName: 'Temple Square', stopOrder: 3, pickupTime: '07:30 AM', dropTime: '04:15 PM', distanceKm: 7.2 },
   { id: 'stop-4', routeId: 'rm-01', stopName: 'Lakshmi Nagar Circle', stopOrder: 4, pickupTime: '07:45 AM', dropTime: '04:00 PM', distanceKm: 12.0 },
-
   { id: 'stop-5', routeId: 'rm-02', stopName: 'School Campus', stopOrder: 1, pickupTime: '07:00 AM', dropTime: '04:30 PM', distanceKm: 0 },
   { id: 'stop-6', routeId: 'rm-02', stopName: 'Tech Park Gate 3', stopOrder: 2, pickupTime: '07:20 AM', dropTime: '04:10 PM', distanceKm: 5.0 },
   { id: 'stop-7', routeId: 'rm-02', stopName: 'Greenwood Apartments', stopOrder: 3, pickupTime: '07:40 AM', dropTime: '03:50 PM', distanceKm: 9.8 }
 ];
 
+type RouteSequenceItem = {
+  id: string;
+  sequenceNumber: number;
+  label: string;
+};
+
 export const RouteMasterView: React.FC = () => {
-  const { routeMasters, addRouteMaster, updateRouteMaster, deleteRouteMaster } = useData();
+  const { routeMasters, pickupPoints, vehicleAssignments, addRouteMaster, updateRouteMaster, deleteRouteMaster } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState<RouteMaster | null>(null);
   const [deletingRoute, setDeletingRoute] = useState<RouteMaster | null>(null);
-
-  // Route Stops State & Modal
-  const [routeStops, setRouteStops] = useState<RouteStop[]>(initialRouteStops);
-  const [activeStopRoute, setActiveStopRoute] = useState<RouteMaster | null>(null);
-  const [stopModalOpen, setStopModalOpen] = useState(false);
-  const [stopForm, setStopForm] = useState<Partial<RouteStop>>({
-    stopName: '',
-    stopOrder: 1,
-    pickupTime: '07:15 AM',
-    dropTime: '04:30 PM',
-    distanceKm: 2.5
-  });
 
   const [form, setForm] = useState<Partial<RouteMaster>>({
     routeCode: 'R-NORTH-103',
@@ -90,7 +83,6 @@ export const RouteMasterView: React.FC = () => {
     e.preventDefault();
     if (!form.routeCode || !form.routeName) return;
 
-    // Check unique code
     const isDuplicate = routeMasters.some(r => r.routeCode.toLowerCase() === form.routeCode?.toLowerCase() && r.id !== editingRoute?.id);
     if (isDuplicate) {
       addToast('warning', 'Duplicate Code', 'Route Code must be unique.');
@@ -107,68 +99,14 @@ export const RouteMasterView: React.FC = () => {
     setIsModalOpen(false);
   };
 
-  // Route Stops Management Handlers
-  const handleOpenStops = (r: RouteMaster) => {
-    setActiveStopRoute(r);
-    const existing = routeStops.filter(s => s.routeId === r.id);
-    setStopForm({
-      stopName: '',
-      stopOrder: existing.length + 1,
-      pickupTime: '07:30 AM',
-      dropTime: '04:15 PM',
-      distanceKm: 3.0
-    });
-    setStopModalOpen(true);
-  };
-
-  const handleAddStop = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeStopRoute || !stopForm.stopName) return;
-
-    // Unique stop order check within route
-    const currentStops = routeStops.filter(s => s.routeId === activeStopRoute.id);
-    const isOrderTaken = currentStops.some(s => s.stopOrder === stopForm.stopOrder);
-
-    if (isOrderTaken) {
-      addToast('warning', 'Duplicate Stop Order', `Stop Order #${stopForm.stopOrder} is already assigned on ${activeStopRoute.routeName}. Stop orders must be unique within a route.`);
-      return;
-    }
-
-    const newStop: RouteStop = {
-      id: 'stop-' + Date.now(),
-      routeId: activeStopRoute.id,
-      stopName: stopForm.stopName,
-      stopOrder: stopForm.stopOrder || currentStops.length + 1,
-      pickupTime: stopForm.pickupTime || '07:30 AM',
-      dropTime: stopForm.dropTime || '04:15 PM',
-      distanceKm: stopForm.distanceKm || 2.0
-    };
-
-    setRouteStops(prev => [...prev, newStop]);
-    addToast('success', 'Route Stop Added', `Added stop "${newStop.stopName}" (Order #${newStop.stopOrder})`);
-    setStopForm({
-      stopName: '',
-      stopOrder: currentStops.length + 2,
-      pickupTime: '07:45 AM',
-      dropTime: '04:00 PM',
-      distanceKm: 5.0
-    });
-  };
-
-  const handleDeleteStop = (id: string, name: string) => {
-    setRouteStops(prev => prev.filter(s => s.id !== id));
-    addToast('info', 'Stop Removed', `Removed stop "${name}"`);
-  };
-
   return (
-    <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5 animate-in fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RouteIcon className="w-6 h-6 text-sky-500" /> Routes & Stops
+            <RouteIcon className="w-6 h-6 text-sky-500" /> Route Management
           </h2>
-          <p className="text-xs text-slate-500">Configure transit routes, distance metrics, and ordered waypoints with timing validations</p>
+          <p className="text-xs text-slate-500">Configure route masters and review pickup-point sequences, assigned buses, and drivers.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -182,8 +120,7 @@ export const RouteMasterView: React.FC = () => {
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
+      <div className="glass-card p-3.5 rounded-2xl flex items-center justify-between">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -196,10 +133,21 @@ export const RouteMasterView: React.FC = () => {
         </div>
       </div>
 
-      {/* Route Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredRoutes.map(r => {
-          const stopsForRoute = routeStops.filter(s => s.routeId === r.id).sort((a, b) => a.stopOrder - b.stopOrder);
+          const routePickupPoints = pickupPoints
+            .filter(p => p.routeId === r.id)
+            .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+          const activeAssignment = vehicleAssignments.find(va => va.routeId === r.id && va.status === 'Active')
+            || vehicleAssignments.find(va => va.routeId === r.id);
+          const assignedBus = activeAssignment?.vehicleNumber || 'Unassigned';
+          const assignedDriver = activeAssignment?.driverName || 'Unassigned';
+          const previewStops: RouteSequenceItem[] = routePickupPoints.length > 0
+            ? routePickupPoints.map(p => ({ id: p.id, sequenceNumber: p.sequenceNumber, label: p.pickupName }))
+            : initialRouteStops
+              .filter(s => s.routeId.toLowerCase() === r.id.toLowerCase())
+              .sort((a, b) => a.stopOrder - b.stopOrder)
+              .map(s => ({ id: s.id, sequenceNumber: s.stopOrder, label: s.stopName }));
 
           return (
             <div key={r.id} className="glass-card p-5 rounded-3xl space-y-3 flex flex-col justify-between border border-slate-200/80 dark:border-slate-800">
@@ -219,36 +167,29 @@ export const RouteMasterView: React.FC = () => {
                   <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3 text-rose-500" /> Destination:</span> <span className="font-semibold text-slate-900 dark:text-white">{r.routeEnd}</span></div>
                   <div className="flex items-center justify-between"><span className="text-slate-400">Total Distance:</span> <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{r.totalDistanceKm} KM</span></div>
                   <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Est. Duration:</span> <span className="font-bold text-emerald-600 dark:text-emerald-400">{r.estimatedTimeMinutes} Mins</span></div>
-                  <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><ListOrdered className="w-3 h-3 text-sky-500" /> Ordered Stops:</span> <span className="font-bold text-sky-600 dark:text-sky-400">{stopsForRoute.length > 0 ? `${stopsForRoute.length} Configured` : '4 Standard Stops'}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-slate-400">Total Pickup Points:</span> <span className="font-bold text-sky-600 dark:text-sky-400">{routePickupPoints.length}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-slate-400">Assigned Bus:</span> <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{assignedBus}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-slate-400">Assigned Driver:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{assignedDriver}</span></div>
                 </div>
 
-                {/* Ordered Route Stop Preview Sequence */}
                 <div className="pt-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Route Stop Sequence</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Pickup Point Sequence</span>
                   <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[11px] font-medium space-y-1">
-                    {(stopsForRoute.length > 0 ? stopsForRoute : [
-                      { id: '1', stopName: 'School', stopOrder: 1 },
-                      { id: '2', stopName: 'Central Stand', stopOrder: 2 },
-                      { id: '3', stopName: 'Temple', stopOrder: 3 },
-                      { id: '4', stopName: 'Lakshmi Nagar', stopOrder: 4 }
-                    ]).map((st, idx, arr) => (
+                    {previewStops.length > 0 ? previewStops.map((st, idx, arr) => (
                       <span key={st.id} className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-bold mr-1">
-                        <span className="w-4 h-4 rounded-full bg-sky-600 text-white font-mono text-[9px] flex items-center justify-center shrink-0">{st.stopOrder}</span>
-                        {st.stopName}
+                        <span className="w-4 h-4 rounded-full bg-sky-600 text-white font-mono text-[9px] flex items-center justify-center shrink-0">{st.sequenceNumber}</span>
+                        {st.label}
                         {idx < arr.length - 1 && <ChevronRight className="w-3 h-3 text-slate-400 inline shrink-0" />}
                       </span>
-                    ))}
+                    )) : (
+                      <span className="text-slate-400">Add pickup points in the Pickup Points tab.</span>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  onClick={() => handleOpenStops(r)}
-                  className="text-xs font-bold text-sky-600 hover:text-sky-500 flex items-center gap-1"
-                >
-                  <ListOrdered className="w-3.5 h-3.5" /> Manage Route Stops
-                </button>
+                <span className="text-[11px] text-slate-400">Pickup points are maintained in the Pickup Points tab.</span>
                 <div className="flex items-center gap-1">
                   <button onClick={() => handleOpenEdit(r)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setDeletingRoute(r)} className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -259,7 +200,6 @@ export const RouteMasterView: React.FC = () => {
         })}
       </div>
 
-      {/* Add/Edit Route Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -267,7 +207,7 @@ export const RouteMasterView: React.FC = () => {
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {editingRoute ? 'Edit Route Master' : 'Create Route Master'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
@@ -314,128 +254,6 @@ export const RouteMasterView: React.FC = () => {
         </div>
       )}
 
-      {/* MANAGE ROUTE STOPS MODAL */}
-      {stopModalOpen && activeStopRoute && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <ListOrdered className="w-5 h-5 text-sky-500" /> Route Stops: {activeStopRoute.routeName}
-                </h3>
-                <p className="text-[11px] text-slate-400">Order waypoints sequentially with unique stop numbers & timings</p>
-              </div>
-              <button onClick={() => setStopModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>
-            </div>
-
-            {/* Add New Stop Form */}
-            <form onSubmit={handleAddStop} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 space-y-3 text-xs">
-              <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs">Add New Stop to Route</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Stop Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Lakshmi Nagar Circle"
-                    value={stopForm.stopName}
-                    onChange={e => setStopForm({ ...stopForm, stopName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Stop Order (Unique #) *</label>
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    value={stopForm.stopOrder}
-                    onChange={e => setStopForm({ ...stopForm, stopOrder: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Pickup Time</label>
-                  <input
-                    type="text"
-                    value={stopForm.pickupTime}
-                    onChange={e => setStopForm({ ...stopForm, pickupTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono text-emerald-600"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Drop Time</label>
-                  <input
-                    type="text"
-                    value={stopForm.dropTime}
-                    onChange={e => setStopForm({ ...stopForm, dropTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono text-sky-600"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Distance (KM)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={stopForm.distanceKm}
-                    onChange={e => setStopForm({ ...stopForm, distanceKm: Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add Stop
-                </button>
-              </div>
-            </form>
-
-            {/* List of Configured Stops */}
-            <div className="space-y-2">
-              <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Current Ordered Route Sequence</h4>
-              <div className="space-y-2">
-                {routeStops.filter(s => s.routeId === activeStopRoute.id).sort((a, b) => a.stopOrder - b.stopOrder).map(s => (
-                  <div key={s.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-full bg-sky-600 text-white font-mono font-black text-xs flex items-center justify-center shrink-0">
-                        #{s.stopOrder}
-                      </span>
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white text-sm">{s.stopName}</p>
-                        <p className="text-[11px] text-slate-500">
-                          Pickup: <strong className="text-emerald-600">{s.pickupTime}</strong> • Drop: <strong className="text-sky-600">{s.dropTime}</strong> • Distance: {s.distanceKm} KM
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDeleteStop(s.id, s.stopName)}
-                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950"
-                      title="Remove Stop"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setStopModalOpen(false)} className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold text-xs">
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
       <ConfirmModal
         isOpen={!!deletingRoute}
         onCancel={() => setDeletingRoute(null)}

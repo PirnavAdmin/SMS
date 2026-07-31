@@ -1,292 +1,442 @@
-import React, { useState, useEffect } from 'react';
-import { formatCurrency } from '../../../utils/currency';
-import { FileSpreadsheet, Printer, BarChart3, Bus, Download, FileText } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  LayoutDashboard,
+  CalendarClock,
+  Bus,
+  User,
+  Route,
+  GraduationCap,
+  Wrench,
+  FileSpreadsheet,
+  Printer,
+  FileText,
+  Search,
+  Filter,
+  RefreshCw
+} from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { formatCurrency } from '../../../utils/currency';
 import { ExportButton } from '../../common/ExportButton';
-import { initialBusAttendants } from './BusAttendantMasterView';
+import { TransportScrollableTabs } from './TransportScrollableTabs';
 
-const ENTERPRISE_REPORT_TYPES = [
-  'Vehicle Report',
-  'Route Report',
-  'Driver Report',
-  'Bus Attendant Report',
-  'Student Transport Report',
-  'Vehicle Capacity Report',
-  'Vehicle Assignment Report',
-  'Driver Assignment Report',
-  'Transport Document Expiry Report',
-  'Maintenance Report',
-  'GPS Movement Report',
-  'Trip Summary Report',
-  'Vehicle Route History',
-  'Parent Notification Log',
-  'Boarding & Drop Report',
-  'GPS Device Health Report'
-];
+type TransportReportTabId =
+  | 'transport-dashboard-report'
+  | 'trip-reports'
+  | 'vehicle-reports'
+  | 'driver-reports'
+  | 'route-reports'
+  | 'student-transport-reports'
+  | 'maintenance-reports';
 
-export const TransportReportsView: React.FC = () => {
-  const { 
-    studentTransports, 
-    vehicleMasters, 
-    driverMasters, 
+interface TransportReportsViewProps {
+  initialTab?: string;
+}
+
+const REPORT_TABS = [
+  { id: 'transport-dashboard-report', label: 'Transport Dashboard', icon: LayoutDashboard },
+  { id: 'trip-reports', label: 'Trip Reports', icon: CalendarClock },
+  { id: 'vehicle-reports', label: 'Vehicle Reports', icon: Bus },
+  { id: 'driver-reports', label: 'Driver Reports', icon: User },
+  { id: 'route-reports', label: 'Route Reports', icon: Route },
+  { id: 'student-transport-reports', label: 'Student Transport Reports', icon: GraduationCap },
+  { id: 'maintenance-reports', label: 'Maintenance Reports', icon: Wrench }
+] as const;
+
+const normalizeReportTab = (tab?: string): TransportReportTabId => {
+  const cleanTab = (tab || 'transport-dashboard-report').replace(/^transport-/, '');
+
+  switch (cleanTab) {
+    case 'transport-dashboard-report':
+    case 'dashboard-report':
+    case 'summary':
+    case 'transport-dashboard':
+      return 'transport-dashboard-report';
+    case 'trip-reports':
+    case 'trip-report':
+    case 'trip-summary':
+      return 'trip-reports';
+    case 'vehicle-reports':
+    case 'vehicle-report':
+      return 'vehicle-reports';
+    case 'driver-reports':
+    case 'driver-report':
+      return 'driver-reports';
+    case 'route-reports':
+    case 'route-report':
+      return 'route-reports';
+    case 'student-transport-reports':
+    case 'student-transport-report':
+      return 'student-transport-reports';
+    case 'maintenance-reports':
+    case 'maintenance-report':
+      return 'maintenance-reports';
+    default:
+      return 'transport-dashboard-report';
+  }
+};
+
+type ReportRow = Record<string, string | number>;
+
+export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ initialTab = 'transport-dashboard-report' }) => {
+  const {
+    studentTransports,
+    vehicleMasters,
+    driverMasters,
     routeMasters,
     pickupPoints,
-    vehicleAssignments, 
-    vehicleMaintenances, 
-    feePayments,
-    students,
+    vehicleAssignments,
+    vehicleMaintenances,
     checkVehicleCapacity
   } = useData();
 
   const { addToast } = useToast();
-  const [selectedReport, setSelectedReport] = useState<string>('Vehicle Report');
+  const [selectedReport, setSelectedReport] = useState<TransportReportTabId>(normalizeReportTab(initialTab));
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRoute, setFilterRoute] = useState('All');
+  const [filterVehicle, setFilterVehicle] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
 
-  const [filterAcademicYear, setFilterAcademicYear] = useState('All');
-  const [filterRouteId, setFilterRouteId] = useState('All');
-  const [filterVehicleId, setFilterVehicleId] = useState('All');
-  const [filterDriverId, setFilterDriverId] = useState('All');
-  const [filterPickupName, setFilterPickupName] = useState('All');
+  useEffect(() => {
+    setSelectedReport(normalizeReportTab(initialTab));
+  }, [initialTab]);
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setFilterRoute('All');
+    setFilterVehicle('All');
+    setFilterStatus('All');
+    setSelectedReport('transport-dashboard-report');
+    addToast('info', 'Report Reset', 'Reset transport report filters and selection.');
+  };
 
   const handlePrint = () => {
-    addToast('info', 'Preparing Report Print', `Printing ${selectedReport}`);
+    addToast('info', 'Preparing Report Print', `Printing ${getSelectedReportLabel(selectedReport)}`);
     window.print();
   };
 
   const handlePdfExport = () => {
-    addToast('success', 'PDF Report Generated', `Downloaded PDF for ${selectedReport}`);
+    addToast('success', 'PDF Report Generated', `Downloaded PDF for ${getSelectedReportLabel(selectedReport)}`);
   };
 
-  // Generate Report Data JSON for Excel/CSV Export
-  const getReportData = (): any[] => {
+  const selectedReportLabel = getSelectedReportLabel(selectedReport);
+
+  const dashboardSummary = useMemo(() => {
+    const totalVehicles = vehicleMasters.length;
+    const activeVehicles = vehicleMasters.filter(v => v.status === 'Active').length;
+    const activeRoutes = routeMasters.filter(r => r.status === 'Active').length;
+    const activeDrivers = driverMasters.filter(d => d.status === 'Active').length;
+    const activeStudents = studentTransports.filter(s => s.status === 'Active').length;
+    const maintenanceVehicles = vehicleMasters.filter(v => v.status === 'Maintenance').length;
+    const totalCapacity = vehicleMasters.reduce((sum, vehicle) => sum + vehicle.capacity, 0) || 1;
+    const occupiedSeats = vehicleMasters.reduce((sum, vehicle) => {
+      const cap = checkVehicleCapacity(vehicle.id);
+      return sum + cap.assignedCount;
+    }, 0);
+    const occupancy = Math.round((occupiedSeats / totalCapacity) * 100);
+
+    return [
+      { Metric: 'Fleet Size', Value: totalVehicles, Status: `${activeVehicles} Active` },
+      { Metric: 'Active Routes', Value: activeRoutes, Status: 'Configured' },
+      { Metric: 'Active Drivers', Value: activeDrivers, Status: 'Licensed Staff' },
+      { Metric: 'Transport Students', Value: activeStudents, Status: `${occupancy}% Occupancy` },
+      { Metric: 'Maintenance Units', Value: maintenanceVehicles, Status: 'In Service' },
+      { Metric: 'Seat Utilization', Value: `${occupancy}%`, Status: `${occupiedSeats}/${totalCapacity} Seats` }
+    ];
+  }, [checkVehicleCapacity, driverMasters, routeMasters, studentTransports, vehicleMasters]);
+
+  const reportRows = useMemo<ReportRow[]>(() => {
     switch (selectedReport) {
-      case 'Vehicle Report':
-        return vehicleMasters.map(v => {
-          const cap = checkVehicleCapacity(v.id);
+      case 'transport-dashboard-report':
+        return dashboardSummary;
+
+      case 'trip-reports':
+        return vehicleAssignments.map((assignment, index) => {
+          const routeStudents = studentTransports.filter(st => st.routeId === assignment.routeId || st.routeName === assignment.routeName).length;
+          const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId);
+          const capacity = vehicle ? checkVehicleCapacity(vehicle.id) : null;
+
           return {
-            'Vehicle Number': v.vehicleNumber,
-            'Registration No': v.registrationNumber,
-            'Vehicle Type': v.vehicleType,
-            'AC/Non-AC': v.isAC ? 'AC' : 'Non-AC',
-            'Seating Capacity': v.capacity,
-            'Assigned Students': cap.assignedCount,
-            'Available Seats': cap.availableSeats,
-            'Status': v.status
+            'Trip No': `TRP-${String(index + 1).padStart(3, '0')}`,
+            'Vehicle Number': assignment.vehicleNumber,
+            'Route Name': assignment.routeName,
+            'Driver Name': assignment.driverName,
+            'Bus Attendant': assignment.attendantName || 'Unassigned',
+            'Students On Route': routeStudents,
+            'Capacity Used': capacity ? `${capacity.assignedCount}/${capacity.totalCapacity}` : 'N/A',
+            'Effective From': assignment.effectiveFrom,
+            'Status': 'Scheduled'
           };
         });
 
-      case 'Route Report':
-        return routeMasters.map(r => ({
-          'Route Code': r.routeCode,
-          'Route Name': r.routeName,
-          'Start Point': r.routeStart,
-          'Destination': r.routeEnd,
-          'Distance (KM)': r.totalDistanceKm,
-          'Duration (Mins)': r.estimatedTimeMinutes,
-          'Status': r.status
-        }));
+      case 'vehicle-reports':
+        return vehicleMasters.map(vehicle => {
+          const cap = checkVehicleCapacity(vehicle.id);
+          const utilization = Math.round((cap.assignedCount / vehicle.capacity) * 100);
+          const activeAssignment = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active')
+            || vehicleAssignments.find(va => va.vehicleNumber === vehicle.vehicleNumber && va.status === 'Active');
 
-      case 'Driver Report':
-        return driverMasters.map(d => ({
-          'Driver Name': d.driverName,
-          'Mobile Number': d.mobileNumber,
-          'License Number': d.licenseNumber,
-          'License Expiry': d.licenseExpiryDate,
-          'Experience (Years)': d.experienceYears,
-          'Status': d.status
-        }));
-
-      case 'Bus Attendant Report':
-        return initialBusAttendants.map(a => ({
-          'Employee ID': a.employeeId,
-          'Attendant Name': a.attendantName,
-          'Mobile Number': a.mobileNumber,
-          'Gender': a.gender,
-          'Branch': a.branch,
-          'Status': a.status
-        }));
-
-      case 'Student Transport Report':
-        return studentTransports.map(st => ({
-          'Admission No': st.admissionNo,
-          'Student Name': st.studentName,
-          'Route Name': st.routeName,
-          'Pickup Point': st.pickupPoint,
-          'Vehicle Number': st.vehicleNumber || 'BUS-101',
-          'Fee Plan': st.feePlan,
-          'Fee Amount': st.feeAmount,
-          'Status': st.status
-        }));
-
-      case 'Vehicle Capacity Report':
-        return vehicleMasters.map(v => {
-          const cap = checkVehicleCapacity(v.id);
-          const pct = Math.round((cap.assignedCount / v.capacity) * 100);
           return {
-            'Vehicle Number': v.vehicleNumber,
-            'Type': v.vehicleType,
-            'Total Capacity': v.capacity,
+            'Vehicle Number': vehicle.vehicleNumber,
+            'Registration No': vehicle.registrationNumber,
+            'Vehicle Type': vehicle.vehicleType,
+            'AC Status': vehicle.isAC ? 'AC' : 'Non-AC',
+            'Capacity': vehicle.capacity,
             'Assigned Students': cap.assignedCount,
-            'Available Seats': cap.availableSeats,
-            'Occupancy %': `${pct}%`,
-            'Status': pct >= 100 ? 'FULL' : 'AVAILABLE'
+            'Assigned Route': activeAssignment?.routeName || 'Unassigned',
+            'Assigned Driver': activeAssignment?.driverName || 'Unassigned',
+            'Bus Attendant': activeAssignment?.attendantName || 'Unassigned',
+            'Assignment Status': activeAssignment?.status || 'Unassigned',
+            'Utilization %': `${utilization}%`,
+            'Status': vehicle.status
           };
         });
 
-      case 'Vehicle Assignment Report':
-      case 'Driver Assignment Report':
-        return vehicleAssignments.map(va => ({
-          'Vehicle Number': va.vehicleNumber,
-          'Driver Name': va.driverName,
-          'Bus Attendant': 'Mary Smith',
-          'Route Name': va.routeName,
-          'Effective From': va.effectiveFrom,
-          'Status': va.status
+      case 'driver-reports':
+        return driverMasters.map(driver => {
+          const activeAssignment = vehicleAssignments.find(va => va.driverId === driver.id && va.status === 'Active')
+            || vehicleAssignments.find(va => va.driverName === driver.driverName && va.status === 'Active');
+
+          return {
+            'Driver Name': driver.driverName,
+            'Mobile Number': driver.mobileNumber,
+            'License Number': driver.licenseNumber,
+            'License Expiry': driver.licenseExpiryDate,
+            'Current Bus': activeAssignment?.vehicleNumber || 'Unassigned',
+            'Current Route': activeAssignment?.routeName || 'Unassigned',
+            'Bus Attendant': activeAssignment?.attendantName || 'Unassigned',
+            'Assignment Status': activeAssignment?.status || 'Unassigned',
+            'Experience (Years)': driver.experienceYears,
+            'Status': driver.status
+          };
+        });
+
+      case 'route-reports':
+        return routeMasters.map(route => {
+          const assignedAssignment = vehicleAssignments.find(va => va.routeId === route.id && va.status === 'Active')
+            || vehicleAssignments.find(va => va.routeId === route.id);
+          const totalPickupPoints = pickupPoints.filter(p => p.routeId === route.id).length;
+
+          return {
+            'Route Code': route.routeCode,
+            'Route Name': route.routeName,
+            'Start Point': route.routeStart,
+            'Destination': route.routeEnd,
+            'Distance (KM)': route.totalDistanceKm,
+            'Duration (Mins)': route.estimatedTimeMinutes,
+            'Total Pickup Points': totalPickupPoints,
+            'Assigned Bus': assignedAssignment?.vehicleNumber || 'Unassigned',
+            'Assigned Driver': assignedAssignment?.driverName || 'Unassigned',
+            'Status': route.status
+          };
+        });
+
+      case 'student-transport-reports':
+        return studentTransports.map(transport => ({
+          'Admission No': transport.admissionNo,
+          'Student Name': transport.studentName,
+          'Route Name': transport.routeName,
+          'Pickup Point': transport.pickupPoint,
+          'Vehicle Number': transport.vehicleNumber || 'Unassigned',
+          'Fee Plan': transport.feePlan,
+          'Fee Amount': transport.feeAmount,
+          'Effective From': transport.effectiveFrom,
+          'Status': transport.status
         }));
 
-      case 'Transport Document Expiry Report':
-        return [
-          { 'Entity': 'BUS-101 (Bus)', 'Document Type': 'Insurance Policy', 'Doc Number': 'INS-8810-AB', 'Expiry Date': '2026-12-01', 'Status': 'Valid' },
-          { 'Entity': 'BUS-101 (Bus)', 'Document Type': 'Fitness Certificate', 'Doc Number': 'FIT-2025-001', 'Expiry Date': '2026-08-15', 'Status': 'Expiring Soon' },
-          { 'Entity': 'Dwight Schrute (Driver)', 'Document Type': 'Commercial License', 'Doc Number': 'DL-NY-2022-77112', 'Expiry Date': '2029-10-31', 'Status': 'Valid' },
-          { 'Entity': 'Dwight Schrute (Driver)', 'Document Type': 'Medical Certificate', 'Doc Number': 'MED-2025-004', 'Expiry Date': '2026-08-30', 'Status': 'Expiring Soon' }
-        ];
-
-      case 'Maintenance Report':
-        return vehicleMaintenances.map(m => ({
-          'Vehicle Number': m.vehicleNumber,
-          'Service Date': m.serviceDate,
-          'Service Type': m.serviceType,
-          'Vendor': m.vendor,
-          'Cost': m.cost,
-          'Next Service Due': m.nextServiceDue,
-          'Status': m.status
+      case 'maintenance-reports':
+        return vehicleMaintenances.map(maintenance => ({
+          'Vehicle Number': maintenance.vehicleNumber,
+          'Service Date': maintenance.serviceDate,
+          'Service Type': maintenance.serviceType,
+          'Vendor': maintenance.vendor,
+          'Cost': maintenance.cost,
+          'Next Service Due': maintenance.nextServiceDue,
+          'Status': maintenance.status
         }));
-
-      case 'GPS Movement Report':
-        return [
-          { 'Date': '28/07/2026', 'Vehicle': 'BUS-101', 'Route': 'Route A', 'Distance Travelled': '18.5 KM', 'Avg Speed': '34 km/h', 'Top Speed': '48 km/h', 'Stops Made': '4', 'Idle Time': '8 Mins', 'GPS Status': 'Online' },
-          { 'Date': '28/07/2026', 'Vehicle': 'BUS-102', 'Route': 'Route B', 'Distance Travelled': '22.0 KM', 'Avg Speed': '38 km/h', 'Top Speed': '52 km/h', 'Stops Made': '5', 'Idle Time': '5 Mins', 'GPS Status': 'Online' }
-        ];
-
-      case 'Trip Summary Report':
-        return [
-          { 'Trip ID': 'TRP-8810', 'Date': '28/07/2026', 'Vehicle': 'BUS-101', 'Route': 'Route A', 'Morning Start': '07:00 AM', 'Morning End': '08:25 AM', 'Evening Start': '03:45 PM', 'Evening End': '04:45 PM', 'Total Students': 46, 'Status': 'Completed' },
-          { 'Trip ID': 'TRP-8811', 'Date': '28/07/2026', 'Vehicle': 'BUS-102', 'Route': 'Route B', 'Morning Start': '07:15 AM', 'Morning End': '08:30 AM', 'Evening Start': '03:45 PM', 'Evening End': '04:50 PM', 'Total Students': 38, 'Status': 'Completed' }
-        ];
-
-      case 'Vehicle Route History':
-        return [
-          { 'Log ID': 'RH-101', 'Vehicle': 'BUS-101', 'Assigned Route': 'Route A - Downtown Express', 'Assigned Driver': 'Dwight Schrute', 'Attendant': 'Mary Smith', 'Effective Date': '01/04/2026', 'Status': 'Active' }
-        ];
-
-      case 'Parent Notification Log':
-        return [
-          { 'Timestamp': '28/07/2026 07:00 AM', 'Student': 'Ethan Hunt', 'Parent Phone': '+1 555-019-283', 'Event': 'Morning Trip Started', 'Channel': 'WhatsApp & SMS', 'Delivery Status': 'Delivered' },
-          { 'Timestamp': '28/07/2026 07:22 AM', 'Student': 'Ethan Hunt', 'Parent Phone': '+1 555-019-283', 'Event': 'Student Boarded (RFID)', 'Channel': 'Push & SMS', 'Delivery Status': 'Delivered' },
-          { 'Timestamp': '28/07/2026 08:25 AM', 'Student': 'Ethan Hunt', 'Parent Phone': '+1 555-019-283', 'Event': 'Bus Reached School', 'Channel': 'Push Notification', 'Delivery Status': 'Delivered' }
-        ];
-
-      case 'Boarding & Drop Report':
-        return [
-          { 'Date': '28/07/2026', 'Admission No': 'ADM2026-413', 'Student Name': 'Ethan Hunt', 'Pickup Point': 'Central Park West', 'Boarding Method': 'RFID Scanner', 'Morning Boarding Time': '07:22 AM', 'Evening Drop Time': '04:42 PM', 'Status': 'Verified' },
-          { 'Date': '28/07/2026', 'Admission No': 'ADM2026-102', 'Student Name': 'Jane Doe', 'Pickup Point': 'Temple Road', 'Boarding Method': 'RFID Scanner', 'Morning Boarding Time': '07:34 AM', 'Evening Drop Time': '04:31 PM', 'Status': 'Verified' }
-        ];
-
-      case 'GPS Device Health Report':
-        return [
-          { 'Device ID': 'GPS-DEV-8810-AB', 'Vehicle Number': 'BUS-101', 'Provider': 'Trac360 Telematics', 'Signal Strength': '98% (Strong)', 'Battery Level': '100%', 'Last Ping': 'Just now', 'Health Status': 'Healthy' },
-          { 'Device ID': 'GPS-DEV-8811-CD', 'Vehicle Number': 'BUS-102', 'Provider': 'MapmyIndia Fleet API', 'Signal Strength': '92% (Strong)', 'Battery Level': '95%', 'Last Ping': '2 mins ago', 'Health Status': 'Healthy' }
-        ];
 
       default:
-        return studentTransports;
+        return dashboardSummary;
     }
-  };
+  }, [
+    checkVehicleCapacity,
+    dashboardSummary,
+    driverMasters,
+    pickupPoints,
+    routeMasters,
+    selectedReport,
+    studentTransports,
+    vehicleAssignments,
+    vehicleMaintenances,
+    vehicleMasters
+  ]);
 
-  const reportData = getReportData();
+  const filteredRows = useMemo(() => {
+    return reportRows.filter(row => {
+      const searchableText = Object.values(row).join(' ').toLowerCase();
+      const matchesSearch = !searchQuery.trim() || searchableText.includes(searchQuery.toLowerCase());
+      const matchesRoute = filterRoute === 'All' || Object.entries(row).some(([key, value]) => key.toLowerCase().includes('route') && String(value).toLowerCase().includes(filterRoute.toLowerCase()));
+      const matchesVehicle = filterVehicle === 'All' || Object.entries(row).some(([key, value]) => key.toLowerCase().includes('vehicle') && String(value).toLowerCase().includes(filterVehicle.toLowerCase()));
+      const matchesStatus = filterStatus === 'All' || Object.entries(row).some(([key, value]) => key.toLowerCase().includes('status') && String(value).toLowerCase().includes(filterStatus.toLowerCase()));
+
+      return matchesSearch && matchesRoute && matchesVehicle && matchesStatus;
+    });
+  }, [filterRoute, filterStatus, filterVehicle, reportRows, searchQuery]);
+
+  const showRouteFilter = ['trip-reports', 'route-reports', 'student-transport-reports', 'transport-dashboard-report'].includes(selectedReport);
+  const showVehicleFilter = ['trip-reports', 'vehicle-reports', 'student-transport-reports', 'maintenance-reports'].includes(selectedReport);
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Transport Reports
           </h2>
-          <p className="text-xs text-slate-500">Generate 16 comprehensive transport & GPS telematics reports with Print, PDF, and Excel export capabilities</p>
+          <p className="text-xs text-slate-500">Enterprise transport reporting focused on dashboard summaries, trips, vehicles, drivers, routes, student allocation, and maintenance.</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <button
+            onClick={resetFilters}
+            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+          >
+            <RefreshCw className="w-4 h-4 text-sky-600" /> Refresh
+          </button>
           <button
             onClick={handlePrint}
             className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
             <Printer className="w-4 h-4 text-sky-600" /> Print
           </button>
-
           <button
             onClick={handlePdfExport}
             className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
           >
             <FileText className="w-4 h-4 text-rose-600" /> Export PDF
           </button>
-
-          <ExportButton data={reportData} filename={selectedReport.toLowerCase().replace(/\s+/g, '_')} />
+          <ExportButton data={filteredRows} filename={selectedReportLabel.toLowerCase().replace(/\s+/g, '_')} />
         </div>
       </div>
 
-      {/* Report Selector Grid */}
-      <div className="glass-card p-4 rounded-2xl space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Select Enterprise Transport Report</span>
-        <div className="flex flex-wrap gap-2">
-          {ENTERPRISE_REPORT_TYPES.map(report => (
-            <button
-              key={report}
-              onClick={() => setSelectedReport(report)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                selectedReport === report
-                  ? 'bg-sky-600 text-white shadow-md'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-              }`}
+      <TransportScrollableTabs
+        title="Report Catalog"
+        subtitle="Switch between the curated transport reports without crowding the page."
+        tabs={REPORT_TABS}
+        activeId={selectedReport}
+        onChange={tabId => setSelectedReport(tabId as TransportReportTabId)}
+        sticky={false}
+      />
+
+      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end gap-3 lg:gap-4">
+        <div className="relative w-full lg:max-w-sm">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search report rows..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          {showRouteFilter && (
+            <div>
+              <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Route Filter</label>
+              <select
+                value={filterRoute}
+                onChange={e => setFilterRoute(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="All">All Routes</option>
+                {routeMasters.map(route => (
+                  <option key={route.id} value={route.routeName}>{route.routeName}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {showVehicleFilter && (
+            <div>
+              <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Vehicle Filter</label>
+              <select
+                value={filterVehicle}
+                onChange={e => setFilterVehicle(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+              >
+                <option value="All">All Vehicles</option>
+                {vehicleMasters.map(vehicle => (
+                  <option key={vehicle.id} value={vehicle.vehicleNumber}>{vehicle.vehicleNumber}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Status Filter</label>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
             >
-              {report}
-            </button>
+              <option value="All">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Completed">Completed</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-[11px] font-bold text-slate-500">
+            <Filter className="w-3.5 h-3.5 text-sky-500" />
+            {filteredRows.length} matching rows
+          </div>
+        </div>
+      </div>
+
+      {selectedReport === 'transport-dashboard-report' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredRows.map(row => (
+            <div key={row.Metric as string} className="glass-card p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{row.Metric}</p>
+              <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{row.Value}</p>
+              <p className="mt-1 text-xs font-semibold text-sky-600 dark:text-sky-400">{row.Status}</p>
+            </div>
           ))}
         </div>
-      </div>
+      )}
 
-      {/* Generated Report Table Display */}
       <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 space-y-3 p-4">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <h3 className="font-black text-base text-slate-900 dark:text-white">{selectedReport}</h3>
-            <p className="text-[11px] text-slate-400">Total Records: {reportData.length}</p>
+            <h3 className="font-black text-base text-slate-900 dark:text-white">{selectedReportLabel}</h3>
+            <p className="text-[11px] text-slate-400">Total Records: {filteredRows.length}</p>
           </div>
           <span className="font-mono text-xs font-bold text-sky-600 bg-sky-50 dark:bg-sky-950 px-3 py-1 rounded-full border border-sky-200">
-            Enterprise ERP Certified
+            Transport Reporting
           </span>
         </div>
 
-        {/* Dynamic Data Table */}
         <div className="overflow-x-auto">
-          {reportData.length === 0 ? (
+          {filteredRows.length === 0 ? (
             <p className="text-center py-8 text-xs text-slate-400 italic">No report records found.</p>
           ) : (
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  {Object.keys(reportData[0] || {}).map(key => (
+                  {Object.keys(filteredRows[0] || {}).map(key => (
                     <th key={key} className="py-3 px-4">{key}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {reportData.map((row, idx) => (
+                {filteredRows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    {Object.values(row).map((val: any, valIdx) => (
-                      <td key={valIdx} className="py-3 px-4 text-slate-800 dark:text-slate-200 font-semibold">
-                        {typeof val === 'number' && keyMatchesCurrency(Object.keys(row)[valIdx]) ? formatCurrency(val) : String(val)}
+                    {Object.entries(row).map(([key, value]) => (
+                      <td key={key} className="py-3 px-4 text-slate-800 dark:text-slate-200 font-semibold">
+                        {typeof value === 'number' && keyMatchesCurrency(key) ? formatCurrency(value) : String(value)}
                       </td>
                     ))}
                   </tr>
@@ -300,8 +450,13 @@ export const TransportReportsView: React.FC = () => {
   );
 };
 
+function getSelectedReportLabel(selectedReport: TransportReportTabId): string {
+  const item = REPORT_TABS.find(tab => tab.id === selectedReport);
+  return item?.label || 'Transport Dashboard';
+}
+
 function keyMatchesCurrency(keyName: string): boolean {
   if (!keyName) return false;
-  const k = keyName.toLowerCase();
-  return k.includes('fee') || k.includes('cost') || k.includes('amount') || k.includes('revenue');
+  const key = keyName.toLowerCase();
+  return key.includes('fee') || key.includes('cost') || key.includes('amount') || key.includes('revenue');
 }

@@ -27,7 +27,7 @@ export const initialVehicleDocs: VehicleDocumentItem[] = [
 ];
 
 export const VehicleMasterView: React.FC = () => {
-  const { vehicleMasters, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster, checkVehicleCapacity } = useData();
+  const { vehicleMasters, vehicleAssignments, addVehicleMaster, updateVehicleMaster, deleteVehicleMaster, checkVehicleCapacity } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -154,6 +154,10 @@ export const VehicleMasterView: React.FC = () => {
     };
   };
 
+  const resolveCurrentAssignment = (vehicle: VehicleMaster) =>
+    vehicleAssignments.find(assignment => assignment.vehicleId === vehicle.id && assignment.status === 'Active') ||
+    vehicleAssignments.find(assignment => assignment.vehicleNumber === vehicle.vehicleNumber && assignment.status === 'Active');
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
@@ -162,7 +166,7 @@ export const VehicleMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Bus className="w-6 h-6 text-sky-500" /> Vehicles
           </h2>
-          <p className="text-xs text-slate-500">Manage school fleet, seating capacity, AC/Non-AC specs, and compliance document expirations</p>
+          <p className="text-xs text-slate-500">Manage vehicle master data and view read-only assignment summaries from Vehicle Assignment</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -195,6 +199,7 @@ export const VehicleMasterView: React.FC = () => {
         {filteredVehicles.map(v => {
           const cap = checkVehicleCapacity(v.id);
           const docsForV = vehicleDocs.filter(d => d.vehicleId === v.id);
+          const currentAssignment = resolveCurrentAssignment(v);
 
           // Expiry evaluations
           const insStatus = checkDocExpiryStatus(v.insuranceExpiry);
@@ -231,6 +236,19 @@ export const VehicleMasterView: React.FC = () => {
                   </div>
 
                   <div className="flex justify-between"><span className="text-slate-400">GPS Device ID:</span><span className="font-mono text-sky-600 flex items-center gap-1"><Cpu className="w-3 h-3" /> {v.gpsDeviceId}</span></div>
+
+                  <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 space-y-1.5">
+                    <span className="text-[10px] font-bold uppercase text-sky-600 block">Current Assignment</span>
+                    {currentAssignment ? (
+                      <>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Route:</span><span className="font-bold text-slate-900 dark:text-white text-right">{currentAssignment.routeName}</span></div>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Driver:</span><span className="font-semibold text-sky-600 text-right">{currentAssignment.driverName}</span></div>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Bus Attendant:</span><span className="font-semibold text-emerald-600 text-right">{currentAssignment.attendantName || 'Unassigned'}</span></div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">No active assignment</p>
+                    )}
+                  </div>
 
                   {/* Document Warning Badge */}
                   {hasExpiringDoc && (

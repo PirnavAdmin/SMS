@@ -23,25 +23,31 @@ export const PickupPointsView: React.FC = () => {
     pickupName: 'Kukatpally Housing Board',
     sequenceNumber: 1,
     arrivalTime: '07:20 AM',
-    distanceFromSchoolKm: 12.0
+    distanceFromSchoolKm: 12.0,
+    status: 'Active'
   });
 
   const filteredPoints = pickupPoints.filter(p => {
     const matchesQuery = p.pickupName.toLowerCase().includes(query.toLowerCase()) || p.routeName.toLowerCase().includes(query.toLowerCase());
     const matchesRoute = selectedRouteFilter === 'All' || p.routeId === selectedRouteFilter;
     return matchesQuery && matchesRoute;
-  }).sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+  }).sort((a, b) => {
+    const routeCompare = a.routeName.localeCompare(b.routeName);
+    return routeCompare !== 0 ? routeCompare : a.sequenceNumber - b.sequenceNumber;
+  });
 
   const handleOpenAdd = () => {
     setEditingPoint(null);
     const defaultRoute = routeMasters[0];
+    const nextSequence = pickupPoints.filter(p => p.routeId === defaultRoute?.id).length + 1;
     setForm({
       routeId: defaultRoute?.id || '',
       routeName: defaultRoute?.routeName || '',
       pickupName: '',
-      sequenceNumber: (pickupPoints.length + 1),
+      sequenceNumber: nextSequence,
       arrivalTime: '07:30 AM',
-      distanceFromSchoolKm: 10
+      distanceFromSchoolKm: 10,
+      status: 'Active'
     });
     setIsModalOpen(true);
   };
@@ -58,6 +64,13 @@ export const PickupPointsView: React.FC = () => {
 
     const r = routeMasters.find(rt => rt.id === form.routeId);
     const routeName = r ? r.routeName : form.routeName || '';
+    const routeSequence = pickupPoints.filter(p => p.routeId === form.routeId && p.id !== editingPoint?.id);
+    const isDuplicateSequence = routeSequence.some(p => p.sequenceNumber === form.sequenceNumber);
+
+    if (isDuplicateSequence) {
+      addToast('warning', 'Duplicate Sequence', `Sequence #${form.sequenceNumber} is already used on ${routeName}.`);
+      return;
+    }
 
     const payload = {
       ...form,
@@ -75,14 +88,14 @@ export const PickupPointsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-5 animate-in fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <MapPin className="w-6 h-6 text-sky-500" /> Pickup Points
           </h2>
-          <p className="text-xs text-slate-500">Manage route waypoints & arrival times in travel sequence (Pricing managed under Finance ERP)</p>
+          <p className="text-xs text-slate-500">Manage route waypoints, travel sequence, arrival time, distance, and status.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -97,7 +110,7 @@ export const PickupPointsView: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -126,10 +139,11 @@ export const PickupPointsView: React.FC = () => {
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <th className="py-3.5 px-4">Seq #</th>
+                <th className="py-3.5 px-4">Route</th>
                 <th className="py-3.5 px-4">Pickup Point Name</th>
-                <th className="py-3.5 px-4">Assigned Route</th>
                 <th className="py-3.5 px-4">Arrival Time</th>
                 <th className="py-3.5 px-4">Distance (KM)</th>
+                <th className="py-3.5 px-4">Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -141,12 +155,15 @@ export const PickupPointsView: React.FC = () => {
                       {p.sequenceNumber}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{p.pickupName}</td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{p.routeName}</td>
+                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{p.pickupName}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5 text-sky-500" /> {p.arrivalTime}
                   </td>
                   <td className="py-3 px-4 font-mono text-slate-500">{p.distanceFromSchoolKm} KM</td>
+                  <td className="py-3 px-4">
+                    <Badge variant={p.status === 'Active' ? 'success' : 'neutral'}>{p.status}</Badge>
+                  </td>
                   <td className="py-3 px-4 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => handleOpenEdit(p)} className="p-1 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
@@ -178,7 +195,13 @@ export const PickupPointsView: React.FC = () => {
                   value={form.routeId}
                   onChange={e => {
                     const r = routeMasters.find(rt => rt.id === e.target.value);
-                    setForm({ ...form, routeId: e.target.value, routeName: r?.routeName || '' });
+                    const routeSequenceCount = pickupPoints.filter(p => p.routeId === e.target.value && p.id !== editingPoint?.id).length;
+                    setForm({
+                      ...form,
+                      routeId: e.target.value,
+                      routeName: r?.routeName || '',
+                      sequenceNumber: routeSequenceCount + 1
+                    });
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
@@ -200,6 +223,14 @@ export const PickupPointsView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Arrival Time</label><input type="text" value={form.arrivalTime} onChange={e => setForm({ ...form, arrivalTime: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
                 <div><label className="block font-semibold mb-1">Distance (KM)</label><input type="number" step="0.1" value={form.distanceFromSchoolKm} onChange={e => setForm({ ...form, distanceFromSchoolKm: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

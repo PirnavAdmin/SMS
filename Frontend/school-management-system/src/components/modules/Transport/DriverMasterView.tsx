@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Award, FileText, AlertCircle } from 'lucide-react';
+import { Users, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Award, FileText, AlertCircle, Mail, Bus } from 'lucide-react';
 import { DriverMaster } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -48,11 +48,10 @@ export const DriverMasterView: React.FC = () => {
   const [form, setForm] = useState<Partial<DriverMaster>>({
     driverName: 'Dwight Schrute',
     mobileNumber: '+1 555-333-333',
+    email: 'dwight@stxaviers.edu',
     licenseNumber: 'DL-NY-2022-77112',
     licenseExpiryDate: '2029-10-31',
     address: 'Beet Farm Road, Scranton, NY',
-    emergencyContact: '+1 555-333-888',
-    experienceYears: 10,
     status: 'Active'
   });
 
@@ -67,11 +66,10 @@ export const DriverMasterView: React.FC = () => {
     setForm({
       driverName: '',
       mobileNumber: '+1 555-333-444',
+      email: '',
       licenseNumber: `DL-NY-2023-${Math.floor(10000 + Math.random() * 90000)}`,
       licenseExpiryDate: '2030-01-01',
       address: '',
-      emergencyContact: '+1 555-333-999',
-      experienceYears: 5,
       status: 'Active'
     });
     setIsModalOpen(true);
@@ -141,6 +139,10 @@ export const DriverMasterView: React.FC = () => {
     };
   };
 
+  const resolveCurrentAssignment = (driver: DriverMaster) =>
+    vehicleAssignments.find(assignment => assignment.driverId === driver.id && assignment.status === 'Active') ||
+    vehicleAssignments.find(assignment => assignment.driverName === driver.driverName && assignment.status === 'Active');
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Header */}
@@ -149,7 +151,7 @@ export const DriverMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Users className="w-6 h-6 text-sky-500" /> Drivers
           </h2>
-          <p className="text-xs text-slate-500">Manage transport driver profiles, commercial licenses, medical fitness, police verification, and badge numbers</p>
+          <p className="text-xs text-slate-500">Manage driver master records and view read-only vehicle assignments sourced from Vehicle Assignment</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -180,7 +182,7 @@ export const DriverMasterView: React.FC = () => {
       {/* Driver Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredDrivers.map(d => {
-          const activeAssignedVehicle = vehicleAssignments.find(va => va.driverId === d.id && va.status === 'Active');
+          const currentAssignment = resolveCurrentAssignment(d);
           const dDocs = driverDocs.filter(doc => doc.driverId === d.id);
           const licStatus = checkDocExpiryStatus(d.licenseExpiryDate);
 
@@ -196,19 +198,31 @@ export const DriverMasterView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                  <div className="flex justify-between"><span className="text-slate-400">Driver ID:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{d.id}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-sky-600 flex items-center gap-1"><Phone className="w-3 h-3" /> {d.mobileNumber}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Assigned Vehicle:</span><span className="font-bold text-emerald-600">{activeAssignedVehicle ? activeAssignedVehicle.vehicleNumber : 'BUS-101'}</span></div>
-
-                  {licStatus.isExpiringSoon && (
-                    <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 text-amber-800 dark:text-amber-300 text-[11px] font-bold flex items-center gap-1">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>Commercial License expiring soon!</span>
-                    </div>
-                  )}
-
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Email:</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-sky-500" /> {d.email || 'Not provided'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between"><span className="text-slate-400">Address:</span><span className="font-medium text-slate-800 dark:text-slate-200 text-right max-w-[12rem]">{d.address || 'Not provided'}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">License Expiry:</span><span className={`font-semibold ${licStatus.isExpiringSoon ? 'text-amber-600 font-bold' : ''}`}>{d.licenseExpiryDate}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Experience:</span><span className="font-bold text-slate-900 dark:text-white">{d.experienceYears} Years</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Emergency Phone:</span><span className="font-mono text-slate-500">{d.emergencyContact}</span></div>
+
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
+                      <Bus className="w-3 h-3 text-emerald-500" /> Current Assignment
+                    </span>
+                    {currentAssignment ? (
+                      <>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Bus:</span><span className="font-bold text-slate-900 dark:text-white">{currentAssignment.vehicleNumber}</span></div>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Route:</span><span className="font-semibold text-sky-600 text-right">{currentAssignment.routeName}</span></div>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Status:</span><span className="font-bold text-emerald-600">{currentAssignment.status}</span></div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">No active assignment</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -248,7 +262,7 @@ export const DriverMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Mobile Number *</label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">Emergency Contact</label><input type="text" value={form.emergencyContact} onChange={e => setForm({ ...form, emergencyContact: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
+                <div><label className="block font-semibold mb-1">Email</label><input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -256,21 +270,18 @@ export const DriverMasterView: React.FC = () => {
                 <div><label className="block font-semibold mb-1">License Expiry Date</label><input type="date" value={form.licenseExpiryDate?.split('T')[0] || ''} onChange={e => setForm({ ...form, licenseExpiryDate: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Experience (Years)</label><input type="number" value={form.experienceYears} onChange={e => setForm({ ...form, experienceYears: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600" /></div>
-                <div>
-                  <label className="block font-semibold mb-1">Status</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="Active">Active</option>
-                    <option value="On Leave">On Leave</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block font-semibold mb-1">Address</label>
+                <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Residential Address</label>
-                <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                <label className="block font-semibold mb-1">Status</label>
+                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                  <option value="Active">Active</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

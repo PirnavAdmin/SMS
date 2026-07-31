@@ -1,31 +1,44 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  X, Bus, Route as RouteIcon, Users, UserCheck, Phone, MapPin, Clock,
-  Calendar, CheckCircle, ArrowDown, ArrowUp, Search, Filter, Download,
-  Shield, User, Layers, History, FileText, ChevronRight, Navigation,
-  Radio, Signal, Bell, Settings, QrCode, RefreshCw, Cpu
+  X, Bus, Route as RouteIcon, Users, UserCheck, Phone, Clock,
+  ArrowDown, ArrowUp, Search, History
 } from 'lucide-react';
-import { VehicleAssignment, Student } from '../../../types';
+import { VehicleAssignment, Student, PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
-import { initialRouteStops } from './RouteMasterView';
+import { initialBusAttendants } from './BusAttendantMasterView';
 
 interface VehicleTripDetailsModalProps {
   assignment: VehicleAssignment | null;
   isOpen: boolean;
   onClose: () => void;
-  defaultTab?: 'overview' | 'morning' | 'evening' | 'students' | 'gps' | 'history';
+  defaultTab?: 'overview' | 'morning' | 'evening' | 'students' | 'history';
 }
 
-export type TripLifecycleStatus =
-  | 'Scheduled'
-  | 'Morning Trip Started'
-  | 'Running'
-  | 'Reached School'
-  | 'Evening Trip Started'
-  | 'Completed';
+type TripStopView = {
+  id: string;
+  label: string;
+  order: number;
+  time: string;
+  distanceKm: number;
+  status: 'Active' | 'Inactive';
+};
+
+const formatTripTime = (value?: string) => {
+  if (!value) return 'Not set';
+  if (value.includes('AM') || value.includes('PM')) return value;
+
+  const [hourText, minuteText] = value.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
+};
 
 export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = ({
   assignment,
@@ -34,126 +47,115 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   defaultTab = 'overview'
 }) => {
   const {
-    students, studentTransports, vehicleMasters, driverMasters,
-    routeMasters, pickupPoints, checkVehicleCapacity
+    students,
+    studentTransports,
+    vehicleMasters,
+    driverMasters,
+    routeMasters,
+    pickupPoints
   } = useData();
-  const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'morning' | 'evening' | 'students' | 'gps' | 'history'>(defaultTab);
+  const [activeTab, setActiveTab] = useState<'overview' | 'morning' | 'evening' | 'students' | 'history'>(defaultTab);
   const [studentSearch, setStudentSearch] = useState('');
   const [filterPickup, setFilterPickup] = useState('All');
   const [filterClass, setFilterClass] = useState('All');
 
-  // GPS & Trip Lifecycle State
-  const [gpsEnabled, setGpsEnabled] = useState(true);
-  const [gpsStatus, setGpsStatus] = useState<'Online' | 'Offline'>('Online');
-  const [tripStatus, setTripStatus] = useState<TripLifecycleStatus>('Running');
-  const [currentSpeed, setCurrentSpeed] = useState(38); // km/h
-  const [etaMinutes, setEtaMinutes] = useState(7);
-  const [distanceKmRemaining, setDistanceKmRemaining] = useState(4.2);
-  const [lastUpdatedTime, setLastUpdatedTime] = useState('Just now (10:14:02 AM)');
-
-  // GPS Config Modal State
-  const [showGpsConfigModal, setShowGpsConfigModal] = useState(false);
-  const [deviceId, setDeviceId] = useState('GPS-DEV-8810-AB');
-  const [gpsProvider, setGpsProvider] = useState('Trac360 Telematics');
-  const [apiKey, setApiKey] = useState('api_key_live_98127391823');
-
-  // Student Boarding State (RFID simulation)
-  const [boardedStudentIds, setBoardedStudentIds] = useState<string[]>(['1', '3']);
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(defaultTab);
+    }
+  }, [defaultTab, isOpen]);
 
   if (!isOpen || !assignment) return null;
 
-  // Resolve related objects
   const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber) || vehicleMasters[0];
   const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName) || driverMasters[0];
   const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName) || routeMasters[0];
 
-  const attendantName = 'Mary Smith';
-  const attendantMobile = '+1 (555) 019-8274';
+  const attendant = initialBusAttendants.find(a =>
+    a.id === assignment.attendantId ||
+    a.attendantName === assignment.attendantName
+  );
 
-  const capacityInfo = checkVehicleCapacity(vehicle ? vehicle.id : assignment.vehicleId);
-  const seatingCapacity = vehicle ? vehicle.capacity : 50;
+  const attendantName = assignment.attendantName || attendant?.attendantName || 'Unassigned';
+  const attendantMobile = assignment.attendantMobile || attendant?.mobileNumber || '';
+  const seatingCapacity = vehicle ? vehicle.capacity : assignment.vehicleCapacity || 50;
+  const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
+  const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
 
-  // Assigned students for this route / vehicle
+  const routeStops = pickupPoints
+    .filter((point: PickupPoint) => point.routeId === route?.id || point.routeName === route?.routeName)
+    .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
+    .map<TripStopView>(point => ({
+      id: point.id,
+      label: point.pickupName,
+      order: point.sequenceNumber,
+      time: point.arrivalTime,
+      distanceKm: point.distanceFromSchoolKm,
+      status: point.status
+    }));
+
+  const fallbackStops: TripStopView[] = [
+    { id: 'st-1', label: 'School Campus', order: 1, time: morningTripTime, distanceKm: 0, status: 'Active' },
+    { id: 'st-2', label: 'Temple Road', order: 2, time: morningTripTime, distanceKm: 3.5, status: 'Active' },
+    { id: 'st-3', label: 'Bus Stand', order: 3, time: morningTripTime, distanceKm: 7.2, status: 'Active' },
+    { id: 'st-4', label: 'Lakshmi Nagar', order: 4, time: morningTripTime, distanceKm: 12.0, status: 'Active' }
+  ];
+
+  const displayStops = routeStops.length > 0 ? routeStops : fallbackStops;
   const routeStudents = studentTransports.filter(st => st.routeId === route?.id || st.routeName === route?.routeName);
 
   const assignedStudentsList = routeStudents.map(st => {
-    const sObj = students.find(s => s.id === st.studentId);
+    const student = students.find(s => s.id === st.studentId);
+
     return {
       id: st.studentId,
       admissionNo: st.admissionNo,
       studentName: st.studentName,
-      gender: sObj?.gender || 'Male',
-      className: sObj ? sObj.className : 'Class 5',
-      section: sObj ? sObj.section : 'A',
-      rollNo: sObj ? sObj.rollNo : '12',
+      gender: student?.gender || 'Male',
+      className: student?.className || 'Class 5',
+      section: student?.section || 'A',
+      rollNo: student?.rollNo || '12',
       pickupPoint: st.pickupPoint,
-      parentName: sObj ? sObj.fatherName : 'Mr. Parent',
-      parentMobile: sObj ? sObj.fatherPhone : '+1 555-019-283',
-      morningTime: '07:30 AM',
-      eveningTime: '04:15 PM'
+      parentName: student?.fatherName || 'Mr. Parent',
+      parentMobile: student?.fatherPhone || '+1 555-019-283',
+      morningTime: morningTripTime,
+      eveningTime: eveningTripTime
     };
   });
 
-  const displayStudentsList = assignedStudentsList.length > 0 ? assignedStudentsList : [
-    { id: '1', admissionNo: 'ADM2026-413', studentName: 'Ethan Hunt', gender: 'Male', className: 'Class 10', section: 'A', rollNo: '01', pickupPoint: 'Central Park West', parentName: 'John Hunt', parentMobile: '+1 555-019-283', morningTime: '07:20 AM', eveningTime: '04:45 PM' },
-    { id: '2', admissionNo: 'ADM2026-102', studentName: 'Jane Doe', gender: 'Female', className: 'Class 9', section: 'B', rollNo: '14', pickupPoint: 'Temple Road', parentName: 'Robert Doe', parentMobile: '+1 555-019-284', morningTime: '07:35 AM', eveningTime: '04:30 PM' },
-    { id: '3', admissionNo: 'ADM2026-204', studentName: 'Rahul Verma', gender: 'Male', className: 'Class 5', section: 'A', rollNo: '12', pickupPoint: 'Temple Road', parentName: 'Suresh Verma', parentMobile: '+1 555-019-285', morningTime: '07:35 AM', eveningTime: '04:30 PM' },
-    { id: '4', admissionNo: 'ADM2026-305', studentName: 'Anjali Sharma', gender: 'Female', className: 'Class 5', section: 'A', rollNo: '18', pickupPoint: 'Temple Road', parentName: 'Ramesh Sharma', parentMobile: '+1 555-019-286', morningTime: '07:35 AM', eveningTime: '04:30 PM' },
-    { id: '5', admissionNo: 'ADM2026-109', studentName: 'Kiran Kumar', gender: 'Male', className: 'Class 6', section: 'B', rollNo: '05', pickupPoint: 'Lakshmi Nagar', parentName: 'Venkat Kumar', parentMobile: '+1 555-019-287', morningTime: '07:50 AM', eveningTime: '04:15 PM' }
+  const fallbackStudents = [
+    { id: '1', admissionNo: 'ADM2026-413', studentName: 'Ethan Hunt', gender: 'Male' as const, className: 'Class 10', section: 'A', rollNo: '01', pickupPoint: 'Central Park West', parentName: 'John Hunt', parentMobile: '+1 555-019-283', morningTime: morningTripTime, eveningTime: eveningTripTime },
+    { id: '2', admissionNo: 'ADM2026-102', studentName: 'Jane Doe', gender: 'Female' as const, className: 'Class 9', section: 'B', rollNo: '14', pickupPoint: 'Temple Road', parentName: 'Robert Doe', parentMobile: '+1 555-019-284', morningTime: morningTripTime, eveningTime: eveningTripTime },
+    { id: '3', admissionNo: 'ADM2026-204', studentName: 'Rahul Verma', gender: 'Male' as const, className: 'Class 5', section: 'A', rollNo: '12', pickupPoint: 'Temple Road', parentName: 'Suresh Verma', parentMobile: '+1 555-019-285', morningTime: morningTripTime, eveningTime: eveningTripTime },
+    { id: '4', admissionNo: 'ADM2026-305', studentName: 'Anjali Sharma', gender: 'Female' as const, className: 'Class 5', section: 'A', rollNo: '18', pickupPoint: 'Temple Road', parentName: 'Ramesh Sharma', parentMobile: '+1 555-019-286', morningTime: morningTripTime, eveningTime: eveningTripTime },
+    { id: '5', admissionNo: 'ADM2026-109', studentName: 'Kiran Kumar', gender: 'Male' as const, className: 'Class 6', section: 'B', rollNo: '05', pickupPoint: 'Lakshmi Nagar', parentName: 'Venkat Kumar', parentMobile: '+1 555-019-287', morningTime: morningTripTime, eveningTime: eveningTripTime }
   ];
+
+  const displayStudentsList = assignedStudentsList.length > 0 ? assignedStudentsList : fallbackStudents;
 
   const totalAssignedStudents = displayStudentsList.length;
   const availableSeats = Math.max(0, seatingCapacity - totalAssignedStudents);
   const boysCount = displayStudentsList.filter(s => s.gender === 'Male').length;
   const girlsCount = displayStudentsList.filter(s => s.gender === 'Female').length;
 
-  const stops = initialRouteStops.filter(s => s.routeId === route?.id).sort((a, b) => a.stopOrder - b.stopOrder);
-  const displayStops = stops.length > 0 ? stops : [
-    { id: 'st-1', routeId: 'r1', stopName: 'School Campus', stopOrder: 1, pickupTime: '07:00 AM', dropTime: '04:45 PM', distanceKm: 0 },
-    { id: 'st-2', routeId: 'r1', stopName: 'Temple Road', stopOrder: 2, pickupTime: '07:20 AM', dropTime: '04:35 PM', distanceKm: 3.5 },
-    { id: 'st-3', routeId: 'r1', stopName: 'Bus Stand', stopOrder: 3, pickupTime: '07:35 AM', dropTime: '04:20 PM', distanceKm: 7.2 },
-    { id: 'st-4', routeId: 'r1', stopName: 'Lakshmi Nagar', stopOrder: 4, pickupTime: '07:50 AM', dropTime: '04:05 PM', distanceKm: 12.0 }
-  ];
-
-  const filteredStudents = displayStudentsList.filter(s => {
-    const matchesQuery = s.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
-                         s.admissionNo.toLowerCase().includes(studentSearch.toLowerCase()) ||
-                         s.parentName.toLowerCase().includes(studentSearch.toLowerCase());
-    const matchesPickup = filterPickup === 'All' || s.pickupPoint === filterPickup;
-    const matchesClass = filterClass === 'All' || s.className === filterClass;
+  const filteredStudents = displayStudentsList.filter(student => {
+    const matchesQuery =
+      student.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.admissionNo.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.parentName.toLowerCase().includes(studentSearch.toLowerCase());
+    const matchesPickup = filterPickup === 'All' || student.pickupPoint === filterPickup;
+    const matchesClass = filterClass === 'All' || student.className === filterClass;
     return matchesQuery && matchesPickup && matchesClass;
   });
 
-  const handleTripStatusChange = (newStatus: TripLifecycleStatus) => {
-    setTripStatus(newStatus);
-    addToast('info', 'Trip Lifecycle Updated', `Vehicle ${assignment.vehicleNumber} status changed to ${newStatus}`);
-    addToast('success', 'Parent Broadcast Sent', `Automated SMS & Push Notifications dispatched to parents for ${newStatus}`);
-  };
-
-  const handleToggleBoarding = (studentId: string, studentName: string) => {
-    const isBoarded = boardedStudentIds.includes(studentId);
-    if (isBoarded) {
-      setBoardedStudentIds(prev => prev.filter(id => id !== studentId));
-      addToast('info', 'RFID Check-Out', `${studentName} marked as Alighted`);
-    } else {
-      setBoardedStudentIds(prev => [...prev, studentId]);
-      addToast('success', 'RFID Check-In Notification', `${studentName} boarded bus. Parent notified via WhatsApp/SMS.`);
-    }
-  };
-
-  const handleSaveGpsConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowGpsConfigModal(false);
-    addToast('success', 'GPS Telematics Configured', `Device ${deviceId} linked with ${gpsProvider}`);
-  };
+  const tripStatus = assignment.status === 'Active' ? 'Running' : 'Completed';
+  const routeDistance = route?.totalDistanceKm || 18.5;
+  const routeDuration = route?.estimatedTimeMinutes || 45;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/65 backdrop-blur-md animate-in fade-in">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-5xl max-h-[92vh] rounded-3xl flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-
-        {/* TOP HEADER SUMMARY CARD */}
         <div className="p-6 bg-gradient-to-r from-sky-600 via-sky-600 to-brand-600 text-white relative shrink-0">
           <button
             onClick={onClose}
@@ -169,22 +171,13 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                 {vehicle?.vehicleNumber || assignment.vehicleNumber}
               </span>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight">{route?.routeName || assignment.routeName}</h2>
-              <Badge variant="success" size="sm">
-                {tripStatus}
-              </Badge>
-              {gpsEnabled ? (
-                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 font-bold text-[11px] flex items-center gap-1">
-                  <Signal className="w-3 h-3 text-emerald-300 animate-pulse" /> Live GPS Online
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 rounded-full bg-slate-500/20 border border-slate-400/40 text-slate-300 font-bold text-[11px]">
-                  GPS Disabled
-                </span>
-              )}
+              <Badge variant="success" size="sm">{tripStatus}</Badge>
+              <span className="px-2.5 py-1 rounded-full bg-white/15 border border-white/20 text-white font-bold text-[11px]">
+                Effective From: {assignment.effectiveFrom}
+              </span>
             </div>
 
-            {/* Quick Operational Metrics Summary Bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs bg-black/20 p-3.5 rounded-2xl backdrop-blur-sm border border-white/10">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 text-xs bg-black/20 p-3.5 rounded-2xl backdrop-blur-sm border border-white/10">
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Driver</span>
                 <span className="font-extrabold text-white truncate block">{driver?.driverName || assignment.driverName}</span>
@@ -193,44 +186,39 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Bus Attendant</span>
                 <span className="font-extrabold text-white truncate block">{attendantName}</span>
-                <span className="text-[10px] text-white/80 font-mono">{attendantMobile}</span>
+                <span className="text-[10px] text-white/80 font-mono">{attendantMobile || 'N/A'}</span>
               </div>
               <div>
-                <span className="text-white/70 block text-[10px] uppercase font-bold">GPS Telematics</span>
-                <span className="font-extrabold text-amber-300 font-mono block">{deviceId}</span>
+                <span className="text-white/70 block text-[10px] uppercase font-bold">Morning Trip</span>
+                <span className="font-extrabold text-amber-200 font-mono block">{morningTripTime}</span>
               </div>
               <div>
-                <span className="text-white/70 block text-[10px] uppercase font-bold">Seating Capacity</span>
+                <span className="text-white/70 block text-[10px] uppercase font-bold">Evening Trip</span>
+                <span className="font-extrabold text-amber-200 font-mono block">{eveningTripTime}</span>
+              </div>
+              <div>
+                <span className="text-white/70 block text-[10px] uppercase font-bold">Capacity</span>
                 <span className="font-extrabold text-white font-mono block">{seatingCapacity} Seats</span>
               </div>
               <div>
                 <span className="text-white/70 block text-[10px] uppercase font-bold">Assigned Students</span>
-                <span className="font-extrabold text-emerald-300 font-mono block">{totalAssignedStudents} Students</span>
-              </div>
-              <div>
-                <span className="text-white/70 block text-[10px] uppercase font-bold">Boarded RFID</span>
-                <span className="font-extrabold text-sky-200 font-mono block">{boardedStudentIds.length} / {totalAssignedStudents}</span>
-              </div>
-              <div>
-                <span className="text-white/70 block text-[10px] uppercase font-bold">Current Speed</span>
-                <span className="font-extrabold text-emerald-400 font-mono block">{currentSpeed} km/h</span>
+                <span className="font-extrabold text-emerald-300 font-mono block">{totalAssignedStudents}</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* TAB NAVIGATION BAR */}
         <div className="flex items-center gap-2 p-2 bg-slate-100 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 overflow-x-auto shrink-0 no-scrollbar">
           {[
             { id: 'overview', label: 'Overview', icon: Bus },
             { id: 'morning', label: 'Morning Trip', icon: ArrowUp },
             { id: 'evening', label: 'Evening Trip', icon: ArrowDown },
             { id: 'students', label: `Student List (${totalAssignedStudents})`, icon: Users },
-            { id: 'gps', label: '📍 Live GPS Tracking', icon: Navigation },
             { id: 'history', label: 'Trip History', icon: History }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
+
             return (
               <button
                 key={tab.id}
@@ -248,189 +236,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
           })}
         </div>
 
-        {/* MODAL SCROLLABLE BODY */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/40 dark:bg-slate-900/40">
-
-          {/* TAB: GPS TRACKING PAGE */}
-          {activeTab === 'gps' && (
-            <div className="space-y-6 animate-in fade-in">
-              {/* Telemetry Header Card */}
-              <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-600 font-bold flex items-center justify-center">
-                    <Radio className="w-6 h-6 animate-pulse text-sky-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-                      Live Telemetry Feed <Badge variant="success" size="sm">{gpsStatus}</Badge>
-                    </h3>
-                    <p className="text-xs text-slate-500 font-mono">
-                      Device ID: <strong>{deviceId}</strong> • Provider: <strong>{gpsProvider}</strong> • Updated: {lastUpdatedTime}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                  <button
-                    onClick={() => setShowGpsConfigModal(true)}
-                    className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Settings className="w-4 h-4 text-sky-600" /> Configure GPS Device
-                  </button>
-                  <button
-                    onClick={() => {
-                      setLastUpdatedTime(`Just now (${new Date().toLocaleTimeString()})`);
-                      setCurrentSpeed(Math.floor(Math.random() * 20) + 30);
-                      addToast('info', 'GPS Pinged', 'Live location updated from telematics provider');
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-sky-600 text-white hover:bg-sky-500 text-xs font-bold flex items-center gap-1.5 shadow-md"
-                  >
-                    <RefreshCw className="w-4 h-4" /> Refresh Ping
-                  </button>
-                </div>
-              </div>
-
-              {/* 4 Live Telemetry Metrics Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Live Speed</span>
-                  <p className="text-xl font-black text-sky-600 font-mono">{currentSpeed} km/h</p>
-                  <span className="text-[10px] text-emerald-500 font-bold">Optimal Speed Range</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Distance Remaining</span>
-                  <p className="text-xl font-black text-sky-600 font-mono">{distanceKmRemaining} km</p>
-                  <span className="text-[10px] text-slate-400 font-bold">To School Campus</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Next Stop ETA</span>
-                  <p className="text-xl font-black text-emerald-600 font-mono">{etaMinutes} Mins</p>
-                  <span className="text-[10px] text-emerald-500 font-bold">On Schedule</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Current Stop</span>
-                  <p className="text-sm font-black text-slate-900 dark:text-white truncate">Temple Road (Stop #2)</p>
-                  <span className="text-[10px] text-sky-600 font-bold">Next: Bus Stand</span>
-                </div>
-              </div>
-
-              {/* TRIP LIFECYCLE CONTROLS BAR */}
-              <div className="p-4 rounded-3xl bg-slate-900 text-white space-y-3 shadow-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
-                    <Navigation className="w-4 h-4" /> Trip Lifecycle State Controller
-                  </span>
-                  <span className="font-mono text-xs text-amber-300 font-bold">Current State: {tripStatus}</span>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    'Scheduled',
-                    'Morning Trip Started',
-                    'Running',
-                    'Reached School',
-                    'Evening Trip Started',
-                    'Completed'
-                  ].map(status => (
-                    <button
-                      key={status}
-                      onClick={() => handleTripStatusChange(status as TripLifecycleStatus)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        tripStatus === status
-                          ? 'bg-sky-500 text-white shadow-lg ring-2 ring-white/40'
-                          : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* INTERACTIVE GPS MAP REPRESENTATION */}
-              <div className="p-6 rounded-3xl bg-slate-950 text-white border border-slate-800 space-y-4 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-5 h-5 text-sky-400" />
-                    <h4 className="font-black text-sm">Interactive Live GPS Map Stream</h4>
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">Lat: 16.9891° N, Lon: 82.2475° E</span>
-                </div>
-
-                {/* Visual SVG Map Canvas */}
-                <div className="w-full h-64 bg-slate-900 rounded-2xl relative border border-slate-800 flex items-center justify-center p-6">
-                  {/* Route Line SVG */}
-                  <svg className="absolute inset-0 w-full h-full p-8" viewBox="0 0 400 150">
-                    <path
-                      d="M 30 75 Q 120 20 200 75 T 370 75"
-                      fill="none"
-                      stroke="#0284c7"
-                      strokeWidth="6"
-                      strokeDasharray="8 4"
-                      className="animate-pulse"
-                    />
-
-                    {/* Stops Nodes */}
-                    <circle cx="30" cy="75" r="8" fill="#10b981" />
-                    <text x="30" y="105" fill="#ffffff" fontSize="10" textAnchor="middle" fontWeight="bold">Depot (Start)</text>
-
-                    <circle cx="140" cy="45" r="8" fill="#38bdf8" />
-                    <text x="140" y="25" fill="#ffffff" fontSize="10" textAnchor="middle">Stop 1 (Temple Rd)</text>
-
-                    <circle cx="260" cy="105" r="8" fill="#f59e0b" />
-                    <text x="260" y="128" fill="#ffffff" fontSize="10" textAnchor="middle">Stop 2 (Bus Stand)</text>
-
-                    <circle cx="370" cy="75" r="10" fill="#ec4899" />
-                    <text x="370" y="105" fill="#ffffff" fontSize="10" textAnchor="middle" fontWeight="bold">School Campus</text>
-                  </svg>
-
-                  {/* BUS MARKER (MOVING ANIMATION PIN) */}
-                  <div className="absolute left-[45%] top-[25%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center animate-bounce">
-                    <div className="px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 font-mono font-black text-[10px] shadow-lg flex items-center gap-1 border border-white">
-                      <Bus className="w-3.5 h-3.5" /> BUS-101 ({currentSpeed} km/h)
-                    </div>
-                    <div className="w-4 h-4 bg-sky-500 rounded-full border-2 border-white shadow-xl animate-ping" />
-                  </div>
-                </div>
-              </div>
-
-              {/* STUDENT BOARDING & RFID TRACKER */}
-              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                    <QrCode className="w-4 h-4 text-sky-500" /> RFID / QR Student Boarding & Drop-off Tracker
-                  </h4>
-                  <span className="text-xs font-bold text-sky-600">{boardedStudentIds.length} / {totalAssignedStudents} Students On-Board</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {displayStudentsList.map(st => {
-                    const isBoarded = boardedStudentIds.includes(st.id);
-                    return (
-                      <div key={st.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
-                        <div>
-                          <p className="font-bold text-slate-900 dark:text-white">{st.studentName}</p>
-                          <p className="text-[10px] text-slate-400">{st.pickupPoint} • Adm #{st.admissionNo}</p>
-                        </div>
-                        <button
-                          onClick={() => handleToggleBoarding(st.id, st.studentName)}
-                          className={`px-3 py-1.5 rounded-xl font-bold text-[11px] transition-all ${
-                            isBoarded
-                              ? 'bg-emerald-600 text-white shadow-sm'
-                              : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          {isBoarded ? 'On-Board (RFID)' : 'Tap RFID Board'}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -462,11 +268,26 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     <Bus className="w-4 h-4 text-sky-500" /> Vehicle & Crew Information
                   </h3>
                   <div className="space-y-3 text-xs">
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Vehicle Number:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.vehicleNumber || assignment.vehicleNumber}</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Registration Number:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.registrationNumber || 'NY-99-AB-1001'}</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Assigned Route:</span><span className="font-bold text-sky-600">{route?.routeName || assignment.routeName}</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Commercial Driver:</span><span className="font-bold text-sky-600">{driver?.driverName || assignment.driverName} ({driver?.mobileNumber})</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Bus Attendant:</span><span className="font-bold text-emerald-600">{attendantName} ({attendantMobile})</span></div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Vehicle Number:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.vehicleNumber || assignment.vehicleNumber}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Registration Number:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{vehicle?.registrationNumber || 'NY-99-AB-1001'}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Assigned Route:</span>
+                      <span className="font-bold text-sky-600">{route?.routeName || assignment.routeName}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Commercial Driver:</span>
+                      <span className="font-bold text-sky-600">{driver?.driverName || assignment.driverName}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Bus Attendant:</span>
+                      <span className="font-bold text-emerald-600">{attendantName}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -475,18 +296,36 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     <RouteIcon className="w-4 h-4 text-amber-500" /> Route & Timing Operational Metrics
                   </h3>
                   <div className="space-y-3 text-xs">
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Total Pickup Points:</span><span className="font-bold text-slate-900 dark:text-white">{displayStops.length} Configured Stops</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Total Assigned Students:</span><span className="font-bold text-emerald-600">{totalAssignedStudents} Enrolled</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Total Route Distance:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{route?.totalDistanceKm || 18.5} KM</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Estimated Trip Duration:</span><span className="font-bold text-sky-600">{route?.estimatedTimeMinutes || 45} Minutes</span></div>
-                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800"><span className="text-slate-500">Morning Departure / Arrival:</span><span className="font-mono font-bold text-emerald-600">07:00 AM → 08:25 AM</span></div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Total Pickup Points:</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{displayStops.length} Configured Stops</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Total Assigned Students:</span>
+                      <span className="font-bold text-emerald-600">{totalAssignedStudents} Enrolled</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Total Route Distance:</span>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{routeDistance} KM</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Estimated Trip Duration:</span>
+                      <span className="font-bold text-sky-600">{routeDuration} Minutes</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Morning Departure / Arrival:</span>
+                      <span className="font-mono font-bold text-emerald-600">{morningTripTime}</span>
+                    </div>
+                    <div className="flex justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800">
+                      <span className="text-slate-500">Evening Departure / Arrival:</span>
+                      <span className="font-mono font-bold text-amber-600">{eveningTripTime}</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: MORNING TRIP */}
           {activeTab === 'morning' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between">
@@ -494,7 +333,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Morning Pickup Journey Sequence</h3>
                   <p className="text-[11px] text-slate-500">Sequential pickup timeline from origin to school campus arrival</p>
                 </div>
-                <Badge variant="success" size="sm">Morning Departure: 07:00 AM</Badge>
+                <Badge variant="success" size="sm">Morning Departure: {morningTripTime}</Badge>
               </div>
 
               <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-sky-200 dark:before:bg-sky-900">
@@ -504,53 +343,53 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   </div>
                   <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1">
                     <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Departure / Depot Origin</span>
-                    <span className="text-xs font-mono font-bold text-sky-600 ml-3">07:00 AM</span>
+                    <span className="text-xs font-mono font-bold text-sky-600 ml-3">{morningTripTime}</span>
                   </div>
                 </div>
 
-                {displayStops.map((stop, idx) => {
-                  const stopStudents = displayStudentsList.filter(s => s.pickupPoint.toLowerCase().includes(stop.stopName.toLowerCase()) || idx === 1);
+                {displayStops.map(stop => (
+                  <div key={stop.id} className="flex items-start gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-sky-500 font-mono font-black text-sky-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
+                      #{stop.order}
+                    </div>
 
-                  return (
-                    <div key={stop.id} className="flex items-start gap-4 relative z-10">
-                      <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-sky-500 font-mono font-black text-sky-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
-                        #{stop.stopOrder}
+                    <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <div>
+                          <span className="font-black text-sm text-slate-900 dark:text-white">{stop.label}</span>
+                          <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-extrabold text-emerald-600 text-xs flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" /> {stop.time}
+                          </span>
+                          <Badge variant="info" size="sm">{stop.status}</Badge>
+                        </div>
                       </div>
 
-                      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
-                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                          <div>
-                            <span className="font-black text-sm text-slate-900 dark:text-white">{stop.stopName}</span>
-                            <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm || 3} KM)</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono font-extrabold text-emerald-600 text-xs flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {stop.pickupTime}</span>
-                            <Badge variant="info" size="sm">{stopStudents.length} Students</Badge>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Boarding at Stop</span>
-                          {stopStudents.length === 0 ? (
-                            <p className="text-xs text-slate-400 italic">No Students Assigned</p>
-                          ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {stopStudents.map(s => (
-                                <div key={s.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Boarding at Stop</span>
+                        {displayStudentsList.filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase())).length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No Students Assigned</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {displayStudentsList
+                              .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
+                              .map(student => (
+                                <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
                                   <div>
-                                    <p className="font-bold text-slate-900 dark:text-white">{s.studentName}</p>
-                                    <p className="text-[10px] text-slate-400">{s.className}-{s.section} • Roll #{s.rollNo}</p>
+                                    <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
+                                    <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
                                   </div>
-                                  <span className="font-mono text-[10px] text-slate-400">{s.admissionNo}</span>
+                                  <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
                                 </div>
                               ))}
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
 
                 <div className="flex items-center gap-4 relative z-10">
                   <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
@@ -558,14 +397,13 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   </div>
                   <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
                     <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Arrival</span>
-                    <span className="text-xs font-mono font-black text-emerald-600">08:25 AM</span>
+                    <span className="text-xs font-mono font-black text-emerald-600">{morningTripTime}</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 3: EVENING TRIP */}
           {activeTab === 'evening' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between">
@@ -573,7 +411,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Evening Return Journey Sequence</h3>
                   <p className="text-[11px] text-slate-500">Reverse drop journey sequence from school campus to student stops</p>
                 </div>
-                <Badge variant="warning" size="sm">Evening Departure: 03:45 PM</Badge>
+                <Badge variant="warning" size="sm">Evening Departure: {eveningTripTime}</Badge>
               </div>
 
               <div className="space-y-4 relative before:absolute before:left-6 before:top-4 before:bottom-4 before:w-0.5 before:bg-amber-200 dark:before:bg-amber-900">
@@ -583,53 +421,53 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   </div>
                   <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
                     <span className="font-extrabold text-xs text-slate-900 dark:text-white">School Campus Departure</span>
-                    <span className="text-xs font-mono font-black text-amber-600">03:45 PM</span>
+                    <span className="text-xs font-mono font-black text-amber-600">{eveningTripTime}</span>
                   </div>
                 </div>
 
-                {[...displayStops].reverse().map((stop, idx) => {
-                  const stopStudents = displayStudentsList.filter(s => s.pickupPoint.toLowerCase().includes(stop.stopName.toLowerCase()) || idx === 1);
+                {[...displayStops].reverse().map((stop, idx) => (
+                  <div key={stop.id} className="flex items-start gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-amber-500 font-mono font-black text-amber-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
+                      #{displayStops.length - idx}
+                    </div>
 
-                  return (
-                    <div key={stop.id} className="flex items-start gap-4 relative z-10">
-                      <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 border-2 border-amber-500 font-mono font-black text-amber-600 text-xs flex items-center justify-center shadow-md shrink-0 mt-1">
-                        #{displayStops.length - idx}
+                    <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                        <div>
+                          <span className="font-black text-sm text-slate-900 dark:text-white">{stop.label}</span>
+                          <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm} KM)</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-extrabold text-sky-600 text-xs flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" /> {eveningTripTime}
+                          </span>
+                          <Badge variant="warning" size="sm">Drop Stop</Badge>
+                        </div>
                       </div>
 
-                      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 space-y-3">
-                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                          <div>
-                            <span className="font-black text-sm text-slate-900 dark:text-white">{stop.stopName}</span>
-                            <span className="text-[11px] text-slate-400 ml-2">({stop.distanceKm || 3} KM)</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="font-mono font-extrabold text-sky-600 text-xs flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> {stop.dropTime}</span>
-                            <Badge variant="warning" size="sm">{stopStudents.length} Students Dropping</Badge>
-                          </div>
-                        </div>
-
-                        <div>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Alighting at Stop</span>
-                          {stopStudents.length === 0 ? (
-                            <p className="text-xs text-slate-400 italic">No Students Assigned</p>
-                          ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {stopStudents.map(s => (
-                                <div key={s.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Students Alighting at Stop</span>
+                        {displayStudentsList.filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase())).length === 0 ? (
+                          <p className="text-xs text-slate-400 italic">No Students Assigned</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {displayStudentsList
+                              .filter(student => student.pickupPoint.toLowerCase().includes(stop.label.toLowerCase()))
+                              .map(student => (
+                                <div key={student.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border text-xs flex items-center justify-between">
                                   <div>
-                                    <p className="font-bold text-slate-900 dark:text-white">{s.studentName}</p>
-                                    <p className="text-[10px] text-slate-400">{s.className}-{s.section} • Roll #{s.rollNo}</p>
+                                    <p className="font-bold text-slate-900 dark:text-white">{student.studentName}</p>
+                                    <p className="text-[10px] text-slate-400">{student.className}-{student.section} • Roll #{student.rollNo}</p>
                                   </div>
-                                  <span className="font-mono text-[10px] text-slate-400">{s.admissionNo}</span>
+                                  <span className="font-mono text-[10px] text-slate-400">{student.admissionNo}</span>
                                 </div>
                               ))}
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
 
                 <div className="flex items-center gap-4 relative z-10">
                   <div className="w-12 h-12 rounded-full bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shadow-md shrink-0">
@@ -637,14 +475,13 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   </div>
                   <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex-1 flex items-center justify-between">
                     <span className="font-extrabold text-xs text-slate-900 dark:text-white">Trip Completed / Depot Arrival</span>
-                    <span className="text-xs font-mono font-black text-emerald-600">04:45 PM</span>
+                    <span className="text-xs font-mono font-black text-emerald-600">{eveningTripTime}</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 4: STUDENT LIST */}
           {activeTab === 'students' && (
             <div className="space-y-4 animate-in fade-in">
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -666,7 +503,7 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     className="px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white"
                   >
                     <option value="All">All Pickup Points</option>
-                    {displayStops.map(st => <option key={st.id} value={st.stopName}>{st.stopName}</option>)}
+                    {displayStops.map(stop => <option key={stop.id} value={stop.label}>{stop.label}</option>)}
                   </select>
 
                   <select
@@ -701,16 +538,16 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                      {filteredStudents.map(s => (
-                        <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                          <td className="py-3 px-4 font-mono font-bold text-slate-500">{s.admissionNo}</td>
-                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{s.studentName}</td>
-                          <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{s.className}-{s.section}</td>
-                          <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{s.pickupPoint}</td>
-                          <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{s.morningTime}</td>
-                          <td className="py-3 px-4 font-mono text-amber-600 font-bold">{s.eveningTime}</td>
-                          <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{s.parentName}</td>
-                          <td className="py-3 px-4 text-right font-mono font-bold text-sky-600">{s.parentMobile}</td>
+                      {filteredStudents.map(student => (
+                        <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                          <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.admissionNo}</td>
+                          <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
+                          <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{student.className}-{student.section}</td>
+                          <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
+                          <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{student.morningTime}</td>
+                          <td className="py-3 px-4 font-mono text-amber-600 font-bold">{student.eveningTime}</td>
+                          <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{student.parentName}</td>
+                          <td className="py-3 px-4 text-right font-mono font-bold text-sky-600">{student.parentMobile}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -720,7 +557,6 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
             </div>
           )}
 
-          {/* TAB 5: TRIP HISTORY */}
           {activeTab === 'history' && (
             <div className="space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between">
@@ -747,11 +583,11 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
                       {[
-                        { date: '28/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: 'Mary Smith', mStart: '07:00 AM', mEnd: '08:25 AM', eStart: '03:45 PM', eEnd: '04:45 PM', status: 'Completed' },
-                        { date: '27/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: 'Mary Smith', mStart: '07:00 AM', mEnd: '08:22 AM', eStart: '03:45 PM', eEnd: '04:42 PM', status: 'Completed' },
-                        { date: '26/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: 'Mary Smith', mStart: '07:02 AM', mEnd: '08:26 AM', eStart: '03:45 PM', eEnd: '04:50 PM', status: 'Completed' }
-                      ].map((log, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                        { date: '28/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: attendantName, mStart: morningTripTime, mEnd: morningTripTime, eStart: eveningTripTime, eEnd: eveningTripTime, status: 'Completed' },
+                        { date: '27/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: attendantName, mStart: morningTripTime, mEnd: morningTripTime, eStart: eveningTripTime, eEnd: eveningTripTime, status: 'Completed' },
+                        { date: '26/07/2026', veh: vehicle?.vehicleNumber || 'BUS-101', route: route?.routeName || 'Route A', driver: driver?.driverName || 'Dwight Schrute', att: attendantName, mStart: morningTripTime, mEnd: morningTripTime, eStart: eveningTripTime, eEnd: eveningTripTime, status: 'Completed' }
+                      ].map((log, index) => (
+                        <tr key={index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                           <td className="py-3 px-4 font-mono text-slate-500">{log.date}</td>
                           <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.veh}</td>
                           <td className="py-3 px-4 font-bold text-sky-600">{log.route}</td>
@@ -761,7 +597,9 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                           <td className="py-3 px-4 font-mono text-emerald-600">{log.mEnd}</td>
                           <td className="py-3 px-4 font-mono text-amber-600 font-bold">{log.eStart}</td>
                           <td className="py-3 px-4 font-mono text-amber-600">{log.eEnd}</td>
-                          <td className="py-3 px-4 text-right"><Badge variant="success" size="sm">{log.status}</Badge></td>
+                          <td className="py-3 px-4 text-right">
+                            <Badge variant="success" size="sm">{log.status}</Badge>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -770,68 +608,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
               </div>
             </div>
           )}
-
         </div>
       </div>
-
-      {/* GPS DEVICE CONFIGURATION MODAL */}
-      {showGpsConfigModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Cpu className="w-5 h-5 text-sky-500" /> GPS Provider & Telematics Setup
-              </h3>
-              <button onClick={() => setShowGpsConfigModal(false)} className="text-slate-400">✕</button>
-            </div>
-
-            <form onSubmit={handleSaveGpsConfig} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold mb-1">Vehicle Number</label>
-                <input type="text" disabled value={vehicle?.vehicleNumber || assignment.vehicleNumber} className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border font-bold" />
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">GPS Telematics Hardware Device ID *</label>
-                <input type="text" value={deviceId} onChange={e => setDeviceId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold font-mono" />
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">GPS Telematics Service Provider *</label>
-                <select value={gpsProvider} onChange={e => setGpsProvider(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                  <option value="Trac360 Telematics">Trac360 Telematics API</option>
-                  <option value="MapmyIndia Fleet API">MapmyIndia Fleet API</option>
-                  <option value="Teltonika FMB920 Gateway">Teltonika FMB920 Gateway</option>
-                  <option value="Concox GT06N Server">Concox GT06N Server</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">API Authentication Token / Secret Key</label>
-                <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
-              </div>
-
-              <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-sky-900 dark:text-sky-200 block text-xs">Enable Live GPS Tracking</span>
-                  <span className="text-[10px] text-sky-700 dark:text-sky-400">Expose live map to parents on portal</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={gpsEnabled}
-                  onChange={e => setGpsEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-sky-600 rounded"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setShowGpsConfigModal(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save Configuration</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1193,6 +1193,7 @@ export interface DriverMaster {
   id: string;
   driverName: string;
   mobileNumber: string;
+  email?: string;
   licenseNumber: string;
   licenseExpiryDate: string;
   address: string;
@@ -1203,12 +1204,22 @@ export interface DriverMaster {
 
 export interface VehicleAssignment {
   id: string;
+  branch?: string;
+  academicYear?: string;
   vehicleId: string;
   vehicleNumber: string;
   routeId: string;
   routeName: string;
   driverId: string;
   driverName: string;
+  attendantId?: string;
+  attendantName?: string;
+  attendantMobile?: string;
+  morningTripTime?: string;
+  eveningTripTime?: string;
+  vehicleCapacity?: number;
+  assignedStudents?: number;
+  gpsStatus?: 'Online' | 'Offline';
   effectiveFrom: string;
   effectiveTo?: string;
   status: 'Active' | 'Inactive';

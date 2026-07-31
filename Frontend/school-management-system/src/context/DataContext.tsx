@@ -3262,6 +3262,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const payload = {
         driverName: d.driverName,
         mobileNumber: d.mobileNumber,
+        email: d.email,
         licenceNumber: d.licenseNumber,
         licenceExpiry: d.licenseExpiryDate,
         address: d.address,
@@ -3287,6 +3288,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const payload: any = {};
       if (updates.driverName !== undefined) payload.driverName = updates.driverName;
       if (updates.mobileNumber !== undefined) payload.mobileNumber = updates.mobileNumber;
+      if (updates.email !== undefined) payload.email = updates.email;
       if (updates.licenseNumber !== undefined) payload.licenceNumber = updates.licenseNumber;
       if (updates.licenseExpiryDate !== undefined) payload.licenceExpiry = updates.licenseExpiryDate;
       if (updates.address !== undefined) payload.address = updates.address;
@@ -3312,34 +3314,161 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const assignVehicleRouteDriver = async (va: Omit<VehicleAssignment, 'id'>) => {
+    const effectiveBranch = va.branch || selectedBranch || 'Main Campus';
+    const effectiveAcademicYear = va.academicYear || schoolProfile.academicYear || '2026-2027';
+    const normalizedAssignment: Omit<VehicleAssignment, 'id'> = {
+      ...va,
+      branch: effectiveBranch,
+      academicYear: effectiveAcademicYear,
+      status: va.status
+    };
+
+    const deactivateConflicts = (items: VehicleAssignment[]): VehicleAssignment[] => items.map(existing => {
+      if (normalizedAssignment.status !== 'Active') return existing;
+
+      const isActiveConflict =
+        existing.status === 'Active' &&
+        (
+          existing.vehicleId === normalizedAssignment.vehicleId ||
+          existing.vehicleNumber === normalizedAssignment.vehicleNumber ||
+          existing.routeId === normalizedAssignment.routeId ||
+          existing.routeName === normalizedAssignment.routeName ||
+          existing.driverId === normalizedAssignment.driverId ||
+          existing.driverName === normalizedAssignment.driverName ||
+          (normalizedAssignment.attendantId && existing.attendantId === normalizedAssignment.attendantId) ||
+          (normalizedAssignment.attendantName && existing.attendantName === normalizedAssignment.attendantName)
+        );
+
+      if (!isActiveConflict) return existing;
+
+      return {
+        ...existing,
+        status: 'Inactive' as const,
+        effectiveTo: existing.effectiveTo || normalizedAssignment.effectiveFrom || new Date().toISOString().split('T')[0]
+      } as VehicleAssignment;
+    });
+
     try {
       const payload = {
-        ...va,
+        ...normalizedAssignment,
         status: true,
         assignmentDate: new Date().toISOString()
       };
       const response = await TransportAPI.createVehicleAssignmentApi(payload as any);
       const backendData = response?.data || {};
       const id = (backendData.id || backendData.assignmentId || 'VA-' + Math.floor(100 + Math.random() * 900)).toString();
-      const newAssign: VehicleAssignment = { ...va, ...backendData, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
-      setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
-      logActivity('Vehicle Assigned', `Assigned ${va.vehicleNumber} to ${va.routeName} driven by ${va.driverName}`);
+      const newAssign: VehicleAssignment = {
+        ...backendData,
+        ...normalizedAssignment,
+        id,
+        branch: effectiveBranch,
+        academicYear: effectiveAcademicYear,
+        status: normalizedAssignment.status
+      } as any;
+      setVehicleAssignments(prev => [...deactivateConflicts(prev), newAssign]);
+      logActivity('Vehicle Assigned', `Assigned ${normalizedAssignment.vehicleNumber} to ${normalizedAssignment.routeName} with ${normalizedAssignment.driverName}${normalizedAssignment.attendantName ? ` and ${normalizedAssignment.attendantName}` : ''}`);
     } catch (err) {
       addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
       const id = 'VA-' + Math.floor(100 + Math.random() * 900);
-      const newAssign: VehicleAssignment = { ...va, id, branch: (va as any).branch || selectedBranch || 'Main Campus' } as any;
-      setVehicleAssignments(prev => [...prev.filter(a => a.vehicleId !== va.vehicleId && a.driverId !== va.driverId), newAssign]);
+      const newAssign: VehicleAssignment = {
+        ...normalizedAssignment,
+        id,
+        branch: effectiveBranch,
+        academicYear: effectiveAcademicYear,
+        status: normalizedAssignment.status
+      } as any;
+      setVehicleAssignments(prev => [...deactivateConflicts(prev), newAssign]);
     }
   };
 
   const updateVehicleAssignment = async (id: string, updates: Partial<VehicleAssignment>) => {
     try {
+      const current = vehicleAssignments.find(a => a.id === id);
+      const merged: VehicleAssignment = {
+        ...(current as VehicleAssignment),
+        ...(updates as VehicleAssignment),
+        id,
+        branch: updates.branch || current?.branch || selectedBranch || 'Main Campus',
+        academicYear: updates.academicYear || current?.academicYear || schoolProfile.academicYear || '2026-2027',
+        status: (updates.status || current?.status || 'Active') as 'Active' | 'Inactive'
+      };
       const payload = { ...updates, status: true };
       await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
-      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+      setVehicleAssignments(prev => {
+        const deactivateConflicts = (items: VehicleAssignment[]): VehicleAssignment[] => items.map(existing => {
+          const isActiveConflict =
+            existing.id !== id &&
+            existing.status === 'Active' &&
+            merged.status === 'Active' &&
+            (
+              existing.vehicleId === merged.vehicleId ||
+              existing.vehicleNumber === merged.vehicleNumber ||
+              existing.routeId === merged.routeId ||
+              existing.routeName === merged.routeName ||
+              existing.driverId === merged.driverId ||
+              existing.driverName === merged.driverName ||
+              (merged.attendantId && existing.attendantId === merged.attendantId) ||
+              (merged.attendantName && existing.attendantName === merged.attendantName)
+            );
+
+          if (!isActiveConflict) return existing;
+
+          return {
+            ...existing,
+            status: 'Inactive' as const,
+            effectiveTo: existing.effectiveTo || merged.effectiveFrom || new Date().toISOString().split('T')[0]
+          } as VehicleAssignment;
+        });
+
+        const sanitized: VehicleAssignment = merged.status === 'Inactive' && !merged.effectiveTo
+          ? { ...merged, effectiveTo: new Date().toISOString().split('T')[0] }
+          : merged;
+
+        return deactivateConflicts(prev).map(a => a.id === id ? sanitized : a);
+      });
     } catch (err) {
       addToast('error', 'API Sync Failed', 'Operating in local fallback mode');
-      setVehicleAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+      const current = vehicleAssignments.find(a => a.id === id);
+      const merged: VehicleAssignment = {
+        ...(current as VehicleAssignment),
+        ...(updates as VehicleAssignment),
+        id,
+        branch: updates.branch || current?.branch || selectedBranch || 'Main Campus',
+        academicYear: updates.academicYear || current?.academicYear || schoolProfile.academicYear || '2026-2027',
+        status: (updates.status || current?.status || 'Active') as 'Active' | 'Inactive'
+      };
+      setVehicleAssignments(prev => {
+        const deactivateConflicts = (items: VehicleAssignment[]): VehicleAssignment[] => items.map(existing => {
+          const isActiveConflict =
+            existing.id !== id &&
+            existing.status === 'Active' &&
+            merged.status === 'Active' &&
+            (
+              existing.vehicleId === merged.vehicleId ||
+              existing.vehicleNumber === merged.vehicleNumber ||
+              existing.routeId === merged.routeId ||
+              existing.routeName === merged.routeName ||
+              existing.driverId === merged.driverId ||
+              existing.driverName === merged.driverName ||
+              (merged.attendantId && existing.attendantId === merged.attendantId) ||
+              (merged.attendantName && existing.attendantName === merged.attendantName)
+            );
+
+          if (!isActiveConflict) return existing;
+
+          return {
+            ...existing,
+            status: 'Inactive' as const,
+            effectiveTo: existing.effectiveTo || merged.effectiveFrom || new Date().toISOString().split('T')[0]
+          } as VehicleAssignment;
+        });
+
+        const sanitized: VehicleAssignment = merged.status === 'Inactive' && !merged.effectiveTo
+          ? { ...merged, effectiveTo: new Date().toISOString().split('T')[0] }
+          : merged;
+
+        return deactivateConflicts(prev).map(a => a.id === id ? sanitized : a);
+      });
     }
   };
 

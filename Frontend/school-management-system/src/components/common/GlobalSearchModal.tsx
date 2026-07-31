@@ -52,7 +52,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Attendance Analytics', module: 'attendance' },
     { name: 'Examination & Reports', module: 'examination' },
     { name: 'Library Inventory', module: 'library' },
-    { name: 'Transport Routes', module: 'transport' },
+    { name: 'Transport Management', module: 'transport' },
     { name: 'Hostel Allocation', module: 'hostel' },
     { name: 'Inventory & Supplies', module: 'inventory' },
     { name: 'Broadcast Communication', module: 'communication' },

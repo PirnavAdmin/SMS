@@ -1,10 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import {
-  LayoutDashboard, Tag, Layers, UserPlus, Gift, Percent, AlertTriangle, Route, Bus,
-  Home, Bed, IndianRupee, Receipt, Clock, RotateCcw, FileSpreadsheet, SlidersHorizontal
-} from 'lucide-react';
-import { Student, FeePayment } from '../../../types';
-import { useAuth } from '../../../context/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { FeePayment } from '../../../types';
 
 import { FinanceDashboardView } from './FinanceDashboardView';
 import { FinanceMastersView } from './FinanceMastersView';
@@ -18,8 +13,7 @@ interface FinanceContainerViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
-  const { role } = useAuth();
+export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'dashboard' }) => {
   const normalizedTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
   const [receiptToPrint, setReceiptToPrint] = useState<FeePayment | null>(null);
@@ -28,23 +22,6 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
     const cleanTab = initialTab.startsWith('finance-') ? initialTab.replace('finance-', '') : initialTab;
     setActiveTab(cleanTab);
   }, [initialTab]);
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    if (onTabChange) onTabChange(`finance-${tabId}`);
-  };
-
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Accountant', 'Principal'] },
-    { id: 'transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet, roles: ['Super Admin', 'Admin', 'Accountant'] },
-    { id: 'fee-collection', label: 'Fee Collection', icon: IndianRupee, roles: ['Super Admin', 'Admin', 'Accountant', 'Teacher', 'Principal'] },
-    { id: 'masters', label: 'Finance Setup', icon: SlidersHorizontal, roles: ['Super Admin', 'Admin', 'Accountant'] },
-    { id: 'reports', label: 'Finance Reports', icon: FileSpreadsheet, roles: ['Super Admin', 'Admin', 'Accountant', 'Principal'] },
-  ];
-
-  const handleCollectStudentFee = (student: Student) => {
-    handleTabChange('fee-collection');
-  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -81,31 +58,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
   };
 
   return (
-    <div className="space-y-6">
-      {/* Sticky Sub-Navigation Header */}
-      <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
-        {tabs.map(tab => {
-          if (tab.roles && !tab.roles.includes(role)) return null;
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id || (tab.id === 'fee-collection' && activeTab === 'fees');
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
-                isActive
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main Sub-Module Body */}
+    <div className="space-y-4 animate-in fade-in">
       {renderTabContent()}
 
       {/* Printable Receipt Modal */}
