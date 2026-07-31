@@ -21,7 +21,8 @@ import {
   ShieldCheck,
   Trash2,
   Users,
-  X
+  X,
+  ChevronDown,
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
@@ -53,9 +54,10 @@ type StructureDraft = {
   structureName: string;
   employeeCategory: CategoryValue;
   designation: string;
+  payGrade: string;
   status: 'Active' | 'Inactive';
   effectiveDate: string;
-  payrollFrequency: 'Monthly';
+  payrollFrequency: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
   salaryPaymentDay: string;
   pfApplicable: boolean;
   pfPercentage: string;
@@ -342,6 +344,77 @@ const Panel: React.FC<{
   </section>
 );
 
+const SearchableSelect: React.FC<{
+  value: string;
+  onChange: (val: string) => void;
+  options: string[];
+  placeholder?: string;
+  disabled?: boolean;
+  getCode?: (val: string) => string;
+}> = ({ value, onChange, options, placeholder = 'Select...', disabled, getCode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = options.filter(o => o.toLowerCase().includes(search.toLowerCase())).slice(0, 5);
+
+  return (
+    <div ref={wrapperRef} className="relative w-full">
+      <div 
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`flex min-h-[44px] w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900 focus-within:border-brand-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-brand-500/20 dark:border-slate-800 dark:bg-slate-900/50 dark:text-white ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        <span className="truncate">{value || placeholder}</span>
+        <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+      </div>
+      
+      {isOpen && !disabled && (
+        <div className="absolute top-full z-10 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+          <div className="border-b border-slate-100 p-2 dark:border-slate-700">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input 
+                autoFocus
+                type="text"
+                placeholder="Search..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full rounded-xl border-none bg-slate-50 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {filtered.length > 0 ? filtered.map(option => (
+              <div 
+                key={option} 
+                onClick={() => { onChange(option); setIsOpen(false); setSearch(''); }}
+                className="cursor-pointer rounded-xl px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/50 flex flex-col gap-0.5"
+              >
+                <span>{option}</span>
+                {getCode && option !== 'All Departments' && option !== 'All Employees' && (
+                  <span className="text-[10px] text-slate-400 font-normal">Code: {getCode(option)}</span>
+                )}
+              </div>
+            )) : (
+              <div className="px-4 py-3 text-sm text-slate-500">No results found.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ModalShell: React.FC<{
   title: string;
   subtitle?: string;
@@ -356,13 +429,6 @@ const ModalShell: React.FC<{
           <h3 className="text-lg font-black text-slate-900 dark:text-white">{title}</h3>
           {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-        >
-          <X className="h-4 w-4" />
-        </button>
       </div>
       <div className="max-h-[calc(100vh-140px)] overflow-y-auto p-5">{children}</div>
     </div>
@@ -375,6 +441,7 @@ const structureDraftDefaults: StructureDraft = {
   structureName: '',
   employeeCategory: 'Teacher',
   designation: '',
+  payGrade: '',
   status: 'Active',
   effectiveDate: defaultEffectiveDate,
   payrollFrequency: 'Monthly',
@@ -416,6 +483,7 @@ const getStructureDraftFromStructure = (structure: SalaryStructure, mode: 'add' 
   structureName: mode === 'duplicate' ? `${structure.structureName} Copy` : structure.structureName,
   employeeCategory: structure.employeeCategory,
   designation: structure.designation || '',
+  payGrade: '',
   status: mode === 'duplicate' ? 'Inactive' : structure.status,
   effectiveDate: structure.effectiveDate || defaultEffectiveDate,
   payrollFrequency: 'Monthly',
@@ -566,6 +634,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [historyMonth, setHistoryMonth] = useState('All');
   const [historyYear, setHistoryYear] = useState('All');
   const [historyDepartment, setHistoryDepartment] = useState('All Departments');
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
+  const [selectedStructureIds, setSelectedStructureIds] = useState<string[]>([]);
+  const [selectedGenerationIds, setSelectedGenerationIds] = useState<string[]>([]);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
   const [drawerStaff, setDrawerStaff] = useState<Staff | null>(null);
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   const [structureMode, setStructureMode] = useState<'add' | 'edit' | 'duplicate'>('add');
@@ -946,29 +1018,39 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         <Panel
           title="Employee Payroll"
           action={(
-            <button
-              type="button"
-              onClick={() => openAssignmentModal()}
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
-            >
-              <Plus className="h-3.5 w-3.5" /> Assign Salary
-            </button>
+            <div className="flex items-center gap-2">
+              {selectedEmployeeIds.length > 0 && (
+                <button
+                  type="button"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
+                >
+                  Bulk Actions ({selectedEmployeeIds.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => openAssignmentModal()}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
+              >
+                <Plus className="h-3.5 w-3.5" /> Assign Salary
+              </button>
+            </div>
           )}
         >
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
-            <div className="xl:col-span-2">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[200px]">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Search</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   value={employeeSearch}
                   onChange={e => setEmployeeSearch(e.target.value)}
-                  placeholder="Search employee, ID, department, designation..."
+                  placeholder="Search..."
                   className={`${inputClass} pl-9`}
                 />
               </div>
             </div>
-            <div>
+            <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
               <select value={employeeCategoryFilter} onChange={e => setEmployeeCategoryFilter(e.target.value as 'All' | CategoryValue)} className={selectClass}>
                 <option value="All">All Categories</option>
@@ -976,13 +1058,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <option value="Staff">Non-Teaching Staff</option>
               </select>
             </div>
-            <div>
+            <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
               <select value={employeeStructureFilter} onChange={e => setEmployeeStructureFilter(e.target.value)} className={selectClass}>
                 {structureOptions.map(option => <option key={option}>{option}</option>)}
               </select>
             </div>
-            <div>
+            <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
               <select value={employeeStatusFilter} onChange={e => setEmployeeStatusFilter(e.target.value as 'All' | 'Active' | 'Not Assigned')} className={selectClass}>
                 <option value="All">All Status</option>
@@ -996,6 +1078,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <table className="min-w-[1100px] w-full border-separate border-spacing-y-3">
               <thead>
                 <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                  <th className="px-3 py-2 w-10">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={filteredEmployeeRows.length > 0 && selectedEmployeeIds.length === filteredEmployeeRows.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedEmployeeIds(filteredEmployeeRows.map(r => r.member.id));
+                        } else {
+                          setSelectedEmployeeIds([]);
+                        }
+                      }}
+                    />
+                  </th>
                   <th className="px-3 py-2">Employee ID</th>
                   <th className="px-3 py-2">Employee Name</th>
                   <th className="px-3 py-2">Category</th>
@@ -1011,7 +1107,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   const statusBadge = row.assignment ? 'success' : 'warning';
                   return (
                     <tr key={row.member.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                      <td className="rounded-l-[18px] px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.member.empId}</td>
+                      <td className="rounded-l-[18px] px-3 py-4">
+                        <input 
+                          type="checkbox" 
+                          className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                          checked={selectedEmployeeIds.includes(row.member.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedEmployeeIds(prev => [...prev, row.member.id]);
+                            } else {
+                              setSelectedEmployeeIds(prev => prev.filter(id => id !== row.member.id));
+                            }
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.member.empId}</td>
                       <td className="px-3 py-4">
                         <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-left">
                           <div className="text-sm font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
@@ -1080,24 +1190,34 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       <Panel
         title="Salary Structures"
         action={(
-          <button
-            type="button"
-            onClick={() => openStructureModal('add')}
-            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
-          >
-            <Plus className="h-3.5 w-3.5" /> Create Structure
-          </button>
+          <div className="flex items-center gap-2">
+            {selectedStructureIds.length > 0 && (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
+              >
+                Bulk Actions ({selectedStructureIds.length})
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => openStructureModal('add')}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
+            >
+              <Plus className="h-3.5 w-3.5" /> Create Structure
+            </button>
+          </div>
         )}
       >
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
-          <div className="xl:col-span-2">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Search</label>
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search structure, designation or code..." className={`${inputClass} pl-9`} />
+              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search..." className={`${inputClass} pl-9`} />
             </div>
           </div>
-          <div>
+          <div className="w-48">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
             <select value={structureCategoryFilter} onChange={e => setStructureCategoryFilter(e.target.value as 'All' | CategoryValue)} className={selectClass}>
               <option value="All">All Categories</option>
@@ -1105,13 +1225,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <option value="Staff">Non-Teaching Staff</option>
             </select>
           </div>
-          <div>
+          <div className="w-48">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
             <select value={structureDesignationFilter} onChange={e => setStructureDesignationFilter(e.target.value)} className={selectClass}>
               {designationSet.map(item => <option key={item}>{item}</option>)}
             </select>
           </div>
-          <div>
+          <div className="w-48">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
             <select value={structureStatusFilter} onChange={e => setStructureStatusFilter(e.target.value as 'All' | 'Active' | 'Inactive')} className={selectClass}>
               <option value="All">All Status</option>
@@ -1125,6 +1245,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <table className="min-w-[1200px] w-full border-separate border-spacing-y-3">
             <thead>
               <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                <th className="px-3 py-2 w-10">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                    checked={filteredStructureRows.length > 0 && selectedStructureIds.length === filteredStructureRows.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedStructureIds(filteredStructureRows.map(r => r.structure.id));
+                      } else {
+                        setSelectedStructureIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="px-3 py-2">Structure Name</th>
                 <th className="px-3 py-2">Category</th>
                 <th className="px-3 py-2">Designation</th>
@@ -1142,6 +1276,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               {filteredStructureRows.map(row => (
                 <tr key={row.structure.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
                   <td className="rounded-l-[18px] px-3 py-4">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={selectedStructureIds.includes(row.structure.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedStructureIds(prev => [...prev, row.structure.id]);
+                        } else {
+                          setSelectedStructureIds(prev => prev.filter(id => id !== row.structure.id));
+                        }
+                      }}
+                    />
+                  </td>
+                  <td className="px-3 py-4">
                     <div className="space-y-1">
                       <div className="text-sm font-black text-slate-900 dark:text-white">{row.structure.structureName}</div>
                       {row.structure.structureCode && <p className="text-[11px] text-slate-500">{row.structure.structureCode}</p>}
@@ -1219,6 +1367,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         title="Generate Payslips"
         action={(
           <div className="flex flex-wrap items-center gap-2">
+            {selectedGenerationIds.length > 0 && (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
+              >
+                Bulk Actions ({selectedGenerationIds.length})
+              </button>
+            )}
             <button type="button" onClick={handleBulkGenerate} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-lg shadow-brand-500/20">
               <ReceiptText className="h-3.5 w-3.5" /> Generate All
             </button>
@@ -1231,44 +1387,40 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         )}
       >
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-6">
-          <div>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-32">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Month</label>
             <select value={generationMonth} onChange={e => setGenerationMonth(e.target.value)} className={selectClass}>
               {monthOptions.map(month => <option key={month}>{month}</option>)}
             </select>
           </div>
-          <div>
+          <div className="w-32">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Year</label>
             <select value={generationYear} onChange={e => setGenerationYear(e.target.value)} className={selectClass}>
               {yearOptions.map(year => <option key={year}>{year}</option>)}
             </select>
           </div>
-          <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Branch</label>
-            <select value={generationBranch} onChange={e => setGenerationBranch(e.target.value)} className={selectClass}>
-              {branches.map(branch => <option key={branch}>{branch}</option>)}
-            </select>
+          <div className="flex-1 min-w-[150px]">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
+            <SearchableSelect value={generationEmployee} onChange={setGenerationEmployee} options={employeeOptions} />
           </div>
-          <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department</label>
-            <select value={generationDepartment} onChange={e => setGenerationDepartment(e.target.value)} className={selectClass}>
-              {departments.map(department => <option key={department}>{department}</option>)}
-            </select>
-          </div>
-          <div>
+          <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
-            <select value={generationCategory} onChange={e => setGenerationCategory(e.target.value as 'All' | CategoryValue)} className={selectClass}>
+            <select value={generationCategory} onChange={e => setGenerationCategory(e.target.value as any)} className={selectClass}>
               <option value="All">All Categories</option>
               <option value="Teacher">Teaching Staff</option>
               <option value="Staff">Non-Teaching Staff</option>
             </select>
           </div>
-          <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
-            <select value={generationEmployee} onChange={e => setGenerationEmployee(e.target.value)} className={selectClass}>
-              {employeeOptions.map(employee => <option key={employee}>{employee}</option>)}
+          <div className="flex-1 min-w-[150px]">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Branch</label>
+            <select value={generationBranch} onChange={e => setGenerationBranch(e.target.value)} className={selectClass}>
+              {branches.map(branch => <option key={branch}>{branch}</option>)}
             </select>
+          </div>
+          <div className="flex-1 min-w-[150px]">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department</label>
+            <SearchableSelect value={generationDepartment} onChange={setGenerationDepartment} options={departments} getCode={(val) => val.substring(0, 3).toUpperCase()} />
           </div>
         </div>
 
@@ -1276,6 +1428,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <table className="min-w-[1220px] w-full border-separate border-spacing-y-3">
             <thead>
               <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                <th className="px-3 py-2 w-10">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                    checked={generationRows.length > 0 && selectedGenerationIds.length === generationRows.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedGenerationIds(generationRows.map(r => r.member.id));
+                      } else {
+                        setSelectedGenerationIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="px-3 py-2">Employee ID</th>
                 <th className="px-3 py-2">Employee Name</th>
                 <th className="px-3 py-2">Department</th>
@@ -1291,7 +1457,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <tbody>
               {generationRows.map(row => (
                 <tr key={row.member.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                  <td className="rounded-l-[18px] px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.member.empId}</td>
+                  <td className="rounded-l-[18px] px-3 py-4">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={selectedGenerationIds.includes(row.member.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedGenerationIds(prev => [...prev, row.member.id]);
+                        } else {
+                          setSelectedGenerationIds(prev => prev.filter(id => id !== row.member.id));
+                        }
+                      }}
+                    />
+                  </td>
+                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.member.empId}</td>
                   <td className="px-3 py-4">
                     <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-left">
                       <div className="text-sm font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
@@ -1353,33 +1533,44 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
       <Panel
         title="Payslip History"
-      >
-        <div className="grid grid-cols-1 gap-3 xl:grid-cols-4">
-          <div>
-            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
-            <select value={historyEmployee} onChange={e => setHistoryEmployee(e.target.value)} className={selectClass}>
-              {employeeOptions.map(employee => <option key={employee}>{employee}</option>)}
-            </select>
+        action={(
+          <div className="flex items-center gap-2">
+            {selectedHistoryIds.length > 0 && (
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-800 px-4 text-xs font-black text-white shadow-lg shadow-slate-700/20"
+              >
+                Bulk Actions ({selectedHistoryIds.length})
+              </button>
+            )}
+            <button type="button" onClick={() => addToast('success', 'Export Started', 'History export will download shortly.')} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-4 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <Download className="h-3.5 w-3.5" /> Export History
+            </button>
           </div>
-          <div>
+        )}
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[150px]">
+            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
+            <SearchableSelect value={historyEmployee} onChange={setHistoryEmployee} options={employeeOptions} />
+          </div>
+          <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Month</label>
             <select value={historyMonth} onChange={e => setHistoryMonth(e.target.value)} className={selectClass}>
               <option value="All">All Months</option>
               {monthOptions.map(month => <option key={month}>{month}</option>)}
             </select>
           </div>
-          <div>
+          <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Year</label>
             <select value={historyYear} onChange={e => setHistoryYear(e.target.value)} className={selectClass}>
               <option value="All">All Years</option>
               {yearOptions.map(year => <option key={year}>{year}</option>)}
             </select>
           </div>
-          <div>
+          <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department</label>
-            <select value={historyDepartment} onChange={e => setHistoryDepartment(e.target.value)} className={selectClass}>
-              {departments.map(department => <option key={department}>{department}</option>)}
-            </select>
+            <SearchableSelect value={historyDepartment} onChange={setHistoryDepartment} options={departments} getCode={(val) => val.substring(0, 3).toUpperCase()} />
           </div>
         </div>
 
@@ -1387,6 +1578,20 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <table className="min-w-[1120px] w-full border-separate border-spacing-y-3">
             <thead>
               <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                <th className="px-3 py-2 w-10">
+                  <input 
+                    type="checkbox" 
+                    className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                    checked={historyRows.length > 0 && selectedHistoryIds.length === historyRows.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedHistoryIds(historyRows.map(r => r.id));
+                      } else {
+                        setSelectedHistoryIds([]);
+                      }
+                    }}
+                  />
+                </th>
                 <th className="px-3 py-2">Month</th>
                 <th className="px-3 py-2">Year</th>
                 <th className="px-3 py-2">Employee</th>
@@ -1404,7 +1609,21 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 const linkedStaff = staff.find(member => member.id === item.employeeId) || null;
                 return (
                   <tr key={item.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                    <td className="rounded-l-[18px] px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{month}</td>
+                    <td className="rounded-l-[18px] px-3 py-4">
+                      <input 
+                        type="checkbox" 
+                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                        checked={selectedHistoryIds.includes(item.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedHistoryIds(prev => [...prev, item.id]);
+                          } else {
+                            setSelectedHistoryIds(prev => prev.filter(id => id !== item.id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{month}</td>
                     <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{year}</td>
                     <td className="px-3 py-4">
                       <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-left">
@@ -1524,10 +1743,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
-                    <select value={structureDraft.designation} onChange={e => setStructureDraft(prev => ({ ...prev, designation: e.target.value }))} className={selectClass}>
-                      <option value="">Select Designation</option>
-                      {designationOptionsForCategory(structureDraft.employeeCategory).map(option => <option key={option}>{option}</option>)}
-                    </select>
+                    <SearchableSelect
+                      value={structureDraft.designation}
+                      onChange={(val: string) => setStructureDraft(prev => ({ ...prev, designation: val }))}
+                      options={designationOptionsForCategory(structureDraft.employeeCategory)}
+                      placeholder="e.g. Mathematics Teacher"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Pay Grade</label>
+                    <input value={structureDraft.payGrade} onChange={e => setStructureDraft(prev => ({ ...prev, payGrade: e.target.value }))} className={inputClass} placeholder="e.g., Grade A" />
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Effective From</label>
@@ -1535,8 +1760,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Payroll Frequency</label>
-                    <select value={structureDraft.payrollFrequency} onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as 'Monthly' }))} className={selectClass}>
+                    <select value={structureDraft.payrollFrequency} onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))} className={selectClass}>
                       <option value="Monthly">Monthly</option>
+                      <option value="Weekly">Weekly</option>
+                      <option value="Bi-Weekly">Bi-Weekly</option>
+                      <option value="Hourly">Hourly</option>
+                      <option value="Daily">Daily</option>
+                      <option value="Per Class">Per Class</option>
+                      <option value="Contractual">Contractual</option>
                     </select>
                   </div>
                   <div>
@@ -1728,13 +1959,33 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={saveStructure}
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
-              >
-                <Save className="h-4 w-4" /> {structureMode === 'edit' ? 'Save Changes' : 'Save Structure'}
-              </button>
+
+              <div className="rounded-[20px] border border-blue-200 bg-blue-50/50 p-4 dark:border-blue-900/30 dark:bg-blue-900/10">
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-blue-600 dark:text-blue-400 mb-3">Payroll Rules Guide</p>
+                <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> Basic Salary is typically 40%-50% of Gross.</li>
+                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> PF (12%) applies if Basic + DA ≤ ₹15,000.</li>
+                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> ESI (0.75%) applies if Gross ≤ ₹21,000.</li>
+                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> PT is deducted per state slabs (e.g., ₹200).</li>
+                  <li className="flex items-start gap-2"><div className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" /> LOP deduction = (Gross / Days in month) × Leave days.</li>
+                </ul>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={closeStructureModal}
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={saveStructure}
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
+                >
+                  <Save className="h-4 w-4" /> {structureMode === 'edit' ? 'Update' : 'Save'}
+                </button>
+              </div>
             </div>
           </div>
         </ModalShell>
@@ -1809,28 +2060,26 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </div>
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
-                <select
-                  value={assignmentDraft.designation}
-                  onChange={e => {
-                    const designation = e.target.value;
-                    const candidateStructures = salaryStructures.filter(item => structureMatches(item, assignmentDraft.employeeCategory, designation));
-                    const selectedStructure = candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === assignmentDraft.employeeCategory) || salaryStructures[0];
-                    const breakdown = getStructureBreakdown(selectedStructure || undefined);
-                    setAssignmentDraft(prev => ({
-                      ...prev,
-                      designation,
-                      salaryStructureId: selectedStructure?.id || '',
-                      basicSalary: String(breakdown.basicSalary),
-                      allowances: String(breakdown.allowances),
-                      deductions: String(breakdown.deductions)
-                    }));
-                  }}
-                  className={selectClass}
-                  disabled={!assignmentDraft.employeeCategory}
-                >
-                  <option value="">Select Designation</option>
-                  {filteredDesignationOptions.map(option => <option key={option}>{option}</option>)}
-                </select>
+                <SearchableSelect
+                    value={assignmentDraft.designation}
+                    onChange={(val: string) => {
+                      const designation = val;
+                      const candidateStructures = salaryStructures.filter(item => structureMatches(item, assignmentDraft.employeeCategory || '', designation));
+                      const selectedStructure = candidateStructures[0] || salaryStructures.find(item => item.employeeCategory === assignmentDraft.employeeCategory) || salaryStructures[0];
+                      const breakdown = getStructureBreakdown(selectedStructure || undefined);
+                      setAssignmentDraft(prev => ({
+                        ...prev,
+                        designation,
+                        salaryStructureId: selectedStructure?.id || '',
+                        basicSalary: String(breakdown.basicSalary),
+                        allowances: String(breakdown.allowances),
+                        deductions: String(breakdown.deductions)
+                      }));
+                    }}
+                    options={filteredDesignationOptions}
+                    placeholder="Select Designation"
+                    disabled={!assignmentDraft.employeeCategory}
+                  />
               </div>
               <div className="md:col-span-2">
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
@@ -1927,13 +2176,22 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                 );
               })()}
-              <button
-                type="button"
-                onClick={assignSalary}
-                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
-              >
-                <Save className="h-4 w-4" /> Assign
-              </button>
+              <div className="flex gap-3 mt-6">
+                <button
+                  type="button"
+                  onClick={closeAssignmentModal}
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={assignSalary}
+                  className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
+                >
+                  <Save className="h-4 w-4" /> Assign
+                </button>
+              </div>
             </div>
           </div>
         </ModalShell>

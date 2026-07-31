@@ -400,12 +400,11 @@ export const AcademicsView: React.FC = () => {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <School className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Class Management
           </h2>
-          <p className="text-slate-500 font-bold">Configure classes, sections, and class teacher assignments</p>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="btn-primary py-1.5 px-3.5 flex items-center gap-1.5 text-[10.5px] font-black"
+          className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-brand-600/20 transition-all hover:bg-brand-500 hover:shadow-xl"
         >
           <Plus className="w-4 h-4" /> Add Class
         </button>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   GraduationCap, Plus, Search, CheckCircle2, UserCheck,
   X, Eye, Edit, Trash2, ChevronLeft, ChevronRight, XCircle,
-  ArrowLeft, Camera, User, Shield, Home, Bus, Calculator
+  ArrowLeft, Camera, User, Shield, Home, Bus, Calculator,
+  Phone, Mail, MapPin, Calendar, Users, BookOpen, Heart, Info, FileText
 } from 'lucide-react';
 import { AdmissionApplication, StudentType, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -1372,31 +1373,171 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       {/* View Application Details Modal */}
       {selectedAppForView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Application #{selectedAppForView.applicationNo}</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{selectedAppForView.applicantName} ({selectedAppForView.appliedClass})</p>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
+            
+            {/* Header */}
+            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    {selectedAppForView.applicantName}
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      selectedAppForView.status === 'Enrolled' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                      selectedAppForView.status === 'Rejected' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
+                      selectedAppForView.status === 'Approved' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      selectedAppForView.status === 'Verified' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
+                    }`}>
+                      {selectedAppForView.status}
+                    </span>
+                  </h3>
+                  <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                    <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> App No: {selectedAppForView.applicationNo}</span>
+                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                    <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> Class: {selectedAppForView.appliedClass}</span>
+                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                    <span className="flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Applied: {new Date(selectedAppForView.submissionDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
               </div>
-              <button onClick={() => setSelectedAppForView(null)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+              <button onClick={() => setSelectedAppForView(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
-                <div><span className="text-slate-400">Gender & DOB:</span> <p className="font-bold">{selectedAppForView.gender} • {selectedAppForView.dob}</p></div>
-                <div><span className="text-slate-400">Blood & Caste:</span> <p className="font-bold text-rose-500">{selectedAppForView.bloodGroup} • {selectedAppForView.casteCategory}</p></div>
-                <div><span className="text-slate-400">Father Name:</span> <p className="font-bold">{selectedAppForView.parentName}</p></div>
-                <div><span className="text-slate-400">Father Phone:</span> <p className="font-bold text-emerald-600 font-mono">{selectedAppForView.phone}</p></div>
-                <div><span className="text-slate-400">Student Type:</span> <p className="font-bold text-brand-600">{selectedAppForView.studentType}</p></div>
-                <div><span className="text-slate-400">Branch:</span> <p className="font-bold text-amber-600">{selectedAppForView.branch || 'Main Campus'}</p></div>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 dark:bg-slate-900">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Personal Info */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <Info className="w-4 h-4 text-brand-500" /> Personal Details
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Date of Birth</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.dob}</p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Gender</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.gender}</p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Blood Group</p>
+                      <p className="text-sm font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5"><Heart className="w-3 h-3" /> {selectedAppForView.bloodGroup}</p>
+                    </div>
+                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Religion & Caste</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.religion} - {selectedAppForView.casteCategory}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Parent Info */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <Users className="w-4 h-4 text-brand-500" /> Parent / Guardian Details
+                  </h4>
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
+                    <div className="flex items-start gap-3">
+                      <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Father's Name</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.parentName}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Primary Phone</p>
+                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{selectedAppForView.phone}</p>
+                      </div>
+                    </div>
+                    {selectedAppForView.email && (
+                      <div className="flex items-start gap-3">
+                        <Mail className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Email Address</p>
+                          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 break-all">{selectedAppForView.email}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Logistics */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                    {selectedAppForView.studentType === 'Hosteller' ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
+                    Logistics & Type
+                  </h4>
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Student Type</p>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold">
+                          {selectedAppForView.studentType}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Branch</p>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.branch || 'Main Campus'}</p>
+                      </div>
+                    </div>
+                    
+                    {selectedAppForView.studentType === 'Day Scholar' && selectedAppForView.transportRequired && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Transport Details</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {selectedAppForView.pickupPoint || 'Pending allocation'}</p>
+                      </div>
+                    )}
+                    
+                    {selectedAppForView.studentType === 'Hosteller' && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Hostel Allocation</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">{selectedAppForView.hostelBlock ? `${selectedAppForView.hostelBlock} - Room ${selectedAppForView.hostelRoom}` : 'Pending allocation'}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Address */}
+                <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
+                    <MapPin className="w-4 h-4 text-brand-500" /> Address Details
+                  </h4>
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm h-full flex flex-col justify-center">
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                      {selectedAppForView.addressHouseNo && `${selectedAppForView.addressHouseNo}, `}
+                      {selectedAppForView.addressStreet && `${selectedAppForView.addressStreet}, `}
+                      <br/>
+                      {selectedAppForView.addressArea && `${selectedAppForView.addressArea}, `}
+                      {selectedAppForView.addressCity && `${selectedAppForView.addressCity}`}
+                      <br/>
+                      {selectedAppForView.addressDistrict && `${selectedAppForView.addressDistrict}, `}
+                      {selectedAppForView.addressState && `${selectedAppForView.addressState}`}
+                      {selectedAppForView.addressPinCode && ` - ${selectedAppForView.addressPinCode}`}
+                    </p>
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div className="flex items-center justify-end pt-2">
-              <button onClick={() => setSelectedAppForView(null)} className="px-4 py-2 font-bold bg-slate-100 dark:bg-slate-800 rounded-xl">Close</button>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-end gap-3">
+              <button 
+                onClick={() => setSelectedAppForView(null)} 
+                className="px-6 py-2.5 font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
+              >
+                Close
+              </button>
             </div>
+            
           </div>
         </div>
       )}

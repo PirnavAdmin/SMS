@@ -816,28 +816,11 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <UserCheck className="w-6 h-6 text-brand-600 dark:text-brand-400" /> 
             {(role as any) === 'Teacher' ? 'My Students' : 'Student Directory'}
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {role === 'Teacher' 
-              ? 'View profiles and manage records for students in your assigned classes' 
-              : 'Manage student directory records, generate student ID cards, perform branch transfers, and export registers.'}
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Filter-Aware Export Button */}
           <ExportButton data={filtered} filename="student_records" filteredCount={filtered.length} />
-          {role !== 'Teacher' && (
-            <button 
-              onClick={() => {
-                setStudentToEdit(null);
-                setIsEditOpen(true);
-              }}
-              className="btn-primary flex items-center gap-2"
-            >
-              <User className="w-4 h-4" />
-              New Admission
-            </button>
-          )}
         </div>
       </div>
 

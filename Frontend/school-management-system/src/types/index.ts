@@ -1616,9 +1616,10 @@ export interface SalaryStructure {
   status: 'Active' | 'Inactive';
   structureCode?: string;
   designation?: string;
+  payGrade?: string;
   department?: string;
   employmentType?: string;
-  payrollFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly';
+  payrollFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly' | 'Hourly' | 'Daily' | 'Per Class' | 'Contractual';
   salaryPaymentDay?: string;
   pfApplicable?: boolean;
   pfPercentage?: number;

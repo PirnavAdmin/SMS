@@ -135,8 +135,9 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <SectionCard title="Basic Information" subtitle="Enter only the core staff details required to create the employee record.">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="flex flex-col gap-6">
+          <SectionCard title="Basic Information">
             <BasicStaffFormFields
               value={form}
               errors={errors}
@@ -145,6 +146,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
               employeeIdReadOnly
             />
           </SectionCard>
+        </div>
 
           <aside className="space-y-6">
             <SectionCard title="Registration Snapshot" subtitle="A quick preview of the employee record being created.">
@@ -200,11 +202,11 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   );
 };
 
-const SectionCard: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
+const SectionCard: React.FC<{ title: string; subtitle?: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
   <section className="rounded-[24px] border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-sm overflow-hidden">
     <div className="border-b border-slate-100 dark:border-slate-800 px-5 py-4">
       <h2 className="text-sm font-black text-slate-900 dark:text-white">{title}</h2>
-      <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>
+      {subtitle && <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>}
     </div>
     <div className="p-5">{children}</div>
   </section>

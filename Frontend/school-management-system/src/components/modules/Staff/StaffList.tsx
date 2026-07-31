@@ -21,6 +21,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
 
   const subjectDropdownRef = useRef<HTMLDivElement>(null);
   const deptDropdownRef = useRef<HTMLDivElement>(null);
+  const designationDropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (subjectDropdownRef.current && !subjectDropdownRef.current.contains(event.target as Node)) {
@@ -28,6 +29,9 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
       }
       if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target as Node)) {
         setDeptDropdownOpen(false);
+      }
+      if (designationDropdownRef.current && !designationDropdownRef.current.contains(event.target as Node)) {
+        setDesignationDropdownOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -43,6 +47,8 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
   const [subjectSearch, setSubjectSearch] = useState('');
   const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
   const [filterDesignation, setFilterDesignation] = useState('All');
+  const [designationSearch, setDesignationSearch] = useState('');
+  const [designationDropdownOpen, setDesignationDropdownOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
@@ -241,7 +247,8 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                         className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDept === dept ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
                         onClick={() => { setFilterDept(dept); setCurrentPage(1); setDeptDropdownOpen(false); setDeptSearch(''); }}
                       >
-                        {dept}
+                        <div className="font-semibold">{dept}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Code: {dept.substring(0, 3).toUpperCase()}</div>
                       </div>
                     ))}
                  </div>
@@ -295,7 +302,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                         >
                           All Subjects
                         </div>
-                        {subjects.filter(s => s.name.toLowerCase().includes(subjectSearch.toLowerCase()) || s.code.toLowerCase().includes(subjectSearch.toLowerCase())).map(sub => (
+                        {subjects.filter(s => s.name.toLowerCase().includes(subjectSearch.toLowerCase()) || (s.code || '').toLowerCase().includes(subjectSearch.toLowerCase())).map(sub => (
                           <div 
                             key={sub.id}
                             className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterSubject === sub.name ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
@@ -314,15 +321,48 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
           )}
           
           {activeCategory === 'Staff' && uniqueDesignations.length > 0 && (
-             <div className="flex-1 min-w-[140px] w-full flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 h-full">
-                <select
-                  value={filterDesignation}
-                  onChange={e => { setFilterDesignation(e.target.value); setCurrentPage(1); }}
-                  className="bg-transparent text-xs text-slate-900 dark:text-white font-semibold cursor-pointer outline-none w-full py-2 pr-6"
+             <div ref={designationDropdownRef} className="relative flex-1 min-w-[140px] w-full">
+                <div 
+                  className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+                  onClick={() => setDesignationDropdownOpen(!designationDropdownOpen)}
                 >
-                  <option value="All">All Designations</option>
-                  {uniqueDesignations.map(ds => <option key={ds} value={ds}>{ds}</option>)}
-                </select>
+                   <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
+                     {filterDesignation === 'All' ? 'All Designations' : filterDesignation}
+                   </span>
+                   <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 shrink-0" />
+                </div>
+                
+                {designationDropdownOpen && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-50 overflow-hidden">
+                     <div className="p-2 border-b border-slate-100 dark:border-slate-700">
+                        <input 
+                          type="text" 
+                          placeholder="Search designations..." 
+                          value={designationSearch}
+                          onChange={e => setDesignationSearch(e.target.value)}
+                          className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none text-slate-900 dark:text-white"
+                          onClick={e => e.stopPropagation()}
+                        />
+                     </div>
+                     <div className="max-h-[160px] overflow-y-auto py-1">
+                        <div 
+                          className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === 'All' ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
+                          onClick={() => { setFilterDesignation('All'); setCurrentPage(1); setDesignationDropdownOpen(false); setDesignationSearch(''); }}
+                        >
+                          All Designations
+                        </div>
+                        {uniqueDesignations.filter(d => d.toLowerCase().includes(designationSearch.toLowerCase())).slice(0, 5).map(desig => (
+                          <div 
+                            key={desig}
+                            className={`px-3 py-2.5 text-xs cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors ${filterDesignation === desig ? 'text-brand-600 font-bold bg-brand-50/50 dark:bg-brand-900/20' : 'text-slate-700 dark:text-slate-300'}`}
+                            onClick={() => { setFilterDesignation(desig); setCurrentPage(1); setDesignationDropdownOpen(false); setDesignationSearch(''); }}
+                          >
+                            {desig}
+                          </div>
+                        ))}
+                     </div>
+                  </div>
+                )}
              </div>
           )}
         </div>

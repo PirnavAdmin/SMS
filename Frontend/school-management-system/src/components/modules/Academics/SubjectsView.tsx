@@ -377,7 +377,6 @@ export const SubjectsView: React.FC = () => {
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Curriculum & Departments
           </h2>
-          <p className="text-slate-500 font-bold">Manage academic subjects, course codes, and organizational department structures</p>
         </div>
 
         {/* Sub-Navigation Tabs */}
