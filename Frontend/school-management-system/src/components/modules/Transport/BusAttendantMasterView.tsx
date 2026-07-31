@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, User } from 'lucide-react';
+import { UserCheck, Plus, Search, Edit, Trash2, Phone, ShieldCheck, Bus } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
@@ -14,8 +14,6 @@ export interface BusAttendantMaster {
   gender: 'Male' | 'Female' | 'Other';
   branch: string;
   status: 'Active' | 'Inactive' | 'On Leave';
-  assignedVehicleId?: string;
-  assignedVehicleNumber?: string;
 }
 
 export const initialBusAttendants: BusAttendantMaster[] = [
@@ -26,8 +24,7 @@ export const initialBusAttendants: BusAttendantMaster[] = [
     mobileNumber: '+1 (555) 019-8274',
     gender: 'Female',
     branch: 'Main Campus',
-    status: 'Active',
-    assignedVehicleNumber: 'BUS-101'
+    status: 'Active'
   },
   {
     id: 'att-2',
@@ -36,8 +33,7 @@ export const initialBusAttendants: BusAttendantMaster[] = [
     mobileNumber: '+1 (555) 019-8275',
     gender: 'Female',
     branch: 'Main Campus',
-    status: 'Active',
-    assignedVehicleNumber: 'BUS-102'
+    status: 'Active'
   },
   {
     id: 'att-3',
@@ -46,8 +42,7 @@ export const initialBusAttendants: BusAttendantMaster[] = [
     mobileNumber: '+1 (555) 019-8276',
     gender: 'Male',
     branch: 'North Branch',
-    status: 'Active',
-    assignedVehicleNumber: 'VAN-201'
+    status: 'Active'
   }
 ];
 
@@ -75,6 +70,10 @@ export const BusAttendantMasterView: React.FC = () => {
     a.employeeId.toLowerCase().includes(query.toLowerCase()) ||
     a.mobileNumber.toLowerCase().includes(query.toLowerCase())
   );
+
+  const resolveCurrentAssignment = (attendant: BusAttendantMaster) =>
+    vehicleAssignments.find(assignment => assignment.attendantId === attendant.id && assignment.status === 'Active') ||
+    vehicleAssignments.find(assignment => assignment.attendantName === attendant.attendantName && assignment.status === 'Active');
 
   const handleOpenAdd = () => {
     setEditingAttendant(null);
@@ -126,7 +125,7 @@ export const BusAttendantMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <UserCheck className="w-6 h-6 text-sky-500" /> Bus Attendants
           </h2>
-          <p className="text-xs text-slate-500">Manage bus attendant staff, contact information, branch allocations, and vehicle assignments</p>
+          <p className="text-xs text-slate-500">Manage bus attendant master data and view read-only assignment details from Vehicle Assignment</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -157,6 +156,7 @@ export const BusAttendantMasterView: React.FC = () => {
       {/* Attendant Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredAttendants.map(a => {
+          const currentAssignment = resolveCurrentAssignment(a);
           return (
             <div key={a.id} className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between">
               <div className="space-y-2">
@@ -174,7 +174,20 @@ export const BusAttendantMasterView: React.FC = () => {
                   <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-sky-600 flex items-center gap-1"><Phone className="w-3 h-3" /> {a.mobileNumber}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Gender:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{a.gender}</span></div>
                   <div className="flex justify-between"><span className="text-slate-400">Branch:</span><span className="font-bold text-amber-600 dark:text-amber-400">{a.branch}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Assigned Vehicle:</span><span className="font-mono font-bold text-emerald-600">{a.assignedVehicleNumber || 'BUS-101'}</span></div>
+                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
+                      <Bus className="w-3 h-3 text-emerald-500" /> Current Assignment
+                    </span>
+                    {currentAssignment ? (
+                      <>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Bus:</span><span className="font-bold text-slate-900 dark:text-white">{currentAssignment.vehicleNumber}</span></div>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Route:</span><span className="font-semibold text-sky-600 text-right">{currentAssignment.routeName}</span></div>
+                        <div className="flex justify-between gap-3"><span className="text-slate-400">Status:</span><span className="font-bold text-emerald-600">{currentAssignment.status}</span></div>
+                      </>
+                    ) : (
+                      <p className="text-[11px] text-slate-500">No active assignment</p>
+                    )}
+                  </div>
                 </div>
               </div>
 

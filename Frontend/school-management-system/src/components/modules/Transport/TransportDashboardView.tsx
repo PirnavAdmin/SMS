@@ -10,10 +10,10 @@ import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { VehicleAssignment } from '../../../types';
 
 interface TransportDashboardViewProps {
-  onNavigateToTrips?: () => void;
+  onNavigateToSection?: (section: 'setup' | 'operations' | 'reports') => void;
 }
 
-export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ onNavigateToTrips }) => {
+export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ onNavigateToSection }) => {
   const {
     vehicleMasters, routeMasters, driverMasters, studentTransports,
     vehicleAssignments, checkVehicleCapacity, feePayments, pickupPoints
@@ -172,17 +172,17 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Navigation className="w-5 h-5 text-sky-500" /> Today's Vehicle Trips Operational Status
+              <Navigation className="w-5 h-5 text-sky-500" /> Today's Transport Operations Status
             </h3>
             <p className="text-xs text-slate-400">Live operational overview of today's morning & evening school transit runs</p>
           </div>
 
-          {onNavigateToTrips && (
+          {onNavigateToSection && (
             <button
-              onClick={onNavigateToTrips}
+              onClick={() => onNavigateToSection('operations')}
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md shrink-0"
             >
-              <span>View All Vehicle Trips</span> <ArrowRight className="w-4 h-4" />
+              <span>Open Transport Operations</span> <ArrowRight className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -229,7 +229,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
                   <span className="text-xs font-bold text-slate-900 dark:text-white">{a.routeName}</span>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Driver: <strong className="text-sky-600">{a.driverName}</strong> • Attendant: <strong className="text-emerald-600">Mary Smith</strong>
+                  Driver: <strong className="text-sky-600">{a.driverName}</strong> • Attendant: <strong className="text-emerald-600">{a.attendantName || 'Unassigned'}</strong>
                 </p>
               </div>
 

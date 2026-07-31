@@ -1,7 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import {
-  LayoutDashboard, Building2, Layers, Home, UserPlus, UserCheck, FileSpreadsheet
-} from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 import { HostelDashboardView } from './HostelDashboardView';
 import { HostelMastersView } from './HostelMastersView';
@@ -13,7 +10,7 @@ interface HostelContainerViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
+export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard' }) => {
   const normalizedTab = initialTab.startsWith('hostel-') ? initialTab.replace('hostel-', '') : initialTab;
   const [activeTab, setActiveTab] = useState(normalizedTab);
 
@@ -21,18 +18,6 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
     const cleanTab = initialTab.startsWith('hostel-') ? initialTab.replace('hostel-', '') : initialTab;
     setActiveTab(cleanTab);
   }, [initialTab]);
-
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    if (onTabChange) onTabChange(`hostel-${tabId}`);
-  };
-
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'masters', label: 'Hostel Master Setup', icon: Building2 },
-    { id: 'student-hostel', label: 'Student Hostel Allocations', icon: UserPlus },
-    { id: 'reports', label: 'Hostel Reports', icon: FileSpreadsheet },
-  ];
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -59,31 +44,6 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Sticky Sub-Navigation Bar */}
-      <div className="glass-card p-2 rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-sm sticky top-0 z-30 overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-1.5 min-w-max">
-          {tabs.map(t => {
-            const Icon = t.icon;
-            const isActive = activeTab === t.id;
-            return (
-              <button
-                key={t.id}
-                onClick={() => handleTabChange(t.id)}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-extrabold scale-[1.02]'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-sky-500'}`} />
-                <span>{t.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Content Render */}
       <div>{renderTabContent()}</div>
     </div>
   );

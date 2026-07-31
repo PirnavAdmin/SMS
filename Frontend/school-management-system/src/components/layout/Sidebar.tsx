@@ -121,10 +121,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const transportSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transport-trips', label: 'Vehicle Trips', icon: Bus },
-    { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
-    { id: 'transport-student-assignment', label: 'Transport Assignment', icon: UserPlus },
-    { id: 'transport-reports', label: 'Transport Reports', icon: FileSpreadsheet },
+    { id: 'transport-setup', label: 'Route & Vehicle Setup', icon: Route },
+    { id: 'transport-operations', label: 'Transport Operations', icon: Layers },
+    { id: 'transport-reports', label: 'Reports', icon: FileSpreadsheet },
   ];
 
   const uniformSubItems = [
@@ -140,6 +139,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'staff-leave', label: 'Leave Management', icon: FileText },
     { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
   ];
+
+  const transportSetupModules = ['transport-setup', 'transport-masters', 'transport-route-management', 'transport-pickup-points', 'transport-vehicle-management', 'transport-driver-management', 'transport-bus-attendants', 'transport-routes', 'transport-pickups', 'transport-vehicles', 'transport-drivers', 'transport-attendants'];
+  const transportOperationsModules = ['transport-operations', 'transport-vehicle-assignment', 'transport-trip-scheduling', 'transport-student-transport-assignment', 'transport-gps-tracking', 'transport-maintenance', 'transport-trips', 'transport-student-assignment', 'transport-assignment', 'transport-vehicle-trips', 'transport-gps', 'transport-vehicle-maintenance'];
+  const transportReportModules = ['transport-reports', 'transport-dashboard-report', 'transport-trip-reports', 'transport-vehicle-reports', 'transport-driver-reports', 'transport-route-reports', 'transport-student-transport-reports', 'transport-maintenance-reports'];
 
   const menuGroups = [
     {
@@ -410,7 +413,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
                         {transportSubItems.map(sub => {
                           const SubIcon = sub.icon;
-                          const isSubActive = activeModule === sub.id || (sub.id === 'transport-dashboard' && activeModule === 'transport');
+                          const isSubActive =
+                            (sub.id === 'transport-dashboard' && ['transport-dashboard', 'transport'].includes(activeModule)) ||
+                            (sub.id === 'transport-setup' && (activeModule === 'transport-setup' || transportSetupModules.includes(activeModule))) ||
+                            (sub.id === 'transport-operations' && (activeModule === 'transport-operations' || transportOperationsModules.includes(activeModule))) ||
+                            (sub.id === 'transport-reports' && (activeModule === 'transport-reports' || transportReportModules.includes(activeModule)));
                           return (
                             <button
                               key={sub.id}

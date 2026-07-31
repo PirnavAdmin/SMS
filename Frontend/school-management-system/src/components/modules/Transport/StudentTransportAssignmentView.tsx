@@ -172,7 +172,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Bus className="w-6 h-6 text-sky-500" /> Transport Allocation
+            <Bus className="w-6 h-6 text-sky-500" /> Student Transport Assignment
           </h2>
           <p className="text-xs text-slate-500">Allocate transport routes & pickup stops to students with strict seat capacity enforcement and history tracking</p>
         </div>
@@ -182,7 +182,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <UserPlus className="w-4 h-4" /> Assign Transport
+            <UserPlus className="w-4 h-4" /> Assign Student Transport
           </button>
           <ExportButton data={studentTransports} filename="student_transport_allocations" />
         </div>

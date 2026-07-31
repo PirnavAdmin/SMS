@@ -1,84 +1,200 @@
-import React, { useState, useEffect } from 'react';
-import {
-  LayoutDashboard, Route, MapPin, Bus, Users, Layers, UserPlus,
-  IndianRupee, Wrench, FileSpreadsheet, Navigation, Clock
-} from 'lucide-react';
-
+import React, { useEffect, useState } from 'react';
+import { Link2, CalendarClock, Navigation, Wrench } from 'lucide-react';
 import { TransportDashboardView } from './TransportDashboardView';
-import { VehicleTripsView } from './VehicleTripsView';
 import { TransportMastersView } from './TransportMastersView';
-import { StudentTransportAssignmentView } from './StudentTransportAssignmentView';
 import { TransportReportsView } from './TransportReportsView';
+import { VehicleAssignmentView } from './VehicleAssignmentView';
+import { VehicleTripsView } from './VehicleTripsView';
+import { TransportGPSTrackingView } from './TransportGPSTrackingView';
+import { VehicleMaintenanceView } from './VehicleMaintenanceView';
+import { TransportScrollableTabs } from './TransportScrollableTabs';
+import { VehicleAssignment } from '../../../types';
 
 interface TransportContainerViewProps {
   initialTab?: string;
   onTabChange?: (tab: string) => void;
 }
 
+type TransportSectionTab = 'dashboard' | 'setup' | 'operations' | 'reports';
+type TransportOperationTab = 'vehicle-assignment' | 'vehicle-trips' | 'gps-tracking' | 'maintenance';
+type TransportSectionState = {
+  section: TransportSectionTab;
+  childTab: string;
+};
+
+const OPERATION_TABS = [
+  { id: 'vehicle-assignment', label: 'Vehicle Assignment', icon: Link2 },
+  { id: 'vehicle-trips', label: 'Vehicle Trips', icon: CalendarClock },
+  { id: 'gps-tracking', label: 'GPS Tracking', icon: Navigation },
+  { id: 'maintenance', label: 'Maintenance', icon: Wrench }
+] as const;
+
+const normalizeOperationTab = (tab?: string): TransportOperationTab => {
+  const cleanTab = (tab || 'vehicle-assignment').replace(/^transport-/, '');
+
+  switch (cleanTab) {
+    case 'operations':
+    case 'vehicle-assignment':
+    case 'assignments':
+    case 'vehicle-assignments':
+    case 'transport-assignment':
+    case 'student-transport-assignment':
+    case 'student-assignment':
+      return 'vehicle-assignment';
+    case 'vehicle-trips':
+    case 'trip-scheduling':
+    case 'trips':
+      return 'vehicle-trips';
+    case 'gps-tracking':
+    case 'gps':
+      return 'gps-tracking';
+    case 'maintenance':
+    case 'vehicle-maintenance':
+      return 'maintenance';
+    default:
+      return 'vehicle-assignment';
+  }
+};
+
+const normalizeSectionState = (tab?: string): TransportSectionState => {
+  const cleanTab = (tab || 'transport-dashboard').replace(/^transport-/, '');
+
+  switch (cleanTab) {
+    case 'dashboard':
+      return { section: 'dashboard', childTab: '' };
+    case 'setup':
+    case 'masters':
+    case 'route-management':
+    case 'routes':
+    case 'pickup-points':
+    case 'pickups':
+    case 'vehicle-management':
+    case 'vehicles':
+    case 'driver-management':
+    case 'drivers':
+    case 'bus-attendants':
+    case 'attendants':
+      return { section: 'setup', childTab: cleanTab };
+    case 'operations':
+    case 'student-transport-assignment':
+    case 'transport-assignment':
+    case 'student-assignment':
+      return { section: 'operations', childTab: 'vehicle-assignment' };
+    case 'vehicle-assignment':
+    case 'assignments':
+    case 'vehicle-assignments':
+      return { section: 'operations', childTab: 'vehicle-assignment' };
+    case 'trip-scheduling':
+    case 'vehicle-trips':
+    case 'trips':
+      return { section: 'operations', childTab: 'vehicle-trips' };
+    case 'gps-tracking':
+    case 'gps':
+      return { section: 'operations', childTab: 'gps-tracking' };
+    case 'maintenance':
+    case 'vehicle-maintenance':
+      return { section: 'operations', childTab: 'maintenance' };
+    case 'reports':
+    case 'dashboard-report':
+    case 'transport-dashboard-report':
+    case 'trip-reports':
+    case 'vehicle-reports':
+    case 'driver-reports':
+    case 'route-reports':
+    case 'student-transport-reports':
+    case 'maintenance-reports':
+      return { section: 'reports', childTab: cleanTab };
+    default:
+      return { section: 'dashboard', childTab: '' };
+  }
+};
+
 export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ initialTab = 'transport-dashboard', onTabChange }) => {
-  const normalizedTab = initialTab.startsWith('transport-') ? initialTab : `transport-${initialTab}`;
-  const [activeTab, setActiveTab] = useState(normalizedTab);
+  const initialState = normalizeSectionState(initialTab);
+  const [activeSection, setActiveSection] = useState<TransportSectionTab>(initialState.section);
+  const [sectionSeedTab, setSectionSeedTab] = useState(initialState.childTab);
+  const [activeOperationTab, setActiveOperationTab] = useState<TransportOperationTab>(
+    initialState.section === 'operations' ? normalizeOperationTab(initialState.childTab) : 'vehicle-assignment'
+  );
+  const [gpsSeedVehicleId, setGpsSeedVehicleId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    const cleanTab = initialTab.startsWith('transport-') ? initialTab : `transport-${initialTab}`;
-    setActiveTab(cleanTab);
+    const nextState = normalizeSectionState(initialTab);
+    setActiveSection(nextState.section);
+    setSectionSeedTab(nextState.childTab);
+    setActiveOperationTab(nextState.section === 'operations' ? normalizeOperationTab(nextState.childTab) : 'vehicle-assignment');
   }, [initialTab]);
 
-  const handleTabChange = (tabId: string) => {
-    setActiveTab(tabId);
-    if (onTabChange) onTabChange(tabId);
+  const handleSectionChange = (section: TransportSectionTab) => {
+    setActiveSection(section);
+
+    switch (section) {
+      case 'dashboard':
+        setSectionSeedTab('');
+        onTabChange?.('transport-dashboard');
+        break;
+      case 'setup':
+        setSectionSeedTab('routes');
+        onTabChange?.('transport-setup');
+        break;
+      case 'operations':
+        setSectionSeedTab('vehicle-assignment');
+        setActiveOperationTab('vehicle-assignment');
+        setGpsSeedVehicleId(undefined);
+        onTabChange?.('transport-operations');
+        break;
+      case 'reports':
+        setSectionSeedTab('transport-dashboard-report');
+        onTabChange?.('transport-reports');
+        break;
+      default:
+        setSectionSeedTab('');
+    }
   };
 
-  const tabs = [
-    { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transport-trips', label: 'Vehicle Trips', icon: Bus },
-    { id: 'transport-masters', label: 'Route & Vehicle Setup', icon: Route },
-    { id: 'transport-student-assignment', label: 'Transport Assignment', icon: UserPlus },
-    { id: 'transport-reports', label: 'Transport Reports', icon: FileSpreadsheet },
-  ];
+  const handleOpenGps = (assignment: VehicleAssignment) => {
+    setActiveSection('operations');
+    setSectionSeedTab('gps-tracking');
+    setActiveOperationTab('gps-tracking');
+    setGpsSeedVehicleId(assignment.vehicleId);
+    onTabChange?.('transport-operations');
+  };
 
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'transport-dashboard':
-        return <TransportDashboardView onNavigateToTrips={() => handleTabChange('transport-trips')} />;
-      case 'transport-trips':
-        return <VehicleTripsView />;
-      case 'transport-masters':
-        return <TransportMastersView />;
-      case 'transport-student-assignment':
-        return <StudentTransportAssignmentView />;
-      case 'transport-reports':
-        return <TransportReportsView />;
+    switch (activeSection) {
+      case 'dashboard':
+        return <TransportDashboardView onNavigateToSection={handleSectionChange} />;
+      case 'setup':
+        return <TransportMastersView initialTab={sectionSeedTab || 'routes'} />;
+      case 'operations':
+        return (
+          <div className="space-y-5 animate-in fade-in">
+            <TransportScrollableTabs
+              title="Transport Operations"
+              subtitle="Assign fleet resources, review trips, monitor GPS, and manage maintenance."
+              tabs={OPERATION_TABS}
+              activeId={activeOperationTab}
+              onChange={tabId => setActiveOperationTab(tabId as TransportOperationTab)}
+              sticky={false}
+            />
+
+            <div>
+              {activeOperationTab === 'vehicle-assignment' && <VehicleAssignmentView />}
+              {activeOperationTab === 'vehicle-trips' && <VehicleTripsView onOpenGps={handleOpenGps} />}
+              {activeOperationTab === 'gps-tracking' && <TransportGPSTrackingView initialVehicleId={gpsSeedVehicleId} />}
+              {activeOperationTab === 'maintenance' && <VehicleMaintenanceView />}
+            </div>
+          </div>
+        );
+      case 'reports':
+        return <TransportReportsView initialTab={sectionSeedTab || 'transport-dashboard-report'} />;
       default:
-        return <TransportDashboardView onNavigateToTrips={() => handleTabChange('transport-trips')} />;
+        return <TransportDashboardView onNavigateToSection={handleSectionChange} />;
     }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Sticky Sub-Navigation Header */}
-      <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
-        {tabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
-                isActive
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main Sub-Module Body */}
+    <div className="space-y-4 animate-in fade-in">
       {renderTabContent()}
     </div>
   );

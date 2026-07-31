@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Bus, Route as RouteIcon, Users, UserCheck, Phone, Clock, ArrowRight,
-  Search, Filter, Calendar, Eye, AlertTriangle, CheckCircle, Navigation,
-  ShieldCheck, Signal, Radio, Cpu, QrCode
-} from 'lucide-react';
+import { Bus, Users, UserCheck, Phone, Eye, Search, Navigation, Signal } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
@@ -11,10 +7,32 @@ import { initialBusAttendants } from './BusAttendantMasterView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { VehicleAssignment } from '../../../types';
 
-export const VehicleTripsView: React.FC = () => {
+interface VehicleTripsViewProps {
+  onOpenGps?: (assignment: VehicleAssignment) => void;
+}
+
+const formatTripTime = (value?: string) => {
+  if (!value) return 'Not set';
+  if (value.includes('AM') || value.includes('PM')) return value;
+
+  const [hourText, minuteText] = value.split(':');
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+
+  const suffix = hour >= 12 ? 'PM' : 'AM';
+  const displayHour = hour % 12 || 12;
+  return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
+};
+
+export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps }) => {
   const {
-    vehicleAssignments, vehicleMasters, driverMasters, routeMasters,
-    studentTransports, checkVehicleCapacity
+    vehicleAssignments,
+    vehicleMasters,
+    driverMasters,
+    routeMasters,
+    studentTransports
   } = useData();
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -26,46 +44,70 @@ export const VehicleTripsView: React.FC = () => {
   const [filterVehicle, setFilterVehicle] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
 
-  // Modal State for Vehicle Trip Details
   const [selectedAssignment, setSelectedAssignment] = useState<VehicleAssignment | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [modalDefaultTab, setModalDefaultTab] = useState<'overview' | 'morning' | 'evening' | 'students' | 'gps' | 'history'>('overview');
 
-  // Filter Active Vehicle Assignments
-  const filteredAssignments = vehicleAssignments.filter(a => {
-    const veh = vehicleMasters.find(v => v.id === a.vehicleId || v.vehicleNumber === a.vehicleNumber);
-    const drv = driverMasters.find(d => d.id === a.driverId || d.driverName === a.driverName);
-    const rt = routeMasters.find(r => r.id === a.routeId || r.routeName === a.routeName);
-    const attName = 'Mary Smith';
+  const resolveAttendant = (assignment: VehicleAssignment) => {
+    const attendant = initialBusAttendants.find(a =>
+      a.id === assignment.attendantId ||
+      a.attendantName === assignment.attendantName
+    );
 
-    const matchesSearch =
-      a.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      attName.toLowerCase().includes(searchQuery.toLowerCase());
+    return {
+      name: assignment.attendantName || attendant?.attendantName || 'Unassigned',
+      mobile: assignment.attendantMobile || attendant?.mobileNumber || ''
+    };
+  };
 
-    const matchesRoute = filterRoute === 'All' || a.routeId === filterRoute || a.routeName === filterRoute;
-    const matchesDriver = filterDriver === 'All' || a.driverId === filterDriver || a.driverName === filterDriver;
-    const matchesVehicle = filterVehicle === 'All' || a.vehicleId === filterVehicle || a.vehicleNumber === filterVehicle;
-
-    return matchesSearch && matchesRoute && matchesDriver && matchesVehicle;
-  });
-
-  const handleOpenTripDetails = (assignment: VehicleAssignment, tab: 'overview' | 'morning' | 'evening' | 'students' | 'gps' | 'history' = 'overview') => {
+  const handleOpenTripDetails = (assignment: VehicleAssignment) => {
     setSelectedAssignment(assignment);
-    setModalDefaultTab(tab);
     setIsDetailsModalOpen(true);
   };
 
+  const filteredAssignments = vehicleAssignments.filter(assignment => {
+    const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
+    const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
+    const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName);
+    const attendant = resolveAttendant(assignment);
+    const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
+    const academicYear = assignment.academicYear || '2026-2027';
+    const branch = assignment.branch || 'Main Campus';
+
+    const matchesSearch =
+      assignment.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      assignment.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      assignment.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      attendant.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRoute = filterRoute === 'All' || assignment.routeId === filterRoute || assignment.routeName === filterRoute;
+    const matchesDriver = filterDriver === 'All' || assignment.driverId === filterDriver || assignment.driverName === filterDriver;
+    const matchesVehicle = filterVehicle === 'All' || assignment.vehicleId === filterVehicle || assignment.vehicleNumber === filterVehicle;
+    const matchesStatus = filterStatus === 'All' || statusText === filterStatus;
+    const matchesAcademicYear = filterAcademicYear === 'All' || academicYear === filterAcademicYear;
+    const matchesBranch = filterBranch === 'All' || branch === filterBranch;
+
+    return matchesSearch && matchesRoute && matchesDriver && matchesVehicle && matchesStatus && matchesAcademicYear && matchesBranch && !!vehicle && !!route;
+  });
+
+  const runningCount = filteredAssignments.filter(assignment => assignment.status === 'Active').length;
+  const offlineGpsCount = filteredAssignments.filter(assignment => {
+    const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
+    return assignment.gpsStatus ? assignment.gpsStatus === 'Offline' : !vehicle?.gpsDeviceId;
+  }).length;
+  const activeMorningTrips = filteredAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.morningTripTime).length;
+  const activeEveningTrips = filteredAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.eveningTripTime).length;
+  const studentsOnBoard = studentTransports.filter(st => st.status === 'Active').length;
+
   return (
-    <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-5 animate-in fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Bus className="w-6 h-6 text-sky-500" /> Vehicle Trips
           </h2>
-          <p className="text-xs text-slate-500">Real-time daily transport monitoring screen, live GPS tracking, trip lifecycle states, and parent broadcast logs</p>
+          <p className="text-xs text-slate-500">
+            Trip operations, route coverage, vehicle crew, and movement status for the current transport cycle.
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -81,16 +123,15 @@ export const VehicleTripsView: React.FC = () => {
         </div>
       </div>
 
-      {/* OPERATIONAL LIVE DASHBOARD WIDGETS (7 Exact Operational Indicators) */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 text-xs">
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicles Running</span>
-          <p className="text-lg font-black text-slate-900 dark:text-white font-mono">{filteredAssignments.length}</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white font-mono">{runningCount}</p>
         </div>
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-emerald-500 space-y-1">
           <span className="text-[10px] font-bold text-emerald-500 uppercase block">Trips Completed</span>
-          <p className="text-lg font-black text-emerald-600 font-mono">3 / {filteredAssignments.length}</p>
+          <p className="text-lg font-black text-emerald-600 font-mono">{Math.max(0, filteredAssignments.length - runningCount)}</p>
         </div>
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-amber-500 space-y-1">
@@ -100,28 +141,27 @@ export const VehicleTripsView: React.FC = () => {
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
           <span className="text-[10px] font-bold text-sky-500 uppercase block">Offline GPS Devices</span>
-          <p className="text-lg font-black text-sky-600 font-mono">0</p>
+          <p className="text-lg font-black text-sky-600 font-mono">{offlineGpsCount}</p>
         </div>
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-600 space-y-1">
           <span className="text-[10px] font-bold text-sky-600 uppercase block">Active Morning Trips</span>
-          <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono">{filteredAssignments.length}</p>
-        </div>
-
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
-          <span className="text-[10px] font-bold text-sky-500 uppercase block">Active Evening Trips</span>
-          <p className="text-lg font-black text-sky-600 font-mono">{filteredAssignments.length}</p>
+          <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono">{activeMorningTrips}</p>
         </div>
 
         <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-emerald-600 space-y-1">
           <span className="text-[10px] font-bold text-emerald-600 uppercase block">Students On Board</span>
-          <p className="text-lg font-black text-emerald-600 font-mono">42 / {studentTransports.length}</p>
+          <p className="text-lg font-black text-emerald-600 font-mono">{studentsOnBoard}</p>
+        </div>
+
+        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+          <span className="text-[10px] font-bold text-sky-500 uppercase block">Active Evening Trips</span>
+          <p className="text-lg font-black text-sky-600 font-mono">{activeEveningTrips}</p>
         </div>
       </div>
 
-      {/* Search & Multi-Level Filters Bar */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between gap-4 overflow-x-auto w-full">
-        <div className="relative w-64 shrink-0">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between overflow-x-auto w-full">
+        <div className="relative w-full xl:w-72 shrink-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
@@ -132,103 +172,101 @@ export const VehicleTripsView: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div>
-            <select
-              value={filterBranch}
-              onChange={e => setFilterBranch(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="All">All Branches</option>
-              <option value="Main Campus">Main Campus</option>
-              <option value="North Branch">North Branch</option>
-              <option value="West Campus">West Campus</option>
-            </select>
-          </div>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <select
+            value={filterAcademicYear}
+            onChange={e => setFilterAcademicYear(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Academic Years</option>
+            <option value="2026-2027">2026-2027</option>
+            <option value="2025-2026">2025-2026</option>
+          </select>
 
-          <div>
-            <select
-              value={filterRoute}
-              onChange={e => setFilterRoute(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="All">All Routes</option>
-              {routeMasters.map(r => <option key={r.id} value={r.id}>{r.routeName}</option>)}
-            </select>
-          </div>
+          <select
+            value={filterBranch}
+            onChange={e => setFilterBranch(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Branches</option>
+            <option value="Main Campus">Main Campus</option>
+            <option value="North Branch">North Branch</option>
+            <option value="West Campus">West Campus</option>
+          </select>
 
-          <div>
-            <select
-              value={filterDriver}
-              onChange={e => setFilterDriver(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="All">All Drivers</option>
-              {driverMasters.map(d => <option key={d.id} value={d.id}>{d.driverName}</option>)}
-            </select>
-          </div>
+          <select
+            value={filterRoute}
+            onChange={e => setFilterRoute(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Routes</option>
+            {routeMasters.map(route => <option key={route.id} value={route.id}>{route.routeName}</option>)}
+          </select>
 
-          <div>
-            <select
-              value={filterVehicle}
-              onChange={e => setFilterVehicle(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="All">All Vehicles</option>
-              {vehicleMasters.map(v => <option key={v.id} value={v.id}>{v.vehicleNumber}</option>)}
-            </select>
-          </div>
+          <select
+            value={filterDriver}
+            onChange={e => setFilterDriver(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Drivers</option>
+            {driverMasters.map(driver => <option key={driver.id} value={driver.id}>{driver.driverName}</option>)}
+          </select>
 
-          <div>
-            <select
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="All">All Trip Statuses</option>
-              <option value="Ready">Ready</option>
-              <option value="Running">Running</option>
-              <option value="Completed">Completed</option>
-              <option value="Delayed">Delayed</option>
-            </select>
-          </div>
+          <select
+            value={filterVehicle}
+            onChange={e => setFilterVehicle(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Vehicles</option>
+            {vehicleMasters.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.vehicleNumber}</option>)}
+          </select>
+
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+          >
+            <option value="All">All Trip Statuses</option>
+            <option value="Running">Running</option>
+            <option value="Completed">Completed</option>
+          </select>
         </div>
       </div>
 
-      {/* ACTIVE VEHICLE TRIP CARDS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredAssignments.map(a => {
-          const veh = vehicleMasters.find(v => v.id === a.vehicleId || v.vehicleNumber === a.vehicleNumber);
-          const drv = driverMasters.find(d => d.id === a.driverId || d.driverName === a.driverName);
-          const rt = routeMasters.find(r => r.id === a.routeId || r.routeName === a.routeName);
-          const attendantName = 'Mary Smith';
-          const attendantMobile = '+1 (555) 019-8274';
-
-          const capacity = veh ? veh.capacity : 50;
-          const assignedCount = studentTransports.filter(s => s.routeId === rt?.id || s.routeName === a.routeName).length || 46;
-          const statusText = 'Running';
-          const gpsOnline = true;
+        {filteredAssignments.map(assignment => {
+          const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
+          const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
+          const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName);
+          const attendant = resolveAttendant(assignment);
+          const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
+          const assignedCount =
+            assignment.assignedStudents ??
+            studentTransports.filter(st => st.routeId === route?.id || st.routeName === assignment.routeName).length;
+          const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
+          const gpsOnline = assignment.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle?.gpsDeviceId;
+          const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
+          const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
 
           return (
             <div
-              key={a.id}
-              onClick={() => handleOpenTripDetails(a, 'overview')}
+              key={assignment.id}
+              onClick={() => handleOpenTripDetails(assignment)}
               className="glass-card p-6 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 transition-all cursor-pointer shadow-sm group hover:shadow-lg"
             >
-              {/* Card Header */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-xs font-black px-3 py-1.5 rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 group-hover:bg-sky-600 group-hover:text-white transition-colors">
-                    {a.vehicleNumber}
+                    {assignment.vehicleNumber}
                   </span>
                   <div>
-                    <h3 className="font-black text-base text-slate-900 dark:text-white">{a.routeName}</h3>
-                    <p className="text-[11px] text-slate-400 font-mono">Reg: {veh?.registrationNumber || 'NY-99-AB-1001'}</p>
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">{assignment.routeName}</h3>
+                    <p className="text-[11px] text-slate-400 font-mono">Reg: {vehicle?.registrationNumber || 'NY-99-AB-1001'}</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Badge variant="success" size="sm">{statusText}</Badge>
+                  <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">{statusText}</Badge>
                   {gpsOnline ? (
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1">
                       <Signal className="w-3 h-3 text-emerald-500 animate-pulse" /> GPS Online
@@ -239,22 +277,28 @@ export const VehicleTripsView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Crew Details: Driver & Bus Attendant */}
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1"><Users className="w-3 h-3 text-sky-500" /> Commercial Driver</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{drv?.driverName || a.driverName}</p>
-                  <p className="text-[11px] text-sky-600 font-mono font-bold flex items-center gap-1"><Phone className="w-3 h-3" /> {drv?.mobileNumber || '+1 555-333-333'}</p>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
+                    <Users className="w-3 h-3 text-sky-500" /> Commercial Driver
+                  </span>
+                  <p className="font-bold text-slate-900 dark:text-white">{driver?.driverName || assignment.driverName}</p>
+                  <p className="text-[11px] text-sky-600 font-mono font-bold flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> {driver?.mobileNumber || '+1 555-333-333'}
+                  </p>
                 </div>
 
                 <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1"><UserCheck className="w-3 h-3 text-emerald-500" /> Bus Attendant</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{attendantName}</p>
-                  <p className="text-[11px] text-emerald-600 font-mono font-bold flex items-center gap-1"><Phone className="w-3 h-3" /> {attendantMobile}</p>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
+                    <UserCheck className="w-3 h-3 text-emerald-500" /> Bus Attendant
+                  </span>
+                  <p className="font-bold text-slate-900 dark:text-white">{attendant.name}</p>
+                  <p className="text-[11px] text-emerald-600 font-mono font-bold flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> {attendant.mobile || 'N/A'}
+                  </p>
                 </div>
               </div>
 
-              {/* Timings & Capacity Bar */}
               <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-3 rounded-2xl border">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Students</span>
@@ -262,29 +306,28 @@ export const VehicleTripsView: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Morning Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">07:15 - 08:20 AM</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{morningTripTime}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Evening Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">04:10 - 05:15 PM</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{eveningTripTime}</span>
                 </div>
               </div>
 
-              {/* Action Buttons: Live GPS Tracking & Details */}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
-                    handleOpenTripDetails(a, 'gps');
+                    onOpenGps?.(assignment);
                   }}
                   className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20"
                 >
-                  <Navigation className="w-3.5 h-3.5" /> 📍 Live GPS Tracking
+                  <Navigation className="w-3.5 h-3.5" /> Open GPS
                 </button>
                 <button
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
-                    handleOpenTripDetails(a, 'overview');
+                    handleOpenTripDetails(assignment);
                   }}
                   className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1"
                 >
@@ -296,12 +339,10 @@ export const VehicleTripsView: React.FC = () => {
         })}
       </div>
 
-      {/* VEHICLE TRIP DETAILS MODAL */}
       <VehicleTripDetailsModal
         assignment={selectedAssignment}
         isOpen={isDetailsModalOpen}
         onClose={() => setIsDetailsModalOpen(false)}
-        defaultTab={modalDefaultTab}
       />
     </div>
   );
