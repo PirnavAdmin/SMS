@@ -3,7 +3,7 @@ import {
   Calendar, CalendarCheck, Search, Filter, Save, CheckCircle, HelpCircle, XCircle, Users, 
   CheckCircle2, AlertTriangle, Printer, FileSpreadsheet, Download, RefreshCw, 
   Lock, Unlock, Clock, Building2, UserCheck, ShieldAlert, Award, FileText, 
-  ChevronRight, Layers, SlidersHorizontal, UserX, Info, CheckSquare, Square, BarChart3,
+  ChevronRight, Layers, SlidersHorizontal, UserX, Info, CheckSquare, Square,
   Plus, LogIn, LogOut
 } from 'lucide-react';
 import { DailyAttendance, Staff } from '../../../types';
@@ -11,7 +11,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 
-type AttendanceTab = 'teaching' | 'non-teaching' | 'register' | 'reports';
+type AttendanceTab = 'teaching' | 'non-teaching';
 
 export const StaffAttendanceView: React.FC = () => {
   const { staff, attendance, markAttendance, leaveApplications, holidays, schoolProfile } = useData();
@@ -713,8 +713,8 @@ export const StaffAttendanceView: React.FC = () => {
 
   // Shared / Tab Filter States
   const [academicYear, setAcademicYear] = useState('2026-2027');
-  const [selectedBranch, setSelectedBranch] = useState('Main Campus');
   const [attendanceDate, setAttendanceDate] = useState(todayStr);
+  const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
 
   // Teaching Staff Filters
   const [teachingDept, setTeachingDept] = useState('All');
@@ -726,18 +726,10 @@ export const StaffAttendanceView: React.FC = () => {
   const [nonTeachingDesignation, setNonTeachingDesignation] = useState('All');
   const [nonTeachingQuery, setNonTeachingQuery] = useState('');
 
-  // Register Filters (Tab 3)
-  const [regEmpType, setRegEmpType] = useState<'Teaching Staff' | 'Non-Teaching Staff'>('Teaching Staff');
-  const [regDept, setRegDept] = useState('All');
+  // Register Filters (Tab 3 logic now in viewMode='monthly')
   const [regEmpId, setRegEmpId] = useState('All');
   const [regMonth, setRegMonth] = useState<number>(new Date().getMonth());
   const [regYear, setRegYear] = useState<number>(new Date().getFullYear());
-
-  // Report Filters (Tab 4)
-  const [reportType, setReportType] = useState<'Daily' | 'Monthly' | 'Department' | 'Employee' | 'Branch' | 'Absence' | 'Leave'>('Daily');
-  const [reportMonth, setReportMonth] = useState<number>(new Date().getMonth());
-  const [reportYear, setReportYear] = useState<number>(new Date().getFullYear());
-  const [reportDept, setReportDept] = useState('All');
 
   // Local Attendance State Maps: employeeId -> values
   const [attendanceMap, setAttendanceMap] = useState<Record<string, 'Present' | 'Absent' | 'Late' | 'HalfDay' | 'Leave'>>({});
@@ -998,13 +990,16 @@ export const StaffAttendanceView: React.FC = () => {
   const registerStaffList = useMemo(() => {
     return staff.filter(s => {
       const isTeacher = s.employeeCategory === 'Teacher';
-      if (regEmpType === 'Teaching Staff' && !isTeacher) return false;
-      if (regEmpType === 'Non-Teaching Staff' && isTeacher) return false;
-      if (regDept !== 'All' && (s.department || '').toLowerCase() !== regDept.toLowerCase()) return false;
+      if (activeTab === 'teaching' && !isTeacher) return false;
+      if (activeTab === 'non-teaching' && isTeacher) return false;
+      
+      const activeDept = activeTab === 'teaching' ? teachingDept : nonTeachingDept;
+      if (activeDept !== 'All' && (s.department || '').toLowerCase() !== activeDept.toLowerCase()) return false;
+      
       if (regEmpId !== 'All' && s.id !== regEmpId) return false;
       return s.status === 'Active';
     });
-  }, [staff, regEmpType, regDept, regEmpId]);
+  }, [staff, activeTab, teachingDept, nonTeachingDept, regEmpId]);
 
   return (
     <div className="space-y-6 animate-in fade-in text-xs pb-12">
@@ -1028,55 +1023,67 @@ export const StaffAttendanceView: React.FC = () => {
         )}
       </div>
 
-      {/* Main Module Tabs (Teaching, Non-Teaching, Register, Reports) */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        <button
-          onClick={() => setActiveTab('teaching')}
-          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-            activeTab === 'teaching'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          <Users className="w-4 h-4" /> Teaching Staff
-        </button>
+      {/* Main Module Tabs (Teaching, Non-Teaching) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setActiveTab('teaching')}
+            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
+              activeTab === 'teaching'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            <Users className="w-4 h-4" /> Teaching Staff
+          </button>
 
-        <button
-          onClick={() => setActiveTab('non-teaching')}
-          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-            activeTab === 'non-teaching'
-              ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          <Building2 className="w-4 h-4" /> Non-Teaching Staff
-        </button>
+          <button
+            onClick={() => setActiveTab('non-teaching')}
+            className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
+              activeTab === 'non-teaching'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-600/20'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+            }`}
+          >
+            <Building2 className="w-4 h-4" /> Non-Teaching Staff
+          </button>
+        </div>
 
-        <button
-          onClick={() => setActiveTab('register')}
-          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-            activeTab === 'register'
-              ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          <FileSpreadsheet className="w-4 h-4" /> Attendance Register
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl flex items-center shadow-inner">
+            <button
+              onClick={() => setViewMode('daily')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                viewMode === 'daily' 
+                  ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+              }`}
+            >
+              Daily Attendance
+            </button>
+            <button
+              onClick={() => setViewMode('monthly')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                viewMode === 'monthly' 
+                  ? 'bg-white dark:bg-slate-700 text-brand-700 dark:text-brand-300 shadow-sm' 
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
+              }`}
+            >
+              Monthly Register
+            </button>
+          </div>
 
-        <button
-          onClick={() => setActiveTab('reports')}
-          className={`px-4 py-2 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all ${
-            activeTab === 'reports'
-              ? 'bg-sky-600 text-white shadow-md shadow-sky-600/20'
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" /> Attendance Reports
-        </button>
+          <button
+            onClick={() => addToast('success', 'Report Downloaded', 'The attendance report has been exported to Excel.')}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
+          >
+            <FileSpreadsheet className="w-4 h-4" /> Export Report
+          </button>
+        </div>
       </div>
 
-      {/* TABS 1 & 2: DAILY ATTENDANCE MARKING (TEACHING & NON-TEACHING) */}
-      {(activeTab === 'teaching' || activeTab === 'non-teaching') && (
+      {/* DAILY ATTENDANCE MARKING (TEACHING & NON-TEACHING) */}
+      {(activeTab === 'teaching' || activeTab === 'non-teaching') && viewMode === 'daily' && (
         <div className="space-y-5">
           {/* Filters Bar */}
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
@@ -1096,19 +1103,7 @@ export const StaffAttendanceView: React.FC = () => {
                 </div>
               )}
 
-              {/* Branch Select */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Branch</label>
-                <select
-                  value={selectedBranch}
-                  onChange={e => setSelectedBranch(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
-                >
-                  <option value="Main Campus">Main Campus</option>
-                  <option value="North Wing">North Wing</option>
-                  <option value="West Campus">West Campus</option>
-                </select>
-              </div>
+
 
               {/* Attendance Date */}
               <div>
@@ -1432,49 +1427,12 @@ export const StaffAttendanceView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 3: MONTHLY ATTENDANCE REGISTER */}
-      {activeTab === 'register' && (
+      {/* MONTHLY ATTENDANCE REGISTER */}
+      {(activeTab === 'teaching' || activeTab === 'non-teaching') && viewMode === 'monthly' && (
         <div className="space-y-5">
           {/* Register Filter Controls */}
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Employee Type</label>
-                <select
-                  value={regEmpType}
-                  onChange={e => setRegEmpType(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
-                >
-                  <option value="Teaching Staff">Teaching Staff</option>
-                  <option value="Non-Teaching Staff">Non-Teaching Staff</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Branch</label>
-                <select
-                  value={selectedBranch}
-                  onChange={e => setSelectedBranch(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
-                >
-                  <option value="Main Campus">Main Campus</option>
-                  <option value="North Wing">North Wing</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">Department</label>
-                <select
-                  value={regDept}
-                  onChange={e => setRegDept(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
-                >
-                  <option value="All">All Departments</option>
-                  {(regEmpType === 'Teaching Staff' ? teachingDepts : nonTeachingDepartments).map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1">Specific Employee</label>
@@ -1520,7 +1478,7 @@ export const StaffAttendanceView: React.FC = () => {
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-sky-600" />
-                Monthly Register: {monthNames[regMonth]} {regYear} ({regEmpType})
+                Monthly Register: {monthNames[regMonth]} {regYear} ({activeTab === 'teaching' ? 'Teaching Staff' : 'Non-Teaching Staff'})
               </h3>
               <div className="flex items-center gap-2 text-[10px] font-bold">
                 <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-800">P = Present</span>
@@ -1604,149 +1562,7 @@ export const StaffAttendanceView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 4: ATTENDANCE REPORTS & ANALYTICS */}
-      {activeTab === 'reports' && (
-        <div className="space-y-5">
-          {/* Report Config Bar */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Report Type</label>
-                  <select
-                    value={reportType}
-                    onChange={e => setReportType(e.target.value as any)}
-                    className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
-                  >
-                    <option value="Daily">Daily Attendance Report</option>
-                    <option value="Monthly">Monthly Attendance Report</option>
-                    <option value="Department">Department-wise Summary</option>
-                    <option value="Employee">Employee-wise Log</option>
-                    <option value="Branch">Branch-wise Breakdown</option>
-                    <option value="Absence">Absence Analysis Report</option>
-                    <option value="Leave">Leave Summary Report</option>
-                  </select>
-                </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Month</label>
-                  <select
-                    value={reportMonth}
-                    onChange={e => setReportMonth(Number(e.target.value))}
-                    className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
-                  >
-                    {monthNames.map((m, idx) => <option key={m} value={idx}>{m}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Year</label>
-                  <select
-                    value={reportYear}
-                    onChange={e => setReportYear(Number(e.target.value))}
-                    className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
-                  >
-                    <option value={2026}>2026</option>
-                    <option value={2025}>2025</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Action Export Buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-xs"
-                >
-                  <Printer className="w-4 h-4 text-sky-600" /> Print
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addToast('info', 'PDF Export', 'Generating Attendance Report PDF document...')}
-                  className="px-3.5 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-600/20"
-                >
-                  <Download className="w-4 h-4" /> PDF Export
-                </button>
-                <button
-                  type="button"
-                  onClick={() => addToast('success', 'Excel Export', 'Exporting Attendance Data to XLSX spreadsheet...')}
-                  className="px-3.5 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-brand-600/20"
-                >
-                  <FileSpreadsheet className="w-4 h-4" /> Excel Export
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Generated Report Card */}
-          <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6 shadow-xl">
-            <div className="flex items-center justify-between border-b pb-4 border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
-                  {reportType} Attendance Report ({monthNames[reportMonth]} {reportYear})
-                </h3>
-                <p className="text-xs text-slate-500">Institution-wide staff presence analysis & leave logs for Payroll integration</p>
-              </div>
-              <span className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-mono font-bold text-xs">
-                Verified ERP Data
-              </span>
-            </div>
-
-            {/* Summary Statistics */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                <p className="text-[10px] font-bold text-slate-500 uppercase">Total Active Staff</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white mt-1">{staff.filter(s => s.status === 'Active').length}</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-900">
-                <p className="text-[10px] font-bold text-brand-700 dark:text-brand-400 uppercase">Avg Presence Rate</p>
-                <p className="text-xl font-black text-brand-800 dark:text-brand-300 mt-1">94.2%</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900">
-                <p className="text-[10px] font-bold text-sky-700 dark:text-sky-400 uppercase">Approved Leave Logs</p>
-                <p className="text-xl font-black text-sky-800 dark:text-sky-300 mt-1">{(leaveApplications || []).filter(l => l.status === 'Approved').length}</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900">
-                <p className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase">Unexcused Absences</p>
-                <p className="text-xl font-black text-rose-800 dark:text-rose-300 mt-1">5</p>
-              </div>
-            </div>
-
-            {/* Detailed Log Table */}
-            <div className="overflow-x-auto border rounded-2xl border-slate-200 dark:border-slate-800">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b">
-                    <th className="py-3 px-4">Department / Category</th>
-                    <th className="py-3 px-4 text-center">Head Count</th>
-                    <th className="py-3 px-4 text-center text-brand-600">Present</th>
-                    <th className="py-3 px-4 text-center text-rose-600">Absent</th>
-                    <th className="py-3 px-4 text-center text-sky-600">On Leave</th>
-                    <th className="py-3 px-4 text-center text-sky-600">Payroll Availability</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y font-semibold">
-                  {['Academics & Teaching', 'Administration', 'Finance & Accounts', 'Transport', 'Hostel Operations', 'IT & Maintenance'].map(deptName => (
-                    <tr key={deptName} className="hover:bg-slate-50/50">
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{deptName}</td>
-                      <td className="py-3 px-4 text-center font-mono">12</td>
-                      <td className="py-3 px-4 text-center font-bold text-brand-600">11</td>
-                      <td className="py-3 px-4 text-center font-bold text-rose-600">0</td>
-                      <td className="py-3 px-4 text-center font-bold text-sky-600">1</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="px-2 py-0.5 rounded-full bg-brand-50 dark:bg-brand-950 text-brand-700 dark:text-brand-300 font-extrabold text-[10px]">
-                          ✓ Synced to Payroll
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

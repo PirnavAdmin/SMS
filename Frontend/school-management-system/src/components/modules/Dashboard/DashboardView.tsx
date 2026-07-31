@@ -80,10 +80,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Students" value={totalStudents} subtitle="Enrolled active students" change="+12% vs last term" isPositive={true} icon={UserCheck} color="sky" />
-        <StatCard title="Total Staff" value={totalStaff} subtitle="Faculty & administration" change="100% active" isPositive={true} icon={Users} color="emerald" />
-        <StatCard title="Fee Collected" value={formatCurrency(feeCollected)} subtitle="Total revenue processed" change="+18.5% growth" isPositive={true} icon={IndianRupee} color="sky" />
-        <StatCard title="Due Fees" value={formatCurrency(feeDue)} subtitle="Pending student dues" change="Action required" isPositive={false} icon={AlertCircle} color="rose" />
+        <StatCard title="Total Students" value={totalStudents} icon={UserCheck} color="sky" />
+        <StatCard title="Total Staff" value={totalStaff} icon={Users} color="emerald" />
+        <StatCard title="Fee Collected" value={formatCurrency(feeCollected)} icon={IndianRupee} color="sky" />
+        <StatCard title="Due Fees" value={formatCurrency(feeDue)} icon={AlertCircle} color="rose" />
       </div>
 
       {/* Recent Payments */}
