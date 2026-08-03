@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Users, Search, Plus, Edit, Trash2, Eye,
-  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield, ChevronDown
+  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield, ChevronDown, Upload
 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -14,7 +14,7 @@ import { StaffProfileDrawer } from './StaffProfileDrawerEnhanced';
 import { DocumentRequirementMasterModal } from './DocumentRequirementMasterModal';
 
 export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavigate?: (module: string) => void }> = ({ initialCategory, onNavigate }) => {
-  const { staff, updateStaff, deleteStaff, subjects, departments } = useData();
+  const { staff, addStaff, updateStaff, deleteStaff, subjects, departments } = useData();
   const { addToast } = useToast();
 
   const [activeCategory, setActiveCategory] = useState<'Teacher' | 'Staff'>(initialCategory || 'Teacher');
@@ -149,6 +149,59 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
     setCurrentPage(1);
   };
 
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    addToast('info', 'Processing File', 'Reading Excel data...');
+    try {
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const workbook = XLSX.read(bstr, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(sheet) as any[];
+
+          let count = 0;
+          data.forEach(row => {
+            if (row.firstName || row.lastName || row.applicantName) {
+              const fName = row.firstName || (row.applicantName ? row.applicantName.split(' ')[0] : 'Unknown');
+              const lName = row.lastName || (row.applicantName ? row.applicantName.split(' ').slice(1).join(' ') : 'Unknown');
+              const newStaff: Omit<Staff, 'id'> = {
+                empId: row.empId || `EMP${Math.floor(1000 + Math.random() * 9000)}`,
+                firstName: fName,
+                lastName: lName,
+                email: row.email || `${fName.toLowerCase()}@pirnav.com`,
+                phone: row.phone || row.mobile || '',
+                department: row.department || 'General',
+                designation: row.designation || (activeCategory === 'Teacher' ? 'PGT Teacher' : 'Support Staff'),
+                role: row.role || (activeCategory === 'Teacher' ? 'Teacher' : 'Staff'),
+                employeeCategory: activeCategory,
+                status: 'Active',
+                assignedClasses: [],
+                assignedSubjects: []
+              };
+              addStaff(newStaff);
+              count++;
+            }
+          });
+          
+          addToast('success', 'Upload Complete', `Successfully imported ${count} ${getCategoryLabel(activeCategory)} records.`);
+        } catch (err) {
+          console.error(err);
+          addToast('error', 'Upload Failed', 'Failed to parse Excel file.');
+        }
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      addToast('error', 'Error', 'Failed to load excel parser.');
+    }
+    e.target.value = '';
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Title Header */}
@@ -159,8 +212,11 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
-
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer">
+            <Upload className="w-4 h-4" /> Upload Excel
+            <input type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleBulkUpload} />
+          </label>
           <ExportButton data={filtered} filename={`${activeCategory.toLowerCase()}_directory`} />
           <button
             onClick={openStaffRegistration}

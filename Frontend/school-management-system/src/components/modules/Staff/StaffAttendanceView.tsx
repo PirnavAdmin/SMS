@@ -3,7 +3,7 @@ import {
   Calendar, CalendarCheck, Search, Filter, Save, CheckCircle, HelpCircle, XCircle, Users, 
   CheckCircle2, AlertTriangle, Printer, FileSpreadsheet, Download, RefreshCw, 
   Lock, Unlock, Clock, Building2, UserCheck, ShieldAlert, Award, FileText, 
-  ChevronRight, Layers, SlidersHorizontal, UserX, Info, CheckSquare, Square,
+  ChevronRight, Layers, SlidersHorizontal, UserX, Info, CheckSquare, Square, BarChart3,
   Plus, LogIn, LogOut
 } from 'lucide-react';
 import { DailyAttendance, Staff } from '../../../types';

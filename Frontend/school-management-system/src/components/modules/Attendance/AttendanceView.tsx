@@ -1,199 +1,165 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  CalendarCheck, Calendar, Clock, BookOpen, AlertCircle, CheckCircle2, 
-  XCircle, Award, Download, Eye, User, FileSpreadsheet, RefreshCw, Save, Edit2
+  Check, X, AlertCircle, Save, FileSpreadsheet, 
+  Search, Filter, ChevronDown, Clock, CalendarCheck, User, Plus, Edit2, FileText
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useAuth } from '../../../context/AuthContext';
-import { useToast } from '../../../context/ToastContext';
-import { DailyAttendance, Student } from '../../../types';
-import { StudentProfileDrawer } from '../Students/StudentProfileDrawer';
 
-export const AttendanceView: React.FC = () => {
-  const { students, staff, attendance, markAttendance, academicClasses } = useData();
-  const { user, role } = useAuth();
-  const { addToast } = useToast();
+// Types
+type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
 
-  const isTeacherRole = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
+interface Student {
+  id: string;
+  rollNo: string;
+  firstName: string;
+  lastName: string;
+  avatar?: string;
+  className: string;
+  section: string;
+  admissionNo: string;
+}
 
-  // Retrieve logged-in teacher profile
-  const dbTeacher = staff.find(s => s.email && user?.email && s.email === user.email && s.employeeCategory === 'Teacher') || 
-                     staff.find(s => s.email && (s.email.toLowerCase().includes('jenkins') || s.email.toLowerCase().includes('miller'))) ||
-                     staff.find(s => s.employeeCategory === 'Teacher');
+interface AttendanceState {
+  [studentId: string]: AttendanceStatus;
+}
 
-  const teacher = dbTeacher || {
-    id: 'STF-002',
-    empId: 'EMP002',
-    firstName: user?.name || 'Jonathan',
-    lastName: 'Miller',
-    assignedClasses: ['Class 10-A', 'Class 9-B'],
-    assignedSubjects: ['Mathematics', 'Science'],
-    department: 'Mathematics',
-    designation: 'Class Teacher'
-  };
+interface RemarksState {
+  [key: string]: string;
+}
 
+const mockStudents: Student[] = [
+  { id: '1', rollNo: '2067', firstName: 'shiva', lastName: 'sai', className: 'Class 1', section: 'A', admissionNo: 'ADM001', avatar: 'https://i.pravatar.cc/150?u=1' },
+  { id: '2', rollNo: '2029', firstName: 'Rahul', lastName: 'Sharma', className: 'Class 1', section: 'A', admissionNo: 'ADM002', avatar: 'https://i.pravatar.cc/150?u=2' },
+  { id: '3', rollNo: '2041', firstName: 'Alexander', lastName: 'Wright', className: 'Class 1', section: 'A', admissionNo: 'ADM003', avatar: 'https://i.pravatar.cc/150?u=3' },
+  { id: '4', rollNo: '2085', firstName: 'Gokul', lastName: 'Raj', className: 'Class 1', section: 'A', admissionNo: 'ADM004', avatar: 'https://i.pravatar.cc/150?u=4' },
+  { id: '5', rollNo: '2098', firstName: 'javvadi', lastName: 'venkat', className: 'Class 1', section: 'A', admissionNo: 'ADM005', avatar: 'https://i.pravatar.cc/150?u=5' }
+];
+
+const mockTeacher = {
+  id: 'T001',
+  firstName: 'Jonathan',
+  lastName: 'Miller',
+  assignedClasses: [{ class: 'Class 1', section: 'A' }, { class: 'Class 2', section: 'B' }],
+  assignedSubjects: ['Mathematics', 'Science']
+};
+
+export const AttendanceView = () => {
+  // Global View State
+  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [teacher] = useState(mockTeacher);
   const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
-  const assignedClasses = teacher.assignedClasses || ['Class 10-A', 'Class 9-B'];
   
-  // Clean class name helper
-  const cleanClassName = (cls: string) => {
-    if (!cls) return '';
-    return cls.replace('Class ', '').replace('Grade ', '').trim();
-  };
-
-  // Extract classes lists
-  const teacherClassNames = Array.from(new Set(assignedClasses.map(c => c.split('-')[0])));
-  
-  const classOptions = useMemo(() => {
-    if (isTeacherRole) return teacherClassNames;
-    return academicClasses.map(c => c.name);
-  }, [academicClasses, isTeacherRole, teacherClassNames]);
-
-  // States
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedClass, setSelectedClass] = useState(classOptions[0] || 'Class 10');
-  const [selectedSection, setSelectedSection] = useState('A');
+  // Context Selection State
+  const [selectedClass, setSelectedClass] = useState(teacher.assignedClasses?.[0]?.class || 'Class 1');
+  const [selectedSection, setSelectedSection] = useState(teacher.assignedClasses?.[0]?.section || 'A');
   const [selectedSubject, setSelectedSubject] = useState(teacher.assignedSubjects?.[0] || 'Mathematics');
   const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
   
-  const [isEditable, setIsEditable] = useState(true);
+  const [isEditable, setIsEditable] = useState(false);
+  const [remarkModalStudent, setRemarkModalStudent] = useState<Student | null>(null);
+  const [tempRemark, setTempRemark] = useState('');
+  
   const [profileStudent, setProfileStudent] = useState<Student | null>(null);
   
   // Persistent LocalStorage Remarks registry
-  const [remarksState, setRemarksState] = useState<Record<string, string>>(() => {
-    try {
-      const saved = localStorage.getItem('student_attendance_remarks');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  const [remarksState, setRemarksState] = useState<RemarksState>(() => {
+    const saved = localStorage.getItem('sms_attendance_remarks');
+    return saved ? JSON.parse(saved) : {};
   });
 
-  const sectionOptions = useMemo(() => {
-    if (isTeacherRole) {
-      return assignedClasses
-        .filter(c => c.startsWith(selectedClass + '-'))
-        .map(c => c.split('-')[1] || 'A');
-    }
-    return academicClasses.find(c => c.name === selectedClass)?.sections || ['A', 'B'];
-  }, [academicClasses, selectedClass, isTeacherRole, assignedClasses]);
+  // Persistent LocalStorage Attendance registry
+  const [attendanceRegistry, setAttendanceRegistry] = useState<Record<string, AttendanceState>>(() => {
+    const saved = localStorage.getItem('sms_attendance_registry');
+    return saved ? JSON.parse(saved) : {};
+  });
+  
+  const classStudents = mockStudents.filter(s => s.className === selectedClass && s.section === selectedSection);
+  
+  // Unique key for the current register
+  const registerKey = `${selectedClass}_${selectedSection}_${selectedSubject}_${date}`;
+  
+  const currentAttendance: AttendanceState = attendanceRegistry[registerKey] || {};
+
+  // Status computation for UI rendering
+  const getAttendanceStatus = (studentId: string): AttendanceStatus => currentAttendance[studentId] || null;
+
+  // Single mark handler
+  const handleSingleMark = (studentId: string, status: AttendanceStatus) => {
+    if (!isEditable) return;
+    setAttendanceRegistry(prev => {
+      const updatedRegister = { ...(prev[registerKey] || {}) };
+      
+      if (updatedRegister[studentId] === status) {
+        delete updatedRegister[studentId]; // Toggle off
+      } else {
+        updatedRegister[studentId] = status;
+      }
+      
+      return { ...prev, [registerKey]: updatedRegister };
+    });
+  };
+
+  // Mark entire class
+  const markAllClass = (status: AttendanceStatus) => {
+    if (!isEditable) return;
+    setAttendanceRegistry(prev => {
+      const updatedRegister = { ...(prev[registerKey] || {}) };
+      classStudents.forEach(st => {
+        updatedRegister[st.id] = status;
+      });
+      return { ...prev, [registerKey]: updatedRegister };
+    });
+  };
+
+  const handleRemarkChange = (studentId: string, remark: string) => {
+    if (!isEditable) return;
+    setRemarksState(prev => ({
+      ...prev,
+      [`${date}_${studentId}`]: remark
+    }));
+  };
+
+  // Auto-save mechanisms
+  useEffect(() => {
+    localStorage.setItem('sms_attendance_registry', JSON.stringify(attendanceRegistry));
+  }, [attendanceRegistry]);
 
   useEffect(() => {
-    if (!sectionOptions.includes(selectedSection) && sectionOptions.length > 0) {
-      setSelectedSection(sectionOptions[0]);
-    }
-  }, [selectedClass, sectionOptions, selectedSection]);
+    localStorage.setItem('sms_attendance_remarks', JSON.stringify(remarksState));
+  }, [remarksState]);
 
-  // Student Fallback dataset to guarantee populated rosters for checks
-  const enrolledStudents = useMemo(() => {
-    const base = students.length > 0 ? students : [
-      { id: '101', firstName: 'Rahul', lastName: 'Sharma', className: 'Class 10', section: 'A', rollNo: '001', admissionNo: 'ADM2026001', fatherName: 'Aman Sharma', fatherPhone: '+1 (555) 019-2831', status: 'Active', dueFee: 0, branch: 'Main Campus', avatar: '', gender: 'Male', dob: '15/05/2012', bloodGroup: 'O+', category: 'General' },
-      { id: '102', firstName: 'Priya', lastName: 'Patel', className: 'Class 10', section: 'A', rollNo: '002', admissionNo: 'ADM2026002', fatherName: 'Rajesh Patel', fatherPhone: '+1 (555) 019-3829', status: 'Active', dueFee: 0, branch: 'Main Campus', avatar: '', gender: 'Female', dob: '22/08/2012', bloodGroup: 'A+', category: 'General' },
-      { id: '103', firstName: 'Aditya', lastName: 'Verma', className: 'Class 10', section: 'A', rollNo: '003', admissionNo: 'ADM2026003', fatherName: 'Sanjay Verma', fatherPhone: '+1 (555) 019-4821', status: 'Active', dueFee: 0, branch: 'Main Campus', avatar: '', gender: 'Male', dob: '03/11/2012', bloodGroup: 'B+', category: 'OBC' },
-      { id: '104', firstName: 'Ananya', lastName: 'Iyer', className: 'Class 10', section: 'A', rollNo: '004', admissionNo: 'ADM2026004', fatherName: 'Ganesh Iyer', fatherPhone: '+1 (555) 019-5830', status: 'Active', dueFee: 0, branch: 'Main Campus', avatar: '', gender: 'Female', dob: '14/02/2012', bloodGroup: 'AB+', category: 'General' },
-      { id: '105', firstName: 'Vikram', lastName: 'Singh', className: 'Class 9', section: 'A', rollNo: '001', admissionNo: 'ADM2026005', fatherName: 'Kuldeep Singh', fatherPhone: '+1 (555) 019-6831', status: 'Active', dueFee: 0, branch: 'Main Campus', avatar: '', gender: 'Male', dob: '10/06/2013', bloodGroup: 'O-', category: 'General' },
-      { id: '106', firstName: 'Sneha', lastName: 'Reddy', className: 'Class 9', section: 'B', rollNo: '001', admissionNo: 'ADM2026006', fatherName: 'Prasad Reddy', fatherPhone: '+1 (555) 019-7832', status: 'Active', dueFee: 0, branch: 'Main Campus', avatar: '', gender: 'Female', dob: '28/09/2013', bloodGroup: 'B-', category: 'OBC' }
-    ] as any[];
-    return base as Student[];
-  }, [students]);
-
-  // Roster listing
-  const classStudents = useMemo(() => {
-    return enrolledStudents.filter(s =>
-      cleanClassName(s.className) === cleanClassName(selectedClass) &&
-      s.section === selectedSection
-    );
-  }, [enrolledStudents, selectedClass, selectedSection]);
-
-  // Attendance metrics mappers
-  const getAttendanceStatus = (entityId: string): DailyAttendance['status'] => {
-    const record = attendance.find(a => a.date === date && a.entityId === entityId);
-    return record ? record.status : 'Present';
-  };
-
-  const handleSingleMark = (entityId: string, status: DailyAttendance['status']) => {
-    if (!isEditable) {
-      addToast('warning', 'Edit Locked', 'Attendance is locked. Enable editing to make changes.');
-      return;
-    }
-    markAttendance([{ date, entityId, entityType: 'Student', status }]);
-  };
-
-  const handleRemarkChange = (studentId: string, val: string) => {
-    const updated = { ...remarksState, [`${date}_${studentId}`]: val };
-    setRemarksState(updated);
-    localStorage.setItem('student_attendance_remarks', JSON.stringify(updated));
-  };
-
-  const markAllClass = (status: DailyAttendance['status']) => {
-    if (!isEditable) {
-      addToast('warning', 'Edit Locked', 'Please enable edit mode to perform bulk changes.');
-      return;
-    }
-    const records: DailyAttendance[] = classStudents.map(s => ({
-      date,
-      entityId: s.id,
-      entityType: 'Student',
-      status
-    }));
-    markAttendance(records);
-    addToast('success', 'Bulk Attendance Mapped', `Marked all students as ${status}`);
-  };
-
-  // Calculated statistics
-  const summaryMetrics = useMemo(() => {
-    const total = classStudents.length;
-    let present = 0;
-    let absent = 0;
-    let late = 0;
-    let halfDay = 0;
-    
+  // Metrics calculation
+  const summaryMetrics = React.useMemo(() => {
+    let present = 0, absent = 0, halfDay = 0, late = 0;
     classStudents.forEach(s => {
-      const status = getAttendanceStatus(s.id);
+      const status = currentAttendance[s.id];
       if (status === 'Present') present++;
-      else if (status === 'Absent') absent++;
-      else if (status === 'Late') late++;
-      else if (status === 'HalfDay') halfDay++;
+      if (status === 'Absent') absent++;
+      if (status === 'HalfDay') halfDay++;
+      if (status === 'Late') late++;
     });
+    const markedCount = present + absent + halfDay + late;
+    const percentage = classStudents.length ? Math.round(((present + late + (halfDay * 0.5)) / classStudents.length) * 100) : 0;
+    
+    return {
+      total: classStudents.length,
+      marked: markedCount,
+      present, absent, halfDay, late,
+      percentage
+    };
+  }, [classStudents, currentAttendance]);
 
-    const pct = total > 0 ? Math.round(((present + (halfDay * 0.5)) / total) * 100) : 100;
-    return { total, present, absent, late, halfDay, percentage: pct };
-  }, [classStudents, attendance, date]);
 
-  // Mock past history records
-  const [attendanceHistory, setAttendanceHistory] = useState([
-    { id: '1', date: '2026-07-29', className: 'Class 10', section: 'A', present: 22, absent: 2, status: 'Completed' },
-    { id: '2', date: '2026-07-28', className: 'Class 10', section: 'A', present: 21, absent: 3, status: 'Completed' },
-    { id: '3', date: '2026-07-27', className: 'Class 10', section: 'A', present: 24, absent: 0, status: 'Completed' },
-    { id: '4', date: '2026-07-24', className: 'Class 10', section: 'A', present: 23, absent: 1, status: 'Completed' }
-  ]);
-
-  const loadHistoryRecord = (histDate: string, histClass: string, histSec: string) => {
-    setDate(histDate);
-    setSelectedClass(histClass);
-    setSelectedSection(histSec);
-    setIsEditable(false);
-    addToast('info', 'Loaded Historical Record', `Viewing attendance details for ${histDate}`);
+  const [toasts, setToasts] = useState<Array<{id: number, type: 'success' | 'warning' | 'info', title: string, message: string}>>([]);
+  const addToast = (type: 'success' | 'warning' | 'info', title: string, message: string) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 3000);
   };
 
   const handleSaveAttendance = () => {
     setIsEditable(false);
-    // Add to history list if not already present
-    const exists = attendanceHistory.some(h => h.date === date && h.className === selectedClass && h.section === selectedSection);
-    if (!exists) {
-      setAttendanceHistory(prev => [
-        {
-          id: Date.now().toString(),
-          date,
-          className: selectedClass,
-          section: selectedSection,
-          present: summaryMetrics.present,
-          absent: summaryMetrics.absent,
-          status: 'Completed'
-        },
-        ...prev
-      ]);
-    }
     addToast('success', 'Attendance Register Saved', 'The registers have been written and submitted to the school portal database.');
   };
 
@@ -238,13 +204,18 @@ export const AttendanceView: React.FC = () => {
           </div>
         </div>
 
-        <span className={`px-3 py-1 rounded-full font-black text-[10px] uppercase tracking-wider ${
+        <button 
+          onClick={() => {
+            setIsEditable(!isEditable);
+            if (!isEditable) addToast('info', 'Edit Mode Active', 'You can now change records for the selected date.');
+          }}
+          className={`px-3 py-1 rounded-full font-black text-[10px] uppercase tracking-wider transition-colors cursor-pointer hover:opacity-80 ${
           isEditable 
             ? 'bg-amber-100 text-amber-800 dark:bg-amber-955/40 dark:text-amber-300' 
             : 'bg-emerald-100 text-emerald-805 dark:bg-emerald-950/40 dark:text-emerald-300'
         }`}>
-          {isEditable ? '✏️ Edit Mode Active' : '🔒 Locked / Saved'}
-        </span>
+          {isEditable ? '✏️ Edit Mode Active' : '🔒 Locked / Click to Edit'}
+        </button>
       </div>
 
       {/* Control Filters Row */}
@@ -256,7 +227,7 @@ export const AttendanceView: React.FC = () => {
               type="date"
               value={date}
               onChange={e => setDate(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
             />
           </div>
 
@@ -265,11 +236,11 @@ export const AttendanceView: React.FC = () => {
             <select
               value={selectedClass}
               onChange={e => setSelectedClass(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
             >
-              {classOptions.map(cls => (
-                <option key={cls} value={cls}>{cls}</option>
-              ))}
+              <option value="Class 1">Class 1</option>
+              <option value="Class 2">Class 2</option>
+              <option value="Class 3">Class 3</option>
             </select>
           </div>
 
@@ -278,11 +249,11 @@ export const AttendanceView: React.FC = () => {
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
             >
-              {sectionOptions.map(sec => (
-                <option key={sec} value={sec}>Sec {sec}</option>
-              ))}
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
             </select>
           </div>
 
@@ -291,9 +262,9 @@ export const AttendanceView: React.FC = () => {
             <select
               value={selectedSubject}
               onChange={e => setSelectedSubject(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
             >
-              {teacher.assignedSubjects?.map(sub => (
+              {teacher.assignedSubjects.map(sub => (
                 <option key={sub} value={sub}>{sub}</option>
               ))}
             </select>
@@ -304,12 +275,46 @@ export const AttendanceView: React.FC = () => {
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
             >
               <option value="Period 1 (09:00 AM - 09:45 AM)">Period 1 (09:00 AM)</option>
-              <option value="Period 2 (10:00 AM - 10:45 AM)">Period 2 (10:00 AM)</option>
-              <option value="Period 3 (11:00 AM - 11:45 AM)">Period 3 (11:00 AM)</option>
+              <option value="Period 2 (09:45 AM - 10:30 AM)">Period 2 (09:45 AM)</option>
+              <option value="Period 3 (10:45 AM - 11:30 AM)">Period 3 (10:45 AM)</option>
+              <option value="Period 4 (11:30 AM - 12:15 PM)">Period 4 (11:30 AM)</option>
             </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Horizontal Summary Strip */}
+      <div className="glass-card rounded-2xl p-4 border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between overflow-x-auto">
+        <div className="flex items-center gap-8 lg:gap-16 pl-2">
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-slate-400 font-bold uppercase">Total Students</span>
+            <span className="text-lg font-black text-slate-855 dark:text-white">{summaryMetrics.total}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Present</span>
+            <span className="text-lg font-black text-emerald-700 dark:text-emerald-455">{summaryMetrics.present}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-rose-600 dark:text-rose-455 font-bold uppercase">Absent</span>
+            <span className="text-lg font-black text-rose-700 dark:text-rose-455">{summaryMetrics.absent}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
+            <span className="text-lg font-black text-blue-700 dark:text-blue-455">{summaryMetrics.halfDay}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late</span>
+            <span className="text-lg font-black text-amber-700 dark:text-amber-455">{summaryMetrics.late}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 pl-4 lg:border-l border-slate-200 dark:border-slate-800">
+          <div className="text-right">
+            <p className="text-[10px] text-slate-400 font-bold uppercase">Attendance Rate</p>
+            <p className="text-xl font-black text-brand-600 dark:text-brand-400">{summaryMetrics.percentage}%</p>
           </div>
         </div>
       </div>
@@ -319,7 +324,7 @@ export const AttendanceView: React.FC = () => {
         <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
             
             {/* Sheet Actions Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-105 dark:border-slate-850">
+            <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
               <span className="font-extrabold text-sm text-slate-855 dark:text-slate-200">
                 Attendance Sheet ({classStudents.length} Students)
               </span>
@@ -332,8 +337,14 @@ export const AttendanceView: React.FC = () => {
                   Mark All Present
                 </button>
                 <button
+                  onClick={handleExportCSV}
+                  className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-350 font-bold transition-colors flex items-center gap-1.5"
+                >
+                  <FileSpreadsheet className="w-4 h-4" /> Export
+                </button>
+                <button
                   onClick={handleSaveAttendance}
-                  className="btn-primary py-1.5 px-3 flex items-center gap-1.5 text-[10.5px] font-black"
+                  className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-[10.5px] font-black"
                 >
                   <Save className="w-4 h-4" /> Save Attendance
                 </button>
@@ -341,26 +352,26 @@ export const AttendanceView: React.FC = () => {
             </div>
 
             {/* Attendance Roster Table */}
-            <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-x-scroll shadow-xs">
+            <div className="rounded-2xl overflow-x-scroll">
               <table className="w-full min-w-[800px] text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-505 font-extrabold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <tr className="bg-slate-50/50 dark:bg-slate-800/20 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                     <th className="py-3 px-4 w-20">Roll No</th>
                     <th className="py-3 px-4 w-48">Student Name</th>
-                    <th className="py-3 px-4 text-center w-64">Attendance Status</th>
-                    <th className="py-3 px-4">Remarks (Optional)</th>
+                    <th className="py-3 px-4 text-center w-72">Attendance Status</th>
+                    <th className="py-3 px-4 w-64">Remarks (Optional)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+                <tbody className="font-medium">
                   {classStudents.length === 0 ? (
                     <tr>
                       <td colSpan={4} className="py-12 text-center text-slate-400 italic">No students found in Class {selectedClass}-{selectedSection}.</td>
                     </tr>
                   ) : (
-                    classStudents.map(st => {
+                    classStudents.map((st, idx) => {
                       const status = getAttendanceStatus(st.id);
                       return (
-                        <tr key={st.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/30 text-slate-850 dark:text-slate-200">
+                        <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/30 text-slate-850 dark:text-slate-200 border-b border-slate-100/50 dark:border-slate-800/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/10'}`}>
                           <td className="py-3 px-4 font-mono font-bold text-sky-600 dark:text-sky-400">{st.rollNo}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2.5">
@@ -378,40 +389,40 @@ export const AttendanceView: React.FC = () => {
                             <div className="flex items-center justify-center gap-1">
                               <button
                                 onClick={() => handleSingleMark(st.id, 'Present')}
-                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all border whitespace-nowrap ${
                                   status === 'Present'
-                                    ? 'bg-emerald-600 text-white shadow-xs'
-                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-450 hover:bg-slate-105'
+                                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                    : 'bg-emerald-50/30 dark:bg-emerald-950/20 text-emerald-600/70 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
                                 }`}
                               >
                                 Present
                               </button>
                               <button
                                 onClick={() => handleSingleMark(st.id, 'Absent')}
-                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all border whitespace-nowrap ${
                                   status === 'Absent'
-                                    ? 'bg-rose-600 text-white shadow-xs'
-                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-455 hover:bg-slate-105'
+                                    ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                                    : 'bg-rose-50/30 dark:bg-rose-950/20 text-rose-600/70 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/40'
                                 }`}
                               >
                                 Absent
                               </button>
                               <button
                                 onClick={() => handleSingleMark(st.id, 'HalfDay')}
-                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all border whitespace-nowrap ${
                                   status === 'HalfDay'
-                                    ? 'bg-blue-600 text-white shadow-xs'
-                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-455 hover:bg-slate-105'
+                                    ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                    : 'bg-blue-50/30 dark:bg-blue-950/20 text-blue-600/70 border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40'
                                 }`}
                               >
                                 Half Day
                               </button>
                               <button
                                 onClick={() => handleSingleMark(st.id, 'Late')}
-                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all ${
+                                className={`px-2.5 py-1 rounded-lg text-[9.5px] font-black tracking-wide uppercase transition-all border whitespace-nowrap ${
                                   status === 'Late'
-                                    ? 'bg-amber-500 text-white shadow-xs'
-                                    : 'bg-slate-50 dark:bg-slate-800 text-slate-455 hover:bg-slate-105'
+                                    ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                                    : 'bg-amber-50/30 dark:bg-amber-950/20 text-amber-600/70 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/40'
                                 }`}
                               >
                                 Late
@@ -419,14 +430,32 @@ export const AttendanceView: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-3 px-4">
-                            <input
-                              type="text"
-                              placeholder="Add reason for delay, sick leave..."
-                              value={remarksState[`${date}_${st.id}`] || ''}
-                              disabled={!isEditable}
-                              onChange={e => handleRemarkChange(st.id, e.target.value)}
-                              className="w-full px-2.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-800/80 outline-none focus:border-brand-500 font-medium text-[11px]"
-                            />
+                            {remarksState[`${date}_${st.id}`] ? (
+                              <div className="flex items-center justify-between px-2.5 py-1 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900">
+                                <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold truncate max-w-[120px]">{remarksState[`${date}_${st.id}`]}</span>
+                                <button
+                                  onClick={() => {
+                                    setRemarkModalStudent(st);
+                                    setTempRemark(remarksState[`${date}_${st.id}`] || '');
+                                  }}
+                                  disabled={!isEditable}
+                                  className="text-amber-600 hover:text-amber-800 disabled:opacity-50"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setRemarkModalStudent(st);
+                                  setTempRemark('');
+                                }}
+                                disabled={!isEditable}
+                                className="w-full text-left px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/40 dark:hover:bg-slate-800 border border-slate-150 dark:border-slate-800/80 text-slate-400 font-bold text-[10px] transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                              >
+                                <Plus className="w-3 h-3" /> Add Remark
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -436,131 +465,6 @@ export const AttendanceView: React.FC = () => {
               </table>
             </div>
           </div>
-        </div>
-
-        {/* Bottom Dashboard Grid: Summary, Shortcuts, and History logs (Placed below full-width roster sheet) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* Summary Panel card */}
-          <div className="glass-card p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-2">
-              <Calendar className="w-5 h-5 text-brand-500" />
-              Attendance Summary
-            </h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border flex flex-col justify-center col-span-2">
-                <span className="text-[10px] text-slate-400 font-bold uppercase">Total Students</span>
-                <span className="text-lg font-black text-slate-855 dark:text-white mt-0.5">{summaryMetrics.total}</span>
-              </div>
-
-              <div className="p-3 bg-emerald-50/50 dark:bg-emerald-950/20 rounded-2xl border border-emerald-100/60 flex flex-col justify-center">
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase">Present</span>
-                <span className="text-lg font-black text-emerald-700 dark:text-emerald-455 mt-0.5">{summaryMetrics.present}</span>
-              </div>
-
-              <div className="p-3 bg-rose-50/50 dark:bg-rose-950/20 rounded-2xl border border-rose-100/60 flex flex-col justify-center">
-                <span className="text-[10px] text-rose-600 dark:text-rose-455 font-bold uppercase">Absent</span>
-                <span className="text-lg font-black text-rose-700 dark:text-rose-455 mt-0.5">{summaryMetrics.absent}</span>
-              </div>
-
-              <div className="p-3 bg-blue-50/50 dark:bg-blue-950/20 rounded-2xl border border-blue-100/60 flex flex-col justify-center">
-                <span className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase">Half Day</span>
-                <span className="text-lg font-black text-blue-700 dark:text-blue-455 mt-0.5">{summaryMetrics.halfDay}</span>
-              </div>
-
-              <div className="p-3 bg-amber-50/50 dark:bg-amber-950/20 rounded-2xl border border-amber-100/60 flex flex-col justify-center col-span-2">
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase">Late Arrival</span>
-                <span className="text-lg font-black text-amber-700 dark:text-amber-455 mt-0.5">{summaryMetrics.late}</span>
-              </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase">Rate</p>
-                <p className="text-xl font-black text-brand-600 dark:text-brand-400 mt-0.5">{summaryMetrics.percentage}%</p>
-              </div>
-              <div className="w-12 h-12 rounded-full border-4 border-brand-500 border-t-transparent animate-spin shrink-0" style={{ animationDuration: '4s' }} />
-            </div>
-          </div>
-
-          {/* Quick Actions Shortcuts */}
-          <div className="glass-card p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-3 shadow-sm">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-2">
-              <Clock className="w-5 h-5 text-brand-500" />
-              Attendance Shortcuts
-            </h3>
-            
-            <div className="grid grid-cols-1 gap-2 pt-1">
-              <button
-                onClick={handleSaveAttendance}
-                className="w-full py-2.5 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border rounded-xl font-bold flex items-center gap-2 text-left"
-              >
-                <Save className="w-4 h-4 text-emerald-600" />
-                <span>Save Attendance</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsEditable(true);
-                  addToast('info', 'Edit Mode Active', 'You can now change records for the selected date.');
-                }}
-                className="w-full py-2.5 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border rounded-xl font-bold flex items-center gap-2 text-left"
-              >
-                <Edit2 className="w-4 h-4 text-amber-600" />
-                <span>Edit Attendance</span>
-              </button>
-
-              <button
-                onClick={handleExportCSV}
-                className="w-full py-2.5 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border rounded-xl font-bold flex items-center gap-2 text-left"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-sky-600" />
-                <span>Export Register (CSV)</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  if (classStudents.length > 0) {
-                    setProfileStudent(classStudents[0]);
-                  } else {
-                    addToast('warning', 'Empty list', 'No student details available to load.');
-                  }
-                }}
-                className="w-full py-2.5 px-3 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 border rounded-xl font-bold flex items-center gap-2 text-left"
-              >
-                <User className="w-4 h-4 text-purple-600" />
-                <span>View Student Profile</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Attendance History logs */}
-          <div className="glass-card p-5 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-3 shadow-sm">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-2">
-              <RefreshCw className="w-5 h-5 text-brand-500" />
-              Attendance History
-            </h3>
-
-            <div className="space-y-2 pt-1">
-              {attendanceHistory.map(hist => (
-                <div key={hist.id} className="p-3 bg-slate-50/50 dark:bg-slate-800/20 border border-slate-150 dark:border-slate-800 rounded-2xl flex items-center justify-between">
-                  <div>
-                    <p className="font-extrabold text-slate-900 dark:text-white">{hist.date}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{hist.className} &bull; P: {hist.present} | A: {hist.absent}</p>
-                  </div>
-
-                  <button
-                    onClick={() => loadHistoryRecord(hist.date, hist.className, hist.section)}
-                    className="px-2 py-1 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 border rounded-lg text-[10px] font-black transition-colors"
-                  >
-                    Details
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>
 
       {/* ----------------- MODAL: Student Profile Detailed Viewer ----------------- */}
@@ -601,6 +505,67 @@ export const AttendanceView: React.FC = () => {
         </div>
       )}
 
+      {/* ----------------- MODAL: Add/Edit Remark ----------------- */}
+      {remarkModalStudent && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-black text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                <FileText className="w-5 h-5 text-amber-500" />
+                Add Remark
+              </h3>
+              <button onClick={() => setRemarkModalStudent(null)} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 font-medium">
+              Adding attendance remark for <strong className="text-slate-800 dark:text-slate-200">{remarkModalStudent.firstName} {remarkModalStudent.lastName}</strong>
+            </p>
+
+            <textarea
+              value={tempRemark}
+              onChange={e => setTempRemark(e.target.value)}
+              placeholder="E.g., Doctor's appointment, delayed school bus, sick leave..."
+              className="w-full h-32 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none focus:border-brand-500 text-sm font-medium resize-none"
+              autoFocus
+            />
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setRemarkModalStudent(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleRemarkChange(remarkModalStudent.id, tempRemark);
+                  setRemarkModalStudent(null);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black shadow-lg shadow-brand-500/20 transition-colors text-sm"
+              >
+                Save Remark
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications Overlay */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+        {toasts.map(toast => (
+          <div key={toast.id} className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 p-4 rounded-2xl shadow-xl flex items-start gap-3 w-80 animate-in slide-in-from-right-8">
+            <div className={`p-1.5 rounded-full ${toast.type === 'success' ? 'bg-emerald-500/20 text-emerald-400' : toast.type === 'warning' ? 'bg-amber-500/20 text-amber-400' : 'bg-sky-500/20 text-sky-400'}`}>
+              {toast.type === 'success' ? <Check className="w-4 h-4" /> : toast.type === 'warning' ? <AlertCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            </div>
+            <div>
+              <p className="font-bold text-sm">{toast.title}</p>
+              <p className="text-slate-300 dark:text-slate-600 text-[11px] leading-snug mt-0.5">{toast.message}</p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

@@ -3,7 +3,7 @@ import {
   GraduationCap, Plus, Search, CheckCircle2, UserCheck,
   X, Eye, Edit, Trash2, ChevronLeft, ChevronRight, XCircle,
   ArrowLeft, Camera, User, Shield, Home, Bus, Calculator,
-  Phone, Mail, MapPin, Calendar, Users, BookOpen, Heart, Info, FileText
+  Phone, Mail, MapPin, Calendar, Users, BookOpen, Heart, Info, FileText, Upload
 } from 'lucide-react';
 import { AdmissionApplication, StudentType, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -65,6 +65,55 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [dynamicRoomTypes, setDynamicRoomTypes] = useState<RoomType[]>([]);
   const [dynamicAllocations, setDynamicAllocations] = useState<BedAllocation[]>([]);
   const [loadingHostels, setLoadingHostels] = useState(false);
+
+  const handleBulkUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    addToast('info', 'Processing File', 'Reading Excel data...');
+    try {
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const workbook = XLSX.read(bstr, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(sheet) as any[];
+
+          let count = 0;
+          data.forEach(row => {
+            if (row.applicantName || row.firstName || row.lastName) {
+              const name = row.applicantName || `${row.firstName || ''} ${row.lastName || ''}`.trim();
+              const newApp: Omit<AdmissionApplication, 'id' | 'applicationNo'> = {
+                applicantName: name,
+                appliedClass: row.appliedClass || 'Class 1',
+                branch: row.branch || selectedBranch || 'Main Campus',
+                parentName: row.parentName || row.fatherName || 'Not Provided',
+                phone: row.phone || row.mobile || '',
+                email: row.email || '',
+                status: 'Under Review',
+                studentType: row.studentType || 'Day Scholar',
+                submittedAt: new Date().toISOString()
+              };
+              addAdmission(newApp);
+              count++;
+            }
+          });
+          
+          addToast('success', 'Upload Complete', `Successfully imported ${count} admission records.`);
+        } catch (err) {
+          console.error(err);
+          addToast('error', 'Upload Failed', 'Failed to parse Excel file.');
+        }
+      };
+      reader.readAsBinaryString(file);
+    } catch (err) {
+      addToast('error', 'Error', 'Failed to load excel parser.');
+    }
+    e.target.value = '';
+  };
 
   useEffect(() => {
     if (isFormView) {
@@ -1189,12 +1238,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           </h2>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
-        >
-          <Plus className="w-4 h-4" /> New Admission Registration
-        </button>
+        <div className="flex items-center gap-2">
+          <label className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-black text-slate-700 dark:text-slate-300 shadow-sm cursor-pointer transition-all">
+            <Upload className="w-4 h-4" /> Upload Excel
+            <input type="file" accept=".xlsx, .xls, .csv" className="hidden" onChange={handleBulkUpload} />
+          </label>
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
+          >
+            <Plus className="w-4 h-4" /> New Admission Registration
+          </button>
+        </div>
       </div>
 
       {/* Multi-Filter Bar */}
