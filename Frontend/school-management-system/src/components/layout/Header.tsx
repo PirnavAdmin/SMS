@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Search, Sun, Moon, Bell, Shield, LogOut, Key, Clock, CheckCircle2,
+  Search, Sun, Moon, Bell, Shield, LogOut, Key, Calendar, CheckCircle2,
   Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -18,16 +18,15 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass }) => {
-  const { user, role, setRole, selectedBranch, setSelectedBranch, logout } = useAuth();
+  const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
-  const { announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters } = useData();
+  const { announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, academicYears } = useData();
 
-  const [timeStr, setTimeStr] = useState('');
-  const [dateStr, setDateStr] = useState('');
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
+  const [showAYMenu, setShowAYMenu] = useState(false);
   const [branchSearch, setBranchSearch] = useState('');
   const [managedBranches, setManagedBranches] = useState<string[]>(() => {
     const saved = localStorage.getItem('managed_branches');
@@ -44,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const notifRef = useRef<HTMLDivElement>(null);
   const branchRef = useRef<HTMLDivElement>(null);
+  const ayRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +55,9 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (showBranchMenu && branchRef.current && !branchRef.current.contains(targetNode)) {
         setShowBranchMenu(false);
       }
+      if (showAYMenu && ayRef.current && !ayRef.current.contains(targetNode)) {
+        setShowAYMenu(false);
+      }
       if (showUserMenu && userRef.current && !userRef.current.contains(targetNode)) {
         setShowUserMenu(false);
       }
@@ -63,17 +66,21 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [showNotifMenu, showBranchMenu, showUserMenu]);
+  }, [showNotifMenu, showBranchMenu, showAYMenu, showUserMenu]);
 
   useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      setTimeStr(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      setDateStr(now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }));
+    const handleBranchesUpdate = () => {
+      const savedManaged = localStorage.getItem('managed_branches');
+      if (savedManaged) setManagedBranches(JSON.parse(savedManaged));
+      const savedInactive = localStorage.getItem('inactive_branches');
+      if (savedInactive) setInactiveBranches(JSON.parse(savedInactive));
     };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
-    return () => clearInterval(interval);
+    window.addEventListener('branches_updated', handleBranchesUpdate);
+    window.addEventListener('storage', handleBranchesUpdate);
+    return () => {
+      window.removeEventListener('branches_updated', handleBranchesUpdate);
+      window.removeEventListener('storage', handleBranchesUpdate);
+    };
   }, []);
 
   const roles: UserRole[] = [
@@ -178,6 +185,44 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     selectBranch(nextName);
   };
 
+  const formatAYDisplay = (ay?: string) => {
+    if (!ay) return '2026–27';
+    const parts = ay.split(/[-–]/);
+    if (parts.length === 2) {
+      const start = parts[0].trim();
+      let end = parts[1].trim();
+      if (end.length === 4) {
+        end = end.substring(2);
+      }
+      return `${start}–${end}`;
+    }
+    return ay;
+  };
+
+  const ayOptions = useMemo(() => {
+    let list: { id: string; academicYear: string; isCurrent: boolean }[] = [];
+    if (academicYears && academicYears.length > 0) {
+      list = academicYears.map(ay => ({
+        id: ay.id,
+        academicYear: ay.academicYear,
+        isCurrent: ay.isCurrentAcademicYear || ay.status === 'Active'
+      }));
+    } else {
+      list = [
+        { id: 'AY-2026-2027', academicYear: '2026-2027', isCurrent: true },
+        { id: 'AY-2025-2026', academicYear: '2025-2026', isCurrent: false },
+        { id: 'AY-2024-2025', academicYear: '2024-2025', isCurrent: false },
+        { id: 'AY-2023-2024', academicYear: '2023-2024', isCurrent: false }
+      ];
+    }
+
+    if (!list.some(ay => ay.academicYear === '2026-2027')) {
+      list.push({ id: 'AY-2026-2027', academicYear: '2026-2027', isCurrent: true });
+    }
+
+    return list.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+  }, [academicYears]);
+
   const confirmDeactivateBranch = () => {
     if (!deactivatingBranch || !canManageBranch) return;
     setInactiveBranches(prev => Array.from(new Set([...prev, deactivatingBranch])));
@@ -231,11 +276,11 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Search & Branch Selector */}
+        {/* Search & Branch & Academic Year Selectors */}
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onOpenSearch}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0 h-9"
           >
             <Search className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">Search...</span>
@@ -246,85 +291,93 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           <div className="relative animate-in fade-in" ref={branchRef}>
             <button
               onClick={() => setShowBranchMenu(!showBranchMenu)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors h-9"
             >
-              <Building2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Branch:</span>
+              <Building2 className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span className="max-w-32 truncate text-indigo-900 dark:text-indigo-100">{selectedBranch}</span>
-              <ChevronDown className="w-3.5 h-3.5" />
+              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
             </button>
 
             {showBranchMenu && (
-              <div className="absolute left-0 mt-2 w-72 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="flex-1 flex items-center gap-2 px-2.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+              <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+                <div className="mb-2 px-1">
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                     <Search className="w-3.5 h-3.5 text-slate-400" />
                     <input
                       value={branchSearch}
                       onChange={e => setBranchSearch(e.target.value)}
-                      placeholder="Search branch..."
+                      placeholder="Filter campus..."
                       className="w-full bg-transparent outline-none text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
                       autoFocus
                     />
                   </div>
-                  {canCreateBranch && (
-                    <button
-                      onClick={openCreateBranch}
-                      className="p-2 rounded-xl bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-                      title="Add Branch"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
 
                 <div className="max-h-64 overflow-y-auto space-y-1">
                   {filteredBranchOptions.length === 0 ? (
-                    <div className="px-3 py-6 text-center text-xs text-slate-500">No branches found.</div>
-                  ) : filteredBranchOptions.map(branch => (
-                    <div
-                      key={branch}
-                      className={`group flex items-center gap-2 rounded-xl transition-colors ${
-                        selectedBranch === branch
-                          ? 'bg-indigo-600 text-white'
-                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
+                    <div className="px-3 py-6 text-center text-xs text-slate-500">No campuses configured.</div>
+                  ) : filteredBranchOptions.map(branch => {
+                    const isSelected = selectedBranch === branch;
+                    return (
                       <button
+                        key={branch}
                         onClick={() => selectBranch(branch)}
-                        className="flex-1 text-left px-3 py-2 text-xs font-semibold truncate"
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white font-bold'
+                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        }`}
                       >
-                        {branch}
+                        <span className="truncate">{branch}</span>
+                        {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-2" />}
                       </button>
-                      {canManageBranch && (
-                        <div className="flex items-center gap-1 pr-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => openEditBranch(branch)}
-                            className={`p-1 rounded-lg ${selectedBranch === branch ? 'hover:bg-white/15' : 'hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                            title="Edit Branch"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeactivatingBranch(branch)}
-                            className={`p-1 rounded-lg ${selectedBranch === branch ? 'hover:bg-white/15' : 'hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-500'}`}
-                            title="Deactivate Branch"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 shrink-0">
-          <Clock className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400 shrink-0" />
-          <span className="whitespace-nowrap">{dateStr} • {timeStr}</span>
+        {/* Global Academic Year Selector */}
+        <div className="relative animate-in fade-in" ref={ayRef}>
+          <button
+            onClick={() => setShowAYMenu(!showAYMenu)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-200/70 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors h-9 whitespace-nowrap"
+            title="Academic Year"
+          >
+            <Calendar className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+            <span className="text-indigo-600 dark:text-indigo-400 font-medium hidden md:inline">Academic Year:</span>
+            <span className="truncate text-indigo-900 dark:text-indigo-100">{formatAYDisplay(selectedAcademicYear)}</span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+          </button>
+
+          {showAYMenu && (
+            <div className="absolute left-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+              <div className="max-h-64 overflow-y-auto space-y-1">
+                {ayOptions.map(ay => {
+                  const isSelected = selectedAcademicYear === ay.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(ay.academicYear);
+                  return (
+                    <button
+                      key={ay.id}
+                      onClick={() => {
+                        setSelectedAcademicYear(ay.academicYear);
+                        setShowAYMenu(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white font-bold'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <span className="truncate">{formatAYDisplay(ay.academicYear)}</span>
+                      {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0 ml-2" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       </div>

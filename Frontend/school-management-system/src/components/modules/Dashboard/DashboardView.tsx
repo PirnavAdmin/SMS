@@ -17,7 +17,7 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
-  const { user } = useAuth();
+  const { user, selectedAcademicYear } = useAuth();
   const {
     students, staff, feePayments, announcements, holidays,
     birthdays, auditLogs, schoolProfile
@@ -29,10 +29,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
   if (['teacher', 'class-teacher'].includes(userRole)) return <TeacherDashboardView onNavigate={onNavigate} />;
 
+  const formatAcademicYearDisplay = (ay?: string) => {
+    if (!ay) return '2026–27';
+    const parts = ay.split(/[-–]/);
+    if (parts.length === 2) {
+      const start = parts[0].trim();
+      let end = parts[1].trim();
+      if (end.length === 4) {
+        end = end.substring(2);
+      }
+      return `${start}–${end}`;
+    }
+    return ay;
+  };
+
+  const currentSessionDisplay = formatAcademicYearDisplay(selectedAcademicYear);
+
   const totalStudents = students.length;
   const totalStaff = staff.length;
 
-  const feeCollected = feePayments.reduce((acc, p) => acc + p.amountPaid, 0);
+  const activeAYPayments = feePayments.filter(p => !p.academicYear || p.academicYear === selectedAcademicYear || formatAcademicYearDisplay(p.academicYear) === currentSessionDisplay);
+  const feeCollected = activeAYPayments.reduce((acc, p) => acc + p.amountPaid, 0);
   const feeDue = students.reduce((acc, s) => acc + s.dueFee, 0);
 
   const classCounts: Record<string, number> = {};
@@ -51,7 +68,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Academic Session {schoolProfile.academicYear}</span>
+              <span>Academic Session {currentSessionDisplay}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Welcome to {schoolProfile.name}

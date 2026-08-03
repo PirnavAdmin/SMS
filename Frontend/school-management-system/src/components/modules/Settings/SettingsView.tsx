@@ -1,20 +1,144 @@
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, Save, Database, Activity, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Settings as SettingsIcon, Save, Database, Activity, RefreshCw, Building2, Plus, Edit, Trash2, CheckCircle, XCircle, Search, MapPin, Phone, Mail, X } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../common/ConfirmModal';
+
+export interface CampusItem {
+  id: string;
+  name: string;
+  code: string;
+  address: string;
+  phone: string;
+  email: string;
+  status: 'Active' | 'Inactive';
+}
+
+const defaultCampuses: CampusItem[] = [
+  { id: 'CMP-01', name: 'Main Campus', code: 'MAIN', address: '742 Evergreen Terrace, Knowledge City, NY 10001', phone: '+1 (555) 019-2834', email: 'main@stxaviers.edu', status: 'Active' },
+  { id: 'CMP-02', name: 'North Branch', code: 'NORTH', address: '12 Executive Row, Knowledge City, NY 10002', phone: '+1 (555) 888-001', email: 'north@stxaviers.edu', status: 'Active' },
+  { id: 'CMP-03', name: 'West Campus', code: 'WEST', address: '99 Mission Way, Knowledge Hub, NY 10003', phone: '+1 (555) 333-111', email: 'west@stxaviers.edu', status: 'Active' }
+];
 
 export const SettingsView: React.FC = () => {
   const { schoolProfile, updateSchoolProfile, auditLogs } = useData();
   const { addToast } = useToast();
 
   const [profileForm, setProfileForm] = useState(schoolProfile);
-  const [activeTab, setActiveTab] = useState<'profile' | 'backup' | 'audit'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'backup' | 'audit'>('profile');
 
-  const handleSave = (e: React.SyntheticEvent) => {
+  // Campus Configuration States
+  const [campuses, setCampuses] = useState<CampusItem[]>(() => {
+    const saved = localStorage.getItem('school_campuses');
+    return saved ? JSON.parse(saved) : defaultCampuses;
+  });
+
+  const [campusSearch, setCampusSearch] = useState('');
+  const [isCampusModalOpen, setIsCampusModalOpen] = useState(false);
+  const [editingCampus, setEditingCampus] = useState<CampusItem | null>(null);
+  const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
+
+  const [campusForm, setCampusForm] = useState<{
+    name: string;
+    code: string;
+    address: string;
+    phone: string;
+    email: string;
+    status: 'Active' | 'Inactive';
+  }>({
+    name: '',
+    code: '',
+    address: '',
+    phone: '',
+    email: '',
+    status: 'Active'
+  });
+
+  // Sync campuses to localStorage and trigger Header sync event
+  const syncCampuses = (updated: CampusItem[]) => {
+    setCampuses(updated);
+    localStorage.setItem('school_campuses', JSON.stringify(updated));
+
+    // Sync managed_branches and inactive_branches for Header selector compatibility
+    const allActive = updated.filter(c => c.status === 'Active').map(c => c.name);
+    const allInactive = updated.filter(c => c.status === 'Inactive').map(c => c.name);
+    const allManaged = updated.map(c => c.name);
+
+    localStorage.setItem('managed_branches', JSON.stringify(allManaged));
+    localStorage.setItem('inactive_branches', JSON.stringify(allInactive));
+
+    // Dispatch custom event to update Header dropdown instantly
+    window.dispatchEvent(new Event('branches_updated'));
+  };
+
+  const handleSaveProfile = (e: React.SyntheticEvent) => {
     e.preventDefault();
     updateSchoolProfile(profileForm);
-    addToast('success', 'Settings Saved', 'School profile updated successfully');
+    addToast('success', 'Settings Saved', 'School branding profile updated successfully.');
   };
+
+  const handleOpenAddCampus = () => {
+    setEditingCampus(null);
+    setCampusForm({ name: '', code: '', address: '', phone: '', email: '', status: 'Active' });
+    setIsCampusModalOpen(true);
+  };
+
+  const handleOpenEditCampus = (campus: CampusItem) => {
+    setEditingCampus(campus);
+    setCampusForm({
+      name: campus.name,
+      code: campus.code,
+      address: campus.address,
+      phone: campus.phone,
+      email: campus.email,
+      status: campus.status
+    });
+    setIsCampusModalOpen(true);
+  };
+
+  const handleSaveCampus = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!campusForm.name.trim()) return;
+
+    if (editingCampus) {
+      const updated = campuses.map(c => c.id === editingCampus.id ? { ...c, ...campusForm } : c);
+      syncCampuses(updated);
+      addToast('success', 'Campus Updated', `${campusForm.name} configuration updated.`);
+    } else {
+      const newCampus: CampusItem = {
+        id: `CMP-${Date.now().toString().slice(-4)}`,
+        ...campusForm
+      };
+      const updated = [...campuses, newCampus];
+      syncCampuses(updated);
+      addToast('success', 'Campus Created', `${campusForm.name} added to campus configuration.`);
+    }
+
+    setIsCampusModalOpen(false);
+  };
+
+  const handleToggleStatus = (campus: CampusItem) => {
+    const nextStatus = campus.status === 'Active' ? 'Inactive' : 'Active';
+    const updated = campuses.map(c => c.id === campus.id ? { ...c, status: nextStatus } : c);
+    syncCampuses(updated);
+    addToast('info', 'Status Changed', `${campus.name} set to ${nextStatus}.`);
+  };
+
+  const confirmDeleteCampus = () => {
+    if (!deletingCampus) return;
+    const updated = campuses.filter(c => c.id !== deletingCampus.id);
+    syncCampuses(updated);
+    addToast('success', 'Campus Removed', `${deletingCampus.name} removed from campus configuration.`);
+    setDeletingCampus(null);
+  };
+
+  const filteredCampuses = useMemo(() => {
+    return campuses.filter(c =>
+      c.name.toLowerCase().includes(campusSearch.toLowerCase()) ||
+      c.code.toLowerCase().includes(campusSearch.toLowerCase()) ||
+      c.address.toLowerCase().includes(campusSearch.toLowerCase())
+    );
+  }, [campuses, campusSearch]);
 
   const handleBackup = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(localStorage));
@@ -33,22 +157,30 @@ export const SettingsView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <SettingsIcon className="w-6 h-6 text-brand-600" /> School Settings
         </h2>
-        <p className="text-xs text-slate-500">School branding profile, backup/restore database, and security audit trail</p>
+        <p className="text-xs text-slate-500">School branding profile, campus configuration, database backup, and audit trail</p>
       </div>
 
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab('profile')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'profile' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+            activeTab === 'profile' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
           }`}
         >
           School Branding Profile
         </button>
         <button
+          onClick={() => setActiveTab('campus')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === 'campus' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Building2 className="w-3.5 h-3.5" /> Campus Configuration ({campuses.length})
+        </button>
+        <button
           onClick={() => setActiveTab('backup')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'backup' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+            activeTab === 'backup' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
           }`}
         >
           Backup & Restore
@@ -56,17 +188,18 @@ export const SettingsView: React.FC = () => {
         <button
           onClick={() => setActiveTab('audit')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'audit' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+            activeTab === 'audit' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
           }`}
         >
           System Audit Logs ({auditLogs.length})
         </button>
       </div>
 
+      {/* TAB 1: SCHOOL BRANDING PROFILE */}
       {activeTab === 'profile' && (
-        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-2xl">
+        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-2xl border border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-sm text-slate-900 dark:text-white">School Profile Setup</h3>
-          <form onSubmit={handleSave} className="space-y-3 text-xs">
+          <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
             <div>
               <label className="block font-semibold mb-1">School Name *</label>
               <input
@@ -74,7 +207,7 @@ export const SettingsView: React.FC = () => {
                 required
                 value={profileForm.name}
                 onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
               />
             </div>
             <div>
@@ -131,7 +264,7 @@ export const SettingsView: React.FC = () => {
                   type="text"
                   value={profileForm.academicYear}
                   onChange={e => setProfileForm({ ...profileForm, academicYear: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 />
               </div>
             </div>
@@ -145,8 +278,116 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 2: CAMPUS CONFIGURATION */}
+      {activeTab === 'campus' && (
+        <div className="space-y-6">
+          {/* Header Action & Filter Bar */}
+          <div className="glass-card p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-600" />
+                Campus Branch Master Setup
+              </h3>
+              <p className="text-[11px] text-slate-400 mt-0.5">Configure school branches. Active campuses appear in the top header selector.</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search campus..."
+                  value={campusSearch}
+                  onChange={e => setCampusSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none"
+                />
+              </div>
+              <button
+                onClick={handleOpenAddCampus}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors shrink-0"
+              >
+                <Plus className="w-4 h-4" /> Add New Campus
+              </button>
+            </div>
+          </div>
+
+          {/* Campus Grid Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {filteredCampuses.map(campus => (
+              <div
+                key={campus.id}
+                className={`glass-card p-5 rounded-3xl space-y-4 border transition-all ${
+                  campus.status === 'Active'
+                    ? 'border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700'
+                    : 'border-slate-200/50 bg-slate-50/50 opacity-70'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+                      <Building2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{campus.name}</h4>
+                      <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
+                        {campus.code}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleToggleStatus(campus)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-colors ${
+                      campus.status === 'Active' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                    }`}
+                  >
+                    {campus.status}
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                  {campus.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{campus.address}</span>
+                    </div>
+                  )}
+                  {campus.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{campus.phone}</span>
+                    </div>
+                  )}
+                  {campus.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{campus.email}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => handleOpenEditCampus(campus)}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Edit className="w-3.5 h-3.5" /> Edit
+                  </button>
+                  <button
+                    onClick={() => setDeletingCampus(campus)}
+                    className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: BACKUP & RESTORE */}
       {activeTab === 'backup' && (
-        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-xl">
+        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-xl border border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <Database className="w-4 h-4 text-emerald-600" /> Database Backup & Recovery
           </h3>
@@ -164,6 +405,7 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 4: SYSTEM AUDIT LOGS */}
       {activeTab === 'audit' && (
         <div className="glass-card rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
           <table className="w-full text-left border-collapse text-xs">
@@ -190,6 +432,122 @@ export const SettingsView: React.FC = () => {
           </table>
         </div>
       )}
+
+      {/* Add / Edit Campus Modal */}
+      {isCampusModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-600" />
+                {editingCampus ? 'Edit Campus Configuration' : 'Add New Campus Branch'}
+              </h3>
+              <button onClick={() => setIsCampusModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCampus} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Campus Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. South Campus"
+                  value={campusForm.name}
+                  onChange={e => setCampusForm({ ...campusForm, name: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Campus Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. SOUTH"
+                  value={campusForm.code}
+                  onChange={e => setCampusForm({ ...campusForm, code: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Address</label>
+                <input
+                  type="text"
+                  placeholder="Full street address..."
+                  value={campusForm.address}
+                  onChange={e => setCampusForm({ ...campusForm, address: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Contact Phone</label>
+                  <input
+                    type="text"
+                    placeholder="+1 555-..."
+                    value={campusForm.phone}
+                    onChange={e => setCampusForm({ ...campusForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="campus@domain.com"
+                    value={campusForm.email}
+                    onChange={e => setCampusForm({ ...campusForm, email: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Initial Status</label>
+                <select
+                  value={campusForm.status}
+                  onChange={e => setCampusForm({ ...campusForm, status: e.target.value as 'Active' | 'Inactive' })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                >
+                  <option value="Active">Active (Displays in Header Selector)</option>
+                  <option value="Inactive">Inactive (Hidden from Header Selector)</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCampusModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-md"
+                >
+                  Save Campus
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deletingCampus}
+        title="Remove Campus Configuration"
+        message={`Are you sure you want to remove ${deletingCampus?.name}? This campus will be removed from system configurations.`}
+        onConfirm={confirmDeleteCampus}
+        onCancel={() => setDeletingCampus(null)}
+      />
     </div>
   );
 };
+
+export default SettingsView;

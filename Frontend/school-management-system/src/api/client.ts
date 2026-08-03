@@ -1,10 +1,18 @@
 export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('auth_token');
-  
+  const branch = localStorage.getItem('auth_branch') || 'Main Campus';
+  const academicYear = localStorage.getItem('auth_academic_year') || '2026-2027';
+
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (branch) {
+    headers.set('X-Branch-Id', branch);
+  }
+  if (academicYear) {
+    headers.set('X-Academic-Year-Id', academicYear);
   }
 
   const response = await fetch(endpoint, {
