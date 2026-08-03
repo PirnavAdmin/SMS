@@ -34,7 +34,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
 
   // Find processed result for aggregate values
   const result = propProcessedResult || allProcessedResults.find(r => r.examId === exam.id && r.studentId === student.id);
-  const isReleased = exam.publishStatus === 'Published' || exam.status === 'Results Published' || result?.status === 'Published' || result?.status === 'Approved';
+  const isReleased = exam.publishStatus === 'Published' || exam.status === 'Results Published' || result?.status === 'Published';
 
   // Get student marks list
   const marks = propExamMarks || allExamMarks.filter(m => m.examId === exam.id && m.studentId === student.id);
@@ -69,7 +69,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   }
 
   // Check if fail in any subject
-  const hasSubjectFail = marks.some(m => !m.isAbsent && m.marksObtained < m.passMarks);
+  const hasSubjectFail = marks.some(m => !m.isAbsent && m.marksObtained < (m.passMarks ?? 33));
   const isAbsentAll = marks.length > 0 && marks.every(m => m.isAbsent);
 
   if (hasSubjectFail || isAbsentAll || percentage < 33) {
@@ -148,7 +148,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             <div className="inline-block mt-2 px-6 py-1 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-black tracking-widest uppercase">
               STUDENT ACADEMIC PERFORMANCE REPORT
             </div>
-            <p className="text-xs font-extrabold text-sky-600 mt-1 uppercase">{exam.name} • ACADEMIC SESSION {exam.academicYear}</p>
+            <p className="text-xs font-extrabold text-sky-600 mt-1 uppercase">{exam.name}</p>
           </div>
 
           {/* Student Profile Information Grid */}

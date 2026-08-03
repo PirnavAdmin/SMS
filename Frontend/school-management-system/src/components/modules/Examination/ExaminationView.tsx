@@ -1,3359 +1,1925 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Award, Plus, Save, Printer, Edit, Trash2, X, Calendar, BookOpen, User, 
-  MapPin, CheckCircle2, AlertTriangle, ShieldAlert, Lock, Unlock, Download, Upload,
-  Search, FileSpreadsheet, RefreshCw, BarChart2, PlusCircle, CheckCircle, FileText,
-  UserCheck, ShieldCheck, HelpCircle, History, Eye, ChevronDown, ChevronRight, Layers, Filter,
-  CheckSquare, Square, AlertCircle, TrendingUp, Users, Clock
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertTriangle,
+  Award,
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Download,
+  Eye,
+  FileText,
+  Lock,
+  MoreVertical,
+  Printer,
+  Save,
+  Send,
+  Sparkles,
+  Star,
+  RotateCcw,
+  Upload,
+  Users
 } from 'lucide-react';
-import { Student, ExamSetup, ExamMark, ExamSchedule, GradeConfig, ProcessedResult, QuestionPaper } from '../../../types';
+import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
-import { useAuth } from '../../../context/AuthContext';
 import { PrintableReportCard } from './PrintableReportCard';
-import { ConfirmModal } from '../../common/ConfirmModal';
+import { ExamMark, ExamSetup, GradeConfig, QuestionPaper, Student } from '../../../types';
 
-// Simplified Navigation Structure: 4 Top-Level Tabs
-type MainTab = 'setup' | 'evaluation' | 'results' | 'reports';
+type MainTab = 'setup' | 'evaluation' | 'results';
+type SetupSubTab = 'general' | 'schedule' | 'subjects' | 'question-papers' | 'grades';
+type ResultsSubTab = 'student-results' | 'report-cards' | 'top-performers' | 'analytics';
+type WorkflowStep = 'compute' | 'verify' | 'approve' | 'publish';
+type EvaluationStatus = 'Draft' | 'Submitted';
+type ResultStatus = 'Draft' | 'Processed' | 'Published' | 'Locked';
 
-// Enterprise Exam Lifecycle States
-type ExamLifecycleStatus = 
-  | 'Draft' 
-  | 'Scheduled' 
-  | 'Timetable Completed' 
-  | 'Ready' 
-  | 'Ongoing' 
-  | 'Evaluation' 
-  | 'Results Processing' 
-  | 'Published' 
-  | 'Archived';
+interface ExaminationViewProps {
+  initialTab?: MainTab;
+}
 
-export const ExaminationView: React.FC = () => {
-  const data = useData();
-  const { 
-    exams, students, staff, academicClasses, subjects, examMarks, examSchedules, gradeConfigurations, processedResults,
-    questionPapers, addQuestionPaper, updateQuestionPaper, deleteQuestionPaper,
-    addExam, updateExam, deleteExam, saveMarks, 
-    addExamSchedule, updateExamSchedule, deleteExamSchedule,
-    saveGradeConfiguration, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
-    schoolProfile
-  } = data;
-  const { addToast } = useToast();
-  const { user } = useAuth();
+interface SetupFormState {
+  name: string;
+  examType: NonNullable<ExamSetup['examType']>;
+  campus: string;
+  className: string;
+  section: string;
+  subjects: string[];
+  passPercentage: number;
+  startDate: string;
+  endDate: string;
+  status: ExamSetup['status'];
+}
 
-  const [activeTab, setActiveTab] = useState<MainTab>('setup');
-  const [selectedBranch, setSelectedBranch] = useState(user?.branch || 'Main Campus');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(schoolProfile.academicYear || '2025-2026');
+interface EvaluationRowState {
+  absent: boolean;
+  marks: string;
+  grace: string;
+  remarks: string;
+}
 
-  // RBAC permissions
-  const isAdminOrPrincipal = user?.role === 'Admin' || user?.role === 'Super Admin' || user?.role === 'Principal';
-  const isTeacher = user?.role === 'Teacher';
-  const isStudentOrParent = user?.role === 'Student' || user?.role === 'Parent';
+interface EvaluationSheetState {
+  status: EvaluationStatus;
+  rows: Record<string, EvaluationRowState>;
+}
 
-  const formatSubject = (subjectName: string) => {
-    const subj = subjects.find(s => s.name === subjectName);
-    return subj?.code ? `${subjectName} - ${subj.code}` : subjectName;
-  };
+interface SubjectScore {
+  subject: string;
+  obtained: number;
+  final: number;
+  maxMarks: number;
+  passMarks: number;
+  absent: boolean;
+  grade: string;
+}
 
-  const formatDisplayDate = (dateStr?: string) => {
-    if (!dateStr) return '';
-    const parts = dateStr.split('-');
-    if (parts.length === 3 && parts[0].length === 4) {
-      return `${parts[2]}-${parts[1]}-${parts[0]}`;
-    }
-    return dateStr;
-  };
+interface PerformanceRow {
+  student: Student;
+  rollNo: string;
+  studentName: string;
+  percentage: number;
+  gpa: number;
+  grade: string;
+  passFail: 'Pass' | 'Fail';
+  status: ResultStatus;
+  rank: number;
+  totalObtained: number;
+  totalMax: number;
+  subjectMarks: SubjectScore[];
+  attendance: number;
+  remarks: string;
+}
 
-  // Staff & Classes setup
-  const dbTeacher = staff.find(s => s.email === user?.email);
-  const currentTeacher = dbTeacher || (isTeacher ? {
-    assignedClasses: ['10-A', '9-B'],
-    assignedSubjects: ['Mathematics', 'Physics']
-  } : null);
+interface PanelProps {
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}
 
-  const teacherClassesRaw = currentTeacher?.assignedClasses || [];
-  const teacherClasses = teacherClassesRaw.map(c => c.startsWith('Class ') ? c : `Class ${c}`);
-  const teacherSubjects = currentTeacher?.assignedSubjects || [];
-  const subjectOptions = Array.from(new Set(subjects.map(subject => subject.name))).filter(Boolean).sort();
-  const allSubjectOptions = Array.from(new Set([...subjectOptions, 'Mathematics', 'Physics']));
-  const teacherSubjectOptions = allSubjectOptions.filter(subject => teacherSubjects.includes(subject));
-  const classOptions = Array.from(new Set([
-    ...academicClasses.map(cls => cls.name),
-    ...students.map(student => student.className)
-  ])).filter(Boolean).sort();
-  const branchOptions = Array.from(new Set([
-    'Main Campus',
-    ...exams.map(exam => exam.branch || ''),
-    ...students.map(student => student.branch || '')
-  ])).filter(Boolean).sort();
-  const academicYearOptions = Array.from(new Set([
-    schoolProfile.academicYear,
-    ...exams.map(exam => exam.academicYear)
-  ])).filter(Boolean).sort();
-  const getSectionOptions = (className?: string) => {
-    return (academicClasses.find(cls => cls.name === className)?.sections || []).filter(Boolean).sort();
-  };
+interface MetricCardProps {
+  label: string;
+  value: React.ReactNode;
+  hint?: string;
+  icon?: React.ReactNode;
+  className?: string;
+}
 
-  // Active student match (for Student/Parent portal view)
-  const matchingStudent = students.find(s => s.email === user?.email || (user?.role === 'Parent' && s.fatherName.toLowerCase() === user.name.toLowerCase()));
+const MAIN_TABS: Array<{
+  id: MainTab;
+  label: string;
+  helper: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: 'setup', label: 'Exam Setup', helper: 'General, schedule, subjects, papers, grades', icon: Award },
+  { id: 'evaluation', label: 'Evaluation', helper: 'Attendance, marks, grace, remarks', icon: ClipboardList },
+  { id: 'results', label: 'Results', helper: 'Workflow, report cards, analytics', icon: BarChart3 }
+];
 
-  // Filter components by active branch & year
-  const branchExamsList = exams.filter(
-    e => (!e.branch || e.branch === selectedBranch) && e.academicYear === selectedAcademicYear
-  );
+const SETUP_TABS: Array<{
+  id: SetupSubTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: 'general', label: 'General', icon: Award },
+  { id: 'schedule', label: 'Schedule', icon: CalendarDays },
+  { id: 'subjects', label: 'Subjects', icon: BookOpen },
+  { id: 'question-papers', label: 'Question Papers', icon: FileText },
+  { id: 'grades', label: 'Grade Rules', icon: Star }
+];
 
-  // ----------------------------------------------------
-  // ENTERPRISE EXAM LIFECYCLE & PROGRESS CALCULATOR
-  // ----------------------------------------------------
-  const todayStr = new Date().toISOString().split('T')[0];
+const RESULTS_TABS: Array<{
+  id: ResultsSubTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}> = [
+  { id: 'student-results', label: 'Student Results', icon: ClipboardList },
+  { id: 'report-cards', label: 'Report Cards', icon: FileText },
+  { id: 'top-performers', label: 'Top Performers', icon: Award },
+  { id: 'analytics', label: 'Performance Analytics', icon: BarChart3 }
+];
 
-  const getExamLifecycleStatus = (exam: ExamSetup): ExamLifecycleStatus => {
-    if (exam.publishStatus === 'Published' || exam.status === 'Results Published') return 'Published';
-    const schedules = examSchedules.filter(s => s.examId === exam.id);
-    const hasTimetable = schedules.length > 0;
-    const hasRoomsAndInvig = hasTimetable && schedules.every(s => Boolean(s.room && s.invigilatorName));
-    const isExamConcluded = exam.endDate && exam.endDate < todayStr;
-    const isExamOngoing = exam.startDate && exam.endDate && exam.startDate <= todayStr && todayStr <= exam.endDate;
+const WORKFLOW_STEPS: Array<{
+  id: WorkflowStep;
+  label: string;
+  helper: string;
+}> = [
+  { id: 'compute', label: 'Compute', helper: 'Build totals and class rank' },
+  { id: 'verify', label: 'Verify', helper: 'Check computed values' },
+  { id: 'approve', label: 'Approve', helper: 'Finalize for publication' },
+  { id: 'publish', label: 'Publish', helper: 'Release and distribute' }
+];
 
-    if (isExamConcluded) {
-      const hasMarks = examMarks.some(m => m.examId === exam.id);
-      if (hasMarks) return 'Results Processing';
-      return 'Evaluation';
-    }
-    if (isExamOngoing) return 'Ongoing';
-    if (hasRoomsAndInvig) return 'Ready';
-    if (hasTimetable) return 'Timetable Completed';
-    if (exam.status === 'Scheduled' || exam.startDate) return 'Scheduled';
-    return 'Draft';
-  };
-
-  const getExamChecklist = (exam: ExamSetup) => {
-    const schedules = examSchedules.filter(s => s.examId === exam.id);
-    const papers = questionPapers.filter(p => p.examId === exam.id);
-    const totalRequiredSubjects = (exam.applicableClasses?.length || 1) * 3; // Estimated standard subjects per class
-
-    const hasDetails = Boolean(exam.name && exam.startDate && exam.endDate);
-    const hasClasses = Boolean(exam.applicableClasses && exam.applicableClasses.length > 0);
-    const hasTimetable = schedules.length > 0;
-    const hasRooms = hasTimetable && schedules.some(s => Boolean(s.room));
-    const hasInvigilators = hasTimetable && schedules.some(s => Boolean(s.invigilatorName));
-    const hasPapers = papers.length > 0;
-    const isPublished = exam.publishStatus === 'Published' || exam.status === 'Results Published';
-
-    return {
-      hasDetails,
-      hasClasses,
-      hasTimetable,
-      scheduledSubjectCount: schedules.length,
-      totalRequiredSubjects,
-      hasRooms,
-      hasInvigilators,
-      hasPapers,
-      isPublished,
-      isValidToPublish: hasDetails && hasClasses && hasTimetable && hasRooms && hasInvigilators
-    };
-  };
-
-  const getExamProgress = (exam: ExamSetup) => {
-    const check = getExamChecklist(exam);
-    let points = 0;
-    if (check.hasDetails) points += 20;
-    if (check.hasClasses) points += 20;
-    if (check.hasTimetable) points += 20;
-    if (check.hasRooms && check.hasInvigilators) points += 20;
-    if (check.isPublished) points += 20;
-    return Math.min(points, 100);
-  };
-
-  // Dashboard Summary Metrics
-  const dashboardStats = useMemo(() => {
-    const total = branchExamsList.length;
-    let scheduled = 0;
-    let ongoing = 0;
-    let completed = 0;
-
-    branchExamsList.forEach(e => {
-      const status = getExamLifecycleStatus(e);
-      if (status === 'Ongoing') ongoing++;
-      else if (status === 'Published' || status === 'Archived' || status === 'Results Processing') completed++;
-      else scheduled++;
-    });
-
-    return { total, scheduled, ongoing, completed };
-  }, [branchExamsList, examSchedules, examMarks, todayStr]);
-
-  // ----------------------------------------------------
-  // Tab 1: Exam Setup Sub-workflow States
-  // ----------------------------------------------------
-  const [selectedExamWorkspace, setSelectedExamWorkspace] = useState<ExamSetup | null>(null);
-  const [setupStep, setSetupStep] = useState<'details' | 'classes' | 'timetable' | 'rooms_invigilators' | 'papers' | 'publish'>('details');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterType, setFilterType] = useState<string>('');
-
-  const [isExamModalOpen, setIsExamModalOpen] = useState(false);
-  const [editingExam, setEditingExam] = useState<ExamSetup | null>(null);
-  const [examFormData, setExamFormData] = useState<Partial<ExamSetup>>({
-    name: '',
-    academicYear: '2025-2026',
-    examType: 'Unit Test',
-    startDate: '',
-    endDate: '',
-    applicableClasses: [],
-    status: 'Scheduled',
-    branch: '',
-    gradeSchemeName: 'Default Scholastic'
-  });
-  const [deletingExam, setDeletingExam] = useState<ExamSetup | null>(null);
-
-  const handleOpenAddExam = () => {
-    if (!isAdminOrPrincipal) return;
-    setEditingExam(null);
-    setExamFormData({
-      name: '',
-      academicYear: selectedAcademicYear,
-      examType: 'Unit Test',
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      applicableClasses: ['Class 9', 'Class 10'],
-      status: 'Scheduled',
-      branch: selectedBranch,
-      gradeSchemeName: 'Default Scholastic'
-    });
-    setIsExamModalOpen(true);
-  };
-
-  const handleOpenEditExam = (exam: ExamSetup) => {
-    if (!isAdminOrPrincipal) return;
-    setEditingExam(exam);
-    setExamFormData(exam);
-    setIsExamModalOpen(true);
-  };
-
-  const [applyToAllSections, setApplyToAllSections] = useState(true);
-
-  const handleExamSubmit = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    if (!examFormData.name?.trim()) {
-      addToast('warning', 'Validation Warning', 'Please provide a title for the examination.');
-      return;
-    }
-    if (!examFormData.startDate || !examFormData.endDate) {
-      addToast('warning', 'Validation Warning', 'Please set both Start Date and End Date for the exam setup.');
-      return;
-    }
-    if (examFormData.startDate > examFormData.endDate) {
-      addToast('error', 'Validation Error', 'Start Date must be before or equal to End Date.');
-      return;
-    }
-    if (!examFormData.applicableClasses || examFormData.applicableClasses.length === 0) {
-      addToast('warning', 'Validation Warning', 'Please select at least one applicable class.');
-      return;
-    }
-
-    const isDuplicate = exams.some(
-      ex => ex.id !== editingExam?.id &&
-        ex.academicYear === selectedAcademicYear &&
-        (!ex.branch || ex.branch === selectedBranch) &&
-        ex.name.trim().toLowerCase() === examFormData.name?.trim().toLowerCase()
-    );
-
-    if (isDuplicate) {
-      addToast('error', 'Duplicate Exam Name', `An examination named '${examFormData.name}' already exists for academic year ${selectedAcademicYear}.`);
-      return;
-    }
-
-    const payload = {
-      ...examFormData,
-      branch: selectedBranch,
-      academicYear: selectedAcademicYear,
-      className: examFormData.applicableClasses?.[0] || classOptions[0] || 'Class 10'
-    };
-
-    if (editingExam) {
-      updateExam(editingExam.id, payload);
-      addToast('success', 'Success', `Updated examination setup: ${examFormData.name}`);
-      if (selectedExamWorkspace?.id === editingExam.id) {
-        setSelectedExamWorkspace({ ...selectedExamWorkspace, ...payload } as ExamSetup);
-      }
-    } else {
-      addExam(payload as Omit<ExamSetup, 'id'>);
-      addToast('success', 'Success', `Configured new examination: ${examFormData.name}`);
-    }
-    setIsExamModalOpen(false);
-  };
-
-  // Teaching Staff Filter for Invigilator Selection
-  const teachingStaffList = useMemo(() => {
-    const teachers = staff.filter(s => 
-      s.employeeCategory === 'Teacher' || 
-      s.designation?.toLowerCase().includes('teacher') || 
-      s.role === 'Teacher'
-    );
-    return teachers.length > 0 ? teachers : staff;
-  }, [staff]);
-
-  // Schedule & Unified Room + Invigilator Allocation States
-  const [invigilatorSearchQuery, setInvigilatorSearchQuery] = useState('');
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [editingSchedule, setEditingSchedule] = useState<ExamSchedule | null>(null);
-  const [selectedScheduleClasses, setSelectedScheduleClasses] = useState<string[]>(['Class 10']);
-  const [scheduleForm, setScheduleForm] = useState<Partial<ExamSchedule>>({
-    examId: '',
-    date: '',
-    startTime: '09:00',
-    endTime: '12:00',
-    subject: 'Mathematics',
-    className: 'Class 10',
-    section: 'All Sections',
+const FALLBACK_EXAM: ExamSetup = {
+  id: 'EXM-01',
+  name: 'Mid-Term Examination 2026',
+  academicYear: '2025-2026',
+  className: 'Class 10',
+  startDate: '2026-09-10',
+  endDate: '2026-09-22',
+  status: 'Scheduled',
+  branch: 'Main Campus',
+  examType: 'Half-Yearly',
+  applicableClasses: ['Class 10'],
+  sections: ['A'],
+  publishStatus: 'Draft',
+  gradeSchemeName: 'Default Scholastic',
+  marksConfig: {
     maxMarks: 100,
     passMarks: 33,
-    room: 'Hall A',
-    invigilatorId: '',
-    invigilatorName: 'Assigned Staff'
-  });
+    subjectWiseConfig: {
+      Mathematics: { maxMarks: 100, passMarks: 33 },
+      Physics: { maxMarks: 100, passMarks: 33 }
+    }
+  },
+  publishOptions: {
+    notifyTeachers: true,
+    notifyStudents: true,
+    generateHallTickets: true
+  }
+};
 
-  const checkScheduleConflicts = (
-    date: string,
-    startTime: string,
-    endTime: string,
-    className: string,
-    section: string,
-    ignoreId?: string
-  ) => {
-    const conflicts: string[] = [];
-    const overlaps = (s1Start: string, s1End: string, s2Start: string, s2End: string) => {
-      return s1Start < s2End && s2Start < s1End;
+const FALLBACK_GRADE_RULES: GradeConfig[] = [
+  { id: 'GRD-1', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'A+', gradeName: 'A+', minPercent: 90, maxPercent: 100, minMark: 90, maxMark: 100, gradePoints: 10, gradePoint: 10, passCriteria: 'Pass' },
+  { id: 'GRD-2', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'A', gradeName: 'A', minPercent: 80, maxPercent: 89, minMark: 80, maxMark: 89, gradePoints: 9, gradePoint: 9, passCriteria: 'Pass' },
+  { id: 'GRD-3', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'B+', gradeName: 'B+', minPercent: 70, maxPercent: 79, minMark: 70, maxMark: 79, gradePoints: 8, gradePoint: 8, passCriteria: 'Pass' },
+  { id: 'GRD-4', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'B', gradeName: 'B', minPercent: 60, maxPercent: 69, minMark: 60, maxMark: 69, gradePoints: 7, gradePoint: 7, passCriteria: 'Pass' },
+  { id: 'GRD-5', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'C', gradeName: 'C', minPercent: 50, maxPercent: 59, minMark: 50, maxMark: 59, gradePoints: 6, gradePoint: 6, passCriteria: 'Pass' },
+  { id: 'GRD-6', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'D', gradeName: 'D', minPercent: 33, maxPercent: 49, minMark: 33, maxMark: 49, gradePoints: 4, gradePoint: 4, passCriteria: 'Pass' },
+  { id: 'GRD-7', academicYear: '2025-2026', branch: 'All Branches', schemeName: 'Default Scholastic', grade: 'F', gradeName: 'F', minPercent: 0, maxPercent: 32, minMark: 0, maxMark: 32, gradePoints: 0, gradePoint: 0, passCriteria: 'Fail' }
+];
+
+const DEFAULT_REPORT_SETTINGS = {
+  attendance: true,
+  rank: true,
+  remarks: true,
+  promotionStatus: true,
+  principalSignature: true,
+  schoolSeal: true
+};
+
+const panelClass = 'rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900';
+const inputClass = 'w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 outline-none transition focus:border-sky-500 focus:bg-white dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:focus:border-sky-400';
+const selectClass = inputClass;
+const primaryButtonClass = 'inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2 text-xs font-black text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50';
+const outlineButtonClass = 'inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50';
+const ghostButtonClass = 'inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-black transition hover:bg-slate-100 dark:hover:bg-slate-800';
+const tableHeaderClass = 'sticky top-0 z-10 bg-slate-50/95 px-3 py-2.5 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800/95 dark:text-slate-300';
+
+function Panel({ title, description, action, className = '', children }: PanelProps) {
+  return (
+    <section className={`${panelClass} ${className}`}>
+      <div className="flex items-start justify-between gap-3 border-b border-slate-200/70 px-3 py-2.5 dark:border-slate-800">
+        <div className="space-y-0.5">
+          <h2 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white">{title}</h2>
+          {description && <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{description}</p>}
+        </div>
+        {action}
+      </div>
+      <div className="p-3">{children}</div>
+    </section>
+  );
+}
+
+function MetricCard({ label, value, hint, icon, className = '' }: MetricCardProps) {
+  return (
+    <div className={`rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/60 ${className}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{label}</p>
+          <div className="text-lg font-black text-slate-900 dark:text-white">{value}</div>
+          {hint && <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{hint}</p>}
+        </div>
+        {icon}
+      </div>
+    </div>
+  );
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const roundOne = (value: number) => Math.round(value * 10) / 10;
+
+const parseRollNo = (rollNo: string) => {
+  const numeric = Number.parseInt(String(rollNo).replace(/\D/g, ''), 10);
+  return Number.isFinite(numeric) ? numeric : Number.MAX_SAFE_INTEGER;
+};
+
+const getDisplayName = (student: Student) => `${student.firstName} ${student.lastName}`.trim();
+
+const getGradeBand = (percentage: number, gradeRules: GradeConfig[]) => {
+  const matched = gradeRules.find(rule =>
+    percentage >= (rule.minPercent ?? rule.minMark ?? 0) &&
+    percentage <= (rule.maxPercent ?? rule.maxMark ?? 100)
+  );
+
+  if (matched) {
+    return {
+      grade: matched.grade || matched.gradeName || 'A',
+      gpa: matched.gradePoint ?? matched.gradePoints ?? 9
     };
+  }
 
-    examSchedules.forEach(s => {
-      if (s.id === ignoreId) return;
-      const scheduleExam = exams.find(ex => ex.id === s.examId);
-      if (scheduleExam && scheduleExam.academicYear !== selectedAcademicYear) return;
-      if (scheduleExam?.branch && scheduleExam.branch !== selectedBranch) return;
-      if (s.date === date && overlaps(startTime, endTime, s.startTime, s.endTime)) {
-        if (s.className === className && (s.section === section || s.section === 'All Sections' || section === 'All Sections')) {
-          conflicts.push(`Class Conflict: Class ${className}-${section} already has a scheduled exam (${s.subject}) during ${startTime} - ${endTime}.`);
-        }
-      }
+  if (percentage >= 90) return { grade: 'A+', gpa: 10 };
+  if (percentage >= 80) return { grade: 'A', gpa: 9 };
+  if (percentage >= 70) return { grade: 'B+', gpa: 8 };
+  if (percentage >= 60) return { grade: 'B', gpa: 7 };
+  if (percentage >= 50) return { grade: 'C', gpa: 6 };
+  if (percentage >= 33) return { grade: 'D', gpa: 4 };
+  return { grade: 'F', gpa: 0 };
+};
+
+const getClassSections = (className: string, academicClasses: ReturnType<typeof useData>['academicClasses']) => {
+  const cls = academicClasses.find(item => item.name === className);
+  return (cls?.sections?.length ? cls.sections : ['A']).filter(Boolean);
+};
+
+const getClassSubjects = (className: string, academicClasses: ReturnType<typeof useData>['academicClasses'], subjects: ReturnType<typeof useData>['subjects']) => {
+  const cls = academicClasses.find(item => item.name === className);
+  const base = cls?.subjects?.length ? cls.subjects : subjects.map(subject => subject.name);
+  return Array.from(new Set(base.filter(Boolean)));
+};
+
+const getDurationLabel = (startTime: string, endTime: string) => {
+  const [startHour, startMinute] = startTime.split(':').map(part => Number.parseInt(part, 10));
+  const [endHour, endMinute] = endTime.split(':').map(part => Number.parseInt(part, 10));
+  const start = (startHour * 60) + startMinute;
+  const end = (endHour * 60) + endMinute;
+  const diff = Math.max(0, end - start);
+  const hours = Math.floor(diff / 60);
+  const minutes = diff % 60;
+  if (hours && minutes) return `${hours}h ${minutes}m`;
+  if (hours) return `${hours}h`;
+  return `${minutes}m`;
+};
+
+const buildSubjectWiseConfig = (subjects: string[], passMarks: number, maxMarks = 100) => {
+  return subjects.reduce<Record<string, { maxMarks: number; passMarks: number }>>((acc, subject) => {
+    acc[subject] = { maxMarks, passMarks };
+    return acc;
+  }, {});
+};
+
+const normalizeExam = (exam: ExamSetup, fallbackBranch: string): ExamSetup => ({
+  ...exam,
+  branch: exam.branch || fallbackBranch,
+  applicableClasses: exam.applicableClasses?.length ? exam.applicableClasses : [exam.className],
+  sections: exam.sections?.length ? exam.sections : ['A'],
+  publishStatus: exam.publishStatus || 'Draft',
+  marksConfig: {
+    maxMarks: exam.marksConfig?.maxMarks || 100,
+    passMarks: exam.marksConfig?.passMarks || 33,
+    subjectWiseConfig: exam.marksConfig?.subjectWiseConfig || {}
+  }
+});
+
+const buildSetupForm = (exam: ExamSetup, academicClasses: ReturnType<typeof useData>['academicClasses'], subjects: ReturnType<typeof useData>['subjects']): SetupFormState => {
+  const className = exam.className || 'Class 10';
+  const classSections = getClassSections(className, academicClasses);
+  const classSubjects = getClassSubjects(className, academicClasses, subjects);
+
+  return {
+    name: exam.name,
+    examType: exam.examType || 'Half-Yearly',
+    campus: exam.branch || 'Main Campus',
+    className,
+    section: exam.sections?.[0] || classSections[0] || 'A',
+    subjects: classSubjects.slice(0, 5),
+    passPercentage: exam.marksConfig?.passMarks || 33,
+    startDate: exam.startDate,
+    endDate: exam.endDate,
+    status: exam.status
+  };
+};
+
+const buildGradeRules = (exam: ExamSetup, gradeConfigurations: GradeConfig[]) => {
+  const scheme = exam.gradeSchemeName || 'Default Scholastic';
+  const filtered = gradeConfigurations.filter(rule => (rule.schemeName || 'Default Scholastic') === scheme);
+  const rules = filtered.length > 0 ? filtered : FALLBACK_GRADE_RULES;
+  return rules.map(rule => ({
+    ...rule,
+    grade: rule.grade || rule.gradeName,
+    minMark: rule.minMark ?? rule.minPercent,
+    maxMark: rule.maxMark ?? rule.maxPercent,
+    gradePoint: rule.gradePoint ?? rule.gradePoints
+  }));
+};
+
+const statusChipClass = (status: string) => {
+  if (status === 'Published') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300';
+  if (status === 'Locked') return 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200';
+  if (status === 'Processed') return 'bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300';
+  if (status === 'Results Published') return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300';
+  if (status === 'Submitted' || status === 'In Progress') return 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300';
+  return 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300';
+};
+
+export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = 'setup' }) => {
+  const { exams, students, staff, academicClasses, subjects, examMarks, examSchedules, questionPapers, gradeConfigurations, schoolProfile } = useData();
+  const { user, role } = useAuth();
+  const { addToast } = useToast();
+
+  const fallbackBranch = user?.branch || 'Main Campus';
+  const normalizedExams = useMemo(
+    () => (exams.length > 0 ? exams : [FALLBACK_EXAM]).map(exam => normalizeExam(exam, fallbackBranch)),
+    [exams, fallbackBranch]
+  );
+
+  const [workflowExams, setWorkflowExams] = useState<ExamSetup[]>(normalizedExams);
+  const [selectedExamId, setSelectedExamId] = useState<string>(normalizedExams[0]?.id || '');
+  const [activeTab, setActiveTab] = useState<MainTab>(initialTab);
+  const [setupSubTab, setSetupSubTab] = useState<SetupSubTab>('general');
+  const [resultsSubTab, setResultsSubTab] = useState<ResultsSubTab>('student-results');
+
+  const [setupForm, setSetupForm] = useState<SetupFormState>(() => buildSetupForm(normalizedExams[0] || FALLBACK_EXAM, academicClasses, subjects));
+  const [gradeRules, setGradeRules] = useState<GradeConfig[]>(() => buildGradeRules(normalizedExams[0] || FALLBACK_EXAM, gradeConfigurations));
+  const [questionPaperItems, setQuestionPaperItems] = useState<QuestionPaper[]>(() => questionPapers.filter(paper => paper.examId === (normalizedExams[0]?.id || FALLBACK_EXAM.id)));
+  const [evaluationSheets, setEvaluationSheets] = useState<Record<string, EvaluationSheetState>>({});
+  const [resultStatuses, setResultStatuses] = useState<Record<string, ResultStatus>>({});
+  const [resultWorkflowSteps, setResultWorkflowSteps] = useState<Record<string, WorkflowStep>>({});
+  const [reportSettings, setReportSettings] = useState(DEFAULT_REPORT_SETTINGS);
+  const [reportPreviewStudentId, setReportPreviewStudentId] = useState<string>('');
+  const [reportPreviewOpen, setReportPreviewOpen] = useState(false);
+  const [resultsMenuOpen, setResultsMenuOpen] = useState(false);
+
+  const questionPaperInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setWorkflowExams(normalizedExams);
+    if (!selectedExamId || !normalizedExams.some(exam => exam.id === selectedExamId)) {
+      setSelectedExamId(normalizedExams[0]?.id || '');
+    }
+  }, [normalizedExams]);
+
+  useEffect(() => {
+    const currentExam = workflowExams.find(exam => exam.id === selectedExamId) || workflowExams[0] || FALLBACK_EXAM;
+    setSetupForm(buildSetupForm(currentExam, academicClasses, subjects));
+    setGradeRules(buildGradeRules(currentExam, gradeConfigurations));
+    setQuestionPaperItems(questionPapers.filter(paper => paper.examId === currentExam.id));
+    setReportSettings(DEFAULT_REPORT_SETTINGS);
+    setResultsMenuOpen(false);
+  }, [selectedExamId, academicClasses, gradeConfigurations, questionPapers, subjects]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setSetupSubTab('general');
+    setResultsSubTab('student-results');
+  }, [selectedExamId]);
+
+  const selectedExam = useMemo(
+    () => workflowExams.find(exam => exam.id === selectedExamId) || workflowExams[0] || null,
+    [workflowExams, selectedExamId]
+  );
+
+  const examOptions = workflowExams;
+  const classOptions = useMemo(() => {
+    const names = new Set<string>();
+    academicClasses.forEach(cls => names.add(cls.name));
+    students.forEach(student => names.add(student.className));
+    return Array.from(names).filter(Boolean).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [academicClasses, students]);
+
+  const selectedClassSections = getClassSections(setupForm.className, academicClasses);
+  const selectedClassSubjects = getClassSubjects(setupForm.className, academicClasses, subjects);
+
+  const campusOptions = useMemo(() => {
+    const campuses = new Set<string>([fallbackBranch]);
+    workflowExams.forEach(exam => {
+      if (exam.branch) campuses.add(exam.branch);
     });
+    return Array.from(campuses);
+  }, [workflowExams, fallbackBranch]);
 
-    return conflicts;
-  };
+  const teacherOptions = useMemo(() => {
+    return Array.from(
+      new Map(
+        staff
+          .filter(person => person.status === 'Active')
+          .map(person => [person.id, { id: person.id, name: person.name || `${person.firstName} ${person.lastName}`.trim() }])
+      ).values()
+    );
+  }, [staff]);
 
-  const handleScheduleSubmit = (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    const { date, startTime, endTime, section, examId, subject, room, invigilatorName } = scheduleForm;
-    const targetClasses = (editingSchedule ? [scheduleForm.className || selectedScheduleClasses[0] || classOptions[0]] : selectedScheduleClasses).filter(Boolean);
-    
-    if (!examId || !date || !startTime || !endTime || !subject || targetClasses.length === 0) {
-      addToast('warning', 'Validation Warning', 'Please fill in all mandatory scheduling fields.');
-      return;
-    }
+  const selectedTabIndex = MAIN_TABS.findIndex(tab => tab.id === activeTab);
+  const previousTab = MAIN_TABS[(selectedTabIndex - 1 + MAIN_TABS.length) % MAIN_TABS.length];
+  const nextTab = MAIN_TABS[(selectedTabIndex + 1) % MAIN_TABS.length];
 
-    const examMaster = exams.find(ex => ex.id === examId);
-    if (examMaster) {
-      if (examMaster.startDate && date < examMaster.startDate) {
-        addToast('error', 'Validation Error', `Exam Date (${date}) cannot be before Exam Start Date (${examMaster.startDate}).`);
-        return;
-      }
-      if (examMaster.endDate && date > examMaster.endDate) {
-        addToast('error', 'Validation Error', `Exam Date (${date}) cannot be after Exam End Date (${examMaster.endDate}).`);
-        return;
-      }
-    }
+  const examDisplayName = selectedExam?.name || 'No Exam Selected';
 
-    if (startTime >= endTime) {
-      addToast('error', 'Validation Error', 'Start Time must be strictly before End Time.');
-      return;
-    }
+  const examKey = selectedExam?.id || FALLBACK_EXAM.id;
+  const setupScheduleRows = useMemo(() => {
+    const existing = examSchedules.filter(schedule => schedule.examId === examKey);
+    if (existing.length > 0) return existing;
 
-    const conflicts = targetClasses.flatMap(className => checkScheduleConflicts(
-      date, startTime, endTime, className, section || 'All Sections', editingSchedule?.id
-    ));
-
-    if (conflicts.length > 0) {
-      addToast('error', 'Scheduling Conflict', conflicts[0]);
-      return;
-    }
-
-    if (editingSchedule) {
-      updateExamSchedule(editingSchedule.id, {
-        ...scheduleForm,
-        academicYear: selectedAcademicYear,
-        branch: selectedBranch,
-        className: targetClasses[0],
-        section: section || 'All Sections',
-        room: room || 'Hall A',
-        invigilatorName: invigilatorName || 'Assigned Staff'
-      } as Omit<ExamSchedule, 'id'>);
-      addToast('success', 'Success', 'Updated exam schedule, room & invigilator allocation.');
-    } else {
-      let count = 0;
-      targetClasses.forEach(className => {
-        addExamSchedule({
-          ...scheduleForm,
-          academicYear: selectedAcademicYear,
-          branch: selectedBranch,
-          className,
-          section: section || 'All Sections',
-          room: room || 'Hall A',
-          invigilatorName: invigilatorName || 'Assigned Staff'
-        } as Omit<ExamSchedule, 'id'>);
-        count++;
-      });
-      addToast('success', 'Success', `Scheduled exam entry with room & invigilator for ${count} class(es).`);
-    }
-    setIsScheduleModalOpen(false);
-  };
-
-  // Question Papers State & Handlers
-  const [isPaperModalOpen, setIsPaperModalOpen] = useState(false);
-  const [editingPaper, setEditingPaper] = useState<QuestionPaper | null>(null);
-  const [viewingPaper, setViewingPaper] = useState<QuestionPaper | null>(null);
-
-  const [paperFormData, setPaperFormData] = useState<Partial<QuestionPaper>>({
-    paperTitle: '',
-    academicYear: '2025-2026',
-    branch: 'Main Campus',
-    examId: '',
-    className: 'Class 10',
-    section: 'A',
-    subject: 'Mathematics',
-    examDate: '',
-    duration: '3 Hours',
-    maxMarks: 100,
-    instructions: '1. Read all questions carefully.\n2. Answer in neat handwriting.',
-    fileName: 'question_paper.pdf',
-    fileSize: '1.5 MB',
-    fileType: 'PDF Document',
-    fileUrl: '#',
-    status: 'Published'
-  });
-
-  const handleOpenAddPaper = () => {
-    if (!isAdminOrPrincipal && !isTeacher) return;
-    setEditingPaper(null);
-    setPaperFormData({
-      paperTitle: '',
-      academicYear: selectedAcademicYear,
-      branch: selectedBranch,
-      examId: selectedExamWorkspace?.id || branchExamsList[0]?.id || '',
-      className: classOptions[0] || 'Class 10',
-      section: 'A',
-      subject: 'Mathematics',
-      examDate: new Date().toISOString().split('T')[0],
-      duration: '3 Hours',
+    const invigilator = teacherOptions[0]?.name || user?.name || 'Exam Coordinator';
+    return setupForm.subjects.slice(0, 3).map((subject, index) => ({
+      id: `SCH-${index + 1}`,
+      examId: examKey,
+      academicYear: selectedExam?.academicYear,
+      branch: setupForm.campus,
+      date: setupForm.startDate,
+      startTime: ['09:00', '11:00', '14:00'][index] || '09:00',
+      endTime: ['10:30', '12:30', '15:30'][index] || '10:30',
+      subject,
+      className: setupForm.className,
+      section: setupForm.section,
       maxMarks: 100,
-      instructions: '1. Read all questions carefully.\n2. Answer in neat handwriting.',
-      fileName: 'question_paper.pdf',
-      fileSize: '1.5 MB',
-      fileType: 'PDF Document',
-      fileUrl: '#',
-      status: 'Published'
-    });
-    setIsPaperModalOpen(true);
+      passMarks: Math.max(1, Math.min(100, Math.round(setupForm.passPercentage))),
+      room: `Room ${101 + index}`,
+      invigilatorId: teacherOptions[0]?.id || 'STAFF-001',
+      invigilatorName: invigilator
+    }));
+  }, [examSchedules, examKey, setupForm, selectedExam?.academicYear, setupForm.campus, teacherOptions, user?.name]);
+
+  const evaluationClassOptions = classOptions;
+  const evaluationClassSections = getClassSections(setupForm.className, academicClasses);
+  const evaluationSubjects = selectedClassSubjects.length > 0 ? selectedClassSubjects : ['Mathematics', 'Physics'];
+
+  const [evaluationClass, setEvaluationClass] = useState<string>(setupForm.className || classOptions[0] || 'Class 10');
+  const [evaluationSection, setEvaluationSection] = useState<string>(setupForm.section || evaluationClassSections[0] || 'A');
+  const [evaluationSubject, setEvaluationSubject] = useState<string>(evaluationSubjects[0] || 'Mathematics');
+
+  useEffect(() => {
+    if (!evaluationClassOptions.includes(evaluationClass) && evaluationClassOptions.length > 0) {
+      setEvaluationClass(evaluationClassOptions[0]);
+    }
+  }, [evaluationClassOptions, evaluationClass]);
+
+  useEffect(() => {
+    const sections = getClassSections(evaluationClass, academicClasses);
+    if (!sections.includes(evaluationSection)) {
+      setEvaluationSection(sections[0] || 'A');
+    }
+    const classSubjects = getClassSubjects(evaluationClass, academicClasses, subjects);
+    if (!classSubjects.includes(evaluationSubject)) {
+      setEvaluationSubject(classSubjects[0] || 'Mathematics');
+    }
+  }, [evaluationClass, evaluationSection, evaluationSubject, academicClasses, subjects]);
+
+  const resultsClassOptions = evaluationClassOptions;
+  const [resultsClass, setResultsClass] = useState<string>(setupForm.className || classOptions[0] || 'Class 10');
+  const [resultsSection, setResultsSection] = useState<string>(setupForm.section || 'A');
+
+  useEffect(() => {
+    if (!resultsClassOptions.includes(resultsClass) && resultsClassOptions.length > 0) {
+      setResultsClass(resultsClassOptions[0]);
+    }
+  }, [resultsClassOptions, resultsClass]);
+
+  useEffect(() => {
+    const sections = getClassSections(resultsClass, academicClasses);
+    if (!sections.includes(resultsSection)) {
+      setResultsSection(sections[0] || 'A');
+    }
+  }, [resultsClass, resultsSection, academicClasses]);
+
+  const createEvaluationSeed = (className: string, section: string, subject: string) => {
+    const roster = students
+      .filter(student => student.status === 'Active' && student.className === className && student.section === section)
+      .sort((a, b) => parseRollNo(a.rollNo) - parseRollNo(b.rollNo));
+
+    return roster.reduce<Record<string, EvaluationRowState>>((acc, student, index) => {
+      const stored = examMarks.find(mark =>
+        mark.examId === examKey &&
+        mark.studentId === student.id &&
+        (mark.className || className) === className &&
+        (mark.section || section) === section &&
+        mark.subject === subject
+      );
+
+      const fallbackMarks = clamp(68 + ((index * 9) % 23), 0, 100);
+      acc[student.id] = {
+        absent: stored?.isAbsent || false,
+        marks: String(stored?.marksObtained ?? fallbackMarks),
+        grace: String(stored?.graceMarks ?? 0),
+        remarks: stored?.remarks || ''
+      };
+      return acc;
+    }, {});
   };
 
-  const executePaperSubmit = () => {
-    if (!paperFormData.paperTitle?.trim()) {
-      addToast('warning', 'Validation Warning', 'Paper title is required.');
+  const evaluationKey = `${examKey}|${evaluationClass}|${evaluationSection}|${evaluationSubject}`;
+  const evaluationSheet = evaluationSheets[evaluationKey] || {
+    status: 'Draft' as EvaluationStatus,
+    rows: createEvaluationSeed(evaluationClass, evaluationSection, evaluationSubject)
+  };
+
+  useEffect(() => {
+    if (!evaluationSheets[evaluationKey]) {
+      setEvaluationSheets(prev => ({
+        ...prev,
+        [evaluationKey]: evaluationSheet
+      }));
+    }
+  }, [evaluationKey, evaluationSheets, evaluationSheet]);
+
+  const updateEvaluationRow = (studentId: string, updates: Partial<EvaluationRowState>) => {
+    setEvaluationSheets(prev => {
+      const current = prev[evaluationKey] || evaluationSheet;
+      return {
+        ...prev,
+        [evaluationKey]: {
+          ...current,
+          rows: {
+            ...current.rows,
+            [studentId]: {
+              ...current.rows[studentId],
+              ...updates
+            }
+          }
+        }
+      };
+    });
+  };
+
+  const evaluationRoster = students
+    .filter(student => student.status === 'Active' && student.className === evaluationClass && student.section === evaluationSection)
+    .sort((a, b) => parseRollNo(a.rollNo) - parseRollNo(b.rollNo));
+
+  const evaluationRows = evaluationRoster.map(student => {
+    const row = evaluationSheet.rows[student.id] || {
+      absent: false,
+      marks: '0',
+      grace: '0',
+      remarks: ''
+    };
+    const marks = Number.parseFloat(row.marks || '0') || 0;
+    const grace = Number.parseFloat(row.grace || '0') || 0;
+    const finalMarks = row.absent ? 0 : clamp(marks + grace, 0, 100);
+    const percent = finalMarks;
+    const grade = row.absent ? 'AB' : getGradeBand(percent, gradeRules).grade;
+    return {
+      student,
+      row,
+      finalMarks,
+      grade
+    };
+  });
+
+  const evaluationStats = {
+    total: evaluationRows.length,
+    absent: evaluationRows.filter(row => row.row.absent).length,
+    entered: evaluationRows.filter(row => String(row.row.marks).trim() !== '').length,
+    submitted: evaluationSheet.status
+  };
+
+  const handleSaveSetup = () => {
+    if (!setupForm.name.trim()) {
+      addToast('warning', 'Validation warning', 'Please enter an exam name.');
       return;
     }
-    const selectedExam = exams.find(e => e.id === paperFormData.examId);
-    const payload = {
-      ...paperFormData,
-      academicYear: selectedAcademicYear,
-      branch: selectedBranch,
-      examName: selectedExam?.name || 'Term Examination',
-      uploadedBy: user?.name || 'Staff Member',
-      uploadedOn: new Date().toISOString().split('T')[0]
+    if (!setupForm.startDate || !setupForm.endDate || setupForm.startDate > setupForm.endDate) {
+      addToast('warning', 'Validation warning', 'Please select a valid exam window.');
+      return;
+    }
+
+    const updatedExam: ExamSetup = {
+      ...(selectedExam || FALLBACK_EXAM),
+      name: setupForm.name.trim(),
+      examType: setupForm.examType,
+      branch: setupForm.campus,
+      className: setupForm.className,
+      applicableClasses: [setupForm.className],
+      sections: [setupForm.section],
+      startDate: setupForm.startDate,
+      endDate: setupForm.endDate,
+      status: setupForm.status,
+      publishStatus: (selectedExam?.publishStatus || 'Draft'),
+      gradeSchemeName: selectedExam?.gradeSchemeName || 'Default Scholastic',
+      marksConfig: {
+        maxMarks: selectedExam?.marksConfig?.maxMarks || 100,
+        passMarks: Math.max(1, Math.min(100, Number(setupForm.passPercentage) || 33)),
+        subjectWiseConfig: buildSubjectWiseConfig(setupForm.subjects, Math.max(1, Math.min(100, Number(setupForm.passPercentage) || 33)), selectedExam?.marksConfig?.maxMarks || 100)
+      }
     };
 
-    if (editingPaper) {
-      updateQuestionPaper(editingPaper.id, payload);
-      addToast('success', 'Success', `Updated question paper: ${paperFormData.paperTitle}`);
-    } else {
-      addQuestionPaper(payload as Omit<QuestionPaper, 'id'>);
-      addToast('success', 'Success', `Uploaded question paper: ${paperFormData.paperTitle}`);
-    }
-    setIsPaperModalOpen(false);
+    setWorkflowExams(prev => prev.map(exam => (exam.id === examKey ? updatedExam : exam)));
+    addToast('success', 'Exam setup saved', `${updatedExam.name} is ready for the next workflow stage.`);
   };
 
-  const handleTogglePublishPaper = (paper: QuestionPaper) => {
-    const newStatus = paper.status === 'Published' ? 'Draft' : 'Published';
-    updateQuestionPaper(paper.id, { status: newStatus });
-    addToast('info', 'Paper Status Updated', `'${paper.paperTitle}' is now ${newStatus}.`);
+  const handleUploadPaper = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedExam) return;
+
+    const subject = setupForm.subjects[0] || selectedClassSubjects[0] || 'Mathematics';
+    const nextPaper: QuestionPaper = {
+      id: `QP-${Date.now()}`,
+      academicYear: selectedExam.academicYear,
+      branch: setupForm.campus,
+      examId: selectedExam.id,
+      examName: setupForm.name,
+      className: setupForm.className,
+      section: setupForm.section,
+      subject,
+      paperTitle: file.name.replace(/\.[^.]+$/, ''),
+      paperCode: `QP-${selectedExam.id}-${subject.substring(0, 3).toUpperCase()}`,
+      examDate: setupForm.startDate,
+      duration: '2 Hours',
+      maxMarks: selectedExam.marksConfig?.maxMarks || 100,
+      instructions: 'Static demo upload for the redesigned workflow.',
+      fileUrl: '#',
+      fileName: file.name,
+      fileSize: `${Math.max(1, Math.round(file.size / 1024))} KB`,
+      fileType: file.type || 'application/pdf',
+      uploadedBy: user?.name || 'Exam Coordinator',
+      uploadedOn: new Date().toISOString().slice(0, 10),
+      status: 'Draft'
+    };
+
+    setQuestionPaperItems(prev => [nextPaper, ...prev]);
+    addToast('success', 'Question paper attached', `${file.name} was added to the setup.`);
+    event.target.value = '';
   };
 
-  // ----------------------------------------------------
-  // Tab 2: Evaluation Sub-workflow States
-  // ----------------------------------------------------
-  const [evaluationSubTab, setEvaluationSubTab] = useState<'marks' | 'absent' | 'grace' | 'grades'>('marks');
+  const handleSaveDraft = () => {
+    setEvaluationSheets(prev => ({
+      ...prev,
+      [evaluationKey]: {
+        ...evaluationSheet,
+        status: 'Draft'
+      }
+    }));
+    addToast('success', 'Draft saved', 'Evaluation data is stored locally for this static demo.');
+  };
 
-  // Marks Entry States
-  const [marksExamId, setMarksExamId] = useState(branchExamsList[0]?.id || '');
-  const [marksClass, setMarksClass] = useState(teacherClasses[0] || classOptions[0] || 'Class 10');
-  const [marksSection, setMarksSection] = useState('A');
-  const [marksSubject, setMarksSubject] = useState(teacherSubjectOptions[0] || subjectOptions[0] || 'Mathematics');
-  const [marksList, setMarksList] = useState<Record<string, { marksObtained: number | string; isAbsent: boolean; remarks?: string }>>({});
+  const handleSubmitMarks = () => {
+    setEvaluationSheets(prev => ({
+      ...prev,
+      [evaluationKey]: {
+        ...evaluationSheet,
+        status: 'Submitted'
+      }
+    }));
+    addToast('success', 'Marks submitted', 'The current evaluation sheet has been submitted.');
+  };
 
-  useEffect(() => {
-    if (!marksExamId && branchExamsList.length > 0) {
-      setMarksExamId(branchExamsList[0].id);
-    }
-  }, [branchExamsList, marksExamId]);
+  const buildPerformanceRows = (className: string, section: string) => {
+    const roster = students
+      .filter(student => student.status === 'Active' && student.className === className && student.section === section)
+      .sort((a, b) => parseRollNo(a.rollNo) - parseRollNo(b.rollNo));
+    const classSubjects = getClassSubjects(className, academicClasses, subjects);
 
-  useEffect(() => {
-    const existing = examMarks.filter(
-      m => m.examId === marksExamId && m.className === marksClass && m.section === marksSection && m.subject === marksSubject
-    );
-    const initialMap: Record<string, { marksObtained: number | string; isAbsent: boolean; remarks?: string }> = {};
-    existing.forEach(m => {
-      initialMap[m.studentId] = {
-        marksObtained: m.marksObtained,
-        isAbsent: m.isAbsent || false,
-        remarks: m.remarks || ''
-      };
-    });
-    setMarksList(initialMap);
-  }, [examMarks, marksExamId, marksClass, marksSection, marksSubject]);
+    const rows = roster.map((student, index) => {
+      const subjectMarks = classSubjects.map((subject, subjectIndex) => {
+        const sheetKey = `${examKey}|${className}|${section}|${subject}`;
+        const sheet = evaluationSheets[sheetKey];
+        const row = sheet?.rows[student.id];
+        const stored = examMarks.find(mark =>
+          mark.examId === examKey &&
+          mark.studentId === student.id &&
+          (mark.className || className) === className &&
+          (mark.section || section) === section &&
+          mark.subject === subject
+        );
+        const fallbackMarks = clamp(64 + (((index + 1) * 7 + subjectIndex * 5) % 31), 0, 100);
+        const obtained = row ? (row.absent ? 0 : Number.parseFloat(row.marks || '0') || 0) : (stored?.marksObtained ?? fallbackMarks);
+        const grace = row ? (Number.parseFloat(row.grace || '0') || 0) : (stored?.graceMarks || 0);
+        const final = row ? clamp(obtained + grace, 0, 100) : clamp(obtained + grace, 0, 100);
+        const absent = row ? row.absent : Boolean(stored?.isAbsent);
+        const passMarks = stored?.passMarks ?? selectedExam?.marksConfig?.passMarks ?? 33;
+        const maxMarks = stored?.maxMarks ?? selectedExam?.marksConfig?.maxMarks ?? 100;
+        const percent = maxMarks > 0 ? (final / maxMarks) * 100 : 0;
+        const grade = absent ? 'AB' : getGradeBand(percent, gradeRules).grade;
 
-  const handleSaveMarks = () => {
-    const currentSchedule = examSchedules.find(
-      s => s.examId === marksExamId && s.className === marksClass && s.subject === marksSubject
-    );
-    const maxMarks = currentSchedule?.maxMarks || 100;
-    const passMarks = currentSchedule?.passMarks || 33;
+        return {
+          subject,
+          obtained,
+          final,
+          maxMarks,
+          passMarks,
+          absent,
+          grade
+        };
+      });
 
-    const payload: ExamMark[] = Object.entries(marksList).map(([studentId, data]) => {
-      const marksVal = typeof data.marksObtained === 'string' ? parseFloat(data.marksObtained) || 0 : data.marksObtained;
+      const totalObtained = subjectMarks.reduce((sum, item) => sum + (item.absent ? 0 : item.final), 0);
+      const totalMax = subjectMarks.reduce((sum, item) => sum + item.maxMarks, 0) || 100;
+      const percentage = totalMax > 0 ? roundOne((totalObtained / totalMax) * 100) : 0;
+      const finalBand = getGradeBand(percentage, gradeRules);
+      const passThreshold = selectedExam?.marksConfig?.passMarks ?? 33;
+      const passFail = subjectMarks.some(item => !item.absent && item.final < item.passMarks) || percentage < passThreshold ? 'Fail' : 'Pass';
+      const attendance = clamp(Math.round(student.attendancePct || 0), 0, 100);
+
       return {
-        id: `MARK-${marksExamId}-${studentId}-${marksSubject}`,
-        examId: marksExamId,
-        studentId,
-        className: marksClass,
-        section: marksSection,
-        subject: marksSubject,
-        marksObtained: data.isAbsent ? 0 : marksVal,
-        maxMarks,
-        passMarks,
-        isAbsent: data.isAbsent,
-        remarks: data.remarks || ''
-      };
+        student,
+        rollNo: student.rollNo,
+        studentName: getDisplayName(student),
+        percentage,
+        gpa: finalBand.gpa,
+        grade: finalBand.grade,
+        passFail,
+        status: resultStatuses[`${examKey}|${className}|${section}`] || 'Draft',
+        rank: 0,
+        totalObtained,
+        totalMax,
+        subjectMarks,
+        attendance,
+        remarks: student.remarks || (passFail === 'Pass' ? 'Consistent performance.' : 'Needs focused remediation.')
+      } satisfies PerformanceRow;
     });
 
-    saveMarks(payload);
-    addToast('success', 'Evaluation Entries Saved', `Saved evaluation records for ${payload.length} students in ${marksSubject}.`);
+    const rankedRows = [...rows].sort((a, b) => b.percentage - a.percentage);
+    const rankMap = new Map<string, number>();
+    rankedRows.forEach((row, index) => rankMap.set(row.student.id, index + 1));
+
+    return rows
+      .map(row => ({
+        ...row,
+        rank: rankMap.get(row.student.id) || 0,
+        status: resultStatuses[`${examKey}|${className}|${section}`] || 'Draft'
+      }))
+      .sort((a, b) => parseRollNo(a.rollNo) - parseRollNo(b.rollNo));
   };
 
-  // Standard Default Grading Rules Fallback
-  const defaultGradeConfigs: GradeConfig[] = [
-    { grade: 'A+', minMark: 90, maxMark: 100, gradePoint: 10, remarks: 'Outstanding' },
-    { grade: 'A', minMark: 80, maxMark: 89, gradePoint: 9, remarks: 'Excellent' },
-    { grade: 'B', minMark: 70, maxMark: 79, gradePoint: 8, remarks: 'Very Good' },
-    { grade: 'C', minMark: 60, maxMark: 69, gradePoint: 7, remarks: 'Good' },
-    { grade: 'D', minMark: 33, maxMark: 59, gradePoint: 6, remarks: 'Satisfactory / Pass' },
-    { grade: 'F', minMark: 0, maxMark: 32, gradePoint: 0, remarks: 'Needs Improvement / Fail' }
-  ];
-
-  // Grade Configurations States & Actions
-  const [gradeScaleList, setGradeScaleList] = useState<GradeConfig[]>(
-    gradeConfigurations && gradeConfigurations.length > 0 ? gradeConfigurations : defaultGradeConfigs
+  const resultsKey = `${examKey}|${resultsClass}|${resultsSection}`;
+  const resultsRows = useMemo(() => buildPerformanceRows(resultsClass, resultsSection), [
+    resultsClass,
+    resultsSection,
+    examKey,
+    evaluationSheets,
+    examMarks,
+    gradeRules,
+    resultsClass,
+    resultsSection,
+    selectedExam?.marksConfig?.passMarks,
+    selectedExam?.marksConfig?.maxMarks,
+    subjects,
+    academicClasses,
+    students,
+    resultStatuses
+  ]);
+  const resultsStatus = resultStatuses[resultsKey] || 'Draft';
+  const resultsWorkflowStep = resultWorkflowSteps[resultsKey] || (
+    resultsStatus === 'Published' || resultsStatus === 'Locked'
+      ? 'publish'
+      : resultsStatus === 'Processed'
+        ? 'verify'
+        : 'compute'
   );
 
   useEffect(() => {
-    if (gradeConfigurations && gradeConfigurations.length > 0) {
-      setGradeScaleList(gradeConfigurations);
-    } else {
-      setGradeScaleList(defaultGradeConfigs);
+    if (!resultStatuses[resultsKey]) {
+      setResultStatuses(prev => ({
+        ...prev,
+        [resultsKey]: (selectedExam?.publishStatus === 'Published' || selectedExam?.status === 'Results Published') ? 'Published' : 'Draft'
+      }));
     }
-  }, [gradeConfigurations]);
-
-  const handleSaveGradeConfig = (newConfigs: GradeConfig[]) => {
-    saveGradeConfiguration(newConfigs);
-    addToast('success', 'Grade Scale Saved', 'Updated grade boundary rules and GPA point scale.');
-  };
-
-  // ----------------------------------------------------
-  // Tab 3: Results Sub-workflow States
-  // ----------------------------------------------------
-  const [resultStep, setResultStep] = useState<'process' | 'verify' | 'approve' | 'publish'>('process');
-  const [resultExamId, setResultExamId] = useState(branchExamsList[0]?.id || '');
-  const [resultClass, setResultClass] = useState(classOptions[0] || 'Class 10');
-  const [resultSection, setResultSection] = useState('A');
-
-  const handleProcessResults = () => {
-    if (!resultExamId) {
-      addToast('warning', 'Selection Warning', 'Please select an examination setup to process results.');
-      return;
-    }
-    const classStudents = students.filter(
-      s => s.className === resultClass && s.section === resultSection && (!s.branch || s.branch === selectedBranch)
-    );
-
-    if (classStudents.length === 0) {
-      addToast('warning', 'No Students Found', `No registered students found in Class ${resultClass}-${resultSection}.`);
-      return;
-    }
-
-    const computedResults: ProcessedResult[] = classStudents.map(st => {
-      const studentMarks = examMarks.filter(m => m.examId === resultExamId && m.studentId === st.id);
-      const totalMarksObtained = studentMarks.reduce((acc, curr) => acc + (curr.isAbsent ? 0 : curr.marksObtained), 0);
-      const totalMaxMarks = studentMarks.reduce((acc, curr) => acc + curr.maxMarks, 0) || 100;
-      const percentage = parseFloat(((totalMarksObtained / totalMaxMarks) * 100).toFixed(2));
-      const hasFailedSubject = studentMarks.some(m => !m.isAbsent && m.marksObtained < m.passMarks);
-      const isPass = !hasFailedSubject && percentage >= 33;
-
-      let gpa = 0;
-      if (percentage >= 90) gpa = 10;
-      else if (percentage >= 80) gpa = 9;
-      else if (percentage >= 70) gpa = 8;
-      else if (percentage >= 60) gpa = 7;
-      else if (percentage >= 50) gpa = 6;
-      else if (percentage >= 33) gpa = 5;
-      else gpa = 0;
-
-      return {
-        id: `RES-${resultExamId}-${st.id}`,
-        examId: resultExamId,
-        studentId: st.id,
-        studentName: `${st.firstName} ${st.lastName}`,
-        rollNo: st.rollNo,
-        className: resultClass,
-        section: resultSection,
-        totalMarksObtained,
-        totalMaxMarks,
-        percentage,
-        gpa,
-        grade: percentage >= 90 ? 'A+' : percentage >= 80 ? 'A' : percentage >= 70 ? 'B' : percentage >= 60 ? 'C' : percentage >= 33 ? 'D' : 'F',
-        passStatus: isPass ? 'Pass' : 'Fail',
-        status: 'Draft',
-        processedDate: new Date().toISOString().split('T')[0]
-      };
-    });
-
-    saveProcessedResults(computedResults);
-    addToast('success', 'Results Processed', `Computed and computed performance results for ${computedResults.length} students.`);
-    setResultStep('verify');
-  };
-
-  // ----------------------------------------------------
-  // Tab 4: Reports Sub-workflow States
-  // ----------------------------------------------------
-  // ----------------------------------------------------
-  // Tab 4: Reports Sub-workflow States
-  // ----------------------------------------------------
-  type ReportsSubTab = 'marksRegister' | 'reportCards' | 'topPerformers' | 'analytics';
-  const [reportsSubTab, setReportsSubTab] = useState<ReportsSubTab>('marksRegister');
-  const [reportExamId, setReportExamId] = useState(branchExamsList[0]?.id || '');
-  const [reportClass, setReportClass] = useState(classOptions[0] || 'Class 10');
-  const [reportSection, setReportSection] = useState('A');
-  const [selectedStudentForReport, setSelectedStudentForReport] = useState<Student | null>(null);
-  const [selectedExamForReport, setSelectedExamForReport] = useState<ExamSetup | null>(null);
-
-  // View Marks Register States & Computation Engine
-  const [marksRegisterExamId, setMarksRegisterExamId] = useState(branchExamsList[0]?.id || '');
-  const [marksRegisterClass, setMarksRegisterClass] = useState(classOptions[0] || 'Class 10');
-  const [marksRegisterSection, setMarksRegisterSection] = useState('A');
-  const [marksRegisterSearchQuery, setMarksRegisterSearchQuery] = useState('');
-  const [marksRegisterSortBy, setMarksRegisterSortBy] = useState<'rollNo' | 'name' | 'percentage' | 'totalMarks' | 'grade'>('rollNo');
-  const [marksRegisterSortOrder, setMarksRegisterSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [selectedStudentDetail, setSelectedStudentDetail] = useState<{
-    student: Student;
-    marksMap: Record<string, ExamMark>;
-    totalObtained: number;
-    totalMax: number;
-    percentage: number;
-    grade: string;
-    passStatus: string;
-    rank: number;
-  } | null>(null);
+  }, [resultsKey, resultStatuses, selectedExam?.publishStatus, selectedExam?.status]);
 
   useEffect(() => {
-    if (!marksRegisterExamId && branchExamsList.length > 0) {
-      setMarksRegisterExamId(branchExamsList[0].id);
+    if (!resultWorkflowSteps[resultsKey]) {
+      setResultWorkflowSteps(prev => ({
+        ...prev,
+        [resultsKey]: resultsStatus === 'Published' || resultsStatus === 'Locked'
+          ? 'publish'
+          : resultsStatus === 'Processed'
+            ? 'verify'
+            : 'compute'
+      }));
     }
-  }, [branchExamsList, marksRegisterExamId]);
+  }, [resultsKey, resultWorkflowSteps, resultsStatus]);
 
-  // Dynamically load subjects for selected exam & class
-  const registerSubjects = useMemo(() => {
-    const schedules = examSchedules.filter(
-      s => s.examId === marksRegisterExamId && s.className === marksRegisterClass
-    );
-    const scheduleSubjects = Array.from(new Set(schedules.map(s => s.subject))).filter(Boolean);
-    if (scheduleSubjects.length > 0) return scheduleSubjects;
-    
-    // Fallback to subjects where marks exist for this exam and class
-    const marksSubjects = Array.from(new Set(
-      examMarks.filter(m => m.examId === marksRegisterExamId && m.className === marksRegisterClass).map(m => m.subject)
-    )).filter(Boolean);
+  const resultsSummary = useMemo(() => {
+    const total = resultsRows.length;
+    return {
+      total,
+      pass: resultsRows.filter(row => row.passFail === 'Pass').length,
+      fail: resultsRows.filter(row => row.passFail === 'Fail').length,
+      pending: resultsStatus === 'Draft' ? total : 0,
+      published: resultsStatus === 'Published' || resultsStatus === 'Locked' ? total : 0
+    };
+  }, [resultsRows.length, resultsStatus]);
 
-    return marksSubjects.length > 0 ? marksSubjects : ['Mathematics', 'Physics', 'Chemistry', 'English'];
-  }, [examSchedules, examMarks, marksRegisterExamId, marksRegisterClass]);
-
-  // Compute student marks register data
-  const registerStudentData = useMemo(() => {
-    const classStudents = students.filter(
-      st => st.className === marksRegisterClass &&
-            (st.section === marksRegisterSection || !st.section || marksRegisterSection === 'All') &&
-            (!st.branch || st.branch === selectedBranch)
-    );
-
-    const rows = classStudents.map(st => {
-      const studentMarksList = examMarks.filter(m => m.examId === marksRegisterExamId && m.studentId === st.id);
-      const marksMap: Record<string, ExamMark> = {};
-      let totalObtained = 0;
-      let totalMax = 0;
-      let isAbsentAll = true;
-      let hasFailed = false;
-
-      registerSubjects.forEach(subj => {
-        const mark = studentMarksList.find(m => m.subject === subj);
-        if (mark) {
-          marksMap[subj] = mark;
-          if (!mark.isAbsent) {
-            isAbsentAll = false;
-            totalObtained += mark.marksObtained;
-          }
-          totalMax += mark.maxMarks || 100;
-          if (mark.isAbsent || mark.marksObtained < mark.passMarks) {
-            hasFailed = true;
-          }
-        } else {
-          totalMax += 100;
-        }
-      });
-
-      const percentage = totalMax > 0 ? parseFloat(((totalObtained / totalMax) * 100).toFixed(2)) : 0;
-      
-      let grade = 'F';
-      const matchedGrade = gradeScaleList.find(g => percentage >= g.minMark && percentage <= g.maxMark);
-      if (matchedGrade) {
-        grade = matchedGrade.grade;
-      } else {
-        grade = percentage >= 90 ? 'A+' : percentage >= 80 ? 'A' : percentage >= 70 ? 'B' : percentage >= 60 ? 'C' : percentage >= 33 ? 'D' : 'F';
-      }
-
-      const passStatus = !hasFailed && !isAbsentAll && percentage >= 33 ? 'Pass' : 'Fail';
-
-      return {
-        student: st,
-        marksMap,
-        totalObtained,
-        totalMax,
-        percentage,
-        grade,
-        passStatus,
-        isAbsentAll,
-        hasAppeared: !isAbsentAll && studentMarksList.length > 0
-      };
-    });
-
-    const sortedForRank = [...rows].sort((a, b) => b.totalObtained - a.totalObtained);
-    const rankedRows = rows.map(r => {
-      const rank = sortedForRank.findIndex(sr => sr.student.id === r.student.id) + 1;
-      return { ...r, rank };
-    });
-
-    let filtered = rankedRows;
-    if (marksRegisterSearchQuery.trim()) {
-      const q = marksRegisterSearchQuery.toLowerCase().trim();
-      filtered = filtered.filter(r => {
-        const name = `${r.student.firstName} ${r.student.lastName}`.toLowerCase();
-        const roll = (r.student.rollNo || '').toLowerCase();
-        const adm = (r.student.admissionNo || r.student.id || '').toLowerCase();
-        return name.includes(q) || roll.includes(q) || adm.includes(q);
-      });
-    }
-
-    filtered.sort((a, b) => {
-      let valA: any = a.student.rollNo;
-      let valB: any = b.student.rollNo;
-
-      if (marksRegisterSortBy === 'name') {
-        valA = `${a.student.firstName} ${a.student.lastName}`;
-        valB = `${b.student.firstName} ${b.student.lastName}`;
-      } else if (marksRegisterSortBy === 'percentage') {
-        valA = a.percentage;
-        valB = b.percentage;
-      } else if (marksRegisterSortBy === 'totalMarks') {
-        valA = a.totalObtained;
-        valB = b.totalObtained;
-      } else if (marksRegisterSortBy === 'grade') {
-        valA = a.grade;
-        valB = b.grade;
-      }
-
-      if (valA < valB) return marksRegisterSortOrder === 'asc' ? -1 : 1;
-      if (valA > valB) return marksRegisterSortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return { rows: rankedRows, filteredRows: filtered };
-  }, [students, examMarks, marksRegisterExamId, marksRegisterClass, marksRegisterSection, selectedBranch, registerSubjects, gradeScaleList, marksRegisterSearchQuery, marksRegisterSortBy, marksRegisterSortOrder]);
-
-  const marksRegisterStats = useMemo(() => {
-    const allRows = registerStudentData.rows;
-    const totalStudents = allRows.length;
-    const appeared = allRows.filter(r => r.hasAppeared).length;
-    const absent = allRows.filter(r => r.isAbsentAll).length;
-    const passed = allRows.filter(r => r.passStatus === 'Pass').length;
-    const failed = allRows.filter(r => r.passStatus === 'Fail').length;
-    const avgPercentage = appeared > 0
-      ? (allRows.reduce((acc, r) => acc + (r.hasAppeared ? r.percentage : 0), 0) / appeared).toFixed(2)
-      : '0.00';
-
-    return { totalStudents, appeared, absent, passed, failed, avgPercentage };
-  }, [registerStudentData]);
-
-  const handleExportCSV = () => {
-    const headers = ['Roll No', 'Admission No', 'Student Name', ...registerSubjects, 'Total Marks', 'Max Marks', 'Percentage (%)', 'Grade', 'Result'];
-    const rows = registerStudentData.filteredRows.map(r => {
-      const subjectMarks = registerSubjects.map(subj => {
-        const mark = r.marksMap[subj];
-        if (!mark) return '—';
-        return mark.isAbsent ? 'AB' : mark.marksObtained;
-      });
-      return [
-        r.student.rollNo || '',
-        r.student.admissionNo || r.student.id || '',
-        `"${r.student.firstName} ${r.student.lastName}"`,
-        ...subjectMarks,
-        r.totalObtained,
-        r.totalMax,
-        `${r.percentage}%`,
-        r.grade,
-        r.passStatus
-      ];
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Marks_Register_${marksRegisterClass}_${marksRegisterSection}_${selectedAcademicYear}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    addToast('success', 'Export Complete', 'Exported digital marks register to CSV file.');
+  const handleProcessResults = () => {
+    setResultStatuses(prev => ({ ...prev, [resultsKey]: 'Processed' }));
+    setResultWorkflowSteps(prev => ({ ...prev, [resultsKey]: 'verify' }));
+    addToast('success', 'Results processed', `${resultsRows.length} students were processed for ${selectedExam?.name || 'the selected exam'}.`);
   };
 
-  const handlePrintMarksRegister = () => {
+  const handleApproveResults = () => {
+    setResultStatuses(prev => ({ ...prev, [resultsKey]: prev[resultsKey] === 'Draft' ? 'Processed' : prev[resultsKey] || 'Processed' }));
+    setResultWorkflowSteps(prev => ({ ...prev, [resultsKey]: 'approve' }));
+    addToast('success', 'Results approved', 'The computed result set is ready for publication.');
+  };
+
+  const handlePublishResults = () => {
+    setResultStatuses(prev => ({ ...prev, [resultsKey]: 'Published' }));
+    setResultWorkflowSteps(prev => ({ ...prev, [resultsKey]: 'publish' }));
+    addToast('success', 'Results published', 'Published results are now available in the report workflow.');
+  };
+
+  const handleLockResults = () => {
+    setResultStatuses(prev => ({ ...prev, [resultsKey]: 'Locked' }));
+    setResultWorkflowSteps(prev => ({ ...prev, [resultsKey]: 'publish' }));
+    addToast('success', 'Results locked', 'The current result set is now locked.');
+  };
+
+  const handleRevertToDraft = () => {
+    setResultStatuses(prev => ({ ...prev, [resultsKey]: 'Draft' }));
+    setResultWorkflowSteps(prev => ({ ...prev, [resultsKey]: 'compute' }));
+    setResultsMenuOpen(false);
+    addToast('warning', 'Reverted to draft', 'The result set has been moved back to draft mode.');
+  };
+
+  useEffect(() => {
+    if (!reportPreviewStudentId || !resultsRows.some(row => row.student.id === reportPreviewStudentId)) {
+      setReportPreviewStudentId(resultsRows[0]?.student.id || '');
+    }
+  }, [resultsRows, reportPreviewStudentId]);
+
+  const reportPreviewRow = resultsRows.find(row => row.student.id === reportPreviewStudentId) || resultsRows[0] || null;
+  const reportPreviewStudent = reportPreviewRow?.student || null;
+
+  const reportAnalytics = useMemo(() => {
+    const total = resultsRows.length || 1;
+    const average = roundOne(resultsRows.reduce((sum, row) => sum + row.percentage, 0) / total);
+    const highest = resultsRows.length ? Math.max(...resultsRows.map(row => row.percentage)) : 0;
+    const lowest = resultsRows.length ? Math.min(...resultsRows.map(row => row.percentage)) : 0;
+    const passed = resultsRows.filter(row => row.passFail === 'Pass').length;
+    const failed = resultsRows.filter(row => row.passFail === 'Fail').length;
+
+    const subjectsList = getClassSubjects(resultsClass, academicClasses, subjects);
+    const subjectStats = subjectsList.map(subject => {
+      const scoreList = resultsRows.map(row => row.subjectMarks.find(mark => mark.subject === subject)?.final || 0);
+      const avg = scoreList.length ? roundOne(scoreList.reduce((sum, score) => sum + score, 0) / scoreList.length) : 0;
+      const passRate = scoreList.length ? Math.round((scoreList.filter(score => score >= (selectedExam?.marksConfig?.passMarks ?? 33)).length / scoreList.length) * 100) : 0;
+      return { subject, avg, passRate };
+    });
+
+    const topRankers = [...resultsRows].sort((a, b) => b.percentage - a.percentage).slice(0, 3);
+
+    return { average, highest, lowest, passed, failed, subjectStats, topRankers };
+  }, [resultsRows, resultsClass, academicClasses, subjects, selectedExam?.marksConfig?.passMarks]);
+
+  const handleGenerateReports = () => {
+    addToast('success', 'Reports generated', `${resultsRows.length} report cards are ready for the selected class.`);
+  };
+
+  const handlePreviewReports = () => {
+    if (!reportPreviewStudent) {
+      addToast('warning', 'Preview unavailable', 'Please ensure a student is available for the current filters.');
+      return;
+    }
+    setReportPreviewOpen(true);
+  };
+
+  const handlePrintReports = () => {
     window.print();
   };
 
+  const handleDownloadPdf = () => {
+    addToast('success', 'Download queued', 'Static PDF download is simulated in this demo.');
+  };
+
+  const handleSendToParents = () => {
+    addToast('success', 'Send queued', 'Report cards have been queued for parent delivery in this static demo.');
+  };
+
+  const toggleMainTab = (direction: -1 | 1) => {
+    const nextIndex = (MAIN_TABS.findIndex(tab => tab.id === activeTab) + direction + MAIN_TABS.length) % MAIN_TABS.length;
+    setActiveTab(MAIN_TABS[nextIndex].id);
+  };
+
+  const setupCardAction = (
+    <div className="flex items-center gap-2">
+      <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${statusChipClass(setupForm.status)}`}>
+        {setupForm.status}
+      </span>
+      <button type="button" onClick={handleSaveSetup} className={primaryButtonClass}>
+        <Save className="h-4 w-4" />
+        {setupSubTab === 'schedule' ? 'Save' : 'Save Setup'}
+      </button>
+      {setupSubTab === 'schedule' && (
+        <button type="button" onClick={() => window.print()} className={outlineButtonClass}>
+          <Printer className="h-4 w-4" />
+          Print Schedule
+        </button>
+      )}
+    </div>
+  );
+
+  const evaluationCardAction = (
+    <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${statusChipClass(evaluationSheet.status)}`}>
+      {evaluationSheet.status}
+    </span>
+  );
+
+  const resultsCardAction = (
+    <div className="flex flex-wrap items-center gap-2">
+      {resultsSubTab === 'student-results' && (
+        <>
+          <button
+            type="button"
+            onClick={handleProcessResults}
+            disabled={resultsStatus === 'Locked' || resultsStatus === 'Published'}
+            className={primaryButtonClass}
+          >
+            <ClipboardList className="h-4 w-4" />
+            Compute Results
+          </button>
+          <button
+            type="button"
+            onClick={handleApproveResults}
+            disabled={resultsStatus === 'Locked'}
+            className={outlineButtonClass}
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Approve
+          </button>
+          <button
+            type="button"
+            onClick={handlePublishResults}
+            disabled={resultsStatus === 'Locked'}
+            className={outlineButtonClass}
+          >
+            <Lock className="h-4 w-4" />
+            Publish
+          </button>
+        </>
+      )}
+      {resultsSubTab === 'report-cards' && (
+        <>
+          <button type="button" onClick={handleGenerateReports} className={primaryButtonClass}>
+            <FileText className="h-4 w-4" />
+            Generate
+          </button>
+          <button type="button" onClick={handlePreviewReports} className={outlineButtonClass}>
+            <Eye className="h-4 w-4" />
+            Preview
+          </button>
+          <button type="button" onClick={handlePrintReports} className={outlineButtonClass}>
+            <Printer className="h-4 w-4" />
+            Print Report Cards
+          </button>
+          <button type="button" onClick={handleDownloadPdf} className={outlineButtonClass}>
+            <Download className="h-4 w-4" />
+            Download Report Cards
+          </button>
+          <button type="button" onClick={handleSendToParents} className={outlineButtonClass}>
+            <Send className="h-4 w-4" />
+            Send to Parents
+          </button>
+        </>
+      )}
+      {(resultsSubTab === 'student-results' || resultsSubTab === 'report-cards') && (
+        <div className="relative">
+          <button type="button" onClick={() => setResultsMenuOpen(value => !value)} className={ghostButtonClass + ' text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}>
+            <MoreVertical className="h-4 w-4" />
+          </button>
+          {resultsMenuOpen && (
+            <div className="absolute right-0 z-20 mt-2 w-48 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+              <button type="button" onClick={handleLockResults} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                <Lock className="h-4 w-4" />
+                Lock Results
+              </button>
+              <button type="button" onClick={handleRevertToDraft} className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800">
+                <RotateCcw className="h-4 w-4" />
+                Revert to Draft
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+      {resultsSubTab !== 'student-results' && resultsSubTab !== 'report-cards' && (
+        <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${statusChipClass(resultsStatus)}`}>
+          {resultsStatus}
+        </span>
+      )}
+    </div>
+  );
+
+  const workflowStepIndex = Math.max(0, WORKFLOW_STEPS.findIndex(step => step.id === resultsWorkflowStep));
+
   return (
-    <div className="space-y-6">
-      {/* Module Header */}
-      <div className="glass-card p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-sky-600 text-white rounded-2xl shadow-lg shadow-sky-600/30">
-            <Award className="w-7 h-7" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Examinations Hub</h1>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Enterprise Examination Lifecycle • Setups, Evaluation, Result Processing & Report Cards
+    <div className="mx-auto w-full max-w-[1440px] space-y-3 pb-8">
+      <section className="rounded-[1.75rem] border border-slate-200/80 bg-slate-950 px-4 py-3 text-white shadow-xl shadow-slate-950/10 dark:border-slate-800">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-sky-300">
+              <Sparkles className="h-4 w-4" />
+              Examination workflow
+            </div>
+            <h1 className="text-xl font-black tracking-tight sm:text-2xl">{MAIN_TABS.find(tab => tab.id === activeTab)?.label || 'Examinations'}</h1>
+            <p className="max-w-3xl text-sm text-slate-300">
+              A compact three-screen workflow for setup, evaluation, and results.
             </p>
           </div>
-        </div>
 
-        {/* Global Session & Branch Controls */}
-        <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800">
-            <MapPin className="w-3.5 h-3.5 text-sky-600" />
-            <select
-              value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
-              className="bg-transparent font-bold outline-none cursor-pointer text-slate-800 dark:text-white"
-            >
-              {branchOptions.map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="min-w-[240px]">
+              <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Selected Exam</label>
+              <select value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} className={selectClass}>
+                {examOptions.map(exam => (
+                  <option key={exam.id} value={exam.id}>
+                    {exam.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800">
-            <Calendar className="w-3.5 h-3.5 text-sky-600" />
-            <select
-              value={selectedAcademicYear}
-              onChange={e => setSelectedAcademicYear(e.target.value)}
-              className="bg-transparent font-bold outline-none cursor-pointer text-slate-800 dark:text-white"
-            >
-              {academicYearOptions.map(yr => (
-                <option key={yr} value={yr}>{yr}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => toggleMainTab(-1)} className={outlineButtonClass + ' border-white/10 bg-white/5 text-white hover:bg-white/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10'}>
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </button>
+              <button type="button" onClick={() => toggleMainTab(1)} className={outlineButtonClass + ' border-white/10 bg-white/5 text-white hover:bg-white/10 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10'}>
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* 4 Top-Level Main Navigation Bar */}
-      {!isStudentOrParent && (
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 pb-2">
-          {[
-            { id: 'setup', label: 'Exam Setup', icon: Award, desc: 'Master setups, schedules, rooms & papers' },
-            { id: 'evaluation', label: 'Evaluation', icon: Edit, desc: 'Marks entry & grade rules' },
-            { id: 'results', label: 'Results', icon: RefreshCw, desc: 'Process, verify, approve & publish' },
-            { id: 'reports', label: 'Reports', icon: Printer, desc: 'Report cards & performance analytics' }
-          ].map(t => (
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {MAIN_TABS.map(tab => {
+          const active = activeTab === tab.id;
+          return (
             <button
-              key={t.id}
-              onClick={(e) => {
-                setActiveTab(t.id as MainTab);
-                e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-              }}
-              className={`px-5 py-3 rounded-2xl font-black text-xs flex items-center gap-2.5 transition-all ${
-                activeTab === t.id
-                  ? 'bg-sky-600 text-white shadow-lg shadow-sky-600/25 scale-[1.02]'
-                  : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                active
+                  ? 'border-sky-300 bg-sky-50 shadow-sm dark:border-sky-900/70 dark:bg-sky-950/30'
+                  : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700'
               }`}
             >
-              <t.icon className="w-4 h-4" />
-              <div className="text-left">
-                <span className="block">{t.label}</span>
-                <span className="text-[9px] font-normal opacity-80 block">{t.desc}</span>
+              <div className={`rounded-xl p-2 ${active ? 'bg-sky-600 text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'}`}>
+                <tab.icon className="h-4 w-4" />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-black text-slate-900 dark:text-white">{tab.label}</div>
+                <div className="text-[11px] font-medium leading-4 text-slate-500 dark:text-slate-400">{tab.helper}</div>
               </div>
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {/* ----------------------------------------------------
-          TAB 1: EXAM SETUP (MASTER + SCHEDULE + ROOMS + PAPERS)
-          ---------------------------------------------------- */}
-      {activeTab === 'setup' && !isStudentOrParent && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Top Dashboard Summary Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="glass-card p-5 rounded-3xl space-y-1 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-black uppercase tracking-wider">Total Examinations</span>
-                <Award className="w-4 h-4 text-sky-600" />
-              </div>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{dashboardStats.total}</p>
-              <p className="text-[10px] text-slate-400">In {selectedAcademicYear}</p>
-            </div>
-
-            <div className="glass-card p-5 rounded-3xl space-y-1 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-black uppercase tracking-wider">Scheduled / Ready</span>
-                <Calendar className="w-4 h-4 text-blue-600" />
-              </div>
-              <p className="text-2xl font-black text-blue-600">{dashboardStats.scheduled}</p>
-              <p className="text-[10px] text-slate-400">Upcoming setups</p>
-            </div>
-
-            <div className="glass-card p-5 rounded-3xl space-y-1 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-black uppercase tracking-wider">Ongoing</span>
-                <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
-              </div>
-              <p className="text-2xl font-black text-amber-600">{dashboardStats.ongoing}</p>
-              <p className="text-[10px] text-slate-400">Active date span</p>
-            </div>
-
-            <div className="glass-card p-5 rounded-3xl space-y-1 border border-slate-100 dark:border-slate-800">
-              <div className="flex items-center justify-between text-slate-400">
-                <span className="text-[10px] font-black uppercase tracking-wider">Completed / Published</span>
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-              </div>
-              <p className="text-2xl font-black text-emerald-600">{dashboardStats.completed}</p>
-              <p className="text-[10px] text-slate-400">Results released</p>
-            </div>
-          </div>
-
-          {selectedExamWorkspace ? (
-            /* ====================================================
-               RESTRUCTURED 6-STEP GUIDED SETUP WORKSPACE
-               ==================================================== */
-            <div className="space-y-6">
-              {/* Workspace Header Card */}
-              <div className="glass-card p-6 rounded-3xl space-y-4 border border-sky-100 dark:border-sky-900/40">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setSelectedExamWorkspace(null)}
-                      className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 font-bold text-xs flex items-center gap-1.5 transition-colors"
-                    >
-                      ← Back to Directory
-                    </button>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
-                          {selectedExamWorkspace.examType || 'Term Exam'}
-                        </span>
-                        <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                          Lifecycle: {getExamLifecycleStatus(selectedExamWorkspace)}
-                        </span>
-                      </div>
-                      <h2 className="text-xl font-black text-slate-900 dark:text-white mt-1">
-                        {selectedExamWorkspace.name}
-                      </h2>
-                      <p className="text-xs text-slate-500 font-medium">
-                        Session: {selectedExamWorkspace.academicYear} • Branch: {selectedExamWorkspace.branch || 'Main Campus'} • Duration: {formatDisplayDate(selectedExamWorkspace.startDate)} to {formatDisplayDate(selectedExamWorkspace.endDate)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {isAdminOrPrincipal && (
-                      <button
-                        onClick={() => handleOpenEditExam(selectedExamWorkspace)}
-                        className="px-3.5 py-2 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 font-bold text-xs flex items-center gap-1.5"
-                      >
-                        <Edit className="w-3.5 h-3.5" /> Edit Setup
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Progress Bar & Setup Checklist Header */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-sky-600" /> Exam Setup Progress
-                    </span>
-                    <span className="font-mono font-black text-sky-600 text-sm">
-                      {getExamProgress(selectedExamWorkspace)}%
-                    </span>
-                  </div>
-                  <div className="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500 rounded-full"
-                      style={{ width: `${getExamProgress(selectedExamWorkspace)}%` }}
-                    />
-                  </div>
-
-                  {/* Checklist Indicators */}
-                  {(() => {
-                    const check = getExamChecklist(selectedExamWorkspace);
-                    return (
-                      <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-bold">
-                        <span className={`flex items-center gap-1 ${check.hasDetails ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {check.hasDetails ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />} Exam Details
-                        </span>
-                        <span className={`flex items-center gap-1 ${check.hasClasses ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {check.hasClasses ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />} Classes Assigned
-                        </span>
-                        <span className={`flex items-center gap-1 ${check.hasTimetable ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {check.hasTimetable ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />} Timetable ({check.scheduledSubjectCount} Subjects)
-                        </span>
-                        <span className={`flex items-center gap-1 ${check.hasRooms && check.hasInvigilators ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {check.hasRooms && check.hasInvigilators ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />} Room & Invigilators
-                        </span>
-                        <span className={`flex items-center gap-1 ${check.hasPapers ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          {check.hasPapers ? <CheckSquare className="w-3.5 h-3.5 text-emerald-500" /> : <Square className="w-3.5 h-3.5 text-slate-400" />} Question Papers (Optional)
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* 6-Step Internal Guided Stepper */}
-                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  {[
-                    { id: 'details', label: '1. Exam Details', icon: Award },
-                    { id: 'classes', label: '2. Classes', icon: Users },
-                    { id: 'timetable', label: '3. Timetable', icon: Calendar },
-                    { id: 'rooms_invigilators', label: '4. Room & Staff', icon: MapPin },
-                    { id: 'papers', label: '5. Papers', icon: FileText },
-                    { id: 'publish', label: '6. Publish', icon: ShieldCheck }
-                  ].map(step => (
-                    <button
-                      key={step.id}
-                      onClick={() => setSetupStep(step.id as any)}
-                      className={`px-3 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all ${
-                        setupStep === step.id
-                          ? 'bg-sky-600 text-white shadow-md'
-                          : 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-                      }`}
-                    >
-                      <step.icon className="w-3.5 h-3.5" />
-                      <span className="truncate">{step.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* STEP 1: EXAM DETAILS */}
-              {setupStep === 'details' && (
-                <div className="glass-card p-6 rounded-3xl space-y-4">
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider">Exam Configuration Details</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Exam Name</span>
-                      <p className="font-black text-slate-900 dark:text-white text-base">{selectedExamWorkspace.name}</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Exam Type</span>
-                      <p className="font-bold text-sky-600">{selectedExamWorkspace.examType || 'Term Exam'}</p>
-                    </div>
-                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Scheduled Date Span</span>
-                      <p className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                        {formatDisplayDate(selectedExamWorkspace.startDate)} ➔ {formatDisplayDate(selectedExamWorkspace.endDate)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-3">
-                    <button
-                      onClick={() => setSetupStep('classes')}
-                      className="px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs flex items-center gap-2"
-                    >
-                      Next: Applicable Classes →
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 2: APPLICABLE CLASSES */}
-              {setupStep === 'classes' && (
-                <div className="glass-card p-6 rounded-3xl space-y-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
-                    <div>
-                      <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-                        <Users className="w-5 h-5 text-sky-600" />
-                        Applicable Target Classes ({selectedExamWorkspace.applicableClasses?.length || 0} Assigned)
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Add or remove classes participating in this examination setup</p>
-                    </div>
-
-                    {isAdminOrPrincipal && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            const updated = { ...selectedExamWorkspace, applicableClasses: [...classOptions] };
-                            setSelectedExamWorkspace(updated);
-                            updateExam(selectedExamWorkspace.id, { applicableClasses: classOptions });
-                            addToast('success', 'All Classes Assigned', 'Assigned all available school classes to this exam.');
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold text-xs hover:bg-sky-100 transition-colors"
-                        >
-                          + Select All Classes
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Active Assigned Classes */}
-                  <div className="space-y-2">
-                    <label className="block text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
-                      Currently Assigned Classes
-                    </label>
-                    <div className="flex flex-wrap gap-2.5">
-                      {(selectedExamWorkspace.applicableClasses || []).length === 0 ? (
-                        <p className="text-xs text-slate-400 italic">No classes assigned yet. Click on available classes below to add.</p>
-                      ) : (
-                        (selectedExamWorkspace.applicableClasses || []).map(c => (
-                          <div
-                            key={c}
-                            className="px-3.5 py-2 rounded-2xl bg-sky-600 text-white font-extrabold text-xs shadow-md flex items-center gap-2 group animate-in fade-in"
-                          >
-                            <CheckCircle className="w-4 h-4 text-sky-200" />
-                            <span>{c}</span>
-                            {isAdminOrPrincipal && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const current = selectedExamWorkspace.applicableClasses || [];
-                                  if (current.length <= 1) {
-                                    addToast('warning', 'Minimum Requirement', 'An examination must have at least one applicable class.');
-                                    return;
-                                  }
-                                  const updatedClasses = current.filter(cls => cls !== c);
-                                  const updated = { ...selectedExamWorkspace, applicableClasses: updatedClasses };
-                                  setSelectedExamWorkspace(updated);
-                                  updateExam(selectedExamWorkspace.id, { applicableClasses: updatedClasses });
-                                  addToast('info', 'Class Removed', `Removed ${c} from examination.`);
-                                }}
-                                title={`Delete ${c}`}
-                                className="p-0.5 rounded-full hover:bg-sky-700 text-sky-200 hover:text-white transition-colors"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Available School Classes Selector */}
-                  <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                    <label className="block text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">
-                      Add More Classes (Available School Classes)
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {classOptions
-                        .filter(c => !(selectedExamWorkspace.applicableClasses || []).includes(c))
-                        .map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => {
-                              if (!isAdminOrPrincipal) return;
-                              const current = selectedExamWorkspace.applicableClasses || [];
-                              const updatedClasses = [...current, c].sort();
-                              const updated = { ...selectedExamWorkspace, applicableClasses: updatedClasses };
-                              setSelectedExamWorkspace(updated);
-                              updateExam(selectedExamWorkspace.id, { applicableClasses: updatedClasses });
-                              addToast('success', 'Class Added', `Added ${c} to examination.`);
-                            }}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-300 hover:text-sky-600 font-bold text-xs border border-slate-200 dark:border-slate-700 hover:border-sky-300 transition-all flex items-center gap-1.5"
-                          >
-                            <Plus className="w-3.5 h-3.5 text-sky-600" /> {c}
-                          </button>
-                        ))}
-                      {classOptions.every(c => (selectedExamWorkspace.applicableClasses || []).includes(c)) && (
-                        <p className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle className="w-3.5 h-3.5" /> All registered school classes have been assigned to this exam.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <button onClick={() => setSetupStep('details')} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs">← Back</button>
-                    <button onClick={() => setSetupStep('timetable')} className="px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-md">Next: Exam Timetable →</button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 3: EXAM TIMETABLE */}
-              {setupStep === 'timetable' && (
-                <div className="glass-card p-6 rounded-3xl space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4 border-slate-100 dark:border-slate-800">
-                    <div>
-                      <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-                        <Calendar className="w-5 h-5 text-sky-600" />
-                        Exam Timetable ({examSchedules.filter(s => s.examId === selectedExamWorkspace.id).length} / 5 Subjects Scheduled)
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Assign exam dates and timings for individual subjects</p>
-                    </div>
-                    {isAdminOrPrincipal && (
-                      <button
-                        onClick={() => {
-                          setEditingSchedule(null);
-                          setSelectedScheduleClasses([selectedExamWorkspace.applicableClasses?.[0] || 'Class 10']);
-                          setScheduleForm({
-                            examId: selectedExamWorkspace.id,
-                            date: selectedExamWorkspace.startDate || new Date().toISOString().split('T')[0],
-                            startTime: '09:00',
-                            endTime: '12:00',
-                            subject: subjectOptions[0] || 'Mathematics',
-                            className: selectedExamWorkspace.applicableClasses?.[0] || 'Class 10',
-                            section: 'All Sections',
-                            maxMarks: 100,
-                            passMarks: 33,
-                            room: 'Hall A',
-                            invigilatorId: '',
-                            invigilatorName: 'Assigned Staff'
-                          });
-                          setIsScheduleModalOpen(true);
-                        }}
-                        className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs flex items-center gap-2 shadow-lg shadow-sky-600/20"
-                      >
-                        <Plus className="w-4 h-4" /> Add Timetable Entry
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-tight">
-                          <th className="py-3 px-4">Subject</th>
-                          <th className="py-3 px-4">Exam Date</th>
-                          <th className="py-3 px-4">Timing</th>
-                          <th className="py-3 px-4">Class & Section</th>
-                          {isAdminOrPrincipal && <th className="py-3 px-4 text-right">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
-                        {examSchedules.filter(s => s.examId === selectedExamWorkspace.id).length === 0 ? (
-                          <tr>
-                            <td colSpan={isAdminOrPrincipal ? 5 : 4} className="py-10 text-center text-slate-400 font-medium">
-                              No subject exam dates scheduled yet. Click "+ Add Timetable Entry" to begin.
-                            </td>
-                          </tr>
-                        ) : (
-                          examSchedules.filter(s => s.examId === selectedExamWorkspace.id).map(s => (
-                            <tr key={s.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
-                              <td className="py-3.5 px-4 font-black text-slate-900 dark:text-white text-sm">{s.subject}</td>
-                              <td className="py-3.5 px-4 font-mono font-bold text-sky-600">{formatDisplayDate(s.date)}</td>
-                              <td className="py-3.5 px-4 font-medium">{s.startTime} - {s.endTime}</td>
-                              <td className="py-3.5 px-4 font-bold">{s.className} ({s.section})</td>
-                              {isAdminOrPrincipal && (
-                                <td className="py-3.5 px-4 text-right space-x-1">
-                                  <button
-                                    onClick={() => {
-                                      setEditingSchedule(s);
-                                      setSelectedScheduleClasses([s.className]);
-                                      setScheduleForm(s);
-                                      setIsScheduleModalOpen(true);
-                                    }}
-                                    className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50"
-                                    title="Edit Schedule"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      if (window.confirm(`Delete schedule for ${s.subject}?`)) {
-                                        deleteExamSchedule(s.id);
-                                        addToast('success', 'Deleted', `Deleted schedule for ${s.subject}`);
-                                      }
-                                    }}
-                                    className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50"
-                                    title="Delete Schedule"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </td>
-                              )}
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-between pt-3">
-                    <button onClick={() => setSetupStep('classes')} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs">← Back</button>
-                    <button onClick={() => setSetupStep('rooms_invigilators')} className="px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs">Next: Room & Staff Allocation →</button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 4: ROOM & INVIGILATOR ALLOCATION (COMBINED UNIFIED SCREEN) */}
-              {setupStep === 'rooms_invigilators' && (
-                <div className="glass-card p-6 rounded-3xl space-y-4">
-                  <div className="flex items-center justify-between border-b pb-4">
-                    <div>
-                      <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-                        <MapPin className="w-5 h-5 text-sky-600" />
-                        Room Venue, Bench Capacity & Invigilator Staff Allocation
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Unified screen mapping Class ➔ Section ➔ Room Venue ➔ Bench Capacity ➔ Invigilator Staff</p>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto border rounded-2xl">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-800/60 font-extrabold uppercase text-slate-500 border-b">
-                          <th className="p-3">Subject</th>
-                          <th className="p-3">Class & Section</th>
-                          <th className="p-3">Date & Time</th>
-                          <th className="p-3">Assigned Room Venue</th>
-                          <th className="p-3 text-center">Bench Capacity / Seats</th>
-                          <th className="p-3">Invigilator Staff</th>
-                          {isAdminOrPrincipal && <th className="p-3 text-right">Action</th>}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                        {examSchedules.filter(s => s.examId === selectedExamWorkspace.id).map(s => (
-                          <tr key={s.id} className="hover:bg-slate-50/50">
-                            <td className="p-3 font-bold text-slate-900 dark:text-white">{s.subject}</td>
-                            <td className="p-3 font-bold">{s.className} ({s.section})</td>
-                            <td className="p-3 font-mono">{formatDisplayDate(s.date)} ({s.startTime}-{s.endTime})</td>
-                            <td className="p-3 font-mono font-bold text-sky-600">{s.room || 'Hall A'}</td>
-                            <td className="p-3 text-center font-mono font-bold">40 Seats</td>
-                            <td className="p-3">
-                              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-200 dark:border-emerald-800">
-                                {s.invigilatorName || 'Assigned Staff'}
-                              </span>
-                            </td>
-                            {isAdminOrPrincipal && (
-                              <td className="p-3 text-right">
-                                <button
-                                  onClick={() => {
-                                    setEditingSchedule(s);
-                                    setSelectedScheduleClasses([s.className]);
-                                    setScheduleForm(s);
-                                    setIsScheduleModalOpen(true);
-                                  }}
-                                  className="px-3 py-1.5 rounded-xl bg-sky-50 text-sky-600 font-bold text-xs hover:bg-sky-100"
-                                >
-                                  Edit Room & Staff
-                                </button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-between pt-3">
-                    <button onClick={() => setSetupStep('timetable')} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs">← Back</button>
-                    <button onClick={() => setSetupStep('papers')} className="px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs">Next: Question Papers →</button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 5: QUESTION PAPERS */}
-              {setupStep === 'papers' && (
-                <div className="glass-card p-6 rounded-3xl space-y-4">
-                  <div className="flex items-center justify-between border-b pb-3">
-                    <div>
-                      <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-sky-600" />
-                        Question Papers Vault (Optional)
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">Upload, manage, preview, and publish question papers for this exam</p>
-                    </div>
-                    {(isAdminOrPrincipal || isTeacher) && (
-                      <button
-                        onClick={handleOpenAddPaper}
-                        className="px-4 py-2 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5"
-                      >
-                        <Upload className="w-4 h-4" /> Upload Paper
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="overflow-x-auto border rounded-2xl">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-800/60 font-bold uppercase text-slate-500">
-                          <th className="p-3">Paper Title & File</th>
-                          <th className="p-3">Class & Section</th>
-                          <th className="p-3">Subject</th>
-                          <th className="p-3">Uploaded By</th>
-                          <th className="p-3">Status</th>
-                          <th className="p-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                        {questionPapers.filter(p => p.examId === selectedExamWorkspace.id).length === 0 ? (
-                          <tr>
-                            <td colSpan={6} className="p-8 text-center text-slate-400 italic font-medium">
-                              No question papers uploaded for this exam setup yet (Optional).
-                            </td>
-                          </tr>
-                        ) : (
-                          questionPapers.filter(p => p.examId === selectedExamWorkspace.id).map(paper => (
-                            <tr key={paper.id} className="hover:bg-slate-50/50">
-                              <td className="p-3 font-bold text-slate-900 dark:text-white">{paper.paperTitle}</td>
-                              <td className="p-3 font-bold">{paper.className} ({paper.section})</td>
-                              <td className="p-3 text-sky-600 font-bold">{formatSubject(paper.subject)}</td>
-                              <td className="p-3">{paper.uploadedBy}</td>
-                              <td className="p-3">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                  paper.status === 'Published' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                  {paper.status}
-                                </span>
-                              </td>
-                              <td className="p-3 text-right space-x-1">
-                                <button onClick={() => setViewingPaper(paper)} className="p-1 text-slate-500 hover:text-slate-800"><Eye className="w-4 h-4" /></button>
-                                <button onClick={() => handleTogglePublishPaper(paper)} className="p-1 text-emerald-600"><Lock className="w-4 h-4" /></button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div className="flex justify-between pt-3">
-                    <button onClick={() => setSetupStep('rooms_invigilators')} className="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-bold text-xs">← Back</button>
-                    <button onClick={() => setSetupStep('publish')} className="px-5 py-2.5 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs">Next: Publish Examination →</button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP 6: PUBLISH EXAMINATION (STRICT VALIDATION RULES) */}
-              {setupStep === 'publish' && (
-                <div className="glass-card p-6 rounded-3xl space-y-5">
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-sky-600" />
-                    Examination Publish Control & Strict Validation Checklist
-                  </h3>
-
-                  {(() => {
-                    const check = getExamChecklist(selectedExamWorkspace);
-                    return (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
-                          <div className={`flex items-center gap-2 font-bold ${check.hasDetails ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {check.hasDetails ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span>Exam Details Completed</span>
-                          </div>
-                          <div className={`flex items-center gap-2 font-bold ${check.hasClasses ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {check.hasClasses ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span>Target Classes Assigned</span>
-                          </div>
-                          <div className={`flex items-center gap-2 font-bold ${check.hasTimetable ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {check.hasTimetable ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span>Exam Timetable Scheduled ({check.scheduledSubjectCount} Subjects)</span>
-                          </div>
-                          <div className={`flex items-center gap-2 font-bold ${check.hasRooms && check.hasInvigilators ? 'text-emerald-600' : 'text-rose-600'}`}>
-                            {check.hasRooms && check.hasInvigilators ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                            <span>Rooms & Invigilator Staff Allocated</span>
-                          </div>
-                        </div>
-
-                        {!check.isValidToPublish && (
-                          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 flex items-center gap-3 text-rose-700 dark:text-rose-300 text-xs font-semibold">
-                            <ShieldAlert className="w-5 h-5 flex-shrink-0" />
-                            <p>Publishing is blocked. Please complete all mandatory checklist items above before releasing the examination.</p>
-                          </div>
-                        )}
-
-                        <div className="p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                          <div>
-                            <h4 className="font-extrabold text-emerald-800 dark:text-emerald-300 text-xs">Publish Examination Setup</h4>
-                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400">Releases examination timetable, rooms, and staff invigilators to staff and student portals.</p>
-                          </div>
-                          {isAdminOrPrincipal && (
-                            <button
-                              disabled={!check.isValidToPublish}
-                              onClick={() => {
-                                const newStatus = selectedExamWorkspace.publishStatus === 'Published' ? 'Draft' : 'Published';
-                                updateExam(selectedExamWorkspace.id, { publishStatus: newStatus as any });
-                                setSelectedExamWorkspace({ ...selectedExamWorkspace, publishStatus: newStatus as any });
-                                addToast('success', 'Status Updated', `Examination is now ${newStatus}.`);
-                              }}
-                              className={`px-5 py-2.5 rounded-2xl font-black text-xs shadow-md transition-all ${
-                                check.isValidToPublish
-                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                                  : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
-                              }`}
-                            >
-                              Toggle Publish Status
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* ====================================================
-               EXAMINATIONS DIRECTORY VIEW (CARDS & TABLE)
-               ==================================================== */
-            <div className="space-y-6">
-              {/* Directory Filter Bar */}
-              <div className="glass-card p-4 rounded-3xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs font-semibold">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Search Examinations</label>
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Search exam title, type..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Exam Type</label>
-                  <select
-                    value={filterType}
-                    onChange={e => setFilterType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  >
-                    <option value="">All Types</option>
-                    <option value="Unit Test">Unit Test</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Half-Yearly">Half-Yearly</option>
-                    <option value="Annual">Annual</option>
-                    <option value="Practical">Practical</option>
-                  </select>
-                </div>
-
-                <div className="flex items-end gap-2">
-                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full justify-center">
-                    <button
-                      onClick={() => setViewMode('grid')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        viewMode === 'grid' ? 'bg-white dark:bg-slate-900 text-sky-600 shadow-sm' : 'text-slate-400'
-                      }`}
-                    >
-                      Grid
-                    </button>
-                    <button
-                      onClick={() => setViewMode('table')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        viewMode === 'table' ? 'bg-white dark:bg-slate-900 text-sky-600 shadow-sm' : 'text-slate-400'
-                      }`}
-                    >
-                      Table
-                    </button>
-                  </div>
-                </div>
-
-                {isAdminOrPrincipal && (
-                  <div className="flex items-end">
-                    <button
-                      onClick={handleOpenAddExam}
-                      className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md"
-                    >
-                      <Plus className="w-4 h-4" /> Setup Exam
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Directory Cards & Table */}
-              {(() => {
-                const filteredExams = branchExamsList.filter(ex => {
-                  if (searchQuery) {
-                    const q = searchQuery.toLowerCase();
-                    const match = ex.name.toLowerCase().includes(q) || (ex.examType && ex.examType.toLowerCase().includes(q));
-                    if (!match) return false;
-                  }
-                  if (filterType && ex.examType !== filterType) return false;
-                  return true;
-                });
-
-                if (filteredExams.length === 0) {
-                  return (
-                    <div className="glass-card p-12 text-center rounded-3xl space-y-2">
-                      <Award className="h-10 w-10 mx-auto text-slate-400 opacity-60" />
-                      <h4 className="font-extrabold text-slate-800 dark:text-slate-200">No Examinations Found</h4>
-                      <p className="text-slate-500 max-w-sm mx-auto text-xs font-semibold">
-                        There are no examinations matching your search or filters. Click "Setup Exam" above to configure your first examination.
-                      </p>
-                    </div>
-                  );
-                }
-
-                if (viewMode === 'grid') {
-                  return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                      {filteredExams.map(ex => {
-                        const progress = getExamProgress(ex);
-                        const lifecycle = getExamLifecycleStatus(ex);
-                        const schedules = examSchedules.filter(s => s.examId === ex.id);
-                        return (
-                          <div key={ex.id} className="glass-card rounded-3xl p-6 space-y-4 hover:shadow-xl transition-all relative overflow-hidden group border border-slate-100 dark:border-slate-800">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
-                                    {ex.examType || 'Term Exam'}
-                                  </span>
-                                  <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
-                                    lifecycle === 'Published' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300' :
-                                    lifecycle === 'Ongoing' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 animate-pulse' :
-                                    'bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300'
-                                  }`}>
-                                    {lifecycle}
-                                  </span>
-                                </div>
-                                <h4 className="font-extrabold text-slate-900 dark:text-white text-base group-hover:text-sky-600 transition-colors">{ex.name}</h4>
-                                <p className="text-xs text-slate-400 font-medium mt-0.5">Session {ex.academicYear} • Branch: {ex.branch || 'Main Campus'}</p>
-                              </div>
-
-                              {isAdminOrPrincipal && (
-                                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100">
-                                  <button onClick={() => handleOpenEditExam(ex)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-blue-600 transition-colors" title="Edit Exam Setup">
-                                    <Edit className="w-4 h-4" />
-                                  </button>
-                                  <button onClick={() => setDeletingExam(ex)} className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-rose-600 transition-colors" title="Delete Exam Setup">
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Setup Progress Bar */}
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-[10px] font-bold text-slate-400">
-                                <span>Exam Setup Progress</span>
-                                <span className="font-mono text-sky-600">{progress}%</span>
-                              </div>
-                              <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                                <div className="h-full bg-sky-500 rounded-full" style={{ width: `${progress}%` }} />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 border-t border-slate-100 dark:border-slate-800/80 pt-4 text-xs font-semibold">
-                              <div>
-                                <span className="block text-[10px] uppercase font-extrabold text-slate-400">Scheduled Span</span>
-                                <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">{formatDisplayDate(ex.startDate)} ➔ {formatDisplayDate(ex.endDate)}</span>
-                              </div>
-                              <div>
-                                <span className="block text-[10px] uppercase font-extrabold text-slate-400">Scheduled Subjects</span>
-                                <span className="text-sky-600 dark:text-sky-400 font-black">{schedules.length} / 5 Scheduled</span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-4">
-                              <button
-                                onClick={() => {
-                                  setSelectedExamWorkspace(ex);
-                                  setSetupStep('details');
-                                }}
-                                className="w-full py-2 rounded-xl bg-sky-50 hover:bg-sky-600 text-sky-600 hover:text-white dark:bg-sky-950/50 dark:text-sky-400 dark:hover:bg-sky-600 font-extrabold text-xs transition-all flex items-center justify-center gap-1"
-                              >
-                                Open Setup Wizard →
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="glass-card rounded-3xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-lg">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-xs font-semibold">
-                        <thead>
-                          <tr className="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 text-[10px] uppercase tracking-wider text-slate-400 font-black">
-                            <th className="p-4">Exam Name</th>
-                            <th className="p-4">Lifecycle State</th>
-                            <th className="p-4">Date Range</th>
-                            <th className="p-4 text-center">Scheduled Subjects</th>
-                            <th className="p-4 text-center">Progress</th>
-                            <th className="p-4 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {filteredExams.map(ex => {
-                            const schedules = examSchedules.filter(s => s.examId === ex.id);
-                            const lifecycle = getExamLifecycleStatus(ex);
-                            const progress = getExamProgress(ex);
-                            return (
-                              <tr key={ex.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
-                                <td className="p-4 font-black text-slate-900 dark:text-white text-sm">{ex.name}</td>
-                                <td className="p-4 font-bold text-sky-600">{lifecycle}</td>
-                                <td className="p-4 font-mono text-slate-600 dark:text-slate-300">{formatDisplayDate(ex.startDate)} to {formatDisplayDate(ex.endDate)}</td>
-                                <td className="p-4 text-center font-extrabold text-slate-800 dark:text-slate-200">{schedules.length} / 5 Scheduled</td>
-                                <td className="p-4 text-center font-mono font-bold text-sky-600">{progress}%</td>
-                                <td className="p-4 text-right">
-                                  <button
-                                    onClick={() => {
-                                      setSelectedExamWorkspace(ex);
-                                      setSetupStep('details');
-                                    }}
-                                    className="px-3 py-1.5 rounded-xl bg-sky-600 text-white font-bold text-xs hover:bg-sky-500 transition-colors"
-                                  >
-                                    Manage Setup Wizard
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 2: EVALUATION (MARKS + ABSENT + GRACE + GRADES)
-          ---------------------------------------------------- */}
-      {activeTab === 'evaluation' && !isStudentOrParent && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Internal Sub-Navigation Pill */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-max">
-            {[
-              { id: 'marks', label: 'Marks Entry', icon: Edit },
-              { id: 'absent', label: 'Absent Management', icon: UserCheck },
-              { id: 'grace', label: 'Grace Marks', icon: Award },
-              { id: 'grades', label: 'Grade Configurations', icon: BarChart2 }
-            ].map(sub => (
-              <button
-                key={sub.id}
-                onClick={() => setEvaluationSubTab(sub.id as any)}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
-                  evaluationSubTab === sub.id ? 'bg-white dark:bg-slate-900 text-sky-600 shadow-md' : 'text-slate-500'
-                }`}
-              >
-                <sub.icon className="w-4 h-4" /> {sub.label}
-              </button>
-            ))}
-          </div>
-
-          {/* SUB-TAB 1 & 2 & 3: MARKS ENTRY & ABSENT MANAGEMENT & GRACE MARKS */}
-          {(evaluationSubTab === 'marks' || evaluationSubTab === 'absent' || evaluationSubTab === 'grace') && (
-            <div className="space-y-5">
-              {/* Filter Bar */}
-              <div className="glass-card p-5 rounded-3xl space-y-4">
-                <h4 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">Target Examination Selection</h4>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Target Exam Setup</label>
-                    <select
-                      value={marksExamId}
-                      onChange={e => setMarksExamId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {branchExamsList.map(e => (
-                        <option key={e.id} value={e.id}>{e.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Class</label>
-                    <select
-                      value={marksClass}
-                      onChange={e => setMarksClass(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {classOptions.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Section</label>
-                    <select
-                      value={marksSection}
-                      onChange={e => setMarksSection(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {['A', 'B', 'C'].map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Subject</label>
-                    <select
-                      value={marksSubject}
-                      onChange={e => setMarksSubject(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {allSubjectOptions.map(s => (
-                        <option key={s} value={s}>{formatSubject(s)}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Evaluation Sheet */}
-              <div className="glass-card rounded-3xl p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
-                  <div>
-                    <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">
-                      Evaluation Sheet: {marksSubject} ({marksClass}-{marksSection})
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Enter evaluation marks for students or mark as absent</p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleSaveMarks}
-                      className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl shadow-lg shadow-sky-600/20 text-xs flex items-center gap-2"
-                    >
-                      <Save className="w-4 h-4" /> Save Evaluation Entries
-                    </button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto border rounded-2xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b">
-                        <th className="py-3 px-4">Student Name</th>
-                        <th className="py-3 px-4">Roll No</th>
-                        <th className="py-3 px-4">Absent</th>
-                        <th className="py-3 px-4">Marks Obtained (Out of 100)</th>
-                        <th className="py-3 px-4">Grade & Result</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                      {students.filter(s => s.className === marksClass && s.section === marksSection && s.branch === selectedBranch).map(st => {
-                        const markEntry = marksList[st.id] || { marksObtained: 0, isAbsent: false };
-                        const score = typeof markEntry.marksObtained === 'number' ? markEntry.marksObtained : parseFloat(markEntry.marksObtained) || 0;
-                        const pct = score;
-                        const isPass = !markEntry.isAbsent && pct >= 33;
-                        const grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B' : pct >= 60 ? 'C' : pct >= 33 ? 'D' : 'F';
-
-                        return (
-                          <tr key={st.id} className="hover:bg-slate-50/50">
-                            <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{st.firstName} {st.lastName}</td>
-                            <td className="py-3 px-4 font-mono">{st.rollNo}</td>
-                            <td className="py-3 px-4">
-                              <input
-                                type="checkbox"
-                                checked={markEntry.isAbsent}
-                                onChange={e => {
-                                  setMarksList({
-                                    ...marksList,
-                                    [st.id]: { ...markEntry, isAbsent: e.target.checked }
-                                  });
-                                }}
-                                className="w-4 h-4 rounded text-sky-600 cursor-pointer"
-                              />
-                            </td>
-                            <td className="py-3 px-4">
-                              <input
-                                type="number"
-                                disabled={markEntry.isAbsent}
-                                min={0}
-                                max={100}
-                                value={markEntry.isAbsent ? '' : markEntry.marksObtained}
-                                onChange={e => {
-                                  setMarksList({
-                                    ...marksList,
-                                    [st.id]: { ...markEntry, marksObtained: e.target.value }
-                                  });
-                                }}
-                                className="w-28 px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold font-mono text-slate-900 dark:text-white"
-                              />
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className={`px-2.5 py-1 rounded-lg text-xs font-black uppercase ${
-                                markEntry.isAbsent ? 'bg-slate-100 text-slate-500' :
-                                isPass ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                              }`}>
-                                {markEntry.isAbsent ? 'Absent' : `Grade ${grade} (${isPass ? 'Pass' : 'Fail'})`}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SUB-TAB 4: GRADE CONFIGURATIONS */}
-          {evaluationSubTab === 'grades' && (
-            <div className="glass-card p-6 rounded-3xl space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
-                <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                    Grade Boundary Rules & GPA Scale
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Configure scholastic grading scale ranges, GPA points, and pass criteria</p>
-                </div>
-                {isAdminOrPrincipal && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setGradeScaleList(defaultGradeConfigs)}
-                      className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs flex items-center gap-1.5 transition-colors"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" /> Reset Defaults
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGradeScaleList([
-                          ...gradeScaleList,
-                          { grade: 'Grade', minMark: 0, maxMark: 100, gradePoint: 5, remarks: 'Scholastic Performance' }
-                        ]);
-                      }}
-                      className="px-3.5 py-2 bg-sky-50 dark:bg-sky-950 text-sky-600 font-bold rounded-2xl text-xs flex items-center gap-1.5 hover:bg-sky-100 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Add Grade Rule
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSaveGradeConfig(gradeScaleList)}
-                      className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl text-xs flex items-center gap-2 shadow-md"
-                    >
-                      <Save className="w-4 h-4" /> Save Grade Configuration
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="overflow-x-auto border rounded-2xl">
-                <table className="w-full text-left border-collapse text-xs font-semibold">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 font-bold uppercase text-slate-500 border-b">
-                      <th className="p-3">Grade Title</th>
-                      <th className="p-3">Min Percentage (%)</th>
-                      <th className="p-3">Max Percentage (%)</th>
-                      <th className="p-3 text-center">GPA Point</th>
-                      <th className="p-3">Remarks / Performance Description</th>
-                      {isAdminOrPrincipal && <th className="p-3 text-right">Action</th>}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                    {gradeScaleList.map((g, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="p-3 font-black text-slate-900 dark:text-white">
-                          <input
-                            type="text"
-                            value={g.grade}
-                            onChange={e => {
-                              const updated = [...gradeScaleList];
-                              updated[idx] = { ...updated[idx], grade: e.target.value };
-                              setGradeScaleList(updated);
-                            }}
-                            className="w-20 px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-black text-slate-900 dark:text-white"
-                          />
-                        </td>
-                        <td className="p-3 font-mono">
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={g.minMark}
-                              onChange={e => {
-                                const updated = [...gradeScaleList];
-                                updated[idx] = { ...updated[idx], minMark: parseFloat(e.target.value) || 0 };
-                                setGradeScaleList(updated);
-                              }}
-                              className="w-20 px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white font-mono"
-                            />
-                            <span>%</span>
-                          </div>
-                        </td>
-                        <td className="p-3 font-mono">
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={g.maxMark}
-                              onChange={e => {
-                                const updated = [...gradeScaleList];
-                                updated[idx] = { ...updated[idx], maxMark: parseFloat(e.target.value) || 0 };
-                                setGradeScaleList(updated);
-                              }}
-                              className="w-20 px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white font-mono"
-                            />
-                            <span>%</span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center font-mono font-bold text-sky-600">
-                          <input
-                            type="number"
-                            step="0.1"
-                            min={0}
-                            max={10}
-                            value={g.gradePoint}
-                            onChange={e => {
-                              const updated = [...gradeScaleList];
-                              updated[idx] = { ...updated[idx], gradePoint: parseFloat(e.target.value) || 0 };
-                              setGradeScaleList(updated);
-                            }}
-                            className="w-16 px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-sky-600 text-center font-mono"
-                          />
-                        </td>
-                        <td className="p-3 text-slate-500">
-                          <input
-                            type="text"
-                            value={g.remarks || ''}
-                            onChange={e => {
-                              const updated = [...gradeScaleList];
-                              updated[idx] = { ...updated[idx], remarks: e.target.value };
-                              setGradeScaleList(updated);
-                            }}
-                            className="w-full px-2.5 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-medium text-slate-900 dark:text-white"
-                          />
-                        </td>
-                        {isAdminOrPrincipal && (
-                          <td className="p-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const updated = gradeScaleList.filter((_, i) => i !== idx);
-                                setGradeScaleList(updated);
-                              }}
-                              className="p-1.5 rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                              title="Delete Grade Rule"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 3: RESULTS (PROCESS ➔ VERIFY ➔ APPROVE ➔ PUBLISH)
-          ---------------------------------------------------- */}
-      {activeTab === 'results' && !isStudentOrParent && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* 4-Step Result Pipeline Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 glass-card p-3 rounded-3xl">
-            {[
-              { id: 'process', label: '1. Compute Results', icon: RefreshCw },
-              { id: 'verify', label: '2. Audit & Verify', icon: Eye },
-              { id: 'approve', label: '3. Admin Approval', icon: CheckCircle },
-              { id: 'publish', label: '4. Release & Publish', icon: Printer }
-            ].map(step => (
-              <button
-                key={step.id}
-                onClick={() => setResultStep(step.id as any)}
-                className={`px-4 py-2.5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all ${
-                  resultStep === step.id
-                    ? 'bg-sky-600 text-white shadow-md'
-                    : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-                }`}
-              >
-                <step.icon className="w-4 h-4" />
-                <span>{step.label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Filter Card */}
-          <div className="glass-card p-5 rounded-3xl grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-semibold">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 mb-1">Target Examination</label>
-              <select
-                value={resultExamId}
-                onChange={e => setResultExamId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-              >
-                {branchExamsList.map(e => (
-                  <option key={e.id} value={e.id}>{e.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 mb-1">Class</label>
-              <select
-                value={resultClass}
-                onChange={e => setResultClass(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-              >
-                {classOptions.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold text-slate-400 mb-1">Section</label>
-              <select
-                value={resultSection}
-                onChange={e => setResultSection(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-              >
-                {['A', 'B', 'C'].map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* STEP 1: PROCESS RESULTS */}
-          {resultStep === 'process' && (
-            <div className="glass-card p-8 rounded-3xl text-center space-y-4">
-              <RefreshCw className="w-12 h-12 text-sky-600 mx-auto animate-spin-slow" />
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">Automated Result Computation Engine</h3>
-              <p className="text-slate-500 text-xs max-w-md mx-auto font-medium">
-                Compute total marks, percentages, GPA, grade rankings, and pass/fail statuses for Class {resultClass}-{resultSection}.
-              </p>
-              {isAdminOrPrincipal && (
+      {activeTab === 'setup' && (
+        <Panel
+          title="Exam Setup"
+          description="General details, schedule, subjects, question papers, and grade rules"
+          action={setupCardAction}
+          className="overflow-hidden"
+        >
+          <div className="flex flex-wrap gap-2 border-b border-slate-200/70 pb-3 dark:border-slate-800">
+            {SETUP_TABS.map(tab => {
+              const active = setupSubTab === tab.id;
+              return (
                 <button
-                  onClick={handleProcessResults}
-                  className="px-6 py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-lg shadow-sky-600/30 flex items-center gap-2 mx-auto"
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setSetupSubTab(tab.id)}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition ${
+                    active
+                      ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300'
+                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                  }`}
                 >
-                  <RefreshCw className="w-4 h-4" /> Compute & Process Results
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
                 </button>
-              )}
-            </div>
-          )}
-
-          {/* STEP 2, 3, 4: VERIFY, APPROVE & PUBLISH */}
-          {(resultStep === 'verify' || resultStep === 'approve' || resultStep === 'publish') && (
-            <div className="glass-card p-6 rounded-3xl space-y-4">
-              <div className="flex items-center justify-between border-b pb-4">
-                <h3 className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-tight">
-                  Processed Results Registry ({resultClass}-{resultSection})
-                </h3>
-                {resultStep === 'approve' && isAdminOrPrincipal && (
-                  <button
-                    onClick={() => {
-                      const list = processedResults.filter(r => r.examId === resultExamId && r.className === resultClass);
-                      list.forEach(r => updateResultStatus(r.id, 'Approved'));
-                      addToast('success', 'Approved', `Approved results for ${list.length} students.`);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs"
-                  >
-                    Approve All Class Results
-                  </button>
-                )}
-                {resultStep === 'publish' && isAdminOrPrincipal && (
-                  <button
-                    onClick={() => {
-                      const list = processedResults.filter(r => r.examId === resultExamId && r.className === resultClass);
-                      list.forEach(r => updateResultStatus(r.id, 'Published'));
-                      addToast('success', 'Published', `Published results for ${list.length} students to portal.`);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs"
-                  >
-                    Publish All to Student Portal
-                  </button>
-                )}
-              </div>
-
-              <div className="overflow-x-auto border rounded-2xl">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 font-bold uppercase text-slate-500 border-b">
-                      <th className="p-3">Student Name</th>
-                      <th className="p-3">Roll No</th>
-                      <th className="p-3 text-center">Marks Obtained</th>
-                      <th className="p-3 text-center">Percentage</th>
-                      <th className="p-3 text-center">GPA</th>
-                      <th className="p-3 text-center">Pass Status</th>
-                      <th className="p-3 text-center">Approval Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                    {processedResults.filter(r => r.examId === resultExamId && r.className === resultClass && r.section === resultSection).length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="p-8 text-center text-slate-400 italic">
-                          No processed results found. Please click "Compute Results" in Step 1.
-                        </td>
-                      </tr>
-                    ) : (
-                      processedResults.filter(r => r.examId === resultExamId && r.className === resultClass && r.section === resultSection).map(r => (
-                        <tr key={r.id} className="hover:bg-slate-50/50">
-                          <td className="p-3 font-black text-slate-900 dark:text-white">{r.studentName}</td>
-                          <td className="p-3 font-mono">{r.rollNo}</td>
-                          <td className="p-3 text-center font-mono font-bold">{r.totalMarksObtained} / {r.totalMaxMarks}</td>
-                          <td className="p-3 text-center font-mono font-bold text-sky-600">{r.percentage}%</td>
-                          <td className="p-3 text-center font-mono font-bold">{r.gpa}</td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                              r.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                            }`}>
-                              {r.passStatus}
-                            </span>
-                          </td>
-                          <td className="p-3 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                              r.status === 'Published' ? 'bg-emerald-100 text-emerald-700' :
-                              r.status === 'Approved' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {r.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          TAB 4: REPORTS (MARKS REGISTER + REPORT CARDS + TOP PERFORMERS + ANALYTICS)
-          ---------------------------------------------------- */}
-      {activeTab === 'reports' && !isStudentOrParent && (
-        <div className="space-y-6 animate-in fade-in">
-          {/* Sub-Navigation Pill */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-2xl w-max overflow-x-auto">
-            {[
-              { id: 'marksRegister', label: 'View Marks Register', icon: FileSpreadsheet },
-              { id: 'reportCards', label: 'Printable Report Cards', icon: Printer },
-              { id: 'topPerformers', label: 'Top Performers Leaderboard', icon: Award },
-              { id: 'analytics', label: 'Performance Analytics', icon: BarChart2 }
-            ].map(sub => (
-              <button
-                key={sub.id}
-                onClick={() => setReportsSubTab(sub.id as any)}
-                className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
-                  reportsSubTab === sub.id ? 'bg-white dark:bg-slate-900 text-sky-600 shadow-md' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <sub.icon className="w-4 h-4" /> {sub.label}
-              </button>
-            ))}
+              );
+            })}
           </div>
 
-          {/* SUB-TAB 0: VIEW MARKS REGISTER */}
-          {reportsSubTab === 'marksRegister' && (
-            <div className="space-y-6">
-              {/* Central Filter Bar */}
-              <div className="glass-card p-5 rounded-3xl space-y-4 border border-slate-100 dark:border-slate-800">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-3 border-slate-100 dark:border-slate-800">
-                  <div>
-                    <h3 className="font-black text-slate-900 dark:text-white text-sm uppercase tracking-tight flex items-center gap-2">
-                      <FileSpreadsheet className="w-4 h-4 text-sky-600" />
-                      Official Digital Marks Register Filter
-                    </h3>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Filter, search, sort, and export subject-wise student examination marks</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleExportCSV}
-                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Export Excel / CSV
-                    </button>
-                    <button
-                      onClick={handlePrintMarksRegister}
-                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"
-                    >
-                      <Printer className="w-3.5 h-3.5" /> Print Register
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 text-xs font-semibold">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Academic Year *</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedAcademicYear}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-100 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Branch *</label>
-                    <input
-                      type="text"
-                      disabled
-                      value={selectedBranch}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-100 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Examination *</label>
-                    <select
-                      value={marksRegisterExamId}
-                      onChange={e => setMarksRegisterExamId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                    >
-                      {branchExamsList.map(e => (
-                        <option key={e.id} value={e.id}>{e.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Class *</label>
-                    <select
-                      value={marksRegisterClass}
-                      onChange={e => setMarksRegisterClass(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                    >
-                      {classOptions.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Section *</label>
-                    <select
-                      value={marksRegisterSection}
-                      onChange={e => setMarksRegisterSection(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                    >
-                      <option value="A">Section A</option>
-                      <option value="B">Section B</option>
-                      <option value="C">Section C</option>
-                      <option value="All">All Sections</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Search Student</label>
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Name, Roll, Adm No..."
-                        value={marksRegisterSearchQuery}
-                        onChange={e => setMarksRegisterSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
+          {setupSubTab === 'general' && (
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Exam Name</label>
+                <input value={setupForm.name} onChange={e => setSetupForm(prev => ({ ...prev, name: e.target.value }))} className={inputClass} />
               </div>
-
-              {/* KPI Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
-                <div className="glass-card p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Enrolled</span>
-                  <p className="text-xl font-black text-slate-900 dark:text-white">{marksRegisterStats.totalStudents}</p>
-                </div>
-                <div className="glass-card p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Appeared</span>
-                  <p className="text-xl font-black text-sky-600">{marksRegisterStats.appeared}</p>
-                </div>
-                <div className="glass-card p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Absent</span>
-                  <p className="text-xl font-black text-slate-400">{marksRegisterStats.absent}</p>
-                </div>
-                <div className="glass-card p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Passed</span>
-                  <p className="text-xl font-black text-emerald-600">{marksRegisterStats.passed}</p>
-                </div>
-                <div className="glass-card p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Failed</span>
-                  <p className="text-xl font-black text-rose-600">{marksRegisterStats.failed}</p>
-                </div>
-                <div className="glass-card p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Class Avg %</span>
-                  <p className="text-xl font-black text-purple-600">{marksRegisterStats.avgPercentage}%</p>
-                </div>
-              </div>
-
-              {/* Dynamic Marks Register Table */}
-              <div className="glass-card rounded-3xl p-6 space-y-4 border border-slate-100 dark:border-slate-800 shadow-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
-                  <div>
-                    <h3 className="font-extrabold text-sm text-slate-900 dark:text-white uppercase tracking-tight">
-                      Subject-Wise Marks Register ({marksRegisterClass}-{marksRegisterSection})
-                    </h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5">Showing {registerStudentData.filteredRows.length} student records. Click any row to view full student marks statement.</p>
-                  </div>
-
-                  {/* Sort Control */}
-                  <div className="flex items-center gap-2 text-xs">
-                    <span className="font-bold text-slate-400">Sort By:</span>
-                    <select
-                      value={marksRegisterSortBy}
-                      onChange={e => setMarksRegisterSortBy(e.target.value as any)}
-                      className="px-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      <option value="rollNo">Roll Number</option>
-                      <option value="name">Student Name</option>
-                      <option value="totalMarks">Total Marks</option>
-                      <option value="percentage">Percentage (%)</option>
-                      <option value="grade">Grade</option>
-                    </select>
-                    <button
-                      onClick={() => setMarksRegisterSortOrder(marksRegisterSortOrder === 'asc' ? 'desc' : 'asc')}
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 font-bold hover:bg-slate-200"
-                    >
-                      {marksRegisterSortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase border-b tracking-tight">
-                        <th className="py-3 px-3">Roll</th>
-                        <th className="py-3 px-3">Adm No</th>
-                        <th className="py-3 px-4">Student Name</th>
-                        {/* Dynamic Subject Columns */}
-                        {registerSubjects.map(subj => (
-                          <th key={subj} className="py-3 px-3 text-center text-sky-600 dark:text-sky-400">{subj}</th>
-                        ))}
-                        <th className="py-3 px-3 text-center">Total Marks</th>
-                        <th className="py-3 px-3 text-center">%</th>
-                        <th className="py-3 px-3 text-center">Grade</th>
-                        <th className="py-3 px-3 text-center">Result</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                      {registerStudentData.filteredRows.length === 0 ? (
-                        <tr>
-                          <td colSpan={4 + registerSubjects.length + 4} className="py-12 text-center text-slate-400 italic">
-                            No student marks entries found matching your selected filters.
-                          </td>
-                        </tr>
-                      ) : (
-                        registerStudentData.filteredRows.map(row => (
-                          <tr
-                            key={row.student.id}
-                            onClick={() => setSelectedStudentDetail(row)}
-                            className="hover:bg-sky-50/50 dark:hover:bg-sky-950/30 cursor-pointer transition-colors"
-                          >
-                            <td className="py-3.5 px-3 font-mono font-bold text-slate-900 dark:text-white">{row.student.rollNo || '—'}</td>
-                            <td className="py-3.5 px-3 font-mono text-slate-500">{row.student.admissionNo || row.student.id || '—'}</td>
-                            <td className="py-3.5 px-4 font-black text-slate-900 dark:text-white text-sm">{row.student.firstName} {row.student.lastName}</td>
-                            
-                            {/* Dynamic Subject Marks */}
-                            {registerSubjects.map(subj => {
-                              const mark = row.marksMap[subj];
-                              if (!mark) return <td key={subj} className="py-3.5 px-3 text-center text-slate-400 font-mono">—</td>;
-                              if (mark.isAbsent) {
-                                return <td key={subj} className="py-3.5 px-3 text-center font-mono font-extrabold text-rose-500">AB</td>;
-                              }
-                              return (
-                                <td key={subj} className="py-3.5 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">
-                                  {mark.marksObtained}
-                                </td>
-                              );
-                            })}
-
-                            <td className="py-3.5 px-3 text-center font-mono font-black text-slate-900 dark:text-white">{row.totalObtained} / {row.totalMax}</td>
-                            <td className="py-3.5 px-3 text-center font-mono font-black text-sky-600">{row.percentage}%</td>
-                            <td className="py-3.5 px-3 text-center font-black">{row.grade}</td>
-                            <td className="py-3.5 px-3 text-center">
-                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                row.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                              }`}>
-                                {row.passStatus}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SUB-TAB 1: PRINTABLE REPORT CARDS */}
-          {reportsSubTab === 'reportCards' && (
-            <div className="space-y-5">
-              <div className="glass-card p-5 rounded-3xl space-y-4">
-                <h4 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">Report Cards Registry Filter</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Target Exam Setup</label>
-                    <select
-                      value={reportExamId}
-                      onChange={e => setReportExamId(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {branchExamsList.map(e => (
-                        <option key={e.id} value={e.id}>{e.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Class</label>
-                    <select
-                      value={reportClass}
-                      onChange={e => setReportClass(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {classOptions.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1">Section</label>
-                    <select
-                      value={reportSection}
-                      onChange={e => setReportSection(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                    >
-                      {['A', 'B', 'C'].map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="glass-card rounded-3xl p-6 space-y-4">
-                <h3 className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Printable Academic Report Cards</h3>
-                <div className="overflow-x-auto border rounded-2xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b">
-                        <th className="py-3 px-4">Student Name</th>
-                        <th className="py-3 px-4">Roll No</th>
-                        <th className="py-3 px-4 text-center">GPA</th>
-                        <th className="py-3 px-4 text-center">Pass Status</th>
-                        <th className="py-3 px-4 text-center">Status</th>
-                        <th className="py-3 px-4 text-right">Report Card</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                      {students.filter(s => s.className === reportClass && s.section === reportSection && (!s.branch || s.branch === selectedBranch)).map(st => {
-                        const result = processedResults.find(r => r.examId === reportExamId && r.studentId === st.id);
-                        return (
-                          <tr key={st.id} className="hover:bg-slate-50/50">
-                            <td className="py-3 px-4 font-black text-slate-900 dark:text-white">{st.firstName} {st.lastName}</td>
-                            <td className="py-3 px-4 font-mono">{st.rollNo}</td>
-                            <td className="py-3 px-4 text-center font-mono font-bold">{result ? result.gpa : '—'}</td>
-                            <td className="py-3 px-4 text-center">
-                              {result ? (
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                  result.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                                }`}>
-                                  {result.passStatus}
-                                </span>
-                              ) : 'Not Processed'}
-                            </td>
-                            <td className="py-3 px-4 text-center font-bold">{result?.status || 'Draft'}</td>
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => {
-                                  const ex = exams.find(e => e.id === reportExamId);
-                                  if (ex) {
-                                    setSelectedExamForReport(ex);
-                                    setSelectedStudentForReport(st);
-                                  }
-                                }}
-                                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 ml-auto shadow-sm"
-                              >
-                                <Printer className="w-3.5 h-3.5" /> Printable Report
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SUB-TAB 2: TOP PERFORMERS LEADERBOARD */}
-          {reportsSubTab === 'topPerformers' && (
-            <div className="glass-card p-6 rounded-3xl space-y-4">
-              <h3 className="font-black text-slate-900 dark:text-white text-base flex items-center gap-2">
-                <Award className="w-5 h-5 text-sky-600" />
-                Top Performers & Rank Holders
-              </h3>
-              <div className="overflow-x-auto border rounded-2xl">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 font-extrabold uppercase text-slate-500 border-b">
-                      <th className="p-3 text-center">Rank</th>
-                      <th className="p-3">Student Name</th>
-                      <th className="p-3">Class & Section</th>
-                      <th className="p-3 text-center">Percentage</th>
-                      <th className="p-3 text-center">GPA</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                    {processedResults
-                      .sort((a, b) => b.percentage - a.percentage)
-                      .slice(0, 5)
-                      .map((r, idx) => (
-                        <tr key={r.id} className="hover:bg-slate-50/50">
-                          <td className="p-3 text-center font-black text-sky-600">#{idx + 1}</td>
-                          <td className="p-3 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                          <td className="p-3 font-bold">{r.className} ({r.section})</td>
-                          <td className="p-3 text-center font-mono font-bold text-emerald-600">{r.percentage}%</td>
-                          <td className="p-3 text-center font-mono font-bold">{r.gpa}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* SUB-TAB 3: PERFORMANCE ANALYTICS */}
-          {reportsSubTab === 'analytics' && (
-            <div className="glass-card p-6 rounded-3xl space-y-6">
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-                Class Performance Breakdown & Analytics
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="p-5 rounded-2xl bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-800 text-center space-y-1">
-                  <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 block uppercase">Class Pass Percentage</span>
-                  <span className="text-2xl font-black text-sky-700 dark:text-sky-300">92.4%</span>
-                </div>
-                <div className="p-5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-center space-y-1">
-                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 block uppercase">Subject Top Performer</span>
-                  <span className="text-2xl font-black text-emerald-700 dark:text-emerald-300">Mathematics (98%)</span>
-                </div>
-                <div className="p-5 rounded-2xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 text-center space-y-1">
-                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 block uppercase">Average GPA</span>
-                  <span className="text-2xl font-black text-purple-700 dark:text-purple-300">8.45 / 10</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          STUDENT OR PARENT PORTAL VIEW
-          ---------------------------------------------------- */}
-      {isStudentOrParent && (
-        <div className="space-y-5">
-          <div className="glass-card p-6 rounded-3xl space-y-4">
-            <h3 className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">My Academic Report Cards</h3>
-            <p className="text-slate-500 text-[11px] leading-relaxed">
-              Below is the list of active examinations. Official performance reports are viewable and printable only after they are officially released/published by the school administration.
-            </p>
-
-            <div className="overflow-x-auto border rounded-2xl bg-white dark:bg-slate-900">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-bold uppercase border-b">
-                    <th className="py-2.5 px-3">Examination Name</th>
-                    <th className="py-2.5 px-3">Type</th>
-                    <th className="py-2.5 px-3 text-center">GPA Obtained</th>
-                    <th className="py-2.5 px-3 text-center">Pass Status</th>
-                    <th className="py-2.5 px-3 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                  {exams.filter(e => e.branch === selectedBranch && e.academicYear === selectedAcademicYear).map(ex => {
-                    const result = processedResults.find(
-                      r => r.examId === ex.id && r.studentId === matchingStudent?.id
-                    );
-                    const isPublished = result?.status === 'Published' || result?.status === 'Locked';
-
-                    return (
-                      <tr key={ex.id} className="hover:bg-slate-50/40">
-                        <td className="py-3 px-3 font-black text-slate-800 dark:text-slate-100">{ex.name}</td>
-                        <td className="py-3 px-3 font-normal">{ex.examType || 'Term Exam'}</td>
-                        <td className="py-3 px-3 text-center font-mono font-bold">
-                          {isPublished ? result?.gpa : '—'}
-                        </td>
-                        <td className="py-3 px-3 text-center">
-                          {isPublished ? (
-                            result?.passStatus === 'Pass' ? (
-                              <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 text-[10px]">Pass</span>
-                            ) : (
-                              <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 text-[10px]">Fail</span>
-                            )
-                          ) : (
-                            <span className="text-slate-400 italic text-[10px] font-normal">Pending Release</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <button
-                            disabled={!isPublished}
-                            onClick={() => {
-                              setSelectedExamForReport(ex);
-                              setSelectedStudentForReport(matchingStudent || null);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 ml-auto text-[11px] ${
-                              isPublished
-                                ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-400 dark:bg-slate-800 cursor-not-allowed'
-                            }`}
-                          >
-                            <Printer className="w-3.5 h-3.5" /> View Report Card
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ----------------------------------------------------
-          MODALS & DIALOGS
-          ---------------------------------------------------- */}
-
-      {/* Exam Setup Modal */}
-      {isExamModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {editingExam ? 'Edit Examination Setup' : 'Set Up New Examination'}
-              </h3>
-              <button onClick={() => setIsExamModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleExamSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">Examination Title *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Mid-Term Examination 2025"
-                  value={examFormData.name || ''}
-                  onChange={e => setExamFormData({ ...examFormData, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Exam Type *</label>
-                  <select
-                    value={examFormData.examType || 'Unit Test'}
-                    onChange={e => setExamFormData({ ...examFormData, examType: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  >
-                    <option value="Unit Test">Unit Test</option>
-                    <option value="Quarterly">Quarterly</option>
-                    <option value="Half-Yearly">Half-Yearly</option>
-                    <option value="Annual">Annual</option>
-                    <option value="Practical">Practical</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Grading Scheme</label>
-                  <select
-                    value={examFormData.gradeSchemeName || 'Default Scholastic'}
-                    onChange={e => setExamFormData({ ...examFormData, gradeSchemeName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  >
-                    <option value="Default Scholastic">Default Scholastic (10-Point)</option>
-                    <option value="Secondary Board Scale">Secondary Board Scale</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Start Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={examFormData.startDate || ''}
-                    onChange={e => setExamFormData({ ...examFormData, startDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">End Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={examFormData.endDate || ''}
-                    onChange={e => setExamFormData({ ...examFormData, endDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t">
-                <button type="button" onClick={() => setIsExamModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
-                  {editingExam ? 'Save Changes' : 'Create Exam Setup'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add/Edit Schedule Modal (Unified Room & Invigilator Selection) */}
-      {isScheduleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {editingSchedule ? 'Edit Schedule & Room Allocation' : 'Add Timetable, Room & Staff Entry'}
-              </h3>
-              <button onClick={() => setIsScheduleModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleScheduleSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">Subject Name *</label>
-                <select
-                  value={scheduleForm.subject || subjectOptions[0]}
-                  onChange={e => setScheduleForm({ ...scheduleForm, subject: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                >
-                  {allSubjectOptions.map(s => (
-                    <option key={s} value={s}>{formatSubject(s)}</option>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Exam Type</label>
+                <select value={setupForm.examType} onChange={e => setSetupForm(prev => ({ ...prev, examType: e.target.value as SetupFormState['examType'] }))} className={selectClass}>
+                  {['Unit Test', 'Quarterly', 'Half-Yearly', 'Annual', 'Practical', 'Custom'].map(type => (
+                    <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
               </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Exam Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={scheduleForm.date || ''}
-                    onChange={e => setScheduleForm({ ...scheduleForm, date: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Start Time *</label>
-                  <input
-                    type="time"
-                    required
-                    value={scheduleForm.startTime || '09:00'}
-                    onChange={e => setScheduleForm({ ...scheduleForm, startTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">End Time *</label>
-                  <input
-                    type="time"
-                    required
-                    value={scheduleForm.endTime || '12:00'}
-                    onChange={e => setScheduleForm({ ...scheduleForm, endTime: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Campus</label>
+                <select value={setupForm.campus} onChange={e => setSetupForm(prev => ({ ...prev, campus: e.target.value }))} className={selectClass}>
+                  {campusOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Assigned Room Venue *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Hall A (50 Benches) / Room 101"
-                    value={scheduleForm.room || ''}
-                    onChange={e => setScheduleForm({ ...scheduleForm, room: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Invigilator Staff (Teaching Staff) *</label>
-                  <div className="space-y-1.5">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Search teaching staff..."
-                        value={invigilatorSearchQuery}
-                        onChange={e => setInvigilatorSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none"
-                      />
-                    </div>
-                    <select
-                      required
-                      value={scheduleForm.invigilatorName || ''}
-                      onChange={e => {
-                        const selectedName = e.target.value;
-                        const foundStaff = staff.find(st => `${st.firstName} ${st.lastName}` === selectedName || st.name === selectedName);
-                        setScheduleForm({
-                          ...scheduleForm,
-                          invigilatorName: selectedName,
-                          invigilatorId: foundStaff?.id || ''
-                        });
-                      }}
-                      className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white text-xs cursor-pointer"
-                    >
-                      <option value="">-- Select Teaching Staff --</option>
-                      {teachingStaffList
-                        .filter(s => {
-                          if (!invigilatorSearchQuery) return true;
-                          const q = invigilatorSearchQuery.toLowerCase();
-                          const fullName = `${s.firstName || ''} ${s.lastName || ''} ${s.name || ''} ${s.employeeId || s.id || ''}`.toLowerCase();
-                          return fullName.includes(q);
-                        })
-                        .map(s => {
-                          const fullName = s.name || `${s.firstName} ${s.lastName}`;
-                          const dept = s.department ? ` • ${s.department}` : s.employeeCategory ? ` • ${s.employeeCategory}` : '';
-                          return (
-                            <option key={s.id} value={fullName}>
-                              {fullName}{dept}
-                            </option>
-                          );
-                        })}
-                    </select>
-                  </div>
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Class</label>
+                <select
+                  value={setupForm.className}
+                  onChange={e => {
+                    const nextClass = e.target.value;
+                    const nextSections = getClassSections(nextClass, academicClasses);
+                    const nextSubjects = getClassSubjects(nextClass, academicClasses, subjects);
+                    setSetupForm(prev => ({
+                      ...prev,
+                      className: nextClass,
+                      section: nextSections[0] || 'A',
+                      subjects: nextSubjects.slice(0, 5)
+                    }));
+                  }}
+                  className={selectClass}
+                >
+                  {classOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t">
-                <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
-                  {editingSchedule ? 'Save Allocation' : 'Add Allocation'}
-                </button>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Section</label>
+                <select value={setupForm.section} onChange={e => setSetupForm(prev => ({ ...prev, section: e.target.value }))} className={selectClass}>
+                  {selectedClassSections.map(option => <option key={option} value={option}>{option}</option>)}
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Upload Question Paper Modal */}
-      {isPaperModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                {editingPaper ? 'Edit Question Paper' : 'Upload Question Paper'}
-              </h3>
-              <button onClick={() => setIsPaperModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={e => { e.preventDefault(); executePaperSubmit(); }} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">Paper Title *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Mathematics Final Examination Paper"
-                  value={paperFormData.paperTitle || ''}
-                  onChange={e => setPaperFormData({ ...paperFormData, paperTitle: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                />
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Pass Percentage</label>
+                <input type="number" min="0" max="100" value={setupForm.passPercentage} onChange={e => setSetupForm(prev => ({ ...prev, passPercentage: Number(e.target.value) || 0 }))} className={inputClass} />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Class</label>
-                  <select
-                    value={paperFormData.className || 'Class 10'}
-                    onChange={e => setPaperFormData({ ...paperFormData, className: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                  >
-                    {classOptions.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">Subject</label>
-                  <select
-                    value={paperFormData.subject || 'Mathematics'}
-                    onChange={e => setPaperFormData({ ...paperFormData, subject: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                  >
-                    {allSubjectOptions.map(s => (
-                      <option key={s} value={s}>{formatSubject(s)}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Status</label>
+                <select value={setupForm.status} onChange={e => setSetupForm(prev => ({ ...prev, status: e.target.value as SetupFormState['status'] }))} className={selectClass}>
+                  {['Scheduled', 'In Progress', 'Completed', 'Results Published'].map(option => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
               </div>
-
-              {/* File Attachment Dropzone */}
-              <div className="space-y-1.5">
-                <label className="block text-[10px] font-bold text-slate-400">File Attachment (PDF, DOCX, Image) *</label>
-                <div className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-sky-500 rounded-2xl p-4 text-center bg-slate-50/50 dark:bg-slate-800/40 transition-colors">
-                  {paperFormData.fileName ? (
-                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-                      <div className="flex items-center gap-3 text-left">
-                        <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-extrabold text-slate-900 dark:text-white">{paperFormData.fileName}</p>
-                          <p className="text-[10px] text-slate-400">{paperFormData.fileSize || '1.5 MB'} • {paperFormData.fileType || 'PDF Document'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setViewingPaper(paperFormData as QuestionPaper)}
-                          className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 font-bold text-xs hover:bg-sky-100 flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> Preview
-                        </button>
-                        <label className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 cursor-pointer" title="Change File">
-                          <Upload className="w-4 h-4" />
-                          <input
-                            type="file"
-                            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                            className="hidden"
-                            onChange={e => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-                                const url = URL.createObjectURL(file);
-                                setPaperFormData({
-                                  ...paperFormData,
-                                  fileName: file.name,
-                                  fileSize: sizeMB,
-                                  fileType: file.type.includes('pdf') ? 'PDF Document' : file.type.includes('image') ? 'Image File' : 'Word Document',
-                                  fileUrl: url
-                                });
-                              }
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </div>
-                  ) : (
-                    <label className="cursor-pointer space-y-2 block">
-                      <Upload className="w-8 h-8 mx-auto text-sky-600" />
-                      <div>
-                        <span className="font-extrabold text-sky-600 hover:underline">Click to attach file</span>
-                        <span className="text-slate-400"> or drag and drop</span>
-                      </div>
-                      <p className="text-[10px] text-slate-400">PDF, DOCX, PNG, JPG up to 15MB</p>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                        className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const sizeMB = (file.size / (1024 * 1024)).toFixed(1) + ' MB';
-                            const url = URL.createObjectURL(file);
-                            setPaperFormData({
-                              ...paperFormData,
-                              fileName: file.name,
-                              fileSize: sizeMB,
-                              fileType: file.type.includes('pdf') ? 'PDF Document' : file.type.includes('image') ? 'Image File' : 'Word Document',
-                              fileUrl: url
-                            });
-                          }
-                        }}
-                      />
-                    </label>
-                  )}
-                </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Start Date</label>
+                <input type="date" value={setupForm.startDate} onChange={e => setSetupForm(prev => ({ ...prev, startDate: e.target.value }))} className={inputClass} />
               </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">General Instructions</label>
-                <textarea
-                  rows={2}
-                  value={paperFormData.instructions || ''}
-                  onChange={e => setPaperFormData({ ...paperFormData, instructions: e.target.value })}
-                  placeholder="e.g. 1. Read all questions carefully. 2. Total marks: 100."
-                  className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-medium text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t">
-                {paperFormData.fileName ? (
-                  <button
-                    type="button"
-                    onClick={() => setViewingPaper(paperFormData as QuestionPaper)}
-                    className="px-4 py-2 font-bold bg-sky-50 dark:bg-sky-950 text-sky-600 rounded-xl text-xs flex items-center gap-1.5 hover:bg-sky-100"
-                  >
-                    <Eye className="w-4 h-4" /> Preview Paper
-                  </button>
-                ) : <div />}
-
-                <div className="flex items-center gap-2">
-                  <button type="button" onClick={() => setIsPaperModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-600">Cancel</button>
-                  <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
-                    {editingPaper ? 'Save Changes' : 'Upload Paper'}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Viewing Question Paper Modal */}
-      {viewingPaper && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Question Paper Live Preview</h3>
-                <p className="text-xs text-slate-500 font-bold">{viewingPaper.paperTitle}</p>
-              </div>
-              <button onClick={() => setViewingPaper(null)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Class & Section</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{viewingPaper.className || 'Class 10'} ({viewingPaper.section || 'A'})</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Subject</span>
-                <span className="font-extrabold text-sky-600">{formatSubject(viewingPaper.subject || 'Mathematics')}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Max Marks</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{viewingPaper.maxMarks || 100} Marks</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Duration</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{viewingPaper.duration || '3 Hours'}</span>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">End Date</label>
+                <input type="date" value={setupForm.endDate} onChange={e => setSetupForm(prev => ({ ...prev, endDate: e.target.value }))} className={inputClass} />
               </div>
             </div>
+          )}
 
-            {/* Document Viewer Container */}
-            <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-sky-600" />
-                  <span className="font-black text-xs text-slate-800 dark:text-white">{viewingPaper.fileName || 'question_paper.pdf'}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 font-bold">{viewingPaper.fileType || 'PDF Document'}</span>
-                </div>
-                {viewingPaper.fileUrl && (
-                  <a
-                    href={viewingPaper.fileUrl}
-                    download={viewingPaper.fileName || 'Question_Paper.pdf'}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Download Paper
-                  </a>
-                )}
+          {setupSubTab === 'schedule' && (
+            <div className="mt-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+                <span className="rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">{examDisplayName}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">{setupForm.className}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">Section {setupForm.section}</span>
+                <span className="rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">{setupScheduleRows.length} slots</span>
               </div>
-
-              {/* Instructions preview */}
-              {viewingPaper.instructions && (
-                <div className="p-3 rounded-xl bg-white dark:bg-slate-800 text-xs border border-slate-200 dark:border-slate-700 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-slate-400 block">General Instructions</span>
-                  <p className="whitespace-pre-line text-slate-700 dark:text-slate-300 font-medium">{viewingPaper.instructions}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setViewingPaper(null)} className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs">Close Preview</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Printable Report Card Modal */}
-      {selectedStudentForReport && selectedExamForReport && (
-        <PrintableReportCard
-          student={selectedStudentForReport}
-          exam={selectedExamForReport}
-          isOpen={true}
-          onClose={() => {
-            setSelectedStudentForReport(null);
-            setSelectedExamForReport(null);
-          }}
-        />
-      )}
-
-      {/* Student Detail Marks Drawer / Modal */}
-      {selectedStudentDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Student Academic Statement</h3>
-                <p className="text-xs text-slate-500 font-bold">
-                  {selectedStudentDetail.student.firstName} {selectedStudentDetail.student.lastName} • Roll No: {selectedStudentDetail.student.rollNo || '—'}
-                </p>
-              </div>
-              <button onClick={() => setSelectedStudentDetail(null)} className="p-1 text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
-            </div>
-
-            {/* Profile Overview */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Admission No</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200 font-mono">{selectedStudentDetail.student.admissionNo || selectedStudentDetail.student.id}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Class & Section</span>
-                <span className="font-extrabold text-slate-800 dark:text-slate-200">{selectedStudentDetail.student.className} ({selectedStudentDetail.student.section || 'A'})</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Class Rank</span>
-                <span className="font-black text-sky-600">#{selectedStudentDetail.rank} of {registerStudentData.rows.length}</span>
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Overall Result</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                  selectedStudentDetail.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                }`}>
-                  {selectedStudentDetail.passStatus}
-                </span>
-              </div>
-            </div>
-
-            {/* Subject-wise Marks Table */}
-            <div className="space-y-2">
-              <h4 className="font-extrabold text-xs text-slate-800 dark:text-slate-200 uppercase tracking-wider">Subject-Wise Performance Statement</h4>
-              <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                <table className="min-w-full text-left text-xs">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/60 font-bold uppercase text-slate-500 border-b">
-                      <th className="p-3">Subject</th>
-                      <th className="p-3 text-center">Max Marks</th>
-                      <th className="p-3 text-center">Pass Marks</th>
-                      <th className="p-3 text-center">Marks Obtained</th>
-                      <th className="p-3 text-center">Status</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800">
+                      <th className={tableHeaderClass}>Exam</th>
+                      <th className={tableHeaderClass}>Class</th>
+                      <th className={tableHeaderClass}>Section</th>
+                      <th className={tableHeaderClass}>Subject</th>
+                      <th className={tableHeaderClass}>Date</th>
+                      <th className={tableHeaderClass}>Start Time</th>
+                      <th className={tableHeaderClass}>End Time</th>
+                      <th className={tableHeaderClass}>Duration</th>
+                      <th className={tableHeaderClass}>Room</th>
+                      <th className={tableHeaderClass}>Invigilator</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y font-semibold text-slate-700 dark:text-slate-300">
-                    {registerSubjects.map(subj => {
-                      const mark = selectedStudentDetail.marksMap[subj];
-                      const maxM = mark?.maxMarks || 100;
-                      const passM = mark?.passMarks || 33;
-                      const obtained = mark ? (mark.isAbsent ? 'AB' : mark.marksObtained) : '—';
-                      const isPass = mark && !mark.isAbsent && mark.marksObtained >= passM;
-
-                      return (
-                        <tr key={subj} className="hover:bg-slate-50/50">
-                          <td className="p-3 font-extrabold text-slate-900 dark:text-white">{formatSubject(subj)}</td>
-                          <td className="p-3 text-center font-mono">{maxM}</td>
-                          <td className="p-3 text-center font-mono">{passM}</td>
-                          <td className="p-3 text-center font-mono font-black text-sky-600">{obtained}</td>
-                          <td className="p-3 text-center">
-                            {mark ? (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                                mark.isAbsent ? 'bg-slate-100 text-slate-500' :
-                                isPass ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                              }`}>
-                                {mark.isAbsent ? 'Absent' : isPass ? 'Pass' : 'Fail'}
-                              </span>
-                            ) : <span className="text-slate-400 italic">Not Entered</span>}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                  <tbody>
+                    {setupScheduleRows.map(schedule => (
+                      <tr key={schedule.id} className="border-t border-slate-200/70 dark:border-slate-800">
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{examDisplayName}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{setupForm.className}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{setupForm.section}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{schedule.subject}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{schedule.date}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{schedule.startTime}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{schedule.endTime}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{getDurationLabel(schedule.startTime, schedule.endTime)}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{schedule.room || 'TBA'}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{schedule.invigilatorName || 'TBA'}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
+          )}
 
-            {/* Performance Metrics */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Score</span>
-                <p className="text-lg font-black text-slate-900 dark:text-white">{selectedStudentDetail.totalObtained} / {selectedStudentDetail.totalMax}</p>
+          {setupSubTab === 'subjects' && (
+            <div className="mt-3 space-y-3">
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/70 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-500 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400">
+                <span>{setupForm.subjects.length} selected</span>
+                <span>{selectedClassSubjects.length} available</span>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Aggregate Percentage</span>
-                <p className="text-lg font-black text-sky-600">{selectedStudentDetail.percentage}%</p>
-              </div>
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 block uppercase">Scholastic Grade</span>
-                <p className="text-lg font-black text-emerald-600">Grade {selectedStudentDetail.grade}</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedClassSubjects.map(subject => {
+                  const selected = setupForm.subjects.includes(subject);
+                  return (
+                    <button
+                      type="button"
+                      key={subject}
+                      onClick={() => {
+                        setSetupForm(prev => ({
+                          ...prev,
+                          subjects: selected ? prev.subjects.filter(item => item !== subject) : [...prev.subjects, subject]
+                        }));
+                      }}
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-black transition ${
+                        selected
+                          ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      {selected && <CheckCircle2 className="h-3.5 w-3.5" />}
+                      {subject}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+          )}
 
-            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
-              <button onClick={() => setSelectedStudentDetail(null)} className="px-5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs">Close Statement</button>
+          {setupSubTab === 'question-papers' && (
+            <div className="mt-3 space-y-3">
+              <input ref={questionPaperInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleUploadPaper} />
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200/70 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/60">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white">Question Paper Upload</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Static file upload only. No API integration.</p>
+                </div>
+                <button type="button" onClick={() => questionPaperInputRef.current?.click()} className={outlineButtonClass}>
+                  <Upload className="h-4 w-4" />
+                  Upload Question Paper
+                </button>
+              </div>
+              <div className="space-y-2">
+                {questionPaperItems.length > 0 ? questionPaperItems.slice(0, 4).map(paper => (
+                  <div key={paper.id} className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/60">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <p className="text-xs font-black text-slate-900 dark:text-white">{paper.paperTitle}</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{paper.subject} | {paper.fileName}</p>
+                      </div>
+                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                        {paper.maxMarks} Marks
+                      </span>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-slate-200 px-4 py-6 text-center text-[11px] font-medium text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    No paper uploaded yet.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {setupSubTab === 'grades' && (
+            <div className="mt-3 overflow-x-auto rounded-2xl border border-slate-200/70 dark:border-slate-800">
+              <table className="min-w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800">
+                    <th className={tableHeaderClass}>Grade</th>
+                    <th className={tableHeaderClass}>Min %</th>
+                    <th className={tableHeaderClass}>Max %</th>
+                    <th className={tableHeaderClass}>GPA</th>
+                    <th className={tableHeaderClass}>Remarks</th>
+                    <th className={tableHeaderClass}>Criteria</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {gradeRules.map((rule, index) => (
+                    <tr key={`${rule.id}-${index}`} className="border-t border-slate-200/70 dark:border-slate-800">
+                      <td className="px-3 py-2">
+                        <input
+                          value={rule.grade || ''}
+                          onChange={e => {
+                            const value = e.target.value;
+                            setGradeRules(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, grade: value, gradeName: value } : item));
+                          }}
+                          className={inputClass}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={rule.minMark ?? rule.minPercent}
+                          onChange={e => {
+                            const value = Number(e.target.value) || 0;
+                            setGradeRules(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, minMark: value, minPercent: value } : item));
+                          }}
+                          className={inputClass}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={rule.maxMark ?? rule.maxPercent}
+                          onChange={e => {
+                            const value = Number(e.target.value) || 0;
+                            setGradeRules(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, maxMark: value, maxPercent: value } : item));
+                          }}
+                          className={inputClass}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={rule.gradePoint ?? rule.gradePoints}
+                          onChange={e => {
+                            const value = Number(e.target.value) || 0;
+                            setGradeRules(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, gradePoint: value, gradePoints: value } : item));
+                          }}
+                          className={inputClass}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          value={rule.remarks || ''}
+                          onChange={e => {
+                            const value = e.target.value;
+                            setGradeRules(prev => prev.map((item, itemIndex) => itemIndex === index ? { ...item, remarks: value } : item));
+                          }}
+                          className={inputClass}
+                          placeholder="Optional note"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${rule.passCriteria === 'Pass' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                          {rule.passCriteria}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
       )}
 
-      {/* Delete Exam Confirm Modal */}
-      <ConfirmModal
-        isOpen={!!deletingExam}
-        title="Delete Examination Setup"
-        message={`Are you sure you want to delete ${deletingExam?.name}? This action is permanent.`}
-        onConfirm={() => {
-          if (deletingExam) {
-            deleteExam(deletingExam.id);
-            addToast('success', 'Deleted', 'Examination configuration deleted.');
-            setDeletingExam(null);
-          }
-        }}
-        onCancel={() => setDeletingExam(null)}
-      />
+      {activeTab === 'evaluation' && (
+        <Panel
+          title="Evaluation"
+          description="Attendance, marks, grace marks, final marks, grades, and remarks"
+          action={evaluationCardAction}
+          className="overflow-hidden"
+        >
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200/70 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/60">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Exam</p>
+              <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{examDisplayName}</p>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Class</label>
+              <select value={evaluationClass} onChange={e => setEvaluationClass(e.target.value)} className={selectClass}>
+                {evaluationClassOptions.map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Section</label>
+              <select value={evaluationSection} onChange={e => setEvaluationSection(e.target.value)} className={selectClass}>
+                {getClassSections(evaluationClass, academicClasses).map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Subject</label>
+              <select value={evaluationSubject} onChange={e => setEvaluationSubject(e.target.value)} className={selectClass}>
+                {getClassSubjects(evaluationClass, academicClasses, subjects).map(option => <option key={option} value={option}>{option}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <MetricCard label="Total Students" value={evaluationStats.total} icon={<Users className="h-4 w-4 text-slate-400" />} />
+            <MetricCard label="Present" value={evaluationStats.total - evaluationStats.absent} icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} />
+            <MetricCard label="Absent" value={evaluationStats.absent} icon={<AlertTriangle className="h-4 w-4 text-amber-500" />} />
+            <MetricCard label="Status" value={evaluationStats.submitted} icon={<ClipboardList className="h-4 w-4 text-sky-500" />} />
+          </div>
+
+          <div className="mt-3 overflow-x-auto rounded-2xl border border-slate-200/70 dark:border-slate-800">
+            <table className="min-w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800">
+                  <th className={tableHeaderClass}>Roll No</th>
+                  <th className={tableHeaderClass}>Student Name</th>
+                  <th className={tableHeaderClass}>Attendance</th>
+                  <th className={tableHeaderClass}>Marks</th>
+                  <th className={tableHeaderClass}>Grace Marks</th>
+                  <th className={tableHeaderClass}>Final Marks</th>
+                  <th className={tableHeaderClass}>Grade</th>
+                  <th className={tableHeaderClass}>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {evaluationRows.map(({ student, row, finalMarks, grade }) => (
+                  <tr key={student.id} className="border-t border-slate-200/70 dark:border-slate-800">
+                    <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{student.rollNo}</td>
+                    <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{getDisplayName(student)}</td>
+                    <td className="px-3 py-3">
+                      <select
+                        value={row.absent ? 'Absent' : 'Present'}
+                        onChange={e => updateEvaluationRow(student.id, { absent: e.target.value === 'Absent' })}
+                        className={selectClass}
+                      >
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={row.absent ? '' : row.marks}
+                        disabled={row.absent}
+                        onChange={e => updateEvaluationRow(student.id, { marks: e.target.value })}
+                        className={`${inputClass} ${row.absent ? 'cursor-not-allowed opacity-50' : ''}`}
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        type="number"
+                        min="0"
+                        max="20"
+                        value={row.grace}
+                        onChange={e => updateEvaluationRow(student.id, { grace: e.target.value })}
+                        className={inputClass}
+                      />
+                    </td>
+                    <td className="px-3 py-3 font-black text-slate-900 dark:text-white">{row.absent ? 'AB' : finalMarks}</td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${grade === 'F' || grade === 'AB' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                        {grade}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">
+                      <input
+                        value={row.remarks}
+                        onChange={e => updateEvaluationRow(student.id, { remarks: e.target.value })}
+                        className={inputClass}
+                        placeholder="Optional note"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              Attendance controls marks entry, and final marks are recalculated automatically from marks plus grace marks.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={handleSaveDraft} className={outlineButtonClass}>
+                <Save className="h-4 w-4" />
+                Save Draft
+              </button>
+              <button type="button" onClick={handleSubmitMarks} className={primaryButtonClass}>
+                Submit Marks
+              </button>
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {activeTab === 'results' && (
+        <Panel
+          title="Results"
+          description="Compute, verify, approve, publish, and manage report cards in one place"
+          action={resultsCardAction}
+          className="overflow-hidden"
+        >
+          <div className="flex flex-wrap gap-2 border-b border-slate-200/70 pb-3 dark:border-slate-800">
+            {RESULTS_TABS.map(tab => {
+              const active = resultsSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setResultsSubTab(tab.id)}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] transition ${
+                    active
+                      ? 'border-sky-300 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300'
+                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {resultsSubTab === 'student-results' && (
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-2 md:grid-cols-4">
+                {WORKFLOW_STEPS.map((step, index) => {
+                  const active = index === workflowStepIndex;
+                  const complete = index < workflowStepIndex;
+                  return (
+                    <div
+                      key={step.id}
+                      className={`rounded-2xl border p-3 transition ${
+                        active
+                          ? 'border-sky-300 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30'
+                          : complete
+                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/20'
+                            : 'border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white">{step.label}</p>
+                          <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{step.helper}</p>
+                        </div>
+                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${
+                          active
+                            ? 'bg-sky-600 text-white'
+                            : complete
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                              : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300'
+                        }`}>
+                          {active ? 'Current' : complete ? 'Done' : 'Next'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200/70 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/60">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Exam</p>
+                  <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{examDisplayName}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Class</label>
+                  <select value={resultsClass} onChange={e => setResultsClass(e.target.value)} className={selectClass}>
+                    {resultsClassOptions.map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Section</label>
+                  <select value={resultsSection} onChange={e => setResultsSection(e.target.value)} className={selectClass}>
+                    {getClassSections(resultsClass, academicClasses).map(option => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+                <MetricCard label="Total Students" value={resultsSummary.total} icon={<Users className="h-4 w-4 text-slate-400" />} />
+                <MetricCard label="Pass" value={resultsSummary.pass} icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} />
+                <MetricCard label="Fail" value={resultsSummary.fail} icon={<AlertTriangle className="h-4 w-4 text-rose-500" />} />
+                <MetricCard label="Pending" value={resultsSummary.pending} icon={<ClipboardList className="h-4 w-4 text-amber-500" />} />
+                <MetricCard label="Published" value={resultsSummary.published} icon={<Lock className="h-4 w-4 text-sky-500" />} />
+              </div>
+
+              <div className="overflow-x-auto rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                <table className="min-w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-800">
+                      <th className={tableHeaderClass}>Roll No</th>
+                      <th className={tableHeaderClass}>Student Name</th>
+                      <th className={tableHeaderClass}>Total Marks</th>
+                      <th className={tableHeaderClass}>Percentage</th>
+                      <th className={tableHeaderClass}>GPA</th>
+                      <th className={tableHeaderClass}>Grade</th>
+                      <th className={tableHeaderClass}>Pass/Fail</th>
+                      <th className={tableHeaderClass}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resultsRows.map(row => (
+                      <tr key={row.student.id} className="border-t border-slate-200/70 dark:border-slate-800">
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{row.rollNo}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{row.studentName}</td>
+                        <td className="px-3 py-3 font-black text-slate-900 dark:text-white">{row.totalObtained} / {row.totalMax}</td>
+                        <td className="px-3 py-3 font-black text-slate-900 dark:text-white">{row.percentage}%</td>
+                        <td className="px-3 py-3 font-semibold text-slate-700 dark:text-slate-200">{row.gpa.toFixed(1)}</td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${row.grade === 'F' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                            {row.grade}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${row.passFail === 'Pass' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                            {row.passFail}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${statusChipClass(row.status)}`}>
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {resultsSubTab === 'report-cards' && (
+            <div className="mt-3 grid gap-4 xl:grid-cols-3">
+              <div className="space-y-4 xl:col-span-2">
+                <div className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="border-b border-slate-200/70 px-4 py-3 dark:border-slate-800">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white">Report Card Template</h3>
+                        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">Attendance, rank, remarks, promotion, principal signature, and school seal are controlled from the settings panel.</p>
+                      </div>
+                      {reportPreviewRow && (
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                          {reportPreviewRow.studentName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-4">
+                    {reportPreviewRow ? (
+                      <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                        <div className="space-y-2 border-b border-slate-200 pb-3 text-center dark:border-slate-800">
+                          <div className="flex items-center justify-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-600 text-lg font-black text-white">
+                              {schoolProfile.name ? schoolProfile.name.slice(0, 2).toUpperCase() : 'SM'}
+                            </div>
+                            <div className="text-left">
+                              <h4 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white">
+                                {schoolProfile.name || 'School ERP'}
+                              </h4>
+                              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                                {selectedExam?.name || 'Exam'} | {resultsClass}-{resultsSection}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="inline-flex rounded-full bg-slate-950 px-4 py-1 text-[10px] font-black uppercase tracking-[0.22em] text-white dark:bg-slate-100 dark:text-slate-900">
+                            Student Academic Report Card
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Student</p>
+                            <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{reportPreviewRow.studentName}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Roll No</p>
+                            <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{reportPreviewRow.rollNo}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Percentage</p>
+                            <p className="mt-1 text-sm font-black text-sky-600">{reportPreviewRow.percentage}%</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">GPA / Grade</p>
+                            <p className="mt-1 text-sm font-black text-emerald-600">{reportPreviewRow.gpa.toFixed(1)} / {reportPreviewRow.grade}</p>
+                          </div>
+                        </div>
+
+                        <div className="overflow-x-auto rounded-2xl border border-slate-200/70 dark:border-slate-800">
+                          <table className="min-w-full text-left text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 dark:bg-slate-800">
+                                <th className={tableHeaderClass}>Subject</th>
+                                <th className={tableHeaderClass}>Marks</th>
+                                <th className={tableHeaderClass}>Grade</th>
+                                <th className={tableHeaderClass}>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reportPreviewRow.subjectMarks.map(mark => (
+                                <tr key={mark.subject} className="border-t border-slate-200/70 dark:border-slate-800">
+                                  <td className="px-3 py-2 font-semibold text-slate-700 dark:text-slate-200">{mark.subject}</td>
+                                  <td className="px-3 py-2 font-black text-slate-900 dark:text-white">{mark.absent ? 'AB' : mark.final}</td>
+                                  <td className="px-3 py-2 font-semibold text-slate-700 dark:text-slate-200">{mark.grade}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] ${mark.absent ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : mark.final < mark.passMarks ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'}`}>
+                                      {mark.absent ? 'Absent' : mark.final < mark.passMarks ? 'Fail' : 'Pass'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          {reportSettings.attendance && (
+                            <div className="rounded-2xl bg-white p-3 dark:bg-slate-800/60">
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Attendance</p>
+                              <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">{reportPreviewRow.attendance}%</p>
+                            </div>
+                          )}
+                          {reportSettings.rank && (
+                            <div className="rounded-2xl bg-white p-3 dark:bg-slate-800/60">
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Rank</p>
+                              <p className="mt-1 text-sm font-black text-slate-900 dark:text-white">#{reportPreviewRow.rank}</p>
+                            </div>
+                          )}
+                          {reportSettings.remarks && (
+                            <div className="rounded-2xl bg-white p-3 dark:bg-slate-800/60">
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Remarks</p>
+                              <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-slate-200">{reportPreviewRow.remarks}</p>
+                            </div>
+                          )}
+                          {reportSettings.promotionStatus && (
+                            <div className="rounded-2xl bg-white p-3 dark:bg-slate-800/60">
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Promotion</p>
+                              <p className={`mt-1 text-sm font-black ${reportPreviewRow.passFail === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                {reportPreviewRow.passFail === 'Pass' ? 'Promoted' : 'Hold for Review'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {reportSettings.principalSignature && (
+                            <div className="rounded-2xl border border-dashed border-slate-300 p-4 text-center dark:border-slate-700">
+                              <div className="mx-auto mb-3 h-14 w-40 border-b-2 border-slate-900 dark:border-slate-100" />
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Principal Signature</p>
+                              <p className="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200">{schoolProfile.principalName || 'Principal'}</p>
+                            </div>
+                          )}
+                          {reportSettings.schoolSeal && (
+                            <div className="flex items-center justify-center rounded-2xl border border-dashed border-slate-300 p-4 dark:border-slate-700">
+                              <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-slate-900 text-center text-[10px] font-black uppercase tracking-[0.18em] text-slate-900 dark:border-slate-100 dark:text-slate-100">
+                                School Seal
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        No report preview is available for the selected filters.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <Panel title="Report Settings" description="Toggle what appears on the generated report card">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {Object.entries(reportSettings).map(([key, value]) => (
+                      <label
+                        key={key}
+                        className="flex items-center gap-3 rounded-2xl border border-slate-200/70 bg-slate-50 px-3 py-3 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={value}
+                          onChange={() => setReportSettings(prev => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))}
+                          className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+                        />
+                        <span className="capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel title="Preview Students" description="Choose a student to preview the report card">
+                  <div className="space-y-2">
+                    {reportAnalytics.topRankers.map(row => (
+                      <button
+                        key={row.student.id}
+                        type="button"
+                        onClick={() => setReportPreviewStudentId(row.student.id)}
+                        className={`flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-left transition ${
+                          reportPreviewStudentId === row.student.id
+                            ? 'border-sky-300 bg-sky-50 dark:border-sky-900 dark:bg-sky-950/30'
+                            : 'border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        <div>
+                          <p className="text-xs font-black text-slate-900 dark:text-white">#{row.rank} {row.studentName}</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">{row.rollNo} | {row.grade}</p>
+                        </div>
+                        <span className="text-xs font-black text-sky-600">{row.percentage}%</span>
+                      </button>
+                    ))}
+                  </div>
+                </Panel>
+              </div>
+            </div>
+          )}
+
+          {resultsSubTab === 'top-performers' && (
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <MetricCard label="Average" value={`${reportAnalytics.average}%`} icon={<BarChart3 className="h-4 w-4 text-sky-500" />} />
+                <MetricCard label="Highest" value={`${reportAnalytics.highest}%`} icon={<Star className="h-4 w-4 text-amber-500" />} />
+                <MetricCard label="Passed" value={reportAnalytics.passed} icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} />
+                <MetricCard label="Failed" value={reportAnalytics.failed} icon={<AlertTriangle className="h-4 w-4 text-rose-500" />} />
+              </div>
+              <div className="space-y-2">
+                {reportAnalytics.topRankers.map(row => (
+                  <div
+                    key={row.student.id}
+                    className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/60"
+                  >
+                    <div>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">#{row.rank} {row.studentName}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">{row.rollNo} | GPA {row.gpa.toFixed(1)} | {row.grade}</p>
+                    </div>
+                    <span className="text-sm font-black text-sky-600">{row.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {resultsSubTab === 'analytics' && (
+            <div className="mt-3 space-y-4">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                <MetricCard label="Average" value={`${reportAnalytics.average}%`} icon={<BarChart3 className="h-4 w-4 text-sky-500" />} />
+                <MetricCard label="Highest" value={`${reportAnalytics.highest}%`} icon={<Star className="h-4 w-4 text-amber-500" />} />
+                <MetricCard label="Lowest" value={`${reportAnalytics.lowest}%`} icon={<AlertTriangle className="h-4 w-4 text-rose-500" />} />
+                <MetricCard label="Pass Rate" value={`${resultsRows.length ? Math.round((reportAnalytics.passed / resultsRows.length) * 100) : 0}%`} icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} />
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-2">
+                <Panel title="Subject Analysis" description="Average and pass rate by subject">
+                  <div className="space-y-3">
+                    {reportAnalytics.subjectStats.map(subject => (
+                      <div key={subject.subject} className="space-y-1 rounded-2xl border border-slate-200/70 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/60">
+                        <div className="flex items-center justify-between gap-3 text-xs font-black text-slate-900 dark:text-white">
+                          <span>{subject.subject}</span>
+                          <span>{subject.avg}% avg</span>
+                        </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+                          <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.min(100, subject.avg)}%` }} />
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{subject.passRate}% pass rate</p>
+                      </div>
+                    ))}
+                  </div>
+                </Panel>
+
+                <Panel title="Pass / Fail Analysis" description="Quick health snapshot">
+                  <div className="grid grid-cols-2 gap-3">
+                    <MetricCard label="Pass" value={reportAnalytics.passed} icon={<CheckCircle2 className="h-4 w-4 text-emerald-500" />} />
+                    <MetricCard label="Fail" value={reportAnalytics.failed} icon={<AlertTriangle className="h-4 w-4 text-rose-500" />} />
+                  </div>
+                </Panel>
+              </div>
+            </div>
+          )}
+        </Panel>
+      )}
+
+      {reportPreviewOpen && reportPreviewStudent && selectedExam && (
+        <PrintableReportCard
+          isOpen={reportPreviewOpen}
+          student={reportPreviewStudent}
+          exam={selectedExam}
+          onClose={() => setReportPreviewOpen(false)}
+          schoolProfile={schoolProfile}
+        />
+      )}
     </div>
   );
 };

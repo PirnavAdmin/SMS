@@ -478,6 +478,9 @@ export interface ExamMark {
   remarks?: string;
 
   // Enterprise fields
+  isAbsent?: boolean;
+  maxMarks?: number;
+  passMarks?: number;
   graceMarks?: number;
   isLocked?: boolean;
   isRevalued?: boolean;
@@ -1774,11 +1777,16 @@ export interface GradeConfig {
   academicYear?: string;
   branch?: string;
   schemeName?: string;
+  grade?: string;
   gradeName: string;
   minPercent: number;
   maxPercent: number;
+  minMark?: number;
+  maxMark?: number;
   gradePoints: number;
+  gradePoint?: number;
   passCriteria: 'Pass' | 'Fail';
+  remarks?: string;
 }
 
 export interface ProcessedResult {
