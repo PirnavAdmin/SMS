@@ -18,13 +18,11 @@ export const ParentAttendanceView: React.FC = () => {
   const [filterType, setFilterType] = useState<'Month' | 'Day' | 'Custom'>('Month');
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth().toString());
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear().toString());
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2026-2027');
   
   const [selectedDate, setSelectedDate] = useState(currentDate.toISOString().split('T')[0]);
   const [startDate, setStartDate] = useState(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(currentDate.toISOString().split('T')[0]);
 
-  const academicYears = ['2024-2025', '2025-2026', '2026-2027'];
   const months = [
     { value: '0', label: 'January' }, { value: '1', label: 'February' },
     { value: '2', label: 'March' }, { value: '3', label: 'April' },
@@ -246,15 +244,6 @@ export const ParentAttendanceView: React.FC = () => {
 
         {filterType === 'Month' && (
             <>
-              <div className="flex-1 min-w-[150px] w-full">
-                <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Academic Year</label>
-                <select 
-                  value={selectedAcademicYear} onChange={(e) => setSelectedAcademicYear(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
-                >
-                  {academicYears.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </div>
               <div className="flex-1 min-w-[150px] w-full">
                 <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">Month</label>
                 <select 

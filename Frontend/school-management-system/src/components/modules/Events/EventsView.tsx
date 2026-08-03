@@ -35,7 +35,6 @@ export const EventsView: React.FC = () => {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [branchFilter, setBranchFilter] = useState('All');
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [agendaDateFilter, setAgendaDateFilter] = useState('');
@@ -256,14 +255,13 @@ export const EventsView: React.FC = () => {
         (evt.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (evt.venue || '').toLowerCase().includes(searchQuery.toLowerCase());
 
-      const matchesBranch = branchFilter === 'All' || !evt.branch || evt.branch === branchFilter || evt.branch === 'All Branches';
       const matchesType = eventTypeFilter === 'All' || evt.type === eventTypeFilter;
       const matchesCategory = categoryFilter === 'All' || evt.category === categoryFilter;
       const matchesAgendaDate = !agendaDateFilter || evt.date === agendaDateFilter;
 
-      return matchesSearch && matchesBranch && matchesType && matchesCategory && matchesAgendaDate;
+      return matchesSearch && matchesType && matchesCategory && matchesAgendaDate;
     });
-  }, [unifiedEvents, searchQuery, branchFilter, eventTypeFilter, categoryFilter, agendaDateFilter]);
+  }, [unifiedEvents, searchQuery, eventTypeFilter, categoryFilter, agendaDateFilter]);
 
   // ==========================================
   // CALENDAR GRID COMPUTATION (Month View)

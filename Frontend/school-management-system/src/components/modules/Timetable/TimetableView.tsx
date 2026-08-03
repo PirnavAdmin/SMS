@@ -852,32 +852,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
         {/* Global Timetable Filters */}
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Academic Year Selector */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-xs font-bold text-slate-900 dark:text-white">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <select
-              value={academicYear}
-              onChange={e => setAcademicYear(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer"
-            >
-              <option value="2025-2026">2025-2026</option>
-              <option value="2026-2027">2026-2027</option>
-            </select>
-          </div>
-
-          {/* Branch Selector */}
-          <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm text-xs font-bold text-slate-900 dark:text-white">
-            <select
-              value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
-              className="bg-transparent outline-none cursor-pointer"
-            >
-              <option value="Main Campus">Main Campus</option>
-              <option value="North Branch">North Branch</option>
-              <option value="West Campus">West Campus</option>
-            </select>
-          </div>
-
           {/* Class Selector */}
           <div className="relative">
             <select

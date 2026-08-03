@@ -124,12 +124,6 @@ interface DataContextType {
   schoolProfile: SchoolProfile;
   updateSchoolProfile: (profile: Partial<SchoolProfile>) => void;
   academicYears: AcademicYearMaster[];
-  addAcademicYear: (year: Omit<AcademicYearMaster, 'id'>) => AcademicYearMaster | null;
-  updateAcademicYear: (id: string, updates: Partial<AcademicYearMaster>) => AcademicYearMaster | null;
-  deleteAcademicYear: (id: string) => void;
-  activateAcademicYear: (id: string) => void;
-  closeAcademicYear: (id: string) => void;
-
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Student;
   updateStudent: (id: string, updates: Partial<Student>) => void;
@@ -3975,9 +3969,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const id = 'DEPT-' + Math.floor(100 + Math.random() * 900);
     const newDept: Department = {
       ...deptData,
-      id,
-      branch: deptData.branch || selectedBranch || 'Main Campus',
-      createdAt: new Date().toISOString().split('T')[0]
+      id
     };
     setDepartments(prev => [newDept, ...prev]);
     logActivity('Created Department', `Added department ${newDept.departmentName}`);
@@ -4825,14 +4817,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const filterByBranch = <T,>(items: T[]): T[] => {
-    if (!selectedBranch) return items;
+    if (!items) return [];
     return items.filter(item => {
       const anyItem = item as any;
-      if (anyItem.applicableBranches) {
-        return anyItem.applicableBranches.includes(selectedBranch);
+      
+      // Check branch
+      let branchMatch = true;
+      if (selectedBranch && anyItem.branch !== 'All Branches') {
+        if (anyItem.applicableBranches) {
+          branchMatch = anyItem.applicableBranches.includes(selectedBranch);
+        } else if (anyItem.branch) {
+          branchMatch = anyItem.branch === selectedBranch;
+        }
       }
-      if (!anyItem.branch || anyItem.branch === 'All Branches') return true;
-      return anyItem.branch === selectedBranch;
+
+      // Check academic year
+      let ayMatch = true;
+      if (selectedAcademicYear && anyItem.academicYear && anyItem.academicYear !== 'All') {
+        ayMatch = anyItem.academicYear === selectedAcademicYear;
+      }
+
+      return branchMatch && ayMatch;
     });
   };
 
@@ -4901,6 +4906,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider
       value={{
         schoolProfile, updateSchoolProfile,
+        academicYears,
         students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
         staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
         admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,

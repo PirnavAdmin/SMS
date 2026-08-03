@@ -31,7 +31,6 @@ export const TransactionsMasterLedgerView: React.FC = () => {
   const [sourceModuleFilter, setSourceModuleFilter] = useState<string>('All');
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
   const [paymentModeFilter, setPaymentModeFilter] = useState<string>('All');
-  const [branchFilter, setBranchFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc'>('date-desc');
 
@@ -99,13 +98,10 @@ export const TransactionsMasterLedgerView: React.FC = () => {
     // Payment Mode
     const matchesMode = paymentModeFilter === 'All' || t.paymentMode === paymentModeFilter;
 
-    // Branch
-    const matchesBranch = branchFilter === 'All' || t.branch === branchFilter;
-
     // Status
     const matchesStatus = statusFilter === 'All' || t.status === statusFilter;
 
-    return matchesSearch && matchesType && matchesModule && matchesCategory && matchesMode && matchesBranch && matchesStatus;
+    return matchesSearch && matchesType && matchesModule && matchesCategory && matchesMode && matchesStatus;
   }).sort((a, b) => {
     if (sortBy === 'date-desc') return new Date(b.date).getTime() - new Date(a.date).getTime();
     if (sortBy === 'date-asc') return new Date(a.date).getTime() - new Date(b.date).getTime();

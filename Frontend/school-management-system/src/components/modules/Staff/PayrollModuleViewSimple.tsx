@@ -1067,9 +1067,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
 
           <div className="mt-5 overflow-x-auto">
-            <table className="min-w-[1100px] w-full border-separate border-spacing-y-3">
+            <table className="min-w-[1100px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
               <thead>
-                <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                   <th className="px-3 py-2 w-10"></th>
                   <th className="px-3 py-2">Employee ID</th>
                   <th className="px-3 py-2">Employee Name</th>
@@ -1085,8 +1085,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 {filteredEmployeeRows.map(row => {
                   const statusBadge = row.assignment ? 'success' : 'warning';
                   return (
-                    <tr key={row.member.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                      <td className="rounded-l-[18px] px-3 py-4">
+                    <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                      <td className="px-3 py-4">
                         <input 
                           type="checkbox" 
                           className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1119,7 +1119,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       <td className="px-3 py-4">
                         <Badge variant={statusBadge} size="sm">{row.payrollStatus}</Badge>
                       </td>
-                      <td className="rounded-r-[18px] px-3 py-4">
+                      <td className="px-3 py-4">
                         <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"
@@ -1236,9 +1236,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="min-w-[1200px] w-full border-separate border-spacing-y-3">
+          <table className="min-w-[1200px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
-              <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10"></th>
                 <th className="px-3 py-2">Structure Name</th>
                 <th className="px-3 py-2">Category</th>
@@ -1255,8 +1255,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </thead>
             <tbody>
               {filteredStructureRows.map(row => (
-                <tr key={row.structure.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                  <td className="rounded-l-[18px] px-3 py-4">
+                <tr key={row.structure.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                  <td className="px-3 py-4">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1287,7 +1287,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     <Badge variant={row.structure.status === 'Active' ? 'success' : 'neutral'} size="sm">{row.structure.status}</Badge>
                   </td>
                   <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.assignedCount}</td>
-                  <td className="rounded-r-[18px] px-3 py-4">
+                  <td className="px-3 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         type="button"
@@ -1398,9 +1398,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="min-w-[1220px] w-full border-separate border-spacing-y-3">
+          <table className="min-w-[1220px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
-              <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10">
                   <input 
                     type="checkbox" 
@@ -1429,8 +1429,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </thead>
             <tbody>
               {pendingGenerationRows.map(row => (
-                <tr key={row.member.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                  <td className="rounded-l-[18px] px-3 py-4">
+                <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                  <td className="px-3 py-4">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1460,7 +1460,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     <Badge variant={row.existing ? 'success' : 'warning'} size="sm">{row.existing ? row.existing.status : 'Ready'}</Badge>
                   </td>
                   <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
-                  <td className="rounded-r-[18px] px-3 py-4">
+                  <td className="px-3 py-4">
                     <div className="flex items-center justify-end gap-2">
                       <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Preview Profile">
                         <Eye className="h-4 w-4" />
@@ -1574,9 +1574,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         </div>
 
         <div className="mt-5 overflow-x-auto">
-          <table className="min-w-[1120px] w-full border-separate border-spacing-y-3">
+          <table className="min-w-[1120px] w-full text-left border-collapse text-xs border border-slate-200 dark:border-slate-800 [&_th]:border [&_th]:border-slate-200 dark:[&_th]:border-slate-800 [&_td]:border [&_td]:border-slate-200 dark:[&_td]:border-slate-800 rounded-xl overflow-hidden">
             <thead>
-              <tr className="text-left text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10">
                   <input 
                     type="checkbox" 
@@ -1607,8 +1607,8 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 const { month, year } = splitMonthYear(item.month);
                 const linkedStaff = staff.find(member => member.id === item.employeeId) || null;
                 return (
-                  <tr key={item.id} className="rounded-[18px] bg-slate-50/90 dark:bg-slate-900/70">
-                    <td className="rounded-l-[18px] px-3 py-4">
+                  <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
+                    <td className="px-3 py-4">
                       <input 
                         type="checkbox" 
                         className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1637,7 +1637,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     <td className="px-3 py-4">
                       <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status}</Badge>
                     </td>
-                    <td className="rounded-r-[18px] px-3 py-4">
+                    <td className="px-3 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="View Details">
                           <Eye className="h-4 w-4" />

@@ -738,7 +738,7 @@ export const initialCustomRoles: CustomRole[] = [
   }
 ];
 
-export const initialDesignations: DesignationMaster[] = [
+export const initialDesignations: any[] = [
   // Teaching Staff Designations
   { id: 'DESIG-T01', designationName: 'Principal', employeeCategory: 'Teaching', status: 'Active' },
   { id: 'DESIG-T02', designationName: 'Vice Principal', employeeCategory: 'Teaching', status: 'Active' },
@@ -770,20 +770,20 @@ export const initialDesignations: DesignationMaster[] = [
 ];
 
 export const initialDepartments: Department[] = [
-  { id: 'DEPT-001', departmentName: 'Mathematics', departmentCode: 'DEPT-MTH', description: 'Department of Mathematics & Statistics', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-002', departmentName: 'Science', departmentCode: 'DEPT-SCI', description: 'Physics, Chemistry, Biology & Natural Sciences', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-003', departmentName: 'English', departmentCode: 'DEPT-ENG', description: 'English Language & Literature', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-004', departmentName: 'Social Science', departmentCode: 'DEPT-SOC', description: 'History, Geography, Civics & Economics', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-005', departmentName: 'Languages', departmentCode: 'DEPT-LNG', description: 'Regional, National & Foreign Languages', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-006', departmentName: 'Computer Science / ICT', departmentCode: 'DEPT-CS', description: 'Computer Science, IT, AI & Technology', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-007', departmentName: 'Commerce', departmentCode: 'DEPT-COM', description: 'Accountancy, Business Studies & Finance', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-008', departmentName: 'Humanities', departmentCode: 'DEPT-HUM', description: 'Psychology, Sociology & Liberal Arts', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-009', departmentName: 'Fine Arts', departmentCode: 'DEPT-ART', description: 'Drawing, Painting & Visual Arts', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-010', departmentName: 'Performing Arts', departmentCode: 'DEPT-PA', description: 'Music, Dance & Drama', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-011', departmentName: 'Physical Education', departmentCode: 'DEPT-PE', description: 'Sports, Fitness & Physical Health', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-012', departmentName: 'Library', departmentCode: 'DEPT-LIB', description: 'Library & Information Science', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-013', departmentName: 'Special Education', departmentCode: 'DEPT-SE', description: 'Inclusive Learning & Remedial Care', status: 'Active', branch: 'Main Campus' },
-  { id: 'DEPT-014', departmentName: 'Pre-Primary', departmentCode: 'DEPT-PRE', description: 'Early Childhood & Foundation Stage', status: 'Active', branch: 'Main Campus' }
+  { id: 'DEPT-001', departmentName: 'Science', departmentCode: 'DEPT-SCI', description: 'Physics, Chemistry & Biology', status: 'Active' },
+  { id: 'DEPT-002', departmentName: 'Mathematics', departmentCode: 'DEPT-MATH', description: 'Algebra, Geometry & Calculus', status: 'Active' },
+  { id: 'DEPT-003', departmentName: 'English', departmentCode: 'DEPT-ENG', description: 'Literature, Grammar & Communication', status: 'Active' },
+  { id: 'DEPT-004', departmentName: 'Social Science', departmentCode: 'DEPT-SST', description: 'History, Geography & Civics', status: 'Active' },
+  { id: 'DEPT-005', departmentName: 'Computer Science', departmentCode: 'DEPT-CS', description: 'IT, Coding & Software', status: 'Active' },
+  { id: 'DEPT-006', departmentName: 'Languages', departmentCode: 'DEPT-LANG', description: 'Hindi, Sanskrit & Regional Languages', status: 'Active' },
+  { id: 'DEPT-007', departmentName: 'Commerce', departmentCode: 'DEPT-COM', description: 'Accountancy, Business Studies & Finance', status: 'Active' },
+  { id: 'DEPT-008', departmentName: 'Humanities', departmentCode: 'DEPT-HUM', description: 'Psychology, Sociology & Liberal Arts', status: 'Active' },
+  { id: 'DEPT-009', departmentName: 'Fine Arts', departmentCode: 'DEPT-ART', description: 'Drawing, Painting & Visual Arts', status: 'Active' },
+  { id: 'DEPT-010', departmentName: 'Performing Arts', departmentCode: 'DEPT-PA', description: 'Music, Dance & Drama', status: 'Active' },
+  { id: 'DEPT-011', departmentName: 'Physical Education', departmentCode: 'DEPT-PE', description: 'Sports, Fitness & Physical Health', status: 'Active' },
+  { id: 'DEPT-012', departmentName: 'Library', departmentCode: 'DEPT-LIB', description: 'Library & Information Science', status: 'Active' },
+  { id: 'DEPT-013', departmentName: 'Special Education', departmentCode: 'DEPT-SE', description: 'Inclusive Learning & Remedial Care', status: 'Active' },
+  { id: 'DEPT-014', departmentName: 'Pre-Primary', departmentCode: 'DEPT-PRE', description: 'Early Childhood & Foundation Stage', status: 'Active' }
 ];
 
 export const initialSubjects: SubjectItem[] = [

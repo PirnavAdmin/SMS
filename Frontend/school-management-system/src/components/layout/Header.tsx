@@ -110,16 +110,16 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const branchOptions = useMemo(() => {
     const sourceBranches = [
-      ...managedBranches,
-      ...students.map(s => s.branch || 'Main Campus'),
-      ...admissions.map(a => a.branch || 'Main Campus'),
-      ...academicClasses.map(c => (c as any).branch || 'Main Campus'),
-      ...dynamicFeeStructures.map(f => f.branch || 'Main Campus'),
-      ...routeMasters.map(r => (r as any).branch || 'Main Campus'),
-      ...hostelMasters.map(h => (h as any).branch || 'Main Campus')
+      ...(managedBranches || []),
+      ...(students || []).map(s => s.branch || 'Main Campus'),
+      ...(admissions || []).map(a => a.branch || 'Main Campus'),
+      ...(academicClasses || []).map(c => (c as any).branch || 'Main Campus'),
+      ...(dynamicFeeStructures || []).map(f => f.branch || 'Main Campus'),
+      ...(routeMasters || []).map(r => (r as any).branch || 'Main Campus'),
+      ...(hostelMasters || []).map(h => (h as any).branch || 'Main Campus')
     ];
     return Array.from(new Set(sourceBranches))
-      .filter(branch => branch && !inactiveBranches.includes(branch))
+      .filter(branch => branch && !(inactiveBranches || []).includes(branch))
       .sort();
   }, [managedBranches, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, inactiveBranches]);
 
@@ -176,8 +176,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       const withoutEdited = editingBranchName ? prev.filter(branch => branch !== editingBranchName) : prev;
       return Array.from(new Set([...withoutEdited, nextName]));
     });
-    if (editingBranchName && inactiveBranches.includes(editingBranchName)) {
-      setInactiveBranches(prev => prev.filter(branch => branch !== editingBranchName));
+    if (editingBranchName && (inactiveBranches || []).includes(editingBranchName)) {
+      setInactiveBranches(prev => (prev || []).filter(branch => branch !== editingBranchName));
     }
     setBranchModalOpen(false);
     setEditingBranchName(null);
@@ -186,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const formatAYDisplay = (ay?: string) => {
-    if (!ay) return '2026–27';
+    if (!ay) return '';
     const parts = ay.split(/[-–]/);
     if (parts.length === 2) {
       const start = parts[0].trim();
@@ -204,15 +204,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     if (academicYears && academicYears.length > 0) {
       list = academicYears.map(ay => ({
         id: ay.id,
-        academicYear: ay.academicYear,
+        academicYear: ay.academicYear || (ay as any).year || '',
         isCurrent: ay.isCurrentAcademicYear || ay.status === 'Active'
-      }));
+      })).filter(a => a.academicYear && a.academicYear.length > 4); // Filter out junk IDs like '01', '02'
     } else {
       list = [
         { id: 'AY-2026-2027', academicYear: '2026-2027', isCurrent: true },
-        { id: 'AY-2025-2026', academicYear: '2025-2026', isCurrent: false },
-        { id: 'AY-2024-2025', academicYear: '2024-2025', isCurrent: false },
-        { id: 'AY-2023-2024', academicYear: '2023-2024', isCurrent: false }
+        { id: 'AY-2025-2026', academicYear: '2025-2026', isCurrent: false }
       ];
     }
 
@@ -220,12 +218,22 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       list.push({ id: 'AY-2026-2027', academicYear: '2026-2027', isCurrent: true });
     }
 
-    return list.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+    // Deduplicate by academicYear
+    const uniqueList: typeof list = [];
+    const seen = new Set<string>();
+    for (const item of list) {
+      if (item.academicYear && !seen.has(item.academicYear)) {
+        seen.add(item.academicYear);
+        uniqueList.push(item);
+      }
+    }
+
+    return uniqueList.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
   }, [academicYears]);
 
   const confirmDeactivateBranch = () => {
     if (!deactivatingBranch || !canManageBranch) return;
-    setInactiveBranches(prev => Array.from(new Set([...prev, deactivatingBranch])));
+    setInactiveBranches(prev => Array.from(new Set([...(prev || []), deactivatingBranch])));
     if (selectedBranch === deactivatingBranch) {
       const fallback = branchOptions.find(branch => branch !== deactivatingBranch) || 'Main Campus';
       setSelectedBranch(fallback);
@@ -244,21 +252,21 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   }, [readNotifIds]);
 
   const unreadAnnouncements = useMemo(() => {
-    return announcements.filter(a => !readNotifIds.includes(a.id));
+    return (announcements || []).filter(a => !(readNotifIds || []).includes(a.id));
   }, [announcements, readNotifIds]);
 
   const toggleNotifMenu = () => {
     const nextState = !showNotifMenu;
     setShowNotifMenu(nextState);
     if (nextState && unreadAnnouncements.length > 0) {
-      const allIds = announcements.map(a => a.id);
-      setReadNotifIds(prev => Array.from(new Set([...prev, ...allIds])));
+      const allIds = (announcements || []).map(a => a.id);
+      setReadNotifIds(prev => Array.from(new Set([...(prev || []), ...allIds])));
     }
   };
 
   const markAllAsRead = () => {
-    const allIds = announcements.map(a => a.id);
-    setReadNotifIds(Array.from(new Set([...readNotifIds, ...allIds])));
+    const allIds = (announcements || []).map(a => a.id);
+    setReadNotifIds(Array.from(new Set([...(readNotifIds || []), ...allIds])));
   };
 
   return (
@@ -424,11 +432,11 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 )}
               </div>
               <div className="max-h-60 overflow-y-auto space-y-2">
-                {announcements.length === 0 ? (
+                {!(announcements && announcements.length > 0) ? (
                   <div className="p-4 text-center text-xs text-slate-400">No notifications</div>
                 ) : (
-                  announcements.map(a => {
-                    const isUnread = !readNotifIds.includes(a.id);
+                  (announcements || []).map(a => {
+                    const isUnread = !(readNotifIds || []).includes(a.id);
                     return (
                       <div
                         key={a.id}

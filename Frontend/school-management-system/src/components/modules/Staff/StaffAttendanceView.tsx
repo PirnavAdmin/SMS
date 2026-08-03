@@ -711,8 +711,6 @@ export const StaffAttendanceView: React.FC = () => {
   // Active Main Module Tab
   const [activeTab, setActiveTab] = useState<AttendanceTab>('teaching');
 
-  // Shared / Tab Filter States
-  const [academicYear, setAcademicYear] = useState('2026-2027');
   const [attendanceDate, setAttendanceDate] = useState(todayStr);
   const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('daily');
 
@@ -1088,23 +1086,6 @@ export const StaffAttendanceView: React.FC = () => {
           {/* Filters Bar */}
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              {/* Academic Year (For Teaching Staff) */}
-              {activeTab === 'teaching' && (
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">Academic Year</label>
-                  <select
-                    value={academicYear}
-                    onChange={e => setAcademicYear(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
-                  >
-                    <option value="2026-2027">2026-2027</option>
-                    <option value="2025-2026">2025-2026</option>
-                  </select>
-                </div>
-              )}
-
-
-
               {/* Attendance Date */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1">Attendance Date *</label>

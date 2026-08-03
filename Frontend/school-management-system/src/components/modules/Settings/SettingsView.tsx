@@ -119,7 +119,7 @@ export const SettingsView: React.FC = () => {
 
   const handleToggleStatus = (campus: CampusItem) => {
     const nextStatus = campus.status === 'Active' ? 'Inactive' : 'Active';
-    const updated = campuses.map(c => c.id === campus.id ? { ...c, status: nextStatus } : c);
+    const updated = campuses.map(c => c.id === campus.id ? { ...c, status: nextStatus as "Active" | "Inactive" } : c);
     syncCampuses(updated);
     addToast('info', 'Status Changed', `${campus.name} set to ${nextStatus}.`);
   };

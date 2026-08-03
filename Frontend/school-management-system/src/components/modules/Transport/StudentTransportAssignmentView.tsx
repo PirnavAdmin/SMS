@@ -40,8 +40,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState('2026-2027');
-  const [selectedBranch, setSelectedBranch] = useState('All');
+  const selectedAcademicYear = '2026-2027';
   const [selectedClass, setSelectedClass] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
@@ -84,8 +83,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
     const sObj = students.find(s => s.id === st.studentId);
     const matchesClass = selectedClass === 'All' || (sObj && sObj.className === selectedClass);
     const matchesSection = selectedSection === 'All' || (sObj && sObj.section === selectedSection);
-    const matchesBranch = selectedBranch === 'All' || (sObj && (sObj.branch || 'Main Campus') === selectedBranch);
-    return matchesQuery && matchesClass && matchesSection && matchesBranch;
+    return matchesQuery && matchesClass && matchesSection;
   });
 
   const handleOpenAdd = () => {
@@ -226,33 +224,6 @@ export const StudentTransportAssignmentView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <div>
-            <label className="block text-[9px] uppercase font-bold text-slate-400">Academic Year</label>
-            <select
-              value={selectedAcademicYear}
-              onChange={e => setSelectedAcademicYear(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="2026-2027">2026-2027</option>
-              <option value="2025-2026">2025-2026</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[9px] uppercase font-bold text-slate-400">Branch</label>
-            <select
-              value={selectedBranch}
-              onChange={e => setSelectedBranch(e.target.value)}
-              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-            >
-              <option value="All">All Branches</option>
-              <option value="Main Campus">Main Campus</option>
-              <option value="North Branch">North Branch</option>
-              <option value="West Campus">West Campus</option>
-              <option value="Hyderabad">Hyderabad</option>
-            </select>
-          </div>
-
           <div>
             <label className="block text-[9px] uppercase font-bold text-slate-400">Class Grade</label>
             <select

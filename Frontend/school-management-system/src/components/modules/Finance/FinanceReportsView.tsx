@@ -21,7 +21,6 @@ export const FinanceReportsView: React.FC = () => {
   const [pageSize, setPageSize] = useState<number>(10);
 
   // Common Filter States
-  const [filterAcademicYear, setFilterAcademicYear] = useState<string>('All');
   const [filterClass, setFilterClass] = useState<string>('All');
   const [filterSection, setFilterSection] = useState<string>('All');
   const [filterStartDate, setFilterStartDate] = useState<string>('');
@@ -272,7 +271,7 @@ export const FinanceReportsView: React.FC = () => {
       <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
         <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Report Selection & Parameters</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Report Type Dropdown */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500 block">Report Type</label>
@@ -310,19 +309,6 @@ export const FinanceReportsView: React.FC = () => {
               <optgroup label="Accounting Reports">
                 <option value="Cash Book">Cash Book</option>
               </optgroup>
-            </select>
-          </div>
-
-          {/* Academic Year */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 block">Academic Year</label>
-            <select
-              value={filterAcademicYear}
-              onChange={e => setFilterAcademicYear(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none text-slate-800 dark:text-slate-200 cursor-pointer"
-            >
-              <option value="All">All Years</option>
-              <option value="2025-2026">2025-2026</option>
             </select>
           </div>
 

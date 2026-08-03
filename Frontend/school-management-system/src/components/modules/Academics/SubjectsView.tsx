@@ -257,9 +257,13 @@ export const SubjectsView: React.FC = () => {
   const [deletingDesignation, setDeletingDesignation] = useState<DesignationMaster | null>(null);
   const [desigFormData, setDesigFormData] = useState<{
     designationName: string;
-    employeeCategory: 'Teaching' | 'Non-Teaching';
+    employeeCategory: 'Teaching' | 'Non-Teaching' | 'Both';
     status: 'Active' | 'Inactive';
-  }>({ designationName: '', employeeCategory: 'Teaching', status: 'Active' });
+  }>({
+    designationName: '',
+    employeeCategory: 'Teaching',
+    status: 'Active'
+  });
 
   const handleOpenAddDesig = () => {
     setEditingDesignation(null);
@@ -1001,8 +1005,6 @@ export const SubjectsView: React.FC = () => {
         isOpen={!!deletingDesignation}
         title="Delete Designation"
         message={`Are you sure you want to delete the designation '${deletingDesignation?.designationName}'? This action cannot be undone.`}
-        confirmText="Delete"
-        cancelText="Cancel"
         onConfirm={handleConfirmDeleteDesig}
         onCancel={() => setDeletingDesignation(null)}
       />

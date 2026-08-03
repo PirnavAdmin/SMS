@@ -183,7 +183,7 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                 status: 'Active',
                 assignedClasses: [],
                 assignedSubjects: []
-              };
+              } as unknown as Omit<Staff, 'id'>;
               addStaff(newStaff);
               count++;
             }

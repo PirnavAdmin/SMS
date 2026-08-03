@@ -29,7 +29,6 @@ export const TrainingContainerView: React.FC = () => {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
-  const [branchFilter, setBranchFilter] = useState('All');
   const [departmentFilter, setDepartmentFilter] = useState('All');
 
   // Selected Employee for Profile Professional Development View
@@ -149,31 +148,28 @@ export const TrainingContainerView: React.FC = () => {
       const matchesSearch = w.workshopName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         w.trainerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         w.category.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesBranch = branchFilter === 'All' || w.branch === branchFilter;
       const matchesDept = departmentFilter === 'All' || w.department === departmentFilter || !w.department;
-      return matchesSearch && matchesBranch && matchesDept;
+      return matchesSearch && matchesDept;
     });
-  }, [workshops, searchQuery, branchFilter, departmentFilter]);
+  }, [workshops, searchQuery, departmentFilter]);
 
   const filteredAssessments = useMemo(() => {
     return employeeAssessments.filter(a => {
       const matchesSearch = a.assessmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.assessmentType.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesBranch = branchFilter === 'All' || a.branch === branchFilter;
       const matchesDept = departmentFilter === 'All' || a.department === departmentFilter;
-      return matchesSearch && matchesBranch && matchesDept;
+      return matchesSearch && matchesDept;
     });
-  }, [employeeAssessments, searchQuery, branchFilter, departmentFilter]);
+  }, [employeeAssessments, searchQuery, departmentFilter]);
 
   const filteredCertificates = useMemo(() => {
     return issuedCertificates.filter(c => {
       const matchesSearch = c.employeeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.programName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         c.certificateNumber.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesBranch = branchFilter === 'All' || c.branch === branchFilter;
-      return matchesSearch && matchesBranch;
+      return matchesSearch;
     });
-  }, [issuedCertificates, searchQuery, branchFilter]);
+  }, [issuedCertificates, searchQuery]);
 
   // Compute Dashboard Metrics
   const metrics = useMemo(() => {

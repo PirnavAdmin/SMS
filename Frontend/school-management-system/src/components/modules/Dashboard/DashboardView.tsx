@@ -48,7 +48,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const totalStudents = students.length;
   const totalStaff = staff.length;
 
-  const activeAYPayments = feePayments.filter(p => !p.academicYear || p.academicYear === selectedAcademicYear || formatAcademicYearDisplay(p.academicYear) === currentSessionDisplay);
+  const activeAYPayments = feePayments;
   const feeCollected = activeAYPayments.reduce((acc, p) => acc + p.amountPaid, 0);
   const feeDue = students.reduce((acc, s) => acc + s.dueFee, 0);
 

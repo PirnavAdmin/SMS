@@ -188,7 +188,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');
-  const [filterBranch, setFilterBranch] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
@@ -212,9 +211,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                       s.admissionNo.toLowerCase().includes(query.toLowerCase());
     const classMatch = filterClass === 'All' || s.className === filterClass;
     const sectionMatch = filterSection === 'All' || s.section === filterSection;
-    const branchMatch = filterBranch === 'All' || (s.branch || 'Main Campus') === filterBranch;
     const statusMatch = filterStatus === 'All' || s.status === filterStatus;
-    return nameMatch && classMatch && sectionMatch && branchMatch && statusMatch;
+    return nameMatch && classMatch && sectionMatch && statusMatch;
   });
 
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
@@ -840,19 +838,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         <div className="flex flex-nowrap items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
           <div className="flex items-center">
             <select
-              value={filterBranch}
-              onChange={e => setFilterBranch(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-            >
-              <option value="All">All Branches</option>
-              {Array.from(new Set(apiStudents.map(s => s.branch || 'Main Campus'))).sort().map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-center">
-            <select
               value={filterClass}
               onChange={e => setFilterClass(e.target.value)}
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
@@ -898,20 +883,19 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Student Details</th>
-                <th className="py-3.5 px-4">Class & Roll</th>
-                <th className="py-3.5 px-4">Branch / Campus</th>
-                <th className="py-3.5 px-4">Guardian Contact</th>
-                <th className="py-3.5 px-4">Fee Due</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 text-left">Student Details</th>
+                <th className="py-3.5 px-4 text-center">Class & Roll</th>
+                <th className="py-3.5 px-4 text-center">Guardian Contact</th>
+                <th className="py-3.5 px-4 text-center">Fee Due</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
+                <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
               {loading ? (
-                <tr><td colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500"><div className="animate-pulse">Loading student records...</div></td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-slate-400 dark:text-slate-500"><div className="animate-pulse">Loading student records...</div></td></tr>
               ) : paginated.length === 0 ? (
-                <tr><td colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">No matching student records found.</td></tr>
+                <tr><td colSpan={6} className="text-center py-8 text-slate-400 dark:text-slate-500">No matching student records found.</td></tr>
               ) : (
                 paginated.map(st => (
                   <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
@@ -930,31 +914,28 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         </div>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center">
                       <span className="font-bold text-slate-900 dark:text-white">{st.className}-{st.section}</span>
                       <span className="block text-[10px] text-slate-400 font-mono">Roll: {st.rollNo}</span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 font-bold text-[10px] flex items-center gap-1 w-max">
-                        <Building2 className="w-3 h-3 text-amber-600 dark:text-amber-400" /> {st.branch || 'Main Campus'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center">
                       <p className="text-slate-800 dark:text-slate-200">{st.fatherName}</p>
                       <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 font-mono">{st.fatherPhone}</p>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center">
                       <span className={`font-bold ${st.dueFee > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                         {formatCurrency(st.dueFee)}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={st.status === 'Active' ? 'success' : st.status === 'Promoted' ? 'info' : 'warning'}>
-                        {st.status}
-                      </Badge>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex justify-center">
+                        <Badge variant={st.status === 'Active' ? 'success' : st.status === 'Promoted' ? 'info' : 'warning'}>
+                          {st.status}
+                        </Badge>
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => setSelectedStudent(st)}
                           className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"

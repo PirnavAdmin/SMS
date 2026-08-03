@@ -37,7 +37,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
-  const [filterBranch, setFilterBranch] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
@@ -86,17 +85,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           data.forEach(row => {
             if (row.applicantName || row.firstName || row.lastName) {
               const name = row.applicantName || `${row.firstName || ''} ${row.lastName || ''}`.trim();
-              const newApp: Omit<AdmissionApplication, 'id' | 'applicationNo'> = {
+              const newApp = {
                 applicantName: name,
                 appliedClass: row.appliedClass || 'Class 1',
                 branch: row.branch || selectedBranch || 'Main Campus',
                 parentName: row.parentName || row.fatherName || 'Not Provided',
                 phone: row.phone || row.mobile || '',
                 email: row.email || '',
-                status: 'Under Review',
+                status: 'Pending',
                 studentType: row.studentType || 'Day Scholar',
-                submittedAt: new Date().toISOString()
-              };
+                submissionDate: new Date().toISOString()
+              } as unknown as Omit<AdmissionApplication, 'id' | 'applicationNo'>;
               addAdmission(newApp);
               count++;
             }
@@ -200,9 +199,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       a.applicationNo.toLowerCase().includes(query.toLowerCase()) ||
                       a.parentName.toLowerCase().includes(query.toLowerCase());
     const matchClass = filterClass === 'All' || a.appliedClass === filterClass;
-    const matchBranch = filterBranch === 'All' || (a.branch || 'Main Campus') === filterBranch;
     const matchStatus = filterStatus === 'All' || a.status === filterStatus;
-    return matchQuery && matchClass && matchBranch && matchStatus;
+    return matchQuery && matchClass && matchStatus;
   });
 
   const totalPages = Math.ceil(filteredAdmissions.length / pageSize) || 1;
@@ -1266,19 +1264,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          <div className="flex items-center gap-1">
-            <span className="text-[11px] font-bold text-slate-400">Branch:</span>
-            <select
-              value={filterBranch}
-              onChange={e => setFilterBranch(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-            >
-              <option value="All">All Branches</option>
-              {Array.from(new Set(admissions.map(a => a.branch || 'Main Campus'))).sort().map(b => (
-                <option key={b} value={b}>{b}</option>
-              ))}
-            </select>
-          </div>
 
           <div className="flex items-center gap-1">
             <span className="text-[11px] font-bold text-slate-400">Class:</span>
@@ -1319,7 +1304,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <th className="py-3.5 px-4">Application Reg No</th>
                 <th className="py-3.5 px-4">Applicant Student</th>
                 <th className="py-3.5 px-4">Applied Class</th>
-                <th className="py-3.5 px-4">Branch & Type</th>
+                <th className="py-3.5 px-4">Student Type</th>
                 <th className="py-3.5 px-4">Father Contact</th>
                 <th className="py-3.5 px-4 text-center">Actions & Enrollment</th>
               </tr>
@@ -1347,8 +1332,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </td>
                     <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">{app.appliedClass}</td>
                     <td className="py-3 px-4">
-                      <span className="font-bold text-amber-700 dark:text-amber-300 block">{app.branch || 'Main Campus'}</span>
-                      <span className="text-[10px] text-slate-400 block">{app.studentType}</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300 block">{app.studentType}</span>
                     </td>
                     <td className="py-3 px-4">
                       <p className="text-slate-800 dark:text-slate-200">{app.parentName}</p>

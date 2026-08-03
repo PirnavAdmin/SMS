@@ -37,8 +37,6 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterAcademicYear, setFilterAcademicYear] = useState('2026-2027');
-  const [filterBranch, setFilterBranch] = useState('All');
   const [filterRoute, setFilterRoute] = useState('All');
   const [filterDriver, setFilterDriver] = useState('All');
   const [filterVehicle, setFilterVehicle] = useState('All');
@@ -83,10 +81,8 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
     const matchesDriver = filterDriver === 'All' || assignment.driverId === filterDriver || assignment.driverName === filterDriver;
     const matchesVehicle = filterVehicle === 'All' || assignment.vehicleId === filterVehicle || assignment.vehicleNumber === filterVehicle;
     const matchesStatus = filterStatus === 'All' || statusText === filterStatus;
-    const matchesAcademicYear = filterAcademicYear === 'All' || academicYear === filterAcademicYear;
-    const matchesBranch = filterBranch === 'All' || branch === filterBranch;
 
-    return matchesSearch && matchesRoute && matchesDriver && matchesVehicle && matchesStatus && matchesAcademicYear && matchesBranch && !!vehicle && !!route;
+    return matchesSearch && matchesRoute && matchesDriver && matchesVehicle && matchesStatus && !!vehicle && !!route;
   });
 
   const runningCount = filteredAssignments.filter(assignment => assignment.status === 'Active').length;
@@ -173,26 +169,6 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-          <select
-            value={filterAcademicYear}
-            onChange={e => setFilterAcademicYear(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Academic Years</option>
-            <option value="2026-2027">2026-2027</option>
-            <option value="2025-2026">2025-2026</option>
-          </select>
-
-          <select
-            value={filterBranch}
-            onChange={e => setFilterBranch(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Branches</option>
-            <option value="Main Campus">Main Campus</option>
-            <option value="North Branch">North Branch</option>
-            <option value="West Campus">West Campus</option>
-          </select>
 
           <select
             value={filterRoute}
