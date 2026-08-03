@@ -9,6 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   selectedBranch: string;
   setSelectedBranch: (branch: string) => void;
+  selectedAcademicYear: string;
+  setSelectedAcademicYear: (academicYear: string) => void;
   login: (emailOrPhone: string, password?: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
   setRole: (role: UserRole) => void;
@@ -32,6 +34,13 @@ const defaultAdminUser: User = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getDefaultAcademicYear = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const startYear = now.getMonth() >= 3 ? year : year - 1;
+  return `${startYear}-${startYear + 1}`;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('auth_user');
@@ -50,9 +59,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return localStorage.getItem('auth_branch') || 'Main Campus';
   });
 
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>(() => {
+    return localStorage.getItem('auth_academic_year') || getDefaultAcademicYear();
+  });
+
   const handleSetBranch = (b: string) => {
     setSelectedBranch(b);
     localStorage.setItem('auth_branch', b);
+  };
+
+  const handleSetAcademicYear = (academicYear: string) => {
+    setSelectedAcademicYear(academicYear);
+    localStorage.setItem('auth_academic_year', academicYear);
   };
 
   const setRole = (newRole: UserRole) => {
@@ -174,6 +192,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!user && !!token,
         selectedBranch,
         setSelectedBranch: handleSetBranch,
+        selectedAcademicYear,
+        setSelectedAcademicYear: handleSetAcademicYear,
         login,
         logout,
         setRole,

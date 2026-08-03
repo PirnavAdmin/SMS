@@ -4,7 +4,7 @@ import {
   Student, Staff, StaffDocument, BankDetails, AdmissionApplication, FeeStructure, FeePayment,
   DailyAttendance, ExamSetup, ExamMark, TimetableSlot, Homework,
   BookItem, BookIssue, TransportRoute, HostelBlock, HostelRoom, HostelBed, Bus, UniformItem,
-  CustomRole, InventoryItem, Announcement, Holiday, Birthday, AuditLog, SchoolProfile, PromotionHistoryItem,
+  CustomRole, InventoryItem, Announcement, Holiday, Birthday, AuditLog, SchoolProfile, AcademicYearMaster, PromotionHistoryItem,
   SubjectItem, ExamSchedule, GradeConfig, ProcessedResult, PeriodSetting, TeacherAssignment,
   FeeHead, DynamicFeeStructure, StudentFeeAssignment, Scholarship, StudentScholarship,
   Discount, StudentDiscount, FineRule, TransportRoute as ERPTransportRoute, StudentTransport,
@@ -25,7 +25,7 @@ import {
   initialHomework, initialBooks, initialBookIssues, initialTransportRoutes,
   initialHostelBlocks, initialHostelRooms, initialHostelBeds, initialBuses,
   initialUniforms, initialCustomRoles, initialInventory, initialAnnouncements,
-  initialHolidays, initialBirthdays, initialAuditLogs, initialSchoolProfile,
+  initialHolidays, initialBirthdays, initialAuditLogs, initialSchoolProfile, initialAcademicYears,
   initialSubjects,
   initialFeeHeads, initialDynamicFeeStructures, initialStudentFeeAssignments,
   initialScholarships, initialStudentScholarships, initialDiscounts, initialStudentDiscounts,
@@ -123,6 +123,12 @@ export interface CapacityCheckResult {
 interface DataContextType {
   schoolProfile: SchoolProfile;
   updateSchoolProfile: (profile: Partial<SchoolProfile>) => void;
+  academicYears: AcademicYearMaster[];
+  addAcademicYear: (year: Omit<AcademicYearMaster, 'id'>) => AcademicYearMaster | null;
+  updateAcademicYear: (id: string, updates: Partial<AcademicYearMaster>) => AcademicYearMaster | null;
+  deleteAcademicYear: (id: string) => void;
+  activateAcademicYear: (id: string) => void;
+  closeAcademicYear: (id: string) => void;
 
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Student;
@@ -1066,7 +1072,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
-  const { selectedBranch, isAuthenticated, role } = useAuth();
+  const { selectedBranch, selectedAcademicYear, setSelectedAcademicYear, isAuthenticated, role } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
     const saved = localStorage.getItem(`edu_db_${key}`);
@@ -1074,6 +1080,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => getStored('profile', initialSchoolProfile));
+  const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() => getStored('academic_years', initialAcademicYears));
   const [students, setStudents] = useState<Student[]>(() => getStored('students', initialStudents));
   const [staff, setStaff] = useState<Staff[]>(() => getStored('staff', initialStaff));
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => getStored('admissions', initialAdmissions));
@@ -1176,6 +1183,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [financialBudgets, setFinancialBudgets] = useState<FinancialBudget[]>(() => getStored('financial_budgets', initialFinancialBudgets));
 
   useEffect(() => { localStorage.setItem('edu_db_profile', JSON.stringify(schoolProfile)); }, [schoolProfile]);
+  useEffect(() => { localStorage.setItem('edu_db_academic_years', JSON.stringify(academicYears)); }, [academicYears]);
   useEffect(() => { localStorage.setItem('edu_db_students', JSON.stringify(students)); }, [students]);
   useEffect(() => { localStorage.setItem('edu_db_staff', JSON.stringify(staff)); }, [staff]);
   useEffect(() => { localStorage.setItem('edu_db_admissions', JSON.stringify(admissions)); }, [admissions]);

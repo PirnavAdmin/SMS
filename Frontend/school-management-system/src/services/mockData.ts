@@ -3,7 +3,7 @@ import {
   ExamSetup, ExamMark, TimetableSlot, Homework,
   BookItem, BookIssue, TransportRoute, HostelBlock, HostelRoom, HostelBed,
   Bus, UniformItem, CustomRole, InventoryItem, Announcement, Holiday,
-  Birthday, AuditLog, SchoolProfile, SubjectItem,
+  Birthday, AuditLog, SchoolProfile, AcademicYearMaster, SubjectItem,
   FeeHead, DynamicFeeStructure, StudentFeeAssignment, Scholarship,
   StudentScholarship, Discount, StudentDiscount, FineRule,
   TransportRoute as ERPTransportRoute, StudentTransport, HostelMaster,
@@ -24,9 +24,45 @@ export const initialSchoolProfile: SchoolProfile = {
   email: "contact@stxaviers.edu",
   website: "https://stxaviers-academy.edu",
   principalName: "Dr. Eleanor Vance",
-  academicYear: "2025-2026",
+  academicYear: "2026-2027",
   logoUrl: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=150&auto=format&fit=crop&q=80"
 };
+
+export const initialAcademicYears: AcademicYearMaster[] = [
+  {
+    id: 'AY-2025-2026',
+    academicYear: '2025-2026',
+    startDate: '2025-04-01',
+    endDate: '2026-03-31',
+    status: 'Closed',
+    description: 'Previous academic cycle',
+    isCurrentAcademicYear: false,
+    createdAt: '2025-03-01T09:00:00.000Z',
+    updatedAt: '2026-03-31T18:00:00.000Z'
+  },
+  {
+    id: 'AY-2026-2027',
+    academicYear: '2026-2027',
+    startDate: '2026-04-01',
+    endDate: '2027-03-31',
+    status: 'Active',
+    description: 'Current academic cycle',
+    isCurrentAcademicYear: true,
+    createdAt: '2026-03-01T09:00:00.000Z',
+    updatedAt: '2026-07-31T09:00:00.000Z'
+  },
+  {
+    id: 'AY-2027-2028',
+    academicYear: '2027-2028',
+    startDate: '2027-04-01',
+    endDate: '2028-03-31',
+    status: 'Upcoming',
+    description: 'Planned next academic cycle',
+    isCurrentAcademicYear: false,
+    createdAt: '2026-07-01T09:00:00.000Z',
+    updatedAt: '2026-07-01T09:00:00.000Z'
+  }
+];
 
 export const initialStudents: Student[] = [
   {

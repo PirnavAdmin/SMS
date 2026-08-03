@@ -55,6 +55,18 @@ export interface SchoolProfile {
   logoUrl: string;
 }
 
+export interface AcademicYearMaster {
+  id: string;
+  academicYear: string;
+  startDate: string;
+  endDate: string;
+  status: 'Upcoming' | 'Active' | 'Closed';
+  description?: string;
+  isCurrentAcademicYear: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface StaffDocumentVersion {
   version: number;
   fileUrl: string;
