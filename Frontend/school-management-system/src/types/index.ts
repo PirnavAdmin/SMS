@@ -420,11 +420,38 @@ export interface ExamSetup {
   endDate: string;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Results Published';
   
-  // Enterprise fields
+  // Enterprise & Unified Fields
   branch?: string;
   examType?: 'Unit Test' | 'Quarterly' | 'Half-Yearly' | 'Annual' | 'Practical' | 'Custom';
   applicableClasses?: string[];
+  sections?: string[];
+  description?: string;
+  publishResult?: boolean;
+  publishStatus?: 'Draft' | 'Scheduled' | 'Published' | 'Completed' | 'Archived';
   gradeSchemeName?: string;
+  schedules?: ExamSchedule[];
+  marksConfig?: {
+    maxMarks: number;
+    passMarks: number;
+    theoryMarks?: number;
+    practicalMarks?: number;
+    internalMarks?: number;
+    gradingType?: string;
+    attendanceWeightage?: number;
+    subjectWiseConfig?: Record<string, { maxMarks: number; passMarks: number }>;
+  };
+  publishOptions?: {
+    notifyTeachers?: boolean;
+    notifyStudents?: boolean;
+    generateHallTickets?: boolean;
+  };
+  lastUpdated?: string;
+  isArchived?: boolean;
+  auditLog?: Array<{
+    timestamp: string;
+    action: string;
+    performedBy: string;
+  }>;
 }
 
 export interface RevaluationLog {

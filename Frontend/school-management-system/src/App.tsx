@@ -151,9 +151,7 @@ const MainLayout: React.FC = () => {
       case 'examination':
         return userRole === 'parent' || userRole === 'student' 
           ? <ParentExaminationView /> 
-          : ((userRole === 'teacher' || userRole === 'class teacher') 
-              ? <MarksEntryView /> 
-              : <ExaminationView />);
+          : <ExaminationView />;
       case 'homework':
         return userRole === 'parent' || userRole === 'student' ? <ParentHomeworkView /> : <HomeworkView />;
       case 'fees':
