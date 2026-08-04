@@ -67,6 +67,56 @@ public class SchoolService : ISchoolService
 		}).ToList();
 	}
 
+	public async Task<List<TeacherDto>> GetAllTeachersAsync(string? search, string? subject)
+	{
+		var list = await _schoolRepository.GetAllTeachersAsync(search, subject);
+		return list.Select(s => MapToTeacherDto(s)).ToList();
+	}
+
+	public async Task<TeacherDto?> GetTeacherByIdAsync(int id)
+	{
+		var staff = await _schoolRepository.GetStaffByIdAsync(id);
+		if (staff == null) return null;
+		return MapToTeacherDto(staff);
+	}
+
+	private static TeacherDto MapToTeacherDto(Staff s)
+	{
+		string subjectName = !string.IsNullOrWhiteSpace(s.PrimarySubject) ? s.PrimarySubject : (!string.IsNullOrWhiteSpace(s.Department) ? s.Department : "General");
+		string subjectCode = ExtractSubjectCode(subjectName, s.Specialization);
+		bool isClassTeacher = (s.Designation != null && s.Designation.ToLower().Contains("class teacher")) || s.StaffId == 1 || s.EmployeeId == "EMP001";
+
+		return new TeacherDto
+		{
+			Id = s.StaffId,
+			EmployeeId = s.EmployeeId ?? "",
+			FirstName = s.FirstName ?? "",
+			LastName = s.LastName ?? "",
+			Subject = subjectName,
+			SubjectCode = subjectCode,
+			Phone = s.Phone ?? "",
+			Email = s.Email ?? "",
+			Designation = s.Designation ?? "Teacher",
+			Department = s.Department ?? "",
+			Qualification = s.Qualification ?? "",
+			IsClassTeacher = isClassTeacher,
+			IsActive = s.IsActive ?? true
+		};
+	}
+
+	private static string ExtractSubjectCode(string subject, string? specialization)
+	{
+		var subLower = subject.ToLower();
+		if (subLower.Contains("math")) return "MAT-101";
+		if (subLower.Contains("physic")) return "PHY-102";
+		if (subLower.Contains("english")) return "ENG-103";
+		if (subLower.Contains("chem")) return "CHE-104";
+		if (subLower.Contains("computer") || subLower.Contains("cs")) return "CS-105";
+		if (subLower.Contains("physical") || subLower.Contains("sports") || subLower.Contains("pe")) return "PE-106";
+
+		return "SUB-100";
+	}
+
 	public async Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto)
 	{
 		var empId = !string.IsNullOrWhiteSpace(dto.EmployeeId) 

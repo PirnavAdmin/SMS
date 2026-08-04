@@ -11,6 +11,8 @@ public interface ISchoolService
     Task<List<StaffResponseDto>> GetAllStaffAsync(string? search, string? department);
     Task<StaffResponseDto> GetStaffByIdAsync(int id);
     Task<List<StaffDropdownDto>> GetTeachersForDropdownAsync(string? search);
+    Task<List<TeacherDto>> GetAllTeachersAsync(string? search, string? subject);
+    Task<TeacherDto?> GetTeacherByIdAsync(int id);
     Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto);
     Task<StaffResponseDto> UpdateStaffAsync(int id, StaffCreateDto dto);
     Task<bool> DeleteStaffAsync(int id);
