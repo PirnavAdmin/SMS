@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
-  X, CheckCircle2, ShieldCheck, FileText, Eye, Download, Layers
+  X, CheckCircle2, ShieldCheck, FileText, Eye, Download, Layers, UserRound
 } from 'lucide-react';
 import { Staff, StaffDocument } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -139,7 +139,13 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
 
           <div className="flex items-center gap-4">
             <div className="relative">
-              <img src={staff.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-4 ring-white/20" />
+              {staff.avatar ? (
+                <img src={staff.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-4 ring-white/20" />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 ring-4 ring-white/20 flex items-center justify-center">
+                  <UserRound className="w-7 h-7 text-slate-400" />
+                </div>
+              )}
             </div>
 
             <div>

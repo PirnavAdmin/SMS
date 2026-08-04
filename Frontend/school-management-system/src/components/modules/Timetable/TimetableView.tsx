@@ -29,7 +29,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
   // Filter staff to Teaching Staff only
   const teachingStaff = useMemo(() => 
-    staff.filter(s => !s.employeeCategory || s.employeeCategory === 'Teacher'),
+    staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher'),
     [staff]
   );
 
@@ -1157,16 +1157,37 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {baseDays.map(day => {
                 const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                let displaySlots = teacherSlots;
+                
+                // Add demo data if empty
+                if (displaySlots.length === 0 && selectedTeacherName) {
+                  if (day === 'Monday') {
+                    displaySlots = [
+                      { id: 'demo1', subject: 'Mathematics', className: 'Class 10', section: 'A', timeSlot: '09:00 AM - 09:45 AM', teacherName: selectedTeacherName, day: 'Monday' }
+                    ];
+                  } else if (day === 'Tuesday') {
+                    displaySlots = [
+                      { id: 'demo2', subject: 'Mathematics', className: 'Class 9', section: 'B', timeSlot: '10:00 AM - 10:45 AM', teacherName: selectedTeacherName, day: 'Tuesday' }
+                    ];
+                  } else if (day === 'Wednesday') {
+                     displaySlots = [
+                      { id: 'demo3', subject: 'Physics', className: 'Class 11', section: 'A', timeSlot: '11:00 AM - 11:45 AM', teacherName: selectedTeacherName, day: 'Wednesday' },
+                      { id: 'demo4', subject: 'Lab', className: 'Class 11', section: 'A', timeSlot: '11:45 AM - 12:30 PM', teacherName: selectedTeacherName, day: 'Wednesday' }
+                    ];
+                  }
+                }
+
                 return (
                   <div key={day} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
                     <h4 className="font-extrabold text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 border-b pb-2 border-slate-200 dark:border-slate-700">
                       {day}
                     </h4>
-                    {teacherSlots.length === 0 ? (
+                    {displaySlots.length === 0 ? (
                       <p className="text-[11px] text-slate-400 italic">No assigned periods</p>
                     ) : (
-                      teacherSlots.map(st => (
-                        <div key={st.id} className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1">
+                      displaySlots.map(st => (
+                        <div key={st.id} className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 relative overflow-hidden">
+                          {st.id.startsWith('demo') && <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded-bl-lg">DEMO</div>}
                           <p className="font-bold text-xs text-slate-900 dark:text-white">{st.subject}</p>
                           <p className="text-[10px] text-brand-600 font-bold">{st.className}-{st.section}</p>
                           <p className="text-[10px] font-mono text-slate-400">{st.timeSlot}</p>

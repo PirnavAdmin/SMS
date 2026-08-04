@@ -344,14 +344,14 @@ export const HomeworkView: React.FC = () => {
       <div className="w-full space-y-6">
         <div className="glass-card p-6 rounded-3xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
           
-          <div className="flex items-center justify-between pb-3 border-b border-slate-105 dark:border-slate-850">
-            <span className="font-extrabold text-sm text-slate-855 dark:text-slate-200">
+          <div className="flex items-center justify-between pb-2">
+            <span className="font-extrabold text-sm text-slate-800 dark:text-slate-200">
               Assigned Homework Register ({filteredHomeworkList.length} Entries)
             </span>
           </div>
 
           {/* Roster table container - Forced Webkit scrollbars */}
-          <div className="border border-slate-150 dark:border-slate-800/80 rounded-2xl overflow-x-scroll shadow-xs">
+          <div className="rounded-2xl overflow-x-scroll">
             <table className="w-full min-w-[850px] text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/40 text-slate-505 font-extrabold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
@@ -400,7 +400,7 @@ export const HomeworkView: React.FC = () => {
                               ? 'bg-rose-100 text-rose-800' 
                               : 'bg-emerald-100 text-emerald-805'
                           }`}>
-                            {isDraft ? '📝 Draft' : isToday ? '⏰ Due Today' : '📢 Published'}
+                            {isDraft ? '📝 Draft' : isToday ? 'Due Today' : 'Published'}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center">

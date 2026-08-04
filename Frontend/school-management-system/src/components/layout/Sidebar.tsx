@@ -261,10 +261,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isFinanceActive
-                          ? (financeExpanded && financeSubItems.length > 0 && !collapsed)
-                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
-                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                        isFinanceActive ? (financeExpanded && financeSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -328,10 +325,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isHostelActive
-                          ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed)
-                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
-                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                        isHostelActive ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -399,10 +393,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isTransportActive
-                          ? (transportExpanded && transportSubItems.length > 0 && !collapsed)
-                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
-                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                        isTransportActive ? (transportExpanded && transportSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -464,10 +455,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isUniformActive
-                          ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed)
-                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
-                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                        isUniformActive ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
@@ -537,10 +525,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                          isStaffActive
-                            ? (staffExpanded && staffSubItems.length > 0 && !collapsed)
-                              ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
-                              : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                          isStaffActive ? (staffExpanded && staffSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
