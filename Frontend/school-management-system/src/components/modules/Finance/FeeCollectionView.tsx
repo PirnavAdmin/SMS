@@ -33,7 +33,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
   const [tempScholarshipId, setTempScholarshipId] = useState('');
   const [tempDiscountId, setTempDiscountId] = useState('');
 
-  const [amountPaying, setAmountPaying] = useState<number>(0);
+  const [amountPaying, setAmountPaying] = useState<number | string>(0);
   const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode']>('Online');
   const [transactionId, setTransactionId] = useState('TXN-' + Math.floor(100000 + Math.random() * 900000));
   const [remarks, setRemarks] = useState('Quarterly Fee Payment');
@@ -143,7 +143,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
     e.preventDefault();
     if (!selectedStudent || !calcResult) return;
 
-    if (amountPaying <= 0) {
+    const numericAmount = typeof amountPaying === 'number' ? amountPaying : Number(amountPaying) || 0;
+
+    if (numericAmount <= 0) {
       addToast('warning', 'Invalid Amount', 'Paid amount must be greater than zero.');
       return;
     }
@@ -159,13 +161,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       studentId: selectedStudent.id,
       studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
       className: `${selectedStudent.className}-${selectedStudent.section}`,
-      amountPaid: amountPaying,
+      amountPaid: numericAmount,
       discount: calcResult.scholarshipDeduction + calcResult.discountDeduction,
       fine: calcResult.fineAmount,
       paymentMode,
       transactionId: paymentMode !== 'Cash' ? transactionId : undefined,
       paymentDate: new Date().toISOString().split('T')[0],
-      status: amountPaying >= remainingDue ? 'Paid' : 'Partial',
+      status: numericAmount >= remainingDue ? 'Paid' : 'Partial',
       remarks,
       scholarshipId: calcResult.scholarshipId,
       scholarshipName: calcResult.scholarshipName,
@@ -522,8 +524,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                       <input
                         type="number"
                         required
-                        value={amountPaying}
-                        onChange={e => setAmountPaying(Number(e.target.value))}
+                        min="1"
+                        placeholder="0"
+                        value={amountPaying === 0 || amountPaying === '0' ? '' : amountPaying}
+                        onFocus={() => {
+                          if (amountPaying === 0 || amountPaying === '0') {
+                            setAmountPaying('');
+                          }
+                        }}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            setAmountPaying('');
+                            return;
+                          }
+                          const cleaned = val.replace(/^0+(?=\d)/, '');
+                          setAmountPaying(cleaned === '' ? '' : Number(cleaned));
+                        }}
+                        onBlur={() => {
+                          if (amountPaying === '' || amountPaying === null || amountPaying === undefined) {
+                            setAmountPaying(0);
+                          }
+                        }}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-extrabold text-emerald-600 text-sm"
                       />
                     </div>

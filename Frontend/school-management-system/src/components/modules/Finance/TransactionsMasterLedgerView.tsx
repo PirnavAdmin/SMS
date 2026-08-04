@@ -432,7 +432,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   onChange={e => setSourceModuleFilter(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
                 >
-                  <option value="All">All Source ERP Modules</option>
+                  <option value="All">All School Sections</option>
                   <option value="Student Fee Collection">Student Fee Collection</option>
                   <option value="Admissions">Admissions</option>
                   <option value="Payroll">Payroll</option>

@@ -7,13 +7,62 @@ import {
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 
+const REPORT_CATEGORIES = [
+  'Collection Reports',
+  'Student Reports',
+  'Fee Reports',
+  'Service Reports'
+] as const;
+
+type ReportCategory = typeof REPORT_CATEGORIES[number];
+
+const REPORTS_BY_CATEGORY: Record<ReportCategory, string[]> = {
+  'Collection Reports': [
+    'Daily Collection',
+    'Monthly Collection',
+    'Yearly Collection',
+    'Branch Wise Collection',
+    'Class Wise Collection',
+    'Section Wise Collection',
+    'Collection Summary'
+  ],
+  'Student Reports': [
+    'Student Ledger',
+    'Pending Fees'
+  ],
+  'Fee Reports': [
+    'Fee Head Wise Collection',
+    'Scholarship Report',
+    'Discount Report',
+    'Fine Report'
+  ],
+  'Service Reports': [
+    'Hostel Collection',
+    'Transport Collection'
+  ]
+};
+
 export const FinanceReportsView: React.FC = () => {
   const { feePayments, students, studentTransports, studentHostels, studentScholarships } = useData();
 
+  const [selectedCategory, setSelectedCategory] = useState<ReportCategory>('Collection Reports');
   const [selectedReport, setSelectedReport] = useState<string>('Daily Collection');
   const [isGenerated, setIsGenerated] = useState<boolean>(false);
   const [generatedReportType, setGeneratedReportType] = useState<string>('');
   const [currentData, setCurrentData] = useState<any[]>([]);
+
+  const handleCategoryChange = (newCategory: ReportCategory) => {
+    setSelectedCategory(newCategory);
+    const availableReports = REPORTS_BY_CATEGORY[newCategory] || [];
+    const firstReport = availableReports[0] || '';
+    setSelectedReport(firstReport);
+    setIsGenerated(false);
+  };
+
+  const handleReportChange = (newReport: string) => {
+    setSelectedReport(newReport);
+    setIsGenerated(false);
+  };
 
   // Search & Pagination States
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -270,44 +319,32 @@ export const FinanceReportsView: React.FC = () => {
       <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
         <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Report Selection & Parameters</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Report Type Dropdown */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Level 1: Report Category Dropdown */}
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500 block">Report Type</label>
+            <label className="text-[10px] font-bold text-slate-500 block">Report Category</label>
+            <select
+              value={selectedCategory}
+              onChange={e => handleCategoryChange(e.target.value as ReportCategory)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none text-slate-800 dark:text-slate-200 cursor-pointer shadow-xs transition hover:border-slate-300 dark:hover:border-slate-600"
+            >
+              {REPORT_CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Level 2: Report Dropdown */}
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-500 block">Report</label>
             <select
               value={selectedReport}
-              onChange={e => {
-                setSelectedReport(e.target.value);
-                setIsGenerated(false); // Reset generated state on change
-              }}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none text-slate-800 dark:text-slate-200 cursor-pointer"
+              onChange={e => handleReportChange(e.target.value)}
+              className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold outline-none text-slate-800 dark:text-slate-200 cursor-pointer shadow-xs transition hover:border-slate-300 dark:hover:border-slate-600"
             >
-              <optgroup label="Collection Reports">
-                <option value="Daily Collection">Daily Collection</option>
-                <option value="Monthly Collection">Monthly Collection</option>
-                <option value="Yearly Collection">Yearly Collection</option>
-                <option value="Branch Wise Collection">Branch Wise Collection</option>
-                <option value="Class Wise Collection">Class Wise Collection</option>
-                <option value="Section Wise Collection">Section Wise Collection</option>
-                <option value="Collection Summary">Collection Summary</option>
-              </optgroup>
-              <optgroup label="Student Reports">
-                <option value="Student Ledger">Student Ledger</option>
-                <option value="Pending Fees">Pending Fees</option>
-              </optgroup>
-              <optgroup label="Fee Reports">
-                <option value="Fee Head Wise Collection">Fee Head Wise Collection</option>
-                <option value="Scholarship Report">Scholarship Report</option>
-                <option value="Discount Report">Discount Report</option>
-                <option value="Fine Report">Fine Report</option>
-              </optgroup>
-              <optgroup label="Service Reports">
-                <option value="Hostel Collection">Hostel Collection</option>
-                <option value="Transport Collection">Transport Collection</option>
-              </optgroup>
-              <optgroup label="Accounting Reports">
-                <option value="Cash Book">Cash Book</option>
-              </optgroup>
+              {(REPORTS_BY_CATEGORY[selectedCategory] || []).map(rep => (
+                <option key={rep} value={rep}>{rep}</option>
+              ))}
             </select>
           </div>
 
