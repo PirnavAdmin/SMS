@@ -44,6 +44,11 @@ public class Staff
     public string? Specialization { get; set; } // e.g. "Algebra & Calculus"
 
     public decimal? MonthlySalary { get; set; }
+    public decimal? GrossSalary { get; set; }
+    public decimal? NetSalary { get; set; }
+    public int? SalaryStructureId { get; set; }
+    public string? SalaryStructureName { get; set; }
+    public DateTime? SalaryStructureEffectiveDate { get; set; }
 
     // Bank Account & Disbursement Information
     public string? AccountHolderName { get; set; }
@@ -54,6 +59,9 @@ public class Staff
     public string? UpiId { get; set; }
 
     public bool? IsActive { get; set; } = true;
+    public int CasualLeaveBalance { get; set; } = 10;
+    public int SickLeaveBalance { get; set; } = 10;
+    public int EarnedLeaveBalance { get; set; } = 15;
 
     // Navigation Properties
     public ICollection<Section> SectionsTaught { get; set; } = new List<Section>();

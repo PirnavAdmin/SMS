@@ -32,6 +32,9 @@ public class LeaveApplicationResponseDto
     public string EmployeeId { get; set; } = string.Empty;
     public string StaffName { get; set; } = string.Empty;
     public string Designation { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string Branch { get; set; } = string.Empty;
+    public string EmployeeCategory { get; set; } = string.Empty;
     public string LeaveTypeName { get; set; } = string.Empty;
     public string LeaveTypeCode { get; set; } = string.Empty;
     public string FromDate { get; set; } = string.Empty;
@@ -64,4 +67,9 @@ public class HolidayCalendarDto
     public string ToDate { get; set; } = string.Empty;
     public string ApplicableBranch { get; set; } = "Main Campus";
     public string? Description { get; set; }
+}
+
+public class UpdateLeaveStatusRequest
+{
+    public string Status { get; set; } = string.Empty;
 }

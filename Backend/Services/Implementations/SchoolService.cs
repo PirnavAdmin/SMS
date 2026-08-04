@@ -1259,6 +1259,9 @@ public class SchoolService : ISchoolService
 			EmployeeId = l.Staff?.EmployeeId ?? "N/A",
 			StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}" : "N/A",
 			Designation = l.Staff?.Designation ?? "N/A",
+			Department = l.Staff?.Department ?? "N/A",
+			Branch = l.Staff?.BranchName ?? "Main Campus",
+			EmployeeCategory = l.Staff?.EmployeeCategory ?? "Staff",
 			LeaveTypeName = l.LeaveType?.Name ?? "N/A",
 			LeaveTypeCode = l.LeaveType?.Code ?? "N/A",
 			FromDate = l.FromDate.ToString("yyyy-MM-dd"),
@@ -1305,6 +1308,9 @@ public class SchoolService : ISchoolService
 			EmployeeId = staff.EmployeeId ?? "",
 			StaffName = $"{staff.FirstName} {staff.LastName}",
 			Designation = staff.Designation ?? "",
+			Department = staff.Department ?? "",
+			Branch = staff.BranchName ?? "Main Campus",
+			EmployeeCategory = staff.EmployeeCategory ?? "Staff",
 			LeaveTypeName = leaveType?.Name ?? "Leave",
 			LeaveTypeCode = leaveType?.Code ?? "LV",
 			FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
@@ -1323,6 +1329,59 @@ public class SchoolService : ISchoolService
 			?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
 
 		application.Status = status;
+
+		if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+		{
+			var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
+			if (staff != null)
+			{
+				var code = (application.LeaveType?.Code ?? "").ToUpper();
+				if (code.Contains("CL"))
+				{
+					staff.CasualLeaveBalance = Math.Max(0, staff.CasualLeaveBalance - application.RequestedDays);
+				}
+				else if (code.Contains("SL"))
+				{
+					staff.SickLeaveBalance = Math.Max(0, staff.SickLeaveBalance - application.RequestedDays);
+				}
+				else if (code.Contains("EL") || code.Contains("PL"))
+				{
+					staff.EarnedLeaveBalance = Math.Max(0, staff.EarnedLeaveBalance - application.RequestedDays);
+				}
+			}
+
+			// Generate Staff Attendance Records
+			var start = application.FromDate.Date;
+			var end = application.ToDate.Date;
+
+			for (var date = start; date <= end; date = date.AddDays(1))
+			{
+				var existingAttendance = await _context.StaffAttendances
+					.FirstOrDefaultAsync(a => a.StaffId == application.StaffId && a.Date.Date == date);
+
+				if (existingAttendance != null)
+				{
+					existingAttendance.Status = application.IsHalfDay ? "HalfDay" : "Leave";
+					existingAttendance.Remarks = $"Approved Leave: {application.LeaveType?.Name ?? "Leave"}";
+				}
+				else
+				{
+					var newAttendance = new StaffAttendance
+					{
+						StaffId = application.StaffId,
+						Date = date,
+						Status = application.IsHalfDay ? "HalfDay" : "Leave",
+						Remarks = $"Approved Leave: {application.LeaveType?.Name ?? "Leave"}",
+						InTime = "00:00",
+						OutTime = "00:00",
+						AcademicYear = "2026-2027",
+						Branch = staff?.BranchName ?? "Main Campus"
+					};
+					await _context.StaffAttendances.AddAsync(newAttendance);
+				}
+			}
+		}
+
 		await _schoolRepository.SaveChangesAsync();
 
 		return new LeaveApplicationResponseDto
@@ -1332,6 +1391,9 @@ public class SchoolService : ISchoolService
 			EmployeeId = application.Staff?.EmployeeId ?? "N/A",
 			StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}" : "N/A",
 			Designation = application.Staff?.Designation ?? "N/A",
+			Department = application.Staff?.Department ?? "N/A",
+			Branch = application.Staff?.BranchName ?? "Main Campus",
+			EmployeeCategory = application.Staff?.EmployeeCategory ?? "Staff",
 			LeaveTypeName = application.LeaveType?.Name ?? "N/A",
 			LeaveTypeCode = application.LeaveType?.Code ?? "N/A",
 			FromDate = application.FromDate.ToString("yyyy-MM-dd"),
@@ -1357,10 +1419,10 @@ public class SchoolService : ISchoolService
 				EmployeeId = s.EmployeeId ?? "",
 				StaffName = $"{s.FirstName} {s.LastName}",
 				Designation = s.Designation ?? "",
-				CasualLeaveBalance = 10,
-				SickLeaveBalance = 10,
-				EarnedLeaveBalance = 15,
-				TotalRemainingBalance = 35
+				CasualLeaveBalance = s.CasualLeaveBalance,
+				SickLeaveBalance = s.SickLeaveBalance,
+				EarnedLeaveBalance = s.EarnedLeaveBalance,
+				TotalRemainingBalance = s.CasualLeaveBalance + s.SickLeaveBalance + s.EarnedLeaveBalance
 			});
 		}
 

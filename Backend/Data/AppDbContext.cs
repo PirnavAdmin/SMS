@@ -62,6 +62,7 @@ namespace SMS.Api.Data
         public DbSet<SalaryComponent> SalaryComponents { get; set; } = null!;
         public DbSet<SalaryStructure> SalaryStructures { get; set; } = null!;
         public DbSet<SalaryStructureItem> SalaryStructureItems { get; set; } = null!;
+        public DbSet<EmployeeSalaryAssignment> EmployeeSalaryAssignments { get; set; } = null!;
         public DbSet<Payslip> Payslips { get; set; } = null!;
 
         // Examination & Invigilation Module
@@ -385,6 +386,14 @@ namespace SMS.Api.Data
                     x.ClassId,
                     x.SubjectId
                 });
+
+                entity.HasOne(x => x.ClassGrade)
+                    .WithMany(c => c.CurriculumSubjects)
+                    .HasForeignKey(x => x.ClassId);
+
+                entity.HasOne(x => x.Subject)
+                    .WithMany(s => s.CurriculumSubjects)
+                    .HasForeignKey(x => x.SubjectId);
             });
         }
 
@@ -960,6 +969,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SalaryComponent>().ToTable("salary_components");
             modelBuilder.Entity<SalaryStructure>().ToTable("salary_structures");
             modelBuilder.Entity<SalaryStructureItem>().ToTable("salary_structure_items");
+            modelBuilder.Entity<EmployeeSalaryAssignment>().ToTable("employee_salary_assignments");
             modelBuilder.Entity<Payslip>().ToTable("payslips");
             modelBuilder.Entity<ExamSchedule>().ToTable("exam_schedules");
             modelBuilder.Entity<ExamInvigilatorAssignment>().ToTable("exam_invigilator_assignments");
