@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SMS.Api.Models
 {
-    [Table("transport_vehicle_maintenance")]
+    [Table("transport_vehicle_maintenances")]
     public class VehicleMaintenance
     {
         [Key]

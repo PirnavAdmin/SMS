@@ -36,6 +36,31 @@ namespace SMS.Api.Data
             }
             await context.SaveChangesAsync();
 
+            // 1b. Seed Default Super Admin User
+            if (!await context.Users.AnyAsync(u => u.Email == "superadmin@pirnavschools.com"))
+            {
+                var superAdminRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "SuperAdmin");
+                var superAdminUser = new User
+                {
+                    FullName = "System Owner",
+                    Email = "superadmin@pirnavschools.com",
+                    MobileNumber = "9999999999",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("superadmin1234"),
+                    Role = "SuperAdmin",
+                    IsEmailVerified = true,
+                    IsMobileVerified = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                if (superAdminRole != null)
+                {
+                    superAdminUser.Roles.Add(superAdminRole);
+                }
+
+                await context.Users.AddAsync(superAdminUser);
+                await context.SaveChangesAsync();
+            }
+
             // 2. Seed Default Admin User
             if (!await context.Users.AnyAsync(u => u.Email == "admin@pirnavschools.com"))
             {

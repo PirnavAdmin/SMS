@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 public class SchoolService : ISchoolService
 {
@@ -1119,31 +1120,96 @@ public class SchoolService : ISchoolService
 		};
 	}
 
+	public async Task<List<StaffAttendanceResponseDto>> GetDailyAttendanceAsync(string date, string? department)
+	{
+		DateTime parsedDate = DateTime.TryParse(date, out var d) ? d : DateTime.UtcNow.Date;
+		var attendances = await _schoolRepository.GetStaffAttendanceAsync(parsedDate, department);
+
+		return attendances.Select(a => new StaffAttendanceResponseDto
+		{
+			StaffAttendanceId = a.StaffAttendanceId,
+			StaffId = a.StaffId,
+			EmployeeId = a.Staff?.EmployeeId ?? string.Empty,
+			FullName = a.Staff != null ? $"{a.Staff.FirstName} {a.Staff.LastName}".Trim() : string.Empty,
+			Date = a.Date.ToString("yyyy-MM-dd"),
+			Status = a.Status,
+			Department = a.Department,
+			Designation = a.Designation,
+			Remarks = a.Remarks,
+			InTime = a.InTime,
+			OutTime = a.OutTime
+		}).ToList();
+	}
+
+	public async Task<List<StaffAttendanceResponseDto>> GetMonthlyAttendanceAsync(int month, int year, string? department)
+	{
+		var attendances = await _schoolRepository.GetStaffAttendanceMonthlyAsync(month, year, department);
+
+		return attendances.Select(a => new StaffAttendanceResponseDto
+		{
+			StaffAttendanceId = a.StaffAttendanceId,
+			StaffId = a.StaffId,
+			EmployeeId = a.Staff?.EmployeeId ?? string.Empty,
+			FullName = a.Staff != null ? $"{a.Staff.FirstName} {a.Staff.LastName}".Trim() : string.Empty,
+			Date = a.Date.ToString("yyyy-MM-dd"),
+			Status = a.Status,
+			Department = a.Department,
+			Designation = a.Designation,
+			Remarks = a.Remarks,
+			InTime = a.InTime,
+			OutTime = a.OutTime
+		}).ToList();
+	}
+
 	public async Task<bool> SaveBulkAttendanceAsync(BulkAttendanceDto dto)
 	{
 		DateTime parsedDate = DateTime.TryParse(dto.Date, out var d) ? d : DateTime.UtcNow.Date;
-		var newRecords = new List<StaffAttendance>();
+
+		// Fetch existing records for this date with tracking enabled
+		var existingAttendances = await _context.StaffAttendances
+			.Where(sa => sa.Date.Date == parsedDate.Date)
+			.ToListAsync();
+
+		var existingMap = existingAttendances.ToDictionary(a => a.StaffId);
 
 		foreach (var rec in dto.Records)
 		{
 			var staff = await _schoolRepository.GetStaffByIdAsync(rec.StaffId);
 			if (staff == null) continue;
 
-			newRecords.Add(new StaffAttendance
+			if (existingMap.TryGetValue(rec.StaffId, out var existing))
 			{
-				StaffId = staff.StaffId,
-				Date = parsedDate,
-				Status = rec.Status,
-				AcademicYear = dto.AcademicYear ?? "2026-2027",
-				Branch = dto.Branch ?? "Main Campus",
-				Department = staff.Department,
-				Designation = staff.Designation,
-				Remarks = rec.Remarks
-			});
+				// Update existing
+				existing.Status = rec.Status;
+				existing.Remarks = rec.Remarks;
+				existing.InTime = rec.InTime;
+				existing.OutTime = rec.OutTime;
+				existing.Department = staff.Department;
+				existing.Designation = staff.Designation;
+				if (dto.AcademicYear != null) existing.AcademicYear = dto.AcademicYear;
+				if (dto.Branch != null) existing.Branch = dto.Branch;
+			}
+			else
+			{
+				// Add new
+				var newRec = new StaffAttendance
+				{
+					StaffId = staff.StaffId,
+					Date = parsedDate,
+					Status = rec.Status,
+					AcademicYear = dto.AcademicYear ?? "2026-2027",
+					Branch = dto.Branch ?? "Main Campus",
+					Department = staff.Department,
+					Designation = staff.Designation,
+					Remarks = rec.Remarks,
+					InTime = rec.InTime,
+					OutTime = rec.OutTime
+				};
+				await _context.StaffAttendances.AddAsync(newRec);
+			}
 		}
 
-		await _schoolRepository.AddStaffAttendanceRangeAsync(newRecords);
-		await _schoolRepository.SaveChangesAsync();
+		await _context.SaveChangesAsync();
 		return true;
 	}
 

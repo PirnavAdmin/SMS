@@ -14,7 +14,7 @@ import { useAuth } from '../../../context/AuthContext';
 type AttendanceTab = 'teaching' | 'non-teaching';
 
 export const StaffAttendanceView: React.FC = () => {
-  const { staff, attendance, markAttendance, leaveApplications, holidays, schoolProfile } = useData();
+  const { staff, attendance, markAttendance, leaveApplications, holidays, schoolProfile, fetchDailyAttendance, fetchMonthlyAttendance } = useData();
   const { addToast } = useToast();
   const { user, role } = useAuth();
 
@@ -779,6 +779,22 @@ export const StaffAttendanceView: React.FC = () => {
     );
   };
 
+  // Fetch daily attendance logs from API when filters change
+  useEffect(() => {
+    if (viewMode === 'daily' && fetchDailyAttendance) {
+      const activeDept = activeTab === 'teaching' ? teachingDept : nonTeachingDept;
+      fetchDailyAttendance(attendanceDate, activeDept);
+    }
+  }, [attendanceDate, activeTab, teachingDept, nonTeachingDept, viewMode, fetchDailyAttendance]);
+
+  // Fetch monthly attendance logs from API when filters change
+  useEffect(() => {
+    if (viewMode === 'monthly' && fetchMonthlyAttendance) {
+      const activeDept = activeTab === 'teaching' ? teachingDept : nonTeachingDept;
+      fetchMonthlyAttendance(regMonth + 1, regYear, activeDept);
+    }
+  }, [regMonth, regYear, activeTab, teachingDept, nonTeachingDept, viewMode, fetchMonthlyAttendance]);
+
   // Populate / Sync local attendance maps whenever attendanceDate or staff changes
   useEffect(() => {
     const newStatusMap: typeof attendanceMap = {};
@@ -797,18 +813,18 @@ export const StaffAttendanceView: React.FC = () => {
 
       if (existing) {
         newStatusMap[s.id] = existing.status;
-        newInTimeMap[s.id] = existing.inTime || (existing.status === 'Present' || existing.status === 'Late' ? '08:30 AM' : '');
-        newOutTimeMap[s.id] = existing.outTime || (existing.status === 'Present' || existing.status === 'Late' ? '04:30 PM' : '');
+        newInTimeMap[s.id] = existing.inTime || '00:00';
+        newOutTimeMap[s.id] = existing.outTime || '00:00';
         newRemarksMap[s.id] = existing.remarks || '';
       } else if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? 'HalfDay' : 'Leave';
-        newInTimeMap[s.id] = '';
-        newOutTimeMap[s.id] = '';
+        newInTimeMap[s.id] = '00:00';
+        newOutTimeMap[s.id] = '00:00';
         newRemarksMap[s.id] = `Approved Leave: ${approvedLeave.leaveTypeName || 'Leave'}`;
       } else {
         newStatusMap[s.id] = 'Present';
-        newInTimeMap[s.id] = '08:30 AM';
-        newOutTimeMap[s.id] = '04:30 PM';
+        newInTimeMap[s.id] = '00:00';
+        newOutTimeMap[s.id] = '00:00';
         newRemarksMap[s.id] = '';
       }
     });
@@ -879,8 +895,8 @@ export const StaffAttendanceView: React.FC = () => {
 
     // Set default times based on status
     if (newStatus === 'Present' || newStatus === 'Late') {
-      setInTimeMap(prev => ({ ...prev, [empId]: prev[empId] || '08:30 AM' }));
-      setOutTimeMap(prev => ({ ...prev, [empId]: prev[empId] || '04:30 PM' }));
+      setInTimeMap(prev => ({ ...prev, [empId]: prev[empId] || '00:00' }));
+      setOutTimeMap(prev => ({ ...prev, [empId]: prev[empId] || '00:00' }));
     } else {
       setInTimeMap(prev => ({ ...prev, [empId]: '' }));
       setOutTimeMap(prev => ({ ...prev, [empId]: '' }));
@@ -912,12 +928,12 @@ export const StaffAttendanceView: React.FC = () => {
     if (bulkStatus === 'Present') {
       setInTimeMap(prev => {
         const next = { ...prev };
-        currentTabStaffList.forEach(s => { next[s.id] = '08:30 AM'; });
+        currentTabStaffList.forEach(s => { next[s.id] = '00:00'; });
         return next;
       });
       setOutTimeMap(prev => {
         const next = { ...prev };
-        currentTabStaffList.forEach(s => { next[s.id] = '04:30 PM'; });
+        currentTabStaffList.forEach(s => { next[s.id] = '00:00'; });
         return next;
       });
     }

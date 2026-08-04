@@ -220,7 +220,21 @@ public class SchoolRepository : ISchoolRepository
 			.Where(sa => sa.Date.Date == date.Date)
 			.AsQueryable();
 
-		if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
+		if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase) && !department.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+			query = query.Where(sa => sa.Department != null && sa.Department.ToLower() == department.ToLower());
+
+		return await query.ToListAsync();
+	}
+
+	public async Task<List<StaffAttendance>> GetStaffAttendanceMonthlyAsync(int month, int year, string? department)
+	{
+		var query = _context.StaffAttendances
+			.AsNoTracking()
+			.Include(sa => sa.Staff)
+			.Where(sa => sa.Date.Month == month && sa.Date.Year == year)
+			.AsQueryable();
+
+		if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase) && !department.Equals("All", System.StringComparison.OrdinalIgnoreCase))
 			query = query.Where(sa => sa.Department != null && sa.Department.ToLower() == department.ToLower());
 
 		return await query.ToListAsync();

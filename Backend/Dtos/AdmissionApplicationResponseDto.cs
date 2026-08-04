@@ -16,6 +16,9 @@ public class AdmissionApplicationResponseDto
 
     public string? ProfilePhotoUrl { get; set; }
 
+    [JsonPropertyName("avatar")]
+    public string? Avatar => ProfilePhotoUrl;
+
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
 
@@ -37,6 +40,9 @@ public class AdmissionApplicationResponseDto
     public string AppliedClass => AppliedClassGrade;
 
     public string BranchName { get; set; } = string.Empty;
+
+    [JsonPropertyName("branch")]
+    public string Branch => BranchName;
     public string? BloodGroup { get; set; }
     public string? Religion { get; set; }
     public string? Caste { get; set; }
@@ -44,11 +50,17 @@ public class AdmissionApplicationResponseDto
     [JsonPropertyName("casteCategory")]
     public string? CasteCategory => Caste;
 
+    [JsonPropertyName("category")]
+    public string? Category => Caste;
+
     // Parent Info
     public string FatherName { get; set; } = string.Empty;
 
     [JsonPropertyName("fatherFullName")]
     public string FatherFullName => FatherName;
+
+    [JsonPropertyName("parentName")]
+    public string ParentName => FatherName;
 
     public string? MotherName { get; set; }
 
@@ -59,6 +71,9 @@ public class AdmissionApplicationResponseDto
 
     [JsonPropertyName("fatherMobileNo")]
     public string FatherMobileNo => FatherContact;
+
+    [JsonPropertyName("phone")]
+    public string Phone => FatherContact;
 
     public string? MotherMobileNumber { get; set; }
     public string? AlternateMobileNumber { get; set; }

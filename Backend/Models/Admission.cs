@@ -4,7 +4,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-[Table("admissions")]
+[Table("students")]
 public class Admission
 {
     [Key]

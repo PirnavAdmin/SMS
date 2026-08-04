@@ -8,6 +8,8 @@ public class StaffAttendanceRecordDto
     public int StaffId { get; set; }
     public string Status { get; set; } = "Present"; // Present, Absent, On Leave, Half Day
     public string? Remarks { get; set; }
+    public string? InTime { get; set; }
+    public string? OutTime { get; set; }
 }
 
 public class BulkAttendanceDto
@@ -30,6 +32,8 @@ public class StaffAttendanceResponseDto
     public string? Department { get; set; }
     public string? Designation { get; set; }
     public string? Remarks { get; set; }
+    public string? InTime { get; set; }
+    public string? OutTime { get; set; }
 }
 
 public class DailyAttendanceSummaryDto

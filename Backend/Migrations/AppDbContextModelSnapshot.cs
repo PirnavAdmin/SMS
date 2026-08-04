@@ -36,7 +36,7 @@ namespace Backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AcademicClass");
+                    b.ToTable("AcademicClass", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Admission", b =>
@@ -121,7 +121,7 @@ namespace Backend.Migrations
 
                     b.HasKey("AdmissionId");
 
-                    b.ToTable("admissions");
+                    b.ToTable("admissions", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.AdmissionApplication", b =>
@@ -279,7 +279,7 @@ namespace Backend.Migrations
 
                     b.HasKey("BranchId");
 
-                    b.ToTable("Branches");
+                    b.ToTable("Branches", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Circular", b =>
@@ -320,7 +320,7 @@ namespace Backend.Migrations
 
                     b.HasKey("CircularId");
 
-                    b.ToTable("Circulars");
+                    b.ToTable("Circulars", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassCurriculumSubject", b =>
@@ -340,7 +340,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("SubjectId");
 
-                    b.ToTable("ClassCurriculumSubjects");
+                    b.ToTable("ClassCurriculumSubjects", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassGrade", b =>
@@ -356,7 +356,7 @@ namespace Backend.Migrations
 
                     b.HasKey("ClassId");
 
-                    b.ToTable("Classes");
+                    b.ToTable("Classes", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ClassSection", b =>
@@ -478,7 +478,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("ScheduleId");
 
-                    b.ToTable("ExamInvigilatorAssignments");
+                    b.ToTable("ExamInvigilatorAssignments", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ExamMark", b =>
@@ -537,7 +537,7 @@ namespace Backend.Migrations
 
                     b.HasKey("MarkId");
 
-                    b.ToTable("ExamMarks");
+                    b.ToTable("ExamMarks", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ExamMaster", b =>
@@ -681,7 +681,7 @@ namespace Backend.Migrations
 
                     b.HasKey("ResultId");
 
-                    b.ToTable("ExamResults");
+                    b.ToTable("ExamResults", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.ExamSchedule", b =>
@@ -738,7 +738,7 @@ namespace Backend.Migrations
 
                     b.HasKey("ScheduleId");
 
-                    b.ToTable("ExamSchedules");
+                    b.ToTable("ExamSchedules", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.GradeConfiguration", b =>
@@ -772,7 +772,7 @@ namespace Backend.Migrations
 
                     b.HasKey("GradeId");
 
-                    b.ToTable("GradeConfigurations");
+                    b.ToTable("GradeConfigurations", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.HolidayCalendar", b =>
@@ -806,7 +806,7 @@ namespace Backend.Migrations
 
                     b.HasKey("HolidayId");
 
-                    b.ToTable("HolidayCalendars");
+                    b.ToTable("HolidayCalendars", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Homework", b =>
@@ -853,7 +853,7 @@ namespace Backend.Migrations
 
                     b.HasKey("HomeworkId");
 
-                    b.ToTable("Homeworks");
+                    b.ToTable("Homeworks", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.HomeworkSubmission", b =>
@@ -894,7 +894,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("HomeworkId");
 
-                    b.ToTable("HomeworkSubmissions");
+                    b.ToTable("HomeworkSubmissions", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.HostelAttendance", b =>
@@ -926,7 +926,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("AllocationId");
 
-                    b.ToTable("hostel_attendances");
+                    b.ToTable("hostel_attendances", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.HostelBlock", b =>
@@ -978,7 +978,7 @@ namespace Backend.Migrations
 
                     b.HasKey("HostelId");
 
-                    b.ToTable("hostel_blocks");
+                    b.ToTable("hostel_blocks", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.HostelWarden", b =>
@@ -1020,7 +1020,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("hostel_wardens");
+                    b.ToTable("hostel_wardens", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.LeaveApplication", b =>
@@ -1066,7 +1066,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("LeaveApplications");
+                    b.ToTable("LeaveApplications", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.LeaveTypeConfig", b =>
@@ -1106,7 +1106,7 @@ namespace Backend.Migrations
 
                     b.HasKey("LeaveTypeId");
 
-                    b.ToTable("LeaveTypeConfigs");
+                    b.ToTable("LeaveTypeConfigs", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Meeting", b =>
@@ -1184,7 +1184,7 @@ namespace Backend.Migrations
 
                     b.HasKey("MeetingId");
 
-                    b.ToTable("Meetings");
+                    b.ToTable("Meetings", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.OtpVerification", b =>
@@ -1226,7 +1226,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("OtpVerifications");
+                    b.ToTable("OtpVerifications", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.PayrollConfig", b =>
@@ -1265,7 +1265,7 @@ namespace Backend.Migrations
 
                     b.HasKey("PayrollConfigId");
 
-                    b.ToTable("PayrollConfigs");
+                    b.ToTable("PayrollConfigs", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Payslip", b =>
@@ -1344,7 +1344,7 @@ namespace Backend.Migrations
 
                     b.HasKey("PayslipId");
 
-                    b.ToTable("Payslips");
+                    b.ToTable("Payslips", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.PeriodSetting", b =>
@@ -1508,7 +1508,7 @@ namespace Backend.Migrations
 
                     b.HasKey("QuestionPaperId");
 
-                    b.ToTable("QuestionPapers");
+                    b.ToTable("QuestionPapers", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Role", b =>
@@ -1528,7 +1528,7 @@ namespace Backend.Migrations
 
                     b.HasKey("RoleId");
 
-                    b.ToTable("Roles");
+                    b.ToTable("Roles", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.RoomMaster", b =>
@@ -1566,7 +1566,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("RoomTypeId");
 
-                    b.ToTable("room_masters");
+                    b.ToTable("room_masters", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.RoomTypeConfig", b =>
@@ -1601,7 +1601,7 @@ namespace Backend.Migrations
 
                     b.HasKey("RoomTypeId");
 
-                    b.ToTable("room_type_configs");
+                    b.ToTable("room_type_configs", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.SalaryComponent", b =>
@@ -1639,7 +1639,7 @@ namespace Backend.Migrations
 
                     b.HasKey("ComponentId");
 
-                    b.ToTable("SalaryComponents");
+                    b.ToTable("SalaryComponents", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.SalaryStructure", b =>
@@ -1696,7 +1696,7 @@ namespace Backend.Migrations
 
                     b.HasKey("StructureId");
 
-                    b.ToTable("SalaryStructures");
+                    b.ToTable("SalaryStructures", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.SalaryStructureItem", b =>
@@ -1725,7 +1725,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("StructureId");
 
-                    b.ToTable("SalaryStructureItems");
+                    b.ToTable("SalaryStructureItems", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.SchoolEvent", b =>
@@ -1775,7 +1775,7 @@ namespace Backend.Migrations
 
                     b.HasKey("EventId");
 
-                    b.ToTable("SchoolEvents");
+                    b.ToTable("SchoolEvents", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Section", b =>
@@ -1802,7 +1802,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("ClassTeacherId");
 
-                    b.ToTable("Section");
+                    b.ToTable("Section", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Staff", b =>
@@ -1887,7 +1887,7 @@ namespace Backend.Migrations
 
                     b.HasKey("StaffId");
 
-                    b.ToTable("Staff");
+                    b.ToTable("Staff", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.StaffAttendance", b =>
@@ -1927,7 +1927,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("StaffAttendances");
+                    b.ToTable("StaffAttendances", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.StaffDocument", b =>
@@ -1962,7 +1962,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("StaffId");
 
-                    b.ToTable("StaffDocuments");
+                    b.ToTable("StaffDocuments", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.StudentBedAllocation", b =>
@@ -2605,7 +2605,7 @@ namespace Backend.Migrations
                     b.HasIndex("MobileNumber")
                         .IsUnique();
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.VehicleMaintenance", b =>
@@ -2705,7 +2705,7 @@ namespace Backend.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserRoles");
+                    b.ToTable("UserRoles", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.AdmissionApplication", b =>
