@@ -7,12 +7,11 @@ import { UniformItem } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
-export const UniformView: React.FC = () => {
+export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniforms, addUniform, updateUniform, deleteUniform } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('All');
   const [filterGender, setFilterGender] = useState('All');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -20,33 +19,25 @@ export const UniformView: React.FC = () => {
   const [deletingUniform, setDeletingUniform] = useState<UniformItem | null>(null);
 
   const [formData, setFormData] = useState<Partial<UniformItem>>({
-    category: 'Summer Polo Shirt',
     gender: 'Unisex',
-    className: 'Class 10',
     size: 'M',
-    color: 'Navy Blue',
-    price: 35,
-    availableStock: 50
+    className: 'Class 1',
+    price: 0,
+    availableStock: 0
   });
 
   const filtered = uniforms.filter(u => {
-    const matchQuery = u.category.toLowerCase().includes(query.toLowerCase()) || u.color.toLowerCase().includes(query.toLowerCase());
-    const matchCat = filterCategory === 'All' || u.category === filterCategory;
-    const matchGen = filterGender === 'All' || u.gender === filterGender;
-    return matchQuery && matchCat && matchGen;
+    const mQuery = query.toLowerCase();
+    const mCat = u.category.toLowerCase();
+    const mCol = u.color.toLowerCase();
+    const matchesQuery = mCat.includes(mQuery) || mCol.includes(mQuery);
+    const matchesGender = filterGender === 'All' || u.gender === filterGender;
+    return matchesQuery && matchesGender;
   });
 
   const handleOpenAdd = () => {
     setEditingUniform(null);
-    setFormData({
-      category: '',
-      gender: '' as any,
-      className: '',
-      size: '',
-      color: '',
-      price: 0,
-      availableStock: 0
-    });
+    setFormData({ gender: 'Unisex', size: 'M', className: 'Class 1', price: 0, availableStock: 0 });
     setIsFormOpen(true);
   };
 
@@ -77,8 +68,7 @@ export const UniformView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Shirt className="w-6 h-6 text-sky-600" /> Uniform Configuration
           </h2>
-          <p className="text-xs text-slate-500">Configure uniform categories, sizes, colors, pricing & inventory stock</p>
-        </div>
+          </div>
 
         <button
           onClick={handleOpenAdd}
@@ -87,6 +77,8 @@ export const UniformView: React.FC = () => {
           <Plus className="w-4 h-4" /> Add Uniform Item
         </button>
       </div>
+
+      {tabs}
 
       {/* Filter & Search Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">

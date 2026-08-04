@@ -155,8 +155,7 @@ export const HostelMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Building2 className="w-6 h-6 text-sky-500" /> Hostels
           </h2>
-          <p className="text-xs text-slate-500">Configure top-level hostel facilities. (Block Supervisors & Floor Wardens are managed under Blocks & Floors)</p>
-        </div>
+          </div>
         <button
           onClick={handleOpenAdd}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"

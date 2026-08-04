@@ -132,8 +132,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <UserPlus className="w-6 h-6 text-sky-500" /> Student Hostel Allocation
           </h2>
-          <p className="text-xs text-slate-500">Allocate rooms and beds to Hostellers with automatic inheritance of Wardens</p>
-        </div>
+          </div>
 
         <button
           onClick={handleOpenAdd}

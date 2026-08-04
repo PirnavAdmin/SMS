@@ -594,6 +594,91 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       .map(d => d.designationName);
   };
 
+  const handlePrintPayslip = (p: any, autoPrint = false) => {
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Salary Payslip - ${p.employeeName}</title>
+            <style>
+              body { font-family: sans-serif; padding: 40px; color: #333; }
+              .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 20px; }
+              .details { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+              .table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+              .table th, .table td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+              .table th { background-color: #f5f5f5; }
+              .net { font-size: 1.2em; font-weight: bold; margin-top: 20px; text-align: right; }
+              .sign { margin-top: 80px; display: flex; justify-content: space-between; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h2>MONTHLY SALARY PAYSLIP</h2>
+              <p>St. Xavier's International Academy - HR Department</p>
+            </div>
+            <div class="details">
+              <div><strong>Employee Name:</strong> ${p.employeeName}</div>
+              <div><strong>Employee ID:</strong> ${p.empId}</div>
+              <div><strong>Salary Month:</strong> ${p.month}</div>
+              <div><strong>Generated Date:</strong> ${p.disbursedDate || new Date().toISOString().split('T')[0]}</div>
+              <div><strong>Bank Account:</strong> ${p.bankAccount || 'N/A'}</div>
+              <div><strong>Status:</strong> ${p.status}</div>
+            </div>
+            
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Earning Details</th>
+                  <th>Amount</th>
+                  <th>Deduction Details</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Basic Salary</td>
+                  <td>${formatCurrency(p.basicSalary || p.grossSalary || 0)}</td>
+                  <td>Total Deductions</td>
+                  <td>${formatCurrency((p.pfDeduction || 0) + (p.lopDeduction || 0) + (p.otherDeductions || 0))}</td>
+                </tr>
+                <tr>
+                  <td><strong>Gross Earning</strong></td>
+                  <td><strong>${formatCurrency(p.grossSalary || p.basicSalary || 0)}</strong></td>
+                  <td><strong>Total Deductions</strong></td>
+                  <td><strong>${formatCurrency((p.pfDeduction || 0) + (p.lopDeduction || 0) + (p.otherDeductions || 0))}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div class="net">
+              Net Payable Salary: ${formatCurrency(p.netSalary)}
+            </div>
+            
+            <div class="sign">
+              <div>
+                <p>_______________________</p>
+                <p>Employee Signature</p>
+              </div>
+              <div>
+                <p>_______________________</p>
+                <p>Authorized Signatory</p>
+              </div>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      if (autoPrint) {
+        setTimeout(() => {
+          printWindow.print();
+          printWindow.close();
+        }, 250);
+      }
+    }
+  };
+
   const [activeTab, setActiveTab] = useState<PayrollTabId>('staff-payroll-employees');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeeCategoryFilter, setEmployeeCategoryFilter] = useState<'All' | CategoryValue>('All');
@@ -1481,10 +1566,12 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </td>
                 </tr>
               ))}
-              {generationRows.length === 0 && (
+              {pendingGenerationRows.length === 0 && (
                 <tr>
                   <td colSpan={10} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
-                    No employees match the current payroll generation filters.
+                    {generationRows.length === 0 
+                      ? "No employees match the current payroll generation filters."
+                      : "All matched employees already have payslips generated for this month."}
                   </td>
                 </tr>
               )}
@@ -1639,36 +1726,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     </td>
                     <td className="px-3 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="View Details">
+                        <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="View Payslip">
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
                           type="button" 
                           onClick={() => {
-                            const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
-                            const csvRows = [[
-                              item.month,
-                              `"${item.employeeName}"`,
-                              item.empId,
-                              item.grossSalary,
-                              item.deductions,
-                              item.netSalary,
-                              item.paymentDate || 'Pending',
-                              item.status
-                            ]];
-                            const csvContent = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
-                            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.setAttribute('href', url);
-                            link.setAttribute('download', `payslip_${item.empId}_${item.month.replace(' ', '_')}.csv`);
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            addToast('success', 'Download Complete', `${item.employeeName} payslip data downloaded.`);
+                            handlePrintPayslip(item, true);
+                            addToast('success', 'Download Started', `${item.employeeName} payslip PDF prepared.`);
                           }} 
                           className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" 
-                          title="Download Data"
+                          title="Download Payslip PDF"
                         >
                           <Download className="h-4 w-4" />
                         </button>

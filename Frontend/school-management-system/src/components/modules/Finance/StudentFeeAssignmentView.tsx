@@ -57,8 +57,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <UserPlus className="w-6 h-6 text-sky-500" /> Fee Assignment
         </h2>
-        <p className="text-xs text-slate-500">Assign standard fee structures to individual students or in bulk across Class & Section filters</p>
-      </div>
+        </div>
 
       {/* Filter & Bulk Control Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">

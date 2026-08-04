@@ -125,8 +125,7 @@ export const BusAttendantMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <UserCheck className="w-6 h-6 text-sky-500" /> Bus Attendants
           </h2>
-          <p className="text-xs text-slate-500">Manage bus attendant master data and view read-only assignment details from Vehicle Assignment</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

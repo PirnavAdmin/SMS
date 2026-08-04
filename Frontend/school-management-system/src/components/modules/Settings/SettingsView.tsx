@@ -157,8 +157,7 @@ export const SettingsView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <SettingsIcon className="w-6 h-6 text-brand-600" /> School Settings
         </h2>
-        <p className="text-xs text-slate-500">School branding profile, campus configuration, database backup, and audit trail</p>
-      </div>
+        </div>
 
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
         <button

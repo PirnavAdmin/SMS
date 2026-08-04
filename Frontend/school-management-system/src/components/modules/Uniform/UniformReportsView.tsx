@@ -106,8 +106,7 @@ export const UniformReportsView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileSpreadsheet className="w-6 h-6 text-sky-600" /> Uniform Reports
           </h2>
-          <p className="text-xs text-slate-500">Analyze current stock registries, replacement operations, low items alerts, and supplier coordinates</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button
@@ -126,15 +125,16 @@ export const UniformReportsView: React.FC = () => {
       </div>
 
       {/* Unified Report Selector & Dynamic Filters */}
-      <form onSubmit={handleApplyFilters} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-4">
-        <div className="flex flex-wrap items-end gap-4">
+      <form onSubmit={handleApplyFilters} className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        {/* Primary Filters Row */}
+        <div className="flex flex-col sm:flex-row gap-4 items-end w-full">
           {/* Report Type Selector */}
-          <div className="flex-1 min-w-[240px] max-w-sm">
+          <div className="w-full sm:w-72 relative">
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Select Report Type *</label>
             <select
               value={reportType}
               onChange={e => setReportType(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-sky-900 dark:text-sky-200 font-extrabold outline-none cursor-pointer"
+              className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
             >
               <optgroup label="Inventory Reports">
                 <option value="Current Stock">Current Stock Registry</option>
@@ -156,12 +156,12 @@ export const UniformReportsView: React.FC = () => {
 
           {/* Dynamic Class Filter */}
           {showClass && (
-            <div className="w-full sm:w-48">
+            <div className="w-full sm:w-48 relative">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Target Class</label>
               <select
                 value={filterClass}
                 onChange={e => setFilterClass(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
               >
                 <option value="All">All Classes</option>
                 {academicClasses.map(c => (
@@ -173,12 +173,12 @@ export const UniformReportsView: React.FC = () => {
 
           {/* Dynamic Supplier Filter */}
           {showSupplier && (
-            <div className="w-full sm:w-56">
+            <div className="w-full sm:w-56 relative">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Supplier Partner</label>
               <select
                 value={filterSupplier}
                 onChange={e => setFilterSupplier(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none cursor-pointer"
+                className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
               >
                 <option value="All">All Suppliers</option>
                 {uniformSuppliers.map(s => (
@@ -188,56 +188,53 @@ export const UniformReportsView: React.FC = () => {
             </div>
           )}
           
-          {/* Submit Button (Inline when there's space) */}
-          <div className="ml-auto mt-2 sm:mt-0">
+          {/* Submit Button */}
+          <div className="w-full sm:w-auto shrink-0 mt-4 sm:mt-0 ml-auto">
             <button
               type="submit"
-              className="px-5 py-2.5 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/20 flex items-center gap-1.5 whitespace-nowrap"
+              className="w-full sm:w-auto px-5 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white shadow-md shadow-sky-600/20 flex items-center justify-center gap-1.5 whitespace-nowrap transition-all"
             >
-              <Filter className="w-3.5 h-3.5" /> Generate / Apply Filters
+              <Filter className="w-3.5 h-3.5" /> Generate Filters
             </button>
           </div>
         </div>
 
         {/* Dynamic Secondary Row Filters */}
         {(showDateRange || showSearch) && (
-          <div className="flex flex-wrap items-end gap-4 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 items-center">
             {showDateRange && (
               <>
-                <div className="w-full sm:w-40">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">From Date</label>
+                <div className="w-full sm:w-40 relative flex items-center">
+                  <span className="text-[10px] font-bold text-slate-400 absolute left-3">FROM</span>
                   <input
                     type="date"
                     value={fromDate}
                     onChange={e => setFromDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
+                    className="w-full pl-12 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                   />
                 </div>
-                <div className="w-full sm:w-40">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To Date</label>
+                <div className="w-full sm:w-40 relative flex items-center">
+                  <span className="text-[10px] font-bold text-slate-400 absolute left-3">TO</span>
                   <input
                     type="date"
                     value={toDate}
                     onChange={e => setToDate(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
+                    className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                   />
                 </div>
               </>
             )}
 
             {showSearch && (
-              <div className="flex-1 min-w-[200px]">
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">General search</label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Search student, item name..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
-                  />
-                </div>
+              <div className="flex-1 w-full relative">
+                <Search className="w-4 h-4 absolute left-3.5 top-2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search records by details..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                />
               </div>
             )}
           </div>

@@ -325,8 +325,8 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         sticky={false}
       />
 
-      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end gap-3 lg:gap-4">
-        <div className="relative w-full lg:max-w-sm">
+      <div className="glass-card p-4 rounded-2xl flex flex-wrap items-end gap-3 lg:gap-4">
+        <div className="relative w-full max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"

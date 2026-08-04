@@ -32,15 +32,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Clock className="w-6 h-6 text-rose-500" /> Outstanding Dues
-          </h2>
-          <p className="text-xs text-slate-500">Track pending tuition, transport, hostel & fine dues across all enrolled students</p>
-        </div>
-
+      <div className="flex justify-end">
         <ExportButton data={studentsWithDues.map(i => ({ name: `${i.student.firstName} ${i.student.lastName}`, admissionNo: i.student.admissionNo, class: i.student.className, due: i.calc?.dueBalance }))} filename="outstanding_dues" />
       </div>
 

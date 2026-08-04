@@ -37,6 +37,15 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
 
   return (
     <div className="space-y-6 animate-in fade-in">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <IndianRupee className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Fee Collection
+          </h2>
+        </div>
+      </div>
+
       {/* Sub-tab Selector */}
       <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
         {subTabs.map(tab => {

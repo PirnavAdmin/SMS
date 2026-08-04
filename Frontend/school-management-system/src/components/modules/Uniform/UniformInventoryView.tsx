@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Settings2 } from 'lucide-react';
+import { Search, Plus, Minus, Settings2, Package } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformInventoryItem } from '../../../types';
 import { Badge } from '../../common/Badge';
 
-export const UniformInventoryView: React.FC = () => {
+export const UniformInventoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformInventory, updateUniformInventory, uniforms } = useData();
   const { addToast } = useToast();
 
@@ -59,12 +59,14 @@ export const UniformInventoryView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Inventory Stock Registry</h3>
-          <p className="text-xs text-slate-500">Monitor opening, reorder thresholds, low warning levels, and adjust counts</p>
-        </div>
-      </div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Package className="w-6 h-6 text-sky-600" /> Inventory Stock Registry
+          </h2>
+        </div>      </div>
+      
+      {tabs}
 
       {/* Filters */}
       <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 justify-between shadow-sm">
@@ -177,7 +179,7 @@ export const UniformInventoryView: React.FC = () => {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Confirm Stock Update</button>
               </div>
-            </form>
+</form>
           </div>
         </div>
       )}

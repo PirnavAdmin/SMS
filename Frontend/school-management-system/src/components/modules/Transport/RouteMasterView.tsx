@@ -106,8 +106,7 @@ export const RouteMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <RouteIcon className="w-6 h-6 text-sky-500" /> Route Management
           </h2>
-          <p className="text-xs text-slate-500">Configure route masters and review pickup-point sequences, assigned buses, and drivers.</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

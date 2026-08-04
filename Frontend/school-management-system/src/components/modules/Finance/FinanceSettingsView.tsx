@@ -22,8 +22,7 @@ export const FinanceSettingsView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <SlidersHorizontal className="w-6 h-6 text-sky-500" /> Finance System Settings
         </h2>
-        <p className="text-xs text-slate-500">Configure global currency, receipt numbering prefixes, payment gateways & tax settings</p>
-      </div>
+        </div>
 
       <form onSubmit={handleSubmit} className="glass-card p-6 rounded-3xl space-y-6 text-xs">
         {/* Core Settings */}

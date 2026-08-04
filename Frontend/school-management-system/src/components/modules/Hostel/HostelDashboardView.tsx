@@ -40,8 +40,7 @@ export const HostelDashboardView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <Home className="w-6 h-6 text-sky-500" /> Hostel Dashboard
         </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">Live operational oversight for hostel blocks, room utilization, bed inventory, and hostel revenue</p>
-      </div>
+        </div>
 
       {loading ? (
         <div className="py-12 text-center text-slate-400 font-bold">Loading dashboard metrics...</div>

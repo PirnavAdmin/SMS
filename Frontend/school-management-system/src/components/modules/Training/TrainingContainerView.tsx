@@ -422,10 +422,7 @@ export const TrainingContainerView: React.FC = () => {
             <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
             Faculty Development & Training
           </h2>
-          <p className="text-xs text-slate-500">
-            Centralized faculty development programs, workshops, competency evaluations, and professional certifications
-          </p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-2">
           <button

@@ -28,6 +28,13 @@ export const UniformDashboardView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
+      {/* Header */}
+      <div>
+        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+          <TrendingUp className="w-6 h-6 text-sky-500" /> Uniform Dashboard
+        </h2>
+        </div>
+
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {/* Card 1 */}

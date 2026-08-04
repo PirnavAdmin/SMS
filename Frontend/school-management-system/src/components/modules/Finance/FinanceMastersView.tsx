@@ -17,6 +17,7 @@ import { HostelConfigView } from './HostelConfigView';
 import { RefundManagementView } from './RefundManagementView';
 import { FinanceSettingsView } from './FinanceSettingsView';
 import { FinanceUniformConfigView } from './FinanceUniformConfigView';
+import { TransportScrollableTabs } from '../Transport/TransportScrollableTabs';
 
 export const FinanceMastersView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<string>('fee-heads');
@@ -72,27 +73,21 @@ export const FinanceMastersView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Sub-tab Selector */}
-      <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
-        {subTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeSubTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
-                isActive
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <SlidersHorizontal className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Finance Setup
+          </h2>
+        </div>
       </div>
+
+      {/* Sub-tab Selector */}
+      <TransportScrollableTabs
+        tabs={subTabs}
+        activeId={activeSubTab}
+        onChange={setActiveSubTab}
+      />
 
       {/* Render Active View */}
       <div>

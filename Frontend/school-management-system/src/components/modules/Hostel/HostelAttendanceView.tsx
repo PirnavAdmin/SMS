@@ -148,8 +148,7 @@ export const HostelAttendanceView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <UserCheck className="w-6 h-6 text-sky-500" /> Hostel Night Attendance
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Select Hostel Block, Floor, and Room to mark night roll-call attendance</p>
-        </div>
+          </div>
 
         <button
           onClick={handleSaveAttendance}
