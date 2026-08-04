@@ -43,6 +43,28 @@ public class SchoolRepository : ISchoolRepository
 		return await query.ToListAsync();
 	}
 
+	public async Task<List<Staff>> GetAllTeachersAsync(string? search, string? subject)
+	{
+		var query = _context.Staff.AsNoTracking().Where(s => s.IsActive == true).AsQueryable();
+
+		if (!string.IsNullOrWhiteSpace(subject) && !subject.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+		{
+			query = query.Where(s => (s.PrimarySubject != null && s.PrimarySubject.ToLower().Contains(subject.ToLower())) ||
+			                         (s.Department != null && s.Department.ToLower().Contains(subject.ToLower())));
+		}
+
+		if (!string.IsNullOrWhiteSpace(search))
+		{
+			query = query.Where(s => (s.FirstName != null && s.FirstName.Contains(search)) ||
+			                         (s.LastName != null && s.LastName.Contains(search)) ||
+			                         (s.Email != null && s.Email.Contains(search)) ||
+			                         (s.EmployeeId != null && s.EmployeeId.Contains(search)) ||
+			                         (s.PrimarySubject != null && s.PrimarySubject.Contains(search)));
+		}
+
+		return await query.ToListAsync();
+	}
+
 	public async Task AddStaffAsync(Staff staff) => await _context.Staff.AddAsync(staff);
 
 	public void RemoveStaff(Staff staff) => _context.Staff.Remove(staff);

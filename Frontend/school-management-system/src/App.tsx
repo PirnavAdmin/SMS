@@ -125,7 +125,7 @@ const MainLayout: React.FC = () => {
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':
-        return <StaffList onNavigate={setActiveModule} />;
+        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList onNavigate={setActiveModule} />;
       case 'staff-add':
         return <StaffRegistrationPage onNavigate={setActiveModule} />;
       case 'staff-attendance':

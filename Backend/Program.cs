@@ -1254,15 +1254,10 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception exception)
     {
-        var logger =
-            services.GetRequiredService<
-                ILogger<Program>>();
-
-        logger.LogError(
-            exception,
-            "An error occurred while migrating or seeding the database.");
-
-        throw;
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning(
+            "Database migration/seeding warning: Could not connect to MySQL database ({Message}). Please verify MySQL password in appsettings.json.",
+            exception.Message);
     }
 }
 

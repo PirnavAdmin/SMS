@@ -63,7 +63,7 @@ namespace SMS.Api.Data
                 await context.SaveChangesAsync();
             }
 
-            // 3. Seed Default Staff (Matching Screenshot Specs)
+            // 3. Seed Default Staff (Matching Screenshot & Teacher Information Specs)
             if (!await context.Staff.AnyAsync())
             {
                 var seedStaff = new List<Staff>
@@ -72,60 +72,96 @@ namespace SMS.Api.Data
                     {
                         EmployeeId = "EMP001",
                         EmployeeCategory = "Teaching Staff",
-                        FirstName = "sudheer",
-                        LastName = "k",
-                        Email = "sudheer.k@pirnavschools.com",
-                        Phone = "9876543211",
-                        Designation = "Teacher",
+                        FirstName = "Eleanor",
+                        LastName = "Vance",
+                        Email = "eleanor.vance@stxaviers.edu",
+                        Phone = "+1 555-888-001",
+                        Designation = "Class Teacher",
                         Department = "Mathematics",
                         PrimarySubject = "Mathematics",
                         Specialization = "Algebra & Calculus",
-                        MonthlySalary = 390000,
+                        Qualification = "M.Sc. Mathematics, B.Ed.",
+                        MonthlySalary = 75000,
                         IsActive = true
                     },
                     new Staff
                     {
                         EmployeeId = "EMP002",
                         EmployeeCategory = "Teaching Staff",
-                        FirstName = "sundhar",
-                        LastName = "k",
-                        Email = "sundhar.k@pirnavschools.com",
-                        Phone = "9876543212",
+                        FirstName = "Robert",
+                        LastName = "Chen",
+                        Email = "robert.chen@stxaviers.edu",
+                        Phone = "+1 555-888-002",
                         Designation = "Teacher",
                         Department = "Physics",
                         PrimarySubject = "Physics",
-                        Specialization = "Algebra & Calculus",
-                        MonthlySalary = 124800,
+                        Specialization = "Quantum & Classical Mechanics",
+                        Qualification = "M.Sc. Physics",
+                        MonthlySalary = 72000,
                         IsActive = true
                     },
                     new Staff
                     {
                         EmployeeId = "EMP003",
                         EmployeeCategory = "Teaching Staff",
-                        FirstName = "Remo",
-                        LastName = "a",
-                        Email = "remo.a@pirnavschools.com",
-                        Phone = "9876543213",
+                        FirstName = "Sarah",
+                        LastName = "Jenkins",
+                        Email = "sarah.jenkins@stxaviers.edu",
+                        Phone = "+1 555-888-003",
                         Designation = "Teacher",
                         Department = "English",
-                        PrimarySubject = "English",
-                        Specialization = "M.Sc. Mathematics, B.Ed.",
-                        MonthlySalary = 124800,
+                        PrimarySubject = "English Literature",
+                        Specialization = "Modern Literature & Composition",
+                        Qualification = "M.A. English, B.Ed.",
+                        MonthlySalary = 70000,
                         IsActive = true
                     },
                     new Staff
                     {
                         EmployeeId = "EMP004",
                         EmployeeCategory = "Teaching Staff",
-                        FirstName = "SUndhar",
-                        LastName = "L",
-                        Email = "sundhar.l@pirnavschools.com",
-                        Phone = "9876543214",
+                        FirstName = "Michael",
+                        LastName = "Chang",
+                        Email = "michael.chang@stxaviers.edu",
+                        Phone = "+1 555-888-004",
                         Designation = "Teacher",
-                        Department = "English",
-                        PrimarySubject = "English",
-                        Specialization = "Algebra & Calculus",
-                        MonthlySalary = 84000,
+                        Department = "Chemistry",
+                        PrimarySubject = "Chemistry",
+                        Specialization = "Organic Chemistry",
+                        Qualification = "M.Sc. Chemistry",
+                        MonthlySalary = 71000,
+                        IsActive = true
+                    },
+                    new Staff
+                    {
+                        EmployeeId = "EMP005",
+                        EmployeeCategory = "Teaching Staff",
+                        FirstName = "Anita",
+                        LastName = "Patel",
+                        Email = "anita.patel@stxaviers.edu",
+                        Phone = "+1 555-888-005",
+                        Designation = "Teacher",
+                        Department = "Computer Science",
+                        PrimarySubject = "Computer Science",
+                        Specialization = "Software Engineering & Algorithms",
+                        Qualification = "M.Tech CSE",
+                        MonthlySalary = 78000,
+                        IsActive = true
+                    },
+                    new Staff
+                    {
+                        EmployeeId = "EMP006",
+                        EmployeeCategory = "Teaching Staff",
+                        FirstName = "David",
+                        LastName = "Miller",
+                        Email = "david.miller@stxaviers.edu",
+                        Phone = "+1 555-888-006",
+                        Designation = "Teacher",
+                        Department = "Sports",
+                        PrimarySubject = "Physical Education",
+                        Specialization = "Athletics & Physical Fitness",
+                        Qualification = "B.P.Ed.",
+                        MonthlySalary = 65000,
                         IsActive = true
                     }
                 };
