@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformSupplier } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
-export const UniformSupplierView: React.FC = () => {
+export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier } = useData();
   const { addToast } = useToast();
 
@@ -59,10 +59,11 @@ export const UniformSupplierView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Uniform Suppliers</h3>
-          <p className="text-xs text-slate-500">Configure corporate suppliers, contact information, GSTIN codes, and order coordinates</p>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Users className="w-6 h-6 text-sky-600" /> Corporate Suppliers
+          </h2>
         </div>
         <button
           onClick={handleOpenAdd}
@@ -72,7 +73,9 @@ export const UniformSupplierView: React.FC = () => {
         </button>
       </div>
 
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
+      {tabs}
+
+<div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
@@ -214,7 +217,10 @@ export const UniformSupplierView: React.FC = () => {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Details</button>
               </div>
-            </form>
+
+      {tabs}
+
+</form>
           </div>
         </div>
       )}

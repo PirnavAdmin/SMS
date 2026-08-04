@@ -195,13 +195,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <IndianRupee className="w-6 h-6 text-emerald-500" /> Fee Collection
-        </h2>
-        <p className="text-xs text-slate-500">Zero manual fee entry — automatic computation of Base Fee, Transport, Hostel, Scholarships, Concessions & Late Fines</p>
-      </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: Student Selector */}

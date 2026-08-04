@@ -147,8 +147,7 @@ export const RoomTypeMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Layers className="w-6 h-6 text-sky-500" /> Room Types
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Define capacity limits, AC designations, and specifications for hostel accommodations</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

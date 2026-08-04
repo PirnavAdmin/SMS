@@ -1807,12 +1807,35 @@ export interface ProcessedResult {
   overallGrade?: string;
   subjectMarks?: any[];
   passStatus: 'Pass' | 'Fail';
-  status: 'Draft' | 'Processed' | 'Published' | 'Locked';
+  status: 'Draft' | 'Processed' | 'Verified' | 'Approved' | 'Published' | 'Locked';
   processedBy?: string;
   processedAt?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
   publishedAt?: string;
   lockedAt?: string;
   remarks?: string;
+}
+
+export interface ExamAuditLog {
+  id: string;
+  examId: string;
+  academicYear: string;
+  branch: string;
+  className: string;
+  section: string;
+  subject: string;
+  studentId: string;
+  studentName: string;
+  rollNo: string;
+  oldMarks: number;
+  newMarks: number;
+  modifiedBy: string;
+  modifiedRole: string;
+  reason: string;
+  timestamp: string;
 }
 
 export interface QuestionPaper {

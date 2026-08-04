@@ -129,8 +129,7 @@ export const WardenMasterView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-sky-500" /> Wardens
           </h2>
-          <p className="text-xs text-slate-500">Assign non-teaching staff to hostels without record duplication</p>
-        </div>
+          </div>
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}

@@ -101,10 +101,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Bus className="w-6 h-6 text-sky-500" /> Vehicle Trips
           </h2>
-          <p className="text-xs text-slate-500">
-            Trip operations, route coverage, vehicle crew, and movement status for the current transport cycle.
-          </p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <div>

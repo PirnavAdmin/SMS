@@ -100,8 +100,7 @@ export const FeeHeadsView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Tag className="w-6 h-6 text-sky-500" /> Fee Types
           </h2>
-          <p className="text-xs text-slate-500">Configure master fee types, frequency rules, mandatory tags & display order</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

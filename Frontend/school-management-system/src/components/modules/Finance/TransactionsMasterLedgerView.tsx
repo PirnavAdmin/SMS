@@ -267,10 +267,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
             <FileSpreadsheet className="w-6 h-6 text-sky-600 dark:text-sky-400" />
             Transactions
           </h2>
-          <p className="text-xs text-slate-500">
-            Single Source of Truth: Central financial repository consolidating all ERP income & expense flows
-          </p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

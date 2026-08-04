@@ -12,8 +12,7 @@ export const ReportsView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <BarChart3 className="w-6 h-6 text-brand-600" /> Reports
         </h2>
-        <p className="text-xs text-slate-500">Generate executive summary reports, financial statement exports, and attendance metrics</p>
-      </div>
+        </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Student Master Report */}

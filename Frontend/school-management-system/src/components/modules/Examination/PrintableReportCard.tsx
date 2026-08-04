@@ -201,9 +201,28 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                     const isFail = markEntry && !isAbsent && markEntry.marksObtained < passM;
                     const subjGrade = markEntry ? (isAbsent ? 'F' : markEntry.marksObtained >= 90 ? 'A+' : markEntry.marksObtained >= 80 ? 'A' : markEntry.marksObtained >= 70 ? 'B' : markEntry.marksObtained >= 60 ? 'C' : markEntry.marksObtained >= 33 ? 'D' : 'F') : '—';
 
+                    // Format subject as [Code] - Name
+                    let code = 'SUB101';
+                    if (subj.includes(' - ')) {
+                      code = subj.split(' - ')[0].trim();
+                    } else {
+                      const lower = subj.toLowerCase();
+                      if (lower.includes('math')) code = 'MAT101';
+                      else if (lower.includes('english') || lower.includes('eng')) code = 'ENG101';
+                      else if (lower.includes('physics') || lower.includes('phy')) code = 'PHY101';
+                      else if (lower.includes('chem')) code = 'CHEM101';
+                      else if (lower.includes('bio')) code = 'BIO101';
+                      else if (lower.includes('sci')) code = 'SCI101';
+                      else if (lower.includes('soc')) code = 'SOC101';
+                      else if (lower.includes('hin')) code = 'HIN101';
+                      else if (lower.includes('computer') || lower.includes('comp')) code = 'COMP101';
+                      else code = `${subj.substring(0, 3).toUpperCase()}101`;
+                    }
+                    const formattedSubj = subj.includes(' - ') ? subj : `${code} - ${subj}`;
+
                     return (
                       <tr key={subj} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50">
-                        <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-bold">{subj}</td>
+                        <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-bold">{formattedSubj}</td>
                         <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-center font-mono">{maxM}</td>
                         <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-center font-mono">{passM}</td>
                         <td className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center font-mono font-black ${

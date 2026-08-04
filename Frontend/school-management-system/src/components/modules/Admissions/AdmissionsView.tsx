@@ -543,7 +543,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
                 {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Admission Registration'}
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Complete student admission registration including personal, guardian, transport, and hostel details.</p>
             </div>
           </div>
         </div>

@@ -398,10 +398,7 @@ export const VehicleAssignmentView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Layers className="w-6 h-6 text-sky-500" /> Vehicle Assignment
           </h2>
-          <p className="text-xs text-slate-500">
-            Assign branch, route, vehicle, driver, attendant, and trip timings on one screen.
-          </p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

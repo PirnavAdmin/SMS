@@ -106,8 +106,7 @@ export const FinanceUniformConfigView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="font-bold text-sm text-slate-900 dark:text-white">Uniform Fee Configuration</h3>
-          <p className="text-xs text-slate-500">Configure annual packaging fees for uniforms based on Class, Branch, and Gender segregation</p>
-        </div>
+          </div>
 
         <button
           onClick={handleOpenAdd}

@@ -90,8 +90,7 @@ export const DiscountsView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Percent className="w-6 h-6 text-sky-500" /> Discounts & Concessions
           </h2>
-          <p className="text-xs text-slate-500">Configure Sibling, Staff Child, Early Payment & Custom Concessions</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

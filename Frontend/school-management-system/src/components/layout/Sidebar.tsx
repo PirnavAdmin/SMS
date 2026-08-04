@@ -262,12 +262,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                         isFinanceActive
-                          ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                          ? (financeExpanded && financeSubItems.length > 0 && !collapsed)
+                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
+                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-3 truncate">
-                        <IndianRupee className={`w-4 h-4 shrink-0 ${isFinanceActive ? 'text-white' : 'text-sky-500'}`} />
+                        <IndianRupee className={`w-4 h-4 shrink-0 ${isFinanceActive ? (financeExpanded && financeSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-sky-500'}`} />
                         {!collapsed && <span className="font-bold">
                             {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Fee Details' : 'Finance & Fees'}
                           </span>}
@@ -327,12 +329,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                         isHostelActive
-                          ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                          ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed)
+                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
+                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-3 truncate">
-                        <Home className={`w-4 h-4 shrink-0 ${isHostelActive ? 'text-white' : 'text-indigo-500'}`} />
+                        <Home className={`w-4 h-4 shrink-0 ${isHostelActive ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-indigo-500'}`} />
                         {!collapsed && <span className="font-bold">
                             {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Hostel' : 'Hostel Management'}
                           </span>}
@@ -396,12 +400,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                         isTransportActive
-                          ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                          ? (transportExpanded && transportSubItems.length > 0 && !collapsed)
+                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
+                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-3 truncate">
-                        <Bus className={`w-4 h-4 shrink-0 ${isTransportActive ? 'text-white' : 'text-slate-400'}`} />
+                        <Bus className={`w-4 h-4 shrink-0 ${isTransportActive ? (transportExpanded && transportSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-slate-400'}`} />
                         {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Transport' : 'Transport Management'}</span>}
                       </div>
                       {!collapsed && transportSubItems.length > 0 && (
@@ -459,12 +465,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                         isUniformActive
-                          ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                          ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed)
+                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
+                            : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-3 truncate">
-                        <Shirt className={`w-4 h-4 shrink-0 ${isUniformActive ? 'text-white' : 'text-slate-400'}`} />
+                        <Shirt className={`w-4 h-4 shrink-0 ${isUniformActive ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-slate-400'}`} />
                         {!collapsed && <span className="font-bold">Uniform Management</span>}
                       </div>
                       {!collapsed && (
@@ -530,12 +538,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                           isStaffActive
-                            ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                            ? (staffExpanded && staffSubItems.length > 0 && !collapsed)
+                              ? 'bg-sky-50 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400 font-bold'
+                              : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
                             : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
-                          <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? 'text-white' : 'text-sky-500'}`} />
+                          <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? (staffExpanded && staffSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-sky-500'}`} />
                           {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff'}</span>}
                         </div>
                         {!collapsed && staffSubItems.length > 0 && (
@@ -550,7 +560,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isPayroll = sub.id === 'staff-payroll';
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === 'staff-directory' && activeModule === 'staff-add') ||
+                              (sub.id === 'staff-directory' && ['staff-add', 'staff-teachers', 'staff'].includes(activeModule)) ||
                               (isPayroll && (activeModule === 'staff-payroll' || activeModule.startsWith('staff-payroll-')));
                             return (
                               <button

@@ -19,15 +19,7 @@ export const FeeReceiptsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Receipt className="w-6 h-6 text-sky-500" /> Fee Receipts
-          </h2>
-          <p className="text-xs text-slate-500">Official receipt repository with PDF export, QR validation, and reprint tools</p>
-        </div>
-
+      <div className="flex justify-end">
         <ExportButton data={feePayments} filename="fee_receipts" />
       </div>
 

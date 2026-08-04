@@ -110,8 +110,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Home className="w-6 h-6 text-sky-500" /> Hostel Fee Configuration
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Master pricing repository for Hostel Rent and One-Time Security Deposits</p>
-        </div>
+          </div>
 
         <button
           onClick={handleOpenAdd}

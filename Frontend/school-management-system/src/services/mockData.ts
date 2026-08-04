@@ -1455,7 +1455,38 @@ export const initialLeaveApplications: LeaveApplication[] = [
   }
 ];
 
-export const initialPayslips: Payslip[] = [];
+export const initialPayslips: Payslip[] = [
+  {
+    id: 'PAY-1001', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', branch: 'Main Campus', department: 'Academics', designation: 'Principal', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 6000, hra: 3000, da: 2000, grossSalary: 11000, pfDeduction: 1000, lopDeduction: 0, netSalary: 10000, bankAccount: '****12301', disbursedDate: '2023-11-01', status: 'Generated'
+  },
+  {
+    id: 'PAY-1002', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', branch: 'Main Campus', department: 'Mathematics', designation: 'Class Teacher', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 4500, hra: 1500, da: 1000, grossSalary: 7000, pfDeduction: 500, lopDeduction: 0, netSalary: 6500, bankAccount: '****56789', disbursedDate: '2023-11-01', status: 'Paid'
+  },
+  {
+    id: 'PAY-1003', employeeId: 'STF-003', employeeName: 'Sarah Jenkins', empId: 'EMP003', branch: 'North Wing', department: 'Science', designation: 'Senior Teacher', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 4800, hra: 1600, da: 1100, grossSalary: 7500, pfDeduction: 600, lopDeduction: 0, netSalary: 6900, bankAccount: '****34567', disbursedDate: '2023-11-01', status: 'Emailed'
+  },
+  {
+    id: 'PAY-1004', employeeId: 'STF-004', employeeName: 'Robert Chang', empId: 'EMP004', branch: 'Main Campus', department: 'Administration', designation: 'Admin Officer', employeeCategory: 'Staff', month: 'October 2023', basicSalary: 4000, hra: 1200, da: 800, grossSalary: 6000, pfDeduction: 400, lopDeduction: 100, netSalary: 5500, bankAccount: '****89012', disbursedDate: '2023-11-01', status: 'Paid'
+  },
+  {
+    id: 'PAY-1005', employeeId: 'STF-005', employeeName: 'Maria Garcia', empId: 'EMP005', branch: 'Main Campus', department: 'Languages', designation: 'Teacher', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 4200, hra: 1400, da: 900, grossSalary: 6500, pfDeduction: 450, lopDeduction: 0, netSalary: 6050, bankAccount: '****45678', disbursedDate: '2023-11-01', status: 'Generated'
+  },
+  {
+    id: 'PAY-1006', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', branch: 'Main Campus', department: 'Academics', designation: 'Principal', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 6000, hra: 3000, da: 2000, grossSalary: 11000, pfDeduction: 1000, lopDeduction: 0, netSalary: 10000, bankAccount: '****12301', disbursedDate: '2023-10-01', status: 'Paid'
+  },
+  {
+    id: 'PAY-1007', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', branch: 'Main Campus', department: 'Mathematics', designation: 'Class Teacher', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 4500, hra: 1500, da: 1000, grossSalary: 7000, pfDeduction: 500, lopDeduction: 0, netSalary: 6500, bankAccount: '****56789', disbursedDate: '2023-10-01', status: 'Emailed'
+  },
+  {
+    id: 'PAY-1008', employeeId: 'STF-003', employeeName: 'Sarah Jenkins', empId: 'EMP003', branch: 'North Wing', department: 'Science', designation: 'Senior Teacher', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 4800, hra: 1600, da: 1100, grossSalary: 7500, pfDeduction: 600, lopDeduction: 200, netSalary: 6700, bankAccount: '****34567', disbursedDate: '2023-10-01', status: 'Paid'
+  },
+  {
+    id: 'PAY-1009', employeeId: 'STF-004', employeeName: 'Robert Chang', empId: 'EMP004', branch: 'Main Campus', department: 'Administration', designation: 'Admin Officer', employeeCategory: 'Staff', month: 'September 2023', basicSalary: 4000, hra: 1200, da: 800, grossSalary: 6000, pfDeduction: 400, lopDeduction: 0, netSalary: 5600, bankAccount: '****89012', disbursedDate: '2023-10-01', status: 'Paid'
+  },
+  {
+    id: 'PAY-1010', employeeId: 'STF-005', employeeName: 'Maria Garcia', empId: 'EMP005', branch: 'Main Campus', department: 'Languages', designation: 'Teacher', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 4200, hra: 1400, da: 900, grossSalary: 6500, pfDeduction: 450, lopDeduction: 0, netSalary: 6050, bankAccount: '****45678', disbursedDate: '2023-10-01', status: 'Paid'
+  }
+];
 
 export const initialPayrollComponents: PayrollComponent[] = [
   { id: 'PC-E01', name: 'Basic Salary', category: 'Earning', type: 'Fixed', value: 0, taxable: true, status: 'Active', branch: 'All Branches' },
@@ -1805,7 +1836,15 @@ export const initialSalaryStructures: SalaryStructure[] = [
 
 export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [
   { id: 'ESA-01', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-01', salaryStructureName: 'Principal Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-02', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Mathematics', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' }
+  { id: 'ESA-02', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Mathematics', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-03', employeeId: 'STF-003', employeeName: 'Staff Member 3', empId: 'EMP003', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Science', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-04', employeeId: 'STF-004', employeeName: 'Staff Member 4', empId: 'EMP004', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'English', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-05', employeeId: 'STF-005', employeeName: 'Staff Member 5', empId: 'EMP005', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-04', salaryStructureName: 'Clerical Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-06', employeeId: 'STF-006', employeeName: 'Staff Member 6', empId: 'EMP006', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Social Studies', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-07', employeeId: 'STF-007', employeeName: 'Staff Member 7', empId: 'EMP007', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Physical Education', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-08', employeeId: 'STF-008', employeeName: 'Staff Member 8', empId: 'EMP008', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Maintenance', salaryStructureId: 'SAL-STR-05', salaryStructureName: 'Support Staff Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-09', employeeId: 'STF-009', employeeName: 'Staff Member 9', empId: 'EMP009', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Security', salaryStructureId: 'SAL-STR-05', salaryStructureName: 'Support Staff Scale', effectiveDate: '2026-04-01', status: 'Active' },
+  { id: 'ESA-10', employeeId: 'STF-010', employeeName: 'Staff Member 10', empId: 'EMP010', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Computer Science', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' }
 ];
 
 export const initialPayrollRuns: PayrollRun[] = [];

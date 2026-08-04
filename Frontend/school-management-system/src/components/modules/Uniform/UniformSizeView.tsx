@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Ruler } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformSize } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
-export const UniformSizeView: React.FC = () => {
+export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformSizes, addUniformSize, updateUniformSize, deleteUniformSize } = useData();
   const { addToast } = useToast();
 
@@ -56,10 +56,11 @@ export const UniformSizeView: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Uniform Sizes</h3>
-          <p className="text-xs text-slate-500">Configure size specifications, fits, chest/waist measurements, and age target brackets</p>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Ruler className="w-6 h-6 text-sky-600" /> Size Configurations
+          </h2>
         </div>
         <button
           onClick={handleOpenAdd}
@@ -69,7 +70,9 @@ export const UniformSizeView: React.FC = () => {
         </button>
       </div>
 
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
+      {tabs}
+
+<div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
@@ -203,7 +206,10 @@ export const UniformSizeView: React.FC = () => {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Specs</button>
               </div>
-            </form>
+
+      {tabs}
+
+</form>
           </div>
         </div>
       )}

@@ -146,9 +146,10 @@ export const StudentUniformView: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Student Uniform Assignments</h3>
-          <p className="text-xs text-slate-500">Assign clothing kits, record sizing exchanges, check-in returns, and issue extra purchases</p>
-        </div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <UserPlus className="w-6 h-6 text-sky-600" /> Student Uniform Assignments
+          </h2>
+          </div>
 
         <button
           onClick={handleOpenIssue}

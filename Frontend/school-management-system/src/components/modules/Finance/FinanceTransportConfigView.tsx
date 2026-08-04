@@ -116,8 +116,7 @@ export const FinanceTransportConfigView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <RouteIcon className="w-6 h-6 text-sky-500" /> Transport Pricing
           </h2>
-          <p className="text-xs text-slate-500">Single Source of Truth for Route & Pickup-Point Fee Slabs (Auto-linked with Transport Operational Masters)</p>
-        </div>
+          </div>
 
         <div className="flex items-center gap-3">
           <button

@@ -53,8 +53,7 @@ export const CommunicationView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Communication Hub</h2>
-            <p className="text-xs text-slate-500 font-medium">Broadcast announcements, circulars & schedule parent-teacher meetings</p>
-          </div>
+            </div>
         </div>
 
         {/* Tab Switcher */}

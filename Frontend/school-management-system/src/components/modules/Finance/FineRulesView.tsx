@@ -68,8 +68,7 @@ export const FineRulesView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-rose-500" /> Fine Rules
           </h2>
-          <p className="text-xs text-slate-500">Configure due dates, grace days, daily vs fixed fines, and maximum fine caps</p>
-        </div>
+          </div>
 
         <button
           onClick={handleOpenAdd}
