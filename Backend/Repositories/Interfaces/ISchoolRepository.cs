@@ -46,6 +46,7 @@ public interface ISchoolRepository
 
     // Staff Attendance Operations
     Task<List<StaffAttendance>> GetStaffAttendanceAsync(DateTime date, string? department);
+    Task<List<StaffAttendance>> GetStaffAttendanceMonthlyAsync(int month, int year, string? department);
     Task AddStaffAttendanceRangeAsync(IEnumerable<StaffAttendance> attendances);
 
     // Leave Management Operations

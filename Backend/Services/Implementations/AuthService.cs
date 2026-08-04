@@ -141,6 +141,9 @@ namespace SMS.Api.Services.Implementations
             if (!string.IsNullOrEmpty(user.Email))
                 claims.Add(new Claim(ClaimTypes.Email, user.Email));
 
+            if (user.SchoolId.HasValue)
+                claims.Add(new Claim("schoolId", user.SchoolId.Value.ToString()));
+
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
 

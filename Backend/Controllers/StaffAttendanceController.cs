@@ -19,6 +19,14 @@ public class StaffAttendanceController : ControllerBase
         _schoolService = schoolService;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetDailyAttendance([FromQuery] string date, [FromQuery] string? department) =>
+        Ok(new { success = true, data = await _schoolService.GetDailyAttendanceAsync(date, department) });
+
+    [HttpGet("monthly")]
+    public async Task<IActionResult> GetMonthlyAttendance([FromQuery] int month, [FromQuery] int year, [FromQuery] string? department) =>
+        Ok(new { success = true, data = await _schoolService.GetMonthlyAttendanceAsync(month, year, department) });
+
     [HttpGet("summary")]
     public async Task<IActionResult> GetDailyAttendanceSummary([FromQuery] string date, [FromQuery] string? department) =>
         Ok(new { success = true, data = await _schoolService.GetDailyAttendanceSummaryAsync(date, department) });

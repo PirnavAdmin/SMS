@@ -30,4 +30,8 @@ public class StaffAttendance
     public string? Designation { get; set; }
 
     public string? Remarks { get; set; }
+
+    public string? InTime { get; set; }
+
+    public string? OutTime { get; set; }
 }

@@ -14,6 +14,9 @@ namespace SMS.Api.Data
         // =====================================================
 
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<School> Schools { get; set; } = null!;
+        public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<SystemNotification> SystemNotifications { get; set; } = null!;
 
         public DbSet<Role> Roles { get; set; } = null!;
 
@@ -147,6 +150,8 @@ namespace SMS.Api.Data
             ConfigureTimetableHeader(modelBuilder);
             ConfigureTimetableSlot(modelBuilder);
             ConfigureStudentBedAllocation(modelBuilder);
+
+            ConfigureStandardTableNames(modelBuilder);
         }
 
         private static void ConfigurePeriodSetting(ModelBuilder modelBuilder)
@@ -258,7 +263,7 @@ namespace SMS.Api.Data
                 .HasMany(user => user.Roles)
                 .WithMany(role => role.Users)
                 .UsingEntity<Dictionary<string, object>>(
-                    "UserRoles",
+                    "user_roles",
 
                     role => role
                         .HasOne<Role>()
@@ -372,12 +377,15 @@ namespace SMS.Api.Data
 
         private static void ConfigureClassCurriculumSubject(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<ClassCurriculumSubject>()
-                .HasKey(x => new
+            modelBuilder.Entity<ClassCurriculumSubject>(entity =>
+            {
+                entity.ToTable("class_curriculum_subjects");
+                entity.HasKey(x => new
                 {
                     x.ClassId,
                     x.SubjectId
                 });
+            });
         }
 
         // =====================================================
@@ -424,7 +432,7 @@ namespace SMS.Api.Data
         {
             modelBuilder.Entity<AdmissionApplication>(entity =>
             {
-                entity.ToTable("admissionapplications");
+                entity.ToTable("admission_applications");
                 entity.HasQueryFilter(x => !x.IsDeleted);
                 entity.HasOne(x => x.AppliedClass)
                     .WithMany(classGrade =>
@@ -745,7 +753,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<VehicleMaintenance>(entity =>
             {
                 entity.ToTable(
-                    "transport_vehicle_maintenance");
+                    "transport_vehicle_maintenances");
 
                 entity.HasKey(x => x.MaintenanceId);
 
@@ -931,6 +939,46 @@ namespace SMS.Api.Data
                 entity.HasIndex(x => x.ClassId)
                     .HasDatabaseName("ix_exam_classes_class_id");
             });
+        }
+
+        private static void ConfigureStandardTableNames(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Branch>().ToTable("branches");
+            modelBuilder.Entity<Staff>().ToTable("staff");
+            modelBuilder.Entity<StaffDocument>().ToTable("staff_documents");
+            modelBuilder.Entity<StaffAttendance>().ToTable("staff_attendances");
+            modelBuilder.Entity<LeaveTypeConfig>().ToTable("leave_type_configs");
+            modelBuilder.Entity<LeaveApplication>().ToTable("leave_applications");
+            modelBuilder.Entity<HolidayCalendar>().ToTable("holiday_calendars");
+            modelBuilder.Entity<ClassGrade>().ToTable("classes");
+            modelBuilder.Entity<Homework>().ToTable("homeworks");
+            modelBuilder.Entity<HomeworkSubmission>().ToTable("homework_submissions");
+            modelBuilder.Entity<Circular>().ToTable("circulars");
+            modelBuilder.Entity<Meeting>().ToTable("meetings");
+            modelBuilder.Entity<SchoolEvent>().ToTable("school_events");
+            modelBuilder.Entity<PayrollConfig>().ToTable("payroll_configs");
+            modelBuilder.Entity<SalaryComponent>().ToTable("salary_components");
+            modelBuilder.Entity<SalaryStructure>().ToTable("salary_structures");
+            modelBuilder.Entity<SalaryStructureItem>().ToTable("salary_structure_items");
+            modelBuilder.Entity<Payslip>().ToTable("payslips");
+            modelBuilder.Entity<ExamSchedule>().ToTable("exam_schedules");
+            modelBuilder.Entity<ExamInvigilatorAssignment>().ToTable("exam_invigilator_assignments");
+            modelBuilder.Entity<QuestionPaper>().ToTable("question_papers");
+            modelBuilder.Entity<ExamMark>().ToTable("exam_marks");
+            modelBuilder.Entity<GradeConfiguration>().ToTable("grade_configurations");
+            modelBuilder.Entity<ExamResult>().ToTable("exam_results");
+            modelBuilder.Entity<HostelWarden>().ToTable("hostel_wardens");
+            modelBuilder.Entity<HostelAttendance>().ToTable("hostel_attendances");
+            modelBuilder.Entity<School>().ToTable("schools");
+            modelBuilder.Entity<AuditLog>().ToTable("audit_logs");
+            modelBuilder.Entity<SystemNotification>().ToTable("system_notifications");
+            modelBuilder.Entity<Role>().ToTable("roles");
+            modelBuilder.Entity<User>().ToTable("users");
+            modelBuilder.Entity<OtpVerification>().ToTable("otp_verifications");
+            modelBuilder.Entity<HostelBlock>().ToTable("hostel_blocks");
+            modelBuilder.Entity<RoomTypeConfig>().ToTable("room_type_configs");
+            modelBuilder.Entity<RoomMaster>().ToTable("room_masters");
+            modelBuilder.Entity<Admission>().ToTable("students");
         }
     }
 }

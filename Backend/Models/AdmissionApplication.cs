@@ -2,7 +2,9 @@ namespace SMS.Api.Models;
 
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
+[Table("admission_applications")]
 public class AdmissionApplication
 {
     [Key]

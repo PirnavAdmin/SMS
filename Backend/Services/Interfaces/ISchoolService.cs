@@ -57,6 +57,8 @@ public interface ISchoolService
 
     // Attendance Operations
     Task<DailyAttendanceSummaryDto> GetDailyAttendanceSummaryAsync(string date, string? department);
+    Task<List<StaffAttendanceResponseDto>> GetDailyAttendanceAsync(string date, string? department);
+    Task<List<StaffAttendanceResponseDto>> GetMonthlyAttendanceAsync(int month, int year, string? department);
     Task<bool> SaveBulkAttendanceAsync(BulkAttendanceDto dto);
 
     // Leave Management Operations

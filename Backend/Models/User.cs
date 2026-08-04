@@ -14,6 +14,10 @@ public class User
     public bool IsEmailVerified { get; set; } = false;
     public bool IsMobileVerified { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
+    
+    public int? SchoolId { get; set; }
+    public School? School { get; set; }
+
     public ICollection<Role> Roles { get; set; } = new List<Role>();
     public ICollection<OtpVerification> OtpVerifications { get; set; } = new List<OtpVerification>();
 }
