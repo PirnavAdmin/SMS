@@ -44,6 +44,7 @@ import {
 } from '../services/mockData';
 import { fetchAdmissionsApi, createAdmissionApi, updateAdmissionApi, updateAdmissionStatusApi, deleteAdmissionApi } from '../api/admission';
 import * as TransportAPI from '../api/transport';
+import { apiClient } from '../api/client';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
 
@@ -364,6 +365,8 @@ interface DataContextType {
 
   attendance: DailyAttendance[];
   markAttendance: (records: DailyAttendance[]) => void;
+  fetchDailyAttendance?: (date: string, department?: string) => Promise<void>;
+  fetchMonthlyAttendance?: (month: number, year: number, department?: string) => Promise<void>;
 
   exams: ExamSetup[];
   examMarks: ExamMark[];
@@ -1381,10 +1384,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchStaff = async () => {
+    try {
+      const response = await apiClient('/api/staff', { method: 'GET' });
+      if (response && response.success && response.data) {
+        const mappedStaff: Staff[] = response.data.map((item: any) => {
+          const cat = (item.employeeCategory || '').toLowerCase();
+          const isTeaching = cat.includes('teaching') || cat.includes('teacher') || cat.includes('faculty') || cat.includes('professor');
+          return {
+            id: item.staffId.toString(),
+            empId: item.employeeId,
+            employeeCategory: isTeaching ? 'Teacher' : 'Staff',
+            firstName: item.firstName,
+            lastName: item.lastName,
+            email: item.email || '',
+            phone: item.phone || '',
+            gender: item.gender || 'Male',
+            dob: item.dateOfBirth ? item.dateOfBirth.split('T')[0] : '',
+            joiningDate: item.joiningDate ? item.joiningDate.split('T')[0] : '',
+            qualification: item.qualification || '',
+            experienceYears: 0,
+            salary: item.monthlySalary || 0,
+            designation: item.designation || '',
+            department: item.department || '',
+            role: item.systemRole || (isTeaching ? 'Teacher' : 'Staff'),
+            profileStatus: 'Completed',
+            status: item.isActive ? 'Active' : 'Inactive',
+            bankDetails: {
+              accountHolderName: item.accountHolderName || '',
+              accountNumber: item.accountNumber || '',
+              bankName: item.bankName || '',
+              branch: item.branchName || '',
+              ifscCode: item.ifscCode || '',
+              upiId: item.upiId || ''
+            }
+          };
+        });
+        setStaff(mappedStaff);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch staff from API', err);
+    }
+  };
+
   useEffect(() => {
     const allowedAdmissionsRoles = ['Super Admin', 'Admin', 'Principal', 'Receptionist'];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
+      fetchStaff();
     }
   }, [isAuthenticated, role]);
 
@@ -1480,17 +1527,92 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       branch: staffData.branch || selectedBranch || 'Main Campus',
       profileStatus: staffData.profileStatus || 'Incomplete'
     };
+
+    apiClient('/api/staff', {
+      method: 'POST',
+      body: JSON.stringify({
+        employeeId: staffData.empId,
+        employeeCategory: staffData.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
+        firstName: staffData.firstName,
+        lastName: staffData.lastName,
+        email: staffData.email,
+        phone: staffData.phone,
+        gender: staffData.gender || 'Male',
+        designation: staffData.designation,
+        department: staffData.department,
+        systemRole: staffData.role,
+        joiningDate: staffData.joiningDate,
+        qualification: staffData.qualification || '',
+        monthlySalary: staffData.salary || 0,
+        accountHolderName: staffData.bankDetails?.accountHolderName || '',
+        accountNumber: staffData.bankDetails?.accountNumber || '',
+        bankName: staffData.bankDetails?.bankName || '',
+        branchName: staffData.bankDetails?.branch || '',
+        ifscCode: staffData.bankDetails?.ifscCode || '',
+        upiId: staffData.bankDetails?.upiId || ''
+      })
+    }).then(response => {
+      if (response && response.success && response.data) {
+        setStaff(prev => prev.map(s => s.empId === newStaff.empId ? { ...s, id: response.data.staffId.toString() } : s));
+      }
+    }).catch(err => {
+      console.error('Failed to create staff in backend', err);
+    });
+
     setStaff(prev => [...prev, newStaff]);
     logActivity('Hired Staff Member', `Registered ${newStaff.firstName} ${newStaff.lastName}`);
     return newStaff;
   };
 
   const updateStaff = (id: string, updates: Partial<Staff>) => {
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      const existing = staff.find(s => s.id === id);
+      if (existing) {
+        const fullStaff = { ...existing, ...updates };
+        apiClient(`/api/staff/${numericId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            employeeId: fullStaff.empId,
+            employeeCategory: fullStaff.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
+            firstName: fullStaff.firstName,
+            lastName: fullStaff.lastName,
+            email: fullStaff.email,
+            phone: fullStaff.phone,
+            gender: fullStaff.gender || 'Male',
+            designation: fullStaff.designation,
+            department: fullStaff.department,
+            systemRole: fullStaff.role,
+            joiningDate: fullStaff.joiningDate,
+            qualification: fullStaff.qualification || '',
+            monthlySalary: fullStaff.salary || 0,
+            accountHolderName: fullStaff.bankDetails?.accountHolderName || '',
+            accountNumber: fullStaff.bankDetails?.accountNumber || '',
+            bankName: fullStaff.bankDetails?.bankName || '',
+            branchName: fullStaff.bankDetails?.branch || '',
+            ifscCode: fullStaff.bankDetails?.ifscCode || '',
+            upiId: fullStaff.bankDetails?.upiId || ''
+          })
+        }).catch(err => {
+          console.error('Failed to update staff in backend', err);
+        });
+      }
+    }
+
     setStaff(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
     logActivity('Updated Staff Record', `Updated details for staff ID ${id}`);
   };
 
   const deleteStaff = (id: string) => {
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId)) {
+      apiClient(`/api/staff/${numericId}`, {
+        method: 'DELETE'
+      }).catch(err => {
+        console.error('Failed to delete staff in backend', err);
+      });
+    }
+
     setStaff(prev => prev.filter(s => s.id !== id));
     logActivity('Terminated Staff Record', `Removed staff ID ${id}`);
   };
@@ -1505,6 +1627,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateBankDetails = (staffId: string, bankDetails: BankDetails) => {
+    const numericId = parseInt(staffId, 10);
+    if (!isNaN(numericId)) {
+      const existing = staff.find(s => s.id === staffId);
+      if (existing) {
+        const fullStaff = { ...existing, bankDetails };
+        apiClient(`/api/staff/${numericId}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            employeeId: fullStaff.empId,
+            employeeCategory: fullStaff.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
+            firstName: fullStaff.firstName,
+            lastName: fullStaff.lastName,
+            email: fullStaff.email,
+            phone: fullStaff.phone,
+            gender: fullStaff.gender || 'Male',
+            designation: fullStaff.designation,
+            department: fullStaff.department,
+            systemRole: fullStaff.role,
+            joiningDate: fullStaff.joiningDate,
+            qualification: fullStaff.qualification || '',
+            monthlySalary: fullStaff.salary || 0,
+            accountHolderName: bankDetails.accountHolderName || '',
+            accountNumber: bankDetails.accountNumber || '',
+            bankName: bankDetails.bankName || '',
+            branchName: bankDetails.branch || '',
+            ifscCode: bankDetails.ifscCode || '',
+            upiId: bankDetails.upiId || ''
+          })
+        }).catch(err => {
+          console.error('Failed to update bank details in backend', err);
+        });
+      }
+    }
+
     setStaff(prev => prev.map(s => s.id === staffId ? { ...s, bankDetails } : s));
   };
 
@@ -3827,13 +3983,98 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return updatedLedger;
   };
 
-  const markAttendance = (records: DailyAttendance[]) => {
+  const fetchDailyAttendance = async (date: string, department?: string) => {
+    try {
+      const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
+      const response = await apiClient(`/api/staff/attendance?date=${date}${deptParam}`, { method: 'GET' });
+      if (response && response.success && response.data) {
+        const mappedRecords: DailyAttendance[] = response.data.map((item: any) => ({
+          id: item.staffAttendanceId.toString(),
+          date: item.date,
+          entityType: 'Staff',
+          entityId: item.staffId.toString(),
+          status: item.status,
+          remarks: item.remarks || '',
+          inTime: item.inTime || '',
+          outTime: item.outTime || '',
+          department: item.department || '',
+          designation: item.designation || ''
+        }));
+
+        setAttendance(prev => {
+          const filterDates = mappedRecords.map(r => `${r.entityId}_${r.date}`);
+          const filtered = prev.filter(r => !filterDates.includes(`${r.entityId}_${r.date}`));
+          return [...filtered, ...mappedRecords];
+        });
+      }
+    } catch (err: any) {
+      console.error('Error fetching staff attendance:', err);
+    }
+  };
+
+  const fetchMonthlyAttendance = async (month: number, year: number, department?: string) => {
+    try {
+      const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
+      const response = await apiClient(`/api/staff/attendance/monthly?month=${month}&year=${year}${deptParam}`, { method: 'GET' });
+      if (response && response.success && response.data) {
+        const mappedRecords: DailyAttendance[] = response.data.map((item: any) => ({
+          id: item.staffAttendanceId.toString(),
+          date: item.date,
+          entityType: 'Staff',
+          entityId: item.staffId.toString(),
+          status: item.status,
+          remarks: item.remarks || '',
+          inTime: item.inTime || '',
+          outTime: item.outTime || '',
+          department: item.department || '',
+          designation: item.designation || ''
+        }));
+
+        setAttendance(prev => {
+          const filterDates = mappedRecords.map(r => `${r.entityId}_${r.date}`);
+          const filtered = prev.filter(r => !filterDates.includes(`${r.entityId}_${r.date}`));
+          return [...filtered, ...mappedRecords];
+        });
+      }
+    } catch (err: any) {
+      console.error('Error fetching monthly staff attendance:', err);
+    }
+  };
+
+  const markAttendance = async (records: DailyAttendance[]) => {
     setAttendance(prev => {
       const filterDates = records.map(r => `${r.entityId}_${r.date}`);
       const updated = prev.filter(r => !filterDates.includes(`${r.entityId}_${r.date}`));
       return [...records, ...updated];
     });
     logActivity('Marked Attendance', `Recorded attendance for ${records.length} items`);
+
+    try {
+      const date = records[0]?.date;
+      if (!date) return;
+
+      const payload = {
+        date: date,
+        academicYear: selectedAcademicYear || '2026-2027',
+        branch: selectedBranch || 'Main Campus',
+        department: records[0]?.department || '',
+        records: records.map(r => ({
+          staffId: parseInt(r.entityId),
+          status: r.status,
+          remarks: r.remarks || '',
+          inTime: r.inTime || '',
+          outTime: r.outTime || ''
+        }))
+      };
+
+      await apiClient('/api/staff/attendance/bulk', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    } catch (err: any) {
+      console.error('Error saving staff attendance to server:', err);
+      addToast('error', 'API Error', 'Failed to save staff attendance to database.');
+    }
   };
 
   const addExam = (examData: Omit<ExamSetup, 'id'>) => {
@@ -4951,7 +5192,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         vehicleAssignments: filteredVehicleAssignments, assignVehicleRouteDriver, updateVehicleAssignment, removeVehicleAssignment,
         vehicleMaintenances: filteredVehicleMaintenances, addVehicleMaintenance, updateVehicleMaintenance, deleteVehicleMaintenance,
         checkVehicleCapacity,
-        attendance: filteredAttendance, markAttendance,
+        attendance: filteredAttendance, markAttendance, fetchDailyAttendance, fetchMonthlyAttendance,
         exams: filteredExams, examMarks, addExam, updateExam, deleteExam, saveMarks,
         examSchedules, addExamSchedule, updateExamSchedule, deleteExamSchedule,
         questionPapers, addQuestionPaper, updateQuestionPaper, deleteQuestionPaper,
