@@ -492,6 +492,22 @@ namespace SMS.Api.Data
                 await context.ExamResults.AddAsync(result);
                 await context.SaveChangesAsync();
             }
+
+            // 10. Seed Student Attendance Register Data (Matching Screenshots)
+            if (!await context.StudentAttendances.AnyAsync())
+            {
+                var seedAttendances = new List<StudentAttendance>
+                {
+                    new StudentAttendance { StudentId = 1, StudentName = "Alexander Wright", ClassName = "Class 10", SectionName = "A", Date = new DateTime(2026, 08, 04), Status = "Present", Remarks = "On time" },
+                    new StudentAttendance { StudentId = 1, StudentName = "Alexander Wright", ClassName = "Class 10", SectionName = "A", Date = new DateTime(2026, 08, 03), Status = "Present", Remarks = "On time" },
+                    new StudentAttendance { StudentId = 1, StudentName = "Alexander Wright", ClassName = "Class 10", SectionName = "A", Date = new DateTime(2026, 07, 31), Status = "Present", Remarks = "On time" },
+                    new StudentAttendance { StudentId = 1, StudentName = "Alexander Wright", ClassName = "Class 10", SectionName = "A", Date = new DateTime(2026, 07, 30), Status = "Present", Remarks = "On time" },
+                    new StudentAttendance { StudentId = 1, StudentName = "Alexander Wright", ClassName = "Class 10", SectionName = "A", Date = new DateTime(2026, 07, 29), Status = "Present", Remarks = "On time" },
+                };
+
+                await context.StudentAttendances.AddRangeAsync(seedAttendances);
+                await context.SaveChangesAsync();
+            }
         }
     }
 }

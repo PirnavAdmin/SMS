@@ -25,7 +25,7 @@ var connectionString =
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
         connectionString,
-        ServerVersion.AutoDetect(connectionString)));
+        new MySqlServerVersion(new Version(8, 0, 36))));
 
 // =========================================================
 // 2. DEPENDENCY INJECTION
@@ -37,6 +37,13 @@ builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
+builder.Services.AddScoped<IStudentAttendanceRepository, StudentAttendanceRepository>();
+builder.Services.AddScoped<IStudentAttendanceService, StudentAttendanceService>();
+builder.Services.AddScoped<IReportCardService, ReportCardService>();
+builder.Services.AddScoped<IFeeService, FeeService>();
+builder.Services.AddScoped<ILibraryService, LibraryService>();
+builder.Services.AddScoped<IStudentHostelService, StudentHostelService>();
+builder.Services.AddScoped<IStudentTransportService, StudentTransportService>();
 
 // Transport Route
 builder.Services.AddScoped<
@@ -240,6 +247,17 @@ builder.Services.AddSwaggerGen(options =>
         apiDescriptions => apiDescriptions.First());
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
 // =========================================================
@@ -248,11 +266,11 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
+app.UseCors("AllowAll");
+
 // Enable Swagger UI unconditionally
 app.UseSwagger();
 app.UseSwaggerUI();
-
-app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

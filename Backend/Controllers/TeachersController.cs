@@ -1,11 +1,13 @@
 namespace SMS.Api.Controllers;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Services.Interfaces;
 using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/teachers")]
+[Authorize(Roles = "Admin,Teacher,Student,Parent")]
 [Tags("Faculty & Staff Management")]
 public class TeachersController : ControllerBase
 {
@@ -17,7 +19,7 @@ public class TeachersController : ControllerBase
     }
 
     /// <summary>
-    /// Get all teaching staff / teachers for display in options.
+    /// Get all teaching staff / teachers for display in options (Accessible by Student, Parent, Teacher, Admin).
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAllTeachers([FromQuery] string? search, [FromQuery] string? subject)

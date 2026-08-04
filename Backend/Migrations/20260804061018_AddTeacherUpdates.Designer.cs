@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SMS.Api.Data;
 
@@ -11,9 +12,11 @@ using SMS.Api.Data;
 namespace Backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260804061018_AddTeacherUpdates")]
+    partial class AddTeacherUpdates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1149,97 +1152,6 @@ namespace Backend.Migrations
                     b.ToTable("leave_type_configs", (string)null);
                 });
 
-            modelBuilder.Entity("SMS.Api.Models.LibraryBook", b =>
-                {
-                    b.Property<int>("BookId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("BookId"));
-
-                    b.Property<string>("Author")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("AvailableCopies")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("RackLocation")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("TotalCopies")
-                        .HasColumnType("int");
-
-                    b.HasKey("BookId");
-
-                    b.ToTable("LibraryBooks");
-                });
-
-            modelBuilder.Entity("SMS.Api.Models.LibraryIssueRecord", b =>
-                {
-                    b.Property<int>("IssueId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("IssueId"));
-
-                    b.Property<int>("BookId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("BookTitle")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("BorrowerName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("BorrowerRole")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("DueDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<decimal>("FineAmount")
-                        .HasColumnType("decimal(65,30)");
-
-                    b.Property<DateTime>("IssueDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("ReturnDate")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int?>("StaffId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int?>("StudentId")
-                        .HasColumnType("int");
-
-                    b.HasKey("IssueId");
-
-                    b.ToTable("LibraryIssueRecords");
-                });
-
             modelBuilder.Entity("SMS.Api.Models.Meeting", b =>
                 {
                     b.Property<int>("MeetingId")
@@ -2149,44 +2061,6 @@ namespace Backend.Migrations
                     b.HasIndex("StaffId");
 
                     b.ToTable("staff_documents", (string)null);
-                });
-
-            modelBuilder.Entity("SMS.Api.Models.StudentAttendance", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ClassName")
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Remarks")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("SectionName")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("StudentId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("StudentName")
-                        .HasColumnType("longtext");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("StudentAttendances");
                 });
 
             modelBuilder.Entity("SMS.Api.Models.StudentBedAllocation", b =>

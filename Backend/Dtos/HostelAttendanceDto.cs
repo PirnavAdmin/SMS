@@ -29,10 +29,10 @@ public class SaveHostelAttendanceRollCallDto
     public int? RoomId { get; set; }
 
     [Required]
-    public List<StudentAttendanceRecordDto> Records { get; set; } = new();
+    public List<HostelStudentAttendanceRecordDto> Records { get; set; } = new();
 }
 
-public class StudentAttendanceRecordDto
+public class HostelStudentAttendanceRecordDto
 {
     [Required]
     public int AllocationId { get; set; }

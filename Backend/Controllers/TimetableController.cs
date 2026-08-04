@@ -1,12 +1,15 @@
 namespace SMS.Api.Controllers;
 
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
+[Tags("Timetable & Class Schedule")]
 public class TimetableController : ControllerBase
 {
     private readonly ITimetableService _timetableService;
@@ -16,102 +19,94 @@ public class TimetableController : ControllerBase
         _timetableService = timetableService;
     }
 
-    // =========================================================
-    // 1. CLASS TIMETABLE MATRIX GRID & SLOTS
-    // =========================================================
+    /// <summary>
+    /// Get dropdown options for Academic Years and Days of the Week
+    /// </summary>
+    [HttpGet("options")]
+    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    public IActionResult GetTimetableDropdownOptions()
+    {
+        var academicYears = new[] { "2026-27", "2027-28", "2025-26" };
+        var days = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                academicYears,
+                days
+            }
+        });
+    }
+
+    /// <summary>
+    /// Get Student Class Schedule Timetable (supports Academic Year & Day Filter: Monday, Tuesday, etc.)
+    /// </summary>
+    [HttpGet("student")]
+    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    public async Task<IActionResult> GetStudentTimetable(
+        [FromQuery] int classId = 0,
+        [FromQuery] int sectionId = 0,
+        [FromQuery] string academicYear = "2026-2027",
+        [FromQuery] string? dayOfWeek = null)
+    {
+        var result = await _timetableService.GetStudentTimetableAsync(classId, sectionId, academicYear);
+
+        if (!string.IsNullOrWhiteSpace(dayOfWeek) && !dayOfWeek.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+        {
+            var filteredDays = result.Days
+                .Where(d => d.DayOfWeek.Equals(dayOfWeek, System.StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    result.ClassId,
+                    result.ClassName,
+                    result.SectionId,
+                    result.SectionName,
+                    result.AcademicYear,
+                    dayFilter = dayOfWeek,
+                    days = filteredDays
+                }
+            });
+        }
+
+        return Ok(new { success = true, data = result });
+    }
 
     [HttpGet("class-grid")]
-    public async Task<IActionResult> GetClassTimetableGrid([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string academicYear = "2026-2027")
+    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    public async Task<IActionResult> GetClassTimetableGrid([FromQuery] int classId = 0, [FromQuery] int sectionId = 0, [FromQuery] string academicYear = "2026-2027")
     {
         var result = await _timetableService.GetClassTimetableGridAsync(classId, sectionId, academicYear);
-        return Ok(result);
+        return Ok(new { success = true, data = result });
     }
-
-    [HttpPost("slots")]
-    public async Task<IActionResult> SaveTimetableSlot([FromBody] SaveTimetableSlotDto dto)
-    {
-        var slot = await _timetableService.SaveTimetableSlotAsync(dto);
-        return Ok(slot);
-    }
-
-    [HttpDelete("slots/{slotId}")]
-    public async Task<IActionResult> DeleteTimetableSlot(int slotId)
-    {
-        var success = await _timetableService.DeleteTimetableSlotAsync(slotId);
-        if (!success) return NotFound(new { message = $"Slot ID {slotId} not found." });
-        return Ok(new { message = "Period slot deleted successfully." });
-    }
-
-    [HttpPut("publish")]
-    public async Task<IActionResult> PublishTimetable([FromBody] PublishTimetableDto dto)
-    {
-        var result = await _timetableService.PublishTimetableAsync(dto);
-        return Ok(result);
-    }
-
-    // =========================================================
-    // 2. PERIOD SETTINGS MASTER
-    // =========================================================
 
     [HttpGet("periods")]
+    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetPeriodSettings()
     {
         var periods = await _timetableService.GetPeriodSettingsAsync();
-        return Ok(periods);
+        return Ok(new { success = true, data = periods });
     }
-
-    [HttpPost("periods")]
-    public async Task<IActionResult> SavePeriodSetting([FromBody] SavePeriodSettingDto dto)
-    {
-        var result = await _timetableService.SavePeriodSettingAsync(dto);
-        return Ok(result);
-    }
-
-    [HttpDelete("periods/{periodId}")]
-    public async Task<IActionResult> DeletePeriodSetting(int periodId)
-    {
-        var success = await _timetableService.DeletePeriodSettingAsync(periodId);
-        if (!success) return NotFound(new { message = $"Period setting ID {periodId} not found." });
-        return Ok(new { message = "Period setting deleted successfully." });
-    }
-
-    // =========================================================
-    // 3. AUTO-GENERATED TEACHER & STUDENT TIMETABLES
-    // =========================================================
 
     [HttpGet("teacher/{teacherId}")]
+    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetTeacherTimetable(int teacherId, [FromQuery] string academicYear = "2026-2027")
     {
         var result = await _timetableService.GetTeacherTimetableAsync(teacherId, academicYear);
-        return Ok(result);
+        return Ok(new { success = true, data = result });
     }
-
-    [HttpGet("student")]
-    public async Task<IActionResult> GetStudentTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string academicYear = "2026-2027")
-    {
-        var result = await _timetableService.GetStudentTimetableAsync(classId, sectionId, academicYear);
-        return Ok(result);
-    }
-
-    // =========================================================
-    // 4. COPY CLASS TIMETABLE UTILITY
-    // =========================================================
-
-    [HttpPost("copy")]
-    public async Task<IActionResult> CopyTimetable([FromBody] CopyTimetableDto dto)
-    {
-        var result = await _timetableService.CopyTimetableAsync(dto);
-        return Ok(result);
-    }
-
-    // =========================================================
-    // 5. HELPER ENDPOINTS
-    // =========================================================
 
     [HttpGet("subjects-for-class")]
+    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetSubjectsForClass([FromQuery] int classId, [FromQuery] int sectionId)
     {
         var candidates = await _timetableService.GetClassSubjectsCandidatesAsync(classId, sectionId);
-        return Ok(candidates);
+        return Ok(new { success = true, data = candidates });
     }
 }
