@@ -2020,13 +2020,13 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Class Filter</label>
                       <select
                         value={auditClassFilter}
                         onChange={e => setAuditClassFilter(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px]"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px] h-[34px]"
                       >
                         <option value="All">All Classes (All)</option>
                         {classOptions.map(cls => (
@@ -2040,7 +2040,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                       <select
                         value={auditSectionFilter}
                         onChange={e => setAuditSectionFilter(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px]"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px] h-[34px]"
                       >
                         <option value="All">All Sections (All)</option>
                         {['A', 'B', 'C', 'D'].map(sec => (
@@ -2056,7 +2056,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                           setAuditClassFilter('All');
                           setAuditSectionFilter('All');
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 mt-4 sm:mt-0"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 h-[34px] flex items-center justify-center transition"
                       >
                         Reset Filters
                       </button>
