@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ConfirmModal } from '../../common/ConfirmModal';
 import {
   AlertTriangle,
   BadgeIndianRupee,
@@ -679,6 +680,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     }
   };
 
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PayrollTabId>('staff-payroll-employees');
   const [employeeSearch, setEmployeeSearch] = useState('');
   const [employeeCategoryFilter, setEmployeeCategoryFilter] = useState<'All' | CategoryValue>('All');
@@ -1051,7 +1053,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     return payload as Payslip;
   };
 
-  const handleBulkGenerate = () => {
+  const handleBulkGenerate = () => setIsGenerateModalOpen(true);
+  
+  const confirmBulkGenerate = () => {
+    setIsGenerateModalOpen(false);
     const created = generationRows.filter(row => !row.existing).map(createPayslipForRow).length;
     addToast('success', 'Payslips generated', created > 0 ? `${created} payslip${created === 1 ? '' : 's'} generated for ${payrollMonthLabel}.` : 'Nothing new to generate for this payroll period.');
   };
@@ -2263,6 +2268,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         </ModalShell>
       )}
+
+      <ConfirmModal
+        isOpen={isGenerateModalOpen}
+        title="Generate Payslips"
+        message="Are you sure you want to generate these payslips? This action will process payroll for the selected employees."
+        confirmLabel="Generate"
+        variant="info"
+        onConfirm={confirmBulkGenerate}
+        onCancel={() => setIsGenerateModalOpen(false)}
+      />
 
       <PayrollDrawer
         staff={currentPreviewStaff}

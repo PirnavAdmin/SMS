@@ -764,11 +764,17 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-4 min-w-0">
               <div className="relative shrink-0">
-                <img
-                  src={staff.avatar}
-                  alt=""
-                  className="w-16 h-16 rounded-3xl object-cover ring-4 ring-white dark:ring-slate-900 shadow-lg"
-                />
+                {staff.avatar ? (
+                  <img
+                    src={staff.avatar}
+                    alt=""
+                    className="w-16 h-16 rounded-3xl object-cover ring-4 ring-white dark:ring-slate-900 shadow-lg"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 ring-4 ring-white dark:ring-slate-900 shadow-lg flex items-center justify-center">
+                    <UserRound className="w-7 h-7 text-slate-400" />
+                  </div>
+                )}
                 <div className="absolute -bottom-2 -right-2">
                   <Badge variant={staff.status === 'Active' ? 'success' : staff.status === 'On Leave' ? 'warning' : 'neutral'} size="sm">
                     {staff.status}

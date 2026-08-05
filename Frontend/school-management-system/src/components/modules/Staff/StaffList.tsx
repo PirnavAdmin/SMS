@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Users, Search, Plus, Edit, Trash2, Eye,
-  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield, ChevronDown, Upload
+  ChevronLeft, ChevronRight, GraduationCap, Briefcase, Shield, ChevronDown, Upload, User
 } from 'lucide-react';
 import { Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -462,7 +462,13 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                           className="shrink-0"
                           title="Open staff profile"
                         >
-                          <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
+                          {st.avatar ? (
+                            <img src={st.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-800" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center">
+                              <User className="w-4 h-4 text-slate-400" />
+                            </div>
+                          )}
                         </button>
                       </td>
                       <td className="py-3 px-4 font-mono font-bold text-brand-600 dark:text-brand-400">{st.empId}</td>

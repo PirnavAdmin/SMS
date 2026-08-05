@@ -1475,22 +1475,26 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       />
 
       {/* Top Header Bar */}
-      <section className="rounded-[1.75rem] border border-slate-200/80 bg-white dark:bg-slate-900 px-5 py-4 text-slate-900 dark:text-white shadow-sm dark:border-slate-800">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.25em] text-sky-600 dark:text-sky-400">
-              <Sparkles className="h-4 w-4" />
+      <section className="rounded-2xl border border-slate-200/80 bg-white dark:bg-slate-900 px-5 py-3 text-slate-900 dark:text-white shadow-sm dark:border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-sky-600 dark:text-sky-400">
+              <Sparkles className="h-3.5 w-3.5" />
               Examination
             </div>
-            <h1 className="text-xl font-black tracking-tight sm:text-2xl text-slate-900 dark:text-white">
+            <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
               {MAIN_TABS.find(tab => tab.id === activeTab)?.label || 'Examinations'}
             </h1>
           </div>
 
-          <div className="flex items-end gap-2">
-            <div className="min-w-[240px]">
-              <label className="mb-1 block text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Selected Exam</label>
-              <select value={selectedExamId} onChange={e => setSelectedExamId(e.target.value)} className={selectClass}>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 hidden sm:inline-block">Selected Exam:</span>
+              <select
+                value={selectedExamId}
+                onChange={e => setSelectedExamId(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[200px] h-[36px] transition focus:border-sky-500"
+              >
                 <option value="">-- Select Examination --</option>
                 {examOptions.map(exam => (
                   <option key={exam.id} value={exam.id}>
@@ -1503,7 +1507,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             <button
               type="button"
               onClick={handleCreateNewExam}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white px-3.5 py-2 text-xs font-black transition shadow-sm shrink-0 h-[38px]"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white px-3.5 py-1.5 text-xs font-black transition shadow-sm shrink-0 h-[36px] whitespace-nowrap"
               title="Create New Examination Setup"
             >
               <Plus className="w-4 h-4" />
@@ -2016,13 +2020,13 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Class Filter</label>
                       <select
                         value={auditClassFilter}
                         onChange={e => setAuditClassFilter(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px]"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px] h-[34px]"
                       >
                         <option value="All">All Classes (All)</option>
                         {classOptions.map(cls => (
@@ -2036,7 +2040,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                       <select
                         value={auditSectionFilter}
                         onChange={e => setAuditSectionFilter(e.target.value)}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px]"
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none shadow-sm min-w-[160px] h-[34px]"
                       >
                         <option value="All">All Sections (All)</option>
                         {['A', 'B', 'C', 'D'].map(sec => (
@@ -2052,7 +2056,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                           setAuditClassFilter('All');
                           setAuditSectionFilter('All');
                         }}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 mt-4 sm:mt-0"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 h-[34px] flex items-center justify-center transition"
                       >
                         Reset Filters
                       </button>

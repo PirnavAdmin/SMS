@@ -888,6 +888,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const sampleEmployees = useMemo(() => staff.slice(0, 5), [staff]);
 
+  const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PayrollTabId>(normalizePayrollTab(initialTab));
   const [structureRows, setStructureRows] = useState<SalaryStructure[]>(baseStructures);
   const [selectedStructureId, setSelectedStructureId] = useState<string>(baseStructures[1]?.id || baseStructures[0].id);
@@ -1245,7 +1246,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     addToast('success', 'Payroll batch generated', `Payroll for ${payrollMonth} advanced to the next workflow step.`);
   };
 
-  const handleGeneratePayslips = () => {
+  const handleGeneratePayslips = () => setIsGenerateModalOpen(true);
+    
+  const confirmGeneratePayslips = () => {
+    setIsGenerateModalOpen(false);
     setPayslipRows(prev => prev.map(row => payslipSelection.length === 0 || payslipSelection.includes(row.id) ? { ...row, status: 'Generated', disbursedDate: today(), paymentDate: today() } : row));
     addToast('success', 'Payslips generated', payslipSelection.length > 0 ? `${payslipSelection.length} payslips regenerated.` : 'All payslips regenerated.');
   };
@@ -2506,6 +2510,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={isGenerateModalOpen}
+        title="Generate Payslips"
+        message="Are you sure you want to generate payslips for the selected employees?"
+        confirmLabel="Generate"
+        variant="info"
+        onConfirm={confirmGeneratePayslips}
+        onCancel={() => setIsGenerateModalOpen(false)}
+      />
     </div>
   );
 };
