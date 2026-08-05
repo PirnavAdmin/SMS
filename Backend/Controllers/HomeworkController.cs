@@ -199,7 +199,7 @@ public class HomeworkController : ControllerBase
 
         if (!result.Any())
         {
-            result = new List<HomeworkResponseDto>
+            var fallback = new List<HomeworkResponseDto>
             {
                 new HomeworkResponseDto
                 {
@@ -228,6 +228,23 @@ public class HomeworkController : ControllerBase
                     CreatedAt = "2026-08-02"
                 }
             };
+
+            if (!string.IsNullOrWhiteSpace(subjectName) && !subjectName.Equals("All Subjects", StringComparison.OrdinalIgnoreCase))
+            {
+                fallback = fallback.Where(h => h.SubjectName.Contains(subjectName, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(className) && !className.Equals("All Classes", StringComparison.OrdinalIgnoreCase))
+            {
+                fallback = fallback.Where(h => h.ClassName.Contains(className, StringComparison.OrdinalIgnoreCase)).ToList();
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                fallback = fallback.Where(h => h.Title.Contains(search, StringComparison.OrdinalIgnoreCase) || (h.Description != null && h.Description.Contains(search, StringComparison.OrdinalIgnoreCase))).ToList();
+            }
+
+            result = fallback;
         }
 
         return Ok(new { success = true, data = result });

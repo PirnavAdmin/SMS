@@ -34,19 +34,31 @@ public class FeeService : IFeeService
         {
             new FeeBreakdownItemDto
             {
+                FeeId = "fee-tuition-term2",
+                Title = "Term 2 Tuition Fee",
+                DueDate = "2026-07-28",
+                Amount = 45000,
+                IsDue = true,
+                Selected = false
+            },
+            new FeeBreakdownItemDto
+            {
                 FeeId = "fee-trans-q3",
                 Title = "Transport Fee (Q3)",
                 DueDate = "2026-10-15",
                 Amount = 12000,
+                IsDue = false,
                 Selected = false
             }
         };
 
         decimal totalAmount = breakdown.Sum(b => b.Amount);
+        decimal dueAmount = breakdown.Where(b => b.IsDue).Sum(b => b.Amount);
 
         var result = new StudentFeeDetailsResponseDto
         {
             TotalAmount = totalAmount,
+            DueAmount = dueAmount,
             Currency = "₹",
             FeeBreakdown = breakdown
         };
@@ -97,7 +109,6 @@ public class FeeService : IFeeService
 
     public Task<bool> ProcessFeePaymentAsync(ProcessFeePaymentDto dto)
     {
-        // Mock fee payment logic
         return Task.FromResult(true);
     }
 }

@@ -44,6 +44,8 @@ builder.Services.AddScoped<IFeeService, FeeService>();
 builder.Services.AddScoped<ILibraryService, LibraryService>();
 builder.Services.AddScoped<IStudentHostelService, StudentHostelService>();
 builder.Services.AddScoped<IStudentTransportService, StudentTransportService>();
+builder.Services.AddScoped<ICommunicationService, CommunicationService>();
+builder.Services.AddScoped<IEventsService, EventsService>();
 
 // Transport Route
 builder.Services.AddScoped<

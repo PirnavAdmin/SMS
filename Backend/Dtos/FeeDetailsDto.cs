@@ -15,13 +15,16 @@ public class FeeBreakdownItemDto
     public string DueDate { get; set; } = string.Empty;
     public decimal Amount { get; set; }
     public string FormattedAmount => $"₹{Amount:N0}";
+    public bool IsDue { get; set; } = false;
     public bool Selected { get; set; } = false;
 }
 
 public class StudentFeeDetailsResponseDto
 {
-    public decimal TotalAmount { get; set; }
+    public decimal TotalAmount { get; set; } = 57000;
     public string FormattedTotalAmount => $"₹{TotalAmount:N0}";
+    public decimal DueAmount { get; set; } = 45000;
+    public string FormattedDueAmount => $"₹{DueAmount:N0}";
     public string Currency { get; set; } = "₹";
     public List<FeeBreakdownItemDto> FeeBreakdown { get; set; } = new List<FeeBreakdownItemDto>();
 }
