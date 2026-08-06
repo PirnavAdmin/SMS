@@ -106,7 +106,7 @@ export const FinanceDashboardView: React.FC = () => {
         {/* Class Wise Breakdown */}
         <div className="glass-card p-6 rounded-3xl space-y-4">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-            <BarChart2 className="w-5 h-5 text-sky-500" /> Class-wise Revenue Breakdown
+            <BarChart2 className="w-5 h-5 text-sky-500" /> Class-wise Revenue
           </h3>
           <div className="space-y-3">
             {academicClasses.map(c => {
@@ -133,7 +133,7 @@ export const FinanceDashboardView: React.FC = () => {
         {/* Fee Head Wise Breakdown */}
         <div className="glass-card p-6 rounded-3xl space-y-4">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-sky-500" /> Fee Head Master Share
+            <PieChart className="w-5 h-5 text-sky-500" /> Fee Collection by Category
           </h3>
           <div className="space-y-3">
             {feeHeads.slice(0, 5).map(h => (

@@ -897,7 +897,7 @@ export const initialStudentDiscounts: StudentDiscount[] = [];
 export const initialFineRules: FineRule[] = [
   {
     id: 'FR-01',
-    ruleName: 'Standard Monthly Late Fine Rule',
+    ruleName: 'Standard Monthly Late Fine',
     dueDate: '2026-08-15',
     graceDays: 5,
     fineType: 'Daily Fine',

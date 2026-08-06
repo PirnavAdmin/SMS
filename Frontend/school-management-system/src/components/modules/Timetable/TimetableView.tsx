@@ -1072,7 +1072,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               onClick={() => setIsPeriodModalOpen(true)}
               className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
             >
-              <Plus className="w-4 h-4" /> Add New Period Setting
+              <Plus className="w-4 h-4" /> Add New Period
             </button>
           </div>
 
@@ -1208,7 +1208,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100">
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Add New Period Setting</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Add New Period</h3>
               <button onClick={() => setIsPeriodModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
                 <X className="w-5 h-5" />
               </button>

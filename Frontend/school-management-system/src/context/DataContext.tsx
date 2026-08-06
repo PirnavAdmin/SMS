@@ -3116,7 +3116,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const id = 'FTC-' + Math.floor(100 + Math.random() * 900);
     const newConfig: FinanceTransportConfig = { ...c, id, branch: (c as any).branch || selectedBranch || 'Main Campus' } as any;
     setFinanceTransportConfigs(prev => [...prev, newConfig]);
-    logActivity('Created Transport Pricing Config', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
+    logActivity('Created Transport Fee Structure', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
   };
 
   const updateFinanceTransportConfig = (id: string, updates: Partial<FinanceTransportConfig>) => {

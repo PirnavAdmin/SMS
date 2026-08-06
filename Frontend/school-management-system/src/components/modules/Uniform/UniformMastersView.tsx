@@ -10,7 +10,7 @@ export const UniformMastersView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory'>('items');
 
   const subTabs = [
-    { id: 'items', label: 'Uniform Items', icon: Shirt },
+    { id: 'items', label: 'Uniform Type', icon: Shirt },
     { id: 'categories', label: 'Categories', icon: Layers },
     { id: 'sizes', label: 'Sizes', icon: Ruler },
     { id: 'suppliers', label: 'Suppliers', icon: Users },

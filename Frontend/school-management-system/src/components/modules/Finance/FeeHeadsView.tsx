@@ -78,7 +78,7 @@ export const FeeHeadsView: React.FC = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.code) {
-      addToast('warning', 'Validation Error', 'Fee head name and code are required.');
+      addToast('warning', 'Validation Error', 'Fee type name and code are required.');
       return;
     }
 
@@ -107,7 +107,7 @@ export const FeeHeadsView: React.FC = () => {
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Add Fee Head
+            <Plus className="w-4 h-4" /> Add Fee Category
           </button>
           <ExportButton data={filteredHeads} filename="fee_heads" />
         </div>
@@ -162,7 +162,7 @@ export const FeeHeadsView: React.FC = () => {
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <th className="py-3.5 px-4">Order</th>
-                <th className="py-3.5 px-4">Fee Head Name</th>
+                <th className="py-3.5 px-4">Fee Type</th>
                 <th className="py-3.5 px-4">Code</th>
                 <th className="py-3.5 px-4">Category</th>
                 <th className="py-3.5 px-4">Frequency</th>
@@ -225,7 +225,7 @@ export const FeeHeadsView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingHead ? 'Edit Fee Head' : 'Add Fee Head Master'}
+                {editingHead ? 'Edit Fee Type' : 'Add Fee Type'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
@@ -233,7 +233,7 @@ export const FeeHeadsView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Fee Head Name *</label>
+                  <label className="block font-semibold mb-1">Fee Type Name *</label>
                   <input
                     type="text"
                     required
@@ -301,7 +301,7 @@ export const FeeHeadsView: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
-                <span className="font-semibold text-slate-700 dark:text-slate-300">Mandatory Fee Head</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">Mandatory Fee Type</span>
                 <input
                   type="checkbox"
                   checked={formData.mandatory}
@@ -312,7 +312,7 @@ export const FeeHeadsView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save Fee Head</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save</button>
               </div>
             </form>
           </div>
@@ -321,7 +321,7 @@ export const FeeHeadsView: React.FC = () => {
 
       <ConfirmModal
         isOpen={!!deletingHead}
-        title="Delete Fee Head"
+        title="Delete Fee Type"
         message={`Are you sure you want to delete ${deletingHead?.name}?`}
         onConfirm={() => {
           if (deletingHead) {
