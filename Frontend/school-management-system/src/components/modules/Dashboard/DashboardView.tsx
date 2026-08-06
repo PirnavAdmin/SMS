@@ -229,7 +229,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   <Badge variant="info">Total: {attendanceStats.total}</Badge>
                 </div>
               </div>
-            <div className="flex-1 flex flex-col items-center justify-center py-4">
+            <div className="flex-1 flex flex-col items-center justify-start pt-2 pb-1">
               <div 
                 className="w-40 h-40 rounded-full shrink-0 relative flex items-center justify-center"
                 style={{
@@ -241,7 +241,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Present</span>
                 </div>
               </div>
-              <div className="flex items-center gap-6 mt-6">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-green-400" />
                   <span className="text-xs font-semibold">Present ({attendanceStats.present})</span>
@@ -249,6 +249,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-red-400" />
                   <span className="text-xs font-semibold">Absent ({attendanceStats.absent})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                  <span className="text-xs font-semibold">Late ({attendanceStats.late})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-400" />
+                  <span className="text-xs font-semibold">Half Day ({attendanceStats.halfDay})</span>
                 </div>
               </div>
             </div>
@@ -276,7 +284,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   </button>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col items-center justify-center py-4">
+              <div className="flex-1 flex flex-col items-center justify-start pt-2 pb-1">
                 <div 
                   className="w-40 h-40 rounded-full shrink-0 relative flex items-center justify-center"
                   style={{
@@ -288,7 +296,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Present</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3 mt-6">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-green-400" />
                     <span className="text-xs font-semibold">Present ({staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.present : nonTeachingAttendanceStats.present})</span>
@@ -336,9 +344,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
 
         {/* Bottom Row: Pending Approvals & Birthdays */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
           {/* Pending Approvals */}
-          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4">
+          <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-amber-500" />
               <div>
@@ -364,10 +372,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Teacher Birthdays */}
-          <div className="bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4 transition-colors">
+          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4 transition-colors">
             <div className="flex items-center gap-2">
               <Cake className="w-5 h-5 text-rose-500" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Upcoming Teacher Birthdays</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Upcoming Teacher Birthday's</h3>
             </div>
             <div className="space-y-3">
               {upcomingBirthdays.length === 0 ? (
