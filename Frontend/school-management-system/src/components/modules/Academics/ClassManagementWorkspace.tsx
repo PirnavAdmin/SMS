@@ -579,56 +579,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     addToast('success', 'Class Restored', `${cls.name} is now active.`);
   };
 
-  // Clone Class
-  const handleCloneClass = (cls: AcademicClass) => {
-    const cloneData = {
-      name: `Clone of ${cls.name}`,
-      branch: (cls as any).branch || 'Main Campus',
-      campus: (cls as any).campus || (cls as any).branch || 'Main Campus',
-      academicYear: (cls as any).academicYear || '2026-2027',
-      displayName: `Copy of ${(cls as any).displayName || cls.name}`,
-      status: 'Draft',
-      remarks: `Cloned from ${cls.name}`,
-      displayOrder: (cls as any).displayOrder !== undefined ? (cls as any).displayOrder + 1 : undefined,
-      createdDate: new Date().toLocaleDateString(),
-      lastUpdated: new Date().toLocaleDateString(),
-      sections: [...cls.sections],
-      subjects: [...(cls.subjects || [])],
-      teacher: '',
-      sectionTeachers: {},
-      sectionDetails: Object.keys((cls as any).sectionDetails || {}).reduce((acc, sec) => {
-        const detail = (cls as any).sectionDetails[sec];
-        acc[sec] = {
-          capacity: detail.capacity || 40,
-          reservedSeats: detail.reservedSeats || 5,
-          room: detail.room || 'Room 101',
-          shift: detail.shift || 'Morning',
-          status: 'Active'
-        };
-        return acc;
-      }, {} as Record<string, any>),
-      assessmentPattern: [...((cls as any).assessmentPattern || [])]
-    };
-
-    // Replicate subject teachers
-    const mappings = teacherAssignments.filter(ta => ta.className === cls.name);
-    mappings.forEach(ta => {
-      addTeacherAssignment({
-        academicYear: ta.academicYear,
-        branch: ta.branch,
-        className: cloneData.name,
-        section: ta.section,
-        subject: ta.subject,
-        teacherId: ta.teacherId,
-        teacherName: ta.teacherName,
-        status: 'Active'
-      });
-    });
-
-    addAcademicClass(cloneData as any);
-    addToast('success', 'Class Cloned', `Duplicate class setup duplicate initialized.`);
-  };
-
   // Section CRUD Actions
   const handleOpenAddSection = () => {
     if (!activeClass) return;
@@ -777,29 +727,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       updateAcademicClass(activeClass.id, { sectionDetails: details } as any);
       addToast('success', 'Section Restored', `Section ${secName} is now active.`);
     }
-  };
-
-  // Clone Section
-  const handleCloneSection = (secName: string) => {
-    if (!activeClass) return;
-    const sourceDetail = (activeClass as any).sectionDetails?.[secName] || {};
-    const nextLetter = ALPHABET.find(l => !activeClass.sections.includes(l)) || 'Z';
-
-    const currentSections = [...activeClass.sections, nextLetter];
-    const details = { 
-      ...((activeClass as any).sectionDetails || {}),
-      [nextLetter]: {
-        capacity: sourceDetail.capacity || 40,
-        status: 'Active',
-        remarks: `Cloned from Section ${secName}`
-      }
-    };
-
-    updateAcademicClass(activeClass.id, {
-      sections: currentSections,
-      sectionDetails: details
-    } as any);
-    addToast('success', 'Section Cloned', `Created Section ${nextLetter} copy.`);
   };
 
   // Bulk operations
@@ -1332,8 +1259,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   { id: 'sections', label: '🏫 Sections', icon: Layers },
                   { id: 'subjects', label: '📘 Subjects', icon: BookOpen },
                   { id: 'teachers', label: '👨‍🏫 Teachers', icon: Users },
-                  { id: 'students', label: '👨‍🎓 Students', icon: UserPlus },
-                  { id: 'settings', label: '⚙️ Settings', icon: Settings }
+                  { id: 'students', label: '👨‍🎓 Students', icon: UserPlus }
                 ].map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -1668,7 +1594,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 {status !== 'Archived' ? (
                                   <>
                                     <button onClick={() => handleOpenEditSection(sec)} className="text-sky-600 hover:underline">Edit Setup</button>
-                                    <button onClick={() => handleCloneSection(sec)} className="text-slate-400 hover:text-sky-655 hover:underline">Clone</button>
                                     <button onClick={() => handleArchiveSection(sec)} className="text-slate-400 hover:text-amber-600 hover:underline">Archive</button>
                                   </>
                                 ) : (
@@ -2086,94 +2011,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   </div>
                 )}
 
-                {/* COCKPIT TAB: SETTINGS */}
-                {classWorkspaceTab === 'settings' && (
-                  <div className="space-y-6 animate-in fade-in">
-                    <div className="border-b border-slate-200 dark:border-slate-808 pb-3 text-left">
-                      <h4 className="font-black text-slate-905 dark:text-white">Class Workspace Settings</h4>
-                      <p className="text-xs text-slate-500">Edit core parameters, clone setup configurations, or archive records.</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start font-bold">
-                      {/* General Settings */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl space-y-4 text-left">
-                        <h5 className="text-xs font-black uppercase text-sky-655 tracking-wider">General Configurations</h5>
-                        <form onSubmit={handleUpdateClass} className="space-y-3 text-xs">
-<div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="block text-slate-400 mb-1">Display Sorting Order</label>
-                              <input
-                                type="number"
-                                placeholder="Optional"
-                                value={classForm.displayOrder}
-                                onChange={e => setClassForm({ ...classForm, displayOrder: e.target.value })}
-                                className="w-full p-2.5 bg-slate-55 border rounded-xl outline-none"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-slate-400 mb-1">Status</label>
-                              <select
-                                value={classForm.status}
-                                onChange={e => setClassForm({ ...classForm, status: e.target.value as any })}
-                                className="w-full p-2.5 bg-slate-55 border rounded-xl outline-none"
-                              >
-                                <option value="Active">Active</option>
-                                <option value="Inactive">Inactive</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="block text-slate-400 mb-1">Remarks</label>
-                            <textarea
-                              value={classForm.remarks}
-                              onChange={e => setClassForm({ ...classForm, remarks: e.target.value })}
-                              className="w-full p-2 bg-slate-55 border rounded-xl outline-none"
-                            />
-                          </div>
-
-                          <button type="submit" className="px-4 py-2 bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-xs rounded-xl shadow">
-                            Save Configurations
-                          </button>
-                        </form>
-                      </div>
-
-                      {/* Advanced Settings */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl space-y-4 text-left">
-                        <h5 className="text-xs font-black uppercase text-rose-600 tracking-wider">Advanced Setup Options</h5>
-                        <p className="text-xs text-slate-500 leading-normal font-semibold">
-                          Perform structural duplications or delete records. These operations are locked if the class setup status has active records.
-                        </p>
-                        
-                        <div className="flex flex-col gap-2 pt-2 text-xs font-extrabold">
-                          <button
-                            onClick={() => handleCloneClass(activeClass)}
-                            className="p-3 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 rounded-xl border text-left flex items-center justify-between"
-                          >
-                            <span>Clone Class Structure Settings</span>
-                            <Copy className="w-4 h-4 text-slate-400" />
-                          </button>
-                          
-                          <button
-                            onClick={() => handleArchiveClass(activeClass)}
-                            className="p-3 bg-slate-55 hover:bg-amber-50 hover:text-amber-705 text-slate-700 rounded-xl border text-left flex items-center justify-between"
-                          >
-                            <span>Archive Class Setup (Read-Only)</span>
-                            <Archive className="w-4 h-4 text-slate-400" />
-                          </button>
-
-                          <button
-                            onClick={() => triggerDeleteCheck(activeClass)}
-                            className="p-3 bg-rose-50/20 hover:bg-rose-100 hover:text-rose-600 text-rose-600 rounded-xl border border-rose-100 text-left flex items-center justify-between"
-                          >
-                            <span>Delete Class setup Record</span>
-                            <Trash2 className="w-4 h-4 text-rose-500" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
               </div>
 
@@ -2320,7 +2157,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               <button
                                 onClick={() => {
                                   setSelectedClassId(cl.id);
-                                  if (!['sections', 'subjects', 'teachers', 'students', 'settings', 'overview'].includes(classWorkspaceTab)) {
+                                  if (!['sections', 'subjects', 'teachers', 'students', 'overview'].includes(classWorkspaceTab)) {
                                     setClassWorkspaceTab('sections');
                                   }
                                 }}
@@ -2329,7 +2166,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 Open Workspace
                               </button>
                               <button onClick={() => handleOpenEditClass(cl)} className="text-[10px] text-slate-400 hover:text-sky-655 font-bold hover:underline">Edit</button>
-                              <button onClick={() => handleCloneClass(cl)} className="text-[10px] text-slate-400 hover:text-indigo-650 font-bold hover:underline">Clone</button>
                               <button onClick={() => handleArchiveClass(cl)} className="text-[10px] text-slate-400 hover:text-amber-600 font-bold hover:underline">Archive</button>
                             </>
                           ) : (

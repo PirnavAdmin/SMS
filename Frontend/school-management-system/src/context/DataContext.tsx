@@ -1246,6 +1246,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // One-time automatic normalization of class names to "Class X"
   useEffect(() => {
+    // Auto-remove any cloned classes from local databases if present
+    const hasCloneClasses = academicClasses.some(c => c.name.toLowerCase().includes('clone'));
+    if (hasCloneClasses) {
+      const cleanClasses = academicClasses.filter(c => !c.name.toLowerCase().includes('clone'));
+      setAcademicClasses(cleanClasses);
+      setStudents(prev => prev.map(s => {
+        if (s.className && s.className.toLowerCase().includes('clone')) {
+          return { ...s, className: '', section: '', rollNo: '' };
+        }
+        return s;
+      }));
+      setTeacherAssignments(prev => prev.filter(ta => !ta.className.toLowerCase().includes('clone')));
+      setTimetable(prev => prev.filter(ts => !ts.className.toLowerCase().includes('clone')));
+    }
+
     const normalizeClassNameStr = (nameString: string): string => {
       let clean = nameString.trim();
       const match = clean.match(/^(grade|class)\s*(\d+.*)$/i);
@@ -2185,7 +2200,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const newStudent = addStudent({
             admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
-            rollNo: '20' + Math.floor(10 + Math.random() * 90),
+            rollNo: '',
             firstName: app.firstName || app.applicantName.split(' ')[0] || 'Enrolled',
             lastName: app.lastName || app.applicantName.slice(app.applicantName.indexOf(' ') + 1) || 'Student',
             gender: app.gender || 'Male',
@@ -2194,7 +2209,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             religion: app.religion || 'General',
             casteCategory: app.casteCategory || 'General',
             className: app.appliedClass || 'Class 10',
-            section: 'A',
+            section: '',
             category: app.casteCategory || 'General',
             status: 'Active',
             avatar: app.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',

@@ -346,6 +346,7 @@ using (var scope = app.Services.CreateScope())
                 { "HomeworkSubmissions", "homework_submissions" }
             };
 
+            /*
             foreach (var kvp in tablesToRename)
             {
                 var oldTable = kvp.Key;
@@ -368,6 +369,7 @@ using (var scope = app.Services.CreateScope())
                     }
                 }
             }
+            */
 
             // Upgrade/Recreate the admission applications auto-registration number trigger
             using (var cmd = dbConnection.CreateCommand())

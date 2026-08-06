@@ -17,7 +17,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   onClose,
   studentToEdit
 }) => {
-  const { addStudent, updateStudent, students, transportRoutes, hostelBlocks, hostelRooms, hostelBeds } = useData();
+  const { addStudent, updateStudent, students, transportRoutes, hostelBlocks, hostelRooms, hostelBeds, academicClasses } = useData();
   const { addToast } = useToast();
 
   const [formData, setFormData] = useState<Partial<Student>>({
@@ -28,8 +28,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     bloodGroup: 'O+',
     religion: 'General',
     casteCategory: 'General',
-    className: 'Class 10',
-    section: 'A',
+    className: academicClasses[0]?.name || 'Class 9',
+    section: '',
     category: 'General',
     status: 'Active',
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
@@ -245,25 +245,40 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class *</label>
                 <select
                   value={formData.className}
-                  onChange={e => setFormData({ ...formData, className: e.target.value })}
+                  onChange={e => {
+                    const selectedClass = e.target.value;
+                    setFormData({ ...formData, className: selectedClass, section: '' });
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
-                  <option value="Class 9">Class 9</option>
-                  <option value="Class 10">Class 10</option>
-                  <option value="Class 11">Class 11</option>
-                  <option value="Class 12">Class 12</option>
+                  {academicClasses.map(c => (
+                    <option key={c.id} value={c.name}>{c.name}</option>
+                  ))}
+                  {academicClasses.length === 0 && (
+                    <>
+                      <option value="Class 9">Class 9</option>
+                      <option value="Class 10">Class 10</option>
+                      <option value="Class 11">Class 11</option>
+                      <option value="Class 12">Class 12</option>
+                    </>
+                  )}
                 </select>
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Section *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Section (Optional)</label>
                 <select
-                  value={formData.section}
+                  value={formData.section || ''}
                   onChange={e => setFormData({ ...formData, section: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
-                  <option value="A">Sec A</option>
-                  <option value="B">Sec B</option>
-                  <option value="C">Sec C</option>
+                  <option value="">Unassigned</option>
+                  {(() => {
+                    const clsObj = academicClasses.find(c => c.name === formData.className);
+                    const sections = clsObj?.sections || ['A', 'B', 'C'];
+                    return sections.map(sec => (
+                      <option key={sec} value={sec}>Sec {sec}</option>
+                    ));
+                  })()}
                 </select>
               </div>
               <div>
