@@ -240,7 +240,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Class *</label>
                 <select
@@ -286,6 +286,17 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
                   {BRANCHES.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Status *</label>
+                <select
+                  value={formData.status === 'Active' ? 'Active' : 'Inactive'}
+                  onChange={e => setFormData({ ...formData, status: e.target.value as any })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
                 </select>
               </div>
             </div>

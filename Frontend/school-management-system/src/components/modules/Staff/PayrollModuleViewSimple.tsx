@@ -1176,7 +1176,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   const statusBadge = row.assignment ? 'success' : 'warning';
                   return (
                     <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                      <td className="px-3 py-4">
+                      <td className="px-3 py-2">
                         <input 
                           type="checkbox" 
                           className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1190,42 +1190,57 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                           }}
                         />
                       </td>
-                      <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.member.empId}</td>
-                      <td className="px-3 py-4">
+                      <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.member.empId}</td>
+                      <td className="px-3 py-2">
                         <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-left">
-                          <div className="text-sm font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
-                          <p className="text-[11px] text-slate-500">{row.member.branch || 'Main Campus'}</p>
+                          <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
+                          <p className="text-[10px] text-slate-500">{row.member.branch || 'Main Campus'}</p>
                         </button>
                       </td>
-                      <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{getCategoryLabel(row.category)}</td>
-                      <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.member.department}</td>
-                      <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.member.designation}</td>
-                      <td className="px-3 py-4">
-                        <div className="space-y-1">
-                          <div className="text-sm font-black text-slate-900 dark:text-white">{row.structure?.structureName || 'Not Assigned'}</div>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{getCategoryLabel(row.category)}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.member.department}</td>
+                      <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.member.designation}</td>
+                      <td className="px-3 py-2">
+                        <div className="space-y-0.5">
+                          <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure?.structureName || 'Not Assigned'}</div>
                           {row.assignment?.salaryOverride && <Badge variant="warning" size="sm">Override</Badge>}
                         </div>
                       </td>
-                      <td className="px-3 py-4">
+                      <td className="px-3 py-2">
                         <Badge variant={statusBadge} size="sm">{row.payrollStatus}</Badge>
                       </td>
-                      <td className="px-3 py-4">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => setDrawerStaff(row.member)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
                             title="View Profile"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-3.5 w-3.5" />
                           </button>
                           <button
                             type="button"
                             onClick={() => openAssignmentModal(row.member)}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors"
                             title={row.assignment ? 'Edit Salary' : 'Assign Salary'}
                           >
-                            <Edit3 className="h-4 w-4" />
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (row.assignment) {
+                                deleteSalaryStructure(row.assignment.id);
+                                addToast('info', 'Assignment Removed', `Salary record for ${row.member.firstName} ${row.member.lastName} deleted.`);
+                              } else {
+                                addToast('warning', 'No Assignment', `No salary structure is currently assigned to ${row.member.firstName} ${row.member.lastName}.`);
+                              }
+                            }}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
+                            title="Delete Assignment"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>
@@ -1346,7 +1361,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <tbody>
               {filteredStructureRows.map(row => (
                 <tr key={row.structure.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-4">
+                  <td className="px-3 py-2">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1360,40 +1375,40 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       }}
                     />
                   </td>
-                  <td className="px-3 py-4">
-                    <div className="space-y-1">
-                      <div className="text-sm font-black text-slate-900 dark:text-white">{row.structure.structureName}</div>
-                      {row.structure.structureCode && <p className="text-[11px] text-slate-500">{row.structure.structureCode}</p>}
+                  <td className="px-3 py-2">
+                    <div className="space-y-0.5">
+                      <div className="text-xs font-black text-slate-900 dark:text-white">{row.structure.structureName}</div>
+                      {row.structure.structureCode && <p className="text-[10px] text-slate-500">{row.structure.structureCode}</p>}
                     </div>
                   </td>
-                  <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{getCategoryLabel(row.structure.employeeCategory)}</td>
-                  <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.structure.designation || 'Not set'}</td>
-                  <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.structure.effectiveDate || 'Not set'}</td>
-                  <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.structure.payrollFrequency || 'Monthly'}</td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.grossSalary)}</td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.deductions)}</td>
-                  <td className="px-3 py-4 text-sm font-black text-brand-700 dark:text-brand-300">{formatCurrency(row.breakdown.netSalary)}</td>
-                  <td className="px-3 py-4">
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{getCategoryLabel(row.structure.employeeCategory)}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.structure.designation || 'Not set'}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.structure.effectiveDate || 'Not set'}</td>
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.structure.payrollFrequency || 'Monthly'}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.grossSalary)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.deductions)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300">{formatCurrency(row.breakdown.netSalary)}</td>
+                  <td className="px-3 py-2">
                     <Badge variant={row.structure.status === 'Active' ? 'success' : 'neutral'} size="sm">{row.structure.status}</Badge>
                   </td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.assignedCount}</td>
-                  <td className="px-3 py-4">
-                    <div className="flex items-center justify-end gap-2">
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.assignedCount}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center justify-end gap-1.5">
                       <button
                         type="button"
                         onClick={() => openStructureModal('edit', row.structure)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors"
                         title="Edit Structure"
                       >
-                        <Edit3 className="h-4 w-4" />
+                        <Edit3 className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => openStructureModal('duplicate', row.structure)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/40 dark:text-sky-300 dark:hover:bg-sky-900/60 transition-colors"
                         title="Duplicate Structure"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3.5 w-3.5" />
                       </button>
                       <button
                         type="button"
@@ -1402,10 +1417,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                           deleteSalaryStructure(row.structure.id);
                           addToast('info', 'Structure deleted', `${row.structure.structureName} was removed from the library.`);
                         }}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-950/30 dark:text-rose-300 dark:hover:bg-rose-900/50"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors"
                         title="Delete Structure"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </td>
@@ -1520,7 +1535,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <tbody>
               {pendingGenerationRows.map(row => (
                 <tr key={row.member.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                  <td className="px-3 py-4">
+                  <td className="px-3 py-2">
                     <input 
                       type="checkbox" 
                       className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
@@ -1534,38 +1549,38 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       }}
                     />
                   </td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{row.member.empId}</td>
-                  <td className="px-3 py-4">
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.member.empId}</td>
+                  <td className="px-3 py-2">
                     <button type="button" onClick={() => setDrawerStaff(row.member)} className="text-left">
-                      <div className="text-sm font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
-                      <p className="text-[11px] text-slate-500">{row.assignment?.salaryStructureName || 'Not Assigned'}</p>
+                      <div className="text-xs font-black text-slate-900 dark:text-white">{row.member.firstName} {row.member.lastName}</div>
+                      <p className="text-[10px] text-slate-500">{row.assignment?.salaryStructureName || 'Not Assigned'}</p>
                     </button>
                   </td>
-                  <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.member.department}</td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.grossSalary)}</td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.allowances)}</td>
-                  <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(row.deductions)}</td>
-                  <td className="px-3 py-4 text-sm font-black text-brand-700 dark:text-brand-300">{formatCurrency(row.netSalary)}</td>
-                  <td className="px-3 py-4">
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.member.department}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.grossSalary)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.breakdown.allowances)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(row.deductions)}</td>
+                  <td className="px-3 py-2 text-xs font-black text-brand-700 dark:text-brand-300">{formatCurrency(row.netSalary)}</td>
+                  <td className="px-3 py-2">
                     <Badge variant={row.existing ? 'success' : 'warning'} size="sm">{row.existing ? row.existing.status : 'Ready'}</Badge>
                   </td>
-                  <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
-                  <td className="px-3 py-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Preview Profile">
-                        <Eye className="h-4 w-4" />
+                  <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Preview Profile">
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
                       <button type="button" onClick={() => {
                         createPayslipForRow(row);
                         addToast('success', 'Payslip ready', `${row.member.firstName} ${row.member.lastName} ${row.existing ? 'payslip already existed' : 'payslip generated'} for ${payrollMonthLabel}.`);
-                      }} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" title="Generate PDF">
-                        <FileText className="h-4 w-4" />
+                      }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-colors" title="Generate PDF">
+                        <FileText className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => addToast('info', 'Download queued', `${row.member.firstName} ${row.member.lastName} payslip download prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Download PDF">
-                        <Download className="h-4 w-4" />
+                      <button type="button" onClick={() => addToast('info', 'Download queued', `${row.member.firstName} ${row.member.lastName} payslip download prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Download PDF">
+                        <Download className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" onClick={() => addToast('info', 'Email queued', `${row.member.firstName} ${row.member.lastName} payslip email prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Email Payslip">
-                        <Mail className="h-4 w-4" />
+                      <button type="button" onClick={() => addToast('info', 'Email queued', `${row.member.firstName} ${row.member.lastName} payslip email prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Email Payslip">
+                        <Mail className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </td>
@@ -1700,56 +1715,56 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 const linkedStaff = staff.find(member => member.id === item.employeeId) || null;
                 return (
                   <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 text-slate-900 dark:text-slate-100">
-                    <td className="px-3 py-4">
-                      <input 
-                        type="checkbox" 
-                        className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
-                        checked={selectedHistoryIds.includes(item.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedHistoryIds(prev => [...prev, item.id]);
-                          } else {
-                            setSelectedHistoryIds(prev => prev.filter(id => id !== item.id));
-                          }
-                        }}
-                      />
-                    </td>
-                    <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{month}</td>
-                    <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{year}</td>
-                    <td className="px-3 py-4">
-                      <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-left">
-                        <div className="text-sm font-black text-slate-900 dark:text-white">{item.employeeName}</div>
-                        <p className="text-[11px] text-slate-500">{item.empId}</p>
+                  <td className="px-3 py-1.5">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-brand-600 focus:ring-brand-600"
+                      checked={selectedHistoryIds.includes(item.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedHistoryIds(prev => [...prev, item.id]);
+                        } else {
+                          setSelectedHistoryIds(prev => prev.filter(id => id !== item.id));
+                        }
+                      }}
+                    />
+                  </td>
+                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white">{month}</td>
+                  <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">{year}</td>
+                  <td className="px-3 py-1.5">
+                    <button type="button" onClick={() => setDrawerStaff(linkedStaff || null)} className="text-left">
+                      <div className="text-xs font-black text-slate-900 dark:text-white">{item.employeeName}</div>
+                      <p className="text-[10px] text-slate-500">{item.empId}</p>
+                    </button>
+                  </td>
+                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white">{formatCurrency(item.grossSalary || 0)}</td>
+                  <td className="px-3 py-1.5 text-xs font-black text-slate-900 dark:text-white">{formatCurrency((item.leaveDeduction || 0) + (item.otherDeductions || 0) + (item.pfDeduction || 0))}</td>
+                  <td className="px-3 py-1.5 text-xs font-black text-brand-700 dark:text-brand-300">{formatCurrency(item.netSalary)}</td>
+                  <td className="px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">{item.paymentDate || item.disbursedDate}</td>
+                  <td className="px-3 py-1.5">
+                    <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status}</Badge>
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="View Payslip">
+                        <Eye className="h-3.5 w-3.5" />
                       </button>
-                    </td>
-                    <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency(item.grossSalary || 0)}</td>
-                    <td className="px-3 py-4 text-sm font-black text-slate-900 dark:text-white">{formatCurrency((item.leaveDeduction || 0) + (item.otherDeductions || 0) + (item.pfDeduction || 0))}</td>
-                    <td className="px-3 py-4 text-sm font-black text-brand-700 dark:text-brand-300">{formatCurrency(item.netSalary)}</td>
-                    <td className="px-3 py-4 text-sm font-semibold text-slate-700 dark:text-slate-300">{item.paymentDate || item.disbursedDate}</td>
-                    <td className="px-3 py-4">
-                      <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status}</Badge>
-                    </td>
-                    <td className="px-3 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="View Payslip">
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            handlePrintPayslip(item, true);
-                            addToast('success', 'Download Started', `${item.employeeName} payslip PDF prepared.`);
-                          }} 
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50" 
-                          title="Download Payslip PDF"
-                        >
-                          <Download className="h-4 w-4" />
-                        </button>
-                        <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700" title="Email Payslip">
-                          <Mail className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          handlePrintPayslip(item, true);
+                          addToast('success', 'Download Started', `${item.employeeName} payslip PDF prepared.`);
+                        }} 
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-colors" 
+                        title="Download Payslip PDF"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" onClick={() => addToast('info', 'Email queued', `${item.employeeName} payslip email prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Email Payslip">
+                        <Mail className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
                   </tr>
                 );
               })}

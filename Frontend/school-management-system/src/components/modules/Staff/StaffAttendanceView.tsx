@@ -10,6 +10,8 @@ import { DailyAttendance, Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
+import { formatToDDMMYYYY } from '../../../utils/dateValidation';
+import { DateInput } from '../../common/DateInput';
 
 type AttendanceTab = 'teaching' | 'non-teaching';
 
@@ -460,7 +462,7 @@ export const StaffAttendanceView: React.FC = () => {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                     {fullHistory.map((item, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-slate-855 dark:text-slate-200">
-                        <td className="py-2.5 px-4 font-bold">{item.date}</td>
+                        <td className="py-2.5 px-4 font-bold">{formatToDDMMYYYY(item.date, '-')}</td>
                         <td className="py-2.5 px-4 font-mono">{item.checkIn}</td>
                         <td className="py-2.5 px-4 font-mono">{item.checkOut}</td>
                         <td className="py-2.5 px-4 font-mono">{item.workingHours}</td>
@@ -512,7 +514,7 @@ export const StaffAttendanceView: React.FC = () => {
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
                     {requests.map((req, idx) => (
                       <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 text-slate-855 dark:text-slate-200">
-                        <td className="py-2.5 px-4 font-bold">{req.date}</td>
+                        <td className="py-2.5 px-4 font-bold">{formatToDDMMYYYY(req.date, '-')}</td>
                         <td className="py-2.5 px-4 font-semibold">{req.type}</td>
                         <td className="py-2.5 px-4 text-slate-500 max-w-[200px] truncate" title={req.reason}>{req.reason}</td>
                         <td className="py-2.5 px-4">
@@ -728,6 +730,23 @@ export const StaffAttendanceView: React.FC = () => {
   const [regEmpId, setRegEmpId] = useState('All');
   const [regMonth, setRegMonth] = useState<number>(new Date().getMonth());
   const [regYear, setRegYear] = useState<number>(new Date().getFullYear());
+  const [regFromDate, setRegFromDate] = useState('');
+  const [regToDate, setRegToDate] = useState('');
+
+  const handleFromDateChange = (isoDate: string) => {
+    setRegFromDate(isoDate);
+    if (isoDate) {
+      const parts = isoDate.split('-');
+      if (parts.length === 3) {
+        const yearNum = parseInt(parts[0], 10);
+        const monthNum = parseInt(parts[1], 10) - 1;
+        if (!isNaN(yearNum) && !isNaN(monthNum) && monthNum >= 0 && monthNum < 12) {
+          setRegMonth(monthNum);
+          setRegYear(yearNum);
+        }
+      }
+    }
+  };
 
   // Local Attendance State Maps: employeeId -> values
   const [attendanceMap, setAttendanceMap] = useState<Record<string, 'Present' | 'Absent' | 'Late' | 'HalfDay' | 'Leave'>>({});
@@ -743,19 +762,24 @@ export const StaffAttendanceView: React.FC = () => {
     'Housekeeping', 'Medical'
   ];
 
+  // Helper check for teaching staff
+  const isTeachingStaff = (s: Staff) => {
+    return s.employeeCategory === 'Teacher' || s.employeeCategory === 'Teaching Staff' || s.role === 'Teacher';
+  };
+
   // Derive unique lists for dropdowns
   const teachingDepts = useMemo(() => {
-    const list = staff.filter(s => s.employeeCategory === 'Teacher').map(s => s.department).filter(Boolean);
+    const list = staff.filter(s => isTeachingStaff(s)).map(s => s.department).filter(Boolean);
     return Array.from(new Set(['Academics', 'Mathematics', 'Science', 'English', 'Social Science', 'Languages', 'Computer Science', ...list]));
   }, [staff]);
 
   const teachingDesignations = useMemo(() => {
-    const list = staff.filter(s => s.employeeCategory === 'Teacher').map(s => s.designation).filter(Boolean);
+    const list = staff.filter(s => isTeachingStaff(s)).map(s => s.designation).filter(Boolean);
     return Array.from(new Set(['Principal', 'Vice Principal', 'Academic Coordinator', 'HOD', 'Class Teacher', 'Subject Teacher', 'Senior Teacher', ...list]));
   }, [staff]);
 
   const nonTeachingDesignations = useMemo(() => {
-    const list = staff.filter(s => s.employeeCategory !== 'Teacher').map(s => s.designation).filter(Boolean);
+    const list = staff.filter(s => !isTeachingStaff(s)).map(s => s.designation).filter(Boolean);
     return Array.from(new Set(['Office Administrator', 'Accountant', 'HR Executive', 'System Administrator', 'Transport Incharge', 'Warden', 'Security Guard', 'Maintenance Engineer', 'Staff Nurse', ...list]));
   }, [staff]);
 
@@ -813,18 +837,18 @@ export const StaffAttendanceView: React.FC = () => {
 
       if (existing) {
         newStatusMap[s.id] = existing.status;
-        newInTimeMap[s.id] = existing.inTime || '00:00';
-        newOutTimeMap[s.id] = existing.outTime || '00:00';
+        newInTimeMap[s.id] = existing.inTime || (existing.status === 'Present' || existing.status === 'Late' ? '08:30 AM' : '');
+        newOutTimeMap[s.id] = existing.outTime || (existing.status === 'Present' || existing.status === 'Late' ? '04:30 PM' : '');
         newRemarksMap[s.id] = existing.remarks || '';
       } else if (approvedLeave) {
         newStatusMap[s.id] = approvedLeave.isHalfDay ? 'HalfDay' : 'Leave';
-        newInTimeMap[s.id] = '00:00';
-        newOutTimeMap[s.id] = '00:00';
+        newInTimeMap[s.id] = '';
+        newOutTimeMap[s.id] = '';
         newRemarksMap[s.id] = `Approved Leave: ${approvedLeave.leaveTypeName || 'Leave'}`;
       } else {
         newStatusMap[s.id] = 'Present';
-        newInTimeMap[s.id] = '00:00';
-        newOutTimeMap[s.id] = '00:00';
+        newInTimeMap[s.id] = '08:30 AM';
+        newOutTimeMap[s.id] = '04:30 PM';
         newRemarksMap[s.id] = '';
       }
     });
@@ -839,7 +863,7 @@ export const StaffAttendanceView: React.FC = () => {
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
     return staff.filter(s => {
-      if (s.employeeCategory !== 'Teacher' || s.status === 'Inactive') return false;
+      if (!isTeachingStaff(s) || s.status === 'Inactive') return false;
       const deptMatch = teachingDept === 'All' || (s.department || '').toLowerCase() === teachingDept.toLowerCase();
       const desMatch = teachingDesignation === 'All' || (s.designation || '').toLowerCase() === teachingDesignation.toLowerCase();
       const q = teachingQuery.toLowerCase().trim();
@@ -851,7 +875,7 @@ export const StaffAttendanceView: React.FC = () => {
   // Filter Active Non-Teaching Staff
   const nonTeachingStaffList = useMemo(() => {
     return staff.filter(s => {
-      if (s.employeeCategory === 'Teacher' || s.status === 'Inactive') return false;
+      if (isTeachingStaff(s) || s.status === 'Inactive') return false;
       const deptMatch = nonTeachingDept === 'All' || (s.department || '').toLowerCase() === nonTeachingDept.toLowerCase();
       const desMatch = nonTeachingDesignation === 'All' || (s.designation || '').toLowerCase() === nonTeachingDesignation.toLowerCase();
       const q = nonTeachingQuery.toLowerCase().trim();
@@ -895,8 +919,8 @@ export const StaffAttendanceView: React.FC = () => {
 
     // Set default times based on status
     if (newStatus === 'Present' || newStatus === 'Late') {
-      setInTimeMap(prev => ({ ...prev, [empId]: prev[empId] || '00:00' }));
-      setOutTimeMap(prev => ({ ...prev, [empId]: prev[empId] || '00:00' }));
+      setInTimeMap(prev => ({ ...prev, [empId]: prev[empId] && prev[empId] !== '00:00' ? prev[empId] : '08:30 AM' }));
+      setOutTimeMap(prev => ({ ...prev, [empId]: prev[empId] && prev[empId] !== '00:00' ? prev[empId] : '04:30 PM' }));
     } else {
       setInTimeMap(prev => ({ ...prev, [empId]: '' }));
       setOutTimeMap(prev => ({ ...prev, [empId]: '' }));
@@ -928,17 +952,32 @@ export const StaffAttendanceView: React.FC = () => {
     if (bulkStatus === 'Present') {
       setInTimeMap(prev => {
         const next = { ...prev };
-        currentTabStaffList.forEach(s => { next[s.id] = '00:00'; });
+        currentTabStaffList.forEach(s => { next[s.id] = '08:30 AM'; });
         return next;
       });
       setOutTimeMap(prev => {
         const next = { ...prev };
-        currentTabStaffList.forEach(s => { next[s.id] = '00:00'; });
+        currentTabStaffList.forEach(s => { next[s.id] = '04:30 PM'; });
+        return next;
+      });
+    } else {
+      setInTimeMap(prev => {
+        const next = { ...prev };
+        currentTabStaffList.forEach(s => { next[s.id] = ''; });
+        return next;
+      });
+      setOutTimeMap(prev => {
+        const next = { ...prev };
+        currentTabStaffList.forEach(s => { next[s.id] = ''; });
         return next;
       });
     }
 
-    addToast('info', 'Bulk Action Applied', `Applied '${bulkStatus}' status to ${currentTabStaffList.length} filtered employees.`);
+    const actionMsg = bulkStatus === 'Clear'
+      ? `Cleared attendance selection for ${currentTabStaffList.length} visible staff.`
+      : `Applied '${bulkStatus}' status to ${currentTabStaffList.length} visible staff.`;
+
+    addToast('info', 'Bulk Action Applied', actionMsg);
   };
 
   // Toggle Override Leave Lock
@@ -999,11 +1038,50 @@ export const StaffAttendanceView: React.FC = () => {
   // Monthly Register Computations (Tab 3)
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const daysInSelectedMonth = new Date(regYear, regMonth + 1, 0).getDate();
-  const registerDaysArray = Array.from({ length: daysInSelectedMonth }, (_, i) => i + 1);
+
+  const registerDaysList = useMemo(() => {
+    if (regFromDate && regToDate) {
+      const start = new Date(regFromDate);
+      const end = new Date(regToDate);
+
+      if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+        const list: { dateStr: string; dayNum: number; displayHeader: string }[] = [];
+        const current = new Date(start);
+
+        const isMultiMonth = start.getMonth() !== end.getMonth() || start.getFullYear() !== end.getFullYear();
+
+        let guard = 0;
+        while (current <= end && guard < 366) {
+          const y = current.getFullYear();
+          const m = String(current.getMonth() + 1).padStart(2, '0');
+          const d = String(current.getDate()).padStart(2, '0');
+          const dateStr = `${y}-${m}-${d}`;
+
+          const monthShort = current.toLocaleString('en-US', { month: 'short' });
+          const displayHeader = isMultiMonth ? `${d} ${monthShort}` : `${current.getDate()}`;
+
+          list.push({ dateStr, dayNum: current.getDate(), displayHeader });
+
+          current.setDate(current.getDate() + 1);
+          guard++;
+        }
+        return list;
+      }
+    }
+
+    // Default to selected month
+    const daysCount = new Date(regYear, regMonth + 1, 0).getDate();
+    const list: { dateStr: string; dayNum: number; displayHeader: string }[] = [];
+    for (let d = 1; d <= daysCount; d++) {
+      const dateStr = `${regYear}-${String(regMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      list.push({ dateStr, dayNum: d, displayHeader: `${d}` });
+    }
+    return list;
+  }, [regYear, regMonth, regFromDate, regToDate]);
 
   const registerStaffList = useMemo(() => {
     return staff.filter(s => {
-      const isTeacher = s.employeeCategory === 'Teacher';
+      const isTeacher = isTeachingStaff(s);
       if (activeTab === 'teaching' && !isTeacher) return false;
       if (activeTab === 'non-teaching' && isTeacher) return false;
       
@@ -1014,6 +1092,99 @@ export const StaffAttendanceView: React.FC = () => {
       return s.status === 'Active';
     });
   }, [staff, activeTab, teachingDept, nonTeachingDept, regEmpId]);
+
+  // Export Report Handler
+  const handleExportReport = () => {
+    let csvRows: string[] = [];
+    let filename = '';
+
+    if (viewMode === 'daily') {
+      filename = `Staff_Daily_Attendance_${formatToDDMMYYYY(attendanceDate, '-')}`;
+      const headers = ['Attendance Date', 'Employee ID', 'Employee Name', 'Staff Category', 'Department', 'Designation', 'Status', 'In Time', 'Out Time', 'Remarks'];
+      csvRows.push(headers.join(','));
+
+      currentTabStaffList.forEach(s => {
+        const approvedLeave = getApprovedLeave(s.id, attendanceDate);
+        const status = attendanceMap[s.id] || (approvedLeave ? 'Leave' : 'Present');
+        const inTime = inTimeMap[s.id] || '';
+        const outTime = outTimeMap[s.id] || '';
+        const remarks = remarksMap[s.id] || '';
+
+        const row = [
+          `"${formatToDDMMYYYY(attendanceDate, '-')}"`,
+          `"${s.empId || s.id}"`,
+          `"${s.firstName} ${s.lastName}"`,
+          `"${activeTab === 'teaching' ? 'Teaching Staff' : 'Non-Teaching Staff'}"`,
+          `"${s.department || 'General'}"`,
+          `"${s.designation || 'Staff'}"`,
+          `"${status}"`,
+          `"${inTime}"`,
+          `"${outTime}"`,
+          `"${remarks.replace(/"/g, '""')}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+    } else {
+      const rangeLabel = regFromDate && regToDate ? `${formatToDDMMYYYY(regFromDate, '-')}_to_${formatToDDMMYYYY(regToDate, '-')}` : `${monthNames[regMonth]}_${regYear}`;
+      filename = `Staff_Attendance_Register_${rangeLabel}`;
+
+      const dateHeaders = registerDaysList.map(item => `"${item.displayHeader}"`);
+      const headers = ['Employee ID', 'Employee Name', 'Staff Category', 'Department', 'Designation', ...dateHeaders, 'Present (P)', 'Absent (A)', 'Leave (L)', 'Attendance %'];
+      csvRows.push(headers.join(','));
+
+      registerStaffList.forEach(s => {
+        let pCount = 0;
+        let aCount = 0;
+        let lCount = 0;
+
+        const dayStatuses = registerDaysList.map(item => {
+          const record = (attendance || []).find(r => r.entityType === 'Staff' && r.entityId === s.id && r.date === item.dateStr);
+          let code = 'P';
+          if (record) {
+            if (record.status === 'Present') { code = 'P'; pCount++; }
+            else if (record.status === 'Absent') { code = 'A'; aCount++; }
+            else if (record.status === 'Leave') { code = 'L'; lCount++; }
+            else if (record.status === 'HalfDay' || record.status === 'Late') { code = 'HD'; pCount += 0.5; }
+          } else {
+            pCount++;
+          }
+          return `"${code}"`;
+        });
+
+        const pct = registerDaysList.length > 0 ? Math.round((pCount / registerDaysList.length) * 100) : 0;
+
+        const row = [
+          `"${s.empId || s.id}"`,
+          `"${s.firstName} ${s.lastName}"`,
+          `"${activeTab === 'teaching' ? 'Teaching Staff' : 'Non-Teaching Staff'}"`,
+          `"${s.department || 'General'}"`,
+          `"${s.designation || 'Staff'}"`,
+          ...dayStatuses,
+          `"${pCount}"`,
+          `"${aCount}"`,
+          `"${lCount}"`,
+          `"${pct}%"`
+        ];
+        csvRows.push(row.join(','));
+      });
+    }
+
+    if (csvRows.length <= 1) {
+      addToast('warning', 'No Records to Export', 'There are no staff records available for the selected criteria.');
+      return;
+    }
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    addToast('success', 'Report Exported Successfully', `Downloaded ${filename}.csv`);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in text-xs pb-12">
@@ -1083,13 +1254,13 @@ export const StaffAttendanceView: React.FC = () => {
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-700/50'
               }`}
             >
-              Monthly Register
+              Monthly Attendance
             </button>
           </div>
 
           <button
-            onClick={() => addToast('success', 'Report Downloaded', 'The attendance report has been exported to Excel.')}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all"
+            onClick={handleExportReport}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
           >
             <FileSpreadsheet className="w-4 h-4" /> Export Report
           </button>
@@ -1105,8 +1276,7 @@ export const StaffAttendanceView: React.FC = () => {
               {/* Attendance Date */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1">Attendance Date *</label>
-                <input
-                  type="date"
+                <DateInput
                   value={attendanceDate}
                   onChange={e => setAttendanceDate(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
@@ -1428,15 +1598,14 @@ export const StaffAttendanceView: React.FC = () => {
       {(activeTab === 'teaching' || activeTab === 'non-teaching') && viewMode === 'monthly' && (
         <div className="space-y-5">
           {/* Register Filter Controls */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 mb-1">Specific Employee</label>
                 <select
                   value={regEmpId}
                   onChange={e => setRegEmpId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                 >
                   <option value="All">All Employees ({registerStaffList.length})</option>
                   {registerStaffList.map(s => (
@@ -1449,8 +1618,12 @@ export const StaffAttendanceView: React.FC = () => {
                 <label className="block text-[10px] font-bold text-slate-500 mb-1">Month</label>
                 <select
                   value={regMonth}
-                  onChange={e => setRegMonth(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
+                  onChange={e => {
+                    setRegMonth(Number(e.target.value));
+                    setRegFromDate('');
+                    setRegToDate('');
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                 >
                   {monthNames.map((m, idx) => <option key={m} value={idx}>{m}</option>)}
                 </select>
@@ -1460,14 +1633,57 @@ export const StaffAttendanceView: React.FC = () => {
                 <label className="block text-[10px] font-bold text-slate-500 mb-1">Year</label>
                 <select
                   value={regYear}
-                  onChange={e => setRegYear(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold"
+                  onChange={e => {
+                    setRegYear(Number(e.target.value));
+                    setRegFromDate('');
+                    setRegToDate('');
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold"
                 >
                   <option value={2026}>2026</option>
                   <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">From Date (DD-MM-YYYY)</label>
+                <DateInput
+                  value={regFromDate}
+                  onChange={e => handleFromDateChange(e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">To Date (DD-MM-YYYY)</label>
+                <DateInput
+                  value={regToDate}
+                  onChange={e => setRegToDate(e.target.value)}
+                  placeholder="DD-MM-YYYY"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
+                />
+              </div>
             </div>
+
+            {(regFromDate || regToDate) && (
+              <div className="flex items-center justify-between text-xs font-semibold pt-1 border-t border-slate-100 dark:border-slate-800">
+                <span className="text-brand-600 dark:text-brand-400 font-bold">
+                  Showing custom range: {formatToDDMMYYYY(regFromDate, '-')} to {formatToDDMMYYYY(regToDate, '-')}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRegFromDate('');
+                    setRegToDate('');
+                  }}
+                  className="text-rose-600 hover:text-rose-700 font-bold text-[11px]"
+                >
+                  Clear Date Range Filter
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Monthly Matrix Table */}
@@ -1475,7 +1691,7 @@ export const StaffAttendanceView: React.FC = () => {
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <FileSpreadsheet className="w-4 h-4 text-sky-600" />
-                Monthly Register: {monthNames[regMonth]} {regYear} ({activeTab === 'teaching' ? 'Teaching Staff' : 'Non-Teaching Staff'})
+                Monthly Register: {regFromDate && regToDate ? `Custom Range (${formatToDDMMYYYY(regFromDate, '-')} to ${formatToDDMMYYYY(regToDate, '-')})` : `${monthNames[regMonth]} ${regYear}`} ({activeTab === 'teaching' ? 'Teaching Staff' : 'Non-Teaching Staff'})
               </h3>
               <div className="flex items-center gap-2 text-[10px] font-bold">
                 <span className="px-2 py-0.5 rounded bg-brand-100 text-brand-800">P = Present</span>
@@ -1490,8 +1706,8 @@ export const StaffAttendanceView: React.FC = () => {
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b">
                     <th className="py-2.5 px-3 min-w-[160px]">Employee</th>
-                    {registerDaysArray.map(d => (
-                      <th key={d} className="py-2.5 px-1 text-center min-w-[28px] font-mono">{d}</th>
+                    {registerDaysList.map((item, idx) => (
+                      <th key={idx} className="py-2.5 px-1 text-center min-w-[32px] font-mono text-[10px] whitespace-nowrap">{item.displayHeader}</th>
                     ))}
                     <th className="py-2.5 px-2 text-center text-brand-600">P</th>
                     <th className="py-2.5 px-2 text-center text-rose-600">A</th>
@@ -1502,7 +1718,7 @@ export const StaffAttendanceView: React.FC = () => {
                 <tbody className="divide-y font-semibold">
                   {registerStaffList.length === 0 ? (
                     <tr>
-                      <td colSpan={daysInSelectedMonth + 5} className="py-8 text-center text-slate-400 italic">
+                      <td colSpan={registerDaysList.length + 5} className="py-8 text-center text-slate-400 italic">
                         No employees found for the selected register criteria.
                       </td>
                     </tr>
@@ -1519,9 +1735,8 @@ export const StaffAttendanceView: React.FC = () => {
                             <span className="text-[9px] font-mono text-slate-400">{s.empId || s.id}</span>
                           </td>
 
-                          {registerDaysArray.map(dayNum => {
-                            const dateStr = `${regYear}-${String(regMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                            const record = (attendance || []).find(r => r.entityType === 'Staff' && r.entityId === s.id && r.date === dateStr);
+                          {registerDaysList.map((item, idx) => {
+                            const record = (attendance || []).find(r => r.entityType === 'Staff' && r.entityId === s.id && r.date === item.dateStr);
                             
                             let code = 'P';
                             let badgeStyle = 'text-brand-700 bg-brand-50';
@@ -1536,7 +1751,7 @@ export const StaffAttendanceView: React.FC = () => {
                             }
 
                             return (
-                              <td key={dayNum} className="py-2 px-0.5 text-center font-mono font-bold text-[10px]">
+                              <td key={idx} className="py-2 px-0.5 text-center font-mono font-bold text-[10px]">
                                 <span className={`inline-block w-6 py-0.5 rounded ${badgeStyle}`}>{code}</span>
                               </td>
                             );
@@ -1546,7 +1761,7 @@ export const StaffAttendanceView: React.FC = () => {
                           <td className="py-2 px-2 text-center font-bold text-rose-600">{aCount}</td>
                           <td className="py-2 px-2 text-center font-bold text-sky-600">{lCount}</td>
                           <td className="py-2 px-2 text-center font-extrabold text-sky-600">
-                            {Math.round((pCount / daysInSelectedMonth) * 100)}%
+                            {registerDaysList.length > 0 ? Math.round((pCount / registerDaysList.length) * 100) : 0}%
                           </td>
                         </tr>
                       );

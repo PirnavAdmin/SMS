@@ -51,7 +51,6 @@ export const AttendanceView = () => {
   // Context Selection State
   const [selectedClass, setSelectedClass] = useState(teacher.assignedClasses?.[0]?.class || 'Class 1');
   const [selectedSection, setSelectedSection] = useState(teacher.assignedClasses?.[0]?.section || 'A');
-  const [selectedSubject, setSelectedSubject] = useState(teacher.assignedSubjects?.[0] || 'Mathematics');
   const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
   
   const [isEditable, setIsEditable] = useState(false);
@@ -75,7 +74,7 @@ export const AttendanceView = () => {
   const classStudents = mockStudents.filter(s => s.className === selectedClass && s.section === selectedSection);
   
   // Unique key for the current register
-  const registerKey = `${selectedClass}_${selectedSection}_${selectedSubject}_${date}`;
+  const registerKey = `${selectedClass}_${selectedSection}_${date}`;
   
   const currentAttendance: AttendanceState = attendanceRegistry[registerKey] || {};
 
@@ -198,8 +197,7 @@ export const AttendanceView = () => {
           </h2>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-slate-500 font-bold">
             <span>🏫 Class: <strong className="text-slate-855 dark:text-slate-200">{selectedClass}-{selectedSection}</strong></span>
-            <span>📖 Subject: <strong className="text-slate-855 dark:text-slate-200">{selectedSubject}</strong></span>
-            <span>⏰ Period: <strong className="text-slate-855 dark:text-slate-200">{selectedPeriod.split(' ')[0]}</strong></span>
+            <span>⏰ Period: <strong className="text-slate-855 dark:text-slate-200">{selectedPeriod.startsWith('All') ? 'All Periods' : selectedPeriod.split(' ')[0]}</strong></span>
             <span>👤 Class Teacher: <strong className="text-slate-855 dark:text-slate-200">{teacherFullName}</strong></span>
           </div>
         </div>
@@ -220,7 +218,7 @@ export const AttendanceView = () => {
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900">
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date</label>
             <input
@@ -258,25 +256,13 @@ export const AttendanceView = () => {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
-            <select
-              value={selectedSubject}
-              onChange={e => setSelectedSubject(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
-            >
-              {teacher.assignedSubjects.map(sub => (
-                <option key={sub} value={sub}>{sub}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Period Block</label>
             <select
               value={selectedPeriod}
               onChange={e => setSelectedPeriod(e.target.value)}
               className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
             >
+              <option value="All Periods">All Periods</option>
               <option value="Period 1 (09:00 AM - 09:45 AM)">Period 1 (09:00 AM)</option>
               <option value="Period 2 (09:45 AM - 10:30 AM)">Period 2 (09:45 AM)</option>
               <option value="Period 3 (10:45 AM - 11:30 AM)">Period 3 (10:45 AM)</option>
