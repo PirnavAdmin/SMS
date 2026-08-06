@@ -7,6 +7,7 @@ import {
   WalletCards, ListChecks, X, Save
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
+import { ConfirmModal } from '../../common/ConfirmModal';
 import { formatCurrency } from '../../../utils/currency';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -601,33 +602,33 @@ function TableShell<T extends { id: string }>({
   };
 
   return (
-    <section className="space-y-4 rounded-[20px] border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <section className="space-y-3.5 rounded-[20px] border border-slate-200 bg-white p-3.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <h3 className="text-base font-black text-slate-900 dark:text-white">{title}</h3>
-          {subtitle && <p className="mt-1 text-xs text-slate-500">{subtitle}</p>}
+          <h3 className="text-xs font-black text-slate-900 dark:text-white">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-[10px] text-slate-500">{subtitle}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="relative min-w-[240px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <label className="relative min-w-[200px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search..."
-              className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white font-medium"
             />
           </label>
           {filters}
           <button
             type="button"
             onClick={onExport}
-            className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200"
           >
-            <Download className="h-4 w-4" /> Export
+            <Download className="h-3.5 w-3.5" /> Export
           </button>
           <details className="relative group">
-            <summary className="inline-flex h-11 cursor-pointer list-none items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">
-              <SlidersHorizontal className="h-4 w-4" /> Columns <ChevronDown className="h-4 w-4" />
+            <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200">
+              <SlidersHorizontal className="h-3.5 w-3.5" /> Columns <ChevronDown className="h-3.5 w-3.5" />
             </summary>
             <div className="absolute right-0 z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-700 dark:bg-slate-900">
               <p className="mb-2 text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">Visible Columns</p>
@@ -651,24 +652,24 @@ function TableShell<T extends { id: string }>({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[18px] border border-slate-200 dark:border-slate-800">
-        <table className="w-full border-collapse text-left">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+        <table className="w-full border-collapse text-left text-xs">
           <thead className="bg-slate-50 dark:bg-slate-950">
             <tr className="text-[10px] font-black uppercase tracking-[0.28em] text-slate-500">
               {selectable && (
-                <th className="w-10 px-4 py-3">
+                <th className="w-10 px-3.5 py-2">
                   <input
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleAll}
-                    className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                   />
                 </th>
               )}
               {visibleColumnDefs.map(column => (
                 <th
                   key={column.id}
-                  className={`px-4 py-3 ${column.className || ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}`}
+                  className={`px-3.5 py-2 ${column.className || ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}`}
                 >
                   {column.sortable && column.accessor ? (
                     <button
@@ -691,19 +692,19 @@ function TableShell<T extends { id: string }>({
                   )}
                 </th>
               ))}
-              {rowActions && <th className="px-4 py-3 text-right">Actions</th>}
+              {rowActions && <th className="px-3.5 py-2 text-right">Actions</th>}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900">
+          <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900 font-medium">
             {pageRows.length === 0 ? (
               <tr>
-                <td colSpan={(selectable ? 1 : 0) + visibleColumnDefs.length + (rowActions ? 1 : 0)} className="px-6 py-16 text-center">
-                  <div className="mx-auto max-w-sm space-y-3">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
-                      <AlertTriangle className="h-6 w-6" />
+                <td colSpan={(selectable ? 1 : 0) + visibleColumnDefs.length + (rowActions ? 1 : 0)} className="px-4 py-10 text-center">
+                  <div className="mx-auto max-w-sm space-y-2">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+                      <AlertTriangle className="h-5 w-5" />
                     </div>
-                    <p className="text-sm font-bold text-slate-900 dark:text-white">{emptyStateTitle}</p>
-                    <p className="text-xs text-slate-500">{emptyStateDescription}</p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">{emptyStateTitle}</p>
+                    <p className="text-[11px] text-slate-500">{emptyStateDescription}</p>
                   </div>
                 </td>
               </tr>
@@ -718,27 +719,27 @@ function TableShell<T extends { id: string }>({
                     className={`${onRowClick ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60' : ''} ${selected ? 'bg-brand-50/50 dark:bg-brand-950/20' : ''}`}
                   >
                     {selectable && (
-                      <td className="px-4 py-4">
+                      <td className="px-3.5 py-2.5">
                         <input
                           type="checkbox"
                           checked={selected}
                           onChange={() => toggleSelection(id)}
                           onClick={e => e.stopPropagation()}
-                          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
                         />
                       </td>
                     )}
                     {visibleColumnDefs.map(column => (
                       <td
                         key={column.id}
-                        className={`px-4 py-4 align-middle text-sm text-slate-700 dark:text-slate-300 ${column.className || ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}`}
+                        className={`px-3.5 py-2.5 align-middle text-xs text-slate-700 dark:text-slate-300 ${column.className || ''} ${column.align === 'center' ? 'text-center' : column.align === 'right' ? 'text-right' : 'text-left'}`}
                       >
                         {column.render(row)}
                       </td>
                     ))}
                     {rowActions && (
-                      <td className="px-4 py-4 text-right">
-                        <div className="inline-flex flex-wrap items-center justify-end gap-2">
+                      <td className="px-3.5 py-2.5 text-right">
+                        <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
                           {rowActions(row)}
                         </div>
                       </td>
@@ -798,22 +799,22 @@ const ShellCard: React.FC<{
   className?: string;
   children: React.ReactNode;
 }> = ({ title, subtitle, icon: Icon, action, className = '', children }) => (
-  <section className={`rounded-[20px] border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
+  <section className={`rounded-[20px] border border-slate-200 bg-white shadow-2xs dark:border-slate-800 dark:bg-slate-900 ${className}`}>
     {(title || subtitle || action) && (
-      <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
         <div className="min-w-0">
           {title && (
             <div className="flex items-center gap-2">
               {Icon && <Icon className="h-4 w-4 text-brand-600 dark:text-brand-400" />}
-              <h3 className="text-sm font-black text-slate-900 dark:text-white">{title}</h3>
+              <h3 className="text-xs font-black text-slate-900 dark:text-white">{title}</h3>
             </div>
           )}
-          {subtitle && <p className="mt-1 text-[11px] text-slate-500">{subtitle}</p>}
+          {subtitle && <p className="mt-0.5 text-[10px] text-slate-500">{subtitle}</p>}
         </div>
         {action}
       </div>
     )}
-    <div className="p-6">{children}</div>
+    <div className="p-3.5">{children}</div>
   </section>
 );
 
@@ -833,16 +834,16 @@ const MetricCard: React.FC<{
     slate: 'from-slate-600 to-slate-800'
   };
   return (
-    <div className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-[20px] border border-slate-200 bg-white p-3 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-start justify-between gap-2.5">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">{label}</p>
-          <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{value}</p>
-          {helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
+          <p className="text-[9px] font-black uppercase tracking-[0.28em] text-slate-400">{label}</p>
+          <p className="mt-1 text-xl font-black text-slate-900 dark:text-white">{value}</p>
+          {helper && <p className="mt-0.5 text-[11px] text-slate-500">{helper}</p>}
         </div>
         {Icon && (
-          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${tones[tone]} text-white shadow-lg`}>
-            <Icon className="h-5 w-5" />
+          <div className={`flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${tones[tone]} text-white shadow-md`}>
+            <Icon className="h-4 w-4" />
           </div>
         )}
       </div>
@@ -1436,14 +1437,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <button
                   type="button"
                   onClick={() => openStructureEditor()}
-                  className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-xs"
                 >
-                  <Plus className="h-4 w-4" /> Create Structure
+                  <Plus className="h-3.5 w-3.5" /> Create Structure
                 </button>
               </div>
             }
           >
-            <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
               <ChipButton label="All" active={selectedStructure.department === 'All'} onClick={() => setSelectedStructureId(baseStructures[0].id)} />
               {categoryOptions.slice(1).map(option => (
                 <ChipButton key={option} label={option} active={false} onClick={() => undefined} />
@@ -1463,17 +1464,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               }}
               rowActions={row => (
                 <>
-                  <button type="button" onClick={e => { e.stopPropagation(); setSelectedStructureId(row.id); setSelectedStructurePreview(row); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    <Eye className="h-3.5 w-3.5" /> View
+                  <button type="button" title="View Structure" onClick={e => { e.stopPropagation(); setSelectedStructureId(row.id); setSelectedStructurePreview(row); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 transition-colors">
+                    <Eye className="h-3.5 w-3.5" />
                   </button>
-                  <button type="button" onClick={e => { e.stopPropagation(); openStructureEditor(row); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                    <Pencil className="h-3.5 w-3.5" /> Edit
+                  <button type="button" title="Edit Structure" onClick={e => { e.stopPropagation(); openStructureEditor(row); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
-                  <button type="button" onClick={e => { e.stopPropagation(); handleDuplicateStructure(row); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-50 px-3 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">
-                    <Copy className="h-3.5 w-3.5" /> Duplicate
+                  <button type="button" title="Duplicate Structure" onClick={e => { e.stopPropagation(); handleDuplicateStructure(row); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300 transition-colors">
+                    <Copy className="h-3.5 w-3.5" />
                   </button>
-                  <button type="button" onClick={e => { e.stopPropagation(); handleDeleteStructure(row.id); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-rose-50 px-3 text-xs font-bold text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  <button type="button" title="Delete Structure" onClick={e => { e.stopPropagation(); handleDeleteStructure(row.id); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 </>
               )}
@@ -1678,11 +1679,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         onExport={() => addToast('success', 'Export ready', 'Employee salary assignments exported as CSV preview.')}
         rowActions={row => (
           <>
-            <button type="button" onClick={e => { e.stopPropagation(); openStaffDrawer(row.employeeId); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Eye className="h-3.5 w-3.5" /> View
+            <button type="button" title="View Profile" onClick={e => { e.stopPropagation(); openStaffDrawer(row.employeeId); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 transition-colors">
+              <Eye className="h-3.5 w-3.5" />
             </button>
-            <button type="button" onClick={e => { e.stopPropagation(); const targetStructure = structureRows.find(structure => structure.id === bulkStructureId); if (!targetStructure) return; setAssignmentRows(prev => prev.map(item => item.id === row.id ? { ...item, salaryStructureId: targetStructure.id, salaryStructureName: targetStructure.structureName, monthlyGross: targetStructure.grossSalary, grossSalary: targetStructure.grossSalary, netSalary: targetStructure.grossSalary - sumLines(targetStructure.deductions), effectiveDate: bulkEffectiveDate, assignedDate: bulkEffectiveDate, updatedAt: new Date().toISOString(), reason: 'Structure transfer' } : item)); setAssignmentSelection([row.id]); addToast('success', 'Structure transferred', `${row.employeeName} moved to ${targetStructure.structureName}.`); }} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-50 px-3 text-xs font-bold text-brand-700 dark:bg-brand-950/30 dark:text-brand-300">
-              <ArrowRight className="h-3.5 w-3.5" /> Transfer
+            <button type="button" title="Edit Assignment" onClick={e => { e.stopPropagation(); const targetStructure = structureRows.find(structure => structure.id === bulkStructureId); if (!targetStructure) return; setAssignmentRows(prev => prev.map(item => item.id === row.id ? { ...item, salaryStructureId: targetStructure.id, salaryStructureName: targetStructure.structureName, monthlyGross: targetStructure.grossSalary, grossSalary: targetStructure.grossSalary, netSalary: targetStructure.grossSalary - sumLines(targetStructure.deductions), effectiveDate: bulkEffectiveDate, assignedDate: bulkEffectiveDate, updatedAt: new Date().toISOString(), reason: 'Structure transfer' } : item)); setAssignmentSelection([row.id]); addToast('success', 'Structure transferred', `${row.employeeName} moved to ${targetStructure.structureName}.`); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/30 dark:text-sky-300 transition-colors">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button type="button" title="Delete Assignment" onClick={e => { e.stopPropagation(); setAssignmentRows(prev => prev.filter(item => item.id !== row.id)); addToast('info', 'Assignment Removed', `Salary record for ${row.employeeName} deleted.`); }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 transition-colors">
+              <Trash2 className="h-3.5 w-3.5" />
             </button>
           </>
         )}
@@ -2350,30 +2354,30 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="rounded-[20px] border border-slate-200 bg-white/95 shadow-lg backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
-        <div className="flex flex-col gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4 px-2 py-3 sm:px-4">
+      <div className="rounded-2xl border border-slate-200 bg-white/95 shadow-xs backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+        <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="info" size="sm">Payroll</Badge>
               <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">School ERP / Payroll</span>
             </div>
-            <h1 className="mt-2 text-2xl font-black text-slate-900 dark:text-white">Complete Payroll Module</h1>
-            <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            <h1 className="mt-1 text-xl font-black text-slate-900 dark:text-white">Complete Payroll Module</h1>
+            <p className="mt-0.5 max-w-3xl text-xs text-slate-500 font-medium">
               A clean static payroll workspace focused on salary structures, payslip generation, payslip history, and payroll settings.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => navigateTab('staff-payroll-structures')} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-brand-600 px-4 text-sm font-black text-white shadow-lg shadow-brand-500/20">
-              <Layers className="h-4 w-4" /> Salary Structure
+            <button type="button" onClick={() => navigateTab('staff-payroll-structures')} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-xs">
+              <Layers className="h-3.5 w-3.5" /> Salary Structure
             </button>
-            <button type="button" onClick={() => navigateTab('staff-payroll-payslips')} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-100 px-4 text-sm font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <ReceiptText className="h-4 w-4" /> Generate Payslips
+            <button type="button" onClick={() => navigateTab('staff-payroll-payslips')} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+              <ReceiptText className="h-3.5 w-3.5" /> Generate Payslips
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 border-b border-slate-100 px-4 py-4 dark:border-slate-800 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1.5 border-b border-slate-100 px-3 py-2.5 dark:border-slate-800 md:grid-cols-4">
           {payrollTabs.map(tab => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -2382,18 +2386,18 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 key={tab.id}
                 type="button"
                 onClick={() => navigateTab(tab.id)}
-                className={`flex min-h-[72px] items-center gap-3 rounded-[18px] border p-4 text-left transition-all ${
+                className={`flex min-h-[48px] items-center gap-2.5 rounded-xl border px-3 py-2 text-left transition-all ${
                   active
-                    ? 'border-brand-600 bg-brand-600 text-white shadow-lg shadow-brand-500/20'
+                    ? 'border-brand-600 bg-brand-600 text-white shadow-xs'
                     : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
                 }`}
               >
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
                   <Icon className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.28em] opacity-75">Payroll</p>
-                  <p className="mt-1 truncate whitespace-nowrap text-xs font-black">{tab.label}</p>
+                  <p className="text-[9px] font-black uppercase tracking-[0.25em] opacity-75">Payroll</p>
+                  <p className="mt-0.5 truncate whitespace-nowrap text-xs font-black">{tab.label}</p>
                 </div>
               </button>
             );

@@ -116,7 +116,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           onClick={handleOpenAdd}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Hostel Pricing Rule
+          <Plus className="w-4 h-4" /> Add Hostel Fee
         </button>
       </div>
 
@@ -162,7 +162,7 @@ export const FinanceHostelConfigView: React.FC = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
               {filteredConfigs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">No hostel fee configurations found. Click "Add Hostel Pricing Rule" to configure pricing.</td>
+                  <td colSpan={8} className="py-8 text-center text-slate-400">No hostel fee configurations found. Click "Add Hostel Fee" to configure pricing.</td>
                 </tr>
               ) : (
                 filteredConfigs.map(c => {
@@ -214,8 +214,7 @@ export const FinanceHostelConfigView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Home className="w-5 h-5 text-sky-500" />
-              {editingConfig ? 'Edit Hostel Pricing Configuration' : 'Add Hostel Pricing Configuration'}
+              {editingConfig ? 'Edit Hostel Fee' : 'Add Hostel Fee'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -329,7 +328,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20"
                 >
-                  Save Configuration
+                  Save
                 </button>
               </div>
             </form>
@@ -341,8 +340,8 @@ export const FinanceHostelConfigView: React.FC = () => {
       {deletingConfig && (
         <ConfirmModal
           isOpen={true}
-          title="Delete Hostel Pricing Rule"
-          message={`Are you sure you want to delete the pricing rule for ${deletingConfig.hostelName}?`}
+          title="Delete Hostel Fee Configuration"
+          message={`Are you sure you want to delete the fee configuration for ${deletingConfig.hostelName}?`}
           onConfirm={handleDelete}
           onCancel={() => setDeletingConfig(null)}
         />

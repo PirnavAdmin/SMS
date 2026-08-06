@@ -14,11 +14,11 @@ public interface ISuperAdminRepository
     void DeleteSchool(School school);
 
     // User/Admin Management
-    Task<List<User>> GetAdminsAsync(string? search);
-    Task<User?> GetAdminByIdAsync(int adminId);
+    Task<List<Admin>> GetAdminsAsync(string? search);
+    Task<Admin?> GetAdminByIdAsync(int adminId);
     Task<Role?> GetRoleByNameAsync(string roleName);
-    Task AddUserAsync(User user);
-    Task<bool> UserEmailExistsAsync(string email, int? excludeUserId = null);
+    Task AddAdminAsync(Admin admin);
+    Task<bool> AdminEmailExistsAsync(string email, int? excludeAdminId = null);
 
     // Stats & Aggregations
     Task<int> GetCountByRoleAsync(string roleName, int? schoolId = null);

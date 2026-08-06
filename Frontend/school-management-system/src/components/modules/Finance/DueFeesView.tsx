@@ -39,7 +39,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
       {/* Summary KPI Banner */}
       <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500">
         <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase">Total System Outstanding Dues</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase">Total Outstanding Dues</p>
           <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalOutstanding)}</h3>
         </div>
         <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">

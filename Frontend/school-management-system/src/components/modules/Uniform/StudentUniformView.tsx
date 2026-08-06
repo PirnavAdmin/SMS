@@ -147,7 +147,7 @@ export const StudentUniformView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <UserPlus className="w-6 h-6 text-sky-600" /> Student Uniform Assignments
+            <UserPlus className="w-6 h-6 text-sky-600" /> Uniform Distribution
           </h2>
           </div>
 

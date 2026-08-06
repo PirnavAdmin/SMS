@@ -90,25 +90,25 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
       <div className="flex w-full max-w-5xl h-full flex-col border-l border-slate-200 bg-white shadow-2xl overflow-hidden dark:border-slate-800 dark:bg-slate-950 animate-in slide-in-from-right-16">
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-6 py-5 dark:border-slate-800">
-          <div className="flex min-w-0 items-center gap-4">
-            <img src={staff.avatar} alt={`${staff.firstName} ${staff.lastName}`} className="h-16 w-16 rounded-3xl object-cover ring-4 ring-slate-100 dark:ring-slate-800" />
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+          <div className="flex min-w-0 items-center gap-3">
+            <img src={staff.avatar} alt={`${staff.firstName} ${staff.lastName}`} className="h-12 w-12 rounded-2xl object-cover ring-2 ring-slate-100 dark:ring-slate-800 shadow-sm" />
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant={staff.employeeCategory === 'Teacher' ? 'info' : 'neutral'} size="sm">{staff.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'}</Badge>
                 <span className="text-[10px] font-black uppercase tracking-[0.35em] text-slate-400">{staff.empId}</span>
               </div>
-              <h2 className="mt-2 truncate text-xl font-black text-slate-900 dark:text-white">{staff.firstName} {staff.lastName}</h2>
-              <p className="text-sm text-slate-500">{staff.designation} | {staff.department}</p>
+              <h2 className="mt-1 truncate text-base font-black text-slate-900 dark:text-white">{staff.firstName} {staff.lastName}</h2>
+              <p className="text-xs font-bold text-slate-500">{staff.designation} | {staff.department}</p>
             </div>
           </div>
-          <button onClick={onClose} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-            <X className="h-5 w-5" />
+          <button onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="border-b border-slate-100 px-4 py-4 dark:border-slate-800">
-          <div className="flex flex-wrap gap-2">
+        <div className="border-b border-slate-100 px-3 py-2.5 dark:border-slate-800">
+          <div className="flex flex-wrap gap-1.5">
             {tabs.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -117,23 +117,23 @@ export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onC
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex h-10 items-center gap-2 rounded-xl border px-3 transition-all ${
+                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 transition-all ${
                     active
-                      ? 'border-brand-600 bg-brand-600 text-white shadow-md shadow-brand-500/20'
+                      ? 'border-brand-600 bg-brand-600 text-white shadow-xs'
                       : 'border-slate-200 bg-white text-slate-600 hover:border-brand-300 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300'
                   }`}
                 >
-                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
-                    <Icon className="h-3.5 w-3.5" />
+                  <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${active ? 'bg-white/15' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    <Icon className="h-3 w-3" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em]">{tab.label}</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4">
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(360px,0.7fr)]">
               <div className="space-y-6">

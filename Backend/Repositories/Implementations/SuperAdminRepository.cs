@@ -61,29 +61,28 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     // --- User/Admin Management ---
 
-    public async Task<List<User>> GetAdminsAsync(string? search)
+    public async Task<List<Admin>> GetAdminsAsync(string? search)
     {
-        var query = _context.Users
-            .Include(u => u.School)
-            .Include(u => u.Roles)
-            .Where(u => u.Role == "Admin" || u.Roles.Any(r => r.RoleName == "Admin"))
+        var query = _context.Admins
+            .Include(a => a.School)
+            .Include(a => a.Roles)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             var cleanSearch = search.Trim();
-            query = query.Where(u => u.FullName.Contains(cleanSearch) || (u.Email != null && u.Email.Contains(cleanSearch)));
+            query = query.Where(a => a.FullName.Contains(cleanSearch) || (a.Email != null && a.Email.Contains(cleanSearch)));
         }
 
-        return await query.OrderByDescending(u => u.CreatedAt).ToListAsync();
+        return await query.OrderByDescending(a => a.CreatedAt).ToListAsync();
     }
 
-    public async Task<User?> GetAdminByIdAsync(int adminId)
+    public async Task<Admin?> GetAdminByIdAsync(int adminId)
     {
-        return await _context.Users
-            .Include(u => u.School)
-            .Include(u => u.Roles)
-            .FirstOrDefaultAsync(u => u.UserId == adminId && (u.Role == "Admin" || u.Roles.Any(r => r.RoleName == "Admin")));
+        return await _context.Admins
+            .Include(a => a.School)
+            .Include(a => a.Roles)
+            .FirstOrDefaultAsync(a => a.AdminId == adminId);
     }
 
     public async Task<Role?> GetRoleByNameAsync(string roleName)
@@ -91,24 +90,34 @@ public class SuperAdminRepository : ISuperAdminRepository
         return await _context.Roles.FirstOrDefaultAsync(r => r.RoleName == roleName);
     }
 
-    public async Task AddUserAsync(User user)
+    public async Task AddAdminAsync(Admin admin)
     {
-        await _context.Users.AddAsync(user);
+        await _context.Admins.AddAsync(admin);
     }
 
-    public async Task<bool> UserEmailExistsAsync(string email, int? excludeUserId = null)
+    public async Task<bool> AdminEmailExistsAsync(string email, int? excludeAdminId = null)
     {
-        if (excludeUserId.HasValue)
+        if (excludeAdminId.HasValue)
         {
-            return await _context.Users.AnyAsync(u => u.Email == email && u.UserId != excludeUserId.Value);
+            return await _context.Admins.AnyAsync(a => a.Email == email && a.AdminId != excludeAdminId.Value);
         }
-        return await _context.Users.AnyAsync(u => u.Email == email);
+        return await _context.Admins.AnyAsync(a => a.Email == email);
     }
 
     // --- Stats & Aggregations ---
 
     public async Task<int> GetCountByRoleAsync(string roleName, int? schoolId = null)
     {
+        if (roleName == "Admin")
+        {
+            var adminQuery = _context.Admins.AsQueryable();
+            if (schoolId.HasValue)
+            {
+                adminQuery = adminQuery.Where(a => a.SchoolId == schoolId.Value);
+            }
+            return await adminQuery.CountAsync();
+        }
+
         var query = _context.Users.AsQueryable();
 
         if (schoolId.HasValue)
@@ -122,14 +131,16 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<int> GetTotalUsersCountAsync(int? schoolId = null)
     {
-        var query = _context.Users.AsQueryable();
+        var usersQuery = _context.Users.AsQueryable();
+        var adminsQuery = _context.Admins.AsQueryable();
 
         if (schoolId.HasValue)
         {
-            query = query.Where(u => u.SchoolId == schoolId.Value);
+            usersQuery = usersQuery.Where(u => u.SchoolId == schoolId.Value);
+            adminsQuery = adminsQuery.Where(a => a.SchoolId == schoolId.Value);
         }
 
-        return await query.CountAsync();
+        return await usersQuery.CountAsync() + await adminsQuery.CountAsync();
     }
 
     public async Task<List<KeyValuePair<string, int>>> GetSchoolGrowthMonthlyAsync()

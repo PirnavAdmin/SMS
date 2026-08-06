@@ -114,7 +114,7 @@ export const FinanceTransportConfigView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RouteIcon className="w-6 h-6 text-sky-500" /> Transport Pricing
+            <RouteIcon className="w-6 h-6 text-sky-500" /> Transport Fee Structure
           </h2>
           </div>
 
@@ -123,7 +123,7 @@ export const FinanceTransportConfigView: React.FC = () => {
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Add Transport Pricing Config
+            <Plus className="w-4 h-4" /> Add Transport Route Fee
           </button>
           <ExportButton data={financeTransportConfigs} filename="finance_transport_configurations" />
         </div>
@@ -332,7 +332,7 @@ export const FinanceTransportConfigView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save Pricing Config</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save Transport Route Fee</button>
               </div>
             </form>
           </div>
@@ -350,8 +350,8 @@ export const FinanceTransportConfigView: React.FC = () => {
             setDeletingConfig(null);
           }
         }}
-        title="Delete Transport Pricing Config"
-        message={`Are you sure you want to delete transport pricing for ${deletingConfig?.pickupName}?`}
+        title="Delete Transport Fee Structure"
+        message={`Are you sure you want to delete transport fee structure for ${deletingConfig?.pickupName}?`}
       />
     </div>
   );

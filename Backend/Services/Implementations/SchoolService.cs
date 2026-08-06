@@ -68,24 +68,24 @@ public class SchoolService : ISchoolService
         }).ToList();
     }
 
-    public async Task<List<TeacherDto>> GetAllTeachersAsync(string? search, string? subject)
-    {
-        var list = await _schoolRepository.GetAllTeachersAsync(search, subject);
-        return list.Select(s => MapToTeacherDto(s)).ToList();
-    }
+	public async Task<List<TeacherDto>> GetAllTeachersAsync(string? search, string? subject)
+	{
+		var list = await _schoolRepository.GetAllTeachersAsync(search, subject);
+		return list.Select(s => MapToTeacherDto(s)).ToList();
+	}
 
-    public async Task<TeacherDto?> GetTeacherByIdAsync(int id)
-    {
-        var staff = await _schoolRepository.GetStaffByIdAsync(id);
-        if (staff == null) return null;
-        return MapToTeacherDto(staff);
-    }
+	public async Task<TeacherDto?> GetTeacherByIdAsync(int id)
+	{
+		var staff = await _schoolRepository.GetStaffByIdAsync(id);
+		if (staff == null) return null;
+		return MapToTeacherDto(staff);
+	}
 
-    private static TeacherDto MapToTeacherDto(Staff s)
-    {
-        string subjectName = !string.IsNullOrWhiteSpace(s.PrimarySubject) ? s.PrimarySubject : (!string.IsNullOrWhiteSpace(s.Department) ? s.Department : "General");
-        string subjectCode = ExtractSubjectCode(subjectName, s.Specialization);
-        bool isClassTeacher = (s.Designation != null && s.Designation.ToLower().Contains("class teacher")) || s.StaffId == 1 || s.EmployeeId == "EMP001";
+	private static TeacherDto MapToTeacherDto(Staff s)
+	{
+		string subjectName = !string.IsNullOrWhiteSpace(s.PrimarySubject) ? s.PrimarySubject : (!string.IsNullOrWhiteSpace(s.Department) ? s.Department : "General");
+		string subjectCode = ExtractSubjectCode(subjectName, s.Specialization);
+		bool isClassTeacher = (s.Designation != null && s.Designation.ToLower().Contains("class teacher")) || s.StaffId == 1 || s.EmployeeId == "EMP001";
 
         return new TeacherDto
         {
@@ -519,36 +519,36 @@ public class SchoolService : ISchoolService
         return MapToClassGradeResponseDto(cls);
     }
 
-    public async Task<bool> CreateClassGradeAsync(CreateClassGradeDto dto)
-    {
-        var newClass = new ClassGrade { ClassName = dto.ClassName };
-        await _schoolRepository.AddClassGradeAsync(newClass);
-        await _schoolRepository.SaveChangesAsync();
+	public async Task<bool> CreateClassGradeAsync(CreateClassGradeDto dto)
+	{
+		var newClass = new ClassGrade { ClassName = dto.ClassName };
+		await _schoolRepository.AddClassGradeAsync(newClass);
+		await _schoolRepository.SaveChangesAsync();
 
-        if (dto.SubjectIds != null && dto.SubjectIds.Any())
-        {
-            foreach (var subId in dto.SubjectIds)
-            {
-                newClass.CurriculumSubjects.Add(new ClassCurriculumSubject
-                {
-                    ClassId = newClass.ClassId,
-                    SubjectId = subId
-                });
-            }
-        }
+		if (dto.SubjectIds != null && dto.SubjectIds.Any())
+		{
+			foreach (var subId in dto.SubjectIds)
+			{
+				newClass.CurriculumSubjects.Add(new ClassCurriculumSubject
+				{
+					ClassId = newClass.ClassId,
+					SubjectId = subId
+				});
+			}
+		}
 
-        if (dto.Sections != null && dto.Sections.Any())
-        {
-            foreach (var secDto in dto.Sections)
-            {
-                newClass.Sections.Add(new ClassSection
-                {
-                    ClassId = newClass.ClassId,
-                    SectionName = secDto.SectionName,
-                    ClassTeacherEmpId = secDto.ClassTeacherEmpId
-                });
-            }
-        }
+		if (dto.Sections != null && dto.Sections.Any())
+		{
+			foreach (var secDto in dto.Sections)
+			{
+				newClass.Sections.Add(new ClassSection
+				{
+					ClassId = newClass.ClassId,
+					SectionName = secDto.SectionName,
+					ClassTeacherEmpId = secDto.ClassTeacherEmpId
+				});
+			}
+		}
 
         await _schoolRepository.SaveChangesAsync();
         return true;
@@ -559,34 +559,34 @@ public class SchoolService : ISchoolService
         var cls = await _schoolRepository.GetClassGradeByIdAsync(id)
             ?? throw new NotFoundException($"Class Grade with ID '{id}' not found.");
 
-        cls.ClassName = dto.ClassName;
+		cls.ClassName = dto.ClassName;
 
-        cls.CurriculumSubjects.Clear();
-        if (dto.SubjectIds != null && dto.SubjectIds.Any())
-        {
-            foreach (var subId in dto.SubjectIds)
-            {
-                cls.CurriculumSubjects.Add(new ClassCurriculumSubject
-                {
-                    ClassId = cls.ClassId,
-                    SubjectId = subId
-                });
-            }
-        }
+		cls.CurriculumSubjects.Clear();
+		if (dto.SubjectIds != null && dto.SubjectIds.Any())
+		{
+			foreach (var subId in dto.SubjectIds)
+			{
+				cls.CurriculumSubjects.Add(new ClassCurriculumSubject
+				{
+					ClassId = cls.ClassId,
+					SubjectId = subId
+				});
+			}
+		}
 
-        cls.Sections.Clear();
-        if (dto.Sections != null && dto.Sections.Any())
-        {
-            foreach (var secDto in dto.Sections)
-            {
-                cls.Sections.Add(new ClassSection
-                {
-                    ClassId = cls.ClassId,
-                    SectionName = secDto.SectionName,
-                    ClassTeacherEmpId = secDto.ClassTeacherEmpId
-                });
-            }
-        }
+		cls.Sections.Clear();
+		if (dto.Sections != null && dto.Sections.Any())
+		{
+			foreach (var secDto in dto.Sections)
+			{
+				cls.Sections.Add(new ClassSection
+				{
+					ClassId = cls.ClassId,
+					SectionName = secDto.SectionName,
+					ClassTeacherEmpId = secDto.ClassTeacherEmpId
+				});
+			}
+		}
 
         await _schoolRepository.SaveChangesAsync();
         return true;
@@ -1243,27 +1243,27 @@ public class SchoolService : ISchoolService
         return dto;
     }
 
-    public async Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status)
-    {
-        var list = await _schoolRepository.GetAllLeaveApplicationsAsync(status);
-        return list.Select(l => new LeaveApplicationResponseDto
-        {
-            LeaveApplicationId = l.LeaveApplicationId,
-            StaffId = l.StaffId,
-            EmployeeId = l.Staff?.EmployeeId ?? "N/A",
-            StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}" : "N/A",
-            Designation = l.Staff?.Designation ?? "N/A",
-            LeaveTypeName = l.LeaveType?.Name ?? "N/A",
-            LeaveTypeCode = l.LeaveType?.Code ?? "N/A",
-            FromDate = l.FromDate.ToString("yyyy-MM-dd"),
-            ToDate = l.ToDate.ToString("yyyy-MM-dd"),
-            IsHalfDay = l.IsHalfDay,
-            RequestedDays = l.RequestedDays,
-            Reason = l.Reason,
-            AppliedDate = l.AppliedDate.ToString("yyyy-MM-dd"),
-            Status = l.Status
-        }).ToList();
-    }
+	public async Task<List<LeaveApplicationResponseDto>> GetAllLeaveApplicationsAsync(string? status)
+	{
+		var list = await _schoolRepository.GetAllLeaveApplicationsAsync(status);
+		return list.Select(l => new LeaveApplicationResponseDto
+		{
+			LeaveApplicationId = l.LeaveApplicationId,
+			StaffId = l.StaffId,
+			EmployeeId = l.Staff?.EmployeeId ?? "N/A",
+			StaffName = l.Staff != null ? $"{l.Staff.FirstName} {l.Staff.LastName}" : "N/A",
+			Designation = l.Staff?.Designation ?? "N/A",
+			LeaveTypeName = l.LeaveType?.Name ?? "N/A",
+			LeaveTypeCode = l.LeaveType?.Code ?? "N/A",
+			FromDate = l.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = l.ToDate.ToString("yyyy-MM-dd"),
+			IsHalfDay = l.IsHalfDay,
+			RequestedDays = l.RequestedDays,
+			Reason = l.Reason,
+			AppliedDate = l.AppliedDate.ToString("yyyy-MM-dd"),
+			Status = l.Status
+		}).ToList();
+	}
 
     public async Task<LeaveApplicationResponseDto> SubmitLeaveApplicationAsync(LeaveApplicationCreateDto dto)
     {
@@ -1292,71 +1292,71 @@ public class SchoolService : ISchoolService
 
         var leaveType = await _schoolRepository.GetLeaveTypeByIdAsync(dto.LeaveTypeId);
 
-        return new LeaveApplicationResponseDto
-        {
-            LeaveApplicationId = entity.LeaveApplicationId,
-            StaffId = staff.StaffId,
-            EmployeeId = staff.EmployeeId ?? "",
-            StaffName = $"{staff.FirstName} {staff.LastName}",
-            Designation = staff.Designation ?? "",
-            LeaveTypeName = leaveType?.Name ?? "Leave",
-            LeaveTypeCode = leaveType?.Code ?? "LV",
-            FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
-            ToDate = entity.ToDate.ToString("yyyy-MM-dd"),
-            IsHalfDay = entity.IsHalfDay,
-            RequestedDays = entity.RequestedDays,
-            Reason = entity.Reason,
-            AppliedDate = entity.AppliedDate.ToString("yyyy-MM-dd"),
-            Status = entity.Status
-        };
-    }
+		return new LeaveApplicationResponseDto
+		{
+			LeaveApplicationId = entity.LeaveApplicationId,
+			StaffId = staff.StaffId,
+			EmployeeId = staff.EmployeeId ?? "",
+			StaffName = $"{staff.FirstName} {staff.LastName}",
+			Designation = staff.Designation ?? "",
+			LeaveTypeName = leaveType?.Name ?? "Leave",
+			LeaveTypeCode = leaveType?.Code ?? "LV",
+			FromDate = entity.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = entity.ToDate.ToString("yyyy-MM-dd"),
+			IsHalfDay = entity.IsHalfDay,
+			RequestedDays = entity.RequestedDays,
+			Reason = entity.Reason,
+			AppliedDate = entity.AppliedDate.ToString("yyyy-MM-dd"),
+			Status = entity.Status
+		};
+	}
 
     public async Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status)
     {
         var application = await _schoolRepository.GetLeaveApplicationByIdAsync(applicationId)
             ?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
 
-        application.Status = status;
-        await _schoolRepository.SaveChangesAsync();
+		application.Status = status;
+		await _schoolRepository.SaveChangesAsync();
 
-        return new LeaveApplicationResponseDto
-        {
-            LeaveApplicationId = application.LeaveApplicationId,
-            StaffId = application.StaffId,
-            EmployeeId = application.Staff?.EmployeeId ?? "N/A",
-            StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}" : "N/A",
-            Designation = application.Staff?.Designation ?? "N/A",
-            LeaveTypeName = application.LeaveType?.Name ?? "N/A",
-            LeaveTypeCode = application.LeaveType?.Code ?? "N/A",
-            FromDate = application.FromDate.ToString("yyyy-MM-dd"),
-            ToDate = application.ToDate.ToString("yyyy-MM-dd"),
-            IsHalfDay = application.IsHalfDay,
-            RequestedDays = application.RequestedDays,
-            Reason = application.Reason,
-            AppliedDate = application.AppliedDate.ToString("yyyy-MM-dd"),
-            Status = application.Status
-        };
-    }
+		return new LeaveApplicationResponseDto
+		{
+			LeaveApplicationId = application.LeaveApplicationId,
+			StaffId = application.StaffId,
+			EmployeeId = application.Staff?.EmployeeId ?? "N/A",
+			StaffName = application.Staff != null ? $"{application.Staff.FirstName} {application.Staff.LastName}" : "N/A",
+			Designation = application.Staff?.Designation ?? "N/A",
+			LeaveTypeName = application.LeaveType?.Name ?? "N/A",
+			LeaveTypeCode = application.LeaveType?.Code ?? "N/A",
+			FromDate = application.FromDate.ToString("yyyy-MM-dd"),
+			ToDate = application.ToDate.ToString("yyyy-MM-dd"),
+			IsHalfDay = application.IsHalfDay,
+			RequestedDays = application.RequestedDays,
+			Reason = application.Reason,
+			AppliedDate = application.AppliedDate.ToString("yyyy-MM-dd"),
+			Status = application.Status
+		};
+	}
 
     public async Task<List<LeaveBalanceDto>> GetLeaveBalancesAsync()
     {
         var allStaff = await _schoolRepository.GetAllStaffAsync(null, null);
         var result = new List<LeaveBalanceDto>();
 
-        foreach (var s in allStaff)
-        {
-            result.Add(new LeaveBalanceDto
-            {
-                StaffId = s.StaffId,
-                EmployeeId = s.EmployeeId ?? "",
-                StaffName = $"{s.FirstName} {s.LastName}",
-                Designation = s.Designation ?? "",
-                CasualLeaveBalance = 10,
-                SickLeaveBalance = 10,
-                EarnedLeaveBalance = 15,
-                TotalRemainingBalance = 35
-            });
-        }
+		foreach (var s in allStaff)
+		{
+			result.Add(new LeaveBalanceDto
+			{
+				StaffId = s.StaffId,
+				EmployeeId = s.EmployeeId ?? "",
+				StaffName = $"{s.FirstName} {s.LastName}",
+				Designation = s.Designation ?? "",
+				CasualLeaveBalance = 10,
+				SickLeaveBalance = 10,
+				EarnedLeaveBalance = 15,
+				TotalRemainingBalance = 35
+			});
+		}
 
         return result;
     }

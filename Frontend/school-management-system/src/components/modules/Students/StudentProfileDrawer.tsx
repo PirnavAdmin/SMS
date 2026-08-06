@@ -3,7 +3,7 @@ import { formatCurrency } from '../../../utils/currency';
 import {
   X, User, Users, BookOpen, IndianRupee, Calendar, Award, FileText,
   Phone, Mail, MapPin, Bus, Camera, Trash2, CheckCircle, Shield,
-  Printer, Download, History, Upload, Edit3, Eye, Plus, Check, File
+  Printer, Download, History, Upload, Edit3, Eye, Plus, Check, File, Home
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -127,11 +127,13 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const isHosteller = student.studentType === 'Hosteller';
+
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
     { id: 'parents', label: 'Guardian', icon: Users },
     { id: 'academics', label: 'Academic', icon: BookOpen },
-    { id: 'transport', label: 'Bus Route', icon: Bus },
+    { id: 'transport', label: isHosteller ? 'Hostel Details' : 'Bus Route', icon: isHosteller ? Home : Bus },
     { id: 'fees', label: 'Fee History', icon: IndianRupee },
     { id: 'attendance', label: 'Attendance', icon: Calendar },
     { id: 'exams', label: 'Exam Marks', icon: Award },
@@ -282,27 +284,53 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             </div>
           )}
 
-          {/* 4. Bus Route Tab */}
+          {/* 4. Bus Route / Hostel Details Tab */}
           {activeTab === 'transport' && (
             <div className="space-y-4 animate-in fade-in">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Transport & Bus Allocation</h3>
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                {isHosteller ? 'HOSTEL & ACCOMMODATION ALLOCATION' : 'TRANSPORT & BUS ALLOCATION'}
+              </h3>
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-4 shadow-sm">
                 <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 font-semibold">Student Category:</span>
-                  <Badge variant={student.studentType === 'Hosteller' ? 'warning' : 'info'}>{student.studentType || 'Day Scholar'}</Badge>
+                  <Badge variant={isHosteller ? 'warning' : 'info'}>{student.studentType || (isHosteller ? 'Hosteller' : 'Day Scholar')}</Badge>
                 </div>
-                <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500 font-semibold">Assigned Bus Route:</span>
-                  <span className="font-bold text-slate-900 dark:text-white text-sm">{student.busRoute || 'Route 4 - Central City Express'}</span>
-                </div>
-                <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500 font-semibold">Pickup Point:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{student.pickupPoint || 'Main Campus Stop A'}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500 font-semibold">Drop Point:</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{student.dropPoint || 'Greenwood Circle Stop B'}</span>
-                </div>
+
+                {isHosteller ? (
+                  <>
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500 font-semibold">Assigned Hostel Block:</span>
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">{student.hostelBlock || 'Block A - Boys Residency'}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500 font-semibold">Room & Bed Allocation:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.hostelBed || 'Room #204 (Bed #2)'}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500 font-semibold">Hostel Warden Contact:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">Dr. Robert Vance (+1 555-019-9922)</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-semibold">Mess / Meal Plan:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">Full Board (Breakfast, Lunch, Snacks, Dinner)</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500 font-semibold">Assigned Bus Route:</span>
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">{student.busRoute || 'Route 4 - Central City Express'}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-500 font-semibold">Pickup Point:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.pickupPoint || 'Main Campus Stop A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 font-semibold">Drop Point:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{student.dropPoint || 'Greenwood Circle Stop B'}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}

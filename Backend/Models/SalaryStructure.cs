@@ -35,5 +35,15 @@ public class SalaryStructure
 
     public int AssignedEmployeesCount { get; set; } = 1;
 
+    public string PayrollFrequency { get; set; } = "Monthly";
+    public string SalaryPaymentDay { get; set; } = "5";
+    public bool PfApplicable { get; set; } = false;
+    public decimal PfPercentage { get; set; } = 0;
+    public bool EsiApplicable { get; set; } = false;
+    public decimal EsiPercentage { get; set; } = 0;
+    public bool ProfessionalTaxApplicable { get; set; } = false;
+    public decimal ProfessionalTaxAmount { get; set; } = 0;
+    public string RoundOffRule { get; set; } = "No Round Off";
+
     public ICollection<SalaryStructureItem> Items { get; set; } = new List<SalaryStructureItem>();
 }

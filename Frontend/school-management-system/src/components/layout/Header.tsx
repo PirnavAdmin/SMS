@@ -271,7 +271,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   return (
     <header
-      className={`fixed top-0 right-0 z-50 h-16 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
+      className={`fixed top-0 right-0 z-50 h-16 bg-brand-50/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
         collapsed ? 'left-20' : 'left-64'
       }`}
     >
@@ -288,7 +288,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onOpenSearch}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0 h-9"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0 h-9"
           >
             <Search className="w-4 h-4 shrink-0 text-slate-400" />
             <span className="truncate">Search...</span>

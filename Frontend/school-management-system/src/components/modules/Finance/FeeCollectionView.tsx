@@ -181,7 +181,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       previousDue: calcResult.previousDue
     });
 
-    addToast('success', 'Payment Processed', `Issued receipt ${payment.receiptNo} for ${formatCurrency(amountPaying)}`);
+    addToast('success', 'Payment Processed', `Issued receipt ${payment.receiptNo} for ${formatCurrency(Number(amountPaying))}`);
     onPrintReceipt(payment);
 
     // Refresh calculation engine

@@ -203,7 +203,7 @@ public class SuperAdminService : ISuperAdminService
         var adminUser = await _userRepository.GetByIdAsync(requestedByUserId);
         await LogActivityAsync(requestedByUserId, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Create School", $"Created school: {school.SchoolName} ({school.SchoolCode})");
 
-        return MapToSchoolResponseDto(school, new List<User>());
+        return MapToSchoolResponseDto(school, new List<Admin>());
     }
 
     public async Task<SchoolResponseDto> UpdateSchoolAsync(int schoolId, SchoolUpdateDto dto, int requestedByUserId)
@@ -304,7 +304,7 @@ public class SuperAdminService : ISuperAdminService
 
     public async Task<AdminResponseDto> CreateAdminAsync(AdminCreateDto dto, int requestedByUserId)
     {
-        if (await _saRepository.UserEmailExistsAsync(dto.Email.Trim()))
+        if (await _saRepository.AdminEmailExistsAsync(dto.Email.Trim()))
             throw new AppException($"User with email '{dto.Email}' already exists.", HttpStatusCode.Conflict);
 
         var school = await _saRepository.GetSchoolByIdAsync(dto.SchoolId)
@@ -313,7 +313,7 @@ public class SuperAdminService : ISuperAdminService
         var adminRole = await _saRepository.GetRoleByNameAsync("Admin")
             ?? throw new AppException("Role 'Admin' not configured in DB.", HttpStatusCode.InternalServerError);
 
-        var user = new User
+        var admin = new Admin
         {
             FullName = dto.FullName.Trim(),
             Email = dto.Email.Trim().ToLower(),
@@ -326,54 +326,54 @@ public class SuperAdminService : ISuperAdminService
             CreatedAt = DateTime.UtcNow
         };
 
-        user.Roles.Add(adminRole);
+        admin.Roles.Add(adminRole);
 
-        await _saRepository.AddUserAsync(user);
+        await _saRepository.AddAdminAsync(admin);
         await _saRepository.SaveChangesAsync();
 
         var saUser = await _userRepository.GetByIdAsync(requestedByUserId);
-        await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Create Admin", $"Created admin user: {user.FullName} for school: {school.SchoolName}");
+        await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Create Admin", $"Created admin user: {admin.FullName} for school: {school.SchoolName}");
 
-        return MapToAdminResponseDto(user);
+        return MapToAdminResponseDto(admin);
     }
 
     public async Task<AdminResponseDto> UpdateAdminAsync(int adminId, AdminUpdateDto dto, int requestedByUserId)
     {
-        var user = await _saRepository.GetAdminByIdAsync(adminId)
+        var admin = await _saRepository.GetAdminByIdAsync(adminId)
             ?? throw new NotFoundException($"Admin with ID '{adminId}' not found.");
 
-        if (await _saRepository.UserEmailExistsAsync(dto.Email.Trim(), adminId))
+        if (await _saRepository.AdminEmailExistsAsync(dto.Email.Trim(), adminId))
             throw new AppException($"User with email '{dto.Email}' already exists.", HttpStatusCode.Conflict);
 
-        user.FullName = dto.FullName.Trim();
-        user.Email = dto.Email.Trim().ToLower();
-        user.MobileNumber = dto.MobileNumber.Trim();
+        admin.FullName = dto.FullName.Trim();
+        admin.Email = dto.Email.Trim().ToLower();
+        admin.MobileNumber = dto.MobileNumber.Trim();
         
         if (dto.AssignedSchoolId.HasValue)
         {
             var school = await _saRepository.GetSchoolByIdAsync(dto.AssignedSchoolId.Value)
                 ?? throw new NotFoundException($"School with ID '{dto.AssignedSchoolId.Value}' not found.");
-            user.SchoolId = school.SchoolId;
+            admin.SchoolId = school.SchoolId;
         }
 
         await _saRepository.SaveChangesAsync();
 
         var saUser = await _userRepository.GetByIdAsync(requestedByUserId);
-        await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Update Admin", $"Updated admin: {user.FullName}");
+        await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Update Admin", $"Updated admin: {admin.FullName}");
 
-        return MapToAdminResponseDto(user);
+        return MapToAdminResponseDto(admin);
     }
 
     public async Task ResetAdminPasswordAsync(int adminId, string newPassword, int requestedByUserId)
     {
-        var user = await _saRepository.GetAdminByIdAsync(adminId)
+        var admin = await _saRepository.GetAdminByIdAsync(adminId)
             ?? throw new NotFoundException($"Admin with ID '{adminId}' not found.");
 
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        admin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         await _saRepository.SaveChangesAsync();
 
         var saUser = await _userRepository.GetByIdAsync(requestedByUserId);
-        await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Reset Admin Password", $"Reset password for admin user: {user.FullName}");
+        await LogActivityAsync(requestedByUserId, saUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Reset Admin Password", $"Reset password for admin user: {admin.FullName}");
     }
 
     public async Task<List<AdminResponseDto>> GetAdminsAsync(string? search)
@@ -487,7 +487,7 @@ public class SuperAdminService : ISuperAdminService
         await _saRepository.SaveChangesAsync();
     }
 
-    private SchoolResponseDto MapToSchoolResponseDto(School school, List<User> admins)
+    private SchoolResponseDto MapToSchoolResponseDto(School school, List<Admin> admins)
     {
         int adminsCount = admins.Count(a => a.SchoolId == school.SchoolId);
         
@@ -513,18 +513,18 @@ public class SuperAdminService : ISuperAdminService
         };
     }
 
-    private AdminResponseDto MapToAdminResponseDto(User user)
+    private AdminResponseDto MapToAdminResponseDto(Admin admin)
     {
         return new AdminResponseDto
         {
-            UserId = user.UserId,
-            FullName = user.FullName,
-            Email = user.Email ?? string.Empty,
-            MobileNumber = user.MobileNumber,
-            SchoolId = user.SchoolId,
-            SchoolName = user.School?.SchoolName,
-            Role = user.Role,
-            CreatedAt = user.CreatedAt
+            UserId = admin.AdminId,
+            FullName = admin.FullName,
+            Email = admin.Email ?? string.Empty,
+            MobileNumber = admin.MobileNumber,
+            SchoolId = admin.SchoolId,
+            SchoolName = admin.School?.SchoolName,
+            Role = admin.Role,
+            CreatedAt = admin.CreatedAt
         };
     }
 

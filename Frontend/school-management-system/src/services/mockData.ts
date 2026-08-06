@@ -810,20 +810,87 @@ export const initialFeeHeads: FeeHead[] = [
 
 export const initialDynamicFeeStructures: DynamicFeeStructure[] = [
   {
+    id: 'DFS-CL09',
+    academicYear: '2026-2027',
+    branch: 'Main Campus',
+    className: 'Class 9',
+    section: 'A',
+    studentCategory: 'General',
+    items: [
+      { feeHeadId: 'FH-001', feeHeadName: 'Tuition Fee', amount: 22000 },
+      { feeHeadId: 'FH-002', feeHeadName: 'Admission Fee', amount: 5000 },
+      { feeHeadId: 'FH-003', feeHeadName: 'Textbook & Material Fee', amount: 4000 },
+      { feeHeadId: 'FH-004', feeHeadName: 'Uniform & Accessories', amount: 3000 },
+      { feeHeadId: 'FH-006', feeHeadName: 'Computer Lab & Tech Fee', amount: 2000 }
+    ],
+    totalAmount: 36000,
+    status: 'Active'
+  },
+  {
     id: 'DFS-CL10',
-    academicYear: '2025-2026',
+    academicYear: '2026-2027',
     branch: 'Main Campus',
     className: 'Class 10',
     section: 'A',
     studentCategory: 'General',
     items: [
       { feeHeadId: 'FH-001', feeHeadName: 'Tuition Fee', amount: 25000 },
-      { feeHeadId: 'FH-003', feeHeadName: 'Textbook & Material Fee', amount: 5000 },
-      { feeHeadId: 'FH-004', feeHeadName: 'Uniform & Accessories', amount: 3000 },
-      { feeHeadId: 'FH-005', feeHeadName: 'Science & Lab Fee', amount: 2000 },
-      { feeHeadId: 'FH-007', feeHeadName: 'Sports & Athletic Fee', amount: 1500 }
+      { feeHeadId: 'FH-002', feeHeadName: 'Admission Fee', amount: 5000 },
+      { feeHeadId: 'FH-003', feeHeadName: 'Textbook & Material Fee', amount: 4500 },
+      { feeHeadId: 'FH-004', feeHeadName: 'Uniform & Accessories', amount: 3500 },
+      { feeHeadId: 'FH-005', feeHeadName: 'Science & Lab Fee', amount: 2500 }
     ],
-    totalAmount: 36500,
+    totalAmount: 40500,
+    status: 'Active'
+  },
+  {
+    id: 'DFS-CL11',
+    academicYear: '2026-2027',
+    branch: 'Main Campus',
+    className: 'Class 11',
+    section: 'A',
+    studentCategory: 'General',
+    items: [
+      { feeHeadId: 'FH-001', feeHeadName: 'Tuition Fee', amount: 28000 },
+      { feeHeadId: 'FH-002', feeHeadName: 'Admission Fee', amount: 5000 },
+      { feeHeadId: 'FH-003', feeHeadName: 'Textbook & Material Fee', amount: 5000 },
+      { feeHeadId: 'FH-005', feeHeadName: 'Science & Lab Fee', amount: 3000 },
+      { feeHeadId: 'FH-006', feeHeadName: 'Computer Lab & Tech Fee', amount: 2500 }
+    ],
+    totalAmount: 43500,
+    status: 'Active'
+  },
+  {
+    id: 'DFS-CL12',
+    academicYear: '2026-2027',
+    branch: 'Main Campus',
+    className: 'Class 12',
+    section: 'A',
+    studentCategory: 'General',
+    items: [
+      { feeHeadId: 'FH-001', feeHeadName: 'Tuition Fee', amount: 30000 },
+      { feeHeadId: 'FH-002', feeHeadName: 'Admission Fee', amount: 5000 },
+      { feeHeadId: 'FH-003', feeHeadName: 'Textbook & Material Fee', amount: 5500 },
+      { feeHeadId: 'FH-005', feeHeadName: 'Science & Lab Fee', amount: 3500 },
+      { feeHeadId: 'FH-007', feeHeadName: 'Sports & Athletic Fee', amount: 2000 }
+    ],
+    totalAmount: 46000,
+    status: 'Active'
+  },
+  {
+    id: 'DFS-CL10-2025',
+    academicYear: '2025-2026',
+    branch: 'Main Campus',
+    className: 'Class 10',
+    section: 'A',
+    studentCategory: 'General',
+    items: [
+      { feeHeadId: 'FH-001', feeHeadName: 'Tuition Fee', amount: 24000 },
+      { feeHeadId: 'FH-003', feeHeadName: 'Textbook & Material Fee', amount: 4000 },
+      { feeHeadId: 'FH-004', feeHeadName: 'Uniform & Accessories', amount: 3000 },
+      { feeHeadId: 'FH-005', feeHeadName: 'Science & Lab Fee', amount: 2000 }
+    ],
+    totalAmount: 33000,
     status: 'Active'
   }
 ];
@@ -897,7 +964,7 @@ export const initialStudentDiscounts: StudentDiscount[] = [];
 export const initialFineRules: FineRule[] = [
   {
     id: 'FR-01',
-    ruleName: 'Standard Monthly Late Fine Rule',
+    ruleName: 'Standard Monthly Late Fine',
     dueDate: '2026-08-15',
     graceDays: 5,
     fineType: 'Daily Fine',

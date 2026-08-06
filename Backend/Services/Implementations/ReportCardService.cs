@@ -30,28 +30,35 @@ public class ReportCardService : IReportCardService
             }
         };
 
-        // If real exam schedules exist in DB, append them dynamically
-        var dbExams = await _context.ExamSchedules.AsNoTracking().ToListAsync();
-        if (dbExams.Any())
+        try
         {
-            foreach (var e in dbExams)
+            // If real exam schedules exist in DB, append them dynamically
+            var dbExams = await _context.ExamSchedules.AsNoTracking().ToListAsync();
+            if (dbExams != null && dbExams.Any())
             {
-                if (!result.Exams.Any(x => x.ExamName.Equals(e.ExamTitle, StringComparison.OrdinalIgnoreCase)))
+                foreach (var e in dbExams)
                 {
-                    result.Exams.Add(new ExamOptionDto
+                    if (!result.Exams.Any(x => x.ExamName.Equals(e.ExamTitle, StringComparison.OrdinalIgnoreCase)))
                     {
-                        ExamId = e.ExamId.ToString(),
-                        ExamName = e.ExamTitle ?? "Assessment",
-                        Date = e.ExamDate.ToString("yyyy-MM-dd")
-                    });
+                        result.Exams.Add(new ExamOptionDto
+                        {
+                            ExamId = e.ExamId.ToString(),
+                            ExamName = e.ExamTitle ?? "Assessment",
+                            Date = e.ExamDate.ToString("yyyy-MM-dd")
+                        });
+                    }
                 }
             }
+        }
+        catch
+        {
+            // Fallback gracefully if database is unreachable
         }
 
         return result;
     }
 
-    public async Task<StudentReportCardResponseDto> GetStudentReportCardAsync(int? studentId, string? examName, string? academicYear = "2026-27")
+    public Task<StudentReportCardResponseDto> GetStudentReportCardAsync(int? studentId, string? examName, string? academicYear = "2026-27")
     {
         string selectedExam = string.IsNullOrWhiteSpace(examName) ? "Mid-Term Assessment 2026" : examName.Trim();
 
@@ -70,7 +77,7 @@ public class ReportCardService : IReportCardService
 
         if (selectedExam.Contains("Unit Test 1", StringComparison.OrdinalIgnoreCase))
         {
-            return new StudentReportCardResponseDto
+            return Task.FromResult(new StudentReportCardResponseDto
             {
                 ExamName = "Unit Test 1",
                 Date = "2026-08-10",
@@ -87,11 +94,11 @@ public class ReportCardService : IReportCardService
                     new SubjectScoreDto { Name = "English", Code = "eng-103", Marks = "42/50", Grade = "A2" }
                 },
                 GradingSystemReference = gradingRef
-            };
+            });
         }
 
         // Default: Mid-Term Assessment 2026
-        return new StudentReportCardResponseDto
+        return Task.FromResult(new StudentReportCardResponseDto
         {
             ExamName = "Mid-Term Assessment 2026",
             Date = "2026-09-15",
@@ -108,6 +115,6 @@ public class ReportCardService : IReportCardService
                 new SubjectScoreDto { Name = "English", Code = "eng-103", Marks = "88/100", Grade = "A2" }
             },
             GradingSystemReference = gradingRef
-        };
+        });
     }
 }

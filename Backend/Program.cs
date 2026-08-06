@@ -25,25 +25,19 @@ var connectionString =
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
         connectionString,
-        new MySqlServerVersion(new Version(8, 0, 36))));
+        new MySqlServerVersion(new Version(8, 0, 30))));
 
 // =========================================================
 // 2. DEPENDENCY INJECTION
 // =========================================================
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
 builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOtpService, OtpService>();
-builder.Services.AddScoped<IStudentAttendanceRepository, StudentAttendanceRepository>();
-builder.Services.AddScoped<IStudentAttendanceService, StudentAttendanceService>();
-builder.Services.AddScoped<IReportCardService, ReportCardService>();
-builder.Services.AddScoped<IFeeService, FeeService>();
-builder.Services.AddScoped<ILibraryService, LibraryService>();
-builder.Services.AddScoped<IStudentHostelService, StudentHostelService>();
-builder.Services.AddScoped<IStudentTransportService, StudentTransportService>();
 
 // Transport Route
 builder.Services.AddScoped<ITransportRouteRepository,TransportRouteRepository>();
@@ -224,17 +218,6 @@ builder.Services.AddSwaggerGen(options =>
         apiDescriptions => apiDescriptions.First());
 });
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-    });
-});
-
 var app = builder.Build();
 
 // =========================================================
@@ -243,11 +226,11 @@ var app = builder.Build();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
-app.UseCors("AllowAll");
-
 // Enable Swagger UI unconditionally
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -267,16 +250,39 @@ using (var scope = app.Services.CreateScope())
         var context =
             services.GetRequiredService<AppDbContext>();
 
-        // Ensure EF Core Database and Schema are Created
-        try { context.Database.EnsureCreated(); } catch { }
-
-        // Dynamic Database Table Renaming & Schema Upgrades
+        // Check if database is reachable before running DDL and migrations
+        bool isDbReachable = false;
         try
         {
             var dbConnection = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
-            var dbName = dbConnection.Database;
-            var wasOpen = dbConnection.State == System.Data.ConnectionState.Open;
-            if (!wasOpen) dbConnection.Open();
+            var connStr = dbConnection.ConnectionString;
+            if (!connStr.Contains("Connection Timeout", StringComparison.OrdinalIgnoreCase) && !connStr.Contains("Connect Timeout", StringComparison.OrdinalIgnoreCase))
+            {
+                connStr += ";Connection Timeout=2;";
+            }
+            using var conn = new MySqlConnector.MySqlConnection(connStr);
+            conn.Open();
+            isDbReachable = true;
+            conn.Close();
+        }
+        catch (Exception ex)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning($"[Database Connection Check] Database is unreachable. Skipping migrations and seeds. Error: {ex.Message}");
+        }
+
+        if (isDbReachable)
+        {
+            // Ensure EF Core Database and Schema are Created
+            try { context.Database.EnsureCreated(); } catch { }
+
+            // Dynamic Database Table Renaming & Schema Upgrades
+            try
+            {
+                var dbConnection = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
+                var dbName = dbConnection.Database;
+                var wasOpen = dbConnection.State == System.Data.ConnectionState.Open;
+                if (!wasOpen) dbConnection.Open();
 
             var tablesToRename = new System.Collections.Generic.Dictionary<string, string>
             {
@@ -292,6 +298,7 @@ using (var scope = app.Services.CreateScope())
                 { "SalaryComponents", "salary_components" },
                 { "SalaryStructures", "salary_structures" },
                 { "SalaryStructureItems", "salary_structure_items" },
+                { "EmployeeSalaryAssignments", "employee_salary_assignments" },
                 { "Payslips", "payslips" },
                 { "ExamSchedules", "exam_schedules" },
                 { "ExamInvigilatorAssignments", "exam_invigilator_assignments" },
@@ -774,6 +781,118 @@ using (var scope = app.Services.CreateScope())
                 `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `SchoolId` int NULL,
                 PRIMARY KEY (`NotificationId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `leave_type_configs` (
+                `LeaveTypeId` int NOT NULL AUTO_INCREMENT,
+                `Name` varchar(150) NOT NULL,
+                `Code` varchar(50) NOT NULL,
+                `AnnualAllowance` int NOT NULL DEFAULT 10,
+                `CarryForward` tinyint(1) NOT NULL DEFAULT 0,
+                `MaxConsecutiveDays` int NOT NULL DEFAULT 3,
+                `RequiresAttachment` tinyint(1) NOT NULL DEFAULT 0,
+                `IsPaid` tinyint(1) NOT NULL DEFAULT 1,
+                `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                PRIMARY KEY (`LeaveTypeId`),
+                UNIQUE KEY `ux_leave_type_configs_code` (`Code`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `leave_applications` (
+                `LeaveApplicationId` int NOT NULL AUTO_INCREMENT,
+                `StaffId` int NOT NULL,
+                `LeaveTypeId` int NOT NULL,
+                `FromDate` datetime(6) NOT NULL,
+                `ToDate` datetime(6) NOT NULL,
+                `IsHalfDay` tinyint(1) NOT NULL DEFAULT 0,
+                `RequestedDays` int NOT NULL DEFAULT 1,
+                `Reason` text NOT NULL,
+                `AppliedDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `Status` varchar(50) NOT NULL DEFAULT 'Pending',
+                PRIMARY KEY (`LeaveApplicationId`),
+                KEY `ix_leave_applications_staff_id` (`StaffId`),
+                KEY `ix_leave_applications_type_id` (`LeaveTypeId`),
+                CONSTRAINT `fk_leave_applications_staff` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE,
+                CONSTRAINT `fk_leave_applications_type` FOREIGN KEY (`LeaveTypeId`) REFERENCES `leave_type_configs` (`LeaveTypeId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `salary_structures` (
+                `StructureId` int NOT NULL AUTO_INCREMENT,
+                `StructureCode` varchar(50) NOT NULL,
+                `StructureName` varchar(150) NOT NULL,
+                `Branch` varchar(150) NOT NULL DEFAULT 'Main Campus',
+                `Department` varchar(150) NOT NULL DEFAULT 'General',
+                `Designation` varchar(150) NOT NULL DEFAULT 'Teacher',
+                `StaffCategory` varchar(150) NOT NULL DEFAULT 'Teacher',
+                `EmploymentType` varchar(150) NOT NULL DEFAULT 'Full-time',
+                `EffectiveDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                `Notes` text NULL,
+                `MonthlyGrossSalary` decimal(18,2) NOT NULL DEFAULT 0,
+                `AssignedEmployeesCount` int NOT NULL DEFAULT 0,
+                `PayrollFrequency` varchar(50) NOT NULL DEFAULT 'Monthly',
+                `SalaryPaymentDay` varchar(50) NULL DEFAULT '5',
+                `PfApplicable` tinyint(1) NOT NULL DEFAULT 0,
+                `PfPercentage` decimal(5,2) NOT NULL DEFAULT 0,
+                `EsiApplicable` tinyint(1) NOT NULL DEFAULT 0,
+                `EsiPercentage` decimal(5,2) NOT NULL DEFAULT 0,
+                `ProfessionalTaxApplicable` tinyint(1) NOT NULL DEFAULT 0,
+                `ProfessionalTaxAmount` decimal(18,2) NOT NULL DEFAULT 0,
+                `RoundOffRule` varchar(50) NOT NULL DEFAULT 'No Round Off',
+                PRIMARY KEY (`StructureId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `salary_structure_items` (
+                `ItemId` int NOT NULL AUTO_INCREMENT,
+                `StructureId` int NOT NULL,
+                `ComponentName` varchar(150) NOT NULL,
+                `ComponentType` varchar(50) NOT NULL DEFAULT 'Earning',
+                `Amount` decimal(18,2) NOT NULL DEFAULT 0,
+                PRIMARY KEY (`ItemId`),
+                CONSTRAINT `fk_structure_items_structure` FOREIGN KEY (`StructureId`) REFERENCES `salary_structures` (`StructureId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `employee_salary_assignments` (
+                `AssignmentId` int NOT NULL AUTO_INCREMENT,
+                `StaffId` int NOT NULL,
+                `StructureId` int NOT NULL,
+                `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                `EffectiveDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `AssignedDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `Reason` varchar(255) NULL,
+                `SalaryOverride` tinyint(1) NOT NULL DEFAULT 0,
+                `OverrideBasicSalary` decimal(18,2) NULL,
+                `OverrideAllowances` decimal(18,2) NULL,
+                `OverrideDeductions` decimal(18,2) NULL,
+                `OverrideNetSalary` decimal(18,2) NULL,
+                `UpdatedBy` varchar(150) NULL,
+                `UpdatedAt` datetime NULL,
+                PRIMARY KEY (`AssignmentId`),
+                CONSTRAINT `fk_salary_assignments_staff` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE,
+                CONSTRAINT `fk_salary_assignments_structure` FOREIGN KEY (`StructureId`) REFERENCES `salary_structures` (`StructureId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `admins` (
+                `AdminId` int NOT NULL AUTO_INCREMENT,
+                `FullName` varchar(150) NOT NULL,
+                `Email` varchar(150) NULL,
+                `MobileNumber` varchar(20) NOT NULL,
+                `PasswordHash` varchar(255) NOT NULL,
+                `Role` varchar(50) NOT NULL DEFAULT 'Admin',
+                `IsEmailVerified` tinyint(1) NOT NULL DEFAULT 0,
+                `IsMobileVerified` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `SchoolId` int NULL,
+                PRIMARY KEY (`AdminId`),
+                UNIQUE KEY `ux_admins_mobile` (`MobileNumber`),
+                CONSTRAINT `fk_admins_school` FOREIGN KEY (`SchoolId`) REFERENCES `schools` (`SchoolId`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `admin_roles_junction` (
+                `AdminId` int NOT NULL,
+                `RoleId` int NOT NULL,
+                PRIMARY KEY (`AdminId`, `RoleId`),
+                CONSTRAINT `fk_admin_roles_admin` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE,
+                CONSTRAINT `fk_admin_roles_role` FOREIGN KEY (`RoleId`) REFERENCES `roles` (`RoleId`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -850,6 +969,14 @@ using (var scope = app.Services.CreateScope())
             EnsureColumnExists(tbl, "PrimarySubject", "varchar(150) NULL");
             EnsureColumnExists(tbl, "Specialization", "varchar(150) NULL");
             EnsureColumnExists(tbl, "SystemRole", "varchar(100) NULL");
+            EnsureColumnExists(tbl, "CasualLeaveBalance", "int NOT NULL DEFAULT 10");
+            EnsureColumnExists(tbl, "SickLeaveBalance", "int NOT NULL DEFAULT 10");
+            EnsureColumnExists(tbl, "EarnedLeaveBalance", "int NOT NULL DEFAULT 15");
+            EnsureColumnExists(tbl, "GrossSalary", "decimal(18,2) NULL");
+            EnsureColumnExists(tbl, "NetSalary", "decimal(18,2) NULL");
+            EnsureColumnExists(tbl, "SalaryStructureId", "int NULL");
+            EnsureColumnExists(tbl, "SalaryStructureName", "varchar(150) NULL");
+            EnsureColumnExists(tbl, "SalaryStructureEffectiveDate", "datetime NULL");
         }
 
         try
@@ -865,6 +992,71 @@ using (var scope = app.Services.CreateScope())
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectName` = 'General Subject' WHERE `SubjectName` IS NULL OR `SubjectName` = '';");
         }
         catch { }
+
+        try
+        {
+            try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` MODIFY COLUMN `UserId` int NULL;"); } catch { }
+            EnsureColumnExists("otp_verifications", "AdminId", "int NULL");
+            
+            bool constraintExists = false;
+            try
+            {
+                var conn = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME = 'fk_otp_admins' AND CONSTRAINT_TYPE = 'FOREIGN KEY';";
+                    var result = cmd.ExecuteScalar();
+                    if (result != null && Convert.ToInt32(result) > 0)
+                    {
+                        constraintExists = true;
+                    }
+                }
+                if (closeConn)
+                {
+                    conn.Close();
+                }
+            }
+            catch { }
+
+            if (!constraintExists)
+            {
+                try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` ADD CONSTRAINT `fk_otp_admins` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE;"); } catch { }
+            }
+
+            context.Database.ExecuteSqlRaw(@"
+                INSERT INTO `admins` (`FullName`, `Email`, `MobileNumber`, `PasswordHash`, `Role`, `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`)
+                SELECT `FullName`, `Email`, `MobileNumber`, `PasswordHash`, 'Admin', `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`
+                FROM `users`
+                WHERE `Role` = 'Admin' AND `MobileNumber` NOT IN (SELECT `MobileNumber` FROM `admins`);");
+
+            context.Database.ExecuteSqlRaw(@"
+                INSERT INTO `admin_roles_junction` (`AdminId`, `RoleId`)
+                SELECT a.`AdminId`, ur.`RoleId`
+                FROM `user_roles` ur
+                JOIN `users` u ON u.`UserId` = ur.`UserId`
+                JOIN `admins` a ON a.`MobileNumber` = u.`MobileNumber`
+                WHERE u.`Role` = 'Admin' AND NOT EXISTS (
+                    SELECT 1 FROM `admin_roles_junction` arj WHERE arj.`AdminId` = a.`AdminId` AND arj.`RoleId` = ur.`RoleId`
+                );");
+
+            context.Database.ExecuteSqlRaw(@"
+                DELETE ur
+                FROM `user_roles` ur
+                JOIN `users` u ON u.`UserId` = ur.`UserId`
+                WHERE u.`Role` = 'Admin';");
+
+            context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
+        }
+        catch (System.Exception ex)
+        {
+            System.Console.WriteLine($"[Database Migration Warning] {ex.Message}");
+        }
 
         var defaultRoles = new[]
         {
@@ -1568,13 +1760,134 @@ using (var scope = app.Services.CreateScope())
                 await context.SaveChangesAsync();
             }
         }
+        // =================================================
+        // SEED LEAVE TYPES CONFIG
+        // =================================================
+        if (!await context.LeaveTypeConfigs.AnyAsync())
+        {
+            var defaultLeaveTypes = new[]
+            {
+                new LeaveTypeConfig { Name = "Casual Leave", Code = "CL", AnnualAllowance = 10, CarryForward = false, MaxConsecutiveDays = 3, RequiresAttachment = false, IsPaid = true, Status = "Active" },
+                new LeaveTypeConfig { Name = "Sick Leave", Code = "SL", AnnualAllowance = 12, CarryForward = true, MaxConsecutiveDays = 5, RequiresAttachment = true, IsPaid = true, Status = "Active" },
+                new LeaveTypeConfig { Name = "Earned Leave", Code = "EL", AnnualAllowance = 15, CarryForward = true, MaxConsecutiveDays = 10, RequiresAttachment = true, IsPaid = true, Status = "Active" },
+                new LeaveTypeConfig { Name = "Maternity Leave", Code = "ML", AnnualAllowance = 90, CarryForward = false, MaxConsecutiveDays = 90, RequiresAttachment = true, IsPaid = true, Status = "Active" },
+                new LeaveTypeConfig { Name = "Paternity Leave", Code = "PL", AnnualAllowance = 15, CarryForward = false, MaxConsecutiveDays = 15, RequiresAttachment = true, IsPaid = true, Status = "Active" },
+                new LeaveTypeConfig { Name = "Loss of Pay", Code = "LOP", AnnualAllowance = 0, CarryForward = false, MaxConsecutiveDays = 30, RequiresAttachment = false, IsPaid = false, Status = "Active" }
+            };
+            await context.LeaveTypeConfigs.AddRangeAsync(defaultLeaveTypes);
+            await context.SaveChangesAsync();
+        }
+
+        // =================================================
+        // SEED LEAVE APPLICATIONS
+        // =================================================
+        if (!await context.LeaveApplications.AnyAsync())
+        {
+            var teacher = await context.Staff.FirstOrDefaultAsync(s => s.EmployeeCategory == "Teacher" || s.SystemRole == "Teacher");
+            var clType = await context.LeaveTypeConfigs.FirstOrDefaultAsync(l => l.Code == "CL");
+            if (teacher != null && clType != null)
+            {
+                var sampleLeave = new LeaveApplication
+                {
+                    StaffId = teacher.StaffId,
+                    LeaveTypeId = clType.LeaveTypeId,
+                    FromDate = DateTime.UtcNow.AddDays(2).Date,
+                    ToDate = DateTime.UtcNow.AddDays(3).Date,
+                    IsHalfDay = false,
+                    RequestedDays = 2,
+                    Reason = "Family function to attend",
+                    AppliedDate = DateTime.UtcNow.AddDays(-1),
+                    Status = "Pending"
+                };
+                await context.LeaveApplications.AddAsync(sampleLeave);
+                await context.SaveChangesAsync();
+            }
+        }
+
+        // =================================================
+        // SEED SALARY STRUCTURES
+        // =================================================
+        if (!await context.SalaryStructures.AnyAsync())
+        {
+            var teacherScale = new SalaryStructure
+            {
+                StructureCode = "SAL-STR-TCH",
+                StructureName = "Teaching Staff Scale",
+                StaffCategory = "Teacher",
+                Branch = "Main Campus",
+                Department = "Academics",
+                Designation = "Teacher",
+                EmploymentType = "Full-time",
+                EffectiveDate = DateTime.UtcNow.Date,
+                Status = "Active",
+                Notes = "Standard scale for teaching staff members.",
+                MonthlyGrossSalary = 50000,
+                AssignedEmployeesCount = 0,
+                PayrollFrequency = "Monthly",
+                SalaryPaymentDay = "5",
+                PfApplicable = true,
+                PfPercentage = 12,
+                EsiApplicable = true,
+                EsiPercentage = 0.75m,
+                ProfessionalTaxApplicable = true,
+                ProfessionalTaxAmount = 200,
+                RoundOffRule = "Nearest 1"
+            };
+
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Basic Salary", ComponentType = "Earning", Amount = 30000 });
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "HRA", ComponentType = "Earning", Amount = 10000 });
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "DA", ComponentType = "Earning", Amount = 5000 });
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Travel Allowance", ComponentType = "Earning", Amount = 5000 });
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Employee PF", ComponentType = "Deduction", Amount = 3600 });
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "ESI", ComponentType = "Deduction", Amount = 375 });
+            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Professional Tax", ComponentType = "Deduction", Amount = 200 });
+
+            var adminScale = new SalaryStructure
+            {
+                StructureCode = "SAL-STR-ADM",
+                StructureName = "Non-Teaching Admin Scale",
+                StaffCategory = "Staff",
+                Branch = "Main Campus",
+                Department = "Administration",
+                Designation = "Administrator",
+                EmploymentType = "Full-time",
+                EffectiveDate = DateTime.UtcNow.Date,
+                Status = "Active",
+                Notes = "Standard scale for administration staff members.",
+                MonthlyGrossSalary = 35000,
+                AssignedEmployeesCount = 0,
+                PayrollFrequency = "Monthly",
+                SalaryPaymentDay = "5",
+                PfApplicable = true,
+                PfPercentage = 12,
+                EsiApplicable = false,
+                EsiPercentage = 0,
+                ProfessionalTaxApplicable = true,
+                ProfessionalTaxAmount = 150,
+                RoundOffRule = "Nearest 1"
+            };
+
+            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Basic Salary", ComponentType = "Earning", Amount = 20000 });
+            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "HRA", ComponentType = "Earning", Amount = 8000 });
+            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "DA", ComponentType = "Earning", Amount = 3000 });
+            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Travel Allowance", ComponentType = "Earning", Amount = 4000 });
+            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Employee PF", ComponentType = "Deduction", Amount = 2400 });
+            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Professional Tax", ComponentType = "Deduction", Amount = 150 });
+
+            await context.SalaryStructures.AddRangeAsync(teacherScale, adminScale);
+            await context.SaveChangesAsync();
+        }
+      }
     }
     catch (Exception exception)
     {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning(
-            "Database migration/seeding warning: Could not connect to MySQL database ({Message}). Please verify MySQL password in appsettings.json.",
-            exception.Message);
+        var logger =
+            services.GetRequiredService<
+                ILogger<Program>>();
+
+        logger.LogError(
+            exception,
+            "An error occurred while migrating or seeding the database.");
     }
 }
 

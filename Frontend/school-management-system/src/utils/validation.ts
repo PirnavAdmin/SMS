@@ -1,5 +1,5 @@
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
-export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Other'] as const;
+export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES = ['Main Campus', 'North Branch', 'West Campus', 'Hyderabad'] as const;
 
 /**
@@ -14,7 +14,7 @@ export function validate10DigitPhone(phone: string): { isValid: boolean; error?:
   const cleaned = phone.replace(/[\s\-\(\)]/g, '');
 
   if (!/^\d{10}$/.test(cleaned)) {
-    return { isValid: false, error: 'Mobile number must accept exactly 10 digits (e.g., 9876543210).' };
+    return { isValid: false, error: 'Mobile number must contain exactly 10 digits (e.g., 9876543210).' };
   }
 
   return { isValid: true };

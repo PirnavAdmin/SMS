@@ -417,7 +417,11 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
       setStructuresLoading(true);
       setStructuresError(null);
       const response = await apiClient(`/api/payroll/salary-structures?branchId=${selectedBranch}`);
-      const mapped = (response || []).map((item: any) => ({
+      const rawList = response && response.success && Array.isArray(response.data)
+        ? response.data
+        : (Array.isArray(response) ? response : []);
+
+      const mapped = rawList.map((item: any) => ({
         id: item.id ? String(item.id) : ('SAL-STR-' + Math.floor(100 + Math.random() * 900)),
         structureName: item.structureName || item.name || 'Unnamed Structure',
         employeeCategory: item.employeeCategory || 'Teacher',
@@ -1848,12 +1852,12 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                       branch: draft.branch || selectedBranch
                     };
                     if (draft.id) {
-                      data.updateSalaryStructure(draft.id, finalStructure);
+                      await data.updateSalaryStructure(draft.id, finalStructure);
                       data.logActivity('Salary Structure Updated', `Updated structure: ${finalStructure.structureName} (${finalStructure.structureCode})`, user?.name || 'System', role);
                     } else {
                       const newId = 'SAL-STR-' + Math.floor(100 + Math.random() * 900);
                       const newRecord = { ...finalStructure, id: newId };
-                      data.addSalaryStructure(newRecord);
+                      await data.addSalaryStructure(newRecord);
                       data.logActivity('Salary Structure Created', `Created structure: ${finalStructure.structureName} (${finalStructure.structureCode})`, user?.name || 'System', role);
                     }
                     setStructureDraft(null);

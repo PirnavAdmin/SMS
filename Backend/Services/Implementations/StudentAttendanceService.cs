@@ -22,18 +22,15 @@ public class StudentAttendanceService : IStudentAttendanceService
         GetStudentAttendanceRegisterAsync(
             StudentAttendanceRegisterQueryDto query)
     {
-        ArgumentNullException.ThrowIfNull(query);
-
-        var records =
-            await _repository.GetStudentAttendanceRecordsAsync(
-                query.StudentId,
-                query.FilterType,
-                query.Month,
-                query.Year,
-                query.Date,
-                query.StartDate,
-                query.EndDate,
-                query.StatusFilter);
+        var records = await _repository.GetStudentAttendanceRecordsAsync(
+            query.StudentId,
+            query.FilterType,
+            query.Month,
+            query.Year,
+            query.Date,
+            query.StartDate,
+            query.EndDate,
+            query.StatusFilter);
 
         int totalDays = records.Count;
 
@@ -83,12 +80,8 @@ public class StudentAttendanceService : IStudentAttendanceService
 
         return new StudentAttendanceRegisterResponseDto
         {
-            StudentId = query.StudentId ?? 0,
-
-            // StudentName was removed from StudentAttendance.
-            // It should later be loaded through a Student-table join.
-            StudentName = "Student",
-
+            StudentId = query.StudentId ?? 1,
+            StudentName = records.FirstOrDefault()?.StudentName ?? "Student",
             Summary = new StudentAttendanceSummaryDto
             {
                 AttendancePercentage = percentage,

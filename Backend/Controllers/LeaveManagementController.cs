@@ -38,8 +38,8 @@ public class LeaveManagementController : ControllerBase
         Ok(new { success = true, message = "Leave application submitted successfully.", data = await _schoolService.SubmitLeaveApplicationAsync(dto) });
 
     [HttpPut("leave-applications/{id:int}/status")]
-    public async Task<IActionResult> UpdateLeaveStatus(int id, [FromBody] string status) =>
-        Ok(new { success = true, message = $"Leave application {status.ToLower()} successfully.", data = await _schoolService.UpdateLeaveStatusAsync(id, status) });
+    public async Task<IActionResult> UpdateLeaveStatus(int id, [FromBody] UpdateLeaveStatusRequest request) =>
+        Ok(new { success = true, message = $"Leave application {request.Status.ToLower()} successfully.", data = await _schoolService.UpdateLeaveStatusAsync(id, request.Status) });
 
     // Leave Balances
     [HttpGet("leave-balances")]

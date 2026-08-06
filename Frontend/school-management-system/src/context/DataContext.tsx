@@ -17,7 +17,8 @@ import {
   SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DesignationMaster, DocumentRequirementRule,
   FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionAuditLog,
   SchoolEvent, UnifiedCalendarEvent, EventCategory, HolidayType,
-  TrainingCategory, TrainingParticipant, WorkshopTraining, AssessmentType, AssessmentResult, EmployeeAssessment, IssuedCertificate
+  TrainingCategory, TrainingParticipant, WorkshopTraining, AssessmentType, AssessmentResult, EmployeeAssessment, IssuedCertificate,
+  AlumniRecord, AlumniCurrentStatus
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -125,12 +126,22 @@ interface DataContextType {
   schoolProfile: SchoolProfile;
   updateSchoolProfile: (profile: Partial<SchoolProfile>) => void;
   academicYears: AcademicYearMaster[];
+  addAcademicYear: (ay: Omit<AcademicYearMaster, 'id'>) => void;
+  updateAcademicYear: (id: string, updates: Partial<AcademicYearMaster>) => void;
+  deleteAcademicYear: (id: string) => void;
+  setCurrentAcademicYear: (id: string) => void;
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Student;
   updateStudent: (id: string, updates: Partial<Student>) => void;
   deleteStudent: (id: string) => void;
   promoteStudent: (id: string, targetClass: string, targetSection?: string, targetYear?: string, targetBranch?: string) => void;
   transferStudent: (id: string, reason: string) => void;
+  completeStudent: (id: string, completionAcademicYear?: string, currentStatus?: AlumniCurrentStatus) => void;
+  getHighestClass: () => string;
+
+  alumniRecords: AlumniRecord[];
+  addAlumniRecord: (record: Omit<AlumniRecord, 'id' | 'createdDate'>) => AlumniRecord;
+  updateAlumniStatus: (id: string, currentStatus: AlumniCurrentStatus, details?: { higherEducationDetail?: string; organizationCompany?: string }) => void;
 
   staff: Staff[];
   addStaff: (staffMember: Omit<Staff, 'id'>) => Staff;
@@ -521,7 +532,7 @@ interface DataContextType {
   loadSalaryStructures: (structures: SalaryStructure[]) => void;
 
   employeeSalaryAssignments: EmployeeSalaryAssignment[];
-  assignEmployeeSalaryStructure: (assignment: Omit<EmployeeSalaryAssignment, 'id'>) => EmployeeSalaryAssignment;
+  assignEmployeeSalaryStructure: (assignment: Omit<EmployeeSalaryAssignment, 'id'>) => any;
   updateEmployeeSalaryAssignment: (id: string, updates: Partial<EmployeeSalaryAssignment>) => void;
   deleteEmployeeSalaryAssignment: (id: string) => void;
 
@@ -860,6 +871,65 @@ const initialFinancialBudgets: FinancialBudget[] = [
   { id: 'BDG-04', categoryName: 'Electricity Bills', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 400000, consumedAmount: 38700, remainingAmount: 361300, status: 'Active' },
   { id: 'BDG-05', categoryName: 'Event & Festival Expenses', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 300000, consumedAmount: 0, remainingAmount: 300000, status: 'Active' }
 ];
+const initialAlumniRecords: AlumniRecord[] = [
+  {
+    id: 'ALM-101',
+    studentId: 'STD-1001',
+    admissionNo: 'ADM-2022-089',
+    studentName: 'Rohan Deshmukh',
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+    batch: 'Class of 2025',
+    completionAcademicYear: '2024-2025',
+    finalClass: 'Class 12',
+    finalSection: 'A',
+    completionDate: '2025-05-20',
+    currentStatus: 'Higher Studies',
+    higherEducationDetail: 'IIT Madras (B.Tech Computer Science)',
+    contactPhone: '9876543210',
+    contactEmail: 'rohan.deshmukh@gmail.com',
+    parentName: 'Sanjay Deshmukh',
+    branch: 'Main Campus',
+    createdDate: '2025-05-20'
+  },
+  {
+    id: 'ALM-102',
+    studentId: 'STD-1002',
+    admissionNo: 'ADM-2022-094',
+    studentName: 'Ananya Verma',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    batch: 'Class of 2025',
+    completionAcademicYear: '2024-2025',
+    finalClass: 'Class 12',
+    finalSection: 'B',
+    completionDate: '2025-05-20',
+    currentStatus: 'Working',
+    organizationCompany: 'Software Engineer @ Microsoft India',
+    contactPhone: '9876543211',
+    contactEmail: 'ananya.verma@gmail.com',
+    parentName: 'Vikram Verma',
+    branch: 'Main Campus',
+    createdDate: '2025-05-20'
+  },
+  {
+    id: 'ALM-103',
+    studentId: 'STD-1003',
+    admissionNo: 'ADM-2021-045',
+    studentName: 'Karthik Raja',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    batch: 'Class of 2024',
+    completionAcademicYear: '2023-2024',
+    finalClass: 'Class 12',
+    finalSection: 'A',
+    completionDate: '2024-05-18',
+    currentStatus: 'Competitive Exams',
+    higherEducationDetail: 'UPSC Civil Services Aspirant',
+    contactPhone: '9876543212',
+    contactEmail: 'karthik.raja@gmail.com',
+    parentName: 'Ramanathan Raja',
+    branch: 'Main Campus',
+    createdDate: '2024-05-18'
+  }
+];
 
 const initialSchoolEvents: SchoolEvent[] = [
   {
@@ -1135,7 +1205,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => getStored('fee_heads', initialFeeHeads));
-  const [dynamicFeeStructures, setDynamicFeeStructures] = useState<DynamicFeeStructure[]>(() => getStored('dynamic_fee_structures', initialDynamicFeeStructures));
+  const [dynamicFeeStructures, setDynamicFeeStructures] = useState<DynamicFeeStructure[]>(() => {
+    const stored = getStored('edu_db_dynamic_fee_structures', getStored('dynamic_fee_structures', initialDynamicFeeStructures));
+    return (stored && stored.length > 0) ? stored : initialDynamicFeeStructures;
+  });
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<StudentFeeAssignment[]>(() => getStored('student_fee_assignments', initialStudentFeeAssignments));
   const [scholarships, setScholarships] = useState<Scholarship[]>(() => getStored('scholarships', initialScholarships));
   const [studentScholarships, setStudentScholarships] = useState<StudentScholarship[]>(() => getStored('student_scholarships', initialStudentScholarships));
@@ -1179,6 +1252,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [financialCategories, setFinancialCategories] = useState<FinancialCategory[]>(() => getStored('financial_categories', initialFinancialCategories));
   const [financialBudgets, setFinancialBudgets] = useState<FinancialBudget[]>(() => getStored('financial_budgets', initialFinancialBudgets));
 
+  const addAcademicYear = (ayData: Omit<AcademicYearMaster, 'id'>) => {
+    const id = `AY-${ayData.academicYear.replace(/\s+/g, '') || Date.now()}`;
+    const newAY: AcademicYearMaster = { id, ...ayData };
+    setAcademicYears(prev => {
+      let updated = [...prev];
+      if (newAY.isCurrentAcademicYear) {
+        updated = updated.map(a => ({ ...a, isCurrentAcademicYear: false }));
+        setSelectedAcademicYear(newAY.academicYear);
+      }
+      return [...updated, newAY];
+    });
+  };
+
+  const updateAcademicYear = (id: string, updates: Partial<AcademicYearMaster>) => {
+    setAcademicYears(prev => {
+      let updated = prev.map(a => a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a);
+      if (updates.isCurrentAcademicYear) {
+        const target = updated.find(a => a.id === id);
+        updated = updated.map(a => a.id === id ? { ...a, isCurrentAcademicYear: true } : { ...a, isCurrentAcademicYear: false });
+        if (target) setSelectedAcademicYear(target.academicYear);
+      }
+      return updated;
+    });
+  };
+
+  const deleteAcademicYear = (id: string) => {
+    setAcademicYears(prev => prev.filter(a => a.id !== id));
+  };
+
+  const setCurrentAcademicYear = (id: string) => {
+    setAcademicYears(prev => {
+      const target = prev.find(a => a.id === id);
+      if (!target) return prev;
+      setSelectedAcademicYear(target.academicYear);
+      return prev.map(a => ({
+        ...a,
+        isCurrentAcademicYear: a.id === id,
+        status: a.id === id ? 'Active' : (a.status === 'Active' ? 'Closed' : a.status)
+      }));
+    });
+  };
+
   useEffect(() => { localStorage.setItem('edu_db_profile', JSON.stringify(schoolProfile)); }, [schoolProfile]);
   useEffect(() => { localStorage.setItem('edu_db_academic_years', JSON.stringify(academicYears)); }, [academicYears]);
   useEffect(() => { localStorage.setItem('edu_db_students', JSON.stringify(students)); }, [students]);
@@ -1198,14 +1313,74 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_financial_budgets', JSON.stringify(financialBudgets)); }, [financialBudgets]);
   useEffect(() => { localStorage.setItem('edu_db_school_events', JSON.stringify(schoolEvents)); }, [schoolEvents]);
 
+  // One-time automatic normalization of class names to "Class X"
+  useEffect(() => {
+    const normalizeClassNameStr = (nameString: string): string => {
+      let clean = nameString.trim();
+      const match = clean.match(/^(grade|class)\s*(\d+.*)$/i);
+      if (match) {
+        return `Class ${match[2].trim()}`;
+      }
+      return clean;
+    };
+
+    const nameMap: Record<string, string> = {};
+    let classesChanged = false;
+    const migratedClasses = academicClasses.map(c => {
+      const newName = normalizeClassNameStr(c.name);
+      if (newName !== c.name || (c as any).displayName !== newName) {
+        classesChanged = true;
+        nameMap[c.name] = newName;
+        return {
+          ...c,
+          name: newName,
+          displayName: newName
+        };
+      }
+      return c;
+    });
+
+    if (classesChanged) {
+      setAcademicClasses(migratedClasses);
+
+      // Update students
+      setStudents(prev => prev.map(s => {
+        if (s.className && nameMap[s.className]) {
+          return { ...s, className: nameMap[s.className] };
+        }
+        return s;
+      }));
+
+      // Update teacher assignments
+      setTeacherAssignments(prev => prev.map(ta => {
+        if (ta.className && nameMap[ta.className]) {
+          return { ...ta, className: nameMap[ta.className] };
+        }
+        return ta;
+      }));
+
+      // Update timetable slots
+      setTimetable(prev => prev.map(ts => {
+        if (ts.className && nameMap[ts.className]) {
+          return { ...ts, className: nameMap[ts.className] };
+        }
+        return ts;
+      }));
+    }
+  }, []);
+
   // Training & Assessments States
   const [workshops, setWorkshops] = useState<WorkshopTraining[]>(() => getStored('workshops', initialWorkshops));
   const [employeeAssessments, setEmployeeAssessments] = useState<EmployeeAssessment[]>(() => getStored('employee_assessments', initialEmployeeAssessments));
   const [issuedCertificates, setIssuedCertificates] = useState<IssuedCertificate[]>(() => getStored('issued_certificates', initialIssuedCertificates));
 
+  // Alumni ERP State
+  const [alumniRecords, setAlumniRecords] = useState<AlumniRecord[]>(() => getStored('alumni_records', initialAlumniRecords));
+
   useEffect(() => { localStorage.setItem('edu_db_workshops', JSON.stringify(workshops)); }, [workshops]);
   useEffect(() => { localStorage.setItem('edu_db_employee_assessments', JSON.stringify(employeeAssessments)); }, [employeeAssessments]);
   useEffect(() => { localStorage.setItem('edu_db_issued_certificates', JSON.stringify(issuedCertificates)); }, [issuedCertificates]);
+  useEffect(() => { localStorage.setItem('edu_db_alumni_records', JSON.stringify(alumniRecords)); }, [alumniRecords]);
 
   // ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_fee_heads', JSON.stringify(feeHeads)); }, [feeHeads]);
@@ -1431,7 +1606,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const allowedAdmissionsRoles = ['Super Admin', 'Admin', 'Principal', 'Receptionist'];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
-      fetchStaff();
+      fetchStaff().then(() => {
+        fetchLeaveTypes();
+        fetchLeaveApplications();
+        fetchLeaveBalances();
+        fetchSalaryStructures();
+        fetchSalaryAssignments();
+      });
     }
   }, [isAuthenticated, role]);
 
@@ -1516,6 +1697,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const transferStudent = (id: string, reason: string) => {
     setStudents(prev => prev.map(s => s.id === id ? { ...s, status: 'Transferred' } : s));
     logActivity('Transferred Student', `Transferred student ID ${id}. Reason: ${reason}`);
+  };
+
+  const getHighestClass = () => {
+    if (schoolProfile?.highestClass) {
+      return schoolProfile.highestClass;
+    }
+    if (academicClasses && academicClasses.length > 0) {
+      const sorted = [...academicClasses].sort((a, b) => {
+        const numA = parseInt(a.name.replace(/[^0-9]/g, '')) || 0;
+        const numB = parseInt(b.name.replace(/[^0-9]/g, '')) || 0;
+        return numB - numA;
+      });
+      if (sorted[0]?.name) return sorted[0].name;
+    }
+    return 'Class 12';
+  };
+
+  const addAlumniRecord = (record: Omit<AlumniRecord, 'id' | 'createdDate'>): AlumniRecord => {
+    const id = 'ALM-' + Math.floor(1000 + Math.random() * 9000);
+    const newRecord: AlumniRecord = {
+      ...record,
+      id,
+      createdDate: new Date().toISOString().split('T')[0]
+    };
+    setAlumniRecords(prev => [newRecord, ...prev]);
+    return newRecord;
+  };
+
+  const updateAlumniStatus = (id: string, currentStatus: AlumniCurrentStatus, details?: { higherEducationDetail?: string; organizationCompany?: string }) => {
+    setAlumniRecords(prev => prev.map(a => {
+      if (a.id === id || a.studentId === id) {
+        return {
+          ...a,
+          currentStatus,
+          higherEducationDetail: details?.higherEducationDetail ?? a.higherEducationDetail,
+          organizationCompany: details?.organizationCompany ?? a.organizationCompany
+        };
+      }
+      return a;
+    }));
+  };
+
+  const completeStudent = (id: string, completionAcademicYear?: string, currentStatus: AlumniCurrentStatus = 'Unknown') => {
+    const targetStudent = students.find(s => s.id === id);
+    if (!targetStudent) return;
+
+    const finalYear = completionAcademicYear || schoolProfile.academicYear || '2025-2026';
+    const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || '2026';
+    const batchLabel = `Class of ${batchYear}`;
+
+    setStudents(prev => prev.map(s => s.id === id ? {
+      ...s,
+      status: 'Completed',
+      completionDate: new Date().toISOString().split('T')[0],
+      completionAcademicYear: finalYear
+    } : s));
+
+    const exists = alumniRecords.find(a => a.studentId === id || a.admissionNo === targetStudent.admissionNo);
+    if (!exists) {
+      const newAlumni: AlumniRecord = {
+        id: 'ALM-' + Math.floor(1000 + Math.random() * 9000),
+        studentId: targetStudent.id,
+        admissionNo: targetStudent.admissionNo,
+        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+        avatar: targetStudent.avatar,
+        batch: batchLabel,
+        completionAcademicYear: finalYear,
+        finalClass: targetStudent.className,
+        finalSection: targetStudent.section,
+        completionDate: new Date().toISOString().split('T')[0],
+        currentStatus,
+        contactPhone: targetStudent.phone || targetStudent.fatherPhone || targetStudent.guardianPhone,
+        contactEmail: targetStudent.email || targetStudent.fatherEmail || targetStudent.guardianEmail,
+        parentName: targetStudent.fatherName || targetStudent.parentName,
+        branch: targetStudent.branch || selectedBranch || 'Main Campus',
+        createdDate: new Date().toISOString().split('T')[0]
+      };
+      setAlumniRecords(prev => [newAlumni, ...prev]);
+    }
+
+    logActivity('Completed Education', `Student ${targetStudent.firstName} ${targetStudent.lastName} completed ${targetStudent.className} and graduated to Alumni.`);
   };
 
   // Staff CRUD
@@ -2222,6 +2484,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+
   const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
     const id = 'CL-' + Math.floor(10 + Math.random() * 90);
     const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -2235,6 +2498,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteAcademicClass = (id: string) => {
+    const cls = academicClasses.find(c => c.id === id);
+    if (cls) {
+      setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
+    }
     setAcademicClasses(prev => prev.filter(c => c.id !== id));
     logActivity('Deleted Academic Class', `Removed class ID ${id}`);
   };
@@ -3003,7 +3270,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const id = 'FTC-' + Math.floor(100 + Math.random() * 900);
     const newConfig: FinanceTransportConfig = { ...c, id, branch: (c as any).branch || selectedBranch || 'Main Campus' } as any;
     setFinanceTransportConfigs(prev => [...prev, newConfig]);
-    logActivity('Created Transport Pricing Config', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
+    logActivity('Created Transport Fee Structure', `Set ${newConfig.feePlan} fee ${formatCurrency(newConfig.feeAmount)} for ${newConfig.pickupName}`);
   };
 
   const updateFinanceTransportConfig = (id: string, updates: Partial<FinanceTransportConfig>) => {
@@ -4542,10 +4809,123 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFinanceUniformConfigs(prev => prev.filter(c => c.id !== id));
   };
 
+  // Leave Management Fetchers
+  const fetchLeaveTypes = async () => {
+    try {
+      const response = await apiClient('/api/hr/leave-types', { method: 'GET' });
+      if (response && response.success && response.data) {
+        const mapped: LeaveType[] = response.data.map((item: any) => ({
+          id: item.leaveTypeId.toString(),
+          name: item.name,
+          code: item.code,
+          annualAllowance: item.annualAllowance,
+          carryForward: item.carryForward,
+          maxConsecutiveDays: item.maxConsecutiveDays,
+          requiresAttachment: item.requiresAttachment,
+          isPaid: item.isPaid,
+          status: item.status
+        }));
+        setLeaveTypes(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch leave types from API', err);
+    }
+  };
+
+  const fetchLeaveApplications = async () => {
+    try {
+      const response = await apiClient('/api/hr/leave-applications', { method: 'GET' });
+      if (response && response.success && response.data) {
+        const mapped: LeaveApplication[] = response.data.map((item: any) => ({
+          id: item.leaveApplicationId.toString(),
+          employeeId: item.staffId.toString(),
+          employeeName: item.staffName,
+          empId: item.employeeId,
+          department: item.department || 'Administration',
+          designation: item.designation || 'Staff',
+          branch: item.branch || 'Main Campus',
+          employeeCategory: item.employeeCategory === 'Teacher' ? 'Teacher' : 'Staff',
+          leaveTypeId: item.leaveTypeId ? item.leaveTypeId.toString() : '1',
+          leaveTypeName: item.leaveTypeName,
+          fromDate: item.fromDate,
+          toDate: item.toDate,
+          isHalfDay: item.isHalfDay,
+          numberOfDays: item.requestedDays,
+          reason: item.reason,
+          attachments: [],
+          status: item.status,
+          appliedDate: item.appliedDate,
+          approverRemarks: item.approverRemarks || '',
+          approvedBy: item.approvedBy || ''
+        }));
+        setLeaveApplications(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch leave applications from API', err);
+    }
+  };
+
+  const fetchLeaveBalances = async () => {
+    try {
+      const response = await apiClient('/api/hr/leave-balances', { method: 'GET' });
+      if (response && response.success && response.data) {
+        setStaff(prevStaff => prevStaff.map(s => {
+          const bal = response.data.find((item: any) => item.staffId.toString() === s.id);
+          if (bal) {
+            return {
+              ...s,
+              leaveBalance: {
+                casual: bal.casualLeaveBalance,
+                sick: bal.sickLeaveBalance,
+                paid: bal.earnedLeaveBalance
+              }
+            };
+          }
+          return s;
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch leave balances from API', err);
+    }
+  };
+
+  const fetchSalaryStructures = async () => {
+    try {
+      const response = await apiClient('/api/payroll/salary-structures', { method: 'GET' });
+      if (response && response.success && response.data) {
+        setSalaryStructures(response.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch salary structures from API', err);
+    }
+  };
+
+  const fetchSalaryAssignments = async () => {
+    try {
+      const response = await apiClient('/api/payroll/salary-assignments', { method: 'GET' });
+      if (response && response.success && response.data) {
+        setEmployeeSalaryAssignments(response.data);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch salary assignments from API', err);
+    }
+  };
+
   // Leave Types CRUD
-  const addLeaveType = (tData: Omit<LeaveType, 'id'>) => {
-    const id = 'LT-' + Math.floor(10 + Math.random() * 90);
-    setLeaveTypes(prev => [...prev, { ...tData, id }]);
+  const addLeaveType = async (tData: Omit<LeaveType, 'id'>) => {
+    try {
+      const response = await apiClient('/api/hr/leave-types', {
+        method: 'POST',
+        body: JSON.stringify(tData)
+      });
+      if (response && response.success) {
+        addToast('success', 'Leave Type Created', 'Leave type configuration saved successfully.');
+        await fetchLeaveTypes();
+      }
+    } catch (err: any) {
+      console.error('Error adding leave type:', err);
+      addToast('error', 'API Error', 'Failed to configure leave type.');
+    }
   };
   const updateLeaveType = (id: string, updates: Partial<LeaveType>) => {
     setLeaveTypes(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
@@ -4555,9 +4935,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Leave Applications CRUD
-  const addLeaveApplication = (appData: Omit<LeaveApplication, 'id'>) => {
-    const id = 'LAP-' + Math.floor(10 + Math.random() * 90);
-    setLeaveApplications(prev => [...prev, { ...appData, id, branch: appData.branch || selectedBranch || 'Main Campus' }]);
+  const addLeaveApplication = async (appData: Omit<LeaveApplication, 'id'>) => {
+    try {
+      const payload = {
+        staffId: parseInt(appData.employeeId),
+        leaveTypeId: parseInt(appData.leaveTypeId),
+        fromDate: appData.fromDate,
+        toDate: appData.toDate,
+        isHalfDay: appData.isHalfDay,
+        reason: appData.reason
+      };
+
+      const response = await apiClient('/api/hr/leave-applications', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (response && response.success) {
+        addToast('success', 'Leave Application Submitted', 'Your leave request has been submitted.');
+        await fetchLeaveApplications();
+        await fetchLeaveBalances();
+      }
+    } catch (err: any) {
+      console.error('Error submitting leave application:', err);
+      addToast('error', 'API Error', 'Failed to submit leave application.');
+    }
   };
   const updateLeaveApplication = (id: string, updates: Partial<LeaveApplication>) => {
     setLeaveApplications(prev => prev.map(app => app.id === id ? { ...app, ...updates } : app));
@@ -4832,127 +5233,114 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { basicSalary, allowances, deductions, grossSalary, netSalary };
   };
 
-  const addSalaryStructure = (structureData: Omit<SalaryStructure, 'id'>) => {
-    const id = 'SAL-STR-' + Math.floor(100 + Math.random() * 900);
-    setSalaryStructures(prev => [...prev, { ...structureData, id, branch: structureData.branch || selectedBranch || 'Main Campus' }]);
-  };
-  const updateSalaryStructure = (id: string, updates: Partial<SalaryStructure>) => {
-    const nextStructure = salaryStructures.find(s => s.id === id);
-    const mergedStructure = nextStructure ? { ...nextStructure, ...updates } as SalaryStructure : null;
-    const breakdown = getStructureBreakdown(mergedStructure || undefined);
-
-    setSalaryStructures(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
-
-    if (mergedStructure) {
-      setEmployeeSalaryAssignments(prev => prev.map(assignment => {
-        if (assignment.salaryStructureId !== id || assignment.status !== 'Active' || assignment.salaryOverride) return assignment;
-        return {
-          ...assignment,
-          salaryStructureName: mergedStructure.structureName,
-          monthlyGross: breakdown.grossSalary,
-          overrideBasicSalary: breakdown.basicSalary,
-          overrideAllowances: breakdown.allowances,
-          overrideDeductions: breakdown.deductions,
-          overrideNetSalary: breakdown.netSalary,
-          updatedAt: new Date().toISOString(),
-          reason: assignment.reason || 'Synced after salary structure update'
-        };
-      }));
-
-      setStaff(prev => prev.map(member => {
-        const assignment = employeeSalaryAssignments.find(item => item.employeeId === member.id && item.salaryStructureId === id && item.status === 'Active');
-        if (!assignment || assignment.salaryOverride) return member;
-        return {
-          ...member,
-          salary: breakdown.grossSalary,
-          grossSalary: breakdown.grossSalary,
-          netSalary: breakdown.netSalary,
-          salaryStructureName: mergedStructure.structureName,
-          salaryStructureEffectiveDate: assignment.effectiveDate
-        };
-      }));
+  const addSalaryStructure = async (structureData: Omit<SalaryStructure, 'id'>) => {
+    try {
+      const response = await apiClient('/api/payroll/salary-structures', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...structureData,
+          branch: structureData.branch || selectedBranch || 'Main Campus'
+        })
+      });
+      if (response && response.success) {
+        addToast('success', 'Salary Structure Created', 'Salary structure configuration saved successfully.');
+        await fetchSalaryStructures();
+      }
+    } catch (err: any) {
+      console.error('Error adding salary structure:', err);
+      addToast('error', 'API Error', 'Failed to save salary structure.');
     }
   };
-  const deleteSalaryStructure = (id: string) => {
-    const affectedAssignments = employeeSalaryAssignments.filter(a => a.salaryStructureId === id && a.status === 'Active');
-    setSalaryStructures(prev => prev.filter(s => s.id !== id));
-    if (affectedAssignments.length > 0) {
-      setEmployeeSalaryAssignments(prev => prev.map(a => a.salaryStructureId === id ? { ...a, status: 'Inactive' as const } : a));
-      setStaff(prev => prev.map(member => affectedAssignments.some(a => a.employeeId === member.id) ? {
-        ...member,
-        salaryStructureId: undefined,
-        salaryStructureName: undefined,
-        salaryStructureEffectiveDate: undefined,
-        salary: 0,
-        grossSalary: undefined,
-        netSalary: undefined
-      } : member));
+
+  const updateSalaryStructure = async (id: string, updates: Partial<SalaryStructure>) => {
+    try {
+      const response = await apiClient(`/api/payroll/salary-structures/${parseInt(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+      });
+      if (response && response.success) {
+        addToast('success', 'Salary Structure Updated', 'Salary structure updated successfully.');
+        await fetchSalaryStructures();
+        await fetchSalaryAssignments();
+        await fetchStaff();
+      }
+    } catch (err: any) {
+      console.error('Error updating salary structure:', err);
+      addToast('error', 'API Error', 'Failed to update salary structure.');
     }
   };
-  const cloneSalaryStructure = (id: string) => {
-    const source = salaryStructures.find(s => s.id === id);
-    if (!source) return;
-    const clone: SalaryStructure = {
-      ...source,
-      id: 'SAL-STR-' + Math.floor(100 + Math.random() * 900),
-      structureName: `${source.structureName} Copy`,
-      status: 'Inactive'
-    };
-    setSalaryStructures(prev => [...prev, clone]);
+
+  const deleteSalaryStructure = async (id: string) => {
+    try {
+      const response = await apiClient(`/api/payroll/salary-structures/${parseInt(id)}`, {
+        method: 'DELETE'
+      });
+      if (response && response.success) {
+        addToast('success', 'Salary Structure Deleted', 'Salary structure removed successfully.');
+        await fetchSalaryStructures();
+        await fetchSalaryAssignments();
+        await fetchStaff();
+      }
+    } catch (err: any) {
+      console.error('Error deleting salary structure:', err);
+      addToast('error', 'API Error', 'Failed to delete salary structure.');
+    }
   };
+
+  const cloneSalaryStructure = async (id: string) => {
+    try {
+      const response = await apiClient(`/api/payroll/salary-structures/${parseInt(id)}/clone`, {
+        method: 'POST'
+      });
+      if (response && response.success) {
+        addToast('success', 'Salary Structure Cloned', 'Structure cloned successfully.');
+        await fetchSalaryStructures();
+      }
+    } catch (err: any) {
+      console.error('Error cloning salary structure:', err);
+      addToast('error', 'API Error', 'Failed to clone salary structure.');
+    }
+  };
+
   const loadSalaryStructures = (structures: SalaryStructure[]) => {
     setSalaryStructures(structures);
   };
 
-  const assignEmployeeSalaryStructure = (assignmentData: Omit<EmployeeSalaryAssignment, 'id'>) => {
-    const id = 'ESA-' + Math.floor(100 + Math.random() * 900);
-    const structure = salaryStructures.find(s => s.id === assignmentData.salaryStructureId);
-    const breakdown = getStructureBreakdown(structure);
-    const salaryOverride = !!assignmentData.salaryOverride;
-    const basicSalary = salaryOverride ? Number(assignmentData.overrideBasicSalary ?? breakdown.basicSalary) : breakdown.basicSalary;
-    const allowances = salaryOverride ? Number(assignmentData.overrideAllowances ?? breakdown.allowances) : breakdown.allowances;
-    const deductions = salaryOverride ? Number(assignmentData.overrideDeductions ?? breakdown.deductions) : breakdown.deductions;
-    const gross = Math.max(0, basicSalary + allowances);
-    const net = Math.max(0, Number(assignmentData.overrideNetSalary ?? (gross - deductions)));
-    
-    const prevActive = employeeSalaryAssignments.find(a => a.employeeId === assignmentData.employeeId && a.status === 'Active');
-    const prevGross = prevActive ? prevActive.monthlyGross || 0 : 0;
+  const assignEmployeeSalaryStructure = async (assignmentData: Omit<EmployeeSalaryAssignment, 'id'>) => {
+    try {
+      const payload = {
+        employeeId: assignmentData.employeeId,
+        salaryStructureId: assignmentData.salaryStructureId,
+        effectiveDate: assignmentData.effectiveDate,
+        status: assignmentData.status,
+        reason: assignmentData.reason,
+        salaryOverride: assignmentData.salaryOverride,
+        overrideBasicSalary: assignmentData.overrideBasicSalary,
+        overrideAllowances: assignmentData.overrideAllowances,
+        overrideDeductions: assignmentData.overrideDeductions,
+        overrideNetSalary: assignmentData.overrideNetSalary
+      };
 
-    const newAssignment: EmployeeSalaryAssignment = {
-      ...assignmentData,
-      id,
-      branch: assignmentData.branch || selectedBranch || 'Main Campus',
-      salaryOverride,
-      overrideBasicSalary: salaryOverride ? basicSalary : undefined,
-      overrideAllowances: salaryOverride ? allowances : undefined,
-      overrideDeductions: salaryOverride ? deductions : undefined,
-      overrideNetSalary: salaryOverride ? net : undefined,
-      monthlyGross: gross,
-      previousGross: prevGross,
-      updatedBy: 'Admin',
-      updatedAt: new Date().toISOString()
-    };
+      const response = await apiClient('/api/payroll/salary-assignments', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
 
-    setEmployeeSalaryAssignments(prev => [
-      ...prev.map(a => a.employeeId === assignmentData.employeeId ? { ...a, status: 'Inactive' as const } : a),
-      newAssignment
-    ]);
-
-    setStaff(prev => prev.map(s => s.id === assignmentData.employeeId ? {
-      ...s,
-      salaryStructureId: assignmentData.salaryStructureId,
-      salaryStructureName: assignmentData.salaryStructureName,
-      salaryStructureEffectiveDate: assignmentData.effectiveDate,
-      salary: gross,
-      grossSalary: gross,
-      netSalary: net
-    } : s));
-
-    return newAssignment;
+      if (response && response.success) {
+        addToast('success', 'Salary Structure Assigned', 'Employee salary assignment saved successfully.');
+        await fetchSalaryAssignments();
+        await fetchStaff();
+      }
+    } catch (err: any) {
+      console.error('Error assigning salary structure:', err);
+      addToast('error', 'API Error', 'Failed to assign salary structure.');
+    }
   };
+
   const updateEmployeeSalaryAssignment = (id: string, updates: Partial<EmployeeSalaryAssignment>) => {
     setEmployeeSalaryAssignments(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
   };
+
   const deleteEmployeeSalaryAssignment = (id: string) => {
     const assignment = employeeSalaryAssignments.find(a => a.id === id);
     setEmployeeSalaryAssignments(prev => prev.filter(a => a.id !== id));
@@ -4989,72 +5377,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Leave Application Status Engine
-  const updateLeaveApplicationStatus = (
+  const updateLeaveApplicationStatus = async (
     id: string,
     status: LeaveApplication['status'],
     remarks?: string,
     approvedBy?: string
   ) => {
-    setLeaveApplications(prev => prev.map(app => {
-      if (app.id === id) {
-        const updatedApp = { ...app, status, approverRemarks: remarks, approvedBy };
-        
-        if (status === 'Approved') {
-          // 1. Deduct balance from employee
-          setStaff(prevStaff => prevStaff.map(s => {
-            if (s.id === app.employeeId) {
-              const currentBalance = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
-              const code = app.leaveTypeName.toLowerCase();
-              let updatedBalance = { ...currentBalance };
-              
-              if (code.includes('casual')) {
-                updatedBalance.casual = Math.max(0, currentBalance.casual - app.numberOfDays);
-              } else if (code.includes('sick')) {
-                updatedBalance.sick = Math.max(0, currentBalance.sick - app.numberOfDays);
-              } else if (code.includes('earned') || code.includes('paid')) {
-                updatedBalance.paid = Math.max(0, currentBalance.paid - app.numberOfDays);
-              }
-              return { ...s, leaveBalance: updatedBalance };
-            }
-            return s;
-          }));
+    try {
+      const payload = {
+        status: status
+      };
 
-          // 2. Automatically update Staff Attendance
-          const start = new Date(app.fromDate);
-          const end = new Date(app.toDate);
-          const newAttendanceRecords: DailyAttendance[] = [];
+      const response = await apiClient(`/api/hr/leave-applications/${parseInt(id)}/status`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
 
-          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
-            newAttendanceRecords.push({
-              id: 'SATT-' + Math.floor(1000 + Math.random() * 9000),
-              date: dateStr,
-              entityType: 'Staff',
-              entityId: app.employeeId,
-              status: app.isHalfDay ? 'HalfDay' : 'Leave',
-              remarks: `Approved Leave: ${app.leaveTypeName}. ${remarks || ''}`
-            });
-          }
-
-          setAttendance(prevAtt => {
-            const dateStrings = newAttendanceRecords.map(r => r.date);
-            const filteredPrev = prevAtt.filter(r => 
-              !(r.entityType === 'Staff' && r.entityId === app.employeeId && dateStrings.includes(r.date))
-            );
-            return [...filteredPrev, ...newAttendanceRecords];
-          });
-
-          addToast('success', 'Leave Approved', `${app.employeeName}'s ${app.leaveTypeName} is approved.`);
-        } else if (status === 'Rejected') {
-          addToast('info', 'Leave Rejected', `${app.employeeName}'s ${app.leaveTypeName} was rejected.`);
-        } else if (status === 'Sent Back') {
-          addToast('warning', 'Leave Sent Back', `${app.employeeName}'s request was sent back.`);
-        }
-
-        return updatedApp;
+      if (response && response.success) {
+        addToast('success', 'Status Updated', `Leave application status updated to ${status}.`);
+        await fetchLeaveApplications();
+        await fetchLeaveBalances();
       }
-      return app;
-    }));
+    } catch (err: any) {
+      console.error('Error updating leave application status:', err);
+      addToast('error', 'API Error', 'Failed to update leave application status.');
+    }
   };
 
   const filterByBranch = <T,>(items: T[]): T[] => {
@@ -5064,17 +5411,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Check branch
       let branchMatch = true;
-      if (selectedBranch && anyItem.branch !== 'All Branches') {
-        if (anyItem.applicableBranches) {
-          branchMatch = anyItem.applicableBranches.includes(selectedBranch);
+      if (selectedBranch && selectedBranch !== 'All Branches') {
+        if (anyItem.applicableBranches && Array.isArray(anyItem.applicableBranches)) {
+          branchMatch = anyItem.applicableBranches.includes(selectedBranch) || anyItem.applicableBranches.includes('All Branches');
         } else if (anyItem.branch) {
-          branchMatch = anyItem.branch === selectedBranch;
+          branchMatch = anyItem.branch === 'All Branches' || 
+                        anyItem.branch.toLowerCase() === selectedBranch.toLowerCase() ||
+                        selectedBranch.toLowerCase().includes(anyItem.branch.toLowerCase()) ||
+                        anyItem.branch.toLowerCase().includes(selectedBranch.toLowerCase());
         }
       }
 
       // Check academic year
       let ayMatch = true;
-      if (selectedAcademicYear && anyItem.academicYear && anyItem.academicYear !== 'All') {
+      if (selectedAcademicYear && selectedAcademicYear !== 'All' && anyItem.academicYear && anyItem.academicYear !== 'All') {
         ayMatch = anyItem.academicYear === selectedAcademicYear;
       }
 
@@ -5147,8 +5497,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider
       value={{
         schoolProfile, updateSchoolProfile,
-        academicYears,
-        students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
+        academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, setCurrentAcademicYear,
+        students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent, completeStudent, getHighestClass,
+        alumniRecords: filterByBranch(alumniRecords), addAlumniRecord, updateAlumniStatus,
         staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
         admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
         academicClasses: filteredClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,

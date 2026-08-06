@@ -5,7 +5,8 @@ import {
   Bus, Home, Package, Megaphone, Calendar, BarChart3, ShieldCheck,
   Settings, ChevronRight, School, Shirt, Layers, Tag, UserPlus,
   Gift, Percent, AlertTriangle, Route, Bed, Receipt, RotateCcw,
-  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, Presentation
+  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, Presentation,
+  Link2, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -52,14 +53,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [transportExpanded, setTransportExpanded] = useState(true);
   const [uniformExpanded, setUniformExpanded] = useState(true);
   const [staffExpanded, setStaffExpanded] = useState(true);
+  const [academicsExpanded, setAcademicsExpanded] = useState(true);
 
   const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees';
   const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel';
   const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule === 'parent-bus-info';
   const isUniformActive = activeModule.startsWith('uniform-') || activeModule === 'uniforms';
   const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule === 'parent-teacher-info';
+  const isAcademicsActive = activeModule.startsWith('academic-') || activeModule === 'academics' || activeModule === 'subjects' || activeModule === 'timetable';
 
-  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'other'>('other');
+  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>('other');
 
   React.useEffect(() => {
     if (isFinanceActive && lastActiveGroup !== 'finance') {
@@ -68,6 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setTransportExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('finance');
     } else if (isHostelActive && lastActiveGroup !== 'hostel') {
       setHostelExpanded(true);
@@ -75,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setTransportExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('hostel');
     } else if (isTransportActive && lastActiveGroup !== 'transport') {
       setTransportExpanded(true);
@@ -82,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setHostelExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('transport');
     } else if (isUniformActive && lastActiveGroup !== 'uniform') {
       setUniformExpanded(true);
@@ -89,6 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setHostelExpanded(false);
       setTransportExpanded(false);
       setStaffExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('uniform');
     } else if (isStaffActive && lastActiveGroup !== 'staff') {
       setStaffExpanded(true);
@@ -96,19 +103,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('staff');
-    } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isStaffActive) {
+    } else if (isAcademicsActive && lastActiveGroup !== 'academics') {
+      setAcademicsExpanded(true);
+      setFinanceExpanded(false);
+      setHostelExpanded(false);
+      setTransportExpanded(false);
+      setUniformExpanded(false);
+      setStaffExpanded(false);
+      setLastActiveGroup('academics');
+    } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isStaffActive && !isAcademicsActive) {
       setLastActiveGroup('other');
     }
-  }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isStaffActive, lastActiveGroup]);
+  }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isStaffActive, isAcademicsActive, lastActiveGroup]);
 
   const pendingAdmissions = admissions.filter(a => a.status === 'Pending').length;
 
   const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
     { id: 'finance-masters', label: 'Finance Setup', icon: SlidersHorizontal },
+    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet },
   ];
 
@@ -140,6 +156,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
   ];
 
+  const academicSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
+    { id: 'academic-dashboard', label: 'Dashboard', icon: School },
+    { id: 'academic-class', label: 'Class Management', icon: Presentation },
+    { id: 'academic-subjects', label: 'Subject Management', icon: BookOpen },
+    { id: 'timetable', label: 'Time Table', icon: Clock },
+    { id: 'academic-settings', label: 'Academic Settings', icon: Calendar },
+  ];
+
   const transportSetupModules = ['transport-setup', 'transport-masters', 'transport-route-management', 'transport-pickup-points', 'transport-vehicle-management', 'transport-driver-management', 'transport-bus-attendants', 'transport-routes', 'transport-pickups', 'transport-vehicles', 'transport-drivers', 'transport-attendants'];
   const transportOperationsModules = ['transport-operations', 'transport-vehicle-assignment', 'transport-trip-scheduling', 'transport-student-transport-assignment', 'transport-gps-tracking', 'transport-maintenance', 'transport-trips', 'transport-student-assignment', 'transport-assignment', 'transport-vehicle-trips', 'transport-gps', 'transport-vehicle-maintenance'];
   const transportReportModules = ['transport-reports', 'transport-dashboard-report', 'transport-trip-reports', 'transport-vehicle-reports', 'transport-driver-reports', 'transport-route-reports', 'transport-student-transport-reports', 'transport-maintenance-reports'];
@@ -149,9 +173,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Core Operations',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'students', label: 'Student Directory', icon: UserCheck },
         { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff', icon: Users },
+      ]
+    },
+    {
+      title: 'Student Management',
+      items: [
         { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
+        { id: 'students', label: 'Student Directory', icon: UserCheck },
+        { id: 'student-promotion', label: 'Student Promotion', icon: TrendingUp },
+        { id: 'transfer-certificates', label: 'Transfer Certificates', icon: FileText },
+        { id: 'alumni', label: 'Alumni', icon: Award },
       ]
     },
     {
@@ -193,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`fixed top-0 left-0 bottom-0 z-40 bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 flex flex-col transition-all duration-300 ${
+      className={`fixed top-0 left-0 bottom-0 z-40 bg-brand-50 dark:bg-brand-950 border-r border-slate-200/80 dark:border-slate-800 flex flex-col transition-all duration-300 ${
         collapsed ? 'w-20' : 'w-64'
       }`}
     >
@@ -500,6 +532,74 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
 
               {visibleItems.map(item => {
+                if ((item.id === 'subjects' || item.id === 'timetable') && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'principal')) {
+                  return null;
+                }
+
+                if (item.id === 'academics' && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'principal')) {
+                  return (
+                    <div key={item.id} className="space-y-1">
+                      <button
+                        onClick={() => {
+                          if (collapsed) {
+                            setCollapsed(false);
+                          }
+                          const newExpanded = !academicsExpanded;
+                          setAcademicsExpanded(newExpanded);
+                          if (newExpanded) {
+                            setFinanceExpanded(false);
+                            setHostelExpanded(false);
+                            setTransportExpanded(false);
+                            setUniformExpanded(false);
+                            setStaffExpanded(false);
+                          }
+                          if (!isAcademicsActive) {
+                            setActiveModule('academic-dashboard');
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isAcademicsActive ? (academicsExpanded && academicSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
+                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <Presentation className={`w-4 h-4 shrink-0 ${isAcademicsActive ? (academicsExpanded && academicSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-sky-500'}`} />
+                          {!collapsed && <span className="font-bold">Academic Management</span>}
+                        </div>
+                        {!collapsed && academicSubItems.length > 0 && (
+                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${academicsExpanded ? 'rotate-180' : ''}`} />
+                        )}
+                      </button>
+
+                      {!collapsed && academicsExpanded && (
+                        <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
+                          {academicSubItems.map(sub => {
+                            const SubIcon = sub.icon;
+                            const isSubActive =
+                              activeModule === sub.id ||
+                              (sub.id === 'academic-class' && activeModule === 'academics') ||
+                              (sub.id === 'academic-subjects' && activeModule === 'subjects');
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? 'bg-sky-600 text-white font-bold'
+                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                                }`}
+                              >
+                                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 if (item.id === 'staff' && hasModuleAccess(role, 'staff')) {
                   return (
                     <div key={item.id} className="space-y-1">

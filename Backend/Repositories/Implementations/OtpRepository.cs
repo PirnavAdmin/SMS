@@ -18,7 +18,7 @@ namespace SMS.Api.Repositories.Implementations
         public async Task SaveOtpAsync(OtpVerification otp)
         {
             // 1. Invalidate any active/unused OTPs for this user and purpose
-            await InvalidateExistingOtpsAsync(otp.UserId, otp.Purpose);
+            await InvalidateExistingOtpsAsync(otp.UserId, otp.AdminId, otp.Purpose);
 
             // 2. Set default expiry (5 minutes) if ExpiryTime is not explicitly set
             if (otp.ExpiryTime <= DateTime.UtcNow)
@@ -32,11 +32,19 @@ namespace SMS.Api.Repositories.Implementations
         }
 
         // Invalidate active OTPs for user/purpose
-        public async Task InvalidateExistingOtpsAsync(int userId, string purpose)
+        public async Task InvalidateExistingOtpsAsync(int? userId, int? adminId, string purpose)
         {
-            var activeOtps = await _context.OtpVerifications
-                .Where(o => o.UserId == userId && o.Purpose == purpose && !o.IsUsed)
-                .ToListAsync();
+            var query = _context.OtpVerifications
+                .Where(o => o.Purpose == purpose && !o.IsUsed);
+
+            if (userId.HasValue)
+                query = query.Where(o => o.UserId == userId.Value);
+            else if (adminId.HasValue)
+                query = query.Where(o => o.AdminId == adminId.Value);
+            else
+                return;
+
+            var activeOtps = await query.ToListAsync();
 
             foreach (var existingOtp in activeOtps)
             {
@@ -50,10 +58,10 @@ namespace SMS.Api.Repositories.Implementations
         }
 
         // Replaces CALL sp_ValidateOtp
-        public async Task<bool> ValidateOtpAsync(int userId, string otpCodeHash, string purpose)
+        public async Task<bool> ValidateOtpAsync(int? userId, int? adminId, string otpCodeHash, string purpose)
         {
             // Fetch the latest active (unused) OTP record
-            var activeOtp = await GetLatestActiveOtpAsync(userId, purpose);
+            var activeOtp = await GetLatestActiveOtpAsync(userId, adminId, purpose);
 
             if (activeOtp == null)
             {
@@ -94,10 +102,19 @@ namespace SMS.Api.Repositories.Implementations
         }
 
         // Fetch latest active OTP record
-        public async Task<OtpVerification?> GetLatestActiveOtpAsync(int userId, string purpose)
+        public async Task<OtpVerification?> GetLatestActiveOtpAsync(int? userId, int? adminId, string purpose)
         {
-            return await _context.OtpVerifications
-                .Where(o => o.UserId == userId && o.Purpose == purpose && !o.IsUsed)
+            var query = _context.OtpVerifications
+                .Where(o => o.Purpose == purpose && !o.IsUsed);
+
+            if (userId.HasValue)
+                query = query.Where(o => o.UserId == userId.Value);
+            else if (adminId.HasValue)
+                query = query.Where(o => o.AdminId == adminId.Value);
+            else
+                return null;
+
+            return await query
                 .OrderByDescending(o => o.CreatedAt)
                 .FirstOrDefaultAsync();
         }
