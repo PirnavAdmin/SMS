@@ -86,83 +86,75 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
       {/* 8 EXACT ENTERPRISE SUMMARY CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Vehicles */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Vehicles</span>
             <Bus className="w-5 h-5 text-sky-500" />
           </div>
           <h3 className="text-2xl font-black text-slate-900 dark:text-white">{totalVehicles} <span className="text-xs font-semibold text-emerald-500">({activeVehicles} Active)</span></h3>
-          <p className="text-[10px] text-slate-400">School fleet size</p>
         </div>
 
         {/* Card 2: Active Routes */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-emerald-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-emerald-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Active Routes</span>
             <RouteIcon className="w-5 h-5 text-emerald-500" />
           </div>
           <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{activeRoutes}</h3>
-          <p className="text-[10px] text-emerald-500 font-semibold">Configured active transit routes</p>
         </div>
 
         {/* Card 3: Total Drivers */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Drivers</span>
             <Users className="w-5 h-5 text-sky-500" />
           </div>
           <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">{totalDrivers} <span className="text-xs font-semibold text-sky-500">({activeDrivers} Active)</span></h3>
-          <p className="text-[10px] text-slate-400">Licensed commercial drivers</p>
         </div>
 
         {/* Card 4: Total Bus Attendants */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Bus Attendants</span>
             <UserCheck className="w-5 h-5 text-sky-500" />
           </div>
           <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">{totalBusAttendants}</h3>
-          <p className="text-[10px] text-sky-500 font-semibold">Verified bus attendant staff</p>
         </div>
 
         {/* Card 5: Students Using Transport */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-600">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-600 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Students Using Transport</span>
             <CheckCircle className="w-5 h-5 text-sky-600" />
           </div>
           <h3 className="text-2xl font-black text-sky-700 dark:text-sky-300">{totalTransportStudents}</h3>
-          <p className="text-[10px] text-slate-400">{capacityUtilizationPct}% overall seat utilization</p>
         </div>
 
         {/* Card 6: Vehicles Under Maintenance */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-amber-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-amber-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Vehicles Under Maintenance</span>
             <Wrench className="w-5 h-5 text-amber-500" />
           </div>
           <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400">{vehiclesUnderMaintenance}</h3>
-          <p className="text-[10px] text-amber-500 font-semibold">Scheduled service & repair</p>
         </div>
 
         {/* Card 7: Expiring Vehicle Documents */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-500">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Expiring Vehicle Documents</span>
             <FileText className="w-5 h-5 text-rose-500" />
           </div>
           <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">{expiringVehicleDocs}</h3>
-          <p className="text-[10px] text-rose-500 font-semibold">RC, Insurance, PUC, Fitness warnings</p>
         </div>
 
         {/* Card 8: Expiring Driver Licenses */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-600">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-600 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Expiring Driver Licenses</span>
             <AlertCircle className="w-5 h-5 text-rose-600" />
           </div>
           <h3 className="text-2xl font-black text-rose-700 dark:text-rose-300">{expiringDriverLicenses}</h3>
-          <p className="text-[10px] text-rose-500 font-semibold">Commercial license renewal reminders</p>
         </div>
       </div>
 
