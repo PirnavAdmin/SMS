@@ -178,15 +178,15 @@ public class SchoolRepository : ISchoolRepository
 	{
 		return await _context.Classes
 			.AsNoTracking()
-			.Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
-			.Include(c => c.CurriculumSubjects).ThenInclude(cs => cs.Subject)
+			.Include(c => c.Sections)
+			.Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
 			.ToListAsync();
 	}
 
 	public async Task<ClassGrade?> GetClassGradeByIdAsync(int id) =>
 		await _context.Classes
-			.Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
-			.Include(c => c.CurriculumSubjects).ThenInclude(cs => cs.Subject)
+			.Include(c => c.Sections)
+			.Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
 			.FirstOrDefaultAsync(c => c.ClassId == id);
 
 	public async Task AddClassGradeAsync(ClassGrade classGrade) => await _context.Classes.AddAsync(classGrade);

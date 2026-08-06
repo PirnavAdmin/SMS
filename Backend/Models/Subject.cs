@@ -19,5 +19,5 @@ public class Subject
     public int DepartmentId { get; set; } = 1;
     public Department? Department { get; set; }
 
-    public ICollection<ClassCurriculumSubject> CurriculumSubjects { get; set; } = new List<ClassCurriculumSubject>();
+    public ICollection<ClassSubjectMapping> SubjectMappings { get; set; } = new List<ClassSubjectMapping>();
 }

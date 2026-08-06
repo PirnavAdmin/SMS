@@ -615,7 +615,7 @@ public class SchoolService : ISchoolService
 
 		foreach (var subId in subjectIds)
 		{
-			newClass.CurriculumSubjects.Add(new ClassCurriculumSubject
+			newClass.SubjectMappings.Add(new ClassSubjectMapping
 			{
 				ClassId = newClass.ClassId,
 				SubjectId = subId
@@ -657,12 +657,24 @@ public class SchoolService : ISchoolService
 
 		foreach (var secDto in sectionsList)
 		{
-			newClass.Sections.Add(new ClassSection
+			var section = new ClassSection
 			{
 				ClassId = newClass.ClassId,
-				SectionName = secDto.SectionName,
-				ClassTeacherEmpId = secDto.ClassTeacherEmpId
-			});
+				SectionName = secDto.SectionName
+			};
+			newClass.Sections.Add(section);
+
+			if (secDto.ClassTeacherEmpId.HasValue)
+			{
+				_context.TeacherAssignments.Add(new TeacherAssignment
+				{
+					ClassId = newClass.ClassId,
+					SectionLetter = secDto.SectionName,
+					TeacherId = secDto.ClassTeacherEmpId.Value,
+					Role = "Class Teacher",
+					Status = "Active"
+				});
+			}
 		}
 
 		await _schoolRepository.SaveChangesAsync();
@@ -676,7 +688,7 @@ public class SchoolService : ISchoolService
 
 		cls.ClassName = !string.IsNullOrEmpty(dto.Name) ? dto.Name : dto.ClassName;
 
-		cls.CurriculumSubjects.Clear();
+		cls.SubjectMappings.Clear();
 		// Handle Subjects mapping
 		var subjectIds = new List<int>();
 		if (dto.Subjects != null && dto.Subjects.Any())
@@ -706,7 +718,7 @@ public class SchoolService : ISchoolService
 
 		foreach (var subId in subjectIds)
 		{
-			cls.CurriculumSubjects.Add(new ClassCurriculumSubject
+			cls.SubjectMappings.Add(new ClassSubjectMapping
 			{
 				ClassId = cls.ClassId,
 				SubjectId = subId
@@ -747,14 +759,32 @@ public class SchoolService : ISchoolService
 			sectionsList.AddRange(dto.Sections);
 		}
 
+		// Remove existing Class Teacher assignments for this class
+		var existingClassTeachers = _context.TeacherAssignments
+			.Where(a => a.ClassId == cls.ClassId && a.Role == "Class Teacher")
+			.ToList();
+		_context.TeacherAssignments.RemoveRange(existingClassTeachers);
+
 		foreach (var secDto in sectionsList)
 		{
-			cls.Sections.Add(new ClassSection
+			var section = new ClassSection
 			{
 				ClassId = cls.ClassId,
-				SectionName = secDto.SectionName,
-				ClassTeacherEmpId = secDto.ClassTeacherEmpId
-			});
+				SectionName = secDto.SectionName
+			};
+			cls.Sections.Add(section);
+
+			if (secDto.ClassTeacherEmpId.HasValue)
+			{
+				_context.TeacherAssignments.Add(new TeacherAssignment
+				{
+					ClassId = cls.ClassId,
+					SectionLetter = secDto.SectionName,
+					TeacherId = secDto.ClassTeacherEmpId.Value,
+					Role = "Class Teacher",
+					Status = "Active"
+				});
+			}
 		}
 
 		await _schoolRepository.SaveChangesAsync();
@@ -779,11 +809,11 @@ public class SchoolService : ISchoolService
 		{
 			SectionId = s.SectionId,
 			SectionName = s.SectionName,
-			ClassTeacherEmpId = s.ClassTeacherEmpId,
-			ClassTeacherName = s.ClassTeacher != null ? $"{s.ClassTeacher.FirstName} {s.ClassTeacher.LastName}" : null,
-			EmployeeId = s.ClassTeacher?.EmployeeId
+			ClassTeacherEmpId = null,
+			ClassTeacherName = null,
+			EmployeeId = null
 		}).ToList(),
-		CurriculumSubjects = c.CurriculumSubjects.Select(cs => new SubjectDto
+		CurriculumSubjects = c.SubjectMappings.Select(cs => new SubjectDto
 		{
 			SubjectId = cs.Subject.SubjectId,
 			SubjectCode = cs.Subject.SubjectCode ?? "",

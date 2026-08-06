@@ -159,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const academicSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'academic-dashboard', label: 'Dashboard', icon: School },
     { id: 'academic-class', label: 'Class Management', icon: Presentation },
-    { id: 'academic-subjects', label: 'Subject Management', icon: BookOpen },
+    { id: 'subjects', label: 'Subject Management', icon: BookOpen },
     { id: 'timetable', label: 'Time Table', icon: Clock },
     { id: 'academic-settings', label: 'Academic Settings', icon: Calendar },
   ];
@@ -577,8 +577,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === 'academic-class' && activeModule === 'academics') ||
-                              (sub.id === 'academic-subjects' && activeModule === 'subjects');
+                              (sub.id === 'academic-class' && activeModule === 'academics');
                             return (
                               <button
                                 key={sub.id}

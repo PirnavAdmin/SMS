@@ -13,6 +13,17 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Badge } from '../../common/Badge';
 import { StatCard } from '../../common/StatCard';
 import { TimetableSlot, SubjectItem, TeacherAssignment } from '../../../types';
+import { 
+  addSectionApi, 
+  updateSectionApi, 
+  deleteSectionApi,
+  mapSubjectApi, 
+  removeSubjectApi, 
+  assignTeacherApi,
+  fetchClassStudentsApi, 
+  allocateStudentApi, 
+  autoAllocateApi 
+} from '../../../api/academic';
 
 const CAMPUSES = ['Main Campus', 'Winga Campus', 'South Campus', 'North Campus', 'East Campus'];
 const CLASS_NAMES = [
@@ -169,6 +180,24 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       true
     );
   }, [staff]);
+
+  // Helper function to identify if a teacher teaches a specific subject
+  const isTeacherForSubject = (t: any, subName: string): boolean => {
+    const subjectsStr = [
+      t.primarySubject,
+      t.secondarySubject,
+      ...(t.assignedSubjects || [])
+    ].filter(Boolean);
+    
+    const offeredSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Computer Science', 'Economics', 'Accountancy', 'Business Studies'];
+    const matchedOffered = offeredSubjects.filter(sub => 
+      (t.designation || '').toLowerCase().includes(sub.toLowerCase()) ||
+      (t.department || '').toLowerCase().includes(sub.toLowerCase())
+    );
+    const allTeacherSubjects = Array.from(new Set([...subjectsStr, ...matchedOffered])).map(s => s.toLowerCase());
+    const target = subName.toLowerCase();
+    return allTeacherSubjects.some(s => s.includes(target) || target.includes(s));
+  };
 
   // Student list search & filter parameters
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
@@ -627,39 +656,64 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       }
 
       verifySafetyLock(() => {
-        details[editingSectionName] = {
-          capacity,
-          status,
-          remarks
-        };
-
-        updateAcademicClass(activeClass.id, {
-          sections: currentSections,
-          sectionDetails: details
-        } as any);
-
-        addToast('success', 'Section configuration saved', `Saved Section ${name}`);
-        setIsSectionModalOpen(false);
+        updateSectionApi(activeClass.id, editingSectionName, { capacity, status, remarks })
+          .then(res => {
+            if (res && res.success) {
+              details[editingSectionName] = { capacity, status, remarks };
+              updateAcademicClass(activeClass.id, {
+                sections: currentSections,
+                sectionDetails: details
+              } as any);
+              addToast('success', 'Section configuration saved', `Saved Section ${name}`);
+              setIsSectionModalOpen(false);
+            } else {
+              addToast('error', 'Error', res?.message || 'Failed to update section.');
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            // offline fallback
+            details[editingSectionName] = { capacity, status, remarks };
+            updateAcademicClass(activeClass.id, {
+              sections: currentSections,
+              sectionDetails: details
+            } as any);
+            addToast('success', 'Section configuration saved', `Saved Section ${name} (offline)`);
+            setIsSectionModalOpen(false);
+          });
       });
     } else {
       if (currentSections.includes(name)) {
         addToast('warning', 'Duplicate Section', `Section ${name} already exists in this class setup.`);
         return;
       }
-      currentSections.push(name);
-      details[name] = {
-        capacity,
-        status,
-        remarks
-      };
-
-      updateAcademicClass(activeClass.id, {
-        sections: currentSections,
-        sectionDetails: details
-      } as any);
-
-      addToast('success', 'Section configuration saved', `Saved Section ${name}`);
-      setIsSectionModalOpen(false);
+      addSectionApi(activeClass.id, { section_letter: name, capacity, status, remarks })
+        .then(res => {
+          if (res && res.success) {
+            currentSections.push(name);
+            details[name] = { capacity, status, remarks };
+            updateAcademicClass(activeClass.id, {
+              sections: currentSections,
+              sectionDetails: details
+            } as any);
+            addToast('success', 'Section configuration saved', `Saved Section ${name}`);
+            setIsSectionModalOpen(false);
+          } else {
+            addToast('error', 'Error', res?.message || 'Failed to create section.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          // offline fallback
+          currentSections.push(name);
+          details[name] = { capacity, status, remarks };
+          updateAcademicClass(activeClass.id, {
+            sections: currentSections,
+            sectionDetails: details
+          } as any);
+          addToast('success', 'Section configuration saved', `Saved Section ${name} (offline)`);
+          setIsSectionModalOpen(false);
+        });
     }
   };
 
@@ -696,14 +750,31 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     const details = { ...((activeClass as any).sectionDetails || {}) };
     delete details[sectionToDelete];
 
-    updateAcademicClass(activeClass.id, {
-      sections: currentSections,
-      sectionDetails: details
-    } as any);
-
-    addToast('success', 'Section Removed', `Deleted Section ${sectionToDelete}`);
-    setSectionToDelete(null);
-    setSelectedSections(selectedSections.filter(s => s !== sectionToDelete));
+    deleteSectionApi(activeClass.id, sectionToDelete)
+      .then(res => {
+        if (res && res.success) {
+          updateAcademicClass(activeClass.id, {
+            sections: currentSections,
+            sectionDetails: details
+          } as any);
+          addToast('success', 'Section Removed', `Deleted Section ${sectionToDelete}`);
+        } else {
+          addToast('error', 'Error', res?.message || 'Failed to delete section.');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        // offline fallback
+        updateAcademicClass(activeClass.id, {
+          sections: currentSections,
+          sectionDetails: details
+        } as any);
+        addToast('success', 'Section Removed', `Deleted Section ${sectionToDelete} (offline)`);
+      })
+      .finally(() => {
+        setSectionToDelete(null);
+        setSelectedSections(selectedSections.filter(s => s !== sectionToDelete));
+      });
   };
 
   // Archive Section
@@ -924,14 +995,45 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         return;
       }
       verifySafetyLock(() => {
-        updated = currentMapped.filter(s => s !== subjectName);
-        updateAcademicClass(activeClass.id, { subjects: updated } as any);
-        addToast('success', 'Subjects mapping updated');
+        const subObj = subjects.find(s => s.name === subjectName);
+        const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
+
+        removeSubjectApi(activeClass.id, numericSubId)
+          .then(res => {
+            if (res && res.success) {
+              updated = currentMapped.filter(s => s !== subjectName);
+              updateAcademicClass(activeClass.id, { subjects: updated } as any);
+              addToast('success', 'Subjects mapping updated');
+            } else {
+              addToast('error', 'Error', res?.message || 'Failed to remove subject mapping.');
+            }
+          })
+          .catch(err => {
+            console.error(err);
+            // offline fallback
+            updated = currentMapped.filter(s => s !== subjectName);
+            updateAcademicClass(activeClass.id, { subjects: updated } as any);
+            addToast('success', 'Subjects mapping updated (offline)');
+          });
       });
     } else {
-      updated = [...currentMapped, subjectName];
-      updateAcademicClass(activeClass.id, { subjects: updated } as any);
-      addToast('success', 'Subjects mapping updated');
+      mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 })
+        .then(res => {
+          if (res && res.success) {
+            updated = [...currentMapped, subjectName];
+            updateAcademicClass(activeClass.id, { subjects: updated } as any);
+            addToast('success', 'Subjects mapping updated');
+          } else {
+            addToast('error', 'Error', res?.message || 'Failed to map subject.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          // offline fallback
+          updated = [...currentMapped, subjectName];
+          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          addToast('success', 'Subjects mapping updated (offline)');
+        });
     }
   };
 
@@ -961,8 +1063,25 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         ...details,
         [activeWorkspaceSection]: teacherFullName
       };
-      updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
-      addToast('success', 'Class Teacher Mapped', `Assigned ${teacherFullName || 'Unassigned'} as Class Teacher.`);
+
+      assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+        teacher_id: teacherId,
+        role: "Class Teacher"
+      })
+        .then(res => {
+          if (res && res.success) {
+            updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+            addToast('success', 'Class Teacher Mapped', `Assigned ${teacherFullName || 'Unassigned'} as Class Teacher.`);
+          } else {
+            addToast('error', 'Error', res?.message || 'Failed to assign class teacher.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          // offline fallback
+          updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+          addToast('success', 'Class Teacher Mapped', `Assigned ${teacherFullName || 'Unassigned'} as Class Teacher (offline).`);
+        });
 
       // Auto-assign subject if class teacher is assigned and has a teaching subject
       if (t) {
@@ -1029,25 +1148,57 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       ta.subject === subjectName
     );
 
-    if (exist) {
-      updateTeacherAssignment(exist.id, { 
-        teacherId: t.id, 
-        teacherName: t.name || `${t.firstName} ${t.lastName}`
+    assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+      teacher_id: teacherId,
+      role: "Subject Teacher",
+      subject_name: subjectName
+    })
+      .then(res => {
+        if (res && res.success) {
+          if (exist) {
+            updateTeacherAssignment(exist.id, { 
+              teacherId: t.id, 
+              teacherName: t.name || `${t.firstName} ${t.lastName}`
+            });
+          } else {
+            addTeacherAssignment({
+              academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
+              branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
+              className: activeClass.name,
+              section: activeWorkspaceSection,
+              subject: subjectName,
+              teacherId: t.id,
+              teacherName: t.name || `${t.firstName} ${t.lastName}`,
+              status: 'Active'
+            });
+          }
+          addToast('success', 'Subject Teacher Mapped', `Mapped ${t.name || `${t.firstName} ${t.lastName}`} to ${subjectName} in Section ${activeWorkspaceSection}`);
+        } else {
+          addToast('error', 'Error', res?.message || 'Failed to assign subject teacher.');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        // offline fallback
+        if (exist) {
+          updateTeacherAssignment(exist.id, { 
+            teacherId: t.id, 
+            teacherName: t.name || `${t.firstName} ${t.lastName}`
+          });
+        } else {
+          addTeacherAssignment({
+            academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
+            branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
+            className: activeClass.name,
+            section: activeWorkspaceSection,
+            subject: subjectName,
+            teacherId: t.id,
+            teacherName: t.name || `${t.firstName} ${t.lastName}`,
+            status: 'Active'
+          });
+        }
+        addToast('success', 'Subject Teacher Mapped', `Mapped ${t.name || `${t.firstName} ${t.lastName}`} to ${subjectName} in Section ${activeWorkspaceSection} (offline)`);
       });
-    } else {
-      addTeacherAssignment({
-        academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-        branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
-        className: activeClass.name,
-        section: activeWorkspaceSection,
-        subject: subjectName,
-        teacherId: t.id,
-        teacherName: t.name || `${t.firstName} ${t.lastName}`,
-        status: 'Active'
-      });
-    }
-
-    addToast('success', 'Subject Teacher Mapped', `Mapped ${t.name || `${t.firstName} ${t.lastName}`} to ${subjectName} in Section ${activeWorkspaceSection}`);
   };
 
   const handleRemoveSubjectTeacher = (subjectName: string) => {
@@ -1117,15 +1268,39 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
 
     let nextRoll = currentCount + 1;
-    selectedStudentsForAllocation.forEach(id => {
-      updateStudent(id, {
-        section: activeWorkspaceSection,
-        rollNo: `R-${nextRoll++}`
-      } as any);
+    const allocationPromises = selectedStudentsForAllocation.map(id => {
+      const roll = `R-${nextRoll++}`;
+      return allocateStudentApi(id, {
+        section_letter: activeWorkspaceSection,
+        roll_no: roll
+      }).then(res => {
+        if (res && res.success) {
+          updateStudent(id, {
+            section: activeWorkspaceSection,
+            rollNo: roll
+          } as any);
+        }
+      });
     });
 
-    addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection}`);
-    setSelectedStudentsForAllocation([]);
+    Promise.all(allocationPromises)
+      .then(() => {
+        addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection}`);
+        setSelectedStudentsForAllocation([]);
+      })
+      .catch(err => {
+        console.error(err);
+        // offline fallback
+        let offlineRoll = currentCount + 1;
+        selectedStudentsForAllocation.forEach(id => {
+          updateStudent(id, {
+            section: activeWorkspaceSection,
+            rollNo: `R-${offlineRoll++}`
+          } as any);
+        });
+        addToast('success', 'Allocation complete', `Assigned ${selectedStudentsForAllocation.length} students to Section ${activeWorkspaceSection} (offline)`);
+        setSelectedStudentsForAllocation([]);
+      });
   };
 
   const handleRemoveStudentFromSection = (studId: string) => {
@@ -1150,11 +1325,30 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         return;
       }
 
-      updateStudent(studId, {
-        section: destSec,
-        rollNo: `R-${destCount + 1}`
-      } as any);
-      addToast('success', 'Student Transferred', `Moved student to Section ${destSec}`);
+      allocateStudentApi(studId, {
+        section_letter: destSec,
+        roll_no: `R-${destCount + 1}`
+      })
+        .then(res => {
+          if (res && res.success) {
+            updateStudent(studId, {
+              section: destSec,
+              rollNo: `R-${destCount + 1}`
+            } as any);
+            addToast('success', 'Student Transferred', `Moved student to Section ${destSec}`);
+          } else {
+            addToast('error', 'Error', res?.message || 'Failed to transfer student.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          // offline fallback
+          updateStudent(studId, {
+            section: destSec,
+            rollNo: `R-${destCount + 1}`
+          } as any);
+          addToast('success', 'Student Transferred', `Moved student to Section ${destSec} (offline)`);
+        });
     });
   };
 
@@ -1178,23 +1372,49 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
-    let secIdx = 0;
-    unassigned.forEach(stud => {
-      const targetSec = activeSecs[secIdx % activeSecs.length];
-      const details = (activeClass as any).sectionDetails?.[targetSec] || {};
-      const cap = details.capacity ?? 40;
-      const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
-      
-      if (count < cap) {
-        updateStudent(stud.id, {
-          section: targetSec,
-          rollNo: `R-${count + 1}`
-        } as any);
-      }
-      secIdx++;
-    });
-
-    addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections.');
+    autoAllocateApi(activeClass.id)
+      .then(res => {
+        if (res && res.success) {
+          let secIdx = 0;
+          unassigned.forEach(stud => {
+            const targetSec = activeSecs[secIdx % activeSecs.length];
+            const details = (activeClass as any).sectionDetails?.[targetSec] || {};
+            const cap = details.capacity ?? 40;
+            const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
+            
+            if (count < cap) {
+              updateStudent(stud.id, {
+                section: targetSec,
+                rollNo: `R-${count + 1}`
+              } as any);
+            }
+            secIdx++;
+          });
+          addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections.');
+        } else {
+          addToast('error', 'Error', res?.message || 'Failed to auto allocate students.');
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        // offline fallback
+        let secIdx = 0;
+        unassigned.forEach(stud => {
+          const targetSec = activeSecs[secIdx % activeSecs.length];
+          const details = (activeClass as any).sectionDetails?.[targetSec] || {};
+          const cap = details.capacity ?? 40;
+          const count = students.filter(s => s.className === activeClass.name && s.section === targetSec).length;
+          
+          if (count < cap) {
+            updateStudent(stud.id, {
+              section: targetSec,
+              rollNo: `R-${count + 1}`
+            } as any);
+          }
+          secIdx++;
+        });
+        addToast('success', 'Auto-allocated Students', 'Distributed unallocated students evenly among active sections (offline).');
+      });
   };
 
   // Auto Generate Roll Numbers sequentially
@@ -1674,7 +1894,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-202 dark:border-slate-808 pb-3">
                       <div>
                         <h4 className="font-black text-slate-900 dark:text-white">Class Subject Mapping</h4>
-                        <p className="text-xs text-slate-500">Map which global course subjects are applicable to {activeClass.name}.</p>
+                        <p className="text-xs text-slate-500">
+                          Map which global course subjects are applicable to {activeClass.name}.{' '}
+                          <button
+                            onClick={() => onTabChange?.('subjects')}
+                            className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
+                          >
+                            Configure Global Subjects &rarr;
+                          </button>
+                        </p>
                       </div>
 
                       {/* Copy subject mapping controller */}
@@ -1749,7 +1977,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-808 pb-3">
                       <div>
                         <h4 className="font-black text-slate-900 dark:text-white">Class Teacher & Subject Teacher Mappings</h4>
-                        <p className="text-xs text-slate-505">Select class section to configure instructor workload allocations.</p>
+                        <p className="text-xs text-slate-505">
+                          Select class section to configure instructor workload allocations.{' '}
+                          <button
+                            onClick={() => onTabChange?.('staff')}
+                            className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
+                          >
+                            Manage Staff Directory &rarr;
+                          </button>
+                        </p>
                       </div>
                       <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200/50">
                         {activeClass.sections.map(sec => (
@@ -1780,9 +2016,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             className="w-full p-2.5 bg-slate-50 dark:bg-slate-888 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-xs"
                           >
                             <option value="">Unassigned</option>
-                            {teachersList.map(t => (
-                              <option key={t.id} value={t.id}>{t.name || `${t.firstName} ${t.lastName}`} ({t.id})</option>
-                            ))}
+                            {teachersList.map(t => {
+                               const fullName = t.name || `${t.firstName} ${t.lastName}`;
+                               const empId = t.empId || t.id;
+                               const desig = t.designation || 'Teacher';
+                               return (
+                                 <option key={t.id} value={t.id}>
+                                   {fullName} ({empId}) - {desig}
+                                 </option>
+                               );
+                             })}
                           </select>
                         </div>
 
@@ -1845,16 +2088,29 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   </div>
                                   
                                   <div className="flex items-center gap-2">
-                                    <select
-                                      value={mapping?.teacherId || ''}
-                                      onChange={e => handleAssignSubjectTeacher(subName, e.target.value)}
-                                      className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 rounded-lg font-bold text-[11px]"
-                                    >
-                                      <option value="">Unassigned</option>
-                                      {teachersList.map(t => (
-                                        <option key={t.id} value={t.id}>{t.name || `${t.firstName} ${t.lastName}`}</option>
-                                      ))}
-                                    </select>
+                                    {(() => {
+                                      const qualifiedTeachers = teachersList.filter(t => isTeacherForSubject(t, subName));
+                                      const displayTeachers = qualifiedTeachers.length > 0 ? qualifiedTeachers : teachersList;
+                                      return (
+                                        <select
+                                          value={mapping?.teacherId || ''}
+                                          onChange={e => handleAssignSubjectTeacher(subName, e.target.value)}
+                                          className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 rounded-lg font-bold text-[11px] max-w-[220px]"
+                                        >
+                                          <option value="">Unassigned</option>
+                                          {displayTeachers.map(t => {
+                                            const fullName = t.name || `${t.firstName} ${t.lastName}`;
+                                            const empId = t.empId || t.id;
+                                            const desig = t.designation || 'Teacher';
+                                            return (
+                                              <option key={t.id} value={t.id}>
+                                                {fullName} ({empId}) - {desig}
+                                              </option>
+                                            );
+                                          })}
+                                        </select>
+                                      );
+                                    })()}
                                     {mapping && (
                                       <button 
                                         type="button"
@@ -1930,7 +2186,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       <div>
                         <h4 className="font-black text-slate-900 dark:text-white">Student Section Assignment</h4>
                         <p className="text-xs text-slate-550">
-                          Total Class strength: <strong>{activeClassStudents.length} Students</strong>
+                          Total Class strength: <strong>{activeClassStudents.length} Students</strong>.{' '}
+                          <button
+                            onClick={() => onTabChange?.('student-directory')}
+                            className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
+                          >
+                            Open Student Directory &rarr;
+                          </button>
                         </p>
                       </div>
                       

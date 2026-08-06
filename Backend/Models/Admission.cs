@@ -39,7 +39,13 @@ public class Admission
     public long BranchId { get; set; } = 1;
 
     [Column("class_id")]
-    public long ClassId { get; set; } = 1;
+    public int? ClassId { get; set; }
+
+    [Column("section_letter")]
+    public string? SectionLetter { get; set; }
+
+    [Column("roll_no")]
+    public string? RollNo { get; set; }
 
     [Column("admission_type")]
     public string? AdmissionType { get; set; } = "Regular";

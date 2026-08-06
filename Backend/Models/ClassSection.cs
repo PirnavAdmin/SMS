@@ -16,9 +16,10 @@ namespace SMS.Api.Models
         [ForeignKey(nameof(ClassId))]
         public ClassGrade ClassGrade { get; set; } = null!;
 
-        public int? ClassTeacherEmpId { get; set; }
+        public int Capacity { get; set; } = 40;
 
-        [ForeignKey(nameof(ClassTeacherEmpId))]
-        public Staff? ClassTeacher { get; set; }
+        public string Status { get; set; } = "Active";
+
+        public string? Remarks { get; set; }
     }
 }

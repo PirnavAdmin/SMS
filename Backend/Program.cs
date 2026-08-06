@@ -1487,9 +1487,20 @@ using (var scope = app.Services.CreateScope())
                         new ClassSection
                         {
                             ClassId = classGrade.ClassId,
-                            SectionName = "A",
-                            ClassTeacherEmpId = staff1?.StaffId
+                            SectionName = "A"
                         });
+                    if (staff1 != null)
+                    {
+                        await context.TeacherAssignments.AddAsync(
+                            new TeacherAssignment
+                            {
+                                ClassId = classGrade.ClassId,
+                                SectionLetter = "A",
+                                TeacherId = staff1.StaffId,
+                                Role = "Class Teacher",
+                                Status = "Active"
+                            });
+                    }
                 }
                 else if (classNumber == 2)
                 {
@@ -1497,9 +1508,20 @@ using (var scope = app.Services.CreateScope())
                         new ClassSection
                         {
                             ClassId = classGrade.ClassId,
-                            SectionName = "A",
-                            ClassTeacherEmpId = staff2?.StaffId
+                            SectionName = "A"
                         });
+                    if (staff2 != null)
+                    {
+                        await context.TeacherAssignments.AddAsync(
+                            new TeacherAssignment
+                            {
+                                ClassId = classGrade.ClassId,
+                                SectionLetter = "A",
+                                TeacherId = staff2.StaffId,
+                                Role = "Class Teacher",
+                                Status = "Active"
+                            });
+                    }
                 }
                 else if (classNumber == 9)
                 {
@@ -1507,15 +1529,37 @@ using (var scope = app.Services.CreateScope())
                         new ClassSection
                         {
                             ClassId = classGrade.ClassId,
-                            SectionName = "A",
-                            ClassTeacherEmpId = staff1?.StaffId
+                            SectionName = "A"
                         },
                         new ClassSection
                         {
                             ClassId = classGrade.ClassId,
-                            SectionName = "B",
-                            ClassTeacherEmpId = staff2?.StaffId
+                            SectionName = "B"
                         });
+                    if (staff1 != null)
+                    {
+                        await context.TeacherAssignments.AddAsync(
+                            new TeacherAssignment
+                            {
+                                ClassId = classGrade.ClassId,
+                                SectionLetter = "A",
+                                TeacherId = staff1.StaffId,
+                                Role = "Class Teacher",
+                                Status = "Active"
+                            });
+                    }
+                    if (staff2 != null)
+                    {
+                        await context.TeacherAssignments.AddAsync(
+                            new TeacherAssignment
+                            {
+                                ClassId = classGrade.ClassId,
+                                SectionLetter = "B",
+                                TeacherId = staff2.StaffId,
+                                Role = "Class Teacher",
+                                Status = "Active"
+                            });
+                    }
                 }
 
                 await context.SaveChangesAsync();
