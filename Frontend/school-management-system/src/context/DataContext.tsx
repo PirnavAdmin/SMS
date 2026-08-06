@@ -125,6 +125,9 @@ interface DataContextType {
   schoolProfile: SchoolProfile;
   updateSchoolProfile: (profile: Partial<SchoolProfile>) => void;
   academicYears: AcademicYearMaster[];
+  addAcademicYear: (year: Omit<AcademicYearMaster, 'id'>) => void;
+  updateAcademicYear: (id: string, updates: Partial<AcademicYearMaster>) => void;
+  deleteAcademicYear: (id: string) => void;
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Student;
   updateStudent: (id: string, updates: Partial<Student>) => void;
@@ -2228,6 +2231,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const addAcademicYear = (yearData: Omit<AcademicYearMaster, 'id'>) => {
+    const id = 'AY-' + Math.floor(100 + Math.random() * 900);
+    const newYear: AcademicYearMaster = {
+      ...yearData,
+      id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    setAcademicYears(prev => [...prev, newYear]);
+    logActivity('Created Academic Year', `Added ${newYear.academicYear}`);
+  };
+
+  const updateAcademicYear = (id: string, updates: Partial<AcademicYearMaster>) => {
+    setAcademicYears(prev => prev.map(y => y.id === id ? { ...y, ...updates, updatedAt: new Date().toISOString() } : y));
+    logActivity('Updated Academic Year', `Updated academic year ID ${id}`);
+  };
+
+  const deleteAcademicYear = (id: string) => {
+    setAcademicYears(prev => prev.filter(y => y.id !== id));
+    logActivity('Deleted Academic Year', `Removed academic year ID ${id}`);
+  };
+
   const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
     const id = 'CL-' + Math.floor(10 + Math.random() * 90);
     const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
@@ -2241,6 +2266,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteAcademicClass = (id: string) => {
+    const cls = academicClasses.find(c => c.id === id);
+    if (cls) {
+      setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
+    }
     setAcademicClasses(prev => prev.filter(c => c.id !== id));
     logActivity('Deleted Academic Class', `Removed class ID ${id}`);
   };
@@ -5233,7 +5262,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider
       value={{
         schoolProfile, updateSchoolProfile,
-        academicYears,
+        academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear,
         students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
         staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
         admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,

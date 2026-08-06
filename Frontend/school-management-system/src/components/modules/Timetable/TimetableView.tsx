@@ -1163,16 +1163,16 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 if (displaySlots.length === 0 && selectedTeacherName) {
                   if (day === 'Monday') {
                     displaySlots = [
-                      { id: 'demo1', subject: 'Mathematics', className: 'Class 10', section: 'A', timeSlot: '09:00 AM - 09:45 AM', teacherName: selectedTeacherName, day: 'Monday' }
+                      { id: 'demo1', subject: 'Mathematics', className: 'Class 10', section: 'A', timeSlot: '09:00 AM - 09:45 AM', teacherName: selectedTeacherName, day: 'Monday', roomNo: '101' }
                     ];
                   } else if (day === 'Tuesday') {
                     displaySlots = [
-                      { id: 'demo2', subject: 'Mathematics', className: 'Class 9', section: 'B', timeSlot: '10:00 AM - 10:45 AM', teacherName: selectedTeacherName, day: 'Tuesday' }
+                      { id: 'demo2', subject: 'Mathematics', className: 'Class 9', section: 'B', timeSlot: '10:00 AM - 10:45 AM', teacherName: selectedTeacherName, day: 'Tuesday', roomNo: '101' }
                     ];
                   } else if (day === 'Wednesday') {
                      displaySlots = [
-                      { id: 'demo3', subject: 'Physics', className: 'Class 11', section: 'A', timeSlot: '11:00 AM - 11:45 AM', teacherName: selectedTeacherName, day: 'Wednesday' },
-                      { id: 'demo4', subject: 'Lab', className: 'Class 11', section: 'A', timeSlot: '11:45 AM - 12:30 PM', teacherName: selectedTeacherName, day: 'Wednesday' }
+                      { id: 'demo3', subject: 'Physics', className: 'Class 11', section: 'A', timeSlot: '11:00 AM - 11:45 AM', teacherName: selectedTeacherName, day: 'Wednesday', roomNo: '101' },
+                      { id: 'demo4', subject: 'Lab', className: 'Class 11', section: 'A', timeSlot: '11:45 AM - 12:30 PM', teacherName: selectedTeacherName, day: 'Wednesday', roomNo: '101' }
                     ];
                   }
                 }

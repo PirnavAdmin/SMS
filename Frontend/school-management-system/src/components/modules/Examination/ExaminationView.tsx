@@ -236,7 +236,7 @@ const getClassSubjects = (
   if (matched?.subjects?.length) {
     rawList = matched.subjects;
   } else {
-    const activeSubjects = subjects.filter(sub => sub.status === 'Active').map(sub => sub.name);
+    const activeSubjects = subjects.filter(sub => (sub as any).status === 'Active').map(sub => sub.name);
     if (activeSubjects.length > 0) rawList = activeSubjects;
     else rawList = ['Mathematics', 'Physics', 'Chemistry', 'English', 'Biology', 'Social Studies', 'Computer Science', 'Hindi'];
   }
@@ -828,7 +828,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       gradePoint: 10,
       passCriteria: 'Pass',
       description: 'Outstanding'
-    };
+    } as any;
     setGradeRules(prev => [newRule, ...prev]);
     addToast('info', 'Grade Rule Added', 'New grade rule added. Edit percentage boundaries as needed.');
   };
@@ -939,7 +939,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         passPercentage: 33,
         startDate: '',
         endDate: '',
-        status: 'Draft'
+        status: 'Draft' as any
       });
       setScheduleRows([]);
       setGradeRules(FALLBACK_GRADE_RULES);
@@ -1097,7 +1097,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
     const computedList = roster.map((student, idx) => {
       const rollNo = student.rollNo || (2030 + idx + 1).toString();
-      const admissionNo = student.admissionNo || student.empId || `A${1020 + idx + 1}`;
+      const admissionNo = student.admissionNo || (student as any).empId || `A${1020 + idx + 1}`;
       const studentName = `${student.firstName} ${student.lastName}`.trim();
 
       let totalObtained = 0;
@@ -1435,7 +1435,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   };
 
   const handleExportResultsExcel = () => {
-    addToast('success', 'Excel Exported', `Exported ${processedResultsState.length} result records to Excel.`);
+    addToast('success', 'Excel Exported', `Exported result records to Excel.`);
   };
 
   // Conflict Detection Engine
@@ -2231,8 +2231,8 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                       <button
                         type="button"
                         onClick={() => {
-                          setSetupForm(prev => ({ ...prev, status: 'Draft' }));
-                          setWorkflowExams(prev => prev.map(exam => exam.id === selectedExamId ? { ...exam, publishStatus: 'Draft', status: 'Draft' } : exam));
+                          setSetupForm(prev => ({ ...prev, status: 'Draft' as any }));
+                          setWorkflowExams(prev => prev.map(exam => exam.id === selectedExamId ? { ...exam, publishStatus: 'Draft' as any, status: 'Draft' as any } : exam));
                           addToast('info', 'Status Changed to Draft', `${setupForm.name} set back to Draft mode.`);
                         }}
                         className="px-4 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-xs transition"
@@ -2346,7 +2346,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                           <td className="px-3 py-2.5">
                             <select
                               value={rule.passCriteria}
-                              onChange={e => handleUpdateGradeRule(rule.id, { passCriteria: e.target.value })}
+                              onChange={e => handleUpdateGradeRule(rule.id, { passCriteria: e.target.value as any })}
                               className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none"
                             >
                               <option value="Pass">Pass</option>

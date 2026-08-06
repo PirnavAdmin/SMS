@@ -20,7 +20,8 @@ import { LeaveManagementView } from './components/modules/Staff/LeaveManagementV
 import { StaffAttendanceView } from './components/modules/Staff/StaffAttendanceView';
 import { PayrollModuleView } from './components/modules/Staff/PayrollModuleViewSimple';
 import { AdmissionsView } from './components/modules/Admissions/AdmissionsView';
-import { AcademicsView } from './components/modules/Academics/AcademicsView';
+import { AcademicDashboardView } from './components/modules/Academics/AcademicDashboardView';
+import { ClassManagementWorkspace } from './components/modules/Academics/ClassManagementWorkspace';
 import { SubjectsView } from './components/modules/Academics/SubjectsView';
 import { AttendanceView } from './components/modules/Attendance/AttendanceView';
 import { TimetableView } from './components/modules/Timetable/TimetableView';
@@ -57,6 +58,9 @@ const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string>('');
+  const [classWorkspaceTab, setClassWorkspaceTab] = useState<'overview' | 'sections' | 'subjects' | 'teachers' | 'students' | 'timetable' | 'settings' | 'future'>('sections');
+  const [autoOpenClassModal, setAutoOpenClassModal] = useState(false);
 
   const userRole = user?.role?.toLowerCase() || '';
 
@@ -141,7 +145,43 @@ const MainLayout: React.FC = () => {
           />
         );
       case 'academics':
-        return <AcademicsView />;
+      case 'academic-dashboard':
+        return (
+          <AcademicDashboardView 
+            onNavigate={setActiveModule}
+            setSelectedClassId={setSelectedClassId}
+            setClassWorkspaceTab={setClassWorkspaceTab}
+            setAutoOpenClassModal={setAutoOpenClassModal}
+          />
+        );
+      case 'academic-class':
+      case 'academic-subjects':
+      case 'academic-timetable':
+      case 'academic-settings':
+      case 'academic-year':
+      case 'academic-sections':
+      case 'academic-mapping':
+      case 'academic-class-teacher':
+      case 'academic-subject-teacher':
+      case 'academic-student-assignment':
+      case 'academic-publish': {
+        let targetTab = classWorkspaceTab;
+        if (activeModule === 'academic-subjects') targetTab = 'subjects';
+        else if (activeModule === 'academic-timetable') targetTab = 'future';
+        else if (activeModule === 'academic-settings' || activeModule === 'academic-year') targetTab = 'settings';
+        
+        return (
+          <ClassManagementWorkspace 
+            selectedClassId={selectedClassId}
+            setSelectedClassId={setSelectedClassId}
+            classWorkspaceTab={targetTab}
+            setClassWorkspaceTab={setClassWorkspaceTab}
+            onTabChange={setActiveModule}
+            autoOpenClassModal={autoOpenClassModal}
+            setAutoOpenClassModal={setAutoOpenClassModal}
+          />
+        );
+      }
       case 'subjects':
         return <SubjectsView />;
       case 'attendance':

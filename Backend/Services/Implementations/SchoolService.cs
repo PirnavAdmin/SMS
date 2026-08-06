@@ -520,33 +520,87 @@ public class SchoolService : ISchoolService
 
 	public async Task<bool> CreateClassGradeAsync(CreateClassGradeDto dto)
 	{
-		var newClass = new ClassGrade { ClassName = dto.ClassName };
+		var newClass = new ClassGrade { ClassName = !string.IsNullOrEmpty(dto.Name) ? dto.Name : dto.ClassName };
 		await _schoolRepository.AddClassGradeAsync(newClass);
 		await _schoolRepository.SaveChangesAsync();
 
-		if (dto.SubjectIds != null && dto.SubjectIds.Any())
+		// Handle Subjects mapping
+		var subjectIds = new List<int>();
+		if (dto.Subjects != null && dto.Subjects.Any())
 		{
-			foreach (var subId in dto.SubjectIds)
+			foreach (var subName in dto.Subjects)
 			{
-				newClass.CurriculumSubjects.Add(new ClassCurriculumSubject
+				var sub = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
+				if (sub == null)
 				{
-					ClassId = newClass.ClassId,
-					SubjectId = subId
+					// Dynamically create the subject if not found
+					sub = new Subject
+					{
+						SubjectName = subName,
+						SubjectCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)) + "101",
+						CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length))
+					};
+					await _context.Subjects.AddAsync(sub);
+					await _context.SaveChangesAsync();
+				}
+				subjectIds.Add(sub.SubjectId);
+			}
+		}
+		else if (dto.SubjectIds != null)
+		{
+			subjectIds.AddRange(dto.SubjectIds);
+		}
+
+		foreach (var subId in subjectIds)
+		{
+			newClass.CurriculumSubjects.Add(new ClassCurriculumSubject
+			{
+				ClassId = newClass.ClassId,
+				SubjectId = subId
+			});
+		}
+
+		// Handle Sections and Teachers mapping
+		var sectionsList = new List<SectionAssignmentDto>();
+		if (dto.SectionNames != null && dto.SectionNames.Any())
+		{
+			foreach (var secName in dto.SectionNames)
+			{
+				int? teacherId = null;
+				if (dto.SectionTeachers != null && dto.SectionTeachers.TryGetValue(secName, out var teacherName) && !string.IsNullOrEmpty(teacherName))
+				{
+					var parsedTeacherName = teacherName;
+					if (teacherName.Contains("(") && teacherName.Contains(")"))
+					{
+						parsedTeacherName = teacherName.Substring(0, teacherName.IndexOf("(")).Trim();
+					}
+					var staff = await _context.Staff.FirstOrDefaultAsync(s => 
+						(s.FirstName + " " + s.LastName).Trim().ToLower() == parsedTeacherName.ToLower());
+					if (staff != null)
+					{
+						teacherId = staff.StaffId;
+					}
+				}
+				sectionsList.Add(new SectionAssignmentDto
+				{
+					SectionName = secName,
+					ClassTeacherEmpId = teacherId
 				});
 			}
 		}
-
-		if (dto.Sections != null && dto.Sections.Any())
+		else if (dto.Sections != null)
 		{
-			foreach (var secDto in dto.Sections)
+			sectionsList.AddRange(dto.Sections);
+		}
+
+		foreach (var secDto in sectionsList)
+		{
+			newClass.Sections.Add(new ClassSection
 			{
-				newClass.Sections.Add(new ClassSection
-				{
-					ClassId = newClass.ClassId,
-					SectionName = secDto.SectionName,
-					ClassTeacherEmpId = secDto.ClassTeacherEmpId
-				});
-			}
+				ClassId = newClass.ClassId,
+				SectionName = secDto.SectionName,
+				ClassTeacherEmpId = secDto.ClassTeacherEmpId
+			});
 		}
 
 		await _schoolRepository.SaveChangesAsync();
@@ -558,33 +612,87 @@ public class SchoolService : ISchoolService
 		var cls = await _schoolRepository.GetClassGradeByIdAsync(id)
 			?? throw new NotFoundException($"Class Grade with ID '{id}' not found.");
 
-		cls.ClassName = dto.ClassName;
+		cls.ClassName = !string.IsNullOrEmpty(dto.Name) ? dto.Name : dto.ClassName;
 
 		cls.CurriculumSubjects.Clear();
-		if (dto.SubjectIds != null && dto.SubjectIds.Any())
+		// Handle Subjects mapping
+		var subjectIds = new List<int>();
+		if (dto.Subjects != null && dto.Subjects.Any())
 		{
-			foreach (var subId in dto.SubjectIds)
+			foreach (var subName in dto.Subjects)
 			{
-				cls.CurriculumSubjects.Add(new ClassCurriculumSubject
+				var sub = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
+				if (sub == null)
 				{
-					ClassId = cls.ClassId,
-					SubjectId = subId
-				});
+					// Dynamically create the subject if not found
+					sub = new Subject
+					{
+						SubjectName = subName,
+						SubjectCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)) + "101",
+						CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length))
+					};
+					await _context.Subjects.AddAsync(sub);
+					await _context.SaveChangesAsync();
+				}
+				subjectIds.Add(sub.SubjectId);
 			}
+		}
+		else if (dto.SubjectIds != null)
+		{
+			subjectIds.AddRange(dto.SubjectIds);
+		}
+
+		foreach (var subId in subjectIds)
+		{
+			cls.CurriculumSubjects.Add(new ClassCurriculumSubject
+			{
+				ClassId = cls.ClassId,
+				SubjectId = subId
+			});
 		}
 
 		cls.Sections.Clear();
-		if (dto.Sections != null && dto.Sections.Any())
+		// Handle Sections and Teachers mapping
+		var sectionsList = new List<SectionAssignmentDto>();
+		if (dto.SectionNames != null && dto.SectionNames.Any())
 		{
-			foreach (var secDto in dto.Sections)
+			foreach (var secName in dto.SectionNames)
 			{
-				cls.Sections.Add(new ClassSection
+				int? teacherId = null;
+				if (dto.SectionTeachers != null && dto.SectionTeachers.TryGetValue(secName, out var teacherName) && !string.IsNullOrEmpty(teacherName))
 				{
-					ClassId = cls.ClassId,
-					SectionName = secDto.SectionName,
-					ClassTeacherEmpId = secDto.ClassTeacherEmpId
+					var parsedTeacherName = teacherName;
+					if (teacherName.Contains("(") && teacherName.Contains(")"))
+					{
+						parsedTeacherName = teacherName.Substring(0, teacherName.IndexOf("(")).Trim();
+					}
+					var staff = await _context.Staff.FirstOrDefaultAsync(s => 
+						(s.FirstName + " " + s.LastName).Trim().ToLower() == parsedTeacherName.ToLower());
+					if (staff != null)
+					{
+						teacherId = staff.StaffId;
+					}
+				}
+				sectionsList.Add(new SectionAssignmentDto
+				{
+					SectionName = secName,
+					ClassTeacherEmpId = teacherId
 				});
 			}
+		}
+		else if (dto.Sections != null)
+		{
+			sectionsList.AddRange(dto.Sections);
+		}
+
+		foreach (var secDto in sectionsList)
+		{
+			cls.Sections.Add(new ClassSection
+			{
+				ClassId = cls.ClassId,
+				SectionName = secDto.SectionName,
+				ClassTeacherEmpId = secDto.ClassTeacherEmpId
+			});
 		}
 
 		await _schoolRepository.SaveChangesAsync();

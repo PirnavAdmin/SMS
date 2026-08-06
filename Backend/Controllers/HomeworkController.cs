@@ -44,7 +44,7 @@ public class HomeworkController : ControllerBase
     /// </summary>
     [HttpGet("student")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
-    public async Task<IActionResult> GetStudentHomework(
+    public IActionResult GetStudentHomework(
         [FromQuery] int? studentId = 1,
         [FromQuery] string? academicYear = "2027-28",
         [FromQuery] string? tab = "Homework", // "Homework" (Active) or "Closed"
