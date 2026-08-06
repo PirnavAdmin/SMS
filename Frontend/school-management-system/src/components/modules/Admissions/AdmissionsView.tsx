@@ -1259,9 +1259,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </div>
                   <div>
                     <h4 className="font-bold text-xs text-white">Select Class</h4>
-                    <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] mx-auto">
-                      Please select a class from the form to view its dynamic fee structure breakdown.
-                    </p>
                   </div>
                 </div>
               ) : (
