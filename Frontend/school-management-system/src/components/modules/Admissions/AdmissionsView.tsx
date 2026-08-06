@@ -541,7 +541,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             <div>
                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Admission Registration'}
+                {editingApp ? `Edit Application #${editingApp.applicationNo}` : 'New Student Registration'}
               </h2>
             </div>
           </div>
@@ -571,10 +571,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               </div>
 
               <div className="space-y-2 text-center sm:text-left">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Applicant Profile Photo</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Upload a clear passport-sized photo for identity card and official record</p>
-                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Upload a clear passport-sized photo for identity card and official record</p>
 
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
                   <label className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-md transition-all">
@@ -1161,7 +1158,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 type="submit"
                 className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all"
               >
-                {editingApp ? 'Save Application Changes' : 'Submit Admission Application'}
+                {editingApp ? 'Save Application Changes' : 'Submit Application'}
               </button>
             </div>
           </form>
@@ -1244,7 +1241,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             onClick={handleOpenAdd}
             className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
           >
-            <Plus className="w-4 h-4" /> New Admission Registration
+            <Plus className="w-4 h-4" /> New Admission
           </button>
         </div>
       </div>
