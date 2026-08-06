@@ -91,6 +91,7 @@ export const StaffList: React.FC<{
   const [filterEmploymentType, setFilterEmploymentType] = useState("All");
   const [filterBranch, setFilterBranch] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [sortBy, setSortBy] = useState<"latest" | "oldest" | "nameAsc" | "nameDesc">("latest");
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
@@ -168,7 +169,11 @@ export const StaffList: React.FC<{
       filterBranch === "All" ||
       (s.branch || "Main Campus").toLowerCase() === filterBranch.toLowerCase();
 
-    const statusMatch = filterStatus === "All" || s.status === filterStatus;
+    const statusMatch =
+      filterStatus === "All" ||
+      (filterStatus === "Inactive"
+        ? s.status !== "Active"
+        : s.status === filterStatus);
 
     return (
       nameMatch &&
@@ -181,8 +186,45 @@ export const StaffList: React.FC<{
     );
   });
 
-  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
-  const paginated = filtered.slice(
+  const parseDate = (dStr: string) => {
+    if (!dStr) return 0;
+    if (dStr.includes('/')) {
+      const parts = dStr.split('/');
+      if (parts.length === 3) {
+        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime() || 0;
+      }
+    }
+    return new Date(dStr).getTime() || 0;
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    if (sortBy === "latest") {
+      const d1 = parseDate(a.joiningDate);
+      const d2 = parseDate(b.joiningDate);
+      if (d1 !== d2) return d2 - d1;
+      return b.empId.localeCompare(a.empId, undefined, { numeric: true });
+    }
+    if (sortBy === "oldest") {
+      const d1 = parseDate(a.joiningDate);
+      const d2 = parseDate(b.joiningDate);
+      if (d1 !== d2) return d1 - d2;
+      return a.empId.localeCompare(b.empId, undefined, { numeric: true });
+    }
+    if (sortBy === "nameAsc") {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+    if (sortBy === "nameDesc") {
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      return nameB.localeCompare(nameA);
+    }
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sorted.length / pageSize) || 1;
+  const paginated = sorted.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize,
   );
@@ -443,19 +485,41 @@ export const StaffList: React.FC<{
 
           {/* Status */}
           <div className="flex-1 min-w-[140px] w-full">
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-3 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer h-full"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-              <option value="On Leave">On Leave</option>
-            </select>
+            <div className="relative h-full">
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-3 pr-10 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none appearance-none cursor-pointer h-full"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Sort By */}
+          <div className="flex-1 min-w-[140px] w-full">
+            <div className="relative h-full">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value as any);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-3 pr-10 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none appearance-none cursor-pointer h-full"
+              >
+                <option value="latest">Sort: Latest</option>
+                <option value="oldest">Sort: Oldest</option>
+                <option value="nameAsc">Sort: Name (A-Z)</option>
+                <option value="nameDesc">Sort: Name (Z-A)</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
           {/* Dynamic Second Filter (Subject/Designation) */}
@@ -695,9 +759,7 @@ export const StaffList: React.FC<{
                           variant={
                             st.status === "Active"
                               ? "success"
-                              : st.status === "On Leave"
-                                ? "warning"
-                                : "neutral"
+                              : "neutral"
                           }
                           size="sm"
                         >

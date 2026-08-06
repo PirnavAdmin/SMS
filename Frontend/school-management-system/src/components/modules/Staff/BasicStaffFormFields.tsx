@@ -621,7 +621,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 </label>
                 <select value={value.status || 'Active'} onChange={e => onChange('status', e.target.value)} className={fieldClass}>
                   <option value="Active">Active</option>
-                  <option value="On Leave">On Leave</option>
                   <option value="Resigned">Resigned</option>
                   <option value="Retired">Retired</option>
                 </select>

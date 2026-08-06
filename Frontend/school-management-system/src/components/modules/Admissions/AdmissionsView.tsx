@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   GraduationCap, Plus, Search, CheckCircle2, UserCheck,
   X, Eye, Edit, Trash2, ChevronLeft, ChevronRight, XCircle,
   ArrowLeft, Camera, User, Shield, Home, Bus, Calculator,
-  Phone, Mail, MapPin, Calendar, Users, BookOpen, Heart, Info, FileText, Upload
+  Phone, Mail, MapPin, Calendar, Users, BookOpen, Heart, Info, FileText, Upload, ChevronDown
 } from 'lucide-react';
 import { AdmissionApplication, StudentType, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -140,6 +140,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [avatar, setAvatar] = useState('');
+  const [siblingSearchQuery, setSiblingSearchQuery] = useState('');
+  const [isSiblingDropdownOpen, setIsSiblingDropdownOpen] = useState(false);
+  const [isCustomCasteCategory, setIsCustomCasteCategory] = useState(false);
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
     appliedClass: '',
@@ -174,6 +177,34 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       selectedOptionalFees: [],
       documentsSubmitted: []
   });
+
+
+
+  // Sync isCustomCasteCategory state with casteCategory state
+  useEffect(() => {
+    if (formData.casteCategory) {
+      if (formData.casteCategory === 'Others' || formData.casteCategory === 'Other') {
+        setIsCustomCasteCategory(true);
+      } else if (!CASTE_CATEGORIES.includes(formData.casteCategory as any)) {
+        setIsCustomCasteCategory(true);
+      } else {
+        setIsCustomCasteCategory(false);
+      }
+    } else {
+      setIsCustomCasteCategory(false);
+    }
+  }, [formData.casteCategory]);
+
+  const filteredSiblingStudents = useMemo(() => {
+    if (!siblingSearchQuery || siblingSearchQuery.includes('(')) {
+      return students;
+    }
+    const q = siblingSearchQuery.toLowerCase();
+    return students.filter(s =>
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+      s.className.toLowerCase().includes(q)
+    );
+  }, [siblingSearchQuery, students]);
 
   const [phoneError, setPhoneError] = useState('');
   const [altPhoneError, setAltPhoneError] = useState('');
@@ -234,6 +265,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setFirstName('');
     setLastName('');
     setAvatar('');
+    setSiblingSearchQuery('');
+    setIsSiblingDropdownOpen(false);
+    setIsCustomCasteCategory(false);
     setFormData({
       appliedClass: '',
       gender: '' as any,
@@ -254,7 +288,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       addressPinCode: '',
       siblingsCount: 0,
       siblingStudentId: '',
-      studentType: 'Day Scholar',
+      studentType: '' as any,
       transportRequired: false,
       transportType: '' as any,
       busRoute: '',
@@ -263,7 +297,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: '',
       hostelRoom: '',
       hostelBed: '',
-      branch: selectedBranch,
+      branch: '',
       scholarshipId: '',
       discountId: '',
       selectedOptionalFees: [],
@@ -580,9 +614,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   // FULL-PAGE APPLICATION FORM VIEW
   if (isFormView) {
     return (
-      <div className="space-y-6 animate-in fade-in max-w-6xl mx-auto pb-12">
+      <div className="space-y-2 animate-in fade-in max-w-6xl mx-auto pb-12">
         {/* Full Page Header Navigation */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+        <div className="flex items-center justify-between pb-3">
           <div className="flex items-center gap-3">
             <button
               onClick={handleCloseForm}
@@ -606,47 +640,50 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           <div className="lg:col-span-2 glass-card p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6 text-slate-900 dark:text-slate-100">
             <form onSubmit={handleSubmit} className="space-y-6 text-xs">
 
-            {/* Profile Photo Upload & Delete Section */}
-            <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 flex flex-col sm:flex-row items-center gap-5">
-              <div className="relative shrink-0">
-                {avatar ? (
-                  <img
-                    src={avatar}
-                    alt="Applicant Photo Preview"
-                    className="w-24 h-24 rounded-2xl object-cover ring-4 ring-brand-500/20 shadow-md"
-                  />
-                ) : (
-                  <div className="w-24 h-24 rounded-2xl bg-slate-200 dark:bg-slate-700/50 ring-4 ring-slate-100 dark:ring-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500">
-                    <User className="w-10 h-10" />
-                  </div>
-                )}
-              </div>
+            {/* Section 1: Student Details Header with Right Aligned Photo */}
+            {/* Section 1: Student Details Header with Right Aligned Photo */}
+            <div className="flex items-end justify-between border-b border-slate-200/60 dark:border-slate-800 pb-2 mb-4">
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5 pb-1">
+                <User className="w-4 h-4" /> 1. Student Details
+              </h4>
 
-              <div className="space-y-2 text-center sm:text-left">
-                {/* <p className="text-[11px] text-slate-500 dark:text-slate-400">Upload a clear passport-sized photo for identity card and official record</p> */}
+              {/* Profile Photo Section (Right Aligned) */}
+              <div className="flex flex-col items-center gap-1.5 shrink-0">
+                <div className="relative shrink-0">
+                  {avatar ? (
+                    <>
+                      <img
+                        src={avatar}
+                        alt="Applicant Photo Preview"
+                        className="w-20 h-20 rounded-xl object-cover ring-2 ring-brand-500/20 shadow-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-450 hover:bg-rose-100 dark:hover:bg-rose-900 shadow-xs border border-rose-200 dark:border-rose-900 transition-colors cursor-pointer"
+                        title="Delete Photo"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl bg-slate-100 dark:bg-slate-800 ring-2 ring-slate-100/50 dark:ring-slate-800/50 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200/50 dark:border-slate-700/50">
+                      <User className="w-12 h-12" />
+                    </div>
+                  )}
+                </div>
 
-                <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                  <label className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-md transition-all">
-                    <Camera className="w-4 h-4" /> Upload Photo
+                {!avatar && (
+                  <label className="px-2.5 py-1 rounded-md bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-extrabold cursor-pointer flex items-center gap-1 shadow-xs transition-all">
+                    <Camera className="w-3 h-3" /> Upload
                     <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
                   </label>
-
-                  <button
-                    type="button"
-                    onClick={handleRemovePhoto}
-                    className="px-3.5 py-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-bold flex items-center gap-1.5 transition-colors border border-rose-200 dark:border-rose-900/40"
-                  >
-                    <Trash2 className="w-4 h-4" /> Delete Photo
-                  </button>
-                </div>
+                )}
               </div>
             </div>
 
-            {/* Section 1: Personal Details */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
-                <User className="w-4 h-4" /> 1. Student Personal Details
-              </h4>
+            {/* Section 1: Personal Details Fields Wrapper */}
+            <div className="space-y-3">
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -676,45 +713,56 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Class *</label>
-                  <select
-                    value={formData.appliedClass}
-                    onChange={e => setFormData({ ...formData, appliedClass: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
-                  >
-                    <option value="">Select Class</option>
-                    {classOptions.map(className => (
-                      <option key={className} value={className}>{className}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={formData.appliedClass}
+                      onChange={e => setFormData({ ...formData, appliedClass: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold appearance-none cursor-pointer pr-10"
+                    >
+                      <option value="">Select Class</option>
+                      {classOptions.map(className => (
+                        <option key={className} value={className}>{className}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender *</label>
-                  <select
-                    value={formData.gender}
-                    onChange={e => setFormData({ ...formData, gender: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={formData.gender}
+                      onChange={e => setFormData({ ...formData, gender: e.target.value as any })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Branch / Campus *</label>
-                  <select
-                    value={formData.branch || selectedBranch || 'Main Campus'}
-                    onChange={e => setFormData({ ...formData, branch: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
-                  >
-                    {BRANCHES.map(branch => (
-                      <option key={branch} value={branch}>{branch}</option>
-                    ))}
-                  </select>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Campus *</label>
+                  <div className="relative">
+                    <select
+                      value={formData.branch}
+                      onChange={e => setFormData({ ...formData, branch: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold appearance-none cursor-pointer pr-10"
+                    >
+                      <option value="">Select Campus</option>
+                      {BRANCHES.map(branch => (
+                        <option key={branch} value={branch}>{branch}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+                <div className="sm:col-span-3">
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth *</label>
                   <input
                     type="date"
@@ -737,17 +785,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   />
                   {dobError && <p className="text-[10px] text-rose-500 mt-0.5 font-bold">{dobError}</p>}
                 </div>
-                <div>
+                <div className="sm:col-span-3">
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Blood Group *</label>
-                  <select
-                    value={formData.bloodGroup}
-                    onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                  >
-                    {BLOOD_GROUPS.map(bg => <option key={bg} value={bg}>{bg}</option>)}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={formData.bloodGroup}
+                      onChange={e => setFormData({ ...formData, bloodGroup: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10 font-bold"
+                    >
+                      <option value="">Select</option>
+                      {BLOOD_GROUPS.map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
-                <div>
+                <div className="sm:col-span-3">
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Religion</label>
                   <input
                     type="text"
@@ -757,37 +809,42 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-3">
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Caste Category *</label>
-                  <select
-                    value={
-                      CASTE_CATEGORIES.includes(formData.casteCategory as any) || formData.casteCategory === 'Other'
-                        ? (formData.casteCategory === 'Other' ? 'Others' : formData.casteCategory)
-                        : (formData.casteCategory ? 'Others' : 'General')
-                    }
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === 'Others') {
-                        setFormData({ ...formData, casteCategory: 'Others' });
-                      } else {
+                  {isCustomCasteCategory ? (
+                    <input
+                      type="text"
+                      required
+                      placeholder="Specify Caste Category (Clear to cancel)"
+                      value={formData.casteCategory === 'Others' || formData.casteCategory === 'Other' ? '' : formData.casteCategory}
+                      onChange={e => {
+                        const val = e.target.value;
                         setFormData({ ...formData, casteCategory: val });
-                      }
-                    }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                  >
-                    {CASTE_CATEGORIES.map(cc => <option key={cc} value={cc}>{cc}</option>)}
-                  </select>
-
-                  {(formData.casteCategory === 'Others' || formData.casteCategory === 'Other' || (!CASTE_CATEGORIES.includes(formData.casteCategory as any) && formData.casteCategory)) && (
-                    <div className="mt-2 animate-in fade-in">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Specify Caste Category (e.g. Minorities / NT / VJNT)"
-                        value={formData.casteCategory === 'Others' || formData.casteCategory === 'Other' ? '' : formData.casteCategory}
-                        onChange={e => setFormData({ ...formData, casteCategory: e.target.value || 'Others' })}
-                        className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500 shadow-xs"
-                      />
+                        if (!val) {
+                          setIsCustomCasteCategory(false);
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold focus:ring-2 focus:ring-brand-500"
+                    />
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={formData.casteCategory}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === 'Others' || val === 'Other') {
+                            setIsCustomCasteCategory(true);
+                            setFormData({ ...formData, casteCategory: 'Others' });
+                          } else {
+                            setFormData({ ...formData, casteCategory: val });
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10 font-bold"
+                      >
+                        <option value="">Select Caste</option>
+                        {CASTE_CATEGORIES.map(cc => <option key={cc} value={cc}>{cc}</option>)}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
                   )}
                 </div>
@@ -827,7 +884,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <input
                     type="text"
                     required
-                    placeholder="Enter mobile number"
                     value={formData.phone}
                     onChange={e => handlePhoneChange(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
@@ -841,7 +897,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">2. Mother Mobile</label>
                   <input
                     type="text"
-                    placeholder="Enter mobile number"
                     value={formData.motherPhone || ''}
                     onChange={e => setFormData({ ...formData, motherPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
@@ -852,7 +907,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alternate Mobile</label>
                   <input
                     type="text"
-                    placeholder="Enter mobile number"
                     value={formData.alternatePhone || ''}
                     onChange={e => handleAltPhoneChange(e.target.value)}
                     className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
@@ -866,7 +920,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">4. Email Address</label>
                   <input
                     type="text"
-                    placeholder="parent@example.com"
                     value={formData.email || ''}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
@@ -908,15 +961,96 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Existing Student Sibling Lookup (Optional)</label>
-                  <select
-                    value={formData.siblingStudentId}
-                    onChange={e => setFormData({ ...formData, siblingStudentId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                  >
-                    <option value="">None / Not Enrolled</option>
-                    {students.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.className})</option>)}
-                  </select>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Existing Student Sibling (Optional)</label>
+                  <div className="relative">
+                    {/* Trigger Button */}
+                    <div
+                      onClick={() => setIsSiblingDropdownOpen(!isSiblingDropdownOpen)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold text-xs cursor-pointer flex justify-between items-center pr-10"
+                    >
+                      <span className="truncate">
+                        {formData.siblingStudentId
+                          ? (() => {
+                              const s = students.find(x => x.id === formData.siblingStudentId);
+                              return s ? `${s.firstName} ${s.lastName} (${s.className})` : 'None / Not Enrolled';
+                            })()
+                          : 'None / Not Enrolled'}
+                      </span>
+                    </div>
+                    {formData.siblingStudentId ? (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFormData(prev => ({ ...prev, siblingStudentId: '' }));
+                          setSiblingSearchQuery('');
+                          setIsSiblingDropdownOpen(false);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-650 cursor-pointer z-10"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    )}
+
+                    {/* Dropdown Card */}
+                    {isSiblingDropdownOpen && (
+                      <>
+                        {/* Click away backdrop */}
+                        <div className="fixed inset-0 z-40" onClick={() => setIsSiblingDropdownOpen(false)} />
+                        
+                        <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 space-y-2">
+                          {/* Search bar inside the dropdown */}
+                          <div className="relative">
+                            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              autoFocus
+                              placeholder="Type student name to search..."
+                              value={siblingSearchQuery}
+                              onChange={e => setSiblingSearchQuery(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+                            />
+                          </div>
+
+                          {/* Filtered list */}
+                          <div className="max-h-40 overflow-y-auto space-y-0.5">
+                            <div
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, siblingStudentId: '' }));
+                                setIsSiblingDropdownOpen(false);
+                                setSiblingSearchQuery('');
+                              }}
+                              className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-md text-slate-500 font-bold text-xs"
+                            >
+                              None / Not Enrolled
+                            </div>
+                            {filteredSiblingStudents.map(s => (
+                              <div
+                                key={s.id}
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, siblingStudentId: s.id }));
+                                  setIsSiblingDropdownOpen(false);
+                                  setSiblingSearchQuery('');
+                                }}
+                                className={`px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-md text-xs font-bold text-slate-850 dark:text-slate-200 ${
+                                  formData.siblingStudentId === s.id ? 'bg-slate-50 dark:bg-slate-800/80 text-brand-600 dark:text-brand-400' : ''
+                                }`}
+                              >
+                                {s.firstName} {s.lastName} ({s.className})
+                              </div>
+                            ))}
+                            {filteredSiblingStudents.length === 0 && (
+                              <div className="px-2.5 py-2.5 text-slate-500 text-center text-xs font-medium">
+                                No matching students found
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1001,85 +1135,91 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Block</label>
-                      <select
-                        value={formData.hostelBlock}
-                        onChange={e => {
-                          const blockRooms = dynamicHostelRooms.filter(r => r.hostelId === Number(e.target.value));
-                          const firstRoom = blockRooms[0];
-                          let firstAvailBed = 'BED-1';
-                          if (firstRoom) {
-                            const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === firstRoom.roomTypeId);
-                            const rCap = rtObj ? rtObj.bedCapacity : (firstRoom.bedCapacity || 2);
-                            for (let i = 1; i <= rCap; i++) {
-                              const bedName = `BED-${i}`;
-                              const isTaken = dynamicAllocations.some(
-                                a => a.roomId === firstRoom.roomId && a.bedNumber === bedName && a.status === 'Active'
-                              );
-                              if (!isTaken) {
-                                firstAvailBed = bedName;
-                                break;
+                      <div className="relative">
+                        <select
+                          value={formData.hostelBlock}
+                          onChange={e => {
+                            const blockRooms = dynamicHostelRooms.filter(r => r.hostelId === Number(e.target.value));
+                            const firstRoom = blockRooms[0];
+                            let firstAvailBed = '';
+                            if (firstRoom) {
+                              const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === firstRoom.roomTypeId);
+                              const rCap = rtObj ? rtObj.bedCapacity : (firstRoom.bedCapacity || 2);
+                              for (let i = 1; i <= rCap; i++) {
+                                const bedName = `BED-${i}`;
+                                const isTaken = dynamicAllocations.some(
+                                  a => a.roomId === firstRoom.roomId && a.bedNumber === bedName && a.status === 'Active'
+                                );
+                                if (!isTaken) {
+                                  firstAvailBed = bedName;
+                                  break;
+                                }
                               }
                             }
-                          }
-                          setFormData({
-                            ...formData,
-                            hostelBlock: e.target.value,
-                            hostelRoom: firstRoom ? firstRoom.roomId.toString() : '',
-                            hostelBed: firstAvailBed
-                          });
-                        }}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
-                      >
-                        <option value="">Select Hostel Block</option>
-                        {dynamicHostelBlocks.map(b => <option key={b.hostelId} value={b.hostelId}>{b.hostelName} ({b.hostelType})</option>)}
-                      </select>
+                            setFormData({
+                              ...formData,
+                              hostelBlock: e.target.value,
+                              hostelRoom: firstRoom ? firstRoom.roomId.toString() : '',
+                              hostelBed: firstAvailBed
+                            });
+                          }}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold appearance-none cursor-pointer pr-10"
+                        >
+                          <option value="">Select Hostel Block</option>
+                          {dynamicHostelBlocks.map(b => <option key={b.hostelId} value={b.hostelId}>{b.hostelName} ({b.hostelType})</option>)}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     </div>
                     <div>
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Room</label>
-                      <select
-                        value={formData.hostelRoom}
-                        onChange={e => {
-                          const selectedRoomId = Number(e.target.value);
-                          const selectedRoomObj = dynamicHostelRooms.find(r => r.roomId === selectedRoomId);
-                          let firstAvailBed = 'BED-1';
-                          if (selectedRoomObj) {
-                            const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === selectedRoomObj.roomTypeId);
-                            const rCap = rtObj ? rtObj.bedCapacity : (selectedRoomObj.bedCapacity || 2);
-                            for (let i = 1; i <= rCap; i++) {
-                              const bedName = `BED-${i}`;
-                              const isTaken = dynamicAllocations.some(
-                                a => a.roomId === selectedRoomId && a.bedNumber === bedName && a.status === 'Active'
-                              );
-                              if (!isTaken) {
-                                firstAvailBed = bedName;
-                                break;
+                      <div className="relative">
+                        <select
+                          value={formData.hostelRoom}
+                          onChange={e => {
+                            const selectedRoomId = Number(e.target.value);
+                            const selectedRoomObj = dynamicHostelRooms.find(r => r.roomId === selectedRoomId);
+                            let firstAvailBed = '';
+                            if (selectedRoomObj) {
+                              const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === selectedRoomObj.roomTypeId);
+                              const rCap = rtObj ? rtObj.bedCapacity : (selectedRoomObj.bedCapacity || 2);
+                              for (let i = 1; i <= rCap; i++) {
+                                const bedName = `BED-${i}`;
+                                const isTaken = dynamicAllocations.some(
+                                  a => a.roomId === selectedRoomId && a.bedNumber === bedName && a.status === 'Active'
+                                );
+                                if (!isTaken) {
+                                  firstAvailBed = bedName;
+                                  break;
+                                }
                               }
                             }
-                          }
-                          setFormData({
-                            ...formData,
-                            hostelRoom: selectedRoomId.toString(),
-                            hostelBed: firstAvailBed
-                          });
-                        }}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
-                      >
-                        <option value="">Select Room</option>
-                        {dynamicHostelRooms
-                          .filter(r => r.hostelId.toString() === formData.hostelBlock)
-                          .map(r => {
-                            const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === r.roomTypeId);
-                            const rCap = rtObj ? rtObj.bedCapacity : (r.bedCapacity || 2);
-                            const rName = rtObj ? rtObj.roomTypeSpecification : (r.roomTypeSpecification || 'Standard Room');
-                            const acLabel = rtObj?.acType || 'Non-AC';
-                            const occupied = dynamicAllocations.filter(a => a.roomId === r.roomId && a.status === 'Active').length;
-                            return (
-                              <option key={r.roomId} value={r.roomId} disabled={occupied >= rCap}>
-                                Room #{r.roomNumber} ({rName} - {acLabel}) {occupied >= rCap ? '[FULLY OCCUPIED]' : ''}
-                              </option>
-                            );
-                          })}
-                      </select>
+                            setFormData({
+                              ...formData,
+                              hostelRoom: selectedRoomId.toString(),
+                              hostelBed: firstAvailBed
+                            });
+                          }}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold appearance-none cursor-pointer pr-10"
+                        >
+                          <option value="">Select Room</option>
+                          {dynamicHostelRooms
+                            .filter(r => r.hostelId.toString() === formData.hostelBlock)
+                            .map(r => {
+                              const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === r.roomTypeId);
+                              const rCap = rtObj ? rtObj.bedCapacity : (r.bedCapacity || 2);
+                              const rName = rtObj ? rtObj.roomTypeSpecification : (r.roomTypeSpecification || 'Standard Room');
+                              const acLabel = rtObj?.acType || 'Non-AC';
+                              const occupied = dynamicAllocations.filter(a => a.roomId === r.roomId && a.status === 'Active').length;
+                              return (
+                                <option key={r.roomId} value={r.roomId} disabled={occupied >= rCap}>
+                                  Room #{r.roomNumber} ({rName} - {acLabel}) {occupied >= rCap ? '[FULLY OCCUPIED]' : ''}
+                                </option>
+                              );
+                            })}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                       {(() => {
                         const selRoom = dynamicHostelRooms.find(r => r.roomId.toString() === formData.hostelRoom);
                         if (selRoom) {
@@ -1098,31 +1238,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     </div>
                     <div>
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Bed</label>
-                      <select
-                        value={formData.hostelBed}
-                        onChange={e => setFormData({ ...formData, hostelBed: e.target.value })}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 font-bold outline-none animate-in fade-in"
-                      >
-                        {(() => {
-                          const selRoom = dynamicHostelRooms.find(r => r.roomId.toString() === formData.hostelRoom);
-                          const rtObj = selRoom ? dynamicRoomTypes.find(rt => rt.roomTypeId === selRoom.roomTypeId) : null;
-                          const rCap = rtObj ? rtObj.bedCapacity : (selRoom ? (selRoom.bedCapacity || 2) : 2);
-                          const beds = Array.from({ length: rCap }, (_, idx) => `BED-${idx + 1}`);
+                      <div className="relative">
+                        <select
+                          value={formData.hostelBed}
+                          onChange={e => setFormData({ ...formData, hostelBed: e.target.value })}
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 font-bold outline-none animate-in fade-in appearance-none cursor-pointer pr-10"
+                        >
+                          <option value="">Select Bed</option>
+                          {formData.hostelRoom && (() => {
+                            const selRoom = dynamicHostelRooms.find(r => r.roomId.toString() === formData.hostelRoom);
+                            const rtObj = selRoom ? dynamicRoomTypes.find(rt => rt.roomTypeId === selRoom.roomTypeId) : null;
+                            const rCap = rtObj ? rtObj.bedCapacity : (selRoom ? (selRoom.bedCapacity || 2) : 2);
+                            const beds = Array.from({ length: rCap }, (_, idx) => `BED-${idx + 1}`);
 
-                          return beds.map(bed => {
-                            const isTaken = dynamicAllocations.some(
-                              a => a.roomId.toString() === formData.hostelRoom && a.bedNumber === bed && a.status === 'Active'
-                            ) || (admissions.some(
-                              app => app.hostelRoom === formData.hostelRoom && app.hostelBed === bed && app.status === 'Pending' && app.id !== editingApp?.id
-                            ));
-                            return (
-                              <option key={bed} value={bed} disabled={isTaken}>
-                                {bed} {isTaken ? '[Occupied]' : '[Available]'}
-                              </option>
-                            );
-                          });
-                        })()}
-                      </select>
+                            return beds.map(bed => {
+                              const isTaken = dynamicAllocations.some(
+                                a => a.roomId.toString() === formData.hostelRoom && a.bedNumber === bed && a.status === 'Active'
+                              ) || (admissions.some(
+                                app => app.hostelRoom === formData.hostelRoom && app.hostelBed === bed && app.status === 'Pending' && app.id !== editingApp?.id
+                              ));
+                              return (
+                                <option key={bed} value={bed} disabled={isTaken}>
+                                  {bed} {isTaken ? '[Occupied]' : '[Available]'}
+                                </option>
+                              );
+                            });
+                          })()}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1237,16 +1381,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         {(() => {
           const liveFee = calculateLiveFeePreview();
           return (
-            <div className="lg:col-span-1 glass-card p-6 rounded-3xl bg-slate-900 text-white border border-slate-800 shadow-2xl sticky top-20 space-y-5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <div className="lg:col-span-1 glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-850 shadow-xl sticky top-20 space-y-5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
                 <div>
-                  <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
-                    <Calculator className="w-4 h-4 text-emerald-400" /> Instant Live Fee Preview
+                  <h3 className="font-black text-sm text-slate-900 dark:text-white">
+                    Applicable Fees
                   </h3>
-                  <p className="text-[10px] text-slate-400">Updates live as form values change</p>
                 </div>
                 {liveFee.isClassSelected && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-sky-950 text-sky-300 font-extrabold text-[10px] border border-sky-800">
+                  <span className="px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10px] border border-sky-200 dark:border-sky-800">
                     {formData.appliedClass} • {formData.studentType || 'Day Scholar'}
                   </span>
                 )}
@@ -1254,46 +1397,40 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               {!liveFee.isClassSelected ? (
                 <div className="py-10 px-4 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-800 text-sky-400 flex items-center justify-center mx-auto border border-slate-700">
-                    <Calculator className="w-6 h-6 animate-pulse text-sky-400" />
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-slate-200 dark:border-slate-700">
+                    <Calculator className="w-6 h-6 animate-pulse text-sky-600 dark:text-sky-400" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-white">Select Class</h4>
+                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">Select Class</h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 max-w-[200px] mx-auto">
+                      Please select a class from the form to view its dynamic fee structure breakdown.
+                    </p>
                   </div>
                 </div>
               ) : (
                 <>
                   {/* Line Items */}
                   <div className="space-y-2 text-xs">
-                    {liveFee.items.map((item, idx) => (
+                    {liveFee.items.filter(item => item.isApplicable).map((item, idx) => (
                       <div
                         key={idx}
-                        className={`flex justify-between py-1.5 px-2.5 rounded-xl transition-all ${
-                          item.isApplicable
-                            ? 'bg-slate-800/80 border border-slate-700/60'
-                            : 'bg-slate-950/40 text-slate-500 border border-slate-900'
-                        }`}
+                        className="bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 flex justify-between py-1.5 px-2.5 rounded-xl transition-all"
                       >
-                        <span className={`font-bold flex items-center gap-1.5 ${item.isApplicable ? 'text-slate-200' : 'text-slate-500 line-through'}`}>
-                          {item.isApplicable ? (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          ) : (
-                            <XCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                          )}
+                        <span className="font-bold flex items-center gap-1.5 text-slate-750 dark:text-slate-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <span className="truncate max-w-[170px]">{item.name}</span>
                         </span>
-                        <span className={item.isApplicable ? 'font-black text-white' : 'text-[10px] italic text-slate-500'}>
-                          {item.isApplicable ? formatCurrency(item.amount) : (item.remarks || 'Not Applicable')}
+                        <span className="font-black text-slate-900 dark:text-white">
+                          {formatCurrency(item.amount)}
                         </span>
                       </div>
                     ))}
                   </div>
 
                   {/* Total Summary */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800/60 space-y-1">
-                    <p className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Total Estimated Payable</p>
-                    <h4 className="text-2xl font-black text-emerald-300">{formatCurrency(liveFee.totalPayable)}</h4>
-                    <p className="text-[10px] text-slate-400">Permanent Student Fee Ledger will be generated upon admission enrollment.</p>
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100/30 dark:from-emerald-950 dark:to-slate-900 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                    <p className="text-[10px] uppercase font-extrabold text-emerald-800 dark:text-emerald-400 tracking-wider">Total Estimated Payable</p>
+                    <h4 className="text-2xl font-black text-emerald-600 dark:text-emerald-300">{formatCurrency(liveFee.totalPayable)}</h4>
                   </div>
                 </>
               )}

@@ -776,7 +776,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   </div>
                 )}
                 <div className="absolute -bottom-1 -right-1">
-                  <Badge variant={staff.status === 'Active' ? 'success' : staff.status === 'On Leave' ? 'warning' : 'neutral'} size="sm">
+                  <Badge variant={staff.status === 'Active' ? 'success' : 'neutral'} size="sm">
                     {staff.status}
                   </Badge>
                 </div>
