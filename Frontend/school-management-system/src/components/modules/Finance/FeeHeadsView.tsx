@@ -16,11 +16,11 @@ const FREQUENCIES: FeeHeadFrequency[] = [
   'One Time', 'Monthly', 'Quarterly', 'Half Yearly', 'Annual', 'Custom'
 ];
 
-const ALL_CLASSES = ['Class 9', 'Class 10', 'Class 11', 'Class 12'];
-
 export const FeeHeadsView: React.FC = () => {
-  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus } = useData();
+  const { feeHeads, addFeeHead, updateFeeHead, deleteFeeHead, toggleFeeHeadStatus, academicClasses } = useData();
   const { addToast } = useToast();
+
+  const classOptions = academicClasses && academicClasses.length > 0 ? academicClasses.map(c => c.name) : ['Class 9', 'Class 10', 'Class 11', 'Class 12'];
 
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -60,7 +60,7 @@ export const FeeHeadsView: React.FC = () => {
       category: 'Tuition',
       frequency: 'Quarterly',
       mandatory: true,
-      applicableClasses: ALL_CLASSES,
+      applicableClasses: classOptions,
       applicableBranches: ['Main Campus'],
       taxPercentage: 0,
       displayOrder: feeHeads.length + 1,

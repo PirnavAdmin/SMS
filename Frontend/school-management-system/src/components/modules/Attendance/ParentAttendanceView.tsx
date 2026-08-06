@@ -204,7 +204,7 @@ export const ParentAttendanceView: React.FC = () => {
             <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
               <CalendarCheck className="w-6 h-6 text-sky-600 dark:text-sky-400" />
             </div>
-            Attendance Register
+            Attendance
           </h1>
         </div>
       </div>

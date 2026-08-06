@@ -55,11 +55,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [staffExpanded, setStaffExpanded] = useState(true);
   const [academicsExpanded, setAcademicsExpanded] = useState(true);
 
-  const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees';
-  const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel';
-  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule === 'parent-bus-info';
+  const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees' || activeModule.startsWith('parent-fee-');
+  const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel' || activeModule.startsWith('parent-hostel-');
+  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule.startsWith('parent-bus-') || activeModule.startsWith('parent-transport-');
   const isUniformActive = activeModule.startsWith('uniform-') || activeModule === 'uniforms';
-  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule === 'parent-teacher-info';
+  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule.startsWith('parent-teacher-');
   const isAcademicsActive = activeModule.startsWith('academic-') || activeModule === 'academics' || activeModule === 'subjects' || activeModule === 'timetable';
 
   const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>('other');

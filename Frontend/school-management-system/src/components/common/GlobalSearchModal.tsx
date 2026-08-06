@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, UserCheck, Users, BookOpen, Layers, X, ArrowRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -11,6 +12,9 @@ interface GlobalSearchModalProps {
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, onClose, onNavigate }) => {
   const [query, setQuery] = useState('');
   const { students, staff, books } = useData();
+  const { user } = useAuth();
+  const userRole = user?.role?.toLowerCase() || '';
+  const isStudentOrParent = userRole === 'student' || userRole === 'parent';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -28,7 +32,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
 
   if (!isOpen) return null;
 
-  const filteredStudents = query.trim() ? students.filter(s =>
+  const filteredStudents = (!isStudentOrParent && query.trim()) ? students.filter(s =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase()) ||
     s.admissionNo.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 4) : [];
@@ -43,7 +47,20 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     b.author.toLowerCase().includes(query.toLowerCase())
   ).slice(0, 3) : [];
 
-  const modules = [
+  const modules = (isStudentOrParent ? [
+    { name: 'Dashboard', module: 'dashboard' },
+    { name: 'Attendance', module: 'attendance' },
+    { name: 'Time Table', module: 'timetable' },
+    { name: 'Report Cards & Exams', module: 'examination' },
+    { name: 'Homework', module: 'homework' },
+    { name: 'Fee Details & Dues', module: 'parent-fee-dues' },
+    { name: 'Teachers Directory', module: 'staff' },
+    { name: 'Library Catalog', module: 'library' },
+    { name: 'Bus & Transport Info', module: 'parent-bus-info' },
+    { name: 'Hostel Details', module: 'parent-hostel-details' },
+    { name: 'School Events & Holidays', module: 'events' },
+    { name: 'Communication Hub', module: 'communication' }
+  ] : [
     { name: 'Dashboard', module: 'dashboard' },
     { name: 'Student Management', module: 'students' },
     { name: 'Staff Management', module: 'staff' },
@@ -59,7 +76,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Events & Holidays', module: 'events' },
     { name: 'Reports & Export', module: 'reports' },
     { name: 'System Settings', module: 'settings' }
-  ].filter(m => m.name.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
+  ]).filter(m => m.name.toLowerCase().includes(query.toLowerCase())).slice(0, 5);
 
   return (
     <div 

@@ -217,10 +217,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
                 <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Details</button>
               </div>
-
-      {tabs}
-
-</form>
+            </form>
           </div>
         </div>
       )}

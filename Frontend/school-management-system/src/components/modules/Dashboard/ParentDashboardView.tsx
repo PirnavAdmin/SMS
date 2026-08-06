@@ -118,7 +118,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
 
       {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Attendance Register" value={`${attPercentage}%`} icon={Activity} color="emerald" onClick={() => onNavigate?.('attendance')} />
+        <StatCard title="Attendance" value={`${attPercentage}%`} icon={Activity} color="emerald" onClick={() => onNavigate?.('attendance')} />
         <StatCard title="Reports" value="View" icon={GraduationCap} color="sky" onClick={() => onNavigate?.('examination')} />
         <StatCard title="Fee Due" value={`₹${dueBalance.toLocaleString()}`} icon={AlertCircle} color="sky" onClick={() => onNavigate?.('parent-fee-dues')} />
         <StatCard title="Homework" value={pendingHomework.toString()} icon={Clock} color="amber" onClick={() => onNavigate?.('homework')} />
@@ -160,7 +160,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-emerald-500" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Attendance Register</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Recent Attendance</h3>
                 </div>
              </div>
              
