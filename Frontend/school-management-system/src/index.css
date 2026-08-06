@@ -38,11 +38,11 @@
 
 /* Glassmorphism utility */
 .glass-panel {
-  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 shadow-sm;
+  @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-brand-200 dark:border-brand-800 shadow-sm;
 }
 
 .glass-card {
-  @apply bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800/80 shadow-sm hover:shadow-md transition-all duration-200;
+  @apply bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm hover:shadow-md transition-all duration-200;
 }
 
 /* Printing styling */

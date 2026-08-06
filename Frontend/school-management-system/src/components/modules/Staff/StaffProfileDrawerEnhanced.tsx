@@ -97,17 +97,17 @@ const MetricCard: React.FC<{ label: string; value: string | number; tone?: 'bran
           : 'from-slate-100 to-slate-50 text-slate-900 dark:from-slate-800 dark:to-slate-900 dark:text-white';
 
   return (
-    <div className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br ${toneClass} p-3`}>
-      <p className="text-[10px] uppercase tracking-[0.35em] font-black opacity-80">{label}</p>
-      <p className="text-base font-black mt-1.5">{value}</p>
+    <div className={`rounded-xl border border-slate-200 dark:border-slate-800 bg-gradient-to-br ${toneClass} p-2.5`}>
+      <p className="text-[9px] uppercase tracking-[0.25em] font-black opacity-80">{label}</p>
+      <p className="text-sm font-black mt-0.5 truncate">{value}</p>
     </div>
   );
 };
 
 const InfoLine: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => (
-  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-3 py-2.5">
-    <p className="text-[10px] uppercase tracking-[0.3em] font-black text-slate-400">{label}</p>
-    <div className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">{value || 'Not Provided'}</div>
+  <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 px-3 py-1.5">
+    <p className="text-[9px] uppercase tracking-[0.2em] font-black text-slate-400">{label}</p>
+    <div className="mt-0.5 text-xs font-bold text-slate-900 dark:text-white">{value || 'Not Provided'}</div>
   </div>
 );
 
@@ -116,11 +116,11 @@ const SectionBlock: React.FC<{ title: string; subtitle?: string; children: React
   subtitle,
   children
 }) => (
-  <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-      <h3 className="text-sm font-black text-slate-900 dark:text-white">{title}</h3>
+  <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xs overflow-hidden">
+    <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800">
+      <h3 className="text-xs font-black text-slate-900 dark:text-white">{title}</h3>
     </div>
-    <div className="p-4">{children}</div>
+    <div className="p-3">{children}</div>
   </section>
 );
 
@@ -760,22 +760,22 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex justify-end animate-in fade-in">
       <div className="w-full max-w-5xl h-full bg-slate-50 dark:bg-slate-950 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden animate-in slide-in-from-right-16">
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-start gap-4 min-w-0">
+        <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="relative shrink-0">
                 {staff.avatar ? (
                   <img
                     src={staff.avatar}
                     alt=""
-                    className="w-16 h-16 rounded-3xl object-cover ring-4 ring-white dark:ring-slate-900 shadow-lg"
+                    className="w-12 h-12 rounded-2xl object-cover ring-2 ring-white dark:ring-slate-900 shadow-md"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-3xl bg-slate-100 dark:bg-slate-800 ring-4 ring-white dark:ring-slate-900 shadow-lg flex items-center justify-center">
-                    <UserRound className="w-7 h-7 text-slate-400" />
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 ring-2 ring-white dark:ring-slate-900 shadow-md flex items-center justify-center">
+                    <UserRound className="w-6 h-6 text-slate-400" />
                   </div>
                 )}
-                <div className="absolute -bottom-2 -right-2">
+                <div className="absolute -bottom-1 -right-1">
                   <Badge variant={staff.status === 'Active' ? 'success' : staff.status === 'On Leave' ? 'warning' : 'neutral'} size="sm">
                     {staff.status}
                   </Badge>
@@ -784,25 +784,25 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white truncate">{fullName}</h2>
+                  <h2 className="text-base font-black text-slate-900 dark:text-white truncate">{fullName}</h2>
                   <Badge variant="info" size="sm">{staff.empId}</Badge>
                 </div>
-                <p className="text-sm text-slate-500 mt-1">{designation} | {department}</p>
-                <p className="text-[11px] text-slate-400 mt-1">Branch: {staff.branch || 'Main Campus'} | Role: {staff.role || 'Staff'}</p>
+                <p className="text-xs text-slate-500 font-bold mt-0.5">{designation} | {department}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || 'Main Campus'} | Role: {staff.role || 'Staff'}</p>
               </div>
             </div>
 
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold"
             >
-              <X className="w-4 h-4" /> Close
+              <X className="w-3.5 h-3.5" /> Close
             </button>
           </div>
 
-          <div className="mt-4 overflow-x-auto">
-            <div className="flex items-center gap-2 min-w-max">
+          <div className="mt-2.5 overflow-x-auto">
+            <div className="flex items-center gap-1.5 min-w-max">
               {visibleTabs.map(tab => {
                 const TabIcon = tab.icon;
                 const active = activeTab === tab.id;
@@ -811,13 +811,13 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-2xl border text-xs font-bold transition-all ${
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all ${
                       active
-                        ? 'bg-brand-600 text-white border-brand-600 shadow-md shadow-brand-500/20'
+                        ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
                         : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-brand-300 dark:hover:border-brand-700'
                     }`}
                   >
-                    <TabIcon className="w-4 h-4" />
+                    <TabIcon className="w-3.5 h-3.5" />
                     {tab.label}
                   </button>
                 );
@@ -826,49 +826,9 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
-          <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.9fr)] gap-5 items-start">
-            <div>{renderTab()}</div>
-
-            <aside className="space-y-5 lg:sticky lg:top-5">
-              <SectionBlock title="Snapshot" subtitle="Quick profile metrics and completion status.">
-                <div className="space-y-3">
-                  <MetricCard label="Profile Status" value={profileStatus} tone={profileStatus === 'Completed' ? 'emerald' : 'amber'} />
-                  <MetricCard label="Education Records" value={educationRecords.length || (staff.qualification ? 1 : 0)} tone="brand" />
-                  <MetricCard label="Required Docs" value={`${uploadedRequiredCount} / ${requiredDocs.length}`} tone="amber" />
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/70 p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-500">Quick Links</span>
-                      <Sparkles className="w-4 h-4 text-brand-600" />
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      {[
-                        ['Overview', 'overview'],
-                        ['Employment', 'employment'],
-                        ['Personal', 'personal'],
-                        ['Education', 'education'],
-                        ['Experience', 'experience'],
-                        ['Bank', 'bank'],
-                        ['Payroll', 'payroll'],
-                        ['Attendance', 'attendance'],
-                        ['Documents', 'documents'],
-                        ['Leave', 'leave']
-                      ].map(([label, tabId]) => (
-                        <button
-                          key={label}
-                          type="button"
-                          onClick={() => setActiveTab(tabId as DrawerTab)}
-                          className="w-full flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200"
-                        >
-                          {label}
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </SectionBlock>
-            </aside>
+        <div className="flex-1 overflow-y-auto p-3.5">
+          <div className="w-full">
+            {renderTab()}
           </div>
         </div>
       </div>

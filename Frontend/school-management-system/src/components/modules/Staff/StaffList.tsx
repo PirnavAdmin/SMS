@@ -12,12 +12,15 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { StaffFormModal } from './StaffFormModal';
 import { StaffProfileDrawer } from './StaffProfileDrawerEnhanced';
 import { DocumentRequirementMasterModal } from './DocumentRequirementMasterModal';
+import { normalizeStaffType, getDepartmentOptions, getDesignationOptions } from './staffFlowOptions';
 
-export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavigate?: (module: string) => void }> = ({ initialCategory, onNavigate }) => {
-  const { staff, addStaff, updateStaff, deleteStaff, subjects, departments } = useData();
+export const StaffList: React.FC<{ initialCategory?: string; onNavigate?: (module: string) => void }> = ({ initialCategory, onNavigate }) => {
+  const { staff, addStaff, updateStaff, deleteStaff, subjects, departments, designations } = useData();
   const { addToast } = useToast();
 
-  const [activeCategory, setActiveCategory] = useState<'Teacher' | 'Staff'>(initialCategory || 'Teacher');
+  const [activeCategory, setActiveCategory] = useState<string>(
+    normalizeStaffType(initialCategory || 'Teaching Staff')
+  );
 
   const subjectDropdownRef = useRef<HTMLDivElement>(null);
   const deptDropdownRef = useRef<HTMLDivElement>(null);
@@ -49,6 +52,8 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
   const [filterDesignation, setFilterDesignation] = useState('All');
   const [designationSearch, setDesignationSearch] = useState('');
   const [designationDropdownOpen, setDesignationDropdownOpen] = useState(false);
+  const [filterEmploymentType, setFilterEmploymentType] = useState('All');
+  const [filterBranch, setFilterBranch] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
@@ -61,11 +66,11 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
   const [isRuleMasterOpen, setIsRuleMasterOpen] = useState(false);
 
   // Helper to categorize staff dynamically for backward compatibility
-  const getStaffCategory = (s: Staff): 'Teacher' | 'Staff' => {
-    return s.employeeCategory || (s.role === 'Teacher' ? 'Teacher' : 'Staff');
+  const getStaffCategory = (s: Staff): string => {
+    return normalizeStaffType(s.employeeCategory || (s.role === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff'));
   };
 
-  const getCategoryLabel = (category: 'Teacher' | 'Staff') => category === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff';
+  const getCategoryLabel = (category: string) => normalizeStaffType(category);
 
   const getProfileStatus = (s: Staff) => {
     if (s.profileStatus) return s.profileStatus;
@@ -98,18 +103,23 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
                       s.empId.toLowerCase().includes(query.toLowerCase());
     const deptMatch = filterDept === 'All' || s.department === filterDept;
     
-    const subjectMatch = activeCategory === 'Staff' ||
+    const subjectMatch = activeCategory !== 'Teaching Staff' ||
                          filterSubject === 'All' ||
                          s.assignedSubjects?.includes(filterSubject);
     
-    const desigMatch = activeCategory === 'Teacher' ||
-                       filterDesignation === 'All' ||
+    const desigMatch = filterDesignation === 'All' ||
                        s.designation === filterDesignation;
+
+    const empTypeMatch = filterEmploymentType === 'All' ||
+                         (s.employmentType || 'Full-Time').toLowerCase() === filterEmploymentType.toLowerCase();
+
+    const branchMatch = filterBranch === 'All' ||
+                        (s.branch || 'Main Campus').toLowerCase() === filterBranch.toLowerCase();
 
     const statusMatch = filterStatus === 'All' ||
                         s.status === filterStatus;
 
-    return nameMatch && deptMatch && subjectMatch && desigMatch && statusMatch;
+    return nameMatch && deptMatch && subjectMatch && desigMatch && empTypeMatch && branchMatch && statusMatch;
   });
 
   const totalPages = Math.ceil(filtered.length / pageSize) || 1;
@@ -121,26 +131,17 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
     addToast('info', 'Status Updated', `${s.firstName} is now ${nextStatus}`);
   };
 
-  // Standard department lists
-  const teachingDepartments = [
-    'Mathematics', 'Science', 'English', 'Social Science', 'Languages',
-    'Computer Science / ICT', 'Commerce', 'Humanities', 'Fine Arts', 'Performing Arts',
-    'Physical Education', 'Library', 'Special Education', 'Pre-Primary'
-  ];
-
-  const nonTeachingDepartments = [
-    'Administration', 'Finance', 'Human Resources', 'Transport',
-    'Hostel', 'Information Technology (IT)', 'Library', 'Maintenance', 'Security'
-  ];
-
-  // Derive filter lists from standard lists + departments context + existing data
+  // Derive filter lists using getDepartmentOptions and getDesignationOptions
   const uniqueDepts = Array.from(new Set([
-    ...(departments || []).map(d => d.departmentName),
-    ...(activeCategory === 'Teacher' ? teachingDepartments : nonTeachingDepartments),
+    ...getDepartmentOptions(activeCategory, departments),
     ...categoryStaffList.map(s => s.department).filter(Boolean)
   ]));
-  const uniqueDesignations = Array.from(new Set(categoryStaffList.map(s => s.designation).filter(Boolean)));
-  const handleTabChange = (cat: 'Teacher' | 'Staff') => {
+  const uniqueDesignations = Array.from(new Set([
+    ...getDesignationOptions(activeCategory, designations),
+    ...categoryStaffList.map(s => s.designation).filter(Boolean)
+  ]));
+
+  const handleTabChange = (cat: string) => {
     setActiveCategory(cat);
     setFilterDept('All');
     setFilterSubject('All');
@@ -227,28 +228,29 @@ export const StaffList: React.FC<{ initialCategory?: 'Teacher' | 'Staff'; onNavi
         </div>
       </div>
 
-      {/* Top Segmented Tab Switches */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 max-w-sm border border-slate-200/40 dark:border-slate-800">
-        <button
-          onClick={() => handleTabChange('Teacher')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeCategory === 'Teacher'
-              ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-          }`}
-        >
-          <GraduationCap className="w-4 h-4" /> Teaching Staff ({staff.filter(s => getStaffCategory(s) === 'Teacher').length})
-        </button>
-        <button
-          onClick={() => handleTabChange('Staff')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeCategory === 'Staff'
-              ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-          }`}
-        >
-          <Briefcase className="w-4 h-4" /> Non-Teaching Staff ({staff.filter(s => getStaffCategory(s) === 'Staff').length})
-        </button>
+      {/* Top Segmented Tab Switches (2 Staff Types: Teaching & Non-Teaching) */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 w-full sm:w-auto border border-slate-200/40 dark:border-slate-800">
+        {[
+          { key: 'Teaching Staff', label: 'Teaching Staff', icon: GraduationCap },
+          { key: 'Non-Teaching Staff', label: 'Non-Teaching Staff', icon: Briefcase }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const count = staff.filter(s => getStaffCategory(s) === tab.key).length;
+          const isActive = activeCategory === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChange(tab.key)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" /> {tab.label} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {/* Advanced Filters Block */}

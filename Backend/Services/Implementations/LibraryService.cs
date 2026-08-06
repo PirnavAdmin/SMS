@@ -32,7 +32,16 @@ public class LibraryService : ILibraryService
 
     public async Task<List<LibraryBookDto>> GetBookInventoryAsync(string? search, string? category)
     {
-        var books = await _context.LibraryBooks.AsNoTracking().ToListAsync();
+        List<LibraryBook> books = new List<LibraryBook>();
+
+        try
+        {
+            books = await _context.LibraryBooks.AsNoTracking().ToListAsync();
+        }
+        catch
+        {
+            // Fallback if DB is offline
+        }
 
         if (!books.Any())
         {
@@ -78,7 +87,16 @@ public class LibraryService : ILibraryService
 
     public async Task<List<IssuedBookRecordDto>> GetIssuedBooksAsync(string? search, string? status)
     {
-        var records = await _context.LibraryIssueRecords.AsNoTracking().ToListAsync();
+        List<LibraryIssueRecord> records = new List<LibraryIssueRecord>();
+
+        try
+        {
+            records = await _context.LibraryIssueRecords.AsNoTracking().ToListAsync();
+        }
+        catch
+        {
+            // Fallback if DB is offline
+        }
 
         if (!records.Any())
         {

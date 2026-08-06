@@ -125,9 +125,10 @@ interface DataContextType {
   schoolProfile: SchoolProfile;
   updateSchoolProfile: (profile: Partial<SchoolProfile>) => void;
   academicYears: AcademicYearMaster[];
-  addAcademicYear: (year: Omit<AcademicYearMaster, 'id'>) => void;
+  addAcademicYear: (ay: Omit<AcademicYearMaster, 'id'>) => void;
   updateAcademicYear: (id: string, updates: Partial<AcademicYearMaster>) => void;
   deleteAcademicYear: (id: string) => void;
+  setCurrentAcademicYear: (id: string) => void;
   students: Student[];
   addStudent: (student: Omit<Student, 'id'>) => Student;
   updateStudent: (id: string, updates: Partial<Student>) => void;
@@ -1181,6 +1182,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [financialAccounts, setFinancialAccounts] = useState<FinancialAccount[]>(() => getStored('financial_accounts', initialFinancialAccounts));
   const [financialCategories, setFinancialCategories] = useState<FinancialCategory[]>(() => getStored('financial_categories', initialFinancialCategories));
   const [financialBudgets, setFinancialBudgets] = useState<FinancialBudget[]>(() => getStored('financial_budgets', initialFinancialBudgets));
+
+  const addAcademicYear = (ayData: Omit<AcademicYearMaster, 'id'>) => {
+    const id = `AY-${ayData.academicYear.replace(/\s+/g, '') || Date.now()}`;
+    const newAY: AcademicYearMaster = { id, ...ayData };
+    setAcademicYears(prev => {
+      let updated = [...prev];
+      if (newAY.isCurrentAcademicYear) {
+        updated = updated.map(a => ({ ...a, isCurrentAcademicYear: false }));
+        setSelectedAcademicYear(newAY.academicYear);
+      }
+      return [...updated, newAY];
+    });
+  };
+
+  const updateAcademicYear = (id: string, updates: Partial<AcademicYearMaster>) => {
+    setAcademicYears(prev => {
+      let updated = prev.map(a => a.id === id ? { ...a, ...updates, updatedAt: new Date().toISOString() } : a);
+      if (updates.isCurrentAcademicYear) {
+        const target = updated.find(a => a.id === id);
+        updated = updated.map(a => a.id === id ? { ...a, isCurrentAcademicYear: true } : { ...a, isCurrentAcademicYear: false });
+        if (target) setSelectedAcademicYear(target.academicYear);
+      }
+      return updated;
+    });
+  };
+
+  const deleteAcademicYear = (id: string) => {
+    setAcademicYears(prev => prev.filter(a => a.id !== id));
+  };
+
+  const setCurrentAcademicYear = (id: string) => {
+    setAcademicYears(prev => {
+      const target = prev.find(a => a.id === id);
+      if (!target) return prev;
+      setSelectedAcademicYear(target.academicYear);
+      return prev.map(a => ({
+        ...a,
+        isCurrentAcademicYear: a.id === id,
+        status: a.id === id ? 'Active' : (a.status === 'Active' ? 'Closed' : a.status)
+      }));
+    });
+  };
 
   useEffect(() => { localStorage.setItem('edu_db_profile', JSON.stringify(schoolProfile)); }, [schoolProfile]);
   useEffect(() => { localStorage.setItem('edu_db_academic_years', JSON.stringify(academicYears)); }, [academicYears]);
@@ -5262,7 +5305,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider
       value={{
         schoolProfile, updateSchoolProfile,
-        academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear,
+        academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, setCurrentAcademicYear,
         students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
         staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
         admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,

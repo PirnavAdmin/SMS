@@ -172,9 +172,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Core Operations',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
         { id: 'students', label: 'Student Directory', icon: UserCheck },
         { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff', icon: Users },
-        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
       ]
     },
     {

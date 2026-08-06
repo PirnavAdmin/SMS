@@ -43,26 +43,34 @@ function isLeapYear(year: number): boolean {
 }
 
 /**
- * Converts standard YYYY-MM-DD input date to DD/MM/YYYY format
+ * Converts standard YYYY-MM-DD or DD/MM/YYYY input date to DD-MM-YYYY format
  */
-export function formatToDDMMYYYY(isoDate: string): string {
+export function formatToDDMMYYYY(isoDate: string, separator: string = '-'): string {
   if (!isoDate) return '';
-  if (isoDate.includes('/')) return isoDate;
-  const parts = isoDate.split('-');
+  const clean = isoDate.trim();
+  const parts = clean.split(/[-/]/);
   if (parts.length === 3) {
-    return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    if (parts[0].length === 4) {
+      // YYYY-MM-DD -> DD-MM-YYYY
+      return `${parts[2].padStart(2, '0')}${separator}${parts[1].padStart(2, '0')}${separator}${parts[0]}`;
+    } else if (parts[2].length === 4) {
+      // DD-MM-YYYY or MM-DD-YYYY
+      return `${parts[0].padStart(2, '0')}${separator}${parts[1].padStart(2, '0')}${separator}${parts[2]}`;
+    }
   }
-  return isoDate;
+  return clean;
 }
 
 /**
- * Converts DD/MM/YYYY to YYYY-MM-DD for standard HTML date input
+ * Converts DD-MM-YYYY or DD/MM/YYYY to YYYY-MM-DD for standard HTML date input
  */
 export function formatToISO(ddmmyyyy: string): string {
   if (!ddmmyyyy) return '';
-  const parts = ddmmyyyy.split('/');
+  const parts = ddmmyyyy.split(/[-/]/);
   if (parts.length === 3) {
+    if (parts[0].length === 4) return ddmmyyyy; // already ISO YYYY-MM-DD
     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
   }
   return ddmmyyyy;
 }
+
