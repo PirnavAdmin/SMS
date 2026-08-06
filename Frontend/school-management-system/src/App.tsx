@@ -14,6 +14,9 @@ import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordMod
 
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
+import { StudentPromotionView } from './components/modules/Students/StudentPromotionView';
+import { TransferCertificatesView } from './components/modules/Students/TransferCertificatesView';
+import { AlumniView } from './components/modules/Students/AlumniView';
 import { StaffList } from './components/modules/Staff/StaffList';
 import { StaffRegistrationPage } from './components/modules/Staff/StaffRegistrationPage';
 import { LeaveManagementView } from './components/modules/Staff/LeaveManagementView';
@@ -125,7 +128,14 @@ const MainLayout: React.FC = () => {
       case 'dashboard':
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'students':
+      case 'student-directory':
         return <StudentList onNavigate={(mod) => setActiveModule(mod)} />;
+      case 'student-promotion':
+        return <StudentPromotionView onNavigate={setActiveModule} />;
+      case 'transfer-certificates':
+        return <TransferCertificatesView onNavigate={setActiveModule} />;
+      case 'alumni':
+        return <AlumniView onNavigate={setActiveModule} />;
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':

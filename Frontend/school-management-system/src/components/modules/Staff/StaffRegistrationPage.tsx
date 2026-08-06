@@ -141,9 +141,9 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-10 max-w-5xl mx-auto w-full text-xs">
+    <div className="space-y-3 animate-in fade-in pb-10 max-w-5xl mx-auto w-full text-xs">
       {/* Header Banner */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -155,7 +155,6 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
           </button>
           <div>
             <h1 className="text-2xl font-black text-slate-900 dark:text-white">Add Staff</h1>
-            <p className="text-xs text-slate-500 font-medium">5-Section ERP Registration Form</p>
           </div>
         </div>
 

@@ -5,12 +5,14 @@ interface ExportButtonProps<T> {
   data: T[];
   filename?: string;
   filteredCount?: number;
+  className?: string;
 }
 
 export function ExportButton<T extends Record<string, any>>({
   data,
   filename = 'export_data',
-  filteredCount
+  filteredCount,
+  className = ''
 }: ExportButtonProps<T>) {
 
   const handleExportExcel = () => {
@@ -43,13 +45,15 @@ export function ExportButton<T extends Record<string, any>>({
     document.body.removeChild(link);
   };
 
+  const defaultClasses = "px-4 py-2.5 flex items-center gap-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20";
+
   return (
     <button
       onClick={handleExportExcel}
-      className="px-4 py-2 flex items-center gap-2 rounded-xl font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20"
+      className={className || defaultClasses}
       title="Download Excel Report"
     >
-      <Download className="w-5 h-5" />
+      <Download className="w-4 h-4" />
       <span>Export</span>
     </button>
   );

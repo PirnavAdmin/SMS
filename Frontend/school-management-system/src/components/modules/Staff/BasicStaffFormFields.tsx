@@ -5,6 +5,7 @@ import {
   branchOptions,
   staffTypeOptions,
   getDepartmentOptions,
+  getDepartmentSelectOptions,
   getDesignationOptions,
   getEmployeeCategoryLabel,
   normalizeStaffType,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import { DateInput } from '../../common/DateInput';
+import { SearchableSelect } from '../../common/SearchableSelect';
 
 interface BasicStaffFormFieldsProps {
   value: BasicStaffFormState;
@@ -76,7 +78,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const [previewDoc, setPreviewDoc] = useState<StaffUploadedDocItem | null>(null);
 
   const normalizedCategory = normalizeStaffType(value.employeeCategory);
-  const departmentOptions = getDepartmentOptions(normalizedCategory, departments);
+  const departmentSelectOptions = getDepartmentSelectOptions(normalizedCategory, departments);
   const designationOptions = getDesignationOptions(normalizedCategory, value.department, designations);
 
   // Dynamic Department change handler
@@ -215,7 +217,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   ];
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-200 text-xs">
+    <div className="space-y-3.5 animate-in fade-in duration-200 text-xs">
       
       {/* ----------------- STEPPER NAVIGATION TABS ----------------- */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xs">
@@ -536,52 +538,46 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 {errors.branch && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.branch}</p>}
               </div>
 
-              {/* Department (Dynamic) */}
+              {/* Department (Dynamic Searchable Dropdown with Code & 5 Visible Items) */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Department <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={value.department}
-                  onChange={e => handleDepartmentChange(e.target.value)}
-                  className={fieldClass}
-                  disabled={!value.employeeCategory}
-                >
-                  <option value="">{value.employeeCategory ? `Select ${value.employeeCategory} Department` : 'Select Staff Type First'}</option>
-                  {departmentOptions.map(dept => (
-                    <option key={dept} value={dept}>
-                      {dept}
-                    </option>
-                  ))}
-                </select>
-                {errors.department && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.department}</p>}
+                <div className="mt-1.5">
+                  <SearchableSelect
+                    options={departmentSelectOptions}
+                    value={value.department}
+                    onChange={handleDepartmentChange}
+                    placeholder={value.employeeCategory ? `Select ${value.employeeCategory} Department` : 'Select Staff Type First'}
+                    searchPlaceholder="Search department or code..."
+                    disabled={!value.employeeCategory}
+                    error={errors.department}
+                  />
+                </div>
               </div>
 
-              {/* Designation (Dynamic) */}
+              {/* Designation (Dynamic Searchable Dropdown with 5 Visible Items) */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Designation <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={value.designation}
-                  onChange={e => onChange('designation', e.target.value)}
-                  className={fieldClass}
-                  disabled={!value.employeeCategory || !value.department}
-                >
-                  <option value="">
-                    {!value.employeeCategory
-                      ? 'Select Staff Type First'
-                      : !value.department
-                      ? 'Select Department First'
-                      : `Select Designation for ${value.department}`}
-                  </option>
-                  {designationOptions.map(designation => (
-                    <option key={designation} value={designation}>
-                      {designation}
-                    </option>
-                  ))}
-                </select>
-                {errors.designation && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.designation}</p>}
+                <div className="mt-1.5">
+                  <SearchableSelect
+                    options={designationOptions}
+                    value={value.designation}
+                    onChange={val => onChange('designation', val)}
+                    placeholder={
+                      !value.employeeCategory
+                        ? 'Select Staff Type First'
+                        : !value.department
+                        ? 'Select Department First'
+                        : `Select Designation for ${value.department}`
+                    }
+                    searchPlaceholder="Search designation..."
+                    disabled={!value.employeeCategory || !value.department}
+                    error={errors.designation}
+                  />
+                </div>
               </div>
 
               {/* Employment Type */}

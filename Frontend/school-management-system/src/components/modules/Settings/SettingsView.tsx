@@ -347,6 +347,21 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
+            <div>
+              <label className="block font-semibold mb-1">Highest Class Offered (Terminal Graduation Grade)</label>
+              <select
+                value={profileForm.highestClass || 'Class 12'}
+                onChange={e => setProfileForm({ ...profileForm, highestClass: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-brand-600 dark:text-brand-400"
+              >
+                <option value="Class 10">Class 10 (Secondary School Terminal)</option>
+                <option value="Class 12">Class 12 (Higher Secondary Terminal)</option>
+                <option value="Grade 10">Grade 10</option>
+                <option value="Grade 12">Grade 12</option>
+              </select>
+              <p className="text-[10px] text-slate-500 mt-1">Students completing this class during annual promotion will automatically graduate to Alumni.</p>
+            </div>
+
             <div className="pt-2 flex justify-end">
               <button type="submit" className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold flex items-center gap-1.5 shadow-md">
                 <Save className="w-4 h-4" /> Save School Profile
