@@ -137,7 +137,7 @@ export const StaffList: React.FC<{ initialCategory?: string; onNavigate?: (modul
     ...categoryStaffList.map(s => s.department).filter(Boolean)
   ]));
   const uniqueDesignations = Array.from(new Set([
-    ...getDesignationOptions(activeCategory, designations),
+    ...getDesignationOptions(activeCategory, undefined, designations),
     ...categoryStaffList.map(s => s.designation).filter(Boolean)
   ]));
 
@@ -229,7 +229,7 @@ export const StaffList: React.FC<{ initialCategory?: string; onNavigate?: (modul
       </div>
 
       {/* Top Segmented Tab Switches (2 Staff Types: Teaching & Non-Teaching) */}
-      <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 w-full sm:w-auto border border-slate-200/40 dark:border-slate-800">
+      <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 w-full sm:w-fit border border-slate-200/40 dark:border-slate-800">
         {[
           { key: 'Teaching Staff', label: 'Teaching Staff', icon: GraduationCap },
           { key: 'Non-Teaching Staff', label: 'Non-Teaching Staff', icon: Briefcase }

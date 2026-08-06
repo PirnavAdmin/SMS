@@ -764,7 +764,7 @@ export const StaffAttendanceView: React.FC = () => {
 
   // Helper check for teaching staff
   const isTeachingStaff = (s: Staff) => {
-    return s.employeeCategory === 'Teacher' || s.employeeCategory === 'Teaching Staff' || s.role === 'Teacher';
+    return s.employeeCategory === 'Teacher' || s.role === 'Teacher';
   };
 
   // Derive unique lists for dropdowns

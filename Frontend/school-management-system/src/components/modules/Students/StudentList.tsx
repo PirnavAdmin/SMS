@@ -296,7 +296,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         dob: '15/05/2012',
         bloodGroup: 'O+',
         category: 'General'
-      });
+      } as Student);
     }
     return roster;
   }, [apiStudents, selectedClass, selectedSection, classOverviewList]);

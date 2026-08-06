@@ -130,6 +130,8 @@ const MainLayout: React.FC = () => {
       case 'staff-teachers':
       case 'staff-directory':
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList onNavigate={setActiveModule} />;
+      case 'staff-non-teaching':
+        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList initialCategory="Staff" onNavigate={setActiveModule} />;
       case 'staff-add':
         return <StaffRegistrationPage onNavigate={setActiveModule} />;
       case 'staff-attendance':
@@ -224,7 +226,7 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="min-h-screen bg-brand-50 dark:bg-brand-950 text-slate-900 dark:text-slate-100 font-sans">
       <Sidebar
         activeModule={activeModule}
         setActiveModule={setActiveModule}

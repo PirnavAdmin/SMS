@@ -649,11 +649,11 @@ export function buildBasicStaffCreatePayload(form: BasicStaffFormState): Omit<St
     isClassTeacherEligible: isTeaching && form.isClassTeacher === 'Yes',
     documents: form.documents.map(d => ({
       id: d.id,
-      name: d.fileName,
+      title: d.fileName,
       type: d.docType as any,
       fileUrl: d.fileUrl,
-      uploadDate: d.uploadedAt,
-      verified: true
+      uploadedDate: d.uploadedAt,
+      verificationStatus: 'Verified'
     })),
     bankDetails: {
       accountHolderName: '',

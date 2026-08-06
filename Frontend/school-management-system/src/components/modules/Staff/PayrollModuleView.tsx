@@ -7,6 +7,7 @@ import {
   WalletCards, ListChecks, X, Save
 } from 'lucide-react';
 import { Badge } from '../../common/Badge';
+import { ConfirmModal } from '../../common/ConfirmModal';
 import { formatCurrency } from '../../../utils/currency';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -20,7 +21,6 @@ import {
   Staff
 } from '../../../types';
 import { PayrollDrawer } from './PayrollDrawer';
-import { ConfirmModal } from '../../common/ConfirmModal';
 
 type PayrollTabId =
   | 'staff-payroll'
