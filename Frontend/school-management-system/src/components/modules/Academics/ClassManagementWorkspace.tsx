@@ -17,11 +17,20 @@ import { TimetableSlot, SubjectItem, TeacherAssignment } from '../../../types';
 const CAMPUSES = ['Main Campus', 'Winga Campus', 'South Campus', 'North Campus', 'East Campus'];
 const CLASS_NAMES = [
   'Nursery', 'LKG', 'UKG', 
-  'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 
-  'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10',
+  'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 
+  'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
   'Intermediate 1st Year', 'Intermediate 2nd Year'
 ];
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+const isNameEquivalent = (n1: string, n2: string): boolean => {
+  const norm = (s: string) => s
+    .toLowerCase()
+    .replace(/\b(grade|class)\b/g, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+  return norm(n1) === norm(n2);
+};
 
 interface ClassManagementWorkspaceProps {
   initialTab?: string;
@@ -410,10 +419,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
-    const normalizedName = name.trim().toLowerCase();
-
     const isDuplicate = academicClasses.some(c => 
-      c.name.trim().toLowerCase() === normalizedName && 
+      isNameEquivalent(c.name, name) && 
       ((c as any).campus === campus || (c as any).branch === campus) &&
       (c as any).academicYear === academicYear
     );
@@ -424,7 +431,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
 
     const campusConflict = academicClasses.some(c => 
-      c.name.trim().toLowerCase() === normalizedName && 
+      isNameEquivalent(c.name, name) && 
       ((c as any).campus === campus || (c as any).branch === campus)
     );
 
@@ -449,7 +456,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         branch: campus,
         campus,
         academicYear,
-        displayName: (displayName || name).trim(),
+        displayName: cleanName,
         status,
         remarks,
         displayOrder: displayOrder !== '' ? parseInt(displayOrder) : undefined,
@@ -1032,23 +1039,24 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
       // Auto-assign subject if class teacher is assigned and has a teaching subject
       if (t) {
-        // Collect all potential teaching subjects for this teacher (including department name)
+        // Collect all potential teaching subjects for this teacher (including department and designation)
         const teacherSubjects = [
           t.primarySubject,
           t.secondarySubject,
           t.department,
+          t.designation,
           ...(t.assignedSubjects || [])
         ].filter(Boolean) as string[];
 
-        // Find the first subject offered by the class that has a substring match with teacher subjects
-        const targetSubject = (activeClass.subjects || []).find(subName => 
+        // Find all subjects offered by the class that have a substring match with teacher subjects
+        const targetSubjects = (activeClass.subjects || []).filter(subName => 
           teacherSubjects.some(tSub => 
             subName.toLowerCase().includes(tSub.toLowerCase()) || 
             tSub.toLowerCase().includes(subName.toLowerCase())
           )
         );
 
-        if (targetSubject) {
+        targetSubjects.forEach(targetSubject => {
           // Check if mapping already exists
           const exist = teacherAssignments.find(ta => 
             ta.className === activeClass.name && 
@@ -1073,8 +1081,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               status: 'Active'
             });
           }
+        });
 
-          addToast('success', 'Auto-assigned Subject', `Automatically mapped ${teacherFullName} to teach ${targetSubject} in Section ${activeWorkspaceSection}.`);
+        if (targetSubjects.length > 0) {
+          addToast('success', 'Auto-assigned Subject(s)', `Automatically mapped ${teacherFullName} to teach: ${targetSubjects.join(', ')} in Section ${activeWorkspaceSection}.`);
         }
       }
     });
@@ -1323,8 +1333,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   { id: 'subjects', label: '📘 Subjects', icon: BookOpen },
                   { id: 'teachers', label: '👨‍🏫 Teachers', icon: Users },
                   { id: 'students', label: '👨‍🎓 Students', icon: UserPlus },
-                  { id: 'settings', label: '⚙️ Settings', icon: Settings },
-                  { id: 'future', label: '🚀 Future Modules', icon: Clock }
+                  { id: 'settings', label: '⚙️ Settings', icon: Settings }
                 ].map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -1852,11 +1861,28 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           </select>
                         </div>
 
-                        {/* Designation & Department */}
+                        {/* Designation & Subject */}
                         {(() => {
                           const selectedTeacherName = ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection];
                           const selectedTeacher = teachersList.find(t => (t.name || `${t.firstName} ${t.lastName}`) === selectedTeacherName);
                           if (!selectedTeacher) return null;
+                          const subjectsStr = [
+                            selectedTeacher.primarySubject,
+                            selectedTeacher.secondarySubject,
+                            ...(selectedTeacher.assignedSubjects || [])
+                          ].filter(Boolean);
+                          
+                          if (subjectsStr.length === 0) {
+                            const offeredSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Computer Science', 'Economics', 'Accountancy', 'Business Studies'];
+                            const extracted = offeredSubjects.filter(sub => 
+                              (selectedTeacher.designation || '').toLowerCase().includes(sub.toLowerCase()) ||
+                              (selectedTeacher.department || '').toLowerCase().includes(sub.toLowerCase())
+                            );
+                            if (extracted.length > 0) {
+                              subjectsStr.push(...extracted);
+                            }
+                          }
+                          const uniqueSubjects = Array.from(new Set(subjectsStr)).join(', ');
                           return (
                             <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-808 rounded-2xl space-y-1.5 text-xs font-bold text-slate-655 dark:text-slate-350">
                               <div className="flex justify-between">
@@ -1864,8 +1890,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                 <span className="text-slate-900 dark:text-white">{selectedTeacher.designation || 'Teacher'}</span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-slate-400">Department:</span>
-                                <span className="text-slate-900 dark:text-white">{selectedTeacher.department || 'Academic'}</span>
+                                <span className="text-slate-400">Subject:</span>
+                                <span className="text-slate-900 dark:text-white truncate max-w-[150px]">{uniqueSubjects || 'General'}</span>
                               </div>
                             </div>
                           );
@@ -1891,7 +1917,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               <div key={subName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 text-xs">
                                   <div>
                                     <p className="font-extrabold text-slate-900 dark:text-white">{subName}</p>
-                                    <p className="text-[10px] text-slate-400">Roster course subject</p>
                                   </div>
                                   
                                   <div className="flex items-center gap-2">
@@ -2074,17 +2099,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl space-y-4 text-left">
                         <h5 className="text-xs font-black uppercase text-sky-655 tracking-wider">General Configurations</h5>
                         <form onSubmit={handleUpdateClass} className="space-y-3 text-xs">
-                          <div>
-                            <label className="block text-slate-400 mb-1">Display Name</label>
-                            <input
-                              type="text"
-                              value={classForm.displayName}
-                              onChange={e => setClassForm({ ...classForm, displayName: e.target.value })}
-                              className="w-full p-2.5 bg-slate-55 border rounded-xl outline-none"
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="block text-slate-400 mb-1">Display Sorting Order</label>
                               <input
@@ -2156,25 +2171,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           </button>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* COCKPIT TAB: FUTURE RESERVED MODULES */}
-                {classWorkspaceTab === 'future' && (
-                  <div className="p-8 border border-dashed border-slate-200 rounded-3xl text-center py-20 bg-slate-50/30 max-w-md mx-auto space-y-4 font-bold animate-in fade-in">
-                    <Clock className="w-8 h-8 text-sky-505 mx-auto animate-pulse" />
-                    <div>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white">Future Integrated Modules</h4>
-                      <p className="text-[11px] text-slate-450 mt-1 max-w-xs mx-auto leading-relaxed">
-                        Timetable generation, Attendance registration, Examinations schedulers, and Academic Reports are coming soon in Phase 2.
-                      </p>
-                    </div>
-                    <div className="flex justify-center gap-1.5 flex-wrap pt-2">
-                      <span className="text-[9px] bg-slate-100 text-slate-450 px-2 py-0.5 rounded border">📅 Timetable</span>
-                      <span className="text-[9px] bg-slate-100 text-slate-455 px-2 py-0.5 rounded border">📋 Attendance</span>
-                      <span className="text-[9px] bg-slate-100 text-slate-455 px-2 py-0.5 rounded border">📝 Examinations</span>
-                      <span className="text-[9px] bg-slate-100 text-slate-455 px-2 py-0.5 rounded border">📊 Reports</span>
                     </div>
                   </div>
                 )}
@@ -2290,7 +2286,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-808 pb-2.5">
                         <div>
                           <span className="text-base font-black text-slate-855 dark:text-white">
-                            {(cl as any).displayName || cl.name}
+                            {cl.name}
                           </span>
                           <span className="text-[9px] bg-slate-100 dark:bg-slate-808 text-slate-505 px-2 py-0.5 rounded ml-2 font-mono">{(cl as any).displayOrder !== undefined ? `Order: ${(cl as any).displayOrder}` : cl.id}</span>
                         </div>
@@ -2451,12 +2447,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   </div>
 
                   <div>
-                    <label className="block text-slate-700 dark:text-slate-300 mb-1">Class Grade *</label>
+                    <label className="block text-slate-700 dark:text-slate-300 mb-1">Select Class *</label>
                     <select
                       value={classForm.name}
                       onChange={e => setClassForm({ ...classForm, name: e.target.value })}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-808 border border-slate-200 outline-none font-bold"
                     >
+                      <option value="">Select Class...</option>
                       {CLASS_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </div>
@@ -2465,20 +2462,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-808 space-y-1.5">
                   <p><span className="text-slate-455">Campus:</span> {classForm.campus}</p>
                   <p><span className="text-slate-455">Session Year:</span> {classForm.academicYear}</p>
-                  <p><span className="text-slate-455">Class Grade:</span> {classForm.name}</p>
+                  <p><span className="text-slate-455">Class Name:</span> {classForm.name}</p>
                 </div>
               )}
 
-              <div>
-                <label className="block text-slate-700 dark:text-slate-300 mb-1">Display Name (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Grade 1 - Primary"
-                  value={classForm.displayName}
-                  onChange={e => setClassForm({ ...classForm, displayName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none"
-                />
-              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

@@ -160,6 +160,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'academic-dashboard', label: 'Dashboard', icon: School },
     { id: 'academic-class', label: 'Class Management', icon: Presentation },
     { id: 'academic-subjects', label: 'Subject Management', icon: BookOpen },
+    { id: 'timetable', label: 'Time Table', icon: Clock },
     { id: 'academic-settings', label: 'Academic Settings', icon: Calendar },
   ];
 
@@ -569,8 +570,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isSubActive =
                               activeModule === sub.id ||
                               (sub.id === 'academic-class' && activeModule === 'academics') ||
-                              (sub.id === 'academic-subjects' && activeModule === 'subjects') ||
-                              (sub.id === 'academic-timetable' && activeModule === 'timetable');
+                              (sub.id === 'academic-subjects' && activeModule === 'subjects');
                             return (
                               <button
                                 key={sub.id}

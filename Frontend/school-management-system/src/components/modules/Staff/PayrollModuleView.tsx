@@ -20,6 +20,7 @@ import {
   Staff
 } from '../../../types';
 import { PayrollDrawer } from './PayrollDrawer';
+import { ConfirmModal } from '../../common/ConfirmModal';
 
 type PayrollTabId =
   | 'staff-payroll'

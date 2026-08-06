@@ -1244,6 +1244,62 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_financial_budgets', JSON.stringify(financialBudgets)); }, [financialBudgets]);
   useEffect(() => { localStorage.setItem('edu_db_school_events', JSON.stringify(schoolEvents)); }, [schoolEvents]);
 
+  // One-time automatic normalization of class names to "Class X"
+  useEffect(() => {
+    const normalizeClassNameStr = (nameString: string): string => {
+      let clean = nameString.trim();
+      const match = clean.match(/^(grade|class)\s*(\d+.*)$/i);
+      if (match) {
+        return `Class ${match[2].trim()}`;
+      }
+      return clean;
+    };
+
+    const nameMap: Record<string, string> = {};
+    let classesChanged = false;
+    const migratedClasses = academicClasses.map(c => {
+      const newName = normalizeClassNameStr(c.name);
+      if (newName !== c.name || (c as any).displayName !== newName) {
+        classesChanged = true;
+        nameMap[c.name] = newName;
+        return {
+          ...c,
+          name: newName,
+          displayName: newName
+        };
+      }
+      return c;
+    });
+
+    if (classesChanged) {
+      setAcademicClasses(migratedClasses);
+
+      // Update students
+      setStudents(prev => prev.map(s => {
+        if (s.className && nameMap[s.className]) {
+          return { ...s, className: nameMap[s.className] };
+        }
+        return s;
+      }));
+
+      // Update teacher assignments
+      setTeacherAssignments(prev => prev.map(ta => {
+        if (ta.className && nameMap[ta.className]) {
+          return { ...ta, className: nameMap[ta.className] };
+        }
+        return ta;
+      }));
+
+      // Update timetable slots
+      setTimetable(prev => prev.map(ts => {
+        if (ts.className && nameMap[ts.className]) {
+          return { ...ts, className: nameMap[ts.className] };
+        }
+        return ts;
+      }));
+    }
+  }, []);
+
   // Training & Assessments States
   const [workshops, setWorkshops] = useState<WorkshopTraining[]>(() => getStored('workshops', initialWorkshops));
   const [employeeAssessments, setEmployeeAssessments] = useState<EmployeeAssessment[]>(() => getStored('employee_assessments', initialEmployeeAssessments));
@@ -2274,27 +2330,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addAcademicYear = (yearData: Omit<AcademicYearMaster, 'id'>) => {
-    const id = 'AY-' + Math.floor(100 + Math.random() * 900);
-    const newYear: AcademicYearMaster = {
-      ...yearData,
-      id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    setAcademicYears(prev => [...prev, newYear]);
-    logActivity('Created Academic Year', `Added ${newYear.academicYear}`);
-  };
-
-  const updateAcademicYear = (id: string, updates: Partial<AcademicYearMaster>) => {
-    setAcademicYears(prev => prev.map(y => y.id === id ? { ...y, ...updates, updatedAt: new Date().toISOString() } : y));
-    logActivity('Updated Academic Year', `Updated academic year ID ${id}`);
-  };
-
-  const deleteAcademicYear = (id: string) => {
-    setAcademicYears(prev => prev.filter(y => y.id !== id));
-    logActivity('Deleted Academic Year', `Removed academic year ID ${id}`);
-  };
 
   const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
     const id = 'CL-' + Math.floor(10 + Math.random() * 90);

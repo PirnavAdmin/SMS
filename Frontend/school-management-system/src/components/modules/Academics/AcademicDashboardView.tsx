@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { School, Layers, BookOpen, Users, Plus, Play, UserCheck, ArrowRight } from 'lucide-react';
+import { School, Layers, BookOpen, Users, Plus, Play, UserCheck, ArrowRight, GraduationCap, ClipboardList, Zap } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 
@@ -109,9 +109,11 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
       
       {/* Header session banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-808 pb-4">
-        <div>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-tr from-sky-500 to-indigo-650 text-white rounded-2xl shadow-md">
+            <GraduationCap className="w-5 h-5" />
+          </div>
           <h2 className="text-xl font-black text-slate-905 dark:text-white">Academic Management Dashboard</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Overview of academic years, classes, and enrollment counts.</p>
         </div>
       </div>
 
@@ -163,7 +165,10 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
         
         {/* Class Summary Table */}
         <div className="md:col-span-2 p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-800 rounded-3xl space-y-4">
-          <h4 className="font-extrabold text-slate-850 dark:text-white text-xs uppercase text-slate-500 tracking-wider">Class Summary</h4>
+          <h4 className="font-extrabold text-slate-855 dark:text-white text-xs uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+            <ClipboardList className="w-4 h-4 text-sky-600" />
+            Class Summary
+          </h4>
           
           <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:bg-slate-955">
             <table className="w-full text-xs text-left">
@@ -211,7 +216,10 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
 
         {/* Quick Actions Grid */}
         <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-800 rounded-3xl space-y-4">
-          <h4 className="font-extrabold text-slate-850 dark:text-white text-xs uppercase text-slate-500 tracking-wider">Quick Actions</h4>
+          <h4 className="font-extrabold text-slate-855 dark:text-white text-xs uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
+            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+            Quick Actions
+          </h4>
           <div className="grid grid-cols-1 gap-2.5 text-xs">
             <button 
               onClick={() => handleQuickAction('create-class')}

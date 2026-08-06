@@ -32,6 +32,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // =========================================================
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
 builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
 builder.Services.AddScoped<IOtpRepository, OtpRepository>();
@@ -891,6 +892,30 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`AssignmentId`),
                 CONSTRAINT `fk_salary_assignments_staff` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE,
                 CONSTRAINT `fk_salary_assignments_structure` FOREIGN KEY (`StructureId`) REFERENCES `salary_structures` (`StructureId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `admins` (
+                `AdminId` int NOT NULL AUTO_INCREMENT,
+                `FullName` varchar(150) NOT NULL,
+                `Email` varchar(150) NULL,
+                `MobileNumber` varchar(20) NOT NULL,
+                `PasswordHash` varchar(255) NOT NULL,
+                `Role` varchar(50) NOT NULL DEFAULT 'Admin',
+                `IsEmailVerified` tinyint(1) NOT NULL DEFAULT 0,
+                `IsMobileVerified` tinyint(1) NOT NULL DEFAULT 0,
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `SchoolId` int NULL,
+                PRIMARY KEY (`AdminId`),
+                UNIQUE KEY `ux_admins_mobile` (`MobileNumber`),
+                CONSTRAINT `fk_admins_school` FOREIGN KEY (`SchoolId`) REFERENCES `schools` (`SchoolId`) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `admin_roles_junction` (
+                `AdminId` int NOT NULL,
+                `RoleId` int NOT NULL,
+                PRIMARY KEY (`AdminId`, `RoleId`),
+                CONSTRAINT `fk_admin_roles_admin` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE,
+                CONSTRAINT `fk_admin_roles_role` FOREIGN KEY (`RoleId`) REFERENCES `roles` (`RoleId`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -990,6 +1015,71 @@ using (var scope = app.Services.CreateScope())
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectName` = 'General Subject' WHERE `SubjectName` IS NULL OR `SubjectName` = '';");
         }
         catch { }
+
+        try
+        {
+            try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` MODIFY COLUMN `UserId` int NULL;"); } catch { }
+            EnsureColumnExists("otp_verifications", "AdminId", "int NULL");
+            
+            bool constraintExists = false;
+            try
+            {
+                var conn = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_NAME = 'fk_otp_admins' AND CONSTRAINT_TYPE = 'FOREIGN KEY';";
+                    var result = cmd.ExecuteScalar();
+                    if (result != null && Convert.ToInt32(result) > 0)
+                    {
+                        constraintExists = true;
+                    }
+                }
+                if (closeConn)
+                {
+                    conn.Close();
+                }
+            }
+            catch { }
+
+            if (!constraintExists)
+            {
+                try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` ADD CONSTRAINT `fk_otp_admins` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE;"); } catch { }
+            }
+
+            context.Database.ExecuteSqlRaw(@"
+                INSERT INTO `admins` (`FullName`, `Email`, `MobileNumber`, `PasswordHash`, `Role`, `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`)
+                SELECT `FullName`, `Email`, `MobileNumber`, `PasswordHash`, 'Admin', `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`
+                FROM `users`
+                WHERE `Role` = 'Admin' AND `MobileNumber` NOT IN (SELECT `MobileNumber` FROM `admins`);");
+
+            context.Database.ExecuteSqlRaw(@"
+                INSERT INTO `admin_roles_junction` (`AdminId`, `RoleId`)
+                SELECT a.`AdminId`, ur.`RoleId`
+                FROM `user_roles` ur
+                JOIN `users` u ON u.`UserId` = ur.`UserId`
+                JOIN `admins` a ON a.`MobileNumber` = u.`MobileNumber`
+                WHERE u.`Role` = 'Admin' AND NOT EXISTS (
+                    SELECT 1 FROM `admin_roles_junction` arj WHERE arj.`AdminId` = a.`AdminId` AND arj.`RoleId` = ur.`RoleId`
+                );");
+
+            context.Database.ExecuteSqlRaw(@"
+                DELETE ur
+                FROM `user_roles` ur
+                JOIN `users` u ON u.`UserId` = ur.`UserId`
+                WHERE u.`Role` = 'Admin';");
+
+            context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
+        }
+        catch (System.Exception ex)
+        {
+            System.Console.WriteLine($"[Database Migration Warning] {ex.Message}");
+        }
 
         var defaultRoles = new[]
         {

@@ -14,6 +14,7 @@ namespace SMS.Api.Data
         // =====================================================
 
         public DbSet<User> Users { get; set; } = null!;
+        public DbSet<Admin> Admins { get; set; } = null!;
         public DbSet<School> Schools { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<SystemNotification> SystemNotifications { get; set; } = null!;
@@ -129,8 +130,10 @@ namespace SMS.Api.Data
             base.OnModelCreating(modelBuilder);
 
             ConfigureUser(modelBuilder);
+            ConfigureAdmin(modelBuilder);
             ConfigureRole(modelBuilder);
             ConfigureUserRoles(modelBuilder);
+            ConfigureAdminRoles(modelBuilder);
             ConfigureOtpVerification(modelBuilder);
 
             ConfigureDepartment(modelBuilder);
@@ -277,7 +280,45 @@ namespace SMS.Api.Data
                     user => user
                         .HasOne<User>()
                         .WithMany()
-                        .HasForeignKey("UserId"));
+                         .HasForeignKey("UserId"));
+        }
+
+        // =====================================================
+        // Admin Configuration
+        // =====================================================
+
+        private static void ConfigureAdmin(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Admin>(entity =>
+            {
+                entity.HasKey(x => x.AdminId);
+
+                entity.HasIndex(x => x.MobileNumber)
+                    .IsUnique();
+            });
+        }
+
+        // =====================================================
+        // Admin Roles Configuration
+        // =====================================================
+
+        private static void ConfigureAdminRoles(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Admin>()
+                .HasMany(admin => admin.Roles)
+                .WithMany(role => role.Admins)
+                .UsingEntity<Dictionary<string, object>>(
+                    "admin_roles_junction",
+
+                    role => role
+                        .HasOne<Role>()
+                        .WithMany()
+                        .HasForeignKey("RoleId"),
+
+                    admin => admin
+                        .HasOne<Admin>()
+                        .WithMany()
+                        .HasForeignKey("AdminId"));
         }
 
         // =====================================================
@@ -293,6 +334,11 @@ namespace SMS.Api.Data
                 entity.HasOne(x => x.User)
                     .WithMany(user => user.OtpVerifications)
                     .HasForeignKey(x => x.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Admin)
+                    .WithMany(admin => admin.OtpVerifications)
+                    .HasForeignKey(x => x.AdminId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
         }
@@ -987,6 +1033,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SystemNotification>().ToTable("system_notifications");
             modelBuilder.Entity<Role>().ToTable("roles");
             modelBuilder.Entity<User>().ToTable("users");
+            modelBuilder.Entity<Admin>().ToTable("admins");
             modelBuilder.Entity<OtpVerification>().ToTable("otp_verifications");
             modelBuilder.Entity<HostelBlock>().ToTable("hostel_blocks");
             modelBuilder.Entity<RoomTypeConfig>().ToTable("room_type_configs");

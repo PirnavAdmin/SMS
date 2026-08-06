@@ -32,4 +32,5 @@ public class School
 
     // Relationships
     public ICollection<User> Users { get; set; } = new List<User>();
+    public ICollection<Admin> Admins { get; set; } = new List<Admin>();
 }
