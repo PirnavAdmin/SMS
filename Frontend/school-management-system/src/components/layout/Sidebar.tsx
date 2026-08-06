@@ -161,7 +161,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'academic-class', label: 'Class Management', icon: Presentation },
     { id: 'subjects', label: 'Subject Management', icon: BookOpen },
     { id: 'timetable', label: 'Time Table', icon: Clock },
-    { id: 'academic-settings', label: 'Academic Settings', icon: Calendar },
   ];
 
   const transportSetupModules = ['transport-setup', 'transport-masters', 'transport-route-management', 'transport-pickup-points', 'transport-vehicle-management', 'transport-driver-management', 'transport-bus-attendants', 'transport-routes', 'transport-pickups', 'transport-vehicles', 'transport-drivers', 'transport-attendants'];

@@ -233,7 +233,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setEditingApp(null);
     setFirstName('');
     setLastName('');
-    setAvatar('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+    setAvatar('');
     setFormData({
       appliedClass: '',
       gender: '' as any,
@@ -285,7 +285,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const parts = app.applicantName.split(' ');
     setFirstName(parts[0] || '');
     setLastName(parts.slice(1).join(' ') || '');
-    setAvatar(app.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+    setAvatar(app.avatar || '');
     
     let formattedDob = app.dob || '';
     if (formattedDob.includes('-') && formattedDob.split('-').length === 3) {
@@ -616,15 +616,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     className="w-24 h-24 rounded-2xl object-cover ring-4 ring-brand-500/20 shadow-md"
                   />
                 ) : (
-                  <div className="w-24 h-24 rounded-2xl bg-slate-200 dark:bg-slate-700/50 ring-4 ring-slate-100 dark:ring-slate-800 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
-                    <User className="w-8 h-8 mb-1" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">No Photo</span>
+                  <div className="w-24 h-24 rounded-2xl bg-slate-200 dark:bg-slate-700/50 ring-4 ring-slate-100 dark:ring-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                    <User className="w-10 h-10" />
                   </div>
                 )}
               </div>
 
               <div className="space-y-2 text-center sm:text-left">
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Upload a clear passport-sized photo for identity card and official record</p>
+                {/* <p className="text-[11px] text-slate-500 dark:text-slate-400">Upload a clear passport-sized photo for identity card and official record</p> */}
 
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
                   <label className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer flex items-center gap-1.5 shadow-md transition-all">
@@ -701,7 +700,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Target Campus / Branch *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Branch / Campus *</label>
                   <select
                     value={formData.branch || selectedBranch || 'Main Campus'}
                     onChange={e => setFormData({ ...formData, branch: e.target.value })}
@@ -798,7 +797,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             {/* Section 2: Parent & Guardian Details */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
-                <Shield className="w-4 h-4" /> 2. Parent & Mobile Information
+                <Shield className="w-4 h-4" /> 2. Parent Information
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -850,7 +849,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alt Mobile</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">3. Alternate Mobile</label>
                   <input
                     type="text"
                     placeholder="Enter mobile number"
@@ -879,7 +878,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             {/* Section 3: Address Breakdown */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
-                <Home className="w-4 h-4" /> 3. Complete Residential Address
+                <Home className="w-4 h-4" /> 3. Residential Address
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div><label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">House No</label><input type="text" value={formData.addressHouseNo} onChange={e => setFormData({ ...formData, addressHouseNo: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none" /></div>
@@ -925,7 +924,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             {/* Section 5: Student Type (Conditional Day Scholar vs Hosteller) */}
             <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
-                <Bus className="w-4 h-4" /> 5. Student Type & Facility Allocation
+                5. Student Type & Residental Allocation
               </h4>
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Student Type *</label>

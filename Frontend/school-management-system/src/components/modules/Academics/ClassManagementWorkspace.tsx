@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   School, Calendar, Presentation, Layers, BookOpen, 
   Users, UserPlus, Clock, ShieldCheck, Plus, Edit, 
-  Trash2, Search, X, Check, ChevronRight, AlertCircle, 
+  Trash2, Search, X, Check, ChevronRight, AlertCircle, ChevronDown,
   BarChart2, CheckSquare, Copy, Archive, CheckCircle2, RefreshCw,
   ArrowLeft, Activity, Settings, Clipboard, Download, Lock, CheckSquare as CheckSquareIcon, ArrowRightLeft, BookOpen as BookOpenIcon, UserCheck, Play
 } from 'lucide-react';
@@ -30,7 +30,7 @@ const CLASS_NAMES = [
   'Nursery', 'LKG', 'UKG', 
   'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 
   'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10',
-  'Intermediate 1st Year', 'Intermediate 2nd Year'
+  'Class 11', 'Class 12', 'Other'
 ];
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -90,6 +90,27 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const [filterYear, setFilterYear] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [searchClassName, setSearchClassName] = useState('');
+
+  // Sync local campus filter with global selectedBranch from header
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
+      setFilterCampus(selectedBranch);
+    } else {
+      setFilterCampus('');
+    }
+  }, [selectedBranch]);
+
+  // Sync local academic year filter with global selectedAcademicYear from header
+  useEffect(() => {
+    if (selectedAcademicYear) {
+      setFilterYear(selectedAcademicYear);
+    } else {
+      setFilterYear('');
+    }
+  }, [selectedAcademicYear]);
+
+  const [customClassName, setCustomClassName] = useState('');
+  const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
 
   // Section List specific search & filters
   const [sectionSearchText, setSectionSearchText] = useState('');
@@ -310,14 +331,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   // Class setup KPI cards calculations
   const classKPIs = useMemo(() => {
-    const total = academicClasses.length;
-    const active = academicClasses.filter(c => (c as any).status === 'Active' || !(c as any).status).length;
-    const archived = academicClasses.filter(c => (c as any).status === 'Archived').length;
+    const filteredForKPIs = academicClasses.filter(c => {
+      const campus = (c as any).campus || (c as any).branch || 'Main Campus';
+      const year = (c as any).academicYear || '2026-2027';
+      const matchesCampus = !selectedBranch || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses' || campus === selectedBranch;
+      const matchesYear = !selectedAcademicYear || year === selectedAcademicYear;
+      return matchesCampus && matchesYear;
+    });
+
+    const total = filteredForKPIs.length;
+    const active = filteredForKPIs.filter(c => (c as any).status === 'Active' || !(c as any).status).length;
+    const archived = filteredForKPIs.filter(c => (c as any).status === 'Archived').length;
 
     let totalCapacity = 0;
     let occupiedSeats = 0;
 
-    academicClasses.forEach(cl => {
+    filteredForKPIs.forEach(cl => {
       const details = (cl as any).sectionDetails || {};
       let clCapacity = 0;
       if (cl.sections && cl.sections.length > 0) {
@@ -343,7 +372,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       occupiedSeats,
       remainingSeats
     };
-  }, [academicClasses, students]);
+  }, [academicClasses, students, selectedBranch, selectedAcademicYear]);
 
   // Section details calculation inside cockpit
   const sectionKPIs = useMemo(() => {
@@ -404,14 +433,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setEditingClass(null);
     const activeAY = academicYears.find(ay => ay.status === 'Active');
     setClassForm({
-      campus: 'Main Campus',
-      academicYear: activeAY ? activeAY.academicYear : '',
-      name: 'Grade 1',
+      campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
+      academicYear: selectedAcademicYear || (activeAY ? activeAY.academicYear : ''),
+      name: CLASS_NAMES[0] || 'Nursery',
       displayName: '',
       status: 'Active',
       remarks: '',
       displayOrder: ''
     });
+    setCustomClassName('');
+    setIsClassDropdownOpen(false);
     setIsClassModalOpen(true);
   };
 
@@ -426,15 +457,18 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleOpenEditClass = (c: AcademicClass) => {
     setEditingClass(c);
+    const isPredefined = CLASS_NAMES.includes(c.name);
     setClassForm({
       campus: (c as any).campus || (c as any).branch || 'Main Campus',
       academicYear: (c as any).academicYear || selectedAcademicYear || '2026-2027',
-      name: c.name,
+      name: isPredefined ? c.name : 'Other',
       displayName: (c as any).displayName || c.name,
       status: ((c as any).status === 'Archived' ? 'Active' : (c as any).status || 'Active') as any,
       remarks: (c as any).remarks || '',
       displayOrder: (c as any).displayOrder !== undefined ? String((c as any).displayOrder) : ''
     });
+    setCustomClassName(isPredefined ? '' : c.name);
+    setIsClassDropdownOpen(false);
     setIsClassModalOpen(true);
   };
 
@@ -443,13 +477,14 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     if (isSubmitting) return;
 
     const { name, campus, academicYear, displayName, status, remarks, displayOrder } = classForm;
-    if (!name || !campus || !academicYear) {
+    const finalName = name === 'Other' ? customClassName : name;
+    if (!finalName || !campus || !academicYear) {
       addToast('warning', 'Validation Error', 'Campus, Academic Year, and Class Name are required.');
       return;
     }
 
     const isDuplicate = academicClasses.some(c => 
-      isNameEquivalent(c.name, name) && 
+      isNameEquivalent(c.name, finalName) && 
       ((c as any).campus === campus || (c as any).branch === campus) &&
       (c as any).academicYear === academicYear
     );
@@ -460,7 +495,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
 
     const campusConflict = academicClasses.some(c => 
-      isNameEquivalent(c.name, name) && 
+      isNameEquivalent(c.name, finalName) && 
       ((c as any).campus === campus || (c as any).branch === campus)
     );
 
@@ -479,7 +514,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     // Simulate API request submission
     setTimeout(() => {
-      const cleanName = name.trim();
+      const cleanName = finalName.trim();
       const newClassData = {
         name: cleanName,
         branch: campus,
@@ -520,14 +555,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
       // Form reset only on successful creation
       setClassForm({
-        campus: 'Main Campus',
+        campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
         academicYear: ayObj ? ayObj.academicYear : '',
-        name: 'Grade 1',
+        name: CLASS_NAMES[0] || 'Nursery',
         displayName: '',
         status: 'Active',
         remarks: '',
         displayOrder: ''
       });
+      setCustomClassName('');
     }, 400);
   };
 
@@ -2292,56 +2328,37 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               </div>
 
               {/* Search & Filter settings panel */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 text-xs">
-                <div className="flex flex-wrap items-center gap-2 font-bold">
-                  <div className="flex flex-col text-left">
-                    <label className="text-[10px] text-slate-400 uppercase font-mono font-bold mb-1">Campus</label>
-                    <select
-                      value={filterCampus}
-                      onChange={e => setFilterCampus(e.target.value)}
-                      className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold"
-                    >
-                      <option value="">All Campuses</option>
-                      {CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col text-left">
-                    <label className="text-[10px] text-slate-400 uppercase font-mono font-bold mb-1">Session Year</label>
-                    <select
-                      value={filterYear}
-                      onChange={e => setFilterYear(e.target.value)}
-                      className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold"
-                    >
-                      <option value="">All Years</option>
-                      {academicYears.map(ay => <option key={ay.id} value={ay.academicYear}>{ay.academicYear}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col text-left">
-                    <label className="text-[10px] text-slate-400 uppercase font-mono font-bold mb-1">Status</label>
-                    <select
-                      value={filterStatus}
-                      onChange={e => setFilterStatus(e.target.value)}
-                      className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold"
-                    >
-                      <option value="">All Statuses</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Archived">Archived</option>
-                      <option value="Draft">Draft</option>
-                    </select>
-                  </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs w-full py-2">
+                {/* Search bar on the left */}
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3.5" />
+                  <input
+                    type="text"
+                    placeholder="Search by Class Name..."
+                    value={searchClassName}
+                    onChange={e => setSearchClassName(e.target.value)}
+                    className="pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs text-slate-900 dark:text-white w-48 sm:w-60 focus:w-72 transition-all font-semibold"
+                  />
                 </div>
 
-                <div className="flex items-end gap-2">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3.5" />
-                    <input
-                      type="text"
-                      placeholder="Search by Class Name..."
-                      value={searchClassName}
-                      onChange={e => setSearchClassName(e.target.value)}
-                      className="pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs text-slate-900 dark:text-white w-48 focus:w-64 transition-all"
-                    />
+                {/* Filter and Add button on the right */}
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-400 uppercase font-mono font-bold">Status</span>
+                    <div className="relative">
+                      <select
+                        value={filterStatus}
+                        onChange={e => setFilterStatus(e.target.value)}
+                        className="appearance-none pl-3 pr-8 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs cursor-pointer text-slate-700 dark:text-slate-200"
+                      >
+                        <option value="">All Statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Archived">Archived</option>
+                        <option value="Draft">Draft</option>
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                   </div>
                   <button
                     onClick={handleOpenAddClass}
@@ -2376,10 +2393,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   return (
                     <div 
                       key={cl.id} 
-                      className={`p-5 rounded-3xl border transition-all space-y-4 hover:shadow-lg relative text-left bg-white dark:bg-slate-900 ${
+                      className={`p-5 rounded-xl border shadow-sm transition-all duration-300 space-y-4 hover:-translate-y-1 hover:shadow-md relative text-left bg-white dark:bg-slate-900 ${
                         status === 'Archived' 
                           ? 'border-slate-200 dark:border-slate-800 opacity-60' 
-                          : 'border-slate-200 dark:border-slate-808 hover:border-sky-500'
+                          : 'border-slate-200 dark:border-slate-800 hover:border-sky-500'
                       }`}
                     >
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-808 pb-2.5">
@@ -2504,8 +2521,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       {/* ADD / EDIT CLASS DIALOG */}
       {isClassModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-222 dark:border-slate-808 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-left">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-222 dark:border-slate-808 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl text-left">
+            <div className="flex items-center justify-between pb-3">
               <h3 className="text-base font-black text-slate-900 dark:text-white">
                 {editingClass ? 'Edit Class Parameters' : 'Add Class Grade'}
               </h3>
@@ -2518,49 +2535,71 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               {!editingClass ? (
                 <>
                   <div>
-                    <label className="block text-slate-700 dark:text-slate-300 mb-1">Campus Location *</label>
-                    <select
-                      value={classForm.campus}
-                      onChange={e => setClassForm({ ...classForm, campus: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none font-bold"
-                    >
-                      {CAMPUSES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <label className="block text-slate-750 dark:text-slate-350 mb-1">Select Class *</label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-left text-slate-800 dark:text-slate-100 cursor-pointer"
+                      >
+                        <span>{classForm.name === 'Other' ? (customClassName || 'Other (Custom...)') : (classForm.name || 'Select Class...')}</span>
+                        <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                      </button>
+
+                      {isClassDropdownOpen && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-10" 
+                            onClick={() => setIsClassDropdownOpen(false)}
+                          />
+                          <div className="absolute left-0 right-0 mt-1.5 max-h-48 overflow-y-auto rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-xl z-20 p-1">
+                            {CLASS_NAMES.map(c => {
+                              const isSelected = classForm.name === c;
+                              return (
+                                <button
+                                  key={c}
+                                  type="button"
+                                  onClick={() => {
+                                    setClassForm({ ...classForm, name: c });
+                                    if (c !== 'Other') {
+                                      setCustomClassName('');
+                                    }
+                                    setIsClassDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                                    isSelected 
+                                      ? 'bg-sky-500 text-white font-bold' 
+                                      : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                  }`}
+                                >
+                                  {c}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-slate-707 mb-1">Academic Session *</label>
-                    <select
-                      value={classForm.academicYear}
-                      onChange={e => setClassForm({ ...classForm, academicYear: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-808 border border-slate-200 outline-none font-bold"
-                    >
-                      <option value="">Select Academic Year...</option>
-                      {academicYears.map(ay => (
-                        <option key={ay.id} value={ay.academicYear} disabled={ay.status !== 'Active'}>
-                          {ay.academicYear} {ay.status === 'Active' ? '(Active)' : '(Inactive)'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-700 dark:text-slate-300 mb-1">Select Class *</label>
-                    <select
-                      value={classForm.name}
-                      onChange={e => setClassForm({ ...classForm, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-808 border border-slate-200 outline-none font-bold"
-                    >
-                      <option value="">Select Class...</option>
-                      {CLASS_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
+                  {classForm.name === 'Other' && (
+                    <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                      <label className="block text-slate-750 dark:text-slate-350 mb-1">Custom Class Name *</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Class 11 - Science"
+                        value={customClassName}
+                        onChange={e => setCustomClassName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold"
+                      />
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-808 space-y-1.5">
                   <p><span className="text-slate-455">Campus:</span> {classForm.campus}</p>
                   <p><span className="text-slate-455">Session Year:</span> {classForm.academicYear}</p>
-                  <p><span className="text-slate-455">Class Name:</span> {classForm.name}</p>
+                  <p><span className="text-slate-455">Class Name:</span> {classForm.name === 'Other' ? customClassName : classForm.name}</p>
                 </div>
               )}
 
@@ -2578,14 +2617,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 </div>
                 <div>
                   <label className="block text-slate-707 mb-1">Status</label>
-                  <select
-                    value={classForm.status}
-                    onChange={e => setClassForm({ ...classForm, status: e.target.value as any })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={classForm.status}
+                      onChange={e => setClassForm({ ...classForm, status: e.target.value as any })}
+                      className="w-full appearance-none px-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
                 </div>
               </div>
 
@@ -2599,7 +2641,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-101 dark:border-slate-800">
+              <div className="flex justify-end gap-3 pt-3">
                 <button 
                   type="button" 
                   disabled={isSubmitting} 

@@ -156,9 +156,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               <span>{greeting}, {user?.name || 'Admin'}</span>
               <Sparkles className="w-5 h-5 text-brand-500 dark:text-brand-400 animate-pulse" />
             </h1>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-xl">
-              Welcome to {schoolProfile.name}. Here's what's happening today.
-            </p>
           </div>
           <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-50 dark:bg-slate-900 shrink-0">
