@@ -339,12 +339,36 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Caste Category *</label>
                 <select
-                  value={formData.casteCategory}
-                  onChange={e => setFormData({ ...formData, casteCategory: e.target.value })}
+                  value={
+                    CASTE_CATEGORIES.includes(formData.casteCategory as any) || formData.casteCategory === 'Other'
+                      ? (formData.casteCategory === 'Other' ? 'Others' : formData.casteCategory)
+                      : (formData.casteCategory ? 'Others' : 'General')
+                  }
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === 'Others') {
+                      setFormData({ ...formData, casteCategory: 'Others' });
+                    } else {
+                      setFormData({ ...formData, casteCategory: val });
+                    }
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                 >
                   {CASTE_CATEGORIES.map(cc => <option key={cc} value={cc}>{cc}</option>)}
                 </select>
+
+                {(formData.casteCategory === 'Others' || formData.casteCategory === 'Other' || (!CASTE_CATEGORIES.includes(formData.casteCategory as any) && formData.casteCategory)) && (
+                  <div className="mt-2 animate-in fade-in">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Specify Caste Category (e.g. Minorities / NT / VJNT)"
+                      value={formData.casteCategory === 'Others' || formData.casteCategory === 'Other' ? '' : formData.casteCategory}
+                      onChange={e => setFormData({ ...formData, casteCategory: e.target.value || 'Others' })}
+                      className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500 shadow-xs"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

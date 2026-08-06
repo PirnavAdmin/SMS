@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle2, Users, Edit3 } from 'lucide-react';
-import { Staff } from '../../../types';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { Badge } from '../../common/Badge';
+import React, { useState, useEffect } from "react";
+import { X, CheckCircle2, Users, Edit3 } from "lucide-react";
+import { Staff } from "../../../types";
+import { useData } from "../../../context/DataContext";
+import { useToast } from "../../../context/ToastContext";
+import { Badge } from "../../common/Badge";
 import {
   BasicStaffFormState,
   buildBasicStaffCreatePayload,
@@ -12,9 +12,9 @@ import {
   getNextEmployeeId,
   getDepartmentOptions,
   getDesignationOptions,
-  normalizeStaffType
-} from './staffFlowOptions';
-import { BasicStaffFormFields } from './BasicStaffFormFields';
+  normalizeStaffType,
+} from "./staffFlowOptions";
+import { BasicStaffFormFields } from "./BasicStaffFormFields";
 
 interface StaffFormModalProps {
   isOpen: boolean;
@@ -27,13 +27,13 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   isOpen,
   onClose,
   staffToEdit,
-  defaultCategory = 'Teaching Staff'
+  defaultCategory = "Teaching Staff",
 }) => {
   const { staff, addStaff, updateStaff, departments, designations } = useData();
   const { addToast } = useToast();
 
   const [form, setForm] = useState<BasicStaffFormState>(() =>
-    defaultBasicStaffFormState(defaultCategory)
+    defaultBasicStaffFormState(defaultCategory),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -46,45 +46,53 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       setForm({
         ...defaultBasicStaffFormState(normalizedCat),
         employeeCategory: normalizedCat,
-        empId: staffToEdit.empId,
-        firstName: staffToEdit.firstName || (staffToEdit.name ? staffToEdit.name.split(' ')[0] : ''),
-        middleName: '',
-        lastName: staffToEdit.lastName || (staffToEdit.name ? staffToEdit.name.split(' ').slice(1).join(' ') : ''),
-        gender: (staffToEdit.gender as any) || 'Male',
-        dob: staffToEdit.dob || '',
-        bloodGroup: 'O+',
-        mobileNumber: staffToEdit.phone || '',
-        alternateMobileNumber: '',
-        email: staffToEdit.email || '',
-        photoUrl: staffToEdit.avatar || '',
-        aadhaarNumber: '',
-        panNumber: '',
-        presentAddress: staffToEdit.address || '',
-        permanentAddress: staffToEdit.address || '',
+        firstName:
+          staffToEdit.firstName ||
+          (staffToEdit.name ? staffToEdit.name.split(" ")[0] : "") ||
+          "",
+        middleName: "",
+        lastName:
+          staffToEdit.lastName ||
+          (staffToEdit.name
+            ? staffToEdit.name.split(" ").slice(1).join(" ")
+            : "") ||
+          "",
+        gender: (staffToEdit.gender as any) || "Male",
+        dob: staffToEdit.dob || "",
+        bloodGroup: "O+",
+        mobileNumber: staffToEdit.phone || "",
+        alternateMobileNumber: "",
+        email: staffToEdit.email || "",
+        photoUrl: staffToEdit.avatar || "",
+        aadhaarNumber: "",
+        panNumber: "",
+        presentAddress: staffToEdit.address || "",
+        permanentAddress: staffToEdit.address || "",
         sameAsPresentAddress: true,
-        city: '',
-        state: '',
-        pinCode: '',
-        branch: staffToEdit.branch || 'Main Campus',
-        department: staffToEdit.department || '',
-        designation: staffToEdit.designation || '',
-        joiningDate: staffToEdit.joiningDate || new Date().toISOString().split('T')[0],
-        employmentType: staffToEdit.employmentType || 'Full-Time',
-        reportingManager: '',
-        status: staffToEdit.status === 'Active' ? 'Active' : 'Inactive',
-        academicYear: '2026-2027',
+        city: "",
+        state: "",
+        pinCode: "",
+        branch: staffToEdit.branch || "Main Campus",
+        department: staffToEdit.department || "",
+        designation: staffToEdit.designation || "",
+        joiningDate:
+          staffToEdit.joiningDate || new Date().toISOString().split("T")[0],
+        employmentType: staffToEdit.employmentType || "Full-Time",
+        reportingManager: "",
+        status: staffToEdit.status === "Active" ? "Active" : "Inactive",
+        academicYear: "2026-2027",
         assignedClasses: staffToEdit.assignedClasses || [],
         assignedSections: [],
         assignedSubjects: staffToEdit.assignedSubjects || [],
-        isClassTeacher: staffToEdit.isClassTeacherEligible ? 'Yes' : 'No',
+        isClassTeacher: staffToEdit.isClassTeacherEligible ? "Yes" : "No",
         qualifications: [],
         experiences: [],
-        documents: []
+        documents: [],
       });
     } else {
       setForm({
         ...defaultBasicStaffFormState(defaultCategory),
-        empId: getNextEmployeeId(staff)
+        empId: getNextEmployeeId(staff),
       });
     }
 
@@ -92,8 +100,8 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   }, [isOpen, staffToEdit, defaultCategory, staff]);
 
   const handleChange = (field: keyof BasicStaffFormState, value: any) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    setErrors(prev => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => {
       if (!prev[field]) return prev;
       const next = { ...prev };
       delete next[field];
@@ -102,11 +110,11 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   };
 
   const handleCategoryChange = (value: string) => {
-    setForm(prev => ({
+    setForm((prev) => ({
       ...prev,
       employeeCategory: value,
-      department: '',
-      designation: ''
+      department: "",
+      designation: "",
     }));
   };
 
@@ -116,41 +124,74 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       if (!condition) nextErrors[key] = message;
     };
 
-    require('employeeCategory', !!form.employeeCategory, 'Staff Type is required.');
-    require('firstName', !!form.firstName.trim(), 'First name is required.');
-    require('lastName', !!form.lastName.trim(), 'Last name is required.');
-    require('mobileNumber', !!form.mobileNumber.trim(), 'Mobile number is required.');
-    require('branch', !!form.branch.trim(), 'Branch is required.');
-    require('department', !!form.department.trim(), 'Department is required.');
-    require('designation', !!form.designation.trim(), 'Designation is required.');
-    require('joiningDate', !!form.joiningDate.trim(), 'Joining date is required.');
-    require('employmentType', !!form.employmentType.trim(), 'Employment type is required.');
-    require('status', !!form.status.trim(), 'Status is required.');
+    require("employeeCategory", !!form.employeeCategory, "Staff Type is required.");
+    require("firstName", !!form.firstName.trim(), "First name is required.");
+    require("lastName", !!form.lastName.trim(), "Last name is required.");
+    require("mobileNumber", !!form.mobileNumber.trim(), "Mobile number is required.");
+    require("branch", !!form.branch.trim(), "Branch is required.");
+    require("department", !!form.department.trim(), "Department is required.");
+    require("designation", !!form.designation.trim(), "Designation is required.");
+    require("joiningDate", !!form.joiningDate.trim(), "Joining date is required.");
+    require("employmentType", !!form.employmentType.trim(), "Employment type is required.");
+    require("status", !!form.status.trim(), "Status is required.");
 
     // Email format check
-    if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      nextErrors.email = 'Invalid email format.';
+    if (
+      form.email.trim() &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    ) {
+      nextErrors.email = "Invalid email format.";
     }
 
     // Duplicate Staff ID Check
-    if (form.empId && staff.some(s => s.empId.toLowerCase() === form.empId.toLowerCase() && s.id !== staffToEdit?.id)) {
-      nextErrors.empId = 'Staff ID already exists.';
+    if (
+      form.empId &&
+      staff.some(
+        (s) =>
+          s.empId.toLowerCase() === form.empId.toLowerCase() &&
+          s.id !== staffToEdit?.id,
+      )
+    ) {
+      nextErrors.empId = "Staff ID already exists.";
     }
 
     // Duplicate Email Check
-    if (form.email.trim() && staff.some(s => s.email && s.email.toLowerCase() === form.email.trim().toLowerCase() && s.id !== staffToEdit?.id)) {
-      nextErrors.email = 'Email address is already registered.';
+    if (
+      form.email.trim() &&
+      staff.some(
+        (s) =>
+          s.email &&
+          s.email.toLowerCase() === form.email.trim().toLowerCase() &&
+          s.id !== staffToEdit?.id,
+      )
+    ) {
+      nextErrors.email = "Email address is already registered.";
     }
 
     // Duplicate Mobile Check
-    const cleanMobile = form.mobileNumber.replace(/\D/g, '');
-    if (cleanMobile && staff.some(s => s.phone && s.phone.replace(/\D/g, '') === cleanMobile && s.id !== staffToEdit?.id)) {
-      nextErrors.mobileNumber = 'Mobile number is already registered.';
+    const cleanMobile = form.mobileNumber.replace(/\D/g, "");
+    if (
+      cleanMobile &&
+      staff.some(
+        (s) =>
+          s.phone &&
+          s.phone.replace(/\D/g, "") === cleanMobile &&
+          s.id !== staffToEdit?.id,
+      )
+    ) {
+      nextErrors.mobileNumber = "Mobile number is already registered.";
     }
 
     // Validate department & designation against staff type & department
-    const allowedDepts = getDepartmentOptions(form.employeeCategory, departments);
-    const allowedDesignations = getDesignationOptions(form.employeeCategory, form.department, designations);
+    const allowedDepts = getDepartmentOptions(
+      form.employeeCategory,
+      departments,
+    );
+    const allowedDesignations = getDesignationOptions(
+      form.employeeCategory,
+      form.department,
+      designations,
+    );
 
     if (form.department && !allowedDepts.includes(form.department)) {
       nextErrors.department = `"${form.department}" is not a valid department for ${form.employeeCategory}.`;
@@ -167,7 +208,11 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
-      addToast('warning', 'Please complete required fields', 'Check missing or invalid entries.');
+      addToast(
+        "warning",
+        "Please complete required fields",
+        "Check missing or invalid entries.",
+      );
       return;
     }
 
@@ -175,10 +220,18 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
 
     if (staffToEdit) {
       updateStaff(staffToEdit.id, buildBasicStaffUpdatePayload(form));
-      addToast('success', 'Employee updated', 'Staff details were saved successfully.');
+      addToast(
+        "success",
+        "Employee updated",
+        "Staff details were saved successfully.",
+      );
     } else {
       const added = addStaff(buildBasicStaffCreatePayload(form));
-      addToast('success', 'Employee created', `${added.firstName} ${added.lastName} has been added to the directory.`);
+      addToast(
+        "success",
+        "Employee created",
+        `${added.firstName} ${added.lastName} has been added to the directory.`,
+      );
     }
 
     setSubmitting(false);
@@ -194,13 +247,15 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="info" size="sm">Staff ERP</Badge>
+                <Badge variant="info" size="sm">
+                  Staff ERP
+                </Badge>
                 <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">
-                  {staffToEdit ? 'Edit Record' : '5-Section Add Staff Wizard'}
+                  {staffToEdit ? "Edit Record" : "5-Section Add Staff Wizard"}
                 </span>
               </div>
               <h2 className="mt-1 text-base sm:text-lg font-black text-slate-900 dark:text-white">
-                {staffToEdit ? 'Edit Staff Details' : 'Add New Staff'}
+                {staffToEdit ? "Edit Staff Details" : "Add New Staff"}
               </h2>
             </div>
 
@@ -214,7 +269,10 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+        >
           <BasicStaffFormFields
             value={form}
             errors={errors}
@@ -238,7 +296,11 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md shadow-brand-600/20 disabled:opacity-70"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {submitting ? 'Saving...' : (staffToEdit ? 'Save Changes' : 'Create Employee Record')}
+              {submitting
+                ? "Saving..."
+                : staffToEdit
+                  ? "Save Changes"
+                  : "Create Employee Record"}
             </button>
           </div>
         </form>

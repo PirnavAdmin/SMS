@@ -1,5 +1,5 @@
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
-export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Other'] as const;
+export const CASTE_CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES = ['Main Campus', 'North Branch', 'West Campus', 'Hyderabad'] as const;
 
 /**

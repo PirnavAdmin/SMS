@@ -53,6 +53,7 @@ export interface SchoolProfile {
   principalName: string;
   academicYear: string;
   logoUrl: string;
+  highestClass?: string;
 }
 
 export interface AcademicYearMaster {
@@ -151,13 +152,16 @@ export interface Student {
   className: string;
   section: string;
   category: string;
-  status: 'Active' | 'Inactive' | 'Promoted' | 'Transferred';
+  status: 'Active' | 'Inactive' | 'Promoted' | 'Transferred' | 'Completed' | 'Alumni';
   avatar: string;
   joiningDate: string;
 
   // Global Multi-branch & Facility Allocation
   branch?: string; // e.g. "Main Campus", "North Branch", "West Campus", "Hyderabad"
   studentType?: StudentType; // Day Scholar vs Hosteller
+
+  completionDate?: string;
+  completionAcademicYear?: string;
   busRoute?: string;
   transportType?: 'AC' | 'Non-AC';
   pickupPoint?: string;
@@ -170,6 +174,7 @@ export interface Student {
   boardType?: 'State Board' | 'CBSE';
 
   // Parent/Guardian
+  parentName?: string;
   fatherName: string;
   fatherPhone: string;
   fatherOccupation: string;
@@ -2073,6 +2078,31 @@ export interface IssuedCertificate {
   issuedBy: string;
   downloadUrl?: string;
   status: 'Issued' | 'Revoked' | 'Reissued';
+}
+
+export type AlumniCurrentStatus = 'Higher Studies' | 'Working' | 'Business' | 'Competitive Exams' | 'Other' | 'Unknown';
+
+export interface AlumniRecord {
+  id: string;
+  studentId: string;
+  admissionNo: string;
+  studentName: string;
+  avatar?: string;
+  batch: string;
+  completionAcademicYear: string;
+  finalClass: string;
+  finalSection: string;
+  completionDate: string;
+  currentStatus: AlumniCurrentStatus;
+  higherEducationDetail?: string;
+  organizationCompany?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  parentName?: string;
+  branch?: string;
+  createdDate: string;
+  tcIssued?: boolean;
+  tcNumber?: string;
 }
 
 

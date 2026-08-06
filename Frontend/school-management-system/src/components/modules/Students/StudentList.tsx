@@ -5,7 +5,7 @@ import {
   Eye, Building2, ChevronLeft, ChevronRight, User, Users, ArrowLeft,
   Clock, Calendar, BookOpen, BookMarked, MessageSquare, Mail, Phone,
   HeartPulse, FileText, CheckCircle2, ShieldAlert, Award, Check, GraduationCap, School,
-  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown
+  UserPlus, Sparkles, RotateCcw, Plus, ChevronDown, UserX
 } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -45,7 +45,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
-  const { user, role } = useAuth();
+  const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
   const isTeacherRole = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
 
@@ -152,15 +152,21 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Overall Class Overview dataset merging master definitions and apiStudents
   const classOverviewList = useMemo(() => {
+    const activeApiStudents = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+    const isFilteredBranch = selectedBranch && selectedBranch !== 'All Branches';
+
     return MASTER_CLASSES_OVERVIEW.map(clsObj => {
-      const realClassStudents = apiStudents.filter(
+      const realClassStudents = activeApiStudents.filter(
         s => s.className.toLowerCase() === clsObj.className.toLowerCase()
       );
       const sectionDetails = clsObj.sections.map(sec => {
         const realSecStudents = realClassStudents.filter(
           s => s.section.toLowerCase() === sec.name.toLowerCase()
         );
-        const count = realSecStudents.length > 0 ? realSecStudents.length : sec.count;
+        const count = isFilteredBranch 
+          ? realSecStudents.length 
+          : (realSecStudents.length > 0 ? realSecStudents.length : sec.count);
+
         return {
           sectionName: sec.name,
           count
@@ -176,26 +182,32 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         sections: sectionDetails
       };
     });
-  }, [apiStudents]);
+  }, [apiStudents, selectedBranch]);
 
   // Global Summary Cards Metrics
   const summaryMetrics = useMemo(() => {
     const totalClasses = classOverviewList.length;
     const totalSections = classOverviewList.reduce((acc, c) => acc + c.totalSections, 0);
-    const totalActiveStudents = classOverviewList.reduce((acc, c) => acc + c.totalClassStudents, 0);
-    const newAdmissions = Math.round(totalActiveStudents * 0.045) || 68;
+    const activeApiStudents = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+
+    const isFilteredBranch = selectedBranch && selectedBranch !== 'All Branches';
+    const totalActiveStudents = isFilteredBranch 
+      ? activeApiStudents.length 
+      : classOverviewList.reduce((acc, c) => acc + c.totalClassStudents, 0);
+
+    const inactiveStudentsCount = apiStudents.filter(s => s.status === 'Inactive').length;
+    const newAdmissions = Math.round(totalActiveStudents * 0.045) || (totalActiveStudents > 0 ? Math.max(1, Math.round(totalActiveStudents * 0.08)) : 0);
 
     return {
       totalClasses,
       totalSections,
       totalActiveStudents,
+      inactiveStudentsCount,
       newAdmissions
     };
-  }, [classOverviewList]);
+  }, [classOverviewList, apiStudents, selectedBranch]);
 
   // Landing Page Filter States
-  const [academicYearFilter, setAcademicYearFilter] = useState('2026-2027');
-  const [branchFilter, setBranchFilter] = useState('All Branches');
   const [searchClassQuery, setSearchClassQuery] = useState('');
   const [searchSectionQuery, setSearchSectionQuery] = useState('');
 
@@ -241,11 +253,22 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleViewInactiveStudents = () => {
+    setSelectedClass('All');
+    setSelectedSection('All');
+    setFilterStatus('Inactive');
+    setSearchName('');
+    setSearchAdmNo('');
+    setCurrentPage(1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleBackToOverview = () => {
     setSelectedClass(null);
     setSelectedSection(null);
     setSearchName('');
     setSearchAdmNo('');
+    setFilterStatus('All');
     setCurrentPage(1);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -254,8 +277,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const currentSectionRoster = useMemo(() => {
     if (!selectedClass || !selectedSection) return [];
 
+    if (selectedClass === 'All') {
+      return students.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+    }
+
     const realStudents = apiStudents.filter(
-      s => s.className.toLowerCase() === selectedClass.toLowerCase() &&
+      s => s.status !== 'Completed' && s.status !== 'Alumni' &&
+           s.className.toLowerCase() === selectedClass.toLowerCase() &&
            (selectedSection === 'All' || s.section.toLowerCase() === selectedSection.toLowerCase())
     );
 
@@ -288,6 +316,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         admissionNo: admNo,
         fatherName: father,
         fatherPhone: `+91 98${(i * 123456) % 100000000}`,
+        fatherOccupation: 'Business',
+        motherName: `Sunita ${ln}`,
+        motherPhone: `+91 97${(i * 654321) % 100000000}`,
+        email: `${fn.toLowerCase()}.${ln.toLowerCase()}@school.edu`,
+        phone: `+91 98${(i * 123456) % 100000000}`,
+        address: 'Knowledge City, NY',
+        joiningDate: '2022-06-01',
         status: i % 18 === 0 ? 'Inactive' : 'Active',
         dueFee: 0,
         branch: 'Main Campus',
@@ -350,8 +385,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <div>
               <h1 className="text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
                 <School className="w-7 h-7 text-brand-600 dark:text-brand-400" />
-                Student
+                Student Directory
               </h1>
+              <p className="text-xs font-bold text-slate-400 mt-1 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200/80 dark:border-brand-900/80">
+                  📍 Global Branch: <strong>{selectedBranch || 'All Branches'}</strong>
+                </span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/80 dark:border-sky-900/80">
+                  📅 Session: <strong>{selectedAcademicYear || '2026-2027'}</strong>
+                </span>
+              </p>
             </div>
             {onNavigate && (
               <button
@@ -364,7 +408,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           </div>
 
           {/* SUMMARY METRIC CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             {/* Total Classes */}
             <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-300 shrink-0">
@@ -398,6 +442,24 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               </div>
             </div>
 
+            {/* Inactive Students (Clickable to view inactive roster) */}
+            <div
+              onClick={handleViewInactiveStudents}
+              className="glass-card p-4 rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5 cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all group"
+              title="Click to view all inactive students"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
+                <UserX className="h-6 w-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                  <span>Inactive Students</span>
+                  <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold group-hover:underline">View &rarr;</span>
+                </p>
+                <p className="text-xl font-black text-rose-600 dark:text-rose-400 mt-0.5">{summaryMetrics.inactiveStudentsCount}</p>
+              </div>
+            </div>
+
             {/* New Admissions */}
             <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300 shrink-0">
@@ -410,67 +472,18 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
           </div>
 
-          {/* HEADER FILTERS & SEARCH CONTROL BAR */}
+          {/* SEARCH CONTROL BAR */}
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Academic Year Filter */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Academic Year</label>
-                <select
-                  value={academicYearFilter}
-                  onChange={e => setAcademicYearFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                >
-                  <option value="2026-2027">2026-2027 (Current)</option>
-                  <option value="2025-2026">2025-2026</option>
-                  <option value="2027-2028">2027-2028</option>
-                </select>
-              </div>
-
-              {/* Branch Filter */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Branch</label>
-                <select
-                  value={branchFilter}
-                  onChange={e => setBranchFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                >
-                  <option value="All">All Branches</option>
-                  {BRANCHES.map(b => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Search Class */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Search Class</label>
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="e.g. Class 9, Nursery..."
-                    value={searchClassQuery}
-                    onChange={e => setSearchClassQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                  />
-                </div>
-              </div>
-
-              {/* Search Section */}
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Search Section</label>
-                <div className="relative">
-                  <Filter className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="e.g. Section A..."
-                    value={searchSectionQuery}
-                    onChange={e => setSearchSectionQuery(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                  />
-                </div>
-              </div>
+            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Search Class</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+              <input
+                type="text"
+                placeholder="e.g. Class 9, Nursery..."
+                value={searchClassQuery}
+                onChange={e => setSearchClassQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
+              />
             </div>
           </div>
 
@@ -481,7 +494,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   Classes & Sections Overview
                 </h2>
-                <p className="text-xs text-slate-500">Click on any section chip to view student details</p>
               </div>
               <span className="text-xs font-bold text-slate-400">
                 Total Students Across All Classes: <strong className="text-slate-900 dark:text-white">{summaryMetrics.totalActiveStudents.toLocaleString()}</strong>
@@ -567,8 +579,20 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               </button>
               <div>
                 <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                  {selectedClass} - Section {selectedSection}
+                  {filterStatus === 'Inactive' ? (
+                    <>
+                      <UserX className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                      <span>Inactive Students</span>
+                      {selectedClass !== 'All' && (
+                        <span className="text-xs font-normal text-slate-400">({selectedClass} - Sec {selectedSection})</span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+                      <span>{selectedClass === 'All' ? 'All Student Roster' : `${selectedClass} - Section ${selectedSection}`}</span>
+                    </>
+                  )}
                 </h2>
               </div>
             </div>
@@ -589,7 +613,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
           {/* ROSTER TABLE FILTERS BAR */}
           <div className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Search Name */}
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
@@ -612,19 +636,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   onChange={e => setSearchAdmNo(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition font-mono"
                 />
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <select
-                  value={filterStatus}
-                  onChange={e => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="Active">Active Only</option>
-                  <option value="Inactive">Inactive Only</option>
-                </select>
               </div>
             </div>
           </div>

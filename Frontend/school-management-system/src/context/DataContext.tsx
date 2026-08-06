@@ -17,7 +17,8 @@ import {
   SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department, DesignationMaster, DocumentRequirementRule,
   FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionAuditLog,
   SchoolEvent, UnifiedCalendarEvent, EventCategory, HolidayType,
-  TrainingCategory, TrainingParticipant, WorkshopTraining, AssessmentType, AssessmentResult, EmployeeAssessment, IssuedCertificate
+  TrainingCategory, TrainingParticipant, WorkshopTraining, AssessmentType, AssessmentResult, EmployeeAssessment, IssuedCertificate,
+  AlumniRecord, AlumniCurrentStatus
 } from '../types';
 import {
   initialStudents, initialStaff, initialAdmissions, initialFeeStructures,
@@ -135,6 +136,12 @@ interface DataContextType {
   deleteStudent: (id: string) => void;
   promoteStudent: (id: string, targetClass: string, targetSection?: string, targetYear?: string, targetBranch?: string) => void;
   transferStudent: (id: string, reason: string) => void;
+  completeStudent: (id: string, completionAcademicYear?: string, currentStatus?: AlumniCurrentStatus) => void;
+  getHighestClass: () => string;
+
+  alumniRecords: AlumniRecord[];
+  addAlumniRecord: (record: Omit<AlumniRecord, 'id' | 'createdDate'>) => AlumniRecord;
+  updateAlumniStatus: (id: string, currentStatus: AlumniCurrentStatus, details?: { higherEducationDetail?: string; organizationCompany?: string }) => void;
 
   staff: Staff[];
   addStaff: (staffMember: Omit<Staff, 'id'>) => Staff;
@@ -864,6 +871,65 @@ const initialFinancialBudgets: FinancialBudget[] = [
   { id: 'BDG-04', categoryName: 'Electricity Bills', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 400000, consumedAmount: 38700, remainingAmount: 361300, status: 'Active' },
   { id: 'BDG-05', categoryName: 'Event & Festival Expenses', academicYear: '2025-2026', branch: 'Main Campus', allocatedAmount: 300000, consumedAmount: 0, remainingAmount: 300000, status: 'Active' }
 ];
+const initialAlumniRecords: AlumniRecord[] = [
+  {
+    id: 'ALM-101',
+    studentId: 'STD-1001',
+    admissionNo: 'ADM-2022-089',
+    studentName: 'Rohan Deshmukh',
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+    batch: 'Class of 2025',
+    completionAcademicYear: '2024-2025',
+    finalClass: 'Class 12',
+    finalSection: 'A',
+    completionDate: '2025-05-20',
+    currentStatus: 'Higher Studies',
+    higherEducationDetail: 'IIT Madras (B.Tech Computer Science)',
+    contactPhone: '9876543210',
+    contactEmail: 'rohan.deshmukh@gmail.com',
+    parentName: 'Sanjay Deshmukh',
+    branch: 'Main Campus',
+    createdDate: '2025-05-20'
+  },
+  {
+    id: 'ALM-102',
+    studentId: 'STD-1002',
+    admissionNo: 'ADM-2022-094',
+    studentName: 'Ananya Verma',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    batch: 'Class of 2025',
+    completionAcademicYear: '2024-2025',
+    finalClass: 'Class 12',
+    finalSection: 'B',
+    completionDate: '2025-05-20',
+    currentStatus: 'Working',
+    organizationCompany: 'Software Engineer @ Microsoft India',
+    contactPhone: '9876543211',
+    contactEmail: 'ananya.verma@gmail.com',
+    parentName: 'Vikram Verma',
+    branch: 'Main Campus',
+    createdDate: '2025-05-20'
+  },
+  {
+    id: 'ALM-103',
+    studentId: 'STD-1003',
+    admissionNo: 'ADM-2021-045',
+    studentName: 'Karthik Raja',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    batch: 'Class of 2024',
+    completionAcademicYear: '2023-2024',
+    finalClass: 'Class 12',
+    finalSection: 'A',
+    completionDate: '2024-05-18',
+    currentStatus: 'Competitive Exams',
+    higherEducationDetail: 'UPSC Civil Services Aspirant',
+    contactPhone: '9876543212',
+    contactEmail: 'karthik.raja@gmail.com',
+    parentName: 'Ramanathan Raja',
+    branch: 'Main Campus',
+    createdDate: '2024-05-18'
+  }
+];
 
 const initialSchoolEvents: SchoolEvent[] = [
   {
@@ -1139,7 +1205,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => getStored('fee_heads', initialFeeHeads));
-  const [dynamicFeeStructures, setDynamicFeeStructures] = useState<DynamicFeeStructure[]>(() => getStored('dynamic_fee_structures', initialDynamicFeeStructures));
+  const [dynamicFeeStructures, setDynamicFeeStructures] = useState<DynamicFeeStructure[]>(() => {
+    const stored = getStored('edu_db_dynamic_fee_structures', getStored('dynamic_fee_structures', initialDynamicFeeStructures));
+    return (stored && stored.length > 0) ? stored : initialDynamicFeeStructures;
+  });
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<StudentFeeAssignment[]>(() => getStored('student_fee_assignments', initialStudentFeeAssignments));
   const [scholarships, setScholarships] = useState<Scholarship[]>(() => getStored('scholarships', initialScholarships));
   const [studentScholarships, setStudentScholarships] = useState<StudentScholarship[]>(() => getStored('student_scholarships', initialStudentScholarships));
@@ -1305,9 +1374,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [employeeAssessments, setEmployeeAssessments] = useState<EmployeeAssessment[]>(() => getStored('employee_assessments', initialEmployeeAssessments));
   const [issuedCertificates, setIssuedCertificates] = useState<IssuedCertificate[]>(() => getStored('issued_certificates', initialIssuedCertificates));
 
+  // Alumni ERP State
+  const [alumniRecords, setAlumniRecords] = useState<AlumniRecord[]>(() => getStored('alumni_records', initialAlumniRecords));
+
   useEffect(() => { localStorage.setItem('edu_db_workshops', JSON.stringify(workshops)); }, [workshops]);
   useEffect(() => { localStorage.setItem('edu_db_employee_assessments', JSON.stringify(employeeAssessments)); }, [employeeAssessments]);
   useEffect(() => { localStorage.setItem('edu_db_issued_certificates', JSON.stringify(issuedCertificates)); }, [issuedCertificates]);
+  useEffect(() => { localStorage.setItem('edu_db_alumni_records', JSON.stringify(alumniRecords)); }, [alumniRecords]);
 
   // ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_fee_heads', JSON.stringify(feeHeads)); }, [feeHeads]);
@@ -1624,6 +1697,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const transferStudent = (id: string, reason: string) => {
     setStudents(prev => prev.map(s => s.id === id ? { ...s, status: 'Transferred' } : s));
     logActivity('Transferred Student', `Transferred student ID ${id}. Reason: ${reason}`);
+  };
+
+  const getHighestClass = () => {
+    if (schoolProfile?.highestClass) {
+      return schoolProfile.highestClass;
+    }
+    if (academicClasses && academicClasses.length > 0) {
+      const sorted = [...academicClasses].sort((a, b) => {
+        const numA = parseInt(a.name.replace(/[^0-9]/g, '')) || 0;
+        const numB = parseInt(b.name.replace(/[^0-9]/g, '')) || 0;
+        return numB - numA;
+      });
+      if (sorted[0]?.name) return sorted[0].name;
+    }
+    return 'Class 12';
+  };
+
+  const addAlumniRecord = (record: Omit<AlumniRecord, 'id' | 'createdDate'>): AlumniRecord => {
+    const id = 'ALM-' + Math.floor(1000 + Math.random() * 9000);
+    const newRecord: AlumniRecord = {
+      ...record,
+      id,
+      createdDate: new Date().toISOString().split('T')[0]
+    };
+    setAlumniRecords(prev => [newRecord, ...prev]);
+    return newRecord;
+  };
+
+  const updateAlumniStatus = (id: string, currentStatus: AlumniCurrentStatus, details?: { higherEducationDetail?: string; organizationCompany?: string }) => {
+    setAlumniRecords(prev => prev.map(a => {
+      if (a.id === id || a.studentId === id) {
+        return {
+          ...a,
+          currentStatus,
+          higherEducationDetail: details?.higherEducationDetail ?? a.higherEducationDetail,
+          organizationCompany: details?.organizationCompany ?? a.organizationCompany
+        };
+      }
+      return a;
+    }));
+  };
+
+  const completeStudent = (id: string, completionAcademicYear?: string, currentStatus: AlumniCurrentStatus = 'Unknown') => {
+    const targetStudent = students.find(s => s.id === id);
+    if (!targetStudent) return;
+
+    const finalYear = completionAcademicYear || schoolProfile.academicYear || '2025-2026';
+    const batchYear = finalYear.split('-')[1] || finalYear.split('-')[0] || '2026';
+    const batchLabel = `Class of ${batchYear}`;
+
+    setStudents(prev => prev.map(s => s.id === id ? {
+      ...s,
+      status: 'Completed',
+      completionDate: new Date().toISOString().split('T')[0],
+      completionAcademicYear: finalYear
+    } : s));
+
+    const exists = alumniRecords.find(a => a.studentId === id || a.admissionNo === targetStudent.admissionNo);
+    if (!exists) {
+      const newAlumni: AlumniRecord = {
+        id: 'ALM-' + Math.floor(1000 + Math.random() * 9000),
+        studentId: targetStudent.id,
+        admissionNo: targetStudent.admissionNo,
+        studentName: `${targetStudent.firstName} ${targetStudent.lastName}`,
+        avatar: targetStudent.avatar,
+        batch: batchLabel,
+        completionAcademicYear: finalYear,
+        finalClass: targetStudent.className,
+        finalSection: targetStudent.section,
+        completionDate: new Date().toISOString().split('T')[0],
+        currentStatus,
+        contactPhone: targetStudent.phone || targetStudent.fatherPhone || targetStudent.guardianPhone,
+        contactEmail: targetStudent.email || targetStudent.fatherEmail || targetStudent.guardianEmail,
+        parentName: targetStudent.fatherName || targetStudent.parentName,
+        branch: targetStudent.branch || selectedBranch || 'Main Campus',
+        createdDate: new Date().toISOString().split('T')[0]
+      };
+      setAlumniRecords(prev => [newAlumni, ...prev]);
+    }
+
+    logActivity('Completed Education', `Student ${targetStudent.firstName} ${targetStudent.lastName} completed ${targetStudent.className} and graduated to Alumni.`);
   };
 
   // Staff CRUD
@@ -5257,17 +5411,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Check branch
       let branchMatch = true;
-      if (selectedBranch && anyItem.branch !== 'All Branches') {
-        if (anyItem.applicableBranches) {
-          branchMatch = anyItem.applicableBranches.includes(selectedBranch);
+      if (selectedBranch && selectedBranch !== 'All Branches') {
+        if (anyItem.applicableBranches && Array.isArray(anyItem.applicableBranches)) {
+          branchMatch = anyItem.applicableBranches.includes(selectedBranch) || anyItem.applicableBranches.includes('All Branches');
         } else if (anyItem.branch) {
-          branchMatch = anyItem.branch === selectedBranch;
+          branchMatch = anyItem.branch === 'All Branches' || 
+                        anyItem.branch.toLowerCase() === selectedBranch.toLowerCase() ||
+                        selectedBranch.toLowerCase().includes(anyItem.branch.toLowerCase()) ||
+                        anyItem.branch.toLowerCase().includes(selectedBranch.toLowerCase());
         }
       }
 
       // Check academic year
       let ayMatch = true;
-      if (selectedAcademicYear && anyItem.academicYear && anyItem.academicYear !== 'All') {
+      if (selectedAcademicYear && selectedAcademicYear !== 'All' && anyItem.academicYear && anyItem.academicYear !== 'All') {
         ayMatch = anyItem.academicYear === selectedAcademicYear;
       }
 
@@ -5341,7 +5498,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         schoolProfile, updateSchoolProfile,
         academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, setCurrentAcademicYear,
-        students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent,
+        students: filteredStudents, addStudent, updateStudent, deleteStudent, promoteStudent, transferStudent, completeStudent, getHighestClass,
+        alumniRecords: filterByBranch(alumniRecords), addAlumniRecord, updateAlumniStatus,
         staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
         admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
         academicClasses: filteredClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,

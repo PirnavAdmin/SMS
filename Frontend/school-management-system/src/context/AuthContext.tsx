@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token');
+    return localStorage.getItem('auth_token') || null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {

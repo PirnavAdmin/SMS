@@ -6,7 +6,7 @@ import {
   Settings, ChevronRight, School, Shirt, Layers, Tag, UserPlus,
   Gift, Percent, AlertTriangle, Route, Bed, Receipt, RotateCcw,
   FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, Presentation,
-  Link2
+  Link2, TrendingUp
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useData } from '../../context/DataContext';
@@ -122,9 +122,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
     { id: 'finance-masters', label: 'Finance Setup', icon: SlidersHorizontal },
+    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
     { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet },
   ];
 
@@ -173,9 +173,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Core Operations',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff', icon: Users },
+      ]
+    },
+    {
+      title: 'Student Management',
+      items: [
         { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
         { id: 'students', label: 'Student Directory', icon: UserCheck },
-        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff', icon: Users },
+        { id: 'student-promotion', label: 'Student Promotion', icon: TrendingUp },
+        { id: 'transfer-certificates', label: 'Transfer Certificates', icon: FileText },
+        { id: 'alumni', label: 'Alumni', icon: Award },
       ]
     },
     {

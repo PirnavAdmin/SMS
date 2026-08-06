@@ -38,6 +38,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [sortBy, setSortBy] = useState<'regAsc' | 'regDesc' | 'nameAsc' | 'nameDesc' | 'classAsc' | 'classDesc'>('regDesc');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
 
@@ -199,12 +200,34 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       a.applicationNo.toLowerCase().includes(query.toLowerCase()) ||
                       a.parentName.toLowerCase().includes(query.toLowerCase());
     const matchClass = filterClass === 'All' || a.appliedClass === filterClass;
-    const matchStatus = filterStatus === 'All' || a.status === filterStatus;
+    const matchStatus = filterStatus === 'All' || (a.status || '').toLowerCase() === filterStatus.toLowerCase();
     return matchQuery && matchClass && matchStatus;
   });
 
-  const totalPages = Math.ceil(filteredAdmissions.length / pageSize) || 1;
-  const paginated = filteredAdmissions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const sortedAdmissions = [...filteredAdmissions].sort((a, b) => {
+    if (sortBy === 'regAsc') {
+      return a.applicationNo.localeCompare(b.applicationNo, undefined, { numeric: true });
+    }
+    if (sortBy === 'regDesc') {
+      return b.applicationNo.localeCompare(a.applicationNo, undefined, { numeric: true });
+    }
+    if (sortBy === 'nameAsc') {
+      return a.applicantName.localeCompare(b.applicantName);
+    }
+    if (sortBy === 'nameDesc') {
+      return b.applicantName.localeCompare(a.applicantName);
+    }
+    if (sortBy === 'classAsc') {
+      return a.appliedClass.localeCompare(b.appliedClass, undefined, { numeric: true });
+    }
+    if (sortBy === 'classDesc') {
+      return b.appliedClass.localeCompare(a.appliedClass, undefined, { numeric: true });
+    }
+    return 0;
+  });
+
+  const totalPages = Math.ceil(sortedAdmissions.length / pageSize) || 1;
+  const paginated = sortedAdmissions.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const handleOpenAdd = () => {
     setEditingApp(null);
@@ -397,11 +420,36 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     handleCloseForm();
   };
 
-  const calculateLiveFeePreview = () => {
-    const stType = formData.studentType || 'Day Scholar';
-    const clsName = formData.appliedClass || 'Class 10';
+  const isItemMandatory = (item: { feeHeadId: string; feeHeadName: string }) => {
+    const fh = feeHeads.find(h => 
+      h.id === item.feeHeadId || 
+      h.id.replace('-0', '-') === item.feeHeadId ||
+      h.id === item.feeHeadId.replace('-0', '-') ||
+      h.name.toLowerCase() === item.feeHeadName.toLowerCase()
+    );
+    if (fh !== undefined && fh.mandatory !== undefined) {
+      return fh.mandatory;
+    }
+    const lowerName = item.feeHeadName.toLowerCase();
+    return (
+      lowerName.includes('tuition') || 
+      lowerName.includes('admission') || 
+      lowerName.includes('book') || 
+      lowerName.includes('textbook') || 
+      lowerName.includes('stationery') ||
+      lowerName.includes('material')
+    );
+  };
 
-    const dfs = dynamicFeeStructures.find(d => d.className === clsName && d.status === 'Active') || dynamicFeeStructures[0];
+  const calculateLiveFeePreview = () => {
+    if (!formData.appliedClass || formData.appliedClass === 'Select Class') {
+      return { items: [], totalPayable: 0, isClassSelected: false };
+    }
+
+    const stType = formData.studentType || 'Day Scholar';
+    const clsName = formData.appliedClass;
+
+    const dfs = dynamicFeeStructures.find(d => d.className === clsName && d.status === 'Active') || dynamicFeeStructures.find(d => d.className === clsName) || dynamicFeeStructures[0];
     const baseItems = dfs ? dfs.items : [
       { feeHeadId: 'FH-01', feeHeadName: 'Tuition Fee', amount: 25000 },
       { feeHeadId: 'FH-02', feeHeadName: 'Admission Fee', amount: 5000 },
@@ -413,8 +461,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     let items: { name: string; amount: number; isApplicable: boolean; remarks?: string }[] = [];
 
     baseItems.forEach(i => {
-      const fh = feeHeads.find(h => h.id === i.feeHeadId || h.name === i.feeHeadName);
-      const isMandatory = fh ? fh.mandatory : true;
+      const isMandatory = isItemMandatory(i);
       const isSelected = isMandatory || (formData.selectedOptionalFees || []).includes(i.feeHeadId);
       items.push({
         name: i.feeHeadName,
@@ -519,9 +566,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       });
     }
 
+    // Sort items so active applicable fees appear at top, and unselected optional/non-applicable fees appear at bottom
+    items.sort((a, b) => {
+      if (a.isApplicable === b.isApplicable) return 0;
+      return a.isApplicable ? -1 : 1;
+    });
+
     const totalPayable = items.reduce((acc, i) => acc + (i.isApplicable ? i.amount : 0), 0);
 
-    return { items, totalPayable };
+    return { items, totalPayable, isClassSelected: true };
   };
 
   // FULL-PAGE APPLICATION FORM VIEW
@@ -708,12 +761,36 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Caste Category *</label>
                   <select
-                    value={formData.casteCategory}
-                    onChange={e => setFormData({ ...formData, casteCategory: e.target.value })}
+                    value={
+                      CASTE_CATEGORIES.includes(formData.casteCategory as any) || formData.casteCategory === 'Other'
+                        ? (formData.casteCategory === 'Other' ? 'Others' : formData.casteCategory)
+                        : (formData.casteCategory ? 'Others' : 'General')
+                    }
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === 'Others') {
+                        setFormData({ ...formData, casteCategory: 'Others' });
+                      } else {
+                        setFormData({ ...formData, casteCategory: val });
+                      }
+                    }}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
                   >
                     {CASTE_CATEGORIES.map(cc => <option key={cc} value={cc}>{cc}</option>)}
                   </select>
+
+                  {(formData.casteCategory === 'Others' || formData.casteCategory === 'Other' || (!CASTE_CATEGORIES.includes(formData.casteCategory as any) && formData.casteCategory)) && (
+                    <div className="mt-2 animate-in fade-in">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Specify Caste Category (e.g. Minorities / NT / VJNT)"
+                        value={formData.casteCategory === 'Others' || formData.casteCategory === 'Other' ? '' : formData.casteCategory}
+                        onChange={e => setFormData({ ...formData, casteCategory: e.target.value || 'Others' })}
+                        className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500 shadow-xs"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1100,14 +1177,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   { feeHeadId: 'FH-05', feeHeadName: 'Science & Computer Lab Fee', amount: 2500 }
                 ];
                 
-                const optionalItems = baseItems.filter(item => {
-                  const fh = feeHeads.find(h => h.id === item.feeHeadId || h.name === item.feeHeadName);
-                  if (fh) {
-                    return !fh.mandatory;
-                  }
-                  const lowerName = item.feeHeadName.toLowerCase();
-                  return !(lowerName.includes('tuition') || lowerName.includes('admission') || lowerName.includes('book') || lowerName.includes('textbook') || lowerName.includes('stationery'));
-                });
+                const optionalItems = baseItems.filter(item => !isItemMandatory(item));
 
                 if (optionalItems.length === 0) return null;
 
@@ -1176,43 +1246,61 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   </h3>
                   <p className="text-[10px] text-slate-400">Updates live as form values change</p>
                 </div>
-                <span className="px-2.5 py-0.5 rounded-full bg-sky-950 text-sky-300 font-extrabold text-[10px] border border-sky-800">
-                  {formData.studentType || 'Day Scholar'}
-                </span>
+                {liveFee.isClassSelected && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-sky-950 text-sky-300 font-extrabold text-[10px] border border-sky-800">
+                    {formData.appliedClass} • {formData.studentType || 'Day Scholar'}
+                  </span>
+                )}
               </div>
 
-              {/* Line Items */}
-              <div className="space-y-2 text-xs">
-                {liveFee.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex justify-between py-1.5 px-2.5 rounded-xl transition-all ${
-                      item.isApplicable
-                        ? 'bg-slate-800/80 border border-slate-700/60'
-                        : 'bg-slate-950/40 text-slate-500 border border-slate-900'
-                    }`}
-                  >
-                    <span className={`font-bold flex items-center gap-1.5 ${item.isApplicable ? 'text-slate-200' : 'text-slate-500 line-through'}`}>
-                      {item.isApplicable ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                      ) : (
-                        <XCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      )}
-                      <span className="truncate max-w-[170px]">{item.name}</span>
-                    </span>
-                    <span className={item.isApplicable ? 'font-black text-white' : 'text-[10px] italic text-slate-500'}>
-                      {item.isApplicable ? formatCurrency(item.amount) : (item.remarks || 'Not Applicable')}
-                    </span>
+              {!liveFee.isClassSelected ? (
+                <div className="py-10 px-4 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-800 text-sky-400 flex items-center justify-center mx-auto border border-slate-700">
+                    <Calculator className="w-6 h-6 animate-pulse text-sky-400" />
                   </div>
-                ))}
-              </div>
+                  <div>
+                    <h4 className="font-bold text-xs text-white">Select Applied Class Grade</h4>
+                    <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] mx-auto">
+                      Please select an applied class grade from the form to view its dynamic fee structure breakdown.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Line Items */}
+                  <div className="space-y-2 text-xs">
+                    {liveFee.items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex justify-between py-1.5 px-2.5 rounded-xl transition-all ${
+                          item.isApplicable
+                            ? 'bg-slate-800/80 border border-slate-700/60'
+                            : 'bg-slate-950/40 text-slate-500 border border-slate-900'
+                        }`}
+                      >
+                        <span className={`font-bold flex items-center gap-1.5 ${item.isApplicable ? 'text-slate-200' : 'text-slate-500 line-through'}`}>
+                          {item.isApplicable ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          ) : (
+                            <XCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          )}
+                          <span className="truncate max-w-[170px]">{item.name}</span>
+                        </span>
+                        <span className={item.isApplicable ? 'font-black text-white' : 'text-[10px] italic text-slate-500'}>
+                          {item.isApplicable ? formatCurrency(item.amount) : (item.remarks || 'Not Applicable')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
 
-              {/* Total Summary */}
-              <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800/60 space-y-1">
-                <p className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Total Estimated Payable</p>
-                <h4 className="text-2xl font-black text-emerald-300">{formatCurrency(liveFee.totalPayable)}</h4>
-                <p className="text-[10px] text-slate-400">Permanent Student Fee Ledger will be generated upon admission enrollment.</p>
-              </div>
+                  {/* Total Summary */}
+                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950 to-slate-900 border border-emerald-800/60 space-y-1">
+                    <p className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Total Estimated Payable</p>
+                    <h4 className="text-2xl font-black text-emerald-300">{formatCurrency(liveFee.totalPayable)}</h4>
+                    <p className="text-[10px] text-slate-400">Permanent Student Fee Ledger will be generated upon admission enrollment.</p>
+                  </div>
+                </>
+              )}
             </div>
           );
         })()}
@@ -1283,9 +1371,36 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Status</option>
-              {Array.from(new Set(admissions.map(a => a.status))).sort().map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              {Array.from(new Set([
+                'Pending',
+                'Enrolled',
+                'Rejected',
+                ...admissions.map(a => {
+                  const s = (a.status || 'Pending').trim();
+                  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+                })
+              ]))
+                .filter(s => s !== 'Deleted')
+                .sort()
+                .map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] font-bold text-slate-400">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+            >
+              <option value="regDesc">Latest Admissions</option>
+              <option value="regAsc">Oldest Admissions</option>
+              <option value="nameAsc">Student Name (A-Z)</option>
+              <option value="nameDesc">Student Name (Z-A)</option>
+              <option value="classAsc">Class (Low to High)</option>
+              <option value="classDesc">Class (High to Low)</option>
             </select>
           </div>
         </div>
