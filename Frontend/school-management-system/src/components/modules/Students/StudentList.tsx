@@ -21,24 +21,7 @@ import { TransferStudentModal } from './TransferStudentModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
 import { BRANCHES } from '../../../utils/validation';
 
-// Master Class & Section dataset for scalable overview
-const MASTER_CLASSES_OVERVIEW = [
-  { className: 'Nursery', sections: [{ name: 'A', count: 18 }, { name: 'B', count: 17 }, { name: 'C', count: 16 }] },
-  { className: 'LKG', sections: [{ name: 'A', count: 20 }, { name: 'B', count: 19 }, { name: 'C', count: 18 }] },
-  { className: 'UKG', sections: [{ name: 'A', count: 21 }, { name: 'B', count: 20 }, { name: 'C', count: 19 }] },
-  { className: 'Class 1', sections: [{ name: 'A', count: 32 }, { name: 'B', count: 30 }, { name: 'C', count: 29 }] },
-  { className: 'Class 2', sections: [{ name: 'A', count: 34 }, { name: 'B', count: 31 }, { name: 'C', count: 30 }] },
-  { className: 'Class 3', sections: [{ name: 'A', count: 33 }, { name: 'B', count: 32 }, { name: 'C', count: 31 }] },
-  { className: 'Class 4', sections: [{ name: 'A', count: 35 }, { name: 'B', count: 34 }, { name: 'C', count: 33 }] },
-  { className: 'Class 5', sections: [{ name: 'A', count: 36 }, { name: 'B', count: 34 }, { name: 'C', count: 33 }] },
-  { className: 'Class 6', sections: [{ name: 'A', count: 37 }, { name: 'B', count: 35 }, { name: 'C', count: 34 }] },
-  { className: 'Class 7', sections: [{ name: 'A', count: 38 }, { name: 'B', count: 36 }, { name: 'C', count: 35 }] },
-  { className: 'Class 8', sections: [{ name: 'A', count: 39 }, { name: 'B', count: 37 }, { name: 'C', count: 36 }] },
-  { className: 'Class 9', sections: [{ name: 'A', count: 42 }, { name: 'B', count: 41 }, { name: 'C', count: 40 }, { name: 'D', count: 39 }, { name: 'E', count: 38 }] },
-  { className: 'Class 10', sections: [{ name: 'A', count: 40 }, { name: 'B', count: 38 }, { name: 'C', count: 37 }] },
-  { className: 'Class 11', sections: [{ name: 'A', count: 35 }, { name: 'B', count: 32 }, { name: 'C', count: 30 }] },
-  { className: 'Class 12', sections: [{ name: 'A', count: 45 }, { name: 'B', count: 43 }] }
-];
+
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const { students, updateStudent, deleteStudent, academicClasses, staff } = useData();
@@ -150,26 +133,73 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     loadStudents();
   }, [students]);
 
-  // Overall Class Overview dataset merging master definitions and apiStudents
+  // Helper to calculate natural ascending order rank for classes
+  const getClassOrderRank = (name: string): number => {
+    const normalized = name.trim().toLowerCase();
+    if (normalized.includes('nursery') || normalized.includes('play')) return 1;
+    if (normalized.includes('lkg') || normalized.includes('pp1') || normalized.includes('pre-kg')) return 2;
+    if (normalized.includes('ukg') || normalized.includes('pp2') || normalized.includes('kg')) return 3;
+
+    const match = normalized.match(/\d+/);
+    if (match) {
+      return 10 + parseInt(match[0], 10);
+    }
+    return 999;
+  };
+
+  // Overall Class Overview dataset dynamically computed from Class Management module & sorted in ascending order
   const classOverviewList = useMemo(() => {
     const activeApiStudents = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
-    const isFilteredBranch = selectedBranch && selectedBranch !== 'All Branches';
+    const branchFilteredStudents = (selectedBranch && selectedBranch !== 'All Branches')
+      ? activeApiStudents.filter(s => !s.branch || s.branch === selectedBranch)
+      : activeApiStudents;
 
-    return MASTER_CLASSES_OVERVIEW.map(clsObj => {
-      const realClassStudents = activeApiStudents.filter(
+    // Map of class name -> list of sections
+    const classMap = new Map<string, { className: string; sections: string[] }>();
+
+    if (academicClasses && academicClasses.length > 0) {
+      academicClasses.forEach(ac => {
+        classMap.set(ac.name, {
+          className: ac.name,
+          sections: (ac.sections && ac.sections.length > 0) ? [...ac.sections] : ['A', 'B']
+        });
+      });
+    }
+
+    // Collect any extra classes present in active student records
+    branchFilteredStudents.forEach(s => {
+      if (s.className) {
+        if (!classMap.has(s.className)) {
+          classMap.set(s.className, { className: s.className, sections: ['A', 'B'] });
+        }
+        if (s.section) {
+          const entry = classMap.get(s.className);
+          if (entry && !entry.sections.includes(s.section)) {
+            entry.sections.push(s.section);
+          }
+        }
+      }
+    });
+
+    const classList = Array.from(classMap.values());
+
+    const overviewItems = classList.map(clsObj => {
+      const realClassStudents = branchFilteredStudents.filter(
         s => s.className.toLowerCase() === clsObj.className.toLowerCase()
       );
-      const sectionDetails = clsObj.sections.map(sec => {
+
+      // Combine configured sections with any sections present in student records
+      const existingStudentSections = Array.from(new Set(realClassStudents.map(s => s.section))).filter(Boolean);
+      const allSections = Array.from(new Set([...clsObj.sections, ...existingStudentSections])).sort();
+
+      const sectionDetails = allSections.map(secName => {
         const realSecStudents = realClassStudents.filter(
-          s => s.section.toLowerCase() === sec.name.toLowerCase()
+          s => s.section.toLowerCase() === secName.toLowerCase()
         );
-        const count = isFilteredBranch 
-          ? realSecStudents.length 
-          : (realSecStudents.length > 0 ? realSecStudents.length : sec.count);
 
         return {
-          sectionName: sec.name,
-          count
+          sectionName: secName,
+          count: realSecStudents.length
         };
       });
 
@@ -182,7 +212,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         sections: sectionDetails
       };
     });
-  }, [apiStudents, selectedBranch]);
+
+    // Sort classes in natural ascending order: Nursery -> LKG -> UKG -> Class 1 -> Class 2 ... Class 12
+    return overviewItems.sort((a, b) => getClassOrderRank(a.className) - getClassOrderRank(b.className));
+  }, [academicClasses, apiStudents, selectedBranch]);
 
   // Global Summary Cards Metrics
   const summaryMetrics = useMemo(() => {
@@ -387,15 +420,6 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 <School className="w-7 h-7 text-brand-600 dark:text-brand-400" />
                 Student Directory
               </h1>
-              <p className="text-xs font-bold text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 border border-brand-200/80 dark:border-brand-900/80">
-                  📍 Global Branch: <strong>{selectedBranch || 'All Branches'}</strong>
-                </span>
-                <span>•</span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/80 dark:border-sky-900/80">
-                  📅 Session: <strong>{selectedAcademicYear || '2026-2027'}</strong>
-                </span>
-              </p>
             </div>
             {onNavigate && (
               <button
@@ -473,9 +497,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           </div>
 
           {/* SEARCH CONTROL BAR */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-            <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Search Class</label>
-            <div className="relative">
+          <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
+            <div className="relative w-full max-w-sm sm:w-72">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
               <input
                 type="text"

@@ -254,7 +254,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       addressPinCode: '',
       siblingsCount: 0,
       siblingStudentId: '',
-      studentType: '' as any,
+      studentType: 'Day Scholar',
       transportRequired: false,
       transportType: '' as any,
       busRoute: '',
@@ -676,7 +676,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Applied Class Grade *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Class *</label>
                   <select
                     value={formData.appliedClass}
                     onChange={e => setFormData({ ...formData, appliedClass: e.target.value })}
@@ -930,7 +930,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Student Type *</label>
                 <select
-                  value={formData.studentType}
+                  value={formData.studentType || 'Day Scholar'}
                   onChange={e => setFormData({ ...formData, studentType: e.target.value as StudentType })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
                 >
@@ -940,16 +940,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               </div>
 
               {/* Conditional Rendering for Day Scholar */}
-              {formData.studentType === 'Day Scholar' && (
+              {(formData.studentType || 'Day Scholar') === 'Day Scholar' && (
                 <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-sky-900 dark:text-sky-200">Transport Required?</span>
-                    <div className="flex gap-4 font-bold text-slate-900 dark:text-white">
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input type="radio" name="trans" checked={formData.transportRequired === true} onChange={() => setFormData({ ...formData, transportRequired: true })} /> Yes
+                    <span className="font-bold text-sky-900 dark:text-sky-200 text-xs sm:text-sm">School Transport Facility Required?</span>
+                    <div className="flex gap-4 font-bold text-xs text-slate-900 dark:text-white">
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                        <input type="radio" name="trans" checked={formData.transportRequired === true} onChange={() => setFormData({ ...formData, transportRequired: true })} className="w-4 h-4 text-sky-600 focus:ring-sky-500" /> Yes (School Bus)
                       </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer">
-                        <input type="radio" name="trans" checked={formData.transportRequired === false} onChange={() => setFormData({ ...formData, transportRequired: false })} /> No
+                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                        <input type="radio" name="trans" checked={formData.transportRequired === false || !formData.transportRequired} onChange={() => setFormData({ ...formData, transportRequired: false })} className="w-4 h-4 text-sky-600 focus:ring-sky-500" /> No (Self Transport)
                       </label>
                     </div>
                   </div>
@@ -1259,9 +1259,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <Calculator className="w-6 h-6 animate-pulse text-sky-400" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-xs text-white">Select Applied Class Grade</h4>
+                    <h4 className="font-bold text-xs text-white">Select Class</h4>
                     <p className="text-[10px] text-slate-400 mt-1 max-w-[200px] mx-auto">
-                      Please select an applied class grade from the form to view its dynamic fee structure breakdown.
+                      Please select a class from the form to view its dynamic fee structure breakdown.
                     </p>
                   </div>
                 </div>
