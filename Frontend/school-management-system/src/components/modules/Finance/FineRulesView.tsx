@@ -74,7 +74,7 @@ export const FineRulesView: React.FC = () => {
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2"
         >
-          <Plus className="w-4 h-4" /> Add Late Fine Rule
+          <Plus className="w-4 h-4" /> Add Late Fine
         </button>
       </div>
 
@@ -119,7 +119,7 @@ export const FineRulesView: React.FC = () => {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                {editingRule ? 'Edit Fine Rule' : 'Add Late Fee Rule'}
+                {editingRule ? 'Edit Fine' : 'Add Late Fee'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
             </div>
@@ -163,7 +163,7 @@ export const FineRulesView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save Fine Rule</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save</button>
               </div>
             </form>
           </div>

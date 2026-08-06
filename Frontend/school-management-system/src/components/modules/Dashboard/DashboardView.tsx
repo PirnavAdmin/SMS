@@ -148,7 +148,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 p-3.5 sm:p-4 text-slate-900 dark:text-white border border-brand-200/60 dark:border-slate-800/80 shadow-xs">
+      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 p-3.5 sm:p-4 text-slate-900 dark:text-white border border-brand-200 dark:border-slate-800 shadow-xs">
         <div className="absolute right-0 top-0 w-96 h-96 bg-brand-100/50 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
@@ -160,7 +160,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               Welcome to {schoolProfile.name}. Here's what's happening today.
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-4 py-2.5 rounded-2xl border border-brand-200/50 dark:border-slate-700/60 shadow-xs">
+          <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
             <div className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-50 dark:bg-slate-900 shrink-0">
               {hour < 17 ? <Sun className="w-4.5 h-4.5 text-amber-500" /> : <Moon className="w-4.5 h-4.5 text-indigo-400" />}
             </div>

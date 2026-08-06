@@ -214,8 +214,7 @@ export const FinanceHostelConfigView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Home className="w-5 h-5 text-sky-500" />
-              {editingConfig ? 'Edit Hostel Configuration' : 'Add Hostel Configuration'}
+              {editingConfig ? 'Edit Hostel Fee' : 'Add Hostel Fee'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
@@ -329,7 +328,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20"
                 >
-                  Save Configuration
+                  Save
                 </button>
               </div>
             </form>
