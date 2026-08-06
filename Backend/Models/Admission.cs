@@ -1,10 +1,9 @@
-namespace SMS.Api.Models;
-
-using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-[Table("students")]
+namespace SMS.Api.Models;
+
+[Table("admissions")]
 public class Admission
 {
     [Key]
@@ -48,7 +47,7 @@ public class Admission
     public string Status { get; set; } = "Pending";
 
     [Column("is_deleted")]
-    public bool IsDeleted { get; set; } = false;
+    public bool IsDeleted { get; set; }
 
     [Column("created_by")]
     public long? CreatedBy { get; set; }

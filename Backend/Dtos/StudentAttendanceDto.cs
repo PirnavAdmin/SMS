@@ -47,6 +47,7 @@ public class StudentAttendanceRegisterResponseDto
 public class MarkStudentAttendanceDto
 {
     public int StudentId { get; set; }
+    public int AttendanceSessionId { get; set; }
     public DateTime Date { get; set; }
     public string Status { get; set; } = "Present";
     public string? Remarks { get; set; }

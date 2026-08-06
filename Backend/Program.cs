@@ -46,85 +46,54 @@ builder.Services.AddScoped<IStudentHostelService, StudentHostelService>();
 builder.Services.AddScoped<IStudentTransportService, StudentTransportService>();
 
 // Transport Route
-builder.Services.AddScoped<
-    ITransportRouteRepository,
-    TransportRouteRepository>();
+builder.Services.AddScoped<ITransportRouteRepository,TransportRouteRepository>();
 
-builder.Services.AddScoped<
-    ITransportRouteService,
-    TransportRouteService>();
+builder.Services.AddScoped<ITransportRouteService,TransportRouteService>();
 
 // Pickup Point
-builder.Services.AddScoped<
-    IPickupPointRepository,
-    PickupPointRepository>();
+builder.Services.AddScoped<IPickupPointRepository,PickupPointRepository>();
 
-builder.Services.AddScoped<
-    IPickupPointService,
-    PickupPointService>();
+builder.Services.AddScoped<IPickupPointService,PickupPointService>();
 
 // Transport Vehicle
-builder.Services.AddScoped<
-    ITransportVehicleRepository,
-    TransportVehicleRepository>();
+builder.Services.AddScoped<ITransportVehicleRepository,TransportVehicleRepository>();
 
-builder.Services.AddScoped<
-    ITransportVehicleService,
-    TransportVehicleService>();
+builder.Services.AddScoped<ITransportVehicleService,TransportVehicleService>();
 
 // Transport Driver
-builder.Services.AddScoped<
-    ITransportDriverRepository,
-    TransportDriverRepository>();
+builder.Services.AddScoped<ITransportDriverRepository,TransportDriverRepository>();
 
-builder.Services.AddScoped<
-    ITransportDriverService,
-    TransportDriverService>();
+builder.Services.AddScoped<ITransportDriverService,TransportDriverService>();
 
 // Vehicle Assignment
-builder.Services.AddScoped<
-    ITransportVehicleAssignmentRepository,
-    TransportVehicleAssignmentRepository>();
+builder.Services.AddScoped<ITransportVehicleAssignmentRepository,TransportVehicleAssignmentRepository>();
 
-builder.Services.AddScoped<
-    ITransportVehicleAssignmentService,
-    TransportVehicleAssignmentService>();
+builder.Services.AddScoped<ITransportVehicleAssignmentService,TransportVehicleAssignmentService>();
 
 // Student Transport Assignment
-builder.Services.AddScoped<
-    IStudentTransportAssignmentRepository,
-    StudentTransportAssignmentRepository>();
+builder.Services.AddScoped<IStudentTransportAssignmentRepository,StudentTransportAssignmentRepository>();
 
-builder.Services.AddScoped<
-    IStudentTransportAssignmentService,
-    StudentTransportAssignmentService>();
+builder.Services.AddScoped<IStudentTransportAssignmentService,StudentTransportAssignmentService>();
 
 // Vehicle Maintenance
-builder.Services.AddScoped<
-    IVehicleMaintenanceRepository,
-    VehicleMaintenanceRepository>();
+builder.Services.AddScoped<IVehicleMaintenanceRepository,VehicleMaintenanceRepository>();
 
-builder.Services.AddScoped<
-    IVehicleMaintenanceService,
-    VehicleMaintenanceService>();
+builder.Services.AddScoped<IVehicleMaintenanceService,VehicleMaintenanceService>();
 
 // Transport Dashboard
-builder.Services.AddScoped<
-    ITransportDashboardRepository,
-    TransportDashboardRepository>();
+builder.Services.AddScoped<ITransportDashboardRepository,TransportDashboardRepository>();
 
-builder.Services.AddScoped<
-    ITransportDashboardService,
-    TransportDashboardService>();
+builder.Services.AddScoped<ITransportDashboardService,TransportDashboardService>();
 
 // Transport Reports
-builder.Services.AddScoped<
-    ITransportReportRepository,
-    TransportReportRepository>();
+builder.Services.AddScoped<ITransportReportRepository,TransportReportRepository>();
 
-builder.Services.AddScoped<
-    ITransportReportService,
-    TransportReportService>();
+builder.Services.AddScoped<ITransportReportService,TransportReportService>();
+// Teacher Student Attendance Entry
+builder.Services.AddScoped<ITeacherStudentAttendanceRepository,TeacherStudentAttendanceRepository>();
+
+builder.Services.AddScoped<ITeacherStudentAttendanceService,TeacherStudentAttendanceService>();
+
 
 // Academic and School Management
 builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
@@ -146,6 +115,14 @@ builder.Services.AddScoped<IHostelService, HostelService>();
 // Class Timetable Module
 builder.Services.AddScoped<ITimetableRepository, TimetableRepository>();
 builder.Services.AddScoped<ITimetableService, TimetableService>();
+//teacher dashboard
+// Teacher Dashboard Module
+builder.Services.AddScoped<ITeacherDashboardRepository, TeacherDashboardRepository>();
+
+builder.Services.AddScoped<ITeacherDashboardService, TeacherDashboardService>();
+builder.Services.AddScoped<ITeacherAttendanceRepository, TeacherAttendanceRepository>();
+
+builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>();
 
 // =========================================================
 // 3. JWT AUTHENTICATION
@@ -1529,7 +1506,7 @@ using (var scope = app.Services.CreateScope())
                         existingApp.BranchName = seedApp.BranchName;
                         existingApp.Status = seedApp.Status;
                         existingApp.AppliedClassId = seedApp.AppliedClassId;
-                        
+
                         // Retain user custom names if they exist, otherwise update them
                         if (existingApp.FirstName == "sample" || string.IsNullOrEmpty(existingApp.FirstName))
                         {
@@ -1543,49 +1520,9 @@ using (var scope = app.Services.CreateScope())
                 }
                 await context.SaveChangesAsync();
 
-                // Synchronize enrolled applications to the admissions table
-                var enrolledApps = await context.AdmissionApplications
-                    .Where(x => x.Status == "Enrolled" && !x.IsDeleted)
-                    .ToListAsync();
-
-                foreach (var seedApp in enrolledApps)
-                {
-                    var adm = await context.Admissions.FirstOrDefaultAsync(x => x.ApplicationNo == seedApp.RegistrationNo);
-                    if (adm == null)
-                    {
-                        var newAdmission = new Admission
-                        {
-                            ApplicationNo = seedApp.RegistrationNo ?? "",
-                            StudentName = $"{seedApp.FirstName} {seedApp.LastName}".Trim(),
-                            Dob = seedApp.DateOfBirth,
-                            Gender = seedApp.Gender,
-                            FatherName = seedApp.FatherName,
-                            FatherMobile = seedApp.FatherContact,
-                            BloodGroup = seedApp.BloodGroup,
-                            Caste = seedApp.Caste,
-                            BranchId = 1,
-                            ClassId = seedApp.AppliedClassId ?? 1,
-                            AdmissionType = "Regular",
-                            Status = seedApp.Status ?? "",
-                            IsDeleted = false,
-                            CreatedDate = DateTime.UtcNow
-                        };
-                        await context.Admissions.AddAsync(newAdmission);
-                    }
-                    else
-                    {
-                        // Sync branch and details
-                        adm.Status = seedApp.Status ?? "";
-                        adm.StudentName = $"{seedApp.FirstName} {seedApp.LastName}".Trim();
-                        adm.FatherName = seedApp.FatherName;
-                        adm.FatherMobile = seedApp.FatherContact;
-                        adm.IsDeleted = false;
-                    }
-                }
-                await context.SaveChangesAsync();
             }
         }
-        
+
 
         // =================================================
         // SEED PERIOD SETTINGS
