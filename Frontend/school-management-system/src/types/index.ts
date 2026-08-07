@@ -327,6 +327,7 @@ export interface AdmissionApplication {
   addressPinCode?: string;
   siblingsCount?: number;
   siblingStudentId?: string;
+  siblingStudentIds?: string[];
   // Student type & transport/hostel fields
   studentType: StudentType;
   transportRequired?: boolean;

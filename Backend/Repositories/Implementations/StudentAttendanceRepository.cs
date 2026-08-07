@@ -28,96 +28,159 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
         DateTime? endDate,
         string? statusFilter)
     {
-        try
+        var query = _context.StudentAttendances
+       .AsNoTracking()
+       .Include(a => a.AttendanceSession)
+       .Include(a => a.Student)
+       .AsQueryable();
+
+        // Filter by student
+        if (studentId.HasValue && studentId.Value > 0)
         {
-            var query = _context.StudentAttendances.AsNoTracking().AsQueryable();
-
-            if (studentId.HasValue && studentId.Value > 0)
-            {
-                query = query.Where(a => a.StudentId == studentId.Value);
-            }
-
-            if (!string.IsNullOrWhiteSpace(filterType))
-            {
-                if (filterType.Equals("Month", StringComparison.OrdinalIgnoreCase))
-                {
-                    int targetYear = year ?? DateTime.Now.Year;
-                    int targetMonth = month ?? DateTime.Now.Month;
-                    if (targetMonth < 1) targetMonth = 1;
-                    if (targetMonth > 12) targetMonth = 12;
-
-                    query = query.Where(a => a.Date.Year == targetYear && a.Date.Month == targetMonth);
-                }
-                else if (filterType.Equals("Day", StringComparison.OrdinalIgnoreCase) && date.HasValue)
-                {
-                    query = query.Where(a => a.Date.Date == date.Value.Date);
-                }
-                else if (filterType.Equals("Custom", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (startDate.HasValue)
-                        query = query.Where(a => a.Date.Date >= startDate.Value.Date);
-
-                    if (endDate.HasValue)
-                        query = query.Where(a => a.Date.Date <= endDate.Value.Date);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(statusFilter) && !statusFilter.Equals("All", StringComparison.OrdinalIgnoreCase))
-            {
-                query = query.Where(a => a.Status != null && a.Status.ToLower() == statusFilter.ToLower());
-            }
-
-            var list = await query.OrderByDescending(a => a.Date).ToListAsync();
-            if (list != null && list.Any())
-            {
-                return list;
-            }
-        }
-        catch
-        {
-            // Fallback gracefully if database or table is unreachable
+            query = query.Where(a => a.StudentId == studentId.Value);
         }
 
-        // Default fallback records matching UI screenshots
-        return new List<StudentAttendance>
+        // Filter by attendance date stored in the parent session
+        if (!string.IsNullOrWhiteSpace(filterType))
         {
-            new StudentAttendance { Id = 1, StudentId = studentId ?? 1, StudentName = "Alexander Wright", Date = new DateTime(2026, 08, 04), Status = "Present", Remarks = "On Time" },
-            new StudentAttendance { Id = 2, StudentId = studentId ?? 1, StudentName = "Alexander Wright", Date = new DateTime(2026, 08, 03), Status = "Present", Remarks = "On Time" },
-            new StudentAttendance { Id = 3, StudentId = studentId ?? 1, StudentName = "Alexander Wright", Date = new DateTime(2026, 08, 02), Status = "Present", Remarks = "On Time" },
-            new StudentAttendance { Id = 4, StudentId = studentId ?? 1, StudentName = "Alexander Wright", Date = new DateTime(2026, 08, 01), Status = "Late", Remarks = "Late by 10 mins" }
-        };
+            switch (filterType.Trim().ToLower())
+            {
+                case "month":
+                    {
+                        int targetYear = year ?? DateTime.Now.Year;
+                        int targetMonth = month ?? DateTime.Now.Month;
+
+                        if (targetMonth < 1 || targetMonth > 12)
+                        {
+                            throw new ArgumentException(
+                                "Month must be between 1 and 12.");
+                        }
+
+                        query = query.Where(a =>
+                            a.AttendanceSession != null &&
+                            a.AttendanceSession.AttendanceDate.Year == targetYear &&
+                            a.AttendanceSession.AttendanceDate.Month == targetMonth);
+
+                        break;
+                    }
+
+                case "day":
+                    {
+                        if (!date.HasValue)
+                        {
+                            throw new ArgumentException(
+                                "Date is required when filter type is Day.");
+                        }
+
+                        DateTime selectedDate = date.Value.Date;
+
+                        query = query.Where(a =>
+                            a.AttendanceSession != null &&
+                            a.AttendanceSession.AttendanceDate.Date == selectedDate);
+
+                        break;
+                    }
+
+                case "custom":
+                    {
+                        if (!startDate.HasValue && !endDate.HasValue)
+                        {
+                            throw new ArgumentException(
+                                "Start date or end date is required for a custom filter.");
+                        }
+
+                        if (startDate.HasValue &&
+                            endDate.HasValue &&
+                            startDate.Value.Date > endDate.Value.Date)
+                        {
+                            throw new ArgumentException(
+                                "Start date cannot be later than end date.");
+                        }
+
+                        if (startDate.HasValue)
+                        {
+                            DateTime selectedStartDate = startDate.Value.Date;
+
+                            query = query.Where(a =>
+                                a.AttendanceSession != null &&
+                                a.AttendanceSession.AttendanceDate.Date >=
+                                selectedStartDate);
+                        }
+
+                        if (endDate.HasValue)
+                        {
+                            DateTime selectedEndDate = endDate.Value.Date;
+
+                            query = query.Where(a =>
+                                a.AttendanceSession != null &&
+                                a.AttendanceSession.AttendanceDate.Date <=
+                                selectedEndDate);
+                        }
+
+                        break;
+                    }
+
+                default:
+                    throw new ArgumentException(
+                        "Filter type must be Month, Day, or Custom.");
+            }
+        }
+
+        // Filter by attendance status
+        if (!string.IsNullOrWhiteSpace(statusFilter) &&
+            !statusFilter.Equals(
+                "All",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            string normalizedStatus = NormalizeStatus(statusFilter);
+
+            query = query.Where(a => a.Status == normalizedStatus);
+        }
+
+        return await query
+            .OrderByDescending(a =>
+                a.AttendanceSession!.AttendanceDate)
+            .ThenBy(a => a.StudentId)
+            .ToListAsync();
     }
 
-    public async Task AddStudentAttendanceAsync(StudentAttendance attendance)
+    public async Task AddStudentAttendanceAsync(
+        StudentAttendance attendance)
     {
-        try
-        {
-            await _context.StudentAttendances.AddAsync(attendance);
-        }
-        catch
-        {
-        }
+        ArgumentNullException.ThrowIfNull(attendance);
+
+        await _context.StudentAttendances.AddAsync(attendance);
     }
 
-    public async Task AddStudentAttendanceRangeAsync(IEnumerable<StudentAttendance> attendances)
+    public async Task AddStudentAttendanceRangeAsync(
+        IEnumerable<StudentAttendance> attendances)
     {
-        try
-        {
-            await _context.StudentAttendances.AddRangeAsync(attendances);
-        }
-        catch
-        {
-        }
+        ArgumentNullException.ThrowIfNull(attendances);
+
+        await _context.StudentAttendances.AddRangeAsync(attendances);
     }
 
     public async Task SaveChangesAsync()
     {
-        try
+        await _context.SaveChangesAsync();
+    }
+
+    private static string NormalizeStatus(string status)
+    {
+        string normalized = status
+            .Trim()
+            .Replace(" ", string.Empty)
+            .ToLowerInvariant();
+
+        return normalized switch
         {
-            await _context.SaveChangesAsync();
-        }
-        catch
-        {
-        }
+            "present" => "Present",
+            "absent" => "Absent",
+            "late" => "Late",
+            "halfday" => "HalfDay",
+            "leave" => "Leave",
+            _ => throw new ArgumentException(
+                "Status must be Present, Absent, Late, HalfDay, Leave, or All.")
+        };
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, UserCheck, Users, BookOpen, Layers, X, ArrowRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,10 +11,18 @@ interface GlobalSearchModalProps {
 
 export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, onClose, onNavigate }) => {
   const [query, setQuery] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const { students, staff, books } = useData();
   const { user } = useAuth();
   const userRole = user?.role?.toLowerCase() || '';
   const isStudentOrParent = userRole === 'student' || userRole === 'parent';
+
+  // Clear query whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setQuery('');
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,6 +37,15 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
+
+  const handleClearOrClose = () => {
+    if (query) {
+      setQuery('');
+      inputRef.current?.focus();
+    } else {
+      onClose();
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -64,7 +81,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Dashboard', module: 'dashboard' },
     { name: 'Student Management', module: 'students' },
     { name: 'Staff Management', module: 'staff' },
-    { name: 'Admissions Pipeline', module: 'admissions' },
+    { name: 'Admissions Management', module: 'admissions' },
     { name: 'Fee Collection & Dues', module: 'fees' },
     { name: 'Attendance Analytics', module: 'attendance' },
     { name: 'Examination & Reports', module: 'examination' },
@@ -91,25 +108,21 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200 dark:border-slate-800">
           <Search className="w-5 h-5 text-slate-400" />
           <input
+            ref={inputRef}
             type="text"
-            placeholder="Search students, staff, books, or navigate modules... (Esc to close)"
+            placeholder="Search..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
             className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm"
           />
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg">
+          <button onClick={handleClearOrClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Results Body */}
         <div className="max-h-[60vh] overflow-y-auto p-4 space-y-4">
-          {!query.trim() && (
-            <div className="text-center py-6 text-slate-400 text-xs">
-              Type to search across students, teachers, books, or jump to any portal section.
-            </div>
-          )}
 
           {/* Students */}
           {filteredStudents.length > 0 && (

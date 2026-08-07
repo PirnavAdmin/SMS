@@ -37,7 +37,7 @@ namespace SMS.Api.Data
         public DbSet<Staff> Staff { get; set; } = null!;
         public DbSet<StaffDocument> StaffDocuments { get; set; } = null!;
         public DbSet<StaffAttendance> StaffAttendances { get; set; } = null!;
-        public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
+        public DbSet<TeacherAttendanceCorrection> TeacherAttendanceCorrections { get; set; } = null!;
         public DbSet<LibraryBook> LibraryBooks { get; set; } = null!;
         public DbSet<LibraryIssueRecord> LibraryIssueRecords { get; set; } = null!;
         public DbSet<LeaveTypeConfig> LeaveTypeConfigs { get; set; } = null!;
@@ -49,7 +49,6 @@ namespace SMS.Api.Data
         public DbSet<ClassSubjectMapping> ClassSubjectMappings { get; set; } = null!;
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-        public DbSet<Admission> Admissions { get; set; } = null!;
 
         // Homework Module
         public DbSet<Homework> Homeworks { get; set; } = null!;
@@ -116,7 +115,11 @@ namespace SMS.Api.Data
         public DbSet<TeacherSubjectAssignment> TeacherSubjectAssignments { get; set; } = null!;
         public DbSet<TimetableHeader> TimetableHeaders { get; set; } = null!;
         public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
-
+        //student
+        public DbSet<Student> Students { get; set; } = null!;
+        public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
+        public DbSet<StudentAttendanceSession> StudentAttendanceSessions { get; set; } = null!;
+        public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
 
         // =====================================================
         // Examination Module
@@ -160,9 +163,67 @@ namespace SMS.Api.Data
             ConfigureTimetableHeader(modelBuilder);
             ConfigureTimetableSlot(modelBuilder);
             ConfigureStudentBedAllocation(modelBuilder);
+            ConfigureTeacherAttendanceCorrection(modelBuilder);
             ConfigureAdmission(modelBuilder);
 
             ConfigureStandardTableNames(modelBuilder);
+            ConfigureAcademicYear(modelBuilder);
+            ConfigureStudent(modelBuilder);
+            ConfigureStudentAttendanceSession(modelBuilder);
+            ConfigureStudentAttendance(modelBuilder);
+        }
+
+        private static void ConfigureTeacherAttendanceCorrection(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeacherAttendanceCorrection>(entity =>
+            {
+                entity.ToTable("teacher_attendance_corrections");
+
+                entity.HasKey(x => x.CorrectionId);
+
+                entity.Property(x => x.AttendanceDate)
+                    .HasColumnType("date")
+                    .IsRequired();
+
+                entity.Property(x => x.CurrentInTime)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.CurrentOutTime)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.RequestedInTime)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.RequestedOutTime)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.Reason)
+                    .HasMaxLength(500)
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Pending")
+                    .IsRequired();
+
+                entity.Property(x => x.ApprovedRemarks)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnType("datetime");
+
+                entity.HasIndex(x => new { x.StaffId, x.AttendanceDate })
+                    .HasDatabaseName("ix_teacher_attendance_corrections_staff_date");
+
+                entity.HasOne(x => x.Staff)
+                    .WithMany()
+                    .HasForeignKey(x => x.StaffId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
         }
 
         private static void ConfigurePeriodSetting(ModelBuilder modelBuilder)
@@ -1102,7 +1163,286 @@ namespace SMS.Api.Data
             modelBuilder.Entity<HostelBlock>().ToTable("hostel_blocks");
             modelBuilder.Entity<RoomTypeConfig>().ToTable("room_type_configs");
             modelBuilder.Entity<RoomMaster>().ToTable("room_masters");
-            modelBuilder.Entity<Admission>().ToTable("students");
+        }
+        private static void ConfigureAcademicYear(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<AcademicYear>(entity =>
+            {
+                entity.ToTable("academic_years");
+
+                entity.HasKey(x => x.AcademicYearId);
+
+                entity.Property(x => x.AcademicYearName)
+                    .HasColumnName("academic_year_name")
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(x => x.StartDate)
+                    .HasColumnName("start_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.EndDate)
+                    .HasColumnName("end_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.IsCurrent)
+                    .HasColumnName("is_current");
+
+                entity.Property(x => x.IsActive)
+                    .HasColumnName("is_active")
+                    .HasDefaultValue(true);
+
+                entity.Property(x => x.IsDeleted)
+                    .HasColumnName("is_deleted")
+                    .HasDefaultValue(false);
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("updated_at")
+                    .HasColumnType("datetime");
+
+                entity.HasIndex(x => x.AcademicYearName)
+                    .IsUnique();
+
+                entity.HasQueryFilter(x => !x.IsDeleted);
+            });
+        }
+
+        private static void ConfigureStudent(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Student>(entity =>
+            {
+                entity.ToTable("students");
+
+                entity.HasKey(x => x.StudentId);
+
+                entity.Property(x => x.StudentId)
+                    .HasColumnName("student_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.AdmissionNumber)
+                    .HasColumnName("admission_number")
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(x => x.RollNumber)
+                    .HasColumnName("roll_number")
+                    .HasMaxLength(30)
+                    .IsRequired();
+
+                entity.Property(x => x.StudentName)
+                    .HasColumnName("student_name")
+                    .HasMaxLength(150)
+                    .IsRequired();
+
+                entity.Property(x => x.DateOfBirth)
+                    .HasColumnName("date_of_birth")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.Gender)
+                    .HasColumnName("gender")
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.FatherName)
+                    .HasColumnName("father_name")
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.FatherMobile)
+                    .HasColumnName("father_mobile")
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.MotherName)
+                    .HasColumnName("mother_name")
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.MotherMobile)
+                    .HasColumnName("mother_mobile")
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.Email)
+                    .HasColumnName("email")
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.MobileNumber)
+                    .HasColumnName("mobile_number")
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.Address)
+                    .HasColumnName("address")
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.BranchId)
+                    .HasColumnName("branch_id")
+                    .IsRequired();
+
+                entity.Property(x => x.AcademicYearId)
+                    .HasColumnName("academic_year_id")
+                    .IsRequired();
+
+                entity.Property(x => x.ClassId)
+                    .HasColumnName("class_id")
+                    .IsRequired();
+
+                entity.Property(x => x.SectionId)
+                    .HasColumnName("section_id")
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasColumnName("status")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Active")
+                    .IsRequired();
+
+                entity.Property(x => x.IsDeleted)
+                    .HasColumnName("is_deleted")
+                    .HasDefaultValue(false);
+
+                entity.Property(x => x.CreatedBy)
+                    .HasColumnName("created_by");
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.Property(x => x.UpdatedBy)
+                    .HasColumnName("updated_by");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("updated_at")
+                    .HasColumnType("datetime");
+
+                entity.HasIndex(x => x.AdmissionNumber)
+                    .IsUnique()
+                    .HasDatabaseName("ux_students_admission_number");
+
+                entity.HasIndex(x => new
+                {
+                    x.AcademicYearId,
+                    x.ClassId,
+                    x.SectionId,
+                    x.RollNumber
+                })
+                    .IsUnique()
+                    .HasDatabaseName("ux_students_year_class_section_roll");
+
+                entity.HasIndex(x => new
+                {
+                    x.BranchId,
+                    x.AcademicYearId,
+                    x.ClassId,
+                    x.SectionId,
+                    x.Status
+                })
+                    .HasDatabaseName("ix_students_management_filter");
+
+                entity.HasOne(x => x.Branch)
+                    .WithMany(x => x.Students)
+                    .HasForeignKey(x => x.BranchId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.AcademicYear)
+                    .WithMany(x => x.Students)
+                    .HasForeignKey(x => x.AcademicYearId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ClassGrade)
+                    .WithMany(x => x.Students)
+                    .HasForeignKey(x => x.ClassId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ClassSection)
+                    .WithMany(x => x.Students)
+                    .HasForeignKey(x => x.SectionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasQueryFilter(x => !x.IsDeleted);
+            });
+        }
+        private static void ConfigureStudentAttendanceSession(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StudentAttendanceSession>(entity =>
+            {
+                entity.ToTable("student_attendance_sessions");
+                entity.HasKey(x => x.AttendanceSessionId);
+
+                entity.Property(x => x.AttendanceDate)
+                    .HasColumnType("date")
+                    .IsRequired();
+
+                entity.Property(x => x.IsLocked)
+                    .HasDefaultValue(false);
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnType("datetime(6)");
+
+                entity.HasIndex(x => new
+                {
+                    x.AttendanceDate,
+                    x.BranchId,
+                    x.AcademicYearId,
+                    x.ClassId,
+                    x.SectionId,
+                    x.SubjectId,
+                    x.PeriodId
+                })
+                    .IsUnique()
+                    .HasDatabaseName("UX_StudentAttendanceSession_Sheet");
+
+                entity.HasIndex(x => x.BranchId);
+                entity.HasIndex(x => x.AcademicYearId);
+                entity.HasIndex(x => x.ClassId);
+                entity.HasIndex(x => x.SectionId);
+                entity.HasIndex(x => x.SubjectId);
+                entity.HasIndex(x => x.PeriodId);
+                entity.HasIndex(x => x.MarkedByStaffId);
+            });
+        }
+
+        private static void ConfigureStudentAttendance(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StudentAttendance>(entity =>
+            {
+                entity.ToTable("student_attendances");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Status)
+                    .HasMaxLength(20)
+                    .IsRequired();
+
+                entity.Property(x => x.Remarks)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnType("datetime(6)")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnType("datetime(6)");
+
+                entity.HasIndex(x => new
+                {
+                    x.AttendanceSessionId,
+                    x.StudentId
+                })
+                    .IsUnique()
+                    .HasDatabaseName("UX_StudentAttendance_SessionStudent");
+
+                entity.HasIndex(x => x.StudentId);
+
+                entity.HasOne(x => x.AttendanceSession)
+                    .WithMany(x => x.AttendanceRecords)
+                    .HasForeignKey(x => x.AttendanceSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
         }
 
         private static void ConfigureAdmission(ModelBuilder modelBuilder)
