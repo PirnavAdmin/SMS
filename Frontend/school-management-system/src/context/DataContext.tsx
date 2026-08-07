@@ -2552,68 +2552,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const addAcademicClass = async (clsData: Omit<AcademicClass, 'id'>) => {
-    try {
-      const response = await createClassApi({
-        name: clsData.name,
-        sections: clsData.sections,
-        sectionTeachers: clsData.sectionTeachers || {},
-        subjects: clsData.subjects || []
-      });
-      if (response && response.success) {
-        await fetchAcademicClasses();
-        addToast('success', 'Class Created', `Added class ${clsData.name} successfully.`);
-      } else {
-        addToast('error', 'Error', response?.message || 'Failed to create class.');
-      }
-    } catch (err: any) {
-      console.error('Error creating class', err);
-      const id = 'CL-' + Math.floor(10 + Math.random() * 90);
-      const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
-      setAcademicClasses(prev => [...prev, newCls]);
-      logActivity('Created Academic Class', `Added ${newCls.name} (locally)`);
-      addToast('warning', 'Offline Mode', `Class ${clsData.name} created locally.`);
-    }
+  const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
+    const id = 'CL-' + Math.floor(10 + Math.random() * 90);
+    const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
+    setAcademicClasses(prev => [...prev, newCls]);
+    logActivity('Created Academic Class', `Added ${newCls.name}`);
   };
 
-  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
-    try {
-      const response = await updateClassApi(id, {
-        name: updates.name,
-      });
-      if (response && response.success) {
-        await fetchAcademicClasses();
-        addToast('success', 'Class Updated', `Updated class successfully.`);
-      } else {
-        addToast('error', 'Error', response?.message || 'Failed to update class.');
-      }
-    } catch (err: any) {
-      console.error('Error updating class', err);
-      setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-      logActivity('Updated Academic Class', `Updated class ID ${id} (locally)`);
-      addToast('warning', 'Offline Mode', 'Class updated locally.');
-    }
+  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
+    setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+    logActivity('Updated Academic Class', `Updated class ID ${id}`);
   };
 
-  const deleteAcademicClass = async (id: string) => {
-    try {
-      const response = await deleteClassApi(id);
-      if (response && response.success) {
-        await fetchAcademicClasses();
-        addToast('success', 'Class Deleted', `Removed class successfully.`);
-      } else {
-        addToast('error', 'Error', response?.message || 'Failed to delete class.');
-      }
-    } catch (err: any) {
-      console.error('Error deleting class', err);
-      const cls = academicClasses.find(c => c.id === id);
-      if (cls) {
-        setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
-      }
-      setAcademicClasses(prev => prev.filter(c => c.id !== id));
-      logActivity('Deleted Academic Class', `Removed class ID ${id} (locally)`);
-      addToast('warning', 'Offline Mode', 'Class removed locally.');
+  const deleteAcademicClass = (id: string) => {
+    const cls = academicClasses.find(c => c.id === id);
+    if (cls) {
+      setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
     }
+    setAcademicClasses(prev => prev.filter(c => c.id !== id));
+    logActivity('Deleted Academic Class', `Removed class ID ${id}`);
   };
 
   // Subjects CRUD

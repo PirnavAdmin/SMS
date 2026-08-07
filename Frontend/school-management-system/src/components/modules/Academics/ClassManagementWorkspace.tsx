@@ -142,9 +142,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const [classForm, setClassForm] = useState({
     campus: 'Main Campus',
     academicYear: '',
-    name: 'Grade 1',
+    name: '',
     displayName: '',
-    status: 'Active' as 'Active' | 'Inactive',
+    status: '' as '' | 'Active' | 'Inactive',
     remarks: '',
     displayOrder: ''
   });
@@ -436,9 +436,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setClassForm({
       campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
       academicYear: selectedAcademicYear || (activeAY ? activeAY.academicYear : ''),
-      name: CLASS_NAMES[0] || 'Nursery',
+      name: '',
       displayName: '',
-      status: 'Active',
+      status: '' as any,
       remarks: '',
       displayOrder: ''
     });
@@ -488,8 +488,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
     const { name, campus, academicYear, displayName, status, remarks, displayOrder } = classForm;
     const finalName = name === 'Other' ? customClassName : name;
-    if (!finalName || !campus || !academicYear) {
-      addToast('warning', 'Validation Error', 'Campus, Academic Year, and Class Name are required.');
+    if (!finalName || !campus || !academicYear || !status) {
+      addToast('warning', 'Validation Error', 'Campus, Academic Year, Class Name, and Status are required.');
       return;
     }
 
@@ -567,9 +567,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       setClassForm({
         campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
         academicYear: ayObj ? ayObj.academicYear : '',
-        name: CLASS_NAMES[0] || 'Nursery',
+        name: '',
         displayName: '',
-        status: 'Active',
+        status: '' as any,
         remarks: '',
         displayOrder: ''
       });
@@ -1486,59 +1486,55 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         <div className="space-y-6">
           {activeClass ? (
             // Selected class cockpit workspace tabs
-            <div className="space-y-6 animate-in fade-in">
+            <div className="space-y-3.5 animate-in fade-in">
               
-              {/* Cockpit breadcrumb & headers */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-808 pb-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
-                    <button onClick={() => setSelectedClassId('')} className="hover:text-sky-600 flex items-center gap-0.5">
-                      <ArrowLeft className="w-3.5 h-3.5" /> Classes Setup
-                    </button>
-                    <ChevronRight className="w-3 h-3 text-slate-505" />
-                    <span className="text-slate-900 dark:text-white font-extrabold">{activeClass.name} Workspace</span>
-                  </div>
-                  <div className="flex items-center gap-3 pt-1">
-                    <h3 className="text-xl font-black text-slate-905 dark:text-white">
-                      {activeClass.name} Workspace
-                    </h3>
-                    <Badge variant={activeClassProgress?.status === 'Ready' ? 'success' : 'warning'}>
-                      {activeClassProgress?.status || 'In Progress'}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelectedClassId('')}
-                    className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-350 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors inline-flex items-center gap-1"
-                  >
-                    <ArrowLeft className="w-4 h-4" /> Back to Setup Directory
-                  </button>
+              {/* Cockpit header */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedClassId('')}
+                  className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer shrink-0"
+                  title="Back to Directory"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <School className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+                    <span>{activeClass.name} Workspace</span>
+                  </h2>
                 </div>
               </div>
 
               {/* Workspace tab navigation bar */}
-              <div className="flex border-b border-slate-200 dark:border-slate-808 gap-1 overflow-x-auto no-scrollbar">
+              <div className="glass-card p-1.5 rounded-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 {[
-                  { id: 'overview', label: 'Overview', icon: BarChart2 },
-                  { id: 'sections', label: 'Sections', icon: Layers },
-                  { id: 'subjects', label: 'Subjects', icon: BookOpen },
-                  { id: 'teachers', label: 'Teachers', icon: Users },
-                  { id: 'students', label: 'Students', icon: UserPlus }
+                  { id: 'overview', label: 'Overview', icon: BarChart2, count: undefined },
+                  { id: 'sections', label: 'Sections', icon: Layers, count: activeClass.sections?.length || 0 },
+                  { id: 'subjects', label: 'Subjects', icon: BookOpen, count: activeClass.subjects?.length || 0 },
+                  { id: 'teachers', label: 'Teachers', icon: Users, count: Object.keys(activeClass.sectionTeachers || {}).length },
+                  { id: 'students', label: 'Students', icon: UserPlus, count: activeClassStudents.length }
                 ].map(tab => {
                   const Icon = tab.icon;
+                  const isSelected = classWorkspaceTab === tab.id;
                   return (
                     <button
                       key={tab.id}
                       onClick={() => setClassWorkspaceTab(tab.id as any)}
-                      className={`px-4.5 py-3 border-b-2 font-black text-xs transition-colors shrink-0 flex items-center gap-1.5 ${
-                        classWorkspaceTab === tab.id 
-                          ? 'border-sky-600 text-sky-600 dark:text-sky-400 font-black' 
-                          : 'border-transparent text-slate-400 hover:text-slate-905'
+                      className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                        isSelected 
+                          ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-extrabold' 
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
-                      <Icon className="w-3.5 h-3.5" /> {tab.label}
+                      <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-sky-500'}`} />
+                      <span>{tab.label}</span>
+                      {tab.count !== undefined && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
+                        }`}>
+                          {tab.count}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -1550,45 +1546,45 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   <div className="space-y-6 animate-in fade-in text-left">
                     {/* Six small KPI cards */}
                     <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl">
-                        <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Students</span>
-                        <span className="text-xl font-black text-slate-900 dark:text-white">{activeClassStudents.length}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Students</span>
+                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{activeClassStudents.length}</span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl">
-                        <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Sections</span>
-                        <span className="text-xl font-black text-slate-900 dark:text-white">{activeClass.sections.length}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Sections</span>
+                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{activeClass.sections.length}</span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl">
-                        <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Teachers</span>
-                        <span className="text-xl font-black text-emerald-650">
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Teachers</span>
+                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">
                           {new Set(teacherAssignments.filter(ta => ta.className === activeClass.name).map(ta => ta.teacherName)).size || 0}
                         </span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl">
-                        <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Subjects</span>
-                        <span className="text-xl font-black text-indigo-650">{(activeClass.subjects || []).length}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Subjects</span>
+                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{(activeClass.subjects || []).length}</span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl">
-                        <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Capacity</span>
-                        <span className="text-xl font-black text-slate-900 dark:text-white">
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Capacity</span>
+                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">
                           {sectionKPIs?.totalCapacity ?? 40}
                         </span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl">
-                        <span className="text-[9px] text-slate-400 uppercase font-mono block mb-1">Health Score</span>
-                        <span className="text-xl font-black text-sky-655">{activeClassProgress?.score}%</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
+                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Health Score</span>
+                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{activeClassProgress?.score}%</span>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-bold">
                       {/* Class Teacher detail */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl space-y-4">
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4">
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Class Teacher</h4>
                         <div className="space-y-2">
                           {activeClass.sections.map(sec => {
                             const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
                             return (
-                              <div key={sec} className="flex justify-between items-center text-xs p-2 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                              <div key={sec} className="flex justify-between items-center text-xs p-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
                                 <span>Section {sec}:</span>
                                 <span className={classTeacher === 'Not Assigned' ? 'text-rose-500' : 'text-slate-900 dark:text-white'}>{classTeacher}</span>
                               </div>
@@ -1601,29 +1597,29 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       </div>
 
                       {/* Quick Actions Panel */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl space-y-4">
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4">
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Quick Actions</h4>
                         <div className="grid grid-cols-2 gap-2 text-xs">
-                          <button onClick={() => setClassWorkspaceTab('sections')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border text-slate-850 rounded-xl text-center">Add Section</button>
-                          <button onClick={() => setClassWorkspaceTab('subjects')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border text-slate-850 rounded-xl text-center">Assign Subject</button>
-                          <button onClick={() => setClassWorkspaceTab('teachers')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border text-slate-850 rounded-xl text-center">Assign Teacher</button>
-                          <button onClick={() => setClassWorkspaceTab('students')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border text-slate-850 rounded-xl text-center">Allocate Students</button>
+                          <button onClick={() => setClassWorkspaceTab('sections')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Add Section</button>
+                          <button onClick={() => setClassWorkspaceTab('subjects')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Assign Subject</button>
+                          <button onClick={() => setClassWorkspaceTab('teachers')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Assign Teacher</button>
+                          <button onClick={() => setClassWorkspaceTab('students')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Allocate Students</button>
                         </div>
                       </div>
 
                       {/* Configuration Checklist status */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl space-y-4">
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4">
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Setup checklist</h4>
                         <div className="space-y-1.5 text-xs">
-                          <div className="flex justify-between items-center py-1 border-b">
+                          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
                             <span>Sections created:</span>
                             <span className={activeClass.sections.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>{activeClass.sections.length > 0 ? '✔ Yes' : '✖ No'}</span>
                           </div>
-                          <div className="flex justify-between items-center py-1 border-b">
+                          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
                             <span>Subjects mapped:</span>
                             <span className={(activeClass.subjects || []).length > 0 ? 'text-emerald-500' : 'text-rose-500'}>{(activeClass.subjects || []).length > 0 ? '✔ Yes' : '✖ No'}</span>
                           </div>
-                          <div className="flex justify-between items-center py-1 border-b">
+                          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
                             <span>Class Teachers:</span>
                             <span className={activeClassProgress?.hasAllClassTeachers ? 'text-emerald-500' : 'text-rose-500'}>{activeClassProgress?.hasAllClassTeachers ? '✔ Assigned' : '✖ Missing'}</span>
                           </div>
@@ -1641,7 +1637,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           const assigned = students.filter(s => s.className === activeClass.name && s.section === sec).length;
 
                           return (
-                            <div key={sec} className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl space-y-3 font-bold text-xs text-left">
+                            <div key={sec} className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-3 font-bold text-xs text-left">
                               <div className="flex items-center justify-between border-b pb-2">
                                 <span className="text-sm font-black text-slate-900 dark:text-white">Section {sec}</span>
                                 <span className="text-slate-400">{assigned} / {cap} Students</span>
@@ -1663,11 +1659,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     {/* Subjects and Mapped Teachers summaries */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-bold text-xs">
                       {/* Subjects list */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl space-y-3">
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-3">
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Mapped Subjects</h4>
                         <div className="flex flex-wrap gap-1.5">
                           {(activeClass.subjects || []).map(sub => (
-                            <span key={sub} className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 border rounded-xl">{sub}</span>
+                            <span key={sub} className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl">{sub}</span>
                           ))}
                           {(activeClass.subjects || []).length === 0 && (
                             <p className="text-slate-400 italic py-2">No subjects mapped to this class.</p>
@@ -1676,7 +1672,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       </div>
 
                       {/* Teachers Assignments summaries */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl space-y-3 text-left">
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-3 text-left">
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Teacher Mappings</h4>
                         <div className="divide-y divide-slate-100 dark:divide-slate-808 space-y-1.5">
                           {teacherAssignments.filter(ta => ta.className === activeClass.name && ta.section === activeWorkspaceSection).map((ta, idx) => (
@@ -1737,7 +1733,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-808 text-xs font-bold">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="relative">
-                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <input
                             type="text"
                             placeholder="Search Section..."
@@ -1988,7 +1984,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         </div>
 
                         {/* Refaced Subject Mapping Guidelines Card */}
-                        <div className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-bold leading-normal h-fit">
+                        <div className="p-5 bg-slate-50 dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4 text-xs font-bold leading-normal h-fit">
                           <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
                             <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 shrink-0">
                               <BookOpen className="w-4 h-4" />
@@ -2059,7 +2055,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                     {/* Class Teacher Allocation */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl space-y-4 text-left">
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4 text-left">
                         <h5 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase text-sky-655 tracking-wider">Class Teacher</h5>
                         <div className="space-y-2">
                           <label className="block text-xs text-slate-400 font-bold">Class Teacher Selection</label>
@@ -2124,7 +2120,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       </div>
 
                       {/* Subject Teachers Grid */}
-                      <div className="md:col-span-2 p-5 bg-white dark:bg-slate-905 border border-slate-202 dark:border-slate-800 rounded-3xl space-y-4">
+                      <div className="md:col-span-2 p-5 bg-white dark:bg-slate-905 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4">
                         <h5 className="font-extrabold text-slate-905 dark:text-white text-xs uppercase text-indigo-650 tracking-wider">Subject Teachers Mapping</h5>
                         
                         <div className="divide-y divide-slate-100 dark:divide-slate-808 space-y-2.5">
@@ -2185,7 +2181,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     </div>
 
                     {/* Teacher Workload summaries grid */}
-                    <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl space-y-4">
+                    <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4">
                       <h5 className="font-extrabold text-slate-850 dark:text-white text-xs uppercase tracking-wider text-slate-400">Instructor Workload Summaries</h5>
                       <div className="overflow-x-auto border rounded-2xl bg-white dark:bg-slate-950 text-xs">
                         <table className="w-full text-left">
@@ -2261,7 +2257,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                     <div className="flex justify-between items-center gap-3 bg-slate-55 dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-808 text-xs font-bold">
                       <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                           type="text"
                           placeholder="Search student name or ID..."
@@ -2334,6 +2330,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             // Class list setups directory view (Setup Directory)
             <div className="space-y-6 animate-in fade-in">
               
+              {/* Top Header card */}
+              <div className="glass-card py-3.5 px-5 rounded-2xl border border-brand-400 dark:border-brand-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-3 shadow-xs">
+                <div className="space-y-1">
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Presentation className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    Class Management
+                  </h2>
+                </div>
+              </div>
+
               {/* Dashboard summary KPIs */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                 <StatCard title="Total Classes" value={classKPIs.total} icon={Presentation} color="sky" />
@@ -2344,17 +2350,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 <StatCard title="Remaining Seats" value={classKPIs.remainingSeats} icon={ShieldCheck} color="amber" />
               </div>
 
-              {/* Search & Filter settings panel */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs w-full py-2">
+              {/* Search & Filter settings panel container */}
+              <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs w-full">
                 {/* Search bar on the left */}
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3.5" />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Search by Class Name..."
                     value={searchClassName}
                     onChange={e => setSearchClassName(e.target.value)}
-                    className="pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs text-slate-900 dark:text-white w-48 sm:w-60 focus:w-72 transition-all font-semibold"
+                    className="pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs text-slate-900 dark:text-white w-48 sm:w-60 focus:w-72 transition-all font-semibold"
                   />
                 </div>
 
@@ -2366,7 +2372,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       <select
                         value={filterStatus}
                         onChange={e => setFilterStatus(e.target.value)}
-                        className="appearance-none pl-3 pr-8 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs cursor-pointer text-slate-700 dark:text-slate-200"
+                        className="appearance-none pl-3 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs cursor-pointer text-slate-700 dark:text-slate-200"
                       >
                         <option value="">All Statuses</option>
                         <option value="Active">Active</option>
@@ -2379,7 +2385,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   </div>
                   <button
                     onClick={handleOpenAddClass}
-                    className="px-4 py-2.5 bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+                    className="px-4 py-2.5 bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Plus className="w-4 h-4" /> Add Class Grade
                   </button>
@@ -2410,10 +2416,18 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                   return (
                     <div 
                       key={cl.id} 
-                      className={`p-5 rounded-xl border shadow-sm transition-all duration-300 space-y-4 hover:-translate-y-1 hover:shadow-md relative text-left bg-white dark:bg-slate-900 ${
+                      onClick={() => {
+                        if (status !== 'Archived') {
+                          setSelectedClassId(cl.id);
+                          if (!['sections', 'subjects', 'teachers', 'students', 'overview'].includes(classWorkspaceTab)) {
+                            setClassWorkspaceTab('sections');
+                          }
+                        }
+                      }}
+                      className={`p-5 rounded-2xl border shadow-sm transition-all duration-300 space-y-4 hover:-translate-y-1 hover:shadow-md relative text-left bg-white dark:bg-slate-900 ${
                         status === 'Archived' 
-                          ? 'border-slate-200 dark:border-slate-800 opacity-60' 
-                          : 'border-slate-200 dark:border-slate-800 hover:border-sky-500'
+                          ? 'border-brand-400 dark:border-brand-800 opacity-60' 
+                          : 'border-brand-400 dark:border-brand-800 hover:border-sky-500 cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-808 pb-2.5">
@@ -2447,32 +2461,40 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       </div>
 
                       <div className="flex items-center justify-between pt-2 border-t border-slate-101 dark:border-slate-808">
-                        <div className="flex gap-2 text-xs font-bold">
+                        <div className="flex items-center gap-3 text-xs font-bold">
                           {status !== 'Archived' ? (
                             <>
-                              <button
-                                onClick={() => {
-                                  setSelectedClassId(cl.id);
-                                  if (!['sections', 'subjects', 'teachers', 'students', 'overview'].includes(classWorkspaceTab)) {
-                                    setClassWorkspaceTab('sections');
-                                  }
-                                }}
-                                className="text-xs font-black text-sky-600 hover:underline"
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleOpenEditClass(cl); }} 
+                                className="text-[11px] text-slate-500 hover:text-sky-600 font-bold hover:underline"
                               >
-                                Open Workspace
+                                Edit
                               </button>
-                              <button onClick={() => handleOpenEditClass(cl)} className="text-[10px] text-slate-400 hover:text-sky-655 font-bold hover:underline">Edit</button>
-                              <button onClick={() => handleArchiveClass(cl)} className="text-[10px] text-slate-400 hover:text-amber-600 font-bold hover:underline">Archive</button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleArchiveClass(cl); }} 
+                                className="text-[11px] text-slate-500 hover:text-amber-600 font-bold hover:underline"
+                              >
+                                Archive
+                              </button>
                             </>
                           ) : (
                             <>
                               <span className="text-[10px] text-slate-400 font-extrabold">READ ONLY</span>
-                              <button onClick={() => handleRestoreClass(cl)} className="text-[10px] text-emerald-600 font-bold hover:underline">Restore Active</button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleRestoreClass(cl); }} 
+                                className="text-[11px] text-emerald-600 font-bold hover:underline"
+                              >
+                                Restore Active
+                              </button>
                             </>
                           )}
                         </div>
                         {status !== 'Archived' && (
-                          <button onClick={() => triggerDeleteCheck(cl)} className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); triggerDeleteCheck(cl); }} 
+                            className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
+                            title="Delete Class Setup"
+                          >
                             <Trash2 className="w-4.5 h-4.5" />
                           </button>
                         )}
@@ -2557,9 +2579,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       <button
                         type="button"
                         onClick={() => setIsClassDropdownOpen(!isClassDropdownOpen)}
-                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-left text-slate-800 dark:text-slate-100 cursor-pointer"
+                        className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-left cursor-pointer"
                       >
-                        <span>{classForm.name === 'Other' ? (customClassName || 'Other (Custom...)') : (classForm.name || 'Select Class...')}</span>
+                        <span className={!classForm.name ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-100'}>
+                          {classForm.name === 'Other' ? (customClassName || 'Other (Custom...)') : (classForm.name || 'Select Class...')}
+                        </span>
                         <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                       </button>
 
@@ -2638,8 +2662,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     <select
                       value={classForm.status}
                       onChange={e => setClassForm({ ...classForm, status: e.target.value as any })}
-                      className="w-full appearance-none px-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none cursor-pointer text-slate-800 dark:text-slate-100"
+                      className={`w-full appearance-none px-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none cursor-pointer ${
+                        !classForm.status ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-100'
+                      }`}
                     >
+                      <option value="" disabled hidden>Select Status...</option>
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
                     </select>

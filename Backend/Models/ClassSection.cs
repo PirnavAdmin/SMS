@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -18,9 +17,19 @@ public class ClassSection
     [ForeignKey(nameof(ClassId))]
     public ClassGrade ClassGrade { get; set; } = null!;
 
-        public int? ClassTeacherEmpId { get; set; }
+    public int Capacity { get; set; } = 40;
 
-        [ForeignKey(nameof(ClassTeacherEmpId))]
-        public Staff? ClassTeacher { get; set; }
-    }
+    [Required]
+    [MaxLength(20)]
+    public string Status { get; set; } = "Active";
+
+    public string? Remarks { get; set; }
+
+    public int? ClassTeacherEmpId { get; set; }
+
+    [ForeignKey(nameof(ClassTeacherEmpId))]
+    public Staff? ClassTeacher { get; set; }
+
+    public ICollection<Student> Students { get; set; }
+        = new List<Student>();
 }
