@@ -127,7 +127,25 @@ const roundOffOptions = ['No Round Off', 'Nearest 1', 'Nearest 10', 'Nearest 50'
 const inputClass =
   'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
-const selectClass = inputClass;
+const selectClass =
+  'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white appearance-none cursor-pointer';
+
+const SelectField: React.FC<{
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  className?: string;
+  disabled?: boolean;
+  children: React.ReactNode;
+}> = ({ value, onChange, className = selectClass, disabled, children }) => {
+  return (
+    <div className="relative w-full">
+      <select value={value} onChange={onChange} className={className} disabled={disabled}>
+        {children}
+      </select>
+      <ChevronDown className="h-4 w-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+    </div>
+  );
+};
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '');
 
@@ -358,18 +376,28 @@ const SearchableSelect: React.FC<{
             </div>
           </div>
           <div className="max-h-48 overflow-y-auto p-1">
-            {filtered.length > 0 ? filtered.map(option => (
-              <div 
-                key={option} 
-                onClick={() => { onChange(option); setIsOpen(false); setSearch(''); }}
-                className="cursor-pointer rounded-xl px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/50 flex flex-col gap-0.5"
-              >
-                <span>{option}</span>
-                {getCode && option !== 'All Departments' && option !== 'All Employees' && (
-                  <span className="text-[10px] text-slate-400 font-normal">Code: {getCode(option)}</span>
-                )}
-              </div>
-            )) : (
+            {filtered.length > 0 ? filtered.map(option => {
+              const match = option.match(/^(.*?)\s*\(([^)]+)\)$/);
+              return (
+                <div 
+                  key={option} 
+                  onClick={() => { onChange(option); setIsOpen(false); setSearch(''); }}
+                  className="cursor-pointer rounded-xl px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-700/50 flex flex-col gap-0.5"
+                >
+                  {match ? (
+                    <>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">{match[1]}</span>
+                      <span className="text-[10px] text-slate-400 font-medium">{match[2]}</span>
+                    </>
+                  ) : (
+                    <span>{option}</span>
+                  )}
+                  {getCode && option !== 'All Departments' && option !== 'All Employees' && (
+                    <span className="text-[10px] text-slate-400 font-normal">Code: {getCode(option)}</span>
+                  )}
+                </div>
+              );
+            }) : (
               <div className="px-4 py-3 text-sm text-slate-500">No results found.</div>
             )}
           </div>
@@ -722,7 +750,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const branches = useMemo(() => ['All Branches', ...Array.from(new Set(staff.map(item => item.branch || 'Main Campus')))], [staff]);
   const departments = useMemo(() => ['All Departments', ...Array.from(new Set(staff.map(item => item.department).filter(Boolean)))], [staff]);
-  const employeeOptions = useMemo(() => ['All Employees', ...staff.map(item => `${item.firstName} ${item.lastName}`.trim())], [staff]);
+  const employeeOptions = useMemo(() => ['All Employees', ...staff.map(item => `${item.firstName} ${item.lastName} (${item.empId})`.trim())], [staff]);
   const structureOptions = useMemo(() => ['All Structures', ...salaryStructures.map(item => item.structureName)], [salaryStructures]);
   const designationSet = useMemo(() => {
     const values = salaryStructures.map(item => item.designation).filter(Boolean) as string[];
@@ -798,7 +826,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const matchesBranch = generationBranch === 'All Branches' || staffBranch === generationBranch;
       const matchesDepartment = generationDepartment === 'All Departments' || row.member.department === generationDepartment;
       const matchesCategory = generationCategory === 'All' || row.category === generationCategory;
-      const employeeLabel = `${row.member.firstName} ${row.member.lastName}`.trim();
+      const employeeLabel = `${row.member.firstName} ${row.member.lastName} (${row.member.empId})`.trim();
       const matchesEmployee = generationEmployee === 'All Employees' || employeeLabel === generationEmployee;
       return matchesBranch && matchesDepartment && matchesCategory && matchesEmployee;
     });
@@ -839,13 +867,27 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const historyRows = useMemo(() => {
     return payslips.filter(item => {
       const { month, year } = splitMonthYear(item.month);
-      const matchesEmployee = historyEmployee === 'All Employees' || item.employeeName === historyEmployee;
+      const employeeLabel = `${item.employeeName} (${item.empId})`.trim();
+      const matchesEmployee = historyEmployee === 'All Employees' || employeeLabel === historyEmployee;
       const matchesMonth = historyMonth === 'All' || month === historyMonth;
       const matchesYear = historyYear === 'All' || year === historyYear;
       const matchesDepartment = historyDepartment === 'All Departments' || (item.department || 'Unknown') === historyDepartment;
       return matchesEmployee && matchesMonth && matchesYear && matchesDepartment;
     });
   }, [historyDepartment, historyEmployee, historyMonth, historyYear, payslips]);
+
+  const activePreviewMonth = useMemo(() => {
+    if (historyMonth === 'All' && historyYear === 'All') {
+      return 'All Periods';
+    }
+    if (historyMonth !== 'All' && historyYear === 'All') {
+      return `${historyMonth} (All Years)`;
+    }
+    if (historyMonth === 'All' && historyYear !== 'All') {
+      return `All Months ${historyYear}`;
+    }
+    return `${historyMonth} ${historyYear}`;
+  }, [historyMonth, historyYear]);
 
   const currentPreviewStaff = drawerStaff;
 
@@ -1069,8 +1111,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     addToast('info', 'Email queued', `${generationRows.length} payroll records queued for email delivery.`);
   };
 
-  const activePreviewMonth = historyRows[0]?.month || payrollMonthLabel;
-
   const renderEmployeesTab = () => {
     const totalEmployees = employeeRows.length;
     const activeEmployees = employeeRows.filter(row => row.assignment && row.assignment.status === 'Active').length;
@@ -1134,25 +1174,25 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             </div>
             <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
-              <select value={employeeCategoryFilter} onChange={e => setEmployeeCategoryFilter(e.target.value as 'All' | CategoryValue)} className={selectClass}>
+              <SelectField value={employeeCategoryFilter} onChange={e => setEmployeeCategoryFilter(e.target.value as 'All' | CategoryValue)}>
                 <option value="All">All Categories</option>
                 <option value="Teacher">Teaching Staff</option>
                 <option value="Staff">Non-Teaching Staff</option>
-              </select>
+              </SelectField>
             </div>
             <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
-              <select value={employeeStructureFilter} onChange={e => setEmployeeStructureFilter(e.target.value)} className={selectClass}>
+              <SelectField value={employeeStructureFilter} onChange={e => setEmployeeStructureFilter(e.target.value)}>
                 {structureOptions.map(option => <option key={option}>{option}</option>)}
-              </select>
+              </SelectField>
             </div>
             <div className="w-48">
               <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
-              <select value={employeeStatusFilter} onChange={e => setEmployeeStatusFilter(e.target.value as 'All' | 'Active' | 'Not Assigned')} className={selectClass}>
+              <SelectField value={employeeStatusFilter} onChange={e => setEmployeeStatusFilter(e.target.value as 'All' | 'Active' | 'Not Assigned')}>
                 <option value="All">All Status</option>
                 <option value="Active">Active</option>
                 <option value="Not Assigned">Not Assigned</option>
-              </select>
+              </SelectField>
             </div>
           </div>
 
@@ -1161,14 +1201,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                   <th className="px-3 py-2 w-10"></th>
-                  <th className="px-3 py-2">Employee ID</th>
-                  <th className="px-3 py-2">Employee Name</th>
-                  <th className="px-3 py-2">Category</th>
-                  <th className="px-3 py-2">Department</th>
-                  <th className="px-3 py-2">Designation</th>
-                  <th className="px-3 py-2">Salary Structure</th>
-                  <th className="px-3 py-2">Payroll Status</th>
-                  <th className="px-3 py-2 text-right">Actions</th>
+                  <th className="px-3 py-2 text-center">Employee ID</th>
+                  <th className="px-3 py-2 text-center">Employee Name</th>
+                  <th className="px-3 py-2 text-center">Category</th>
+                  <th className="px-3 py-2 text-center">Department</th>
+                  <th className="px-3 py-2 text-center">Designation</th>
+                  <th className="px-3 py-2 text-center">Salary Structure</th>
+                  <th className="px-3 py-2 text-center">Payroll Status</th>
+                  <th className="px-3 py-2 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1210,7 +1250,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                         <Badge variant={statusBadge} size="sm">{row.payrollStatus}</Badge>
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => setDrawerStaff(row.member)}
@@ -1318,25 +1358,25 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
           <div className="w-48">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
-            <select value={structureCategoryFilter} onChange={e => setStructureCategoryFilter(e.target.value as 'All' | CategoryValue)} className={selectClass}>
+            <SelectField value={structureCategoryFilter} onChange={e => setStructureCategoryFilter(e.target.value as 'All' | CategoryValue)}>
               <option value="All">All Categories</option>
               <option value="Teacher">Teaching Staff</option>
               <option value="Staff">Non-Teaching Staff</option>
-            </select>
+            </SelectField>
           </div>
           <div className="w-48">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
-            <select value={structureDesignationFilter} onChange={e => setStructureDesignationFilter(e.target.value)} className={selectClass}>
+            <SelectField value={structureDesignationFilter} onChange={e => setStructureDesignationFilter(e.target.value)}>
               {designationSet.map(item => <option key={item}>{item}</option>)}
-            </select>
+            </SelectField>
           </div>
           <div className="w-48">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
-            <select value={structureStatusFilter} onChange={e => setStructureStatusFilter(e.target.value as 'All' | 'Active' | 'Inactive')} className={selectClass}>
+            <SelectField value={structureStatusFilter} onChange={e => setStructureStatusFilter(e.target.value as 'All' | 'Active' | 'Inactive')}>
               <option value="All">All Status</option>
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
-            </select>
+            </SelectField>
           </div>
         </div>
 
@@ -1345,17 +1385,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="px-3 py-2 w-10"></th>
-                <th className="px-3 py-2">Structure Name</th>
-                <th className="px-3 py-2">Category</th>
-                <th className="px-3 py-2">Designation</th>
-                <th className="px-3 py-2">Effective From</th>
-                <th className="px-3 py-2">Frequency</th>
-                <th className="px-3 py-2">Gross Salary</th>
-                <th className="px-3 py-2">Total Deductions</th>
-                <th className="px-3 py-2">Net Salary</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Employees</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-center">Structure Name</th>
+                <th className="px-3 py-2 text-center">Category</th>
+                <th className="px-3 py-2 text-center">Designation</th>
+                <th className="px-3 py-2 text-center">Effective From</th>
+                <th className="px-3 py-2 text-center">Frequency</th>
+                <th className="px-3 py-2 text-center">Gross Salary</th>
+                <th className="px-3 py-2 text-center">Total Deductions</th>
+                <th className="px-3 py-2 text-center">Net Salary</th>
+                <th className="px-3 py-2 text-center">Status</th>
+                <th className="px-3 py-2 text-center">Employees</th>
+                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1393,7 +1433,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </td>
                   <td className="px-3 py-2 text-xs font-black text-slate-900 dark:text-white">{row.assignedCount}</td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button
                         type="button"
                         onClick={() => openStructureModal('edit', row.structure)}
@@ -1468,15 +1508,15 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-32">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Month</label>
-            <select value={generationMonth} onChange={e => setGenerationMonth(e.target.value)} className={selectClass}>
+            <SelectField value={generationMonth} onChange={e => setGenerationMonth(e.target.value)}>
               {monthOptions.map(month => <option key={month}>{month}</option>)}
-            </select>
+            </SelectField>
           </div>
-          <div className="w-32">
+          <div className="w-28">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Year</label>
-            <select value={generationYear} onChange={e => setGenerationYear(e.target.value)} className={selectClass}>
+            <SelectField value={generationYear} onChange={e => setGenerationYear(e.target.value)}>
               {yearOptions.map(year => <option key={year}>{year}</option>)}
-            </select>
+            </SelectField>
           </div>
           <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
@@ -1484,17 +1524,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
           <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
-            <select value={generationCategory} onChange={e => setGenerationCategory(e.target.value as any)} className={selectClass}>
+            <SelectField value={generationCategory} onChange={e => setGenerationCategory(e.target.value as any)}>
               <option value="All">All Categories</option>
               <option value="Teacher">Teaching Staff</option>
               <option value="Staff">Non-Teaching Staff</option>
-            </select>
+            </SelectField>
           </div>
           <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Branch</label>
-            <select value={generationBranch} onChange={e => setGenerationBranch(e.target.value)} className={selectClass}>
+            <SelectField value={generationBranch} onChange={e => setGenerationBranch(e.target.value)}>
               {branches.map(branch => <option key={branch}>{branch}</option>)}
-            </select>
+            </SelectField>
           </div>
           <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department</label>
@@ -1520,16 +1560,16 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     }}
                   />
                 </th>
-                <th className="px-3 py-2">Employee ID</th>
-                <th className="px-3 py-2">Employee Name</th>
-                <th className="px-3 py-2">Department</th>
-                <th className="px-3 py-2">Gross Salary</th>
-                <th className="px-3 py-2">Total Allowances</th>
-                <th className="px-3 py-2">Total Deductions</th>
-                <th className="px-3 py-2">Net Salary</th>
-                <th className="px-3 py-2">Payslip Status</th>
-                <th className="px-3 py-2">Payment Date</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-center">Employee ID</th>
+                <th className="px-3 py-2 text-center">Employee Name</th>
+                <th className="px-3 py-2 text-center">Department</th>
+                <th className="px-3 py-2 text-center">Gross Salary</th>
+                <th className="px-3 py-2 text-center">Total Allowances</th>
+                <th className="px-3 py-2 text-center">Total Deductions</th>
+                <th className="px-3 py-2 text-center">Net Salary</th>
+                <th className="px-3 py-2 text-center">Payslip Status</th>
+                <th className="px-3 py-2 text-center">Payment Date</th>
+                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1566,7 +1606,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </td>
                   <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
                   <td className="px-3 py-2">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Preview Profile">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
@@ -1662,17 +1702,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           </div>
           <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Month</label>
-            <select value={historyMonth} onChange={e => setHistoryMonth(e.target.value)} className={selectClass}>
+            <SelectField value={historyMonth} onChange={e => setHistoryMonth(e.target.value)}>
               <option value="All">All Months</option>
               {monthOptions.map(month => <option key={month}>{month}</option>)}
-            </select>
+            </SelectField>
           </div>
-          <div className="flex-1 min-w-[150px]">
+          <div className="w-32">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Year</label>
-            <select value={historyYear} onChange={e => setHistoryYear(e.target.value)} className={selectClass}>
+            <SelectField value={historyYear} onChange={e => setHistoryYear(e.target.value)}>
               <option value="All">All Years</option>
               {yearOptions.map(year => <option key={year}>{year}</option>)}
-            </select>
+            </SelectField>
           </div>
           <div className="flex-1 min-w-[150px]">
             <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Department</label>
@@ -1698,15 +1738,15 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     }}
                   />
                 </th>
-                <th className="px-3 py-2">Month</th>
-                <th className="px-3 py-2">Year</th>
-                <th className="px-3 py-2">Employee</th>
-                <th className="px-3 py-2">Gross Salary</th>
-                <th className="px-3 py-2">Deductions</th>
-                <th className="px-3 py-2">Net Salary</th>
-                <th className="px-3 py-2">Generated Date</th>
-                <th className="px-3 py-2">Payment Status</th>
-                <th className="px-3 py-2 text-right">Actions</th>
+                <th className="px-3 py-2 text-center">Month</th>
+                <th className="px-3 py-2 text-center">Year</th>
+                <th className="px-3 py-2 text-center">Employee</th>
+                <th className="px-3 py-2 text-center">Gross Salary</th>
+                <th className="px-3 py-2 text-center">Deductions</th>
+                <th className="px-3 py-2 text-center">Net Salary</th>
+                <th className="px-3 py-2 text-center">Generated Date</th>
+                <th className="px-3 py-2 text-center">Payment Status</th>
+                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1745,7 +1785,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     <Badge variant={item.status === 'Paid' ? 'success' : 'warning'} size="sm">{item.status}</Badge>
                   </td>
                   <td className="px-3 py-1.5">
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button type="button" onClick={() => handlePrintPayslip(item, false)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="View Payslip">
                         <Eye className="h-3.5 w-3.5" />
                       </button>
@@ -1850,10 +1890,10 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee Category</label>
-                    <select value={structureDraft.employeeCategory} onChange={e => setStructureDraft(prev => ({ ...prev, employeeCategory: e.target.value as CategoryValue }))} className={selectClass}>
+                    <SelectField value={structureDraft.employeeCategory} onChange={e => setStructureDraft(prev => ({ ...prev, employeeCategory: e.target.value as CategoryValue }))}>
                       <option value="Teacher">Teaching Staff</option>
                       <option value="Staff">Non-Teaching Staff</option>
-                    </select>
+                    </SelectField>
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
@@ -1871,7 +1911,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Payroll Frequency</label>
-                    <select value={structureDraft.payrollFrequency} onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))} className={selectClass}>
+                    <SelectField value={structureDraft.payrollFrequency} onChange={e => setStructureDraft(prev => ({ ...prev, payrollFrequency: e.target.value as any }))}>
                       <option value="Monthly">Monthly</option>
                       <option value="Weekly">Weekly</option>
                       <option value="Bi-Weekly">Bi-Weekly</option>
@@ -1879,14 +1919,14 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       <option value="Daily">Daily</option>
                       <option value="Per Class">Per Class</option>
                       <option value="Contractual">Contractual</option>
-                    </select>
+                    </SelectField>
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Status</label>
-                    <select value={structureDraft.status} onChange={e => setStructureDraft(prev => ({ ...prev, status: e.target.value as 'Active' | 'Inactive' }))} className={selectClass}>
+                    <SelectField value={structureDraft.status} onChange={e => setStructureDraft(prev => ({ ...prev, status: e.target.value as 'Active' | 'Inactive' }))}>
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
-                    </select>
+                    </SelectField>
                   </div>
                   <div className="md:col-span-2">
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Description / Notes</label>
@@ -1965,14 +2005,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Applicable</label>
-                    <select
+                    <SelectField
                       value={structureDraft.pfApplicable ? 'Yes' : 'No'}
                       onChange={e => setStructureDraft(prev => ({ ...prev, pfApplicable: e.target.value === 'Yes' }))}
-                      className={selectClass}
                     >
                       <option value="Yes">Yes</option>
                       <option value="No">No</option>
-                    </select>
+                    </SelectField>
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PF Percentage</label>
@@ -1987,14 +2026,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Applicable</label>
-                    <select
+                    <SelectField
                       value={structureDraft.esiApplicable ? 'Yes' : 'No'}
                       onChange={e => setStructureDraft(prev => ({ ...prev, esiApplicable: e.target.value === 'Yes' }))}
-                      className={selectClass}
                     >
                       <option value="Yes">Yes</option>
                       <option value="No">No</option>
-                    </select>
+                    </SelectField>
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">ESI Percentage</label>
@@ -2009,14 +2047,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Applicable</label>
-                    <select
+                    <SelectField
                       value={structureDraft.professionalTaxApplicable ? 'Yes' : 'No'}
                       onChange={e => setStructureDraft(prev => ({ ...prev, professionalTaxApplicable: e.target.value === 'Yes' }))}
-                      className={selectClass}
                     >
                       <option value="Yes">Yes</option>
                       <option value="No">No</option>
-                    </select>
+                    </SelectField>
                   </div>
                   <div>
                     <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">PT Amount</label>
@@ -2088,7 +2125,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Employee</label>
-                <select
+                <SelectField
                   value={assignmentDraft.employeeId}
                   onChange={e => {
                     const employeeId = e.target.value;
@@ -2109,7 +2146,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       deductions: String(breakdown.deductions)
                     }));
                   }}
-                  className={selectClass}
                 >
                   <option value="">Select Employee</option>
                   {staff.map(member => (
@@ -2117,11 +2153,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       {member.firstName} {member.lastName} - {member.empId}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Category</label>
-                <select
+                <SelectField
                   value={assignmentDraft.employeeCategory}
                   onChange={e => {
                     const category = e.target.value as CategoryValue | '';
@@ -2138,12 +2174,11 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       deductions: String(breakdown.deductions)
                     }));
                   }}
-                  className={selectClass}
                 >
                   <option value="">Select Category</option>
                   <option value="Teacher">Teaching Staff</option>
                   <option value="Staff">Non-Teaching Staff</option>
-                </select>
+                </SelectField>
               </div>
               <div>
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Designation</label>
@@ -2170,7 +2205,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </div>
               <div className="md:col-span-2">
                 <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.28em] text-slate-400">Salary Structure</label>
-                <select
+                <SelectField
                   value={assignmentDraft.salaryStructureId}
                   onChange={e => {
                     const salaryStructureId = e.target.value;
@@ -2184,7 +2219,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       deductions: String(breakdown.deductions)
                     }));
                   }}
-                  className={selectClass}
                   disabled={!assignmentDraft.designation}
                 >
                   <option value="">Select Salary Structure</option>
@@ -2193,7 +2227,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                       {structure.structureName}
                     </option>
                   ))}
-                </select>
+                </SelectField>
               </div>
               <div className="md:col-span-2 rounded-[20px] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
                 <div className="flex items-center justify-between gap-3">

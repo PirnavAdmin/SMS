@@ -432,95 +432,90 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           </div>
 
           {/* SUMMARY METRIC CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Total Classes */}
-            <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-300 shrink-0">
-                <School className="h-6 w-6" />
+            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-300 shrink-0">
+                <School className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Classes</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{summaryMetrics.totalClasses}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Total Classes</p>
+                <p className="text-base font-black text-slate-900 dark:text-white mt-0.5 leading-none">{summaryMetrics.totalClasses}</p>
               </div>
             </div>
 
             {/* Total Sections */}
-            <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300 shrink-0">
-                <BookOpen className="h-6 w-6" />
+            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300 shrink-0">
+                <BookOpen className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Sections</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{summaryMetrics.totalSections}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Total Sections</p>
+                <p className="text-base font-black text-slate-900 dark:text-white mt-0.5 leading-none">{summaryMetrics.totalSections}</p>
               </div>
             </div>
 
             {/* Total Active Students */}
-            <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300 shrink-0">
-                <Users className="h-6 w-6" />
+            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300 shrink-0">
+                <Users className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Active Students</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{summaryMetrics.totalActiveStudents.toLocaleString()}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Total Active Students</p>
+                <p className="text-base font-black text-slate-900 dark:text-white mt-0.5 leading-none">{summaryMetrics.totalActiveStudents.toLocaleString()}</p>
               </div>
             </div>
 
             {/* Inactive Students (Clickable to view inactive roster) */}
             <div
               onClick={handleViewInactiveStudents}
-              className="glass-card p-4 rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5 cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all group"
+              className="glass-card p-3 rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-white dark:bg-slate-900 shadow-xs flex items-center justify-between cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all group"
               title="Click to view all inactive students"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
-                <UserX className="h-6 w-6" />
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <UserX className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Inactive Students</p>
+                  <p className="text-base font-black text-rose-600 dark:text-rose-400 mt-0.5 leading-none">{summaryMetrics.inactiveStudentsCount}</p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                  <span>Inactive Students</span>
-                  <span className="text-[9px] text-rose-600 dark:text-rose-400 font-bold group-hover:underline">View &rarr;</span>
-                </p>
-                <p className="text-xl font-black text-rose-600 dark:text-rose-400 mt-0.5">{summaryMetrics.inactiveStudentsCount}</p>
-              </div>
+              <ChevronRight className="h-3.5 w-3.5 text-rose-500 shrink-0 group-hover:translate-x-0.5 transition-transform opacity-60 group-hover:opacity-100" />
             </div>
 
             {/* New Admissions */}
-            <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-3.5">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300 shrink-0">
-                <Sparkles className="h-6 w-6" />
+            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300 shrink-0">
+                <Sparkles className="h-4.5 w-4.5" />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">New Admissions</p>
-                <p className="text-xl font-black text-slate-900 dark:text-white mt-0.5">{summaryMetrics.newAdmissions}</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">New Admissions</p>
+                <p className="text-base font-black text-slate-900 dark:text-white mt-0.5 leading-none">{summaryMetrics.newAdmissions}</p>
               </div>
-            </div>
-          </div>
-
-          {/* SEARCH CONTROL BAR */}
-          <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
-            <div className="relative w-full max-w-sm sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
-              <input
-                type="text"
-                placeholder="e.g. Class 9, Nursery..."
-                value={searchClassQuery}
-                onChange={e => setSearchClassQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
-              />
             </div>
           </div>
 
           {/* CLASS & SECTION OVERVIEW CARD GRID */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
                   Classes & Sections Overview
                 </h2>
               </div>
-              <span className="text-xs font-bold text-slate-400">
-                Total Students Across All Classes: <strong className="text-slate-900 dark:text-white">{summaryMetrics.totalActiveStudents.toLocaleString()}</strong>
-              </span>
+              <div className="flex items-center gap-4">
+                <div className="relative w-full sm:w-60">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search classes..."
+                    value={searchClassQuery}
+                    onChange={e => setSearchClassQuery(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition"
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Responsive Grid: Desktop 3-4 per row, Tablet 2 per row, Mobile 1 per row */}
@@ -591,55 +586,39 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         /* ---------------------------------------------------- */
         <div className="space-y-6">
 
-          {/* BREADCRUMB & BACK HEADER BANNER */}
-          <div className="glass-card px-5 py-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleBackToOverview}
-                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-1 text-xs font-bold cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" /> All Classes
-              </button>
-              <div>
-                <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  {filterStatus === 'Inactive' ? (
-                    <>
-                      <UserX className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-                      <span>Inactive Students</span>
-                      {selectedClass !== 'All' && (
-                        <span className="text-xs font-normal text-slate-400">({selectedClass} - Sec {selectedSection})</span>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
-                      <span>{selectedClass === 'All' ? 'All Student Roster' : `${selectedClass} - Section ${selectedSection}`}</span>
-                    </>
+          {/* HEADER ROW */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleBackToOverview}
+              className="p-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shadow-xs transition-colors shrink-0 flex items-center justify-center cursor-pointer h-9 w-9"
+              title="Back to Overview"
+            >
+              <ArrowLeft className="w-4.5 h-4.5" />
+            </button>
+            <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+              {filterStatus === 'Inactive' ? (
+                <>
+                  <UserX className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
+                  <span>Inactive Students</span>
+                  {selectedClass !== 'All' && (
+                    <span className="text-xs font-normal text-slate-400">({selectedClass} - Sec {selectedSection})</span>
                   )}
-                </h2>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2.5">
-              <ExportButton data={filteredRoster} filename={`${selectedClass}_Section_${selectedSection}_Students`} filteredCount={filteredRoster.length} />
-              <button
-                onClick={() => {
-                  setStudentToEdit(null);
-                  setIsEditOpen(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-xs font-black text-white shadow-xs transition"
-              >
-                <Plus className="w-4 h-4" /> Add Student
-              </button>
-            </div>
+                </>
+              ) : (
+                <>
+                  <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+                  <span>{selectedClass === 'All' ? 'All Student Roster' : `${selectedClass} - Section ${selectedSection}`}</span>
+                </>
+              )}
+            </h2>
           </div>
 
           {/* ROSTER TABLE FILTERS BAR */}
-          <div className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               {/* Search Name */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search by student name..."
@@ -649,15 +628,20 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 />
               </div>
 
-              {/* Search Admission / Roll No */}
-              <div className="relative">
-                <FileText className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                <input
-                  type="text"
-                  placeholder="Admission or Roll number..."
-                  value={searchAdmNo}
-                  onChange={e => setSearchAdmNo(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition font-mono"
+              {/* Download Button */}
+              <div className="shrink-0">
+                <ExportButton
+                  data={filteredRoster.map(s => ({
+                    'Roll Number': s.rollNo || '-',
+                    'Admission Number': s.admissionNo || '-',
+                    'Student Name': `${s.firstName} ${s.lastName}`.trim(),
+                    'Gender': s.gender || '-',
+                    'Father Name': s.fatherName || '-',
+                    'Mobile Number': s.fatherPhone || '-',
+                    'Status': s.status || 'Active'
+                  }))}
+                  filename={`${selectedClass}_Section_${selectedSection}_Students`}
+                  filteredCount={filteredRoster.length}
                 />
               </div>
             </div>

@@ -46,6 +46,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       setForm({
         ...defaultBasicStaffFormState(normalizedCat),
         employeeCategory: normalizedCat,
+        empId: staffToEdit.empId || "",
         firstName:
           staffToEdit.firstName ||
           (staffToEdit.name ? staffToEdit.name.split(" ")[0] : "") ||
@@ -57,9 +58,9 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             ? staffToEdit.name.split(" ").slice(1).join(" ")
             : "") ||
           "",
-        gender: (staffToEdit.gender as any) || "Male",
+        gender: (staffToEdit.gender as any) || "",
         dob: staffToEdit.dob || "",
-        bloodGroup: "O+",
+        bloodGroup: staffToEdit.bloodGroup || "",
         mobileNumber: staffToEdit.phone || "",
         alternateMobileNumber: "",
         email: staffToEdit.email || "",
@@ -77,17 +78,39 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         designation: staffToEdit.designation || "",
         joiningDate:
           staffToEdit.joiningDate || new Date().toISOString().split("T")[0],
-        employmentType: staffToEdit.employmentType || "Full-Time",
+        employmentType: staffToEdit.employmentType || "",
         reportingManager: "",
-        status: staffToEdit.status === "Active" ? "Active" : "Inactive",
+        status: staffToEdit.status || "",
         academicYear: "2026-2027",
         assignedClasses: staffToEdit.assignedClasses || [],
         assignedSections: [],
         assignedSubjects: staffToEdit.assignedSubjects || [],
         isClassTeacher: staffToEdit.isClassTeacherEligible ? "Yes" : "No",
-        qualifications: [],
-        experiences: [],
-        documents: [],
+        qualifications: (staffToEdit.qualifications || []).map((q: any) => ({
+          id: q.id || `QUAL-${Date.now()}-${Math.random()}`,
+          qualification: q.qualification || q.highestQualification || "",
+          specialization: q.specialization || "",
+          institution: q.institution || q.university || "",
+          boardUniversity: q.boardUniversity || q.university || "",
+          passingYear: q.passingYear || q.year || "",
+          percentageCgpa: q.percentageCgpa || q.percentage || ""
+        })),
+        experiences: (staffToEdit.experienceRecords || []).map((e: any) => ({
+          id: e.id || `EXP-${Date.now()}-${Math.random()}`,
+          previousOrganization: e.previousOrganization || e.organization || e.previousSchool || "",
+          designation: e.designation || "",
+          fromDate: e.fromDate || e.joiningDate || "",
+          toDate: e.toDate || e.relievingDate || "",
+          totalExperience: e.totalExperience || "0 Years 0 Months",
+          reasonForLeaving: e.reasonForLeaving || ""
+        })),
+        documents: (staffToEdit.documents || []).map((d: any) => ({
+          id: d.id || `DOC-${Date.now()}-${Math.random()}`,
+          docType: d.type || "",
+          fileName: d.title || d.name || "",
+          fileUrl: d.fileUrl || "",
+          uploadedAt: d.uploadedDate || d.uploadDate || ""
+        })),
       });
     } else {
       setForm({
@@ -280,29 +303,10 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             onCategoryChange={handleCategoryChange}
             employeeIdReadOnly
             compact
+            isSubmitting={submitting}
+            onCancel={onClose}
+            staffToEdit={staffToEdit}
           />
-
-          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-md shadow-brand-600/20 disabled:opacity-70"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              {submitting
-                ? "Saving..."
-                : staffToEdit
-                  ? "Save Changes"
-                  : "Create Employee Record"}
-            </button>
-          </div>
         </form>
       </div>
     </div>

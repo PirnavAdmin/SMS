@@ -20,7 +20,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const {
     students, staff, announcements, holidays,
     schoolProfile, admissions, leaveApplications, attendance,
-    academicClasses, departments, birthdays
+    academicClasses, departments, birthdays, exams
   } = useData();
 
   const userRole = user?.role?.toLowerCase() || '';
@@ -142,24 +142,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Upcoming Teacher Birthdays (Next 30 days) - Using static birthdays as requested
   const upcomingBirthdays = useMemo(() => {
-    return birthdays.slice(0, 5);
+    return birthdays.filter(b => b.role === 'Staff').slice(0, 5);
   }, [birthdays]);
   
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 p-3.5 sm:p-4 text-slate-900 dark:text-white border border-brand-200 dark:border-slate-800 shadow-xs">
+      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 py-2 px-4 text-slate-900 dark:text-white border border-brand-200 dark:border-slate-800 shadow-xs">
         <div className="absolute right-0 top-0 w-96 h-96 bg-brand-100/50 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
+            <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
               <span>{greeting}, {user?.name || 'Admin'}</span>
-              <Sparkles className="w-5 h-5 text-brand-500 dark:text-brand-400 animate-pulse" />
+              <Sparkles className="w-4 h-4 text-brand-500 dark:text-brand-400 animate-pulse" />
             </h1>
           </div>
-          <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-50 dark:bg-slate-900 shrink-0">
-              {hour < 17 ? <Sun className="w-4.5 h-4.5 text-amber-500" /> : <Moon className="w-4.5 h-4.5 text-indigo-400" />}
+          <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
+            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-50 dark:bg-slate-900 shrink-0">
+              {hour < 17 ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-400" />}
             </div>
             <div className="text-left font-mono shrink-0">
               <p className="text-xs font-black text-slate-850 dark:text-slate-100 leading-none">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
@@ -219,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         {/* Top Row: Attendance & Events */}
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
           {/* Pie Chart: Student Attendance */}
-          <div onClick={() => onNavigate('attendance')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
+          <div onClick={() => onNavigate('attendance')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Student Attendance</h3>
@@ -263,7 +263,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
             {/* Pie Chart: Staff Attendance */}
-            <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
+            <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>
@@ -318,23 +318,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </div>
 
           {/* Upcoming Events & Holidays */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
+          <div onClick={() => onNavigate('events')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
             <div className="flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-brand-600" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Upcoming Events & Holidays</h3>
+              <div className="flex items-center gap-2 min-w-0">
+                <Calendar className="w-5 h-5 text-brand-600 shrink-0" />
+                <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight leading-tight">Upcoming Events & Holidays</h3>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               {upcomingEventsAndHolidays.length === 0 ? (
                 <p className="text-xs text-slate-500 py-2 text-center">No upcoming events or holidays.</p>
               ) : upcomingEventsAndHolidays.map(e => (
-                <div key={e.id} className={`flex items-center justify-between p-3 rounded-xl text-xs border ${e.type === 'Holiday' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-slate-50 dark:bg-slate-800/60 border-brand-400 dark:border-brand-800'}`}>
+                <div key={e.id} className={`flex items-center justify-between p-3 rounded-xl text-xs border ${e.type === 'Holiday' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'}`}>
                   <div>
                     <p className="font-bold text-slate-900 dark:text-white">{e.title}</p>
                     <p className="text-[10px] text-slate-500">{e.category}</p>
                   </div>
-                  <span className={`font-semibold px-2 py-1 rounded-lg text-[10px] shrink-0 ml-2 ${e.type === 'Holiday' ? 'bg-amber-100 text-amber-700 dark:bg-amber-800 dark:text-amber-100' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
+                  <span className={`font-semibold px-2 py-1 rounded-lg text-[10px] shrink-0 ml-2 ${e.type === 'Holiday' ? 'bg-amber-100 text-amber-700 dark:bg-amber-855 dark:text-amber-100' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
                     {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                   </span>
                 </div>
@@ -343,51 +343,74 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Bottom Row: Pending Approvals & Birthdays */}
+        {/* Bottom Row: Pending Approvals, Examinations & Birthdays */}
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
           {/* Pending Approvals */}
-          <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-amber-500" />
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Pending Approvals</h3>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <button onClick={() => onNavigate('staff-leave')} className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-brand-400 dark:border-brand-800">
-                <div className="flex flex-col items-start text-sm">
+            <div className="flex flex-col gap-3 pt-2">
+              <button onClick={() => onNavigate('staff-leave')} className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col items-start text-xs">
                   <span className="font-bold text-slate-900 dark:text-white">Leave Requests</span>
-                  <span className="text-xs text-slate-500">Requires manager approval</span>
+                  <span className="text-[10px] text-slate-500">Requires manager approval</span>
                 </div>
                 <Badge variant="warning">{pendingLeaves.length} Pending</Badge>
               </button>
-              <button onClick={() => onNavigate('admissions')} className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-brand-400 dark:border-brand-800">
-                <div className="flex flex-col items-start text-sm">
+              <button onClick={() => onNavigate('admissions')} className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col items-start text-xs">
                   <span className="font-bold text-slate-900 dark:text-white">Admissions</span>
-                  <span className="text-xs text-slate-500">Submitted / Under Review</span>
+                  <span className="text-[10px] text-slate-500">Submitted / Under Review</span>
                 </div>
                 <Badge variant="info">{pendingAdmissions.length} Pending</Badge>
               </button>
             </div>
           </div>
 
+          {/* Examinations info container */}
+          <div onClick={() => onNavigate('examination')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[230px] lg:h-auto">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-indigo-500" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Examinations</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+              {exams.length === 0 ? (
+                <p className="text-xs text-slate-500 py-4 text-center">No exams scheduled.</p>
+              ) : exams.slice(0, 3).map(ex => (
+                <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <p className="font-bold text-slate-900 dark:text-white truncate">{ex.name}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{ex.className || 'All Classes'}</p>
+                  </div>
+                  <span className="font-semibold px-2 py-0.5 rounded-md text-[9px] shrink-0 ml-auto bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
+                    {ex.startDate ? new Date(ex.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'TBD'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Upcoming Teacher Birthdays */}
-          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 shadow-sm p-6 rounded-xl space-y-4 transition-colors">
+          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 transition-colors">
             <div className="flex items-center gap-2">
               <Cake className="w-5 h-5 text-rose-500" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Upcoming Teacher Birthday's</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Teacher Birthdays</h3>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1">
               {upcomingBirthdays.length === 0 ? (
-                 <p className="text-xs text-slate-500 py-2 text-center">No upcoming birthdays.</p>
-              ) : upcomingBirthdays.map(b => (
-                <div key={b.id} className="flex items-center gap-3 p-3 rounded-xl bg-rose-50/60 dark:bg-rose-950/30 text-xs border border-brand-400 dark:border-brand-800">
-                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                 <p className="text-xs text-slate-500 py-4 text-center">No upcoming birthdays.</p>
+              ) : upcomingBirthdays.slice(0, 3).map(b => (
+                <div key={b.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-rose-50/40 dark:bg-rose-950/20 text-xs border border-rose-100/50 dark:border-rose-950">
+                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{b.name}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{b.dob} • {b.role}</p>
+                    <p className="text-[9px] text-slate-500 truncate">{b.dob} • {b.role}</p>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-rose-500 text-white shadow-sm shrink-0">🎂 Wish</span>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-rose-500 text-white shrink-0">🎂 Wish</span>
                 </div>
               ))}
             </div>

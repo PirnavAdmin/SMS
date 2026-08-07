@@ -91,7 +91,8 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
       category: docCategory,
       size: docFile ? `${(docFile.size / (1024 * 1024)).toFixed(1)} MB` : '1.5 MB',
       uploadDate: new Date().toLocaleDateString('en-GB'),
-      status: 'Verified'
+      status: 'Verified',
+      fileUrl: docFile ? URL.createObjectURL(docFile) : undefined
     };
     setDocuments(prev => [newDoc, ...prev]);
     setIsUploadModalOpen(false);
@@ -132,7 +133,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
     { id: 'parents', label: 'Guardian', icon: Users },
-    { id: 'academics', label: 'Academic', icon: BookOpen },
     { id: 'transport', label: isHosteller ? 'Hostel Details' : 'Bus Route', icon: isHosteller ? Home : Bus },
     { id: 'fees', label: 'Fee History', icon: IndianRupee },
     { id: 'attendance', label: 'Attendance', icon: Calendar },
@@ -182,7 +182,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-brand-100">
-                Class {student.className}-{student.section} • Roll: <strong className="text-white">{student.rollNo}</strong> • Adm: <strong className="text-white">{student.admissionNo}</strong> • <span className="font-bold text-amber-300">{student.branch || 'Main Campus'}</span>
+                {student.className}-{student.section} • Roll: <strong className="text-white">{student.rollNo}</strong> • Adm: <strong className="text-white">{student.admissionNo}</strong> • <span className="font-bold text-amber-300">{student.branch || 'Main Campus'}</span>
               </p>
               <div className="flex items-center gap-4 pt-1 text-xs text-white/90 flex-wrap">
                 <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 opacity-80" /> {student.email}</span>
@@ -339,7 +339,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
           {activeTab === 'fees' && (
             <div className="space-y-6 animate-in fade-in">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Complete Fee History & Payment Ledger</h3>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Complete Fee History</h3>
                 <span className="text-xs font-bold text-slate-500">Academic Year 2026-2027</span>
               </div>
 
@@ -359,9 +359,9 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </div>
               </div>
 
-              {/* Assigned Fee Structure Breakdown */}
+              {/* Assigned Fee Structure */}
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-                <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Assigned Fee Structure Breakdown</h4>
+                <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Assigned Fee Structure</h4>
                 <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
@@ -718,7 +718,6 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Uploaded Student Documents & Certificates</h3>
-                  <p className="text-[11px] text-slate-500">Manage, preview, edit, or download student certificates and identification files.</p>
                 </div>
                 <button
                   onClick={() => setIsUploadModalOpen(true)}
@@ -750,14 +749,14 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       </div>
                     </div>
 
-                    {/* Action Controls: Preview, Edit, Download, Delete */}
+                    {/* Action Controls: Preview, Edit, Delete */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() => setPreviewDoc(doc)}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 transition-colors"
+                        className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors"
                         title="Preview Document"
                       >
-                        <Eye className="w-3.5 h-3.5 text-brand-600" /> View
+                        <Eye className="w-4 h-4 text-brand-600" />
                       </button>
                       <button
                         onClick={() => {
@@ -765,24 +764,17 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                           setDocTitle(doc.name);
                           setDocCategory(doc.category);
                         }}
-                        className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 transition-colors"
+                        className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold transition-colors"
                         title="Edit Details"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-sky-600" /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDownloadDoc(doc)}
-                        className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 text-emerald-700 dark:text-emerald-300 font-bold text-xs flex items-center gap-1 transition-colors"
-                        title="Download Document"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Download
+                        <Edit3 className="w-4 h-4 text-sky-600" />
                       </button>
                       <button
                         onClick={() => handleDeleteDocument(doc.id, doc.name)}
-                        className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold text-xs transition-colors"
+                        className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold transition-colors"
                         title="Delete Document"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -914,6 +906,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="space-y-1">
                 <label className="font-bold text-slate-700 dark:text-slate-300">Select File</label>
                 <input
+                  id="certificate-file-input"
                   type="file"
                   onChange={e => {
                     const f = e.target.files?.[0];
@@ -922,8 +915,20 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       if (!docTitle) setDocTitle(f.name);
                     }
                   }}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 font-medium"
+                  className="hidden"
                 />
+                <button
+                  type="button"
+                  onClick={() => document.getElementById('certificate-file-input')?.click()}
+                  className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950/60 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors text-left"
+                >
+                  <span className="truncate text-slate-500 font-medium">
+                    {docFile ? docFile.name : 'Choose file...'}
+                  </span>
+                  <span className="px-2.5 py-1 text-[10px] font-bold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 shrink-0">
+                    Browse
+                  </span>
+                </button>
               </div>
 
               <div className="flex justify-end gap-2 border-t pt-4 border-slate-100 dark:border-slate-800">
@@ -1022,16 +1027,44 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             </div>
 
             {/* Document Preview Box */}
-            <div className="p-8 rounded-2xl bg-slate-100 dark:bg-slate-950 border border-dashed border-slate-300 dark:border-slate-800 flex flex-col items-center justify-center text-center space-y-3">
-              <div className="w-16 h-16 rounded-2xl bg-brand-100 dark:bg-brand-950 text-brand-600 flex items-center justify-center">
-                <FileText className="w-8 h-8" />
-              </div>
-              <div>
-                <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{previewDoc.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Category: {previewDoc.category} • {previewDoc.size}</p>
-                <div className="mt-2"><Badge variant="success" size="sm">{previewDoc.status}</Badge></div>
-              </div>
-              <p className="text-[11px] text-slate-400 italic">Document is verified and securely stored in student repository.</p>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 overflow-hidden flex flex-col h-[400px]">
+              {previewDoc.fileUrl ? (
+                <div className="flex-1 w-full overflow-y-auto">
+                  {previewDoc.name.toLowerCase().endsWith('.pdf') ? (
+                    <iframe 
+                      src={previewDoc.fileUrl} 
+                      className="w-full h-full min-h-[380px] border-none"
+                      title="PDF Preview"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center p-4 min-h-full bg-slate-100 dark:bg-slate-950">
+                      <img 
+                        src={previewDoc.fileUrl} 
+                        alt="Uploaded Document" 
+                        className="max-w-full rounded-lg shadow-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Fallback preview for default mock docs */
+                <div className="flex-1 p-8 overflow-y-auto flex flex-col items-center justify-center text-center space-y-3">
+                  <div className="w-16 h-16 rounded-2xl bg-brand-100 dark:bg-brand-950 text-brand-600 flex items-center justify-center shrink-0">
+                    <FileText className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-slate-200 text-sm">{previewDoc.name}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Category: {previewDoc.category} • {previewDoc.size}</p>
+                    <div className="mt-2"><Badge variant="success" size="sm">{previewDoc.status}</Badge></div>
+                  </div>
+                  <div className="w-full max-w-sm p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-left text-xs font-mono space-y-2 mt-2">
+                    <p className="text-slate-500 font-bold uppercase tracking-wider text-[9px] border-b pb-1 border-slate-100 dark:border-slate-800">Verified Secure Document</p>
+                    <p className="text-slate-700 dark:text-slate-300">File Signature: SHA-256 (OK)</p>
+                    <p className="text-slate-700 dark:text-slate-300">Access Tier: Student Portal Restructured</p>
+                    <p className="text-slate-400 text-[10px] italic">To inspect full original copy offline, click "Download File" below.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 border-t pt-4 border-slate-100 dark:border-slate-800">

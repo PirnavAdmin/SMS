@@ -589,6 +589,30 @@ export const initialExamSetups: ExamSetup[] = [
     startDate: "2026-09-10",
     endDate: "2026-09-22",
     status: "Scheduled"
+  },
+  {
+    id: "EXM-02",
+    name: "Quarterly Assessment 2026",
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    examType: "Quarterly",
+    className: "Class 9",
+    applicableClasses: ["Class 9", "Class 10"],
+    startDate: "2026-10-12",
+    endDate: "2026-10-18",
+    status: "Scheduled"
+  },
+  {
+    id: "EXM-03",
+    name: "Unit Test 1 (Aesthetics)",
+    academicYear: "2026-2027",
+    branch: "Main Campus",
+    examType: "Unit Test",
+    className: "Class 10",
+    applicableClasses: ["Class 10"],
+    startDate: "2026-11-05",
+    endDate: "2026-11-10",
+    status: "Scheduled"
   }
 ];
 
@@ -716,7 +740,7 @@ export const initialHolidays: Holiday[] = [
 ];
 
 export const initialBirthdays: Birthday[] = [
-  { id: "BD-01", name: "Alexander Wright", role: "Student", className: "Class 10-A", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80", dob: "Today" }
+  { id: "BD-01", name: "Emily Watson", role: "Staff", className: "Science Department", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80", dob: "Today" }
 ];
 
 export const initialAuditLogs: AuditLog[] = [
