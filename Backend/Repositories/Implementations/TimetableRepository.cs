@@ -209,10 +209,22 @@ public class TimetableRepository : ITimetableRepository
 
         // Fallback: Check if section has a Class Teacher assigned
         var section = await _context.ClassSections
-            .Include(s => s.ClassTeacher)
             .FirstOrDefaultAsync(s => s.SectionId == sectionId);
 
-        return section?.ClassTeacher;
+        if (section != null)
+        {
+            var classTeacherAssignment = await _context.TeacherAssignments
+                .Include(a => a.Teacher)
+                .FirstOrDefaultAsync(a =>
+                    a.ClassId == section.ClassId &&
+                    a.SectionLetter == section.SectionName &&
+                    a.Role == "Class Teacher");
+
+            if (classTeacherAssignment != null)
+                return classTeacherAssignment.Teacher;
+        }
+
+        return null;
     }
 
     // =========================================================

@@ -621,7 +621,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 </label>
                 <select value={value.status || 'Active'} onChange={e => onChange('status', e.target.value)} className={fieldClass}>
                   <option value="Active">Active</option>
-                  <option value="On Leave">On Leave</option>
                   <option value="Resigned">Resigned</option>
                   <option value="Retired">Retired</option>
                 </select>
@@ -978,7 +977,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
                 <UploadCloud className="w-4 h-4 text-brand-600" />
-                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-xs">Employee Document Repository</h3>
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-xs">Upload Documents</h3>
               </div>
               <span className="text-[11px] text-slate-400 font-bold">
                 {value.documents.length} File(s) Uploaded
@@ -1092,10 +1091,22 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               </div>
               <button onClick={() => setPreviewDoc(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 font-bold">✕</button>
             </div>
-            <div className="p-6 bg-slate-100 dark:bg-slate-950 rounded-xl flex items-center justify-center min-h-[220px]">
-              <p className="text-slate-500 font-bold text-xs text-center">
-                Document preview for <strong>{previewDoc.fileName}</strong> is ready.
-              </p>
+            <div className="p-4 bg-slate-101 dark:bg-slate-950 rounded-xl flex items-center justify-center min-h-[220px] max-h-[380px] overflow-auto">
+              {previewDoc.fileUrl && (
+                previewDoc.fileUrl.startsWith('data:image/') ||
+                /\.(png|jpe?g|gif|webp|bmp)$/i.test(previewDoc.fileUrl) ||
+                previewDoc.fileName.match(/\.(png|jpe?g|gif|webp|bmp)$/i)
+              ) ? (
+                <img 
+                  src={previewDoc.fileUrl} 
+                  alt={previewDoc.fileName} 
+                  className="max-w-full max-h-[340px] object-contain rounded-lg shadow-sm"
+                />
+              ) : (
+                <p className="text-slate-550 font-bold text-xs text-center">
+                  Document preview for <strong>{previewDoc.fileName}</strong> is ready.
+                </p>
+              )}
             </div>
             <div className="flex justify-end gap-2">
               <a

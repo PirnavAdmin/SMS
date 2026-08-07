@@ -536,7 +536,7 @@ public class TimetableService : ITimetableService
     public async Task<List<ClassSubjectQuotaDto>> GetClassSubjectsCandidatesAsync(int classId, int sectionId)
     {
         // Fetch subjects mapped to class
-        var mappedSubjects = await _context.ClassCurriculumSubjects
+        var mappedSubjects = await _context.ClassSubjectMappings
             .Where(c => c.ClassId == classId)
             .Select(c => c.SubjectId)
             .ToListAsync();

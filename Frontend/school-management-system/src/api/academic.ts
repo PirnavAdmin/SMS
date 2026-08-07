@@ -103,7 +103,9 @@ export const fetchClassesApi = async () => {
 };
 
 export const fetchClassByIdApi = async (id: number | string) => {
-  return apiClient(`/api/classes/${id}`, { method: 'GET' });
+  // If the ID is a string prefixed like "CL-10", extract the numeric part
+  const numericId = typeof id === 'string' && id.startsWith('CL-') ? id.replace('CL-', '') : id;
+  return apiClient(`/api/classes/${numericId}`, { method: 'GET' });
 };
 
 export const createClassApi = async (payload: any) => {
@@ -114,12 +116,101 @@ export const createClassApi = async (payload: any) => {
 };
 
 export const updateClassApi = async (id: number | string, payload: any) => {
-  return apiClient(`/api/classes/${id}`, {
+  const numericId = typeof id === 'string' && id.startsWith('CL-') ? id.replace('CL-', '') : id;
+  return apiClient(`/api/classes/${numericId}`, {
     method: 'PUT',
     body: JSON.stringify(payload)
   });
 };
 
 export const deleteClassApi = async (id: number | string) => {
-  return apiClient(`/api/classes/${id}`, { method: 'DELETE' });
+  const numericId = typeof id === 'string' && id.startsWith('CL-') ? id.replace('CL-', '') : id;
+  return apiClient(`/api/classes/${numericId}`, { method: 'DELETE' });
+};
+
+// ============================
+// SECTIONS, SUBJECTS & TEACHERS SUB-ROUTES
+// ============================
+
+export const addSectionApi = async (classId: number | string, payload: {
+  section_letter: string;
+  capacity?: number;
+  status?: string;
+  remarks?: string;
+}) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/sections`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateSectionApi = async (
+  classId: number | string,
+  sectionLetter: string,
+  payload: { capacity?: number; status?: string; remarks?: string; }
+) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteSectionApi = async (classId: number | string, sectionLetter: string) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}`, { method: 'DELETE' });
+};
+
+export const mapSubjectApi = async (classId: number | string, payload: {
+  subject_name: string;
+  weekly_periods?: number;
+}) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/subjects`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const removeSubjectApi = async (classId: number | string, subjectId: number | string) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/subjects/${subjectId}`, { method: 'DELETE' });
+};
+
+export const assignTeacherApi = async (
+  classId: number | string,
+  sectionLetter: string,
+  payload: { teacher_id: string; role: string; subject_name?: string; }
+) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}/assign-teacher`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+// ============================
+// STUDENT ALLOCATION
+// ============================
+
+export const fetchClassStudentsApi = async (classId: number | string, section?: string) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  const query = section ? `?section=${encodeURIComponent(section)}` : '';
+  return apiClient(`/api/classes/${numericId}/students${query}`, { method: 'GET' });
+};
+
+export const allocateStudentApi = async (studentId: string, payload: {
+  section_letter: string;
+  roll_no?: string;
+}) => {
+  return apiClient(`/api/students/${studentId}/allocate`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const autoAllocateApi = async (classId: number | string) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/auto-allocate`, { method: 'POST' });
 };

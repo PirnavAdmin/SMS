@@ -55,11 +55,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [staffExpanded, setStaffExpanded] = useState(true);
   const [academicsExpanded, setAcademicsExpanded] = useState(true);
 
-  const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees';
-  const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel';
-  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule === 'parent-bus-info';
+  const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees' || activeModule.startsWith('parent-fee-');
+  const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel' || activeModule.startsWith('parent-hostel-');
+  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule.startsWith('parent-bus-') || activeModule.startsWith('parent-transport-');
   const isUniformActive = activeModule.startsWith('uniform-') || activeModule === 'uniforms';
-  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule === 'parent-teacher-info';
+  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule.startsWith('parent-teacher-');
   const isAcademicsActive = activeModule.startsWith('academic-') || activeModule === 'academics' || activeModule === 'subjects' || activeModule === 'timetable';
 
   const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>('other');
@@ -159,9 +159,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const academicSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'academic-dashboard', label: 'Dashboard', icon: School },
     { id: 'academic-class', label: 'Class Management', icon: Presentation },
-    { id: 'academic-subjects', label: 'Subject Management', icon: BookOpen },
+    { id: 'subjects', label: 'Subject Management', icon: BookOpen },
     { id: 'timetable', label: 'Time Table', icon: Clock },
-    { id: 'academic-settings', label: 'Academic Settings', icon: Calendar },
   ];
 
   const transportSetupModules = ['transport-setup', 'transport-masters', 'transport-route-management', 'transport-pickup-points', 'transport-vehicle-management', 'transport-driver-management', 'transport-bus-attendants', 'transport-routes', 'transport-pickups', 'transport-vehicles', 'transport-drivers', 'transport-attendants'];
@@ -577,8 +576,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === 'academic-class' && activeModule === 'academics') ||
-                              (sub.id === 'academic-subjects' && activeModule === 'subjects');
+                              (sub.id === 'academic-class' && activeModule === 'academics');
                             return (
                               <button
                                 key={sub.id}

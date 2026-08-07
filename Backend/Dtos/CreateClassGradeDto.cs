@@ -7,7 +7,11 @@ using System.Text.Json.Serialization;
 public class CreateClassGradeDto
 {
 	[Required] public string ClassName { get; set; } = string.Empty;
+
+	[JsonPropertyName("sectionsRaw")]
 	public List<SectionAssignmentDto> Sections { get; set; } = new();
+
+	[JsonPropertyName("subjectIds")]
 	public List<int> SubjectIds { get; set; } = new();
 
 	// Frontend-specific mappings

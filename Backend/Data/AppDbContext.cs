@@ -46,7 +46,8 @@ namespace SMS.Api.Data
 
         public DbSet<ClassGrade> Classes { get; set; } = null!;
         public DbSet<ClassSection> ClassSections { get; set; } = null!;
-        public DbSet<ClassCurriculumSubject> ClassCurriculumSubjects { get; set; } = null!;
+        public DbSet<ClassSubjectMapping> ClassSubjectMappings { get; set; } = null!;
+        public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
 
         // Homework Module
@@ -141,7 +142,9 @@ namespace SMS.Api.Data
 
             ConfigureDepartment(modelBuilder);
             ConfigureSubject(modelBuilder);
-            ConfigureClassCurriculumSubject(modelBuilder);
+            ConfigureClassGrade(modelBuilder);
+            ConfigureClassSubjectMapping(modelBuilder);
+            ConfigureTeacherAssignment(modelBuilder);
             ConfigureClassSection(modelBuilder);
             ConfigureAdmissionApplication(modelBuilder);
 
@@ -161,6 +164,7 @@ namespace SMS.Api.Data
             ConfigureTimetableSlot(modelBuilder);
             ConfigureStudentBedAllocation(modelBuilder);
             ConfigureTeacherAttendanceCorrection(modelBuilder);
+            ConfigureAdmission(modelBuilder);
 
             ConfigureStandardTableNames(modelBuilder);
             ConfigureAcademicYear(modelBuilder);
@@ -483,27 +487,96 @@ namespace SMS.Api.Data
         }
 
         // =====================================================
-        // Class Curriculum Subject Configuration
+        // Class Grade Configuration
         // =====================================================
 
-        private static void ConfigureClassCurriculumSubject(ModelBuilder modelBuilder)
+        private static void ConfigureClassGrade(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<ClassCurriculumSubject>(entity =>
+            modelBuilder.Entity<ClassGrade>(entity =>
             {
-                entity.ToTable("class_curriculum_subjects");
-                entity.HasKey(x => new
-                {
-                    x.ClassId,
-                    x.SubjectId
-                });
+                entity.ToTable("classes");
+                entity.HasKey(x => x.ClassId);
+
+                entity.Property(x => x.ClassId).HasColumnName("id");
+                entity.Property(x => x.ClassName).HasColumnName("name").IsRequired().HasMaxLength(100);
+                entity.Property(x => x.CampusLocation).HasColumnName("campus_location").IsRequired().HasMaxLength(150);
+                entity.Property(x => x.AcademicYear).HasColumnName("academic_year").IsRequired().HasMaxLength(50);
+                entity.Property(x => x.DisplayOrder).HasColumnName("display_order");
+                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20).HasDefaultValue("Active");
+                entity.Property(x => x.Remarks).HasColumnName("remarks");
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+                entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasIndex(x => new { x.ClassName, x.CampusLocation, x.AcademicYear }).IsUnique();
+            });
+        }
+
+        // =====================================================
+        // Class Subject Mapping Configuration
+        // =====================================================
+
+        private static void ConfigureClassSubjectMapping(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ClassSubjectMapping>(entity =>
+            {
+                entity.ToTable("class_subject_mappings");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id).HasColumnName("id");
+                entity.Property(x => x.ClassId).HasColumnName("class_id");
+                entity.Property(x => x.SubjectId).HasColumnName("subject_id");
+                entity.Property(x => x.WeeklyPeriods).HasColumnName("weekly_periods").HasDefaultValue(5);
+
+                entity.HasIndex(x => new { x.ClassId, x.SubjectId }).IsUnique();
 
                 entity.HasOne(x => x.ClassGrade)
-                    .WithMany(c => c.CurriculumSubjects)
-                    .HasForeignKey(x => x.ClassId);
+                    .WithMany(c => c.SubjectMappings)
+                    .HasForeignKey(x => x.ClassId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(x => x.Subject)
-                    .WithMany(s => s.CurriculumSubjects)
-                    .HasForeignKey(x => x.SubjectId);
+                    .WithMany(s => s.SubjectMappings)
+                    .HasForeignKey(x => x.SubjectId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        // =====================================================
+        // Teacher Assignment Configuration
+        // =====================================================
+
+        private static void ConfigureTeacherAssignment(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TeacherAssignment>(entity =>
+            {
+                entity.ToTable("teacher_assignments");
+                entity.HasKey(x => x.Id);
+
+                entity.Property(x => x.Id).HasColumnName("id");
+                entity.Property(x => x.ClassId).HasColumnName("class_id");
+                entity.Property(x => x.SectionLetter).HasColumnName("section_letter").IsRequired().HasMaxLength(50);
+                entity.Property(x => x.SubjectId).HasColumnName("subject_id");
+                entity.Property(x => x.TeacherId).HasColumnName("teacher_id");
+                entity.Property(x => x.Role).HasColumnName("role").IsRequired().HasMaxLength(50);
+                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(50).HasDefaultValue("Active");
+
+                entity.HasIndex(x => new { x.ClassId, x.SectionLetter, x.Role })
+                    .HasDatabaseName("ux_teacher_assignments_class_sec_role");
+
+                entity.HasOne(x => x.ClassGrade)
+                    .WithMany(c => c.TeacherAssignments)
+                    .HasForeignKey(x => x.ClassId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Subject)
+                    .WithMany()
+                    .HasForeignKey(x => x.SubjectId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Teacher)
+                    .WithMany()
+                    .HasForeignKey(x => x.TeacherId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
         }
 
@@ -516,30 +589,21 @@ namespace SMS.Api.Data
             modelBuilder.Entity<ClassSection>(entity =>
             {
                 entity.ToTable("class_sections");
-
                 entity.HasKey(x => x.SectionId);
 
-                entity.HasIndex(x => new
-                {
-                    x.ClassId,
-                    x.SectionName
-                }).IsUnique();
+                entity.Property(x => x.SectionId).HasColumnName("id");
+                entity.Property(x => x.ClassId).HasColumnName("class_id");
+                entity.Property(x => x.SectionName).HasColumnName("section_letter").IsRequired().HasMaxLength(50);
+                entity.Property(x => x.Capacity).HasColumnName("capacity").HasDefaultValue(40);
+                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20).HasDefaultValue("Active");
+                entity.Property(x => x.Remarks).HasColumnName("remarks");
 
-                entity.Property(x => x.ClassId)
-                    .HasColumnName("AcademicClassId");
-
-                entity.Property(x => x.ClassTeacherEmpId)
-                    .HasColumnName("ClassTeacherId");
+                entity.HasIndex(x => new { x.ClassId, x.SectionName }).IsUnique();
 
                 entity.HasOne(x => x.ClassGrade)
                     .WithMany(x => x.Sections)
                     .HasForeignKey(x => x.ClassId)
                     .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.ClassTeacher)
-                    .WithMany()
-                    .HasForeignKey(x => x.ClassTeacherEmpId)
-                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
 
@@ -1378,6 +1442,17 @@ namespace SMS.Api.Data
                     .WithMany(x => x.AttendanceRecords)
                     .HasForeignKey(x => x.AttendanceSessionId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureAdmission(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Admission>(entity =>
+            {
+                entity.HasOne<ClassGrade>()
+                    .WithMany()
+                    .HasForeignKey(x => x.ClassId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

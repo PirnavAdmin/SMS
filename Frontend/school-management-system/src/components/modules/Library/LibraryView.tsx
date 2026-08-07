@@ -3,15 +3,28 @@ import { formatCurrency } from '../../../utils/currency';
 import { Library, BookOpen, Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 
 export const LibraryView: React.FC = () => {
-  const { books, bookIssues, addBook, issueBook, returnBook } = useData();
+  const { role, user } = useAuth();
+  const isStudentOrParent = role.toLowerCase() === 'student' || role.toLowerCase() === 'parent';
+
+  const { books, bookIssues, addBook, issueBook, returnBook, students } = useData();
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'issues'>('inventory');
+  // Find student ID/name if student
+  const currentWard = students.find(s => s.status === 'Active') || students[0];
+  const studentDisplayName = (user?.name || (currentWard ? `${currentWard.firstName} ${currentWard.lastName}` : 'Student')).trim();
+
+  // For Student / Parent, default tab is 'issues' and 'inventory' tab is hidden
+  const [activeTab, setActiveTab] = useState<'inventory' | 'issues'>(isStudentOrParent ? 'issues' : 'inventory');
   const [isAddBookOpen, setIsAddBookOpen] = useState(false);
   const [isIssueOpen, setIsIssueOpen] = useState(false);
+
+  const displayedIssues = isStudentOrParent 
+    ? bookIssues.map(iss => ({ ...iss, borrowerName: studentDisplayName }))
+    : bookIssues;
 
   const [newBook, setNewBook] = useState({
     isbn: '978-0134' + Math.floor(100000 + Math.random() * 900000),
@@ -25,7 +38,7 @@ export const LibraryView: React.FC = () => {
 
   const [newIssue, setNewIssue] = useState({
     bookId: books[0]?.id || '',
-    borrowerName: 'Alexander Wright',
+    borrowerName: studentDisplayName,
     borrowerRole: 'Student' as const,
     dueDate: '2026-08-01'
   });
@@ -49,7 +62,7 @@ export const LibraryView: React.FC = () => {
     issueBook({
       bookId: bk.id,
       bookTitle: bk.title,
-      borrowerId: 'STU-001',
+      borrowerId: currentWard?.id || 'STU-001',
       borrowerName: newIssue.borrowerName,
       borrowerRole: newIssue.borrowerRole,
       issueDate: new Date().toISOString().split('T')[0],
@@ -73,44 +86,49 @@ export const LibraryView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsIssueOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
-          >
-            <BookOpen className="w-4 h-4" /> Issue Book
-          </button>
-          <button
-            onClick={() => setIsAddBookOpen(true)}
-            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-600 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Add New Book
-          </button>
-        </div>
+        {/* Hide Action Buttons for Student / Parent */}
+        {!isStudentOrParent && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsIssueOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+            >
+              <BookOpen className="w-4 h-4" /> Issue Book
+            </button>
+            <button
+              onClick={() => setIsAddBookOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-600 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> Add New Book
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
+      {/* Tabs (Book Inventory tab hidden for Student / Parent) */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => setActiveTab('inventory')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'inventory' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
-          }`}
-        >
-          Book Inventory ({books.length})
-        </button>
+        {!isStudentOrParent && (
+          <button
+            onClick={() => setActiveTab('inventory')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'inventory' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
+            }`}
+          >
+            Book Inventory ({books.length})
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('issues')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'issues' ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'
           }`}
         >
-          Issued Books & Overdues ({bookIssues.length})
+          {isStudentOrParent ? 'My Issued Books & Overdues' : 'Issued Books & Overdues'} ({displayedIssues.length})
         </button>
       </div>
 
-      {/* Inventory */}
-      {activeTab === 'inventory' && (
+      {/* Inventory (Staff / Admin Only) */}
+      {!isStudentOrParent && activeTab === 'inventory' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {books.map(b => (
             <div key={b.id} className="glass-card p-5 rounded-3xl space-y-2">
@@ -138,33 +156,37 @@ export const LibraryView: React.FC = () => {
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
                 <th className="py-3 px-4">Book Title</th>
-                <th className="py-3 px-4">Borrower</th>
+                <th className="py-3 px-4">{isStudentOrParent ? 'Student Name' : 'Borrower'}</th>
                 <th className="py-3 px-4">Issue Date</th>
                 <th className="py-3 px-4">Due Date</th>
                 <th className="py-3 px-4">Fine (₹)</th>
                 <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Action</th>
+                {!isStudentOrParent && <th className="py-3 px-4 text-right">Action</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {bookIssues.map(iss => (
+              {displayedIssues.map(iss => (
                 <tr key={iss.id}>
                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{iss.bookTitle}</td>
-                  <td className="py-3 px-4">{iss.borrowerName} ({iss.borrowerRole})</td>
+                  <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
+                    {isStudentOrParent ? iss.borrowerName : `${iss.borrowerName} (${iss.borrowerRole})`}
+                  </td>
                   <td className="py-3 px-4 text-slate-500">{iss.issueDate}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{iss.dueDate}</td>
                   <td className="py-3 px-4 text-rose-500 font-bold">{formatCurrency(iss.fineAmount)}</td>
                   <td className="py-3 px-4"><Badge variant={iss.status === 'Returned' ? 'success' : 'danger'}>{iss.status}</Badge></td>
-                  <td className="py-3 px-4 text-right">
-                    {iss.status !== 'Returned' && (
-                      <button
-                        onClick={() => returnBook(iss.id)}
-                        className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500"
-                      >
-                        Return Book
-                      </button>
-                    )}
-                  </td>
+                  {!isStudentOrParent && (
+                    <td className="py-3 px-4 text-right">
+                      {iss.status !== 'Returned' && (
+                        <button
+                          onClick={() => returnBook(iss.id)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500"
+                        >
+                          Return Book
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -172,8 +194,8 @@ export const LibraryView: React.FC = () => {
         </div>
       )}
 
-      {/* Modals */}
-      {isAddBookOpen && (
+      {/* Modals for Staff / Admin */}
+      {!isStudentOrParent && isAddBookOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Add Book to Library Catalog</h3>
@@ -205,7 +227,7 @@ export const LibraryView: React.FC = () => {
         </div>
       )}
 
-      {isIssueOpen && (
+      {!isStudentOrParent && isIssueOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Issue Book to Student / Staff</h3>
@@ -237,3 +259,5 @@ export const LibraryView: React.FC = () => {
     </div>
   );
 };
+
+export default LibraryView;

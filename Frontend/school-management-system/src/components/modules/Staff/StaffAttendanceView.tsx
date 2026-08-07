@@ -1869,8 +1869,31 @@ export const StaffAttendanceView: React.FC = () => {
         viewMode === "daily" && (
           <div className="space-y-5">
             {/* Filters Bar */}
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                {/* Search Input Bar */}
+                <div className="lg:col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                    Search Staff
+                  </label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder={`Search ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff by name or emp ID...`}
+                      value={
+                        activeTab === "teaching" ? teachingQuery : nonTeachingQuery
+                      }
+                      onChange={(e) =>
+                        activeTab === "teaching"
+                          ? setTeachingQuery(e.target.value)
+                          : setNonTeachingQuery(e.target.value)
+                      }
+                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
                 {/* Attendance Date */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1">
@@ -1941,24 +1964,6 @@ export const StaffAttendanceView: React.FC = () => {
                   </select>
                 </div>
               </div>
-
-              {/* Search Input Bar */}
-              <div className="relative pt-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder={`Search ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff by name or emp ID...`}
-                  value={
-                    activeTab === "teaching" ? teachingQuery : nonTeachingQuery
-                  }
-                  onChange={(e) =>
-                    activeTab === "teaching"
-                      ? setTeachingQuery(e.target.value)
-                      : setNonTeachingQuery(e.target.value)
-                  }
-                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                />
-              </div>
             </div>
 
             {/* Validation / Alert Status Banners */}
@@ -2012,11 +2017,7 @@ export const StaffAttendanceView: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <UserCheck className="w-4 h-4 text-brand-600" />
-                  Live Attendance Summary (
-                  {activeTab === "teaching"
-                    ? "Teaching Staff"
-                    : "Non-Teaching Staff"}
-                  )
+                  Attendance Summary
                 </h4>
                 <span className="text-[10px] font-bold text-slate-400">
                   Date: {attendanceDate}

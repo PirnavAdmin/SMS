@@ -33,16 +33,16 @@ export const StatCard: React.FC<StatCardProps> = ({
 
   return (
     <div 
-      className={`glass-card p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`glass-card p-4 rounded-xl flex flex-col justify-between relative overflow-hidden group border border-brand-400 dark:border-slate-800/85 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
       onClick={onClick}
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>
-          <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1 tracking-tight">{value}</h3>
+          <p className="text-xs font-bold text-slate-550 dark:text-slate-400">{title}</p>
+          <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1 tracking-tight">{value}</h3>
         </div>
-        <div className={`p-2.5 rounded-lg border ${colorMap[color]} group-hover:scale-110 transition-transform duration-300`}>
-          <Icon className="w-5 h-5" />
+        <div className={`p-2 rounded-lg border ${colorMap[color]} group-hover:scale-110 transition-transform duration-300`}>
+          <Icon className="w-4.5 h-4.5" />
         </div>
       </div>
 

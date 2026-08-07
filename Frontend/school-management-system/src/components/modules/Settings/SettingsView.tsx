@@ -205,7 +205,7 @@ export const SettingsView: React.FC = () => {
 
   const filteredAcademicYears = useMemo(() => {
     return (academicYears || []).filter(ay =>
-      ay.academicYear.toLowerCase().includes(aySearch.toLowerCase()) ||
+      (ay.academicYear || '').toLowerCase().includes(aySearch.toLowerCase()) ||
       (ay.description || '').toLowerCase().includes(aySearch.toLowerCase()) ||
       (ay.status || '').toLowerCase().includes(aySearch.toLowerCase())
     );

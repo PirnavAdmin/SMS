@@ -107,54 +107,54 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in pb-12 text-slate-900 dark:text-slate-101 text-left">
       
-      {/* Header session banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-808 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-tr from-sky-500 to-indigo-650 text-white rounded-2xl shadow-md">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <h2 className="text-xl font-black text-slate-905 dark:text-white">Academic Management Dashboard</h2>
+      {/* Header Cockpit Card - Vertically Compact */}
+      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <GraduationCap className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" />
+          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+            Academic Dashboard
+          </h2>
         </div>
       </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl flex items-center gap-4">
-          <div className="p-3 bg-sky-50 dark:bg-sky-955/20 text-sky-600 rounded-2xl">
-            <School className="w-6 h-6" />
+        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+          <div className="p-2 bg-sky-50 dark:bg-sky-955/20 text-sky-600 rounded-lg">
+            <School className="w-4.5 h-4.5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Total Classes</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block font-bold tracking-wide">Total Classes</span>
             <span className="text-xl font-black text-slate-900 dark:text-white">{totalClasses}</span>
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-955/20 text-indigo-650 rounded-2xl">
-            <Layers className="w-6 h-6" />
+        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+          <div className="p-2 bg-indigo-50 dark:bg-indigo-955/20 text-indigo-650 rounded-lg">
+            <Layers className="w-4.5 h-4.5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Total Sections</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block font-bold tracking-wide">Total Sections</span>
             <span className="text-xl font-black text-slate-900 dark:text-white">{totalSections}</span>
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl flex items-center gap-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-955/20 text-purple-600 rounded-2xl">
-            <BookOpen className="w-6 h-6" />
+        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+          <div className="p-2 bg-purple-50 dark:bg-purple-955/20 text-purple-600 rounded-lg">
+            <BookOpen className="w-4.5 h-4.5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Total Subjects</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block font-bold tracking-wide">Total Subjects</span>
             <span className="text-xl font-black text-slate-900 dark:text-white">{totalSubjects}</span>
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-808 rounded-3xl flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 rounded-2xl">
-            <Users className="w-6 h-6" />
+        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+          <div className="p-2 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 rounded-lg">
+            <Users className="w-4.5 h-4.5" />
           </div>
           <div>
-            <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Total Students</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400 block font-bold tracking-wide">Total Students</span>
             <span className="text-xl font-black text-slate-900 dark:text-white">{totalStudents}</span>
           </div>
         </div>
@@ -164,38 +164,38 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start font-bold">
         
         {/* Class Summary Table */}
-        <div className="md:col-span-2 p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-800 rounded-3xl space-y-4">
-          <h4 className="font-extrabold text-slate-855 dark:text-white text-xs uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-            <ClipboardList className="w-4 h-4 text-sky-600" />
+        <div className="md:col-span-2 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-4">
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <ClipboardList className="w-5 h-5 text-sky-600" />
             Class Summary
-          </h4>
+          </h3>
           
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:bg-slate-955">
+          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <table className="w-full text-xs text-left">
-              <thead className="bg-slate-55 uppercase text-[9px] text-slate-400 font-mono">
+              <thead className="bg-slate-50 dark:bg-slate-800/40 uppercase text-[10px] text-slate-500 dark:text-slate-400 font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="p-3">Class</th>
-                  <th className="p-3 text-center">Sections</th>
-                  <th className="p-3 text-center">Students</th>
-                  <th className="p-3 text-center">Status</th>
-                  <th className="p-3 text-right">Action</th>
+                  <th className="py-3 px-4">Class</th>
+                  <th className="py-3 px-3 text-center">Sections</th>
+                  <th className="py-3 px-3 text-center">Students</th>
+                  <th className="py-3 px-3 text-center">Status</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-808 font-bold">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-350">
                 {classSummaryList.map(item => (
-                  <tr key={item.class.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                    <td className="p-3 text-slate-900 dark:text-white">{item.class.name}</td>
-                    <td className="p-3 text-center font-mono">{item.sectionsCount}</td>
-                    <td className="p-3 text-center font-mono">{item.studentsCount}</td>
-                    <td className="p-3 text-center">
+                  <tr key={item.class.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20 transition-colors">
+                    <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{item.class.name}</td>
+                    <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{item.sectionsCount}</td>
+                    <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{item.studentsCount}</td>
+                    <td className="py-3 px-3 text-center">
                       <Badge variant={item.status === 'Configured' ? 'success' : 'warning'}>
                         {item.status}
                       </Badge>
                     </td>
-                    <td className="p-3 text-right">
+                    <td className="py-3 px-4 text-right">
                       <button 
                         onClick={() => handleOpenClass(item.class.id, 'sections')}
-                        className="px-3.5 py-1.5 bg-slate-100 hover:bg-sky-600 hover:text-white text-slate-700 font-extrabold text-[11px] rounded-xl transition-all inline-flex items-center gap-1"
+                        className="px-3 py-1 bg-slate-50 hover:bg-brand-600 hover:text-white dark:bg-slate-850 dark:hover:bg-brand-600 text-slate-700 dark:text-slate-300 dark:hover:text-white font-extrabold text-[10px] rounded-lg transition-all inline-flex items-center gap-1 shadow-2xs border border-slate-200 dark:border-slate-700"
                       >
                         {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -215,36 +215,36 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
         </div>
 
         {/* Quick Actions Grid */}
-        <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-800 rounded-3xl space-y-4">
-          <h4 className="font-extrabold text-slate-855 dark:text-white text-xs uppercase text-slate-500 tracking-wider flex items-center gap-1.5">
-            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-4">
+          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
             Quick Actions
-          </h4>
+          </h3>
           <div className="grid grid-cols-1 gap-2.5 text-xs">
             <button 
               onClick={() => handleQuickAction('create-class')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-2xl text-left flex items-center justify-between transition-colors"
+              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
             >
               <span>+ Create Class</span>
               <Play className="w-3 h-3 text-slate-400 fill-current" />
             </button>
             <button 
               onClick={() => handleQuickAction('add-section')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-2xl text-left flex items-center justify-between transition-colors"
+              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
             >
               <span>+ Add Section</span>
               <Play className="w-3 h-3 text-slate-400 fill-current" />
             </button>
             <button 
               onClick={() => handleQuickAction('assign-teachers')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-2xl text-left flex items-center justify-between transition-colors"
+              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
             >
               <span>+ Assign Teachers</span>
               <Play className="w-3 h-3 text-slate-400 fill-current" />
             </button>
             <button 
               onClick={() => handleQuickAction('allocate-students')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-2xl text-left flex items-center justify-between transition-colors"
+              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
             >
               <span>+ Allocate Students</span>
               <Play className="w-3 h-3 text-slate-400 fill-current" />

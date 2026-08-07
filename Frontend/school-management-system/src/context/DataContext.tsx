@@ -48,6 +48,12 @@ import * as TransportAPI from '../api/transport';
 import { apiClient } from '../api/client';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
+import { 
+  fetchClassesApi, 
+  createClassApi, 
+  updateClassApi, 
+  deleteClassApi 
+} from '../api/academic';
 
 export interface AcademicClass {
   id: string;
@@ -1315,6 +1321,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // One-time automatic normalization of class names to "Class X"
   useEffect(() => {
+    // Auto-remove any cloned classes from local databases if present
+    const hasCloneClasses = academicClasses.some(c => c.name.toLowerCase().includes('clone'));
+    if (hasCloneClasses) {
+      const cleanClasses = academicClasses.filter(c => !c.name.toLowerCase().includes('clone'));
+      setAcademicClasses(cleanClasses);
+      setStudents(prev => prev.map(s => {
+        if (s.className && s.className.toLowerCase().includes('clone')) {
+          return { ...s, className: '', section: '', rollNo: '' };
+        }
+        return s;
+      }));
+      setTeacherAssignments(prev => prev.filter(ta => !ta.className.toLowerCase().includes('clone')));
+      setTimetable(prev => prev.filter(ts => !ts.className.toLowerCase().includes('clone')));
+    }
+
     const normalizeClassNameStr = (nameString: string): string => {
       let clean = nameString.trim();
       const match = clean.match(/^(grade|class)\s*(\d+.*)$/i);
@@ -1503,6 +1524,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_grade_configurations', JSON.stringify(gradeConfigurations)); }, [gradeConfigurations]);
   useEffect(() => { localStorage.setItem('edu_db_processed_results', JSON.stringify(processedResults)); }, [processedResults]);
 
+  const fetchAcademicClasses = async () => {
+    try {
+      const data = await fetchClassesApi();
+      if (data) {
+        // Handle array response or object wrapper response
+        const classList = Array.isArray(data) ? data : (data.success && Array.isArray(data.data) ? data.data : null);
+        if (classList) {
+          const mapped: AcademicClass[] = classList.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            sections: c.sections || [],
+            sectionTeachers: c.sectionTeachers || {},
+            teacher: c.teacher || 'Unassigned',
+            subjects: c.subjects || []
+          }));
+          setAcademicClasses(mapped);
+        }
+      }
+    } catch (err: any) {
+      console.warn('Error fetching classes', err);
+    }
+  };
+
   const fetchAdmissions = async () => {
     try {
       const json = await fetchAdmissionsApi();
@@ -1603,6 +1647,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    if (isAuthenticated) {
+      fetchAcademicClasses();
+    }
     const allowedAdmissionsRoles = ['Super Admin', 'Admin', 'Principal', 'Receptionist'];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
       fetchAdmissions();
@@ -2339,7 +2386,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           const newStudent = addStudent({
             admissionNo: app.applicationNo || ('ADM2026-' + Math.floor(100 + Math.random() * 900)),
-            rollNo: '20' + Math.floor(10 + Math.random() * 90),
+            rollNo: '',
             firstName: app.firstName || app.applicantName.split(' ')[0] || 'Enrolled',
             lastName: app.lastName || app.applicantName.slice(app.applicantName.indexOf(' ') + 1) || 'Student',
             gender: app.gender || 'Male',
@@ -2348,7 +2395,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             religion: app.religion || 'General',
             casteCategory: app.casteCategory || 'General',
             className: app.appliedClass || 'Class 10',
-            section: 'A',
+            section: '',
             category: app.casteCategory || 'General',
             status: 'Active',
             avatar: app.avatar || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
@@ -2485,25 +2532,68 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
-    const id = 'CL-' + Math.floor(10 + Math.random() * 90);
-    const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
-    setAcademicClasses(prev => [...prev, newCls]);
-    logActivity('Created Academic Class', `Added ${newCls.name}`);
-  };
-
-  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
-    setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
-    logActivity('Updated Academic Class', `Updated class ID ${id}`);
-  };
-
-  const deleteAcademicClass = (id: string) => {
-    const cls = academicClasses.find(c => c.id === id);
-    if (cls) {
-      setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
+  const addAcademicClass = async (clsData: Omit<AcademicClass, 'id'>) => {
+    try {
+      const response = await createClassApi({
+        name: clsData.name,
+        sections: clsData.sections,
+        sectionTeachers: clsData.sectionTeachers || {},
+        subjects: clsData.subjects || []
+      });
+      if (response && response.success) {
+        await fetchAcademicClasses();
+        addToast('success', 'Class Created', `Added class ${clsData.name} successfully.`);
+      } else {
+        addToast('error', 'Error', response?.message || 'Failed to create class.');
+      }
+    } catch (err: any) {
+      console.error('Error creating class', err);
+      const id = 'CL-' + Math.floor(10 + Math.random() * 90);
+      const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
+      setAcademicClasses(prev => [...prev, newCls]);
+      logActivity('Created Academic Class', `Added ${newCls.name} (locally)`);
+      addToast('warning', 'Offline Mode', `Class ${clsData.name} created locally.`);
     }
-    setAcademicClasses(prev => prev.filter(c => c.id !== id));
-    logActivity('Deleted Academic Class', `Removed class ID ${id}`);
+  };
+
+  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
+    try {
+      const response = await updateClassApi(id, {
+        name: updates.name,
+      });
+      if (response && response.success) {
+        await fetchAcademicClasses();
+        addToast('success', 'Class Updated', `Updated class successfully.`);
+      } else {
+        addToast('error', 'Error', response?.message || 'Failed to update class.');
+      }
+    } catch (err: any) {
+      console.error('Error updating class', err);
+      setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+      logActivity('Updated Academic Class', `Updated class ID ${id} (locally)`);
+      addToast('warning', 'Offline Mode', 'Class updated locally.');
+    }
+  };
+
+  const deleteAcademicClass = async (id: string) => {
+    try {
+      const response = await deleteClassApi(id);
+      if (response && response.success) {
+        await fetchAcademicClasses();
+        addToast('success', 'Class Deleted', `Removed class successfully.`);
+      } else {
+        addToast('error', 'Error', response?.message || 'Failed to delete class.');
+      }
+    } catch (err: any) {
+      console.error('Error deleting class', err);
+      const cls = academicClasses.find(c => c.id === id);
+      if (cls) {
+        setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
+      }
+      setAcademicClasses(prev => prev.filter(c => c.id !== id));
+      logActivity('Deleted Academic Class', `Removed class ID ${id} (locally)`);
+      addToast('warning', 'Offline Mode', 'Class removed locally.');
+    }
   };
 
   // Subjects CRUD
