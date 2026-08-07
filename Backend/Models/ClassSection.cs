@@ -1,25 +1,26 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SMS.Api.Models
+namespace SMS.Api.Models;
+
+public class ClassSection
 {
-    public class ClassSection
-    {
-        [Key]
-        public int SectionId { get; set; }
+    [Key]
+    public int SectionId { get; set; }
 
-        [Required]
-        public string SectionName { get; set; } = string.Empty;
+    [Required]
+    [MaxLength(100)]
+    public string SectionName { get; set; } = string.Empty;
 
-        public int ClassId { get; set; }
+    public int ClassId { get; set; }
 
-        [ForeignKey(nameof(ClassId))]
-        public ClassGrade ClassGrade { get; set; } = null!;
+    [ForeignKey(nameof(ClassId))]
+    public ClassGrade ClassGrade { get; set; } = null!;
 
-        public int Capacity { get; set; } = 40;
+        public int? ClassTeacherEmpId { get; set; }
 
-        public string Status { get; set; } = "Active";
-
-        public string? Remarks { get; set; }
+        [ForeignKey(nameof(ClassTeacherEmpId))]
+        public Staff? ClassTeacher { get; set; }
     }
 }
