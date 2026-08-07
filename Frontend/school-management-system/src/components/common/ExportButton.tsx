@@ -72,9 +72,7 @@ export function ExportButton<T extends Record<string, any>>({
       ) : (
         <Download className="w-4 h-4" />
       )}
-      <span>{isDownloading ? "Downloading..." : "Download"}</span>
-      <Download className="w-4 h-4" />
-      <span>{label}</span>
+      <span>{isDownloading ? "Downloading..." : label}</span>
     </button>
   );
 }
