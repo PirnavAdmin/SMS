@@ -166,7 +166,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
         </div>
 
         <div 
-          onClick={() => onNavigate('student-directory')}
+          onClick={() => onNavigate('students')}
           className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
         >
           <div className="p-2 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 rounded-lg">
