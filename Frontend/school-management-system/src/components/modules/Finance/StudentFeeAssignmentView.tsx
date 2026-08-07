@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { UserPlus, Search, CheckSquare, Square, CheckCircle, ArrowRight } from 'lucide-react';
+import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 
@@ -8,14 +8,16 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const { students, dynamicFeeStructures, studentFeeAssignments, assignFeeStructure, bulkAssignFeeStructure, removeStudentFeeAssignment, academicClasses } = useData();
   const { addToast } = useToast();
 
-  const [selectedClass, setSelectedClass] = useState('Class 10');
-  const [selectedSection, setSelectedSection] = useState('A');
+  const [selectedClass, setSelectedClass] = useState('All');
+  const [selectedSection, setSelectedSection] = useState('All');
   const [query, setQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [targetStructureId, setTargetStructureId] = useState<string>(dynamicFeeStructures[0]?.id || '');
+  const [targetStructureId, setTargetStructureId] = useState<string>('');
 
-  const filteredStudents = students.filter(s => {
-    const matchesClass = s.className === selectedClass;
+  const isFilterSelected = selectedClass !== 'All' || selectedSection !== 'All' || query.trim() !== '';
+
+  const filteredStudents = !isFilterSelected ? [] : students.filter(s => {
+    const matchesClass = selectedClass === 'All' || s.className === selectedClass;
     const matchesSection = selectedSection === 'All' || s.section === selectedSection;
     const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase()) || s.admissionNo.toLowerCase().includes(query.toLowerCase());
     return matchesClass && matchesSection && matchesQuery;
@@ -57,147 +59,183 @@ export const StudentFeeAssignmentView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <UserPlus className="w-6 h-6 text-sky-500" /> Fee Assignment
         </h2>
-        </div>
+      </div>
 
       {/* Filter & Bulk Control Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto text-xs">
+      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto text-xs">
           <div>
-            <label className="block font-semibold text-slate-500 mb-0.5">Class Grade</label>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Class Grade</label>
             <select
               value={selectedClass}
               onChange={e => setSelectedClass(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
             >
+              <option value="All">Select Class</option>
               {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-500 mb-0.5">Section</label>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Section</label>
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
             >
+              <option value="All">Select Section</option>
               <option value="A">Section A</option>
               <option value="B">Section B</option>
               <option value="C">Section C</option>
-              <option value="All">All Sections</option>
             </select>
           </div>
 
-          <div className="relative pt-4">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-7" />
-            <input
-              type="text"
-              placeholder="Search student or adm no..."
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none w-56"
-            />
+          <div>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Search Student</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search student or adm no..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none w-56 font-medium"
+              />
+            </div>
           </div>
         </div>
 
         {/* Bulk Action */}
-        <div className="flex items-center gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 dark:border-slate-800">
-          <select
-            value={targetStructureId}
-            onChange={e => setTargetStructureId(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            {dynamicFeeStructures.map(dfs => (
-              <option key={dfs.id} value={dfs.id}>
-                {dfs.className} - {formatCurrency(dfs.totalAmount)} ({dfs.studentCategory})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 dark:border-slate-800">
+          <div>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Assign Target Structure</label>
+            <select
+              value={targetStructureId}
+              onChange={e => setTargetStructureId(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
+            >
+              <option value="">Select Target Structure</option>
+              {dynamicFeeStructures.map(dfs => (
+                <option key={dfs.id} value={dfs.id}>
+                  {dfs.className} - {formatCurrency(dfs.totalAmount)} ({dfs.studentCategory})
+                </option>
+              ))}
+            </select>
+          </div>
 
           <button
             onClick={handleBulkAssign}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer h-[38px]"
           >
             <CheckCircle className="w-4 h-4" /> Bulk Assign ({selectedStudentIds.length})
           </button>
         </div>
       </div>
 
-      {/* Student List Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">
-                  <button onClick={handleSelectAll} className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-bold">
-                    {selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0 ? (
-                      <CheckSquare className="w-4 h-4 text-sky-600" />
-                    ) : (
-                      <Square className="w-4 h-4" />
-                    )}
-                  </button>
-                </th>
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Adm No</th>
-                <th className="py-3.5 px-4">Class & Sec</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Assigned Fee Structure</th>
-                <th className="py-3.5 px-4">Base Fee Total</th>
-                <th className="py-3.5 px-4 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {filteredStudents.map(st => {
-                const isSelected = selectedStudentIds.includes(st.id);
-                const assignment = studentFeeAssignments.find(a => a.studentId === st.id && a.status === 'Active');
-                const dfs = assignment ? dynamicFeeStructures.find(d => d.id === assignment.feeStructureId) : null;
-
-                return (
-                  <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${isSelected ? 'bg-sky-50/50 dark:bg-sky-950/20' : ''}`}>
-                    <td className="py-3 px-4">
-                      <button onClick={() => handleToggleSelect(st.id)}>
-                        {isSelected ? <CheckSquare className="w-4 h-4 text-sky-600" /> : <Square className="w-4 h-4 text-slate-400" />}
-                      </button>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <img src={st.avatar} alt="" className="w-7 h-7 rounded-lg object-cover" />
-                      {st.firstName} {st.lastName}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">{st.category || 'General'}</td>
-                    <td className="py-3 px-4">
-                      {assignment ? (
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
-                          {dfs ? dfs.className : 'Standard Assigned'}
-                        </span>
+      {/* Student List Table or Filter Required Message */}
+      {!isFilterSelected ? (
+        <div className="glass-card p-12 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center space-y-3 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200/60 dark:border-sky-800/60">
+            <UserPlus className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-900 dark:text-white">Select Filter to Display Fee Assignments</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+              Please select a Class Grade or Section from the filter options above to view and assign student fee structures.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3.5 px-4">
+                    <button onClick={handleSelectAll} className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-bold">
+                      {selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-sky-600" />
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 font-bold">Not Assigned</span>
+                        <Square className="w-4 h-4" />
                       )}
-                    </td>
-                    <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">
-                      {formatCurrency(assignment ? assignment.baseFeeTotal : st.totalFee || 0)}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => {
-                          if (targetStructureId) {
-                            assignFeeStructure(st.id, targetStructureId);
-                            addToast('success', 'Fee Structure Assigned', `Updated fee structure for ${st.firstName}`);
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto"
-                      >
-                        Assign <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
+                    </button>
+                  </th>
+                  <th className="py-3.5 px-4">Student Name</th>
+                  <th className="py-3.5 px-4">Adm No</th>
+                  <th className="py-3.5 px-4">Class & Sec</th>
+                  <th className="py-3.5 px-4">Category</th>
+                  <th className="py-3.5 px-4">Assigned Fee Structure</th>
+                  <th className="py-3.5 px-4">Base Fee Total</th>
+                  <th className="py-3.5 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-slate-400 text-xs font-semibold">
+                      No students match the selected filter criteria.
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                ) : (
+                  filteredStudents.map(st => {
+                    const isSelected = selectedStudentIds.includes(st.id);
+                    const assignment = studentFeeAssignments.find(a => a.studentId === st.id && a.status === 'Active');
+                    const dfs = assignment ? dynamicFeeStructures.find(d => d.id === assignment.feeStructureId) : null;
+
+                    return (
+                      <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${isSelected ? 'bg-sky-50/50 dark:bg-sky-950/20' : ''}`}>
+                        <td className="py-3 px-4">
+                          <button onClick={() => handleToggleSelect(st.id)}>
+                            {isSelected ? <CheckSquare className="w-4 h-4 text-sky-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+                          </button>
+                        </td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                          <img src={st.avatar} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                          {st.firstName} {st.lastName}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
+                        <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">{st.category || 'General'}</td>
+                        <td className="py-3 px-4">
+                          {assignment ? (
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+                              {dfs ? dfs.className : 'Standard Assigned'}
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 font-bold">Not Assigned</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">
+                          {formatCurrency(assignment ? assignment.baseFeeTotal : st.totalFee || 0)}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          {assignment ? (
+                            <span className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs inline-flex items-center gap-1.5 ml-auto">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Assigned
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                if (targetStructureId) {
+                                  assignFeeStructure(st.id, targetStructureId);
+                                  addToast('success', 'Fee Structure Assigned', `Updated fee structure for ${st.firstName}`);
+                                }
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto cursor-pointer"
+                            >
+                              Assign <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

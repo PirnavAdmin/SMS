@@ -19,9 +19,6 @@ export const FeeReceiptsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex justify-end">
-        <ExportButton data={feePayments} filename="fee_receipts" />
-      </div>
 
       {/* Filter */}
       <div className="glass-card p-4 rounded-2xl flex items-center justify-between">

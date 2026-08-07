@@ -24,9 +24,9 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
   const [amountPaid, setAmountPaid] = useState<number>(student ? student.dueFee || 1500 : 1500);
   const [discount, setDiscount] = useState<number>(0);
   const [fine, setFine] = useState<number>(0);
-  const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode']>('Online');
-  const [transactionId, setTransactionId] = useState('TXN-' + Math.floor(100000 + Math.random() * 900000));
-  const [remarks, setRemarks] = useState('Term Fee Installment');
+  const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode'] | ''>('');
+  const [transactionId, setTransactionId] = useState('');
+  const [remarks, setRemarks] = useState('');
 
   if (!isOpen || !student) return null;
 
@@ -46,7 +46,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
       amountPaid: netPayment,
       discount,
       fine,
-      paymentMode,
+      paymentMode: (paymentMode || 'Online') as FeePayment['paymentMode'],
       transactionId: paymentMode === 'Online' ? transactionId : undefined,
       paymentDate: new Date().toISOString().split('T')[0],
       status: netPayment >= student.dueFee ? 'Paid' : 'Partial',
@@ -98,8 +98,9 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
               <select
                 value={paymentMode}
                 onChange={e => setPaymentMode(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold cursor-pointer"
               >
+                <option value="">Select Payment Mode</option>
                 <option value="Online">Online / UPI</option>
                 <option value="Cash">Cash</option>
                 <option value="Card">Card</option>
@@ -134,6 +135,7 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
               <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / UTR No</label>
               <input
                 type="text"
+                placeholder="Enter transaction reference or UTR number..."
                 value={transactionId}
                 onChange={e => setTransactionId(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -142,9 +144,10 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
           )}
 
           <div>
-            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Remarks / Note</label>
+            <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Remarks</label>
             <input
               type="text"
+              placeholder="Enter payment remarks..."
               value={remarks}
               onChange={e => setRemarks(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
@@ -153,8 +156,8 @@ export const FeeCollectModal: React.FC<FeeCollectModalProps> = ({
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button type="button" onClick={onClose} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-            <button type="submit" className="px-5 py-2 font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center gap-1.5">
-              <Receipt className="w-4 h-4" /> Issue Receipt ({formatCurrency(amountPaid - discount + fine)})
+            <button type="submit" className="px-5 py-2.5 font-bold text-white bg-emerald-600 hover:bg-emerald-500 rounded-xl shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer">
+              <Receipt className="w-4 h-4" /> Issue Official Receipt & Record Payment
             </button>
           </div>
         </form>

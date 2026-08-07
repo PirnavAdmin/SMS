@@ -34,9 +34,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
   const [tempDiscountId, setTempDiscountId] = useState('');
 
   const [amountPaying, setAmountPaying] = useState<number | string>(0);
-  const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode']>('Online');
-  const [transactionId, setTransactionId] = useState('TXN-' + Math.floor(100000 + Math.random() * 900000));
-  const [remarks, setRemarks] = useState('Quarterly Fee Payment');
+  const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode'] | ''>('');
+  const [transactionId, setTransactionId] = useState('');
+  const [remarks, setRemarks] = useState('');
 
   const filteredStudents = students.filter(s =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,7 +164,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       amountPaid: numericAmount,
       discount: calcResult.scholarshipDeduction + calcResult.discountDeduction,
       fine: calcResult.fineAmount,
-      paymentMode,
+      paymentMode: (paymentMode || 'Online') as FeePayment['paymentMode'],
       transactionId: paymentMode !== 'Cash' ? transactionId : undefined,
       paymentDate: new Date().toISOString().split('T')[0],
       status: numericAmount >= remainingDue ? 'Paid' : 'Partial',
@@ -187,6 +187,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
     // Refresh calculation engine
     const freshResult = calculateStudentPayableFee(selectedStudent.id);
     updateCalculation(selectedStudent.id, freshResult);
+
+    // Reset inputs
+    setPaymentMode('');
+    setTransactionId('');
+    setRemarks('');
   };
   const ledger = selectedStudent ? getStudentFeeLedger(selectedStudent.id) : null;
   const items = ledger ? ledger.feeItems : [];
@@ -554,8 +559,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                       <select
                         value={paymentMode}
                         onChange={e => setPaymentMode(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white cursor-pointer"
                       >
+                        <option value="">Select Payment Mode</option>
                         <option value="Online">Online / UPI</option>
                         <option value="Cash">Cash</option>
                         <option value="Card">Card</option>
@@ -569,6 +575,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                       <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / UTR No</label>
                       <input
                         type="text"
+                        placeholder="Enter transaction reference or UTR number..."
                         value={transactionId}
                         onChange={e => setTransactionId(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
@@ -580,6 +587,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Remarks</label>
                     <input
                       type="text"
+                      placeholder="Enter payment remarks..."
                       value={remarks}
                       onChange={e => setRemarks(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
