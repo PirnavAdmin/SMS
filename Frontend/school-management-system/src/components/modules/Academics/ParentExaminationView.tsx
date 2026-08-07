@@ -20,6 +20,7 @@ export const ParentExaminationView: React.FC = () => {
 
   const hasMatchedWards = parentWards.length > 0;
   if (!hasMatchedWards) {
+    // If no parent wards match, fallback to first active students for UI display (in non-prod simulation)
     parentWards = students.filter(s => s.status === 'Active').slice(0, 2);
   }
 
@@ -40,72 +41,31 @@ export const ParentExaminationView: React.FC = () => {
 
   if (parentWards.length === 0) {
     return (
-      <div className="p-8 text-center text-slate-500">
-        No active wards found for your account.
+      <div className="p-8 text-center text-slate-500 font-bold">
+        No active student records linked to this user account.
       </div>
     );
   }
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
-  // Get real results from Context (Published or Locked only)
-  const wardResultsRaw = processedResults.filter(r => r.studentId === currentWard.id && (r.status === 'Published' || r.status === 'Locked'));
+  // Get ONLY officially Published results
+  const wardResultsRaw = processedResults.filter(
+    r => r.studentId === currentWard.id && r.status === 'Published'
+  );
 
-  const staticFallbackExams = [{
-    examName: 'Mid-Term Assessment 2026',
-    date: '2026-09-15',
-    overallGrade: 'A',
-    percentage: '88.5%',
-    remarks: 'Excellent performance. Keep it up!',
-    isFiftyMarks: false,
-    subjects: [
-      { name: 'Mathematics', marks: '92/100', grade: 'A1' },
-      { name: 'Physics', marks: '85/100', grade: 'A2' },
-      { name: 'Chemistry', marks: '88/100', grade: 'A2' },
-      { name: 'English', marks: '89/100', grade: 'A2' }
-    ]
-  }, {
-    examName: 'Unit Test 1',
-    date: '2026-08-10',
-    overallGrade: 'A',
-    percentage: '90.0%',
-    remarks: 'Good start to the term.',
-    isFiftyMarks: true,
-    subjects: [
-      { name: 'Mathematics', marks: '45/50', grade: 'A1' },
-      { name: 'Physics', marks: '40/50', grade: 'B1' },
-      { name: 'Chemistry', marks: '48/50', grade: 'A1' },
-      { name: 'English', marks: '42/50', grade: 'A2' }
-    ]
-  }];
-
-  const childExamsRaw = wardResultsRaw.map(r => {
+  const childExams = wardResultsRaw.map(r => {
     const exam = exams.find(e => e.id === r.examId);
     const marksForExam = examMarks.filter(m => m.examId === r.examId && m.studentId === r.studentId);
     
-    let formattedSubjects = marksForExam.map((sm: any) => ({
+    const formattedSubjects = marksForExam.map((sm: any) => ({
       name: getSubjectName(sm.subject),
       marks: sm.marksObtained,
       grade: sm.grade || 'N/A'
     }));
-
-    // Pad with demo data to make the UI look complete if the real data has few subjects
-    if (formattedSubjects.length < 4) {
-       const demoSubjects = [
-         { name: 'Physics', marks: 88, grade: 'A' },
-         { name: 'Chemistry', marks: 92, grade: 'A+' },
-         { name: 'English', marks: 78, grade: 'B+' },
-         { name: 'Computer Science', marks: 95, grade: 'A+' }
-       ];
-       const existingNames = formattedSubjects.map((s: any) => s.name);
-       for (const ds of demoSubjects) {
-          if (!existingNames.includes(ds.name)) {
-             formattedSubjects.push(ds);
-          }
-       }
-    }
     
     return {
+      examId: r.examId,
       examName: exam?.name || 'Unknown Exam',
       date: exam?.startDate || '',
       overallGrade: r.overallGrade || r.finalGrade,
@@ -115,7 +75,6 @@ export const ParentExaminationView: React.FC = () => {
     };
   });
 
-  const childExams = childExamsRaw.length > 0 ? [...childExamsRaw, staticFallbackExams[1]] : staticFallbackExams;
   const activeExam = childExams.find((e: any) => e.examName === selectedExamId) || childExams[0];
 
   // Set default selected exam on mount or if child changes
@@ -128,28 +87,25 @@ export const ParentExaminationView: React.FC = () => {
   }, [selectedChildIdx, processedResults.length]);
 
   const handleDownload = (fileName: string) => {
+    if (!activeExam) return;
     let content = `School Management System - Document Download\n==========================================\nFile: ${fileName}\n\n`;
     
-    if (fileName.includes("Report_Card") && activeExam) {
-       content += `STUDENT REPORT CARD\n`;
-       content += `Exam: ${activeExam.examName}\n`;
-       content += `Date: ${activeExam.date}\n`;
-       content += `Student: ${currentWard.firstName} ${currentWard.lastName} (${currentWard.className}-${currentWard.section})\n\n`;
-       
-       content += `PERFORMANCE SUMMARY\n`;
-       content += `-------------------\n`;
-       content += `Overall Percentage: ${activeExam.percentage}\n`;
-       content += `Scholastic Grade: ${activeExam.overallGrade}\n`;
-       content += `Remarks: ${activeExam.remarks}\n\n`;
-       
-       content += `SUBJECT MARKS\n`;
-       content += `-------------\n`;
-       activeExam.subjects.forEach((sub: any) => {
-          content += `${sub.name.padEnd(20)} | Score: ${String(sub.marks).padEnd(6)} | Grade: ${sub.grade}\n`;
-       });
-    } else {
-       content += `This is a sample document for demonstration purposes. In a real application, this would download the actual file (e.g., PDF).\n`;
-    }
+    content += `OFFICIAL STUDENT REPORT CARD\n`;
+    content += `Exam: ${activeExam.examName}\n`;
+    content += `Date: ${activeExam.date}\n`;
+    content += `Student: ${currentWard.firstName} ${currentWard.lastName} (${currentWard.className}-${currentWard.section})\n\n`;
+    
+    content += `PERFORMANCE SUMMARY\n`;
+    content += `-------------------\n`;
+    content += `Overall Percentage: ${activeExam.percentage}\n`;
+    content += `Scholastic Grade: ${activeExam.overallGrade}\n`;
+    content += `Remarks: ${activeExam.remarks}\n\n`;
+    
+    content += `SUBJECT MARKS\n`;
+    content += `-------------\n`;
+    activeExam.subjects.forEach((sub: any) => {
+      content += `${sub.name.padEnd(20)} | Score: ${String(sub.marks).padEnd(6)} | Grade: ${sub.grade}\n`;
+    });
 
     const element = document.createElement("a");
     const file = new Blob([content], {type: 'text/plain'});
@@ -160,8 +116,14 @@ export const ParentExaminationView: React.FC = () => {
     document.body.removeChild(element);
   };
 
+  const displayPapers = questionPapers.filter(qp => 
+    qp.status === 'Published' &&
+    (!qp.className || qp.className === currentWard.className) &&
+    (!qp.section || qp.section === 'All Sections' || qp.section === currentWard.section)
+  );
+
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-6 animate-in fade-in text-left">
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
           <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
@@ -190,7 +152,7 @@ export const ParentExaminationView: React.FC = () => {
       </div>
 
       {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
-      {role !== 'Student' && (
+      {role !== 'Student' && parentWards.length > 1 && (
         <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max no-print">
           {parentWards.map((ward, idx) => (
             <button
@@ -212,12 +174,6 @@ export const ParentExaminationView: React.FC = () => {
         {activeExam ? (
           <div id="printable-content" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
             
-            {childExamsRaw.length === 0 && (
-               <div className="bg-sky-50 p-3 text-sky-700 text-xs font-semibold text-center border-b border-sky-100">
-                 Note: Displaying static sample data because no processed exam results were found for this student.
-               </div>
-            )}
-
             {/* Exam Header */}
             <div className="bg-sky-50 dark:bg-sky-900/10 px-6 py-5 border-b border-sky-100 dark:border-sky-900/20 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div>
@@ -266,9 +222,9 @@ export const ParentExaminationView: React.FC = () => {
                     <tr key={sIdx} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white text-sm">
                         <div className="flex flex-col">
-                          <span>{sub.name.split('(')[0].trim()}</span>
+                          <span>{sub.name}</span>
                           <span className="opacity-60 text-[10px] font-normal lowercase">
-                            ({sub.name.includes('(') ? sub.name.split('(')[1].replace(')', '').trim().toLowerCase() : getSubjectCode(sub.name).toLowerCase()})
+                            ({getSubjectCode(sub.name).toLowerCase()})
                           </span>
                         </div>
                       </td>
@@ -290,7 +246,7 @@ export const ParentExaminationView: React.FC = () => {
                   <tr className="bg-slate-50/50 dark:bg-slate-800/20">
                     <td className="p-4 pl-6 sm:pl-8 font-black text-slate-900 dark:text-white text-sm text-right uppercase tracking-wider">Total Score</td>
                     <td className="p-4 text-center font-mono text-sky-600 dark:text-sky-400 font-black text-lg">
-                      {activeExam.subjects.reduce((sum: number, sub: any) => sum + (typeof sub.marks === 'number' ? sub.marks : parseInt(String(sub.marks).split('/')[0]) || 0), 0)}
+                      {activeExam.subjects.reduce((sum: number, sub: any) => sum + (typeof sub.marks === 'number' ? sub.marks : parseInt(String(sub.marks)) || 0), 0)}
                     </td>
                     <td className="p-4 pr-6 sm:pr-8"></td>
                   </tr>
@@ -301,20 +257,7 @@ export const ParentExaminationView: React.FC = () => {
             {/* Grading System Reference */}
             {gradeConfigurations && gradeConfigurations.length > 0 && (
               (() => {
-                // Find schemes that actually scale up to 100
-                const validSchemes = [...new Set(gradeConfigurations.map((g: any) => g.schemeName))].filter(scheme => {
-                  const configsInScheme = gradeConfigurations.filter((g: any) => g.schemeName === scheme);
-                  const maxInScheme = Math.max(...configsInScheme.map((g: any) => g.maxPercent));
-                  return maxInScheme === 100;
-                });
-                
-                // Use the first valid 100-mark scheme, or fallback to all if none found
-                const targetScheme = validSchemes.length > 0 ? validSchemes[0] : gradeConfigurations[0].schemeName;
-                const displayConfigs = gradeConfigurations.filter((g: any) => g.schemeName === targetScheme).map((g: any) => ({
-                  ...g,
-                  minPercent: (activeExam as any).isFiftyMarks ? g.minPercent / 2 : g.minPercent,
-                  maxPercent: (activeExam as any).isFiftyMarks ? g.maxPercent / 2 : g.maxPercent
-                }));
+                const displayConfigs = gradeConfigurations.filter((g: any) => g.schemeName === gradeConfigurations[0].schemeName);
 
                 return (
                   <div className="p-6 bg-slate-50 dark:bg-slate-900/30 border-t border-slate-200 dark:border-slate-800">
@@ -322,13 +265,13 @@ export const ParentExaminationView: React.FC = () => {
                     <div className="flex flex-wrap gap-2">
                       {Array.from(new Map(
                         displayConfigs
-                          .sort((a: any, b: any) => b.minPercent - a.minPercent)
-                          .map((g: any) => [`${g.gradeName}-${g.minPercent}-${g.maxPercent}`, g])
+                          .sort((a: any, b: any) => b.minMark - a.minMark)
+                          .map((g: any) => [`${g.grade}-${g.minMark}-${g.maxMark}`, g])
                       ).values()).map((grade: any) => (
-                        <div key={`${grade.gradeName}-${grade.minPercent}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm text-xs">
-                          <span className="font-bold text-slate-900 dark:text-white w-6 text-center">{grade.gradeName}</span>
+                        <div key={`${grade.grade}-${grade.minMark}`} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm text-xs">
+                          <span className="font-bold text-slate-900 dark:text-white w-6 text-center">{grade.grade}</span>
                           <span className="text-slate-400">|</span>
-                          <span className="text-slate-500 font-mono">{grade.minPercent}-{grade.maxPercent}</span>
+                          <span className="text-slate-500 font-mono">{grade.minMark}-{grade.maxMark}%</span>
                         </div>
                       ))}
                     </div>
@@ -338,109 +281,62 @@ export const ParentExaminationView: React.FC = () => {
             )}
             
             <div className="sm:hidden p-4 border-t border-slate-200 dark:border-slate-800">
-               <button 
-                  onClick={() => handleDownload(`${activeExam.examName}_Report_Card.pdf`)}
-                  className="w-full py-3 rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors font-bold flex items-center justify-center gap-2"
-               >
-                  <Download className="w-4 h-4" /> Download Report Card
-                </button>
+              <button 
+                onClick={() => handleDownload(`${activeExam.examName}_Report_Card.pdf`)}
+                className="w-full py-3 rounded-xl bg-sky-600 text-white hover:bg-sky-700 transition-colors font-bold flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" /> Download Report Card
+              </button>
             </div>
           </div>
         ) : (
-          <div className="py-12 text-center text-slate-500 font-medium bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800">
-            No assessment records found for this student.
+          <div className="py-12 px-6 text-center text-slate-550 font-bold bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-2">
+            <AlertCircle className="w-8 h-8 text-amber-500" />
+            <h4 className="text-sm font-extrabold uppercase text-slate-800 dark:text-slate-200">Results have not been published yet.</h4>
+            <p className="text-xs text-slate-400 font-medium max-w-sm">Official examination results for this student have not been published by the academic administrator. Please check back later.</p>
           </div>
         )}
 
         {/* Published Question Papers for Student's Class */}
-        {(() => {
-          let displayPapers = questionPapers.filter(qp => 
-            qp.status === 'Published' &&
-            (!qp.className || qp.className === currentWard.className) &&
-            (!qp.section || qp.section === 'All Sections' || qp.section === currentWard.section)
-          );
-
-          if (displayPapers.length === 0) {
-            displayPapers = [
-              {
-                id: 'mock-qp-1',
-                academicYear: '2026-2027',
-                branch: currentWard.branch || 'Main Campus',
-                examId: 'mock-exam-1',
-                examName: 'Mid-Term Examination',
-                className: currentWard.className,
-                section: currentWard.section,
-                paperTitle: 'Mid-Term Mathematics Paper',
-                subject: 'Mathematics',
-                duration: '3 Hours',
-                maxMarks: 100,
-                fileUrl: '#',
-                fileName: 'Mathematics_Mid_Term_2026.pdf',
-                uploadedBy: 'System',
-                uploadedOn: '2026-07-30',
-                status: 'Published'
-              },
-              {
-                id: 'mock-qp-2',
-                academicYear: '2026-2027',
-                branch: currentWard.branch || 'Main Campus',
-                examId: 'mock-exam-1',
-                examName: 'Mid-Term Examination',
-                className: currentWard.className,
-                section: currentWard.section,
-                paperTitle: 'Mid-Term Science Paper',
-                subject: 'Science',
-                duration: '3 Hours',
-                maxMarks: 100,
-                fileUrl: '#',
-                fileName: 'Science_Mid_Term_2026.pdf',
-                uploadedBy: 'System',
-                uploadedOn: '2026-07-30',
-                status: 'Published'
-              }
-            ] as any[];
-          }
-
-          return (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm mt-6">
-              <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Published Examination Question Papers</h3>
-                    <p className="text-[11px] text-slate-500">Official question papers released for {currentWard.className} ({currentWard.section})</p>
-                  </div>
+        {displayPapers.length > 0 && (
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm mt-6">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Published Examination Question Papers</h3>
+                  <p className="text-[11px] text-slate-500">Official question papers released for {currentWard.className} ({currentWard.section})</p>
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {displayPapers.map(paper => (
-                  <div key={paper.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <p className="font-extrabold text-slate-900 dark:text-white text-xs">{paper.paperTitle}</p>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                        <span className="font-bold text-sky-600 dark:text-sky-400">{paper.subject}</span>
-                        <span>•</span>
-                        <span>{paper.duration}</span>
-                        <span>•</span>
-                        <span>{paper.maxMarks} Marks</span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleDownload(paper.fileName || `${paper.paperTitle}.pdf`)}
-                      className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Download
-                    </button>
-                  </div>
-                ))}
-              </div>
             </div>
-          );
-        })()}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {displayPapers.map(paper => (
+                <div key={paper.id} className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="font-extrabold text-slate-900 dark:text-white text-xs">{paper.paperTitle}</p>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                      <span className="font-bold text-sky-600 dark:text-sky-400">{paper.subject}</span>
+                      <span>•</span>
+                      <span>{paper.duration}</span>
+                      <span>•</span>
+                      <span>{paper.maxMarks} Marks</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDownload(paper.fileName || `${paper.paperTitle}.pdf`)}
+                    className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

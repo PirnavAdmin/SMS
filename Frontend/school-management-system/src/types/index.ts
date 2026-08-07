@@ -1803,6 +1803,7 @@ export interface ProcessedResult {
   studentId: string;
   studentName: string;
   rollNo: string;
+  admissionNo?: string;
   className: string;
   section: string;
   totalMaxMarks: number;
@@ -1813,7 +1814,7 @@ export interface ProcessedResult {
   overallGrade?: string;
   subjectMarks?: any[];
   passStatus: 'Pass' | 'Fail';
-  status: 'Draft' | 'Processed' | 'Verified' | 'Approved' | 'Published' | 'Locked';
+  status: 'Draft' | 'Calculated' | 'Approved' | 'Published' | 'Locked';
   processedBy?: string;
   processedAt?: string;
   verifiedBy?: string;
@@ -1823,6 +1824,7 @@ export interface ProcessedResult {
   publishedAt?: string;
   lockedAt?: string;
   remarks?: string;
+  rank?: number;
 }
 
 export interface ExamAuditLog {

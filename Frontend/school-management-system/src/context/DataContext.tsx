@@ -420,6 +420,10 @@ interface DataContextType {
   
   gradeConfigurations: GradeConfig[];
   saveGradeConfiguration: (grades: GradeConfig[]) => void;
+  studentAttendance: any[];
+  saveStudentAttendance: (record: any) => void;
+  coScholasticAssessments: any[];
+  saveCoScholasticAssessment: (record: any) => void;
   
   processedResults: ProcessedResult[];
   saveProcessedResults: (results: ProcessedResult[]) => void;
@@ -1177,6 +1181,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [designations, setDesignations] = useState<DesignationMaster[]>(() => getStored('designations', initialDesignations));
   const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(() => getStored('grade_configurations', defaultGradeConfigurations));
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(() => getStored('processed_results', []));
+  const [studentAttendance, setStudentAttendance] = useState<any[]>(() => getStored('student_attendance', []));
+  const [coScholasticAssessments, setCoScholasticAssessments] = useState<any[]>(() => getStored('co_scholastic_assessments', []));
 
   const [timetable, setTimetable] = useState<TimetableSlot[]>(() => getStored('timetable', initialTimetable));
   const [homework, setHomework] = useState<Homework[]>(() => getStored('homework', initialHomework));
@@ -1520,9 +1526,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_employee_salary_assignments', JSON.stringify(employeeSalaryAssignments)); }, [employeeSalaryAssignments]);
   useEffect(() => { localStorage.setItem('edu_db_payroll_runs', JSON.stringify(payrollRuns)); }, [payrollRuns]);
 
+  useEffect(() => { localStorage.setItem('edu_db_exams', JSON.stringify(exams)); }, [exams]);
+  useEffect(() => { localStorage.setItem('edu_db_exam_marks', JSON.stringify(examMarks)); }, [examMarks]);
   useEffect(() => { localStorage.setItem('edu_db_exam_schedules', JSON.stringify(examSchedules)); }, [examSchedules]);
   useEffect(() => { localStorage.setItem('edu_db_grade_configurations', JSON.stringify(gradeConfigurations)); }, [gradeConfigurations]);
   useEffect(() => { localStorage.setItem('edu_db_processed_results', JSON.stringify(processedResults)); }, [processedResults]);
+  useEffect(() => { localStorage.setItem('edu_db_student_attendance', JSON.stringify(studentAttendance)); }, [studentAttendance]);
+  useEffect(() => { localStorage.setItem('edu_db_co_scholastic_assessments', JSON.stringify(coScholasticAssessments)); }, [coScholasticAssessments]);
 
   const fetchAcademicClasses = async () => {
     try {
@@ -4435,7 +4445,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const addExam = (examData: Omit<ExamSetup, 'id'>) => {
-    const id = 'EXM-' + Math.floor(10 + Math.random() * 90);
+    const id = (examData as any).id || 'EXM-' + Math.floor(10 + Math.random() * 90);
     const newExam: ExamSetup = { ...examData, id, branch: (examData as any).branch || selectedBranch || 'Main Campus' } as any;
     setExams(prev => [...prev, newExam]);
     logActivity('Created Examination', `Scheduled ${newExam.name}`);
@@ -4623,6 +4633,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity('Saved Grade Configurations', `Updated grade range settings`);
   };
 
+  const saveStudentAttendance = (record: any) => {
+    setStudentAttendance(prev => {
+      const filtered = prev.filter(r => r.studentId !== record.studentId);
+      return [...filtered, record];
+    });
+    logActivity('Saved Student Attendance', `Updated attendance for student ID ${record.studentId}`);
+  };
+
+  const saveCoScholasticAssessment = (record: any) => {
+    setCoScholasticAssessments(prev => {
+      const filtered = prev.filter(r => r.studentId !== record.studentId);
+      return [...filtered, record];
+    });
+    logActivity('Saved Co-Scholastic Assessment', `Updated grades for student ID ${record.studentId}`);
+  };
+
   const saveProcessedResults = (results: ProcessedResult[]) => {
     const blockedLockedResults = results.filter(r => {
       const existing = processedResults.find(p => p.examId === r.examId && p.studentId === r.studentId);
@@ -4673,7 +4699,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setExams(prev => prev.map(e => e.id === examId ? {
       ...e,
-      status: status === 'Published' || status === 'Locked' ? 'Results Published' : status === 'Processed' ? 'Completed' : e.status
+      status: status === 'Published' || status === 'Locked' ? 'Results Published' : status === 'Calculated' ? 'Completed' : e.status
     } : e));
     logActivity('Updated Results Status', `Set results for ${examId} (${className}-${section}) to ${status}`);
   };
@@ -5642,6 +5668,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         designations, addDesignation, updateDesignation, deleteDesignation,
         gradeConfigurations, saveGradeConfiguration,
         processedResults, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
+        studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment,
         timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,
         periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting,
         teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
