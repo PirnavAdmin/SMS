@@ -1667,16 +1667,31 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                       {/* Teachers Assignments summaries */}
                       <div className="p-5 bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl space-y-3 text-left">
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Teacher Mappings</h4>
-                        <div className="divide-y divide-slate-100 dark:divide-slate-808 space-y-1.5">
-                          {teacherAssignments.filter(ta => ta.className === activeClass.name && ta.section === activeWorkspaceSection).map((ta, idx) => (
-                            <div key={idx} className="flex justify-between py-1">
-                              <span className="text-slate-400">{ta.subject}:</span>
-                              <span>{ta.teacherName}</span>
-                            </div>
-                          ))}
-                          {teacherAssignments.filter(ta => ta.className === activeClass.name && ta.section === activeWorkspaceSection).length === 0 && (
-                            <p className="text-slate-455 italic text-center py-2">No subject instructors mapped for Section {activeWorkspaceSection}.</p>
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400 border-b pb-2">Teacher Mappings</h4>
+                        <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1 no-scrollbar">
+                          {(activeClass.sections || []).map(sec => {
+                            const sectionAssignments = teacherAssignments.filter(
+                              ta => ta.className === activeClass.name && ta.section === sec
+                            );
+                            return (
+                              <div key={sec} className="space-y-1 pb-2 [&:not(:last-child)]:border-b border-slate-100 dark:border-slate-808/50">
+                                <p className="font-black text-[10px] uppercase text-sky-600 dark:text-sky-400">Section {sec}</p>
+                                <div className="space-y-1 pl-1">
+                                  {sectionAssignments.map((ta, idx) => (
+                                    <div key={idx} className="flex justify-between text-xs py-0.5">
+                                      <span className="text-slate-400 font-medium">{ta.subject}:</span>
+                                      <span className="text-slate-900 dark:text-white font-bold">{ta.teacherName}</span>
+                                    </div>
+                                  ))}
+                                  {sectionAssignments.length === 0 && (
+                                    <p className="text-slate-400 italic text-[11px] py-0.5">No subject instructors mapped.</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {(activeClass.sections || []).length === 0 && (
+                            <p className="text-slate-400 italic text-center py-2">No sections defined for this class.</p>
                           )}
                         </div>
                       </div>

@@ -8,13 +8,14 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const { students, dynamicFeeStructures, studentFeeAssignments, assignFeeStructure, bulkAssignFeeStructure, removeStudentFeeAssignment, academicClasses } = useData();
   const { addToast } = useToast();
 
-  const [selectedClass, setSelectedClass] = useState('Class 10');
-  const [selectedSection, setSelectedSection] = useState('A');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
   const [query, setQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [targetStructureId, setTargetStructureId] = useState<string>(dynamicFeeStructures[0]?.id || '');
 
   const filteredStudents = students.filter(s => {
+    if (!selectedClass || !selectedSection) return false;
     const matchesClass = s.className === selectedClass;
     const matchesSection = selectedSection === 'All' || s.section === selectedSection;
     const matchesQuery = `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase()) || s.admissionNo.toLowerCase().includes(query.toLowerCase());
@@ -66,9 +67,13 @@ export const StudentFeeAssignmentView: React.FC = () => {
             <label className="block font-semibold text-slate-500 mb-0.5">Class Grade</label>
             <select
               value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+              onChange={e => {
+                setSelectedClass(e.target.value);
+                setSelectedSection('');
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
             >
+              <option value="">Select Class</option>
               {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
             </select>
           </div>
@@ -78,8 +83,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
+              disabled={!selectedClass}
             >
+              <option value="">Select Section</option>
               <option value="A">Section A</option>
               <option value="B">Section B</option>
               <option value="C">Section C</option>
@@ -147,53 +154,67 @@ export const StudentFeeAssignmentView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {filteredStudents.map(st => {
-                const isSelected = selectedStudentIds.includes(st.id);
-                const assignment = studentFeeAssignments.find(a => a.studentId === st.id && a.status === 'Active');
-                const dfs = assignment ? dynamicFeeStructures.find(d => d.id === assignment.feeStructureId) : null;
+              {!selectedClass || !selectedSection ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
+                    Please select a Class Grade and Section to view and allocate student fee assignments.
+                  </td>
+                </tr>
+              ) : filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
+                    No students found matching the selected class, section, or search criteria.
+                  </td>
+                </tr>
+              ) : (
+                filteredStudents.map(st => {
+                  const isSelected = selectedStudentIds.includes(st.id);
+                  const assignment = studentFeeAssignments.find(a => a.studentId === st.id && a.status === 'Active');
+                  const dfs = assignment ? dynamicFeeStructures.find(d => d.id === assignment.feeStructureId) : null;
 
-                return (
-                  <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${isSelected ? 'bg-sky-50/50 dark:bg-sky-950/20' : ''}`}>
-                    <td className="py-3 px-4">
-                      <button onClick={() => handleToggleSelect(st.id)}>
-                        {isSelected ? <CheckSquare className="w-4 h-4 text-sky-600" /> : <Square className="w-4 h-4 text-slate-400" />}
-                      </button>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <img src={st.avatar} alt="" className="w-7 h-7 rounded-lg object-cover" />
-                      {st.firstName} {st.lastName}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">{st.category || 'General'}</td>
-                    <td className="py-3 px-4">
-                      {assignment ? (
-                        <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
-                          {dfs ? dfs.className : 'Standard Assigned'}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 font-bold">Not Assigned</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">
-                      {formatCurrency(assignment ? assignment.baseFeeTotal : st.totalFee || 0)}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => {
-                          if (targetStructureId) {
-                            assignFeeStructure(st.id, targetStructureId);
-                            addToast('success', 'Fee Structure Assigned', `Updated fee structure for ${st.firstName}`);
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto"
-                      >
-                        Assign <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                  return (
+                    <tr key={st.id} className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${isSelected ? 'bg-sky-50/50 dark:bg-sky-950/20' : ''}`}>
+                      <td className="py-3 px-4">
+                        <button onClick={() => handleToggleSelect(st.id)}>
+                          {isSelected ? <CheckSquare className="w-4 h-4 text-sky-600" /> : <Square className="w-4 h-4 text-slate-400" />}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <img src={st.avatar} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                        {st.firstName} {st.lastName}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">{st.category || 'General'}</td>
+                      <td className="py-3 px-4">
+                        {assignment ? (
+                          <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold">
+                            {dfs ? dfs.className : 'Standard Assigned'}
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 font-bold">Not Assigned</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">
+                        {formatCurrency(assignment ? assignment.baseFeeTotal : st.totalFee || 0)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => {
+                            if (targetStructureId) {
+                              assignFeeStructure(st.id, targetStructureId);
+                              addToast('success', 'Fee Structure Assigned', `Updated fee structure for ${st.firstName}`);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto"
+                        >
+                          Assign <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>

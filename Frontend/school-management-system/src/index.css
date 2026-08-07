@@ -46,6 +46,7 @@
 }
 
 /* Printing styling */
+/* Printing styling */
 @media print {
   @page {
     size: landscape;

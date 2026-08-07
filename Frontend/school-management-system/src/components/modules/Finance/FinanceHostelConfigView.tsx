@@ -152,7 +152,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                 <th className="py-3 px-4">Hostel Block</th>
                 <th className="py-3 px-4">Room Type</th>
                 <th className="py-3 px-4">Fee Plan</th>
-                <th className="py-3 px-4 text-right">Hostel Rent</th>
+                <th className="py-3 px-4 text-right">Hostel Fee</th>
                 <th className="py-3 px-4 text-right">Deposit</th>
                 <th className="py-3 px-4 text-right">Total Fee</th>
                 <th className="py-3 px-4">Status</th>
@@ -269,7 +269,7 @@ export const FinanceHostelConfigView: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Rent Fee (₹) *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Fee (₹) *</label>
                   <input
                     type="number"
                     required

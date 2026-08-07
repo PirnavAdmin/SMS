@@ -21,10 +21,12 @@ export interface CalculatedResult {
 
 export function calculateGrade(percentage: number, gradeRules: GradeConfig[]): string {
   if (gradeRules && gradeRules.length > 0) {
-    const matched = gradeRules.find(
-      r => percentage >= (r.minMark ?? 0) && percentage <= (r.maxMark ?? 100)
-    );
-    if (matched) return matched.grade || (matched as any).gradeName || 'A';
+    const matched = gradeRules.find(r => {
+      const min = r.minPercent ?? r.minMark ?? 0;
+      const max = r.maxPercent ?? r.maxMark ?? 100;
+      return percentage >= min && percentage <= max;
+    });
+    if (matched) return matched.gradeName || matched.grade || 'A';
   }
   // Fallbacks
   if (percentage >= 90) return 'A+';
@@ -37,10 +39,12 @@ export function calculateGrade(percentage: number, gradeRules: GradeConfig[]): s
 
 export function calculateGpa(percentage: number, gradeRules: GradeConfig[]): number {
   if (gradeRules && gradeRules.length > 0) {
-    const matched = gradeRules.find(
-      r => percentage >= (r.minMark ?? 0) && percentage <= (r.maxMark ?? 100)
-    );
-    if (matched) return matched.gradePoint ?? (matched as any).gradePoints ?? 0;
+    const matched = gradeRules.find(r => {
+      const min = r.minPercent ?? r.minMark ?? 0;
+      const max = r.maxPercent ?? r.maxMark ?? 100;
+      return percentage >= min && percentage <= max;
+    });
+    if (matched) return matched.gradePoints ?? matched.gradePoint ?? 0;
   }
   if (percentage >= 90) return 10;
   if (percentage >= 80) return 9;
