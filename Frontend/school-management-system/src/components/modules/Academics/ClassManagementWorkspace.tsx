@@ -120,6 +120,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Modals controllers
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<AcademicClass | null>(null);
+  const [openedFromDashboard, setOpenedFromDashboard] = useState(false);
 
   // Section Setup controllers
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
@@ -446,8 +447,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setIsClassModalOpen(true);
   };
 
+  const handleCloseClassModal = () => {
+    setIsClassModalOpen(false);
+    if (openedFromDashboard) {
+      setOpenedFromDashboard(false);
+      onTabChange?.('academic-dashboard');
+    }
+  };
+
   useEffect(() => {
     if (autoOpenClassModal) {
+      setOpenedFromDashboard(true);
       handleOpenAddClass();
       if (setAutoOpenClassModal) {
         setAutoOpenClassModal(false);
@@ -1940,65 +1950,93 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 )}
 
                 {/* COCKPIT TAB: SUBJECTS MAPPING */}
-                {classWorkspaceTab === 'subjects' && (
-                  <div className="space-y-6 animate-in fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-202 dark:border-slate-808 pb-3">
-                      <div>
-                        <h4 className="font-black text-slate-900 dark:text-white">Class Subject Mapping</h4>
-                        <p className="text-xs text-slate-500">
-                          Map which global course subjects are applicable to {activeClass.name}.{' '}
-                          <button
-                            onClick={() => onTabChange?.('subjects')}
-                            className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
-                          >
-                            Configure Global Subjects &rarr;
-                          </button>
-                        </p>
-                      </div>
-                    </div>
+                {classWorkspaceTab === 'subjects' && (() => {
+                  const mappedSubjectsList = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
+                  const mappedCount = mappedSubjectsList.length;
+                  const totalWeeklyPeriods = mappedSubjectsList.reduce((acc, sub) => acc + (sub.weeklyPeriodCount || 4), 0);
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="md:col-span-2 space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {subjects.map(sub => {
-                            const isMapped = (activeClass.subjects || []).includes(sub.name);
-                            return (
-                              <div 
-                                key={sub.id} 
-                                onClick={() => handleToggleSubjectMapping(sub.name)}
-                                className={`p-4 rounded-3xl border text-left cursor-pointer transition-all flex items-center justify-between font-bold ${
-                                  isMapped 
-                                    ? 'border-sky-505 bg-sky-50/20 dark:bg-sky-955/10' 
-                                    : 'border-slate-200 dark:border-slate-808 hover:border-slate-350 bg-white dark:bg-slate-900'
-                                }`}
-                              >
-                                <div>
-                                  <p className="text-xs text-slate-900 dark:text-white">{sub.name}</p>
-                                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">{sub.code || sub.subjectId} ({sub.weeklyPeriodCount || 4} periods/week)</p>
-                                </div>
-                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                                  isMapped ? 'bg-sky-600 border-sky-600 text-white' : 'border-slate-300'
-                                }`}>
-                                  {isMapped && <Check className="w-3 h-3" />}
-                                </div>
-                              </div>
-                            );
-                          })}
+                  return (
+                    <div className="space-y-6 animate-in fade-in">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                        <div>
+                          <h4 className="font-black text-slate-900 dark:text-white">Class Subject Mapping</h4>
+                          <p className="text-xs text-slate-500">
+                            Map which global course subjects are applicable to {activeClass.name}.{' '}
+                            <button
+                              onClick={() => onTabChange?.('subjects')}
+                              className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
+                            >
+                              Configure Global Subjects &rarr;
+                            </button>
+                          </p>
                         </div>
                       </div>
 
-                      <div className="p-5 bg-slate-50 dark:bg-slate-905 border border-slate-202 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-bold leading-normal">
-                        <h5 className="font-extrabold text-slate-900 dark:text-white">Subject Setup Validation</h5>
-                        <p className="text-slate-505">Toggling subjects maps them immediately to the class profile.</p>
-                        <ul className="list-disc list-inside space-y-1 pl-1 text-slate-400 font-medium">
-                          <li>Core academic theory courses.</li>
-                          <li>Practical labs double workload calculations.</li>
-                          <li>Weekly period constraints guide scheduling slots.</li>
-                        </ul>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="md:col-span-2 space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {subjects.map(sub => {
+                              const isMapped = (activeClass.subjects || []).includes(sub.name);
+                              return (
+                                <div 
+                                  key={sub.id} 
+                                  onClick={() => handleToggleSubjectMapping(sub.name)}
+                                  className={`p-4 rounded-3xl border text-left cursor-pointer transition-all flex items-center justify-between font-bold ${
+                                    isMapped 
+                                      ? 'border-sky-500 bg-sky-50/30 dark:bg-sky-950/20' 
+                                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 bg-white dark:bg-slate-900'
+                                  }`}
+                                >
+                                  <div>
+                                    <p className="text-xs text-slate-900 dark:text-white">{sub.name}</p>
+                                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">{sub.code || sub.subjectId} ({sub.weeklyPeriodCount || 4} periods/week)</p>
+                                  </div>
+                                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                                    isMapped ? 'bg-sky-600 border-sky-600 text-white' : 'border-slate-300'
+                                  }`}>
+                                    {isMapped && <Check className="w-3 h-3" />}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Refaced Subject Mapping Guidelines Card */}
+                        <div className="p-5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-bold leading-normal h-fit">
+                          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+                            <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 shrink-0">
+                              <BookOpen className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h5 className="font-extrabold text-slate-900 dark:text-white text-xs">Subject Mapping</h5>
+                              <p className="text-[10px] text-slate-400 font-medium">Curriculum rules for {activeClass.name}</p>
+                            </div>
+                          </div>
+
+                          {/* Guidelines */}
+                          <div className="space-y-2 text-left">
+                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Class Subject Guidelines:</p>
+                            <ul className="space-y-2 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+                              <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 mt-1.5 shrink-0" />
+                                <span><strong>Instant Mapping:</strong> Toggling a subject card immediately updates the class curriculum profile.</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                                <span><strong>Teacher Workload:</strong> Mapped subjects automatically appear under the <em>Teachers</em> tab for instructor assignment.</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+                                <span><strong>Period Slots:</strong> Weekly period constraints guide timetable slot calculations.</span>
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* COCKPIT TAB: TEACHERS ASSIGNMENT */}
                 {classWorkspaceTab === 'teachers' && (
@@ -2520,7 +2558,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               <h3 className="text-base font-black text-slate-900 dark:text-white">
                 {editingClass ? 'Edit Class Parameters' : 'Add Class Grade'}
               </h3>
-              <button onClick={() => setIsClassModalOpen(false)} className="p-1 text-slate-405 hover:text-white transition-colors">
+              <button onClick={handleCloseClassModal} className="p-1 text-slate-405 hover:text-white transition-colors">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2639,7 +2677,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 <button 
                   type="button" 
                   disabled={isSubmitting} 
-                  onClick={() => setIsClassModalOpen(false)} 
+                  onClick={handleCloseClassModal} 
                   className="px-4 py-2 text-slate-655 bg-slate-100 rounded-xl hover:bg-slate-200 disabled:opacity-50"
                 >
                   Cancel

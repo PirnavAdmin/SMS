@@ -43,13 +43,13 @@ export const RouteMasterView: React.FC = () => {
   const [deletingRoute, setDeletingRoute] = useState<RouteMaster | null>(null);
 
   const [form, setForm] = useState<Partial<RouteMaster>>({
-    routeCode: 'R-NORTH-103',
-    routeName: 'Route C - West Suburbs Express',
-    routeStart: 'West Suburbs Stop 1',
-    routeEnd: 'St. Xavier Main Gate',
-    totalDistanceKm: 15.0,
-    estimatedTimeMinutes: 35,
-    description: 'Serving West Suburbs housing colonies',
+    routeCode: '',
+    routeName: '',
+    routeStart: '',
+    routeEnd: '',
+    totalDistanceKm: 0,
+    estimatedTimeMinutes: 0,
+    description: '',
     status: 'Active'
   });
 
@@ -61,12 +61,12 @@ export const RouteMasterView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingRoute(null);
     setForm({
-      routeCode: `R-CODE-${Math.floor(100 + Math.random() * 900)}`,
+      routeCode: '',
       routeName: '',
       routeStart: '',
-      routeEnd: 'St. Xavier Main Gate',
-      totalDistanceKm: 10,
-      estimatedTimeMinutes: 30,
+      routeEnd: '',
+      totalDistanceKm: 0,
+      estimatedTimeMinutes: 0,
       description: '',
       status: 'Active'
     });
@@ -213,11 +213,18 @@ export const RouteMasterView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Route Code (Unique) *</label>
-                  <input type="text" required value={form.routeCode} onChange={e => setForm({ ...form, routeCode: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. R-NORTH-101"
+                    value={form.routeCode || ''}
+                    onChange={e => setForm({ ...form, routeCode: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white"
+                  />
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Status</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                  <select value={form.status || 'Active'} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white cursor-pointer">
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
@@ -226,27 +233,77 @@ export const RouteMasterView: React.FC = () => {
 
               <div>
                 <label className="block font-semibold mb-1">Route Name *</label>
-                <input type="text" required value={form.routeName} onChange={e => setForm({ ...form, routeName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter route name..."
+                  value={form.routeName || ''}
+                  onChange={e => setForm({ ...form, routeName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Route Start</label><input type="text" value={form.routeStart} onChange={e => setForm({ ...form, routeStart: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Route End</label><input type="text" value={form.routeEnd} onChange={e => setForm({ ...form, routeEnd: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div>
+                  <label className="block font-semibold mb-1">Route Start</label>
+                  <input
+                    type="text"
+                    placeholder="Enter route start location..."
+                    value={form.routeStart || ''}
+                    onChange={e => setForm({ ...form, routeStart: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Route End</label>
+                  <input
+                    type="text"
+                    placeholder="Enter route end location..."
+                    value={form.routeEnd || ''}
+                    onChange={e => setForm({ ...form, routeEnd: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Distance (KM)</label><input type="number" step="0.1" value={form.totalDistanceKm} onChange={e => setForm({ ...form, totalDistanceKm: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Est Time (Minutes)</label><input type="number" value={form.estimatedTimeMinutes} onChange={e => setForm({ ...form, estimatedTimeMinutes: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
+                <div>
+                  <label className="block font-semibold mb-1">Distance (KM)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="0"
+                    value={form.totalDistanceKm === 0 ? '' : form.totalDistanceKm || ''}
+                    onChange={e => setForm({ ...form, totalDistanceKm: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Est Time (Minutes)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={form.estimatedTimeMinutes === 0 ? '' : form.estimatedTimeMinutes || ''}
+                    onChange={e => setForm({ ...form, estimatedTimeMinutes: e.target.value === '' ? 0 : Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block font-semibold mb-1">Description</label>
-                <input type="text" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                <input
+                  type="text"
+                  placeholder="Enter route description..."
+                  value={form.description || ''}
+                  onChange={e => setForm({ ...form, description: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save Route</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer">Save Route</button>
               </div>
             </form>
           </div>

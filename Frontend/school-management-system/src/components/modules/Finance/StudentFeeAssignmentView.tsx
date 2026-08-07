@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { UserPlus, Search, CheckSquare, Square, CheckCircle, ArrowRight } from 'lucide-react';
+import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 
@@ -12,7 +12,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const [selectedSection, setSelectedSection] = useState('');
   const [query, setQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
-  const [targetStructureId, setTargetStructureId] = useState<string>(dynamicFeeStructures[0]?.id || '');
+  const [targetStructureId, setTargetStructureId] = useState<string>('');
 
   const filteredStudents = students.filter(s => {
     if (!selectedClass || !selectedSection) return false;
@@ -58,13 +58,13 @@ export const StudentFeeAssignmentView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <UserPlus className="w-6 h-6 text-sky-500" /> Fee Assignment
         </h2>
-        </div>
+      </div>
 
       {/* Filter & Bulk Control Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto text-xs">
+      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto text-xs">
           <div>
-            <label className="block font-semibold text-slate-500 mb-0.5">Class Grade</label>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Class Grade</label>
             <select
               value={selectedClass}
               onChange={e => {
@@ -79,7 +79,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-500 mb-0.5">Section</label>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Section</label>
             <select
               value={selectedSection}
               onChange={e => setSelectedSection(e.target.value)}
@@ -90,39 +90,45 @@ export const StudentFeeAssignmentView: React.FC = () => {
               <option value="A">Section A</option>
               <option value="B">Section B</option>
               <option value="C">Section C</option>
-              <option value="All">All Sections</option>
             </select>
           </div>
 
-          <div className="relative pt-4">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-7" />
-            <input
-              type="text"
-              placeholder="Search student or adm no..."
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none w-56"
-            />
+          <div>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Search Student</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search student or adm no..."
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                className="pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none w-56 font-medium"
+              />
+            </div>
           </div>
         </div>
 
         {/* Bulk Action */}
-        <div className="flex items-center gap-3 w-full sm:w-auto border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 dark:border-slate-800">
-          <select
-            value={targetStructureId}
-            onChange={e => setTargetStructureId(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            {dynamicFeeStructures.map(dfs => (
-              <option key={dfs.id} value={dfs.id}>
-                {dfs.className} - {formatCurrency(dfs.totalAmount)} ({dfs.studentCategory})
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 dark:border-slate-800">
+          <div>
+            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Assign Target Structure</label>
+            <select
+              value={targetStructureId}
+              onChange={e => setTargetStructureId(e.target.value)}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
+            >
+              <option value="">Select Target Structure</option>
+              {dynamicFeeStructures.map(dfs => (
+                <option key={dfs.id} value={dfs.id}>
+                  {dfs.className} - {formatCurrency(dfs.totalAmount)} ({dfs.studentCategory})
+                </option>
+              ))}
+            </select>
+          </div>
 
           <button
             onClick={handleBulkAssign}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer h-[38px]"
           >
             <CheckCircle className="w-4 h-4" /> Bulk Assign ({selectedStudentIds.length})
           </button>

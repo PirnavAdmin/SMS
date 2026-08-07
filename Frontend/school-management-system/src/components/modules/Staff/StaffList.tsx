@@ -28,6 +28,10 @@ import {
   normalizeStaffType,
   getDepartmentOptions,
   getDesignationOptions,
+  teachingDeptNames,
+  nonTeachingDeptNames,
+  teachingDesignationNames,
+  nonTeachingDesignationNames,
 } from "./staffFlowOptions";
 
 export const StaffList: React.FC<{
@@ -241,13 +245,25 @@ export const StaffList: React.FC<{
       ...getDepartmentOptions(activeCategory, departments),
       ...categoryStaffList.map((s) => s.department).filter(Boolean),
     ]),
-  );
+  ).filter(dept => {
+    if (activeCategory === "Teaching Staff") {
+      return !nonTeachingDeptNames.has(dept);
+    } else {
+      return !teachingDeptNames.has(dept);
+    }
+  });
   const uniqueDesignations = Array.from(
     new Set([
       ...getDesignationOptions(activeCategory, "", designations),
       ...categoryStaffList.map((s) => s.designation).filter(Boolean),
     ]),
-  );
+  ).filter(desig => {
+    if (activeCategory === "Teaching Staff") {
+      return !nonTeachingDesignationNames.has(desig);
+    } else {
+      return !teachingDesignationNames.has(desig);
+    }
+  });
 
   const handleTabChange = (cat: string) => {
     setActiveCategory(cat);
@@ -518,7 +534,7 @@ export const StaffList: React.FC<{
                 <option value="nameAsc">Sort: Name (A-Z)</option>
                 <option value="nameDesc">Sort: Name (Z-A)</option>
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-650 dark:text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 

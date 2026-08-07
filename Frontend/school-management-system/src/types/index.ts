@@ -1,7 +1,7 @@
 export type Role = 'Super Admin' | 'Admin' | 'Teacher' | 'Staff' | 'Parent' | 'Student' | 'Principal' | 'HR' | 'Accountant' | 'Librarian' | 'Transport Manager' | 'Hostel Warden' | 'Receptionist';
 export type UserRole = Role;
 
-export type StudentType = 'Day Scholar' | 'Hosteller';
+export type StudentType = 'Day Scholar' | 'Hosteller' | 'Residential' | 'Non-Residential';
 
 export type BloodGroup = 'A+' | 'A-' | 'B+' | 'B-' | 'O+' | 'O-' | 'AB+' | 'AB-';
 
@@ -126,6 +126,8 @@ export interface DocumentRequirementRule {
   updatedAt?: string;
 }
 
+export type SectionAssignmentMethod = 'Manual' | 'Merit' | 'Balanced';
+
 export interface PromotionHistoryItem {
   id: string;
   academicYear: string;
@@ -136,6 +138,12 @@ export interface PromotionHistoryItem {
   fromBranch: string;
   toBranch: string;
   date: string;
+  rollNo?: string;
+  overallPct?: number;
+  grade?: string;
+  finalResult?: 'PASS' | 'FAIL' | 'COMPLETED';
+  status?: 'Promoted' | 'Retained' | 'Graduated';
+  remarks?: string;
 }
 
 export interface Student {
@@ -209,6 +217,69 @@ export interface Student {
   discountId?: string;
 
   promotionHistory?: PromotionHistoryItem[];
+}
+
+export interface TcRecord {
+  id: string;
+  tcNo: string;
+  issueDate: string;
+  studentId: string;
+  studentName: string;
+  admissionNo: string;
+  admissionDate?: string;
+  fatherName: string;
+  motherName: string;
+  dob: string;
+  gender: string;
+  className: string;
+  section: string;
+  rollNo: string;
+  academicYear: string;
+  branch: string;
+  leavingDate: string;
+  reason: 'Parent Request' | 'Family Relocation' | 'Higher Education' | 'Change of School' | 'Completed School Education' | 'Other' | string;
+  destinationSchool?: string;
+  result: string;
+  conduct: string;
+  remarks?: string;
+  issuedBy: string;
+  status: 'Issued' | 'Reissued' | 'Cancelled';
+  clearanceSummary: {
+    feeCleared: boolean;
+    dueFee: number;
+    libraryCleared: boolean;
+    transportCleared: boolean;
+    hostelCleared: boolean;
+    overridden: boolean;
+    overrideReason?: string;
+  };
+  auditLog: {
+    generatedBy: string;
+    generatedDate: string;
+    issuedBy: string;
+    issuedDate: string;
+    printedBy?: string;
+    lastPrintedDate?: string;
+    lastDownloadedDate?: string;
+    reissueCount?: number;
+    reissuedDates?: string[];
+  };
+}
+
+export interface CertificateTemplateConfig {
+  id: string;
+  certificateType: 'Transfer Certificate' | 'Bonafide Certificate' | 'Character Certificate' | 'Leaving Certificate' | 'Merit Certificate' | 'Sports Certificate' | string;
+  title: string;
+  subTitle: string;
+  headerStyle: 'Classic Double Border' | 'Modern Minimalist' | 'Royal Gold Crest' | 'Executive Slate';
+  themeColor: string;
+  showLogo: boolean;
+  showSeal: boolean;
+  signatory1: string;
+  signatory2: string;
+  signatory3: string;
+  customPreamble?: string;
+  footerDisclaimer?: string;
 }
 
 export interface BankDetails {

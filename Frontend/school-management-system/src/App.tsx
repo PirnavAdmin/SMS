@@ -128,7 +128,14 @@ const MainLayout: React.FC = () => {
       case 'dashboard':
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'students':
+      case 'student-directory':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <StudentList onNavigate={(mod) => setActiveModule(mod)} />;
+      case 'student-promotion':
+        return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <StudentPromotionView />;
+      case 'transfer-certificates':
+        return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <TransferCertificatesView />;
+      case 'alumni':
+        return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <AlumniView />;
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':

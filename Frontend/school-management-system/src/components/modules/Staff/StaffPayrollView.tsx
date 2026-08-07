@@ -989,7 +989,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                 <th className="p-3">Currency</th>
                 <th className="p-3">Effective</th>
                 <th className="p-3">Status</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className="p-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -1005,7 +1005,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                       {c.status}
                     </span>
                   </td>
-                  <td className="p-3 text-right space-x-1">
+                  <td className="p-3 text-center space-x-1">
                     <Button onClick={() => handleOpenEditConfig(c)} disabled={!canManage} title="Edit Configuration">
                       <Pencil className="w-3.5 h-3.5" />
                     </Button>
@@ -1142,8 +1142,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
         </div>
         <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500"><tr><th className="p-3">Name</th><th className="p-3">Category</th><th className="p-3">Type</th><th className="p-3">Value</th><th className="p-3">Flags</th><th className="p-3">Status</th><th className="p-3 text-right">Actions</th></tr></thead>
-            <tbody className="divide-y">{data.payrollComponents.map(c => <tr key={c.id}><td className="p-3 font-bold">{c.name}</td><td className="p-3">{c.category}</td><td className="p-3">{c.type}</td><td className="p-3">{c.type === 'Percentage' ? `${c.value}%` : formatCurrency(c.value)}</td><td className="p-3">{c.category === 'Earning' ? `Taxable: ${c.taxable ? 'Yes' : 'No'}` : `Mandatory: ${c.mandatory ? 'Yes' : 'No'}`}</td><td className="p-3">{c.status}</td><td className="p-3 text-right space-x-1"><Button onClick={() => setEditingComponent(c)} disabled={!canManage}><Pencil className="w-3.5 h-3.5" /></Button><Button variant="danger" onClick={() => data.deletePayrollComponent(c.id)} disabled={!canManage}><Trash2 className="w-3.5 h-3.5" /></Button></td></tr>)}</tbody>
+            <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500"><tr><th className="p-3">Name</th><th className="p-3">Category</th><th className="p-3">Type</th><th className="p-3">Value</th><th className="p-3">Flags</th><th className="p-3">Status</th><th className="p-3 text-center">Actions</th></tr></thead>
+            <tbody className="divide-y">{data.payrollComponents.map(c => <tr key={c.id}><td className="p-3 font-bold">{c.name}</td><td className="p-3">{c.category}</td><td className="p-3">{c.type}</td><td className="p-3">{c.type === 'Percentage' ? `${c.value}%` : formatCurrency(c.value)}</td><td className="p-3">{c.category === 'Earning' ? `Taxable: ${c.taxable ? 'Yes' : 'No'}` : `Mandatory: ${c.mandatory ? 'Yes' : 'No'}`}</td><td className="p-3">{c.status}</td><td className="p-3 text-center space-x-1"><Button onClick={() => setEditingComponent(c)} disabled={!canManage}><Pencil className="w-3.5 h-3.5" /></Button><Button variant="danger" onClick={() => data.deletePayrollComponent(c.id)} disabled={!canManage}><Trash2 className="w-3.5 h-3.5" /></Button></td></tr>)}</tbody>
           </table>
         </div>
       </div>
@@ -2372,7 +2372,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                     <th className="p-3">Other Deductions</th>
                     <th className="p-3">Net Salary</th>
                     <th className="p-3">Adjustments Info / Log</th>
-                    <th className="p-3 text-right">Action</th>
+                    <th className="p-3 text-center">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -2390,7 +2390,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                           <td className="p-3 font-mono text-rose-500">-{formatCurrency(run.otherDeductions)}</td>
                           <td className="p-3 font-mono font-black text-brand-600">{formatCurrency(run.netSalary)}</td>
                           <td className="p-3 max-w-[200px] truncate text-slate-500 italic" title={run.notes || ''}>{run.notes || 'No manual adjustments logged.'}</td>
-                          <td className="p-3 text-right">
+                          <td className="p-3 text-center">
                             <Button
                               onClick={() => {
                                 setAdjustmentEmployeeId(isAdjusting ? null : s.id);

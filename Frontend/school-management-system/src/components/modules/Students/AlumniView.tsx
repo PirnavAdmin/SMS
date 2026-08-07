@@ -139,11 +139,8 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
       <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
         <div>
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Award className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Alumni Directory & Archive
+            <Award className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Alumni
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Permanent record of students who successfully completed the highest class offered by the school.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -241,7 +238,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                     onChange={e => setFilterYear(e.target.value)}
                     className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                   >
-                    <option value="All">All Academic Years</option>
+                    <option value="All">Select Academic Year</option>
                     {uniqueYears.map(yr => (
                       <option key={yr} value={yr}>{yr}</option>
                     ))}
@@ -255,26 +252,14 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                     onChange={e => setFilterBatch(e.target.value)}
                     className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                   >
-                    <option value="All">All Batches</option>
+                    <option value="All">Select Batch</option>
                     {uniqueBatches.map(b => (
                       <option key={b} value={b}>{b}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Class Filter */}
-                <div>
-                  <select
-                    value={filterClass}
-                    onChange={e => setFilterClass(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-                  >
-                    <option value="All">All Final Classes</option>
-                    {uniqueClasses.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
+
 
                 {/* Branch Filter */}
                 {uniqueBranches.length > 1 && (
@@ -284,7 +269,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                       onChange={e => setFilterBranch(e.target.value)}
                       className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                     >
-                      <option value="All">All Branches</option>
+                      <option value="All">Select Branch</option>
                       {uniqueBranches.map(b => (
                         <option key={b} value={b}>{b}</option>
                       ))}

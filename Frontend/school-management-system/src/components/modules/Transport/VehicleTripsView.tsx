@@ -116,40 +116,40 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 text-xs">
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-2.5 text-xs">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-500">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicles Running</span>
-          <p className="text-lg font-black text-slate-900 dark:text-white font-mono">{runningCount}</p>
+          <p className="text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">{runningCount}</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-emerald-500 space-y-1">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-emerald-500">
           <span className="text-[10px] font-bold text-emerald-500 uppercase block">Trips Completed</span>
-          <p className="text-lg font-black text-emerald-600 font-mono">{Math.max(0, filteredAssignments.length - runningCount)}</p>
+          <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{Math.max(0, filteredAssignments.length - runningCount)}</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-amber-500 space-y-1">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-amber-500">
           <span className="text-[10px] font-bold text-amber-500 uppercase block">Delayed Trips</span>
-          <p className="text-lg font-black text-amber-600 font-mono">0</p>
+          <p className="text-lg font-black text-amber-600 font-mono mt-0.5">0</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-500">
           <span className="text-[10px] font-bold text-sky-500 uppercase block">Offline GPS Devices</span>
-          <p className="text-lg font-black text-sky-600 font-mono">{offlineGpsCount}</p>
+          <p className="text-lg font-black text-sky-600 font-mono mt-0.5">{offlineGpsCount}</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-600 space-y-1">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-600">
           <span className="text-[10px] font-bold text-sky-600 uppercase block">Active Morning Trips</span>
-          <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono">{activeMorningTrips}</p>
+          <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono mt-0.5">{activeMorningTrips}</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-emerald-600 space-y-1">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-emerald-600">
           <span className="text-[10px] font-bold text-emerald-600 uppercase block">Students On Board</span>
-          <p className="text-lg font-black text-emerald-600 font-mono">{studentsOnBoard}</p>
+          <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{studentsOnBoard}</p>
         </div>
 
-        <div className="glass-card p-3.5 rounded-2xl border-l-4 border-l-sky-500 space-y-1">
+        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-500">
           <span className="text-[10px] font-bold text-sky-500 uppercase block">Active Evening Trips</span>
-          <p className="text-lg font-black text-sky-600 font-mono">{activeEveningTrips}</p>
+          <p className="text-lg font-black text-sky-600 font-mono mt-0.5">{activeEveningTrips}</p>
         </div>
       </div>
 
@@ -225,20 +225,20 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
             <div
               key={assignment.id}
               onClick={() => handleOpenTripDetails(assignment)}
-              className="glass-card p-6 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 transition-all cursor-pointer shadow-sm group hover:shadow-lg"
+              className="glass-card p-4 rounded-2xl space-y-2.5 border border-slate-200/80 dark:border-slate-800 hover:border-sky-500/60 transition-all cursor-pointer shadow-sm group hover:shadow-lg"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs font-black px-3 py-1.5 rounded-xl bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 group-hover:bg-sky-600 group-hover:text-white transition-colors">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="font-mono text-xs font-black px-2.5 py-1 rounded-lg bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 group-hover:bg-sky-600 group-hover:text-white transition-colors">
                     {assignment.vehicleNumber}
                   </span>
                   <div>
-                    <h3 className="font-black text-base text-slate-900 dark:text-white">{assignment.routeName}</h3>
-                    <p className="text-[11px] text-slate-400 font-mono">Reg: {vehicle?.registrationNumber || 'NY-99-AB-1001'}</p>
+                    <h3 className="font-black text-sm text-slate-900 dark:text-white">{assignment.routeName}</h3>
+                    <p className="text-[10px] text-slate-400 font-mono">Reg: {vehicle?.registrationNumber || 'NY-99-AB-1001'}</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">{statusText}</Badge>
                   {gpsOnline ? (
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold flex items-center gap-1">
@@ -250,8 +250,8 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
+              <div className="grid grid-cols-2 gap-2.5 text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-0.5">
                   <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
                     <Users className="w-3 h-3 text-sky-500" /> Commercial Driver
                   </span>
@@ -261,7 +261,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                   </p>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-1">
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border space-y-0.5">
                   <span className="text-[10px] font-bold uppercase text-slate-400 block flex items-center gap-1">
                     <UserCheck className="w-3 h-3 text-emerald-500" /> Bus Attendant
                   </span>
@@ -272,28 +272,28 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-3 rounded-2xl border">
+              <div className="grid grid-cols-3 gap-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border">
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Students</span>
-                  <span className="font-black text-emerald-600 font-mono text-sm">{assignedCount} / {capacity}</span>
+                  <span className="font-black text-emerald-600 font-mono text-xs">{assignedCount} / {capacity}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Morning Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{morningTripTime}</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{morningTripTime}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 block uppercase">Evening Trip</span>
-                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{eveningTripTime}</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">{eveningTripTime}</span>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-end gap-2 pt-1.5 border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={e => {
                     e.stopPropagation();
                     onOpenGps?.(assignment);
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-sky-500/20"
+                  className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs flex items-center gap-1 shadow-md shadow-sky-500/20 cursor-pointer"
                 >
                   <Navigation className="w-3.5 h-3.5" /> Open GPS
                 </button>
@@ -302,7 +302,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
                     e.stopPropagation();
                     handleOpenTripDetails(assignment);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1 cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" /> Details
                 </button>

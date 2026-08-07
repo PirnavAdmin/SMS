@@ -17,7 +17,7 @@ import {
 } from './staffFlowOptions';
 import {
   User, Briefcase, GraduationCap, Award, Upload, Plus, Trash2, Edit2, CheckCircle2,
-  FileText, Eye, Download, RefreshCw, X, ShieldCheck, MapPin, Building2, Check, UploadCloud
+  FileText, Eye, Download, RefreshCw, X, ShieldCheck, MapPin, Building2, Check, UploadCloud, ChevronDown
 } from 'lucide-react';
 
 import { DateInput } from '../../common/DateInput';
@@ -30,6 +30,9 @@ interface BasicStaffFormFieldsProps {
   onCategoryChange: (value: StaffType | string) => void;
   employeeIdReadOnly?: boolean;
   compact?: boolean;
+  isSubmitting?: boolean;
+  onCancel?: () => void;
+  staffToEdit?: any;
 }
 
 const fieldClass =
@@ -41,7 +44,10 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   onChange,
   onCategoryChange,
   employeeIdReadOnly = true,
-  compact = false
+  compact = false,
+  isSubmitting = false,
+  onCancel,
+  staffToEdit
 }) => {
   const { departments = [], designations = [] } = useData();
 
@@ -53,11 +59,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   const [editingQualId, setEditingQualId] = useState<string | null>(null);
   const [qualForm, setQualForm] = useState<StaffQualificationItem>({
     id: '',
-    qualification: 'B.Ed',
+    qualification: '',
     specialization: '',
     institution: '',
     boardUniversity: '',
-    passingYear: '2020',
+    passingYear: '',
     percentageCgpa: ''
   });
 
@@ -123,11 +129,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     setEditingQualId(null);
     setQualForm({
       id: '',
-      qualification: 'B.Ed',
+      qualification: '',
       specialization: '',
       institution: '',
       boardUniversity: '',
-      passingYear: '2020',
+      passingYear: '',
       percentageCgpa: ''
     });
   };
@@ -271,7 +277,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="text"
                   value={value.firstName}
                   onChange={e => onChange('firstName', e.target.value)}
-                  placeholder="First Name"
                   className={fieldClass}
                 />
                 {errors.firstName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.firstName}</p>}
@@ -286,7 +291,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="text"
                   value={value.lastName}
                   onChange={e => onChange('lastName', e.target.value)}
-                  placeholder="Last Name"
                   className={fieldClass}
                 />
                 {errors.lastName && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.lastName}</p>}
@@ -299,28 +303,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="text"
                   value={value.middleName || ''}
                   onChange={e => onChange('middleName', e.target.value)}
-                  placeholder="Middle Name"
                   className={fieldClass}
                 />
-              </div>
-
-              {/* Staff Type */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Staff Type <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={value.employeeCategory}
-                  onChange={e => handleStaffTypeSelect(e.target.value)}
-                  className={fieldClass}
-                >
-                  {staffTypeOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                {errors.employeeCategory && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.employeeCategory}</p>}
               </div>
 
               {/* Staff ID */}
@@ -339,11 +323,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               {/* Gender */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Gender</label>
-                <select value={value.gender || 'Male'} onChange={e => onChange('gender', e.target.value)} className={fieldClass}>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
+                <div className="relative mt-1.5">
+                  <select
+                    value={value.gender || ''}
+                    onChange={e => onChange('gender', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               {/* Date of Birth */}
@@ -355,11 +347,19 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               {/* Blood Group */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Blood Group</label>
-                <select value={value.bloodGroup || 'O+'} onChange={e => onChange('bloodGroup', e.target.value)} className={fieldClass}>
-                  {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
-                    <option key={bg} value={bg}>{bg}</option>
-                  ))}
-                </select>
+                <div className="relative mt-1.5">
+                  <select
+                    value={value.bloodGroup || ''}
+                    onChange={e => onChange('bloodGroup', e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10"
+                  >
+                    <option value="">Select</option>
+                    {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
+                      <option key={bg} value={bg}>{bg}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               {/* Mobile Number */}
@@ -371,7 +371,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="tel"
                   value={value.mobileNumber}
                   onChange={e => onChange('mobileNumber', e.target.value)}
-                  placeholder="+91 9876543210"
                   className={fieldClass}
                 />
                 {errors.mobileNumber && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.mobileNumber}</p>}
@@ -384,7 +383,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="tel"
                   value={value.alternateMobileNumber || ''}
                   onChange={e => onChange('alternateMobileNumber', e.target.value)}
-                  placeholder="Alternate Phone"
                   className={fieldClass}
                 />
               </div>
@@ -396,7 +394,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="email"
                   value={value.email}
                   onChange={e => onChange('email', e.target.value)}
-                  placeholder="employee@school.edu"
                   className={fieldClass}
                 />
                 {errors.email && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.email}</p>}
@@ -404,16 +401,43 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               {/* Staff Photo Upload */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Staff Photo</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => {
-                    const file = e.target.files?.[0];
-                    if (file) onChange('photoUrl', URL.createObjectURL(file));
-                  }}
-                  className={fieldClass}
-                />
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Upload Photo</label>
+                <div className="relative">
+                  {value.photoUrl ? (
+                    <div className="flex items-center justify-between w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={value.photoUrl}
+                          alt="Staff Preview"
+                          className="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
+                        />
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">Photo selected</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => onChange('photoUrl', '')}
+                        className="p-1 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
+                        title="Remove photo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-between w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-bold cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-750 transition-colors">
+                      <span>Choose File</span>
+                      <Upload className="w-4 h-4 text-slate-400" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) onChange('photoUrl', URL.createObjectURL(file));
+                        }}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -432,18 +456,17 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="text"
                   value={value.aadhaarNumber || ''}
                   onChange={e => onChange('aadhaarNumber', e.target.value)}
-                  placeholder="12-digit Aadhaar Number"
                   className={`${fieldClass} font-mono`}
                 />
               </div>
 
+              {/* PAN Number */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">PAN Number <span className="text-slate-400 font-normal">(Optional)</span></label>
                 <input
                   type="text"
                   value={value.panNumber || ''}
                   onChange={e => onChange('panNumber', e.target.value.toUpperCase())}
-                  placeholder="10-digit PAN Number"
                   className={`${fieldClass} font-mono uppercase`}
                 />
               </div>
@@ -475,7 +498,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   rows={2}
                   value={value.presentAddress || ''}
                   onChange={e => onChange('presentAddress', e.target.value)}
-                  placeholder="House / Flat No, Street, Landmark"
                   className={fieldClass}
                 />
               </div>
@@ -486,7 +508,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   rows={2}
                   value={value.permanentAddress || ''}
                   onChange={e => onChange('permanentAddress', e.target.value)}
-                  placeholder="Permanent Address"
                   className={fieldClass}
                   disabled={value.sameAsPresentAddress}
                 />
@@ -494,17 +515,17 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">City</label>
-                <input type="text" value={value.city || ''} onChange={e => onChange('city', e.target.value)} placeholder="City" className={fieldClass} />
+                <input type="text" value={value.city || ''} onChange={e => onChange('city', e.target.value)} className={fieldClass} />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">State</label>
-                <input type="text" value={value.state || ''} onChange={e => onChange('state', e.target.value)} placeholder="State" className={fieldClass} />
+                <input type="text" value={value.state || ''} onChange={e => onChange('state', e.target.value)} className={fieldClass} />
               </div>
 
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">PIN Code</label>
-                <input type="text" value={value.pinCode || ''} onChange={e => onChange('pinCode', e.target.value)} placeholder="6-digit PIN Code" className={`${fieldClass} font-mono`} />
+                <input type="text" value={value.pinCode || ''} onChange={e => onChange('pinCode', e.target.value)} className={`${fieldClass} font-mono`} />
               </div>
             </div>
           </div>
@@ -528,13 +549,16 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Branch / Campus <span className="text-rose-500">*</span>
                 </label>
-                <select value={value.branch} onChange={e => onChange('branch', e.target.value)} className={fieldClass}>
-                  {branchOptions.map(branch => (
-                    <option key={branch} value={branch}>
-                      {branch}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative mt-1.5">
+                  <select value={value.branch} onChange={e => onChange('branch', e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10">
+                    {branchOptions.map(branch => (
+                      <option key={branch} value={branch}>
+                        {branch}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
                 {errors.branch && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.branch}</p>}
               </div>
 
@@ -585,11 +609,15 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Employment Type <span className="text-rose-500">*</span>
                 </label>
-                <select value={value.employmentType || 'Full-Time'} onChange={e => onChange('employmentType', e.target.value)} className={fieldClass}>
-                  <option value="Full-Time">Full-Time</option>
-                  <option value="Part-Time">Part-Time</option>
-                  <option value="Contract">Contract</option>
-                </select>
+                <div className="relative mt-1.5">
+                  <select value={value.employmentType || ''} onChange={e => onChange('employmentType', e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10">
+                    <option value="">Select Employment Type</option>
+                    <option value="Full-Time">Full-Time</option>
+                    <option value="Part-Time">Part-Time</option>
+                    <option value="Contract">Contract</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
                 {errors.employmentType && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.employmentType}</p>}
               </div>
 
@@ -609,7 +637,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   type="text"
                   value={value.reportingManager || ''}
                   onChange={e => onChange('reportingManager', e.target.value)}
-                  placeholder="Manager / Principal Name"
                   className={fieldClass}
                 />
               </div>
@@ -619,11 +646,15 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Status <span className="text-rose-500">*</span>
                 </label>
-                <select value={value.status || 'Active'} onChange={e => onChange('status', e.target.value)} className={fieldClass}>
-                  <option value="Active">Active</option>
-                  <option value="Resigned">Resigned</option>
-                  <option value="Retired">Retired</option>
-                </select>
+                <div className="relative mt-1.5">
+                  <select value={value.status || ''} onChange={e => onChange('status', e.target.value)} className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 text-slate-900 dark:text-white font-medium appearance-none cursor-pointer pr-10">
+                    <option value="">Select Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Resigned">Resigned</option>
+                    <option value="Retired">Retired</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
                 {errors.status && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.status}</p>}
               </div>
             </div>
@@ -648,11 +679,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   setEditingQualId(null);
                   setQualForm({
                     id: '',
-                    qualification: 'B.Ed',
+                    qualification: '',
                     specialization: '',
                     institution: '',
                     boardUniversity: '',
-                    passingYear: '2020',
+                    passingYear: '',
                     percentageCgpa: ''
                   });
                   setIsAddingQual(true);
@@ -710,9 +741,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             {/* Inline Add / Edit Qualification Form */}
             {isAddingQual && (
               <div className="p-4 rounded-xl border border-brand-200 dark:border-brand-900 bg-brand-50/30 dark:bg-brand-950/20 space-y-3 mt-3">
-                <h4 className="font-black text-slate-900 dark:text-white text-xs">
-                  {editingQualId ? 'Edit Qualification' : 'New Qualification Record'}
-                </h4>
+                {editingQualId && (
+                  <h4 className="font-black text-slate-900 dark:text-white text-xs mb-1.5">
+                    Edit Qualification
+                  </h4>
+                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Qualification Degree</label>
@@ -720,7 +753,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={qualForm.qualification}
                       onChange={e => setQualForm(prev => ({ ...prev, qualification: e.target.value }))}
-                      placeholder="e.g. B.Ed, M.Sc, Ph.D, B.Tech"
                       className={fieldClass}
                     />
                   </div>
@@ -730,7 +762,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={qualForm.specialization}
                       onChange={e => setQualForm(prev => ({ ...prev, specialization: e.target.value }))}
-                      placeholder="e.g. Mathematics, Organic Chemistry"
                       className={fieldClass}
                     />
                   </div>
@@ -740,7 +771,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={qualForm.institution}
                       onChange={e => setQualForm(prev => ({ ...prev, institution: e.target.value }))}
-                      placeholder="College or School Name"
                       className={fieldClass}
                     />
                   </div>
@@ -750,7 +780,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={qualForm.boardUniversity}
                       onChange={e => setQualForm(prev => ({ ...prev, boardUniversity: e.target.value }))}
-                      placeholder="e.g. CBSE / Delhi University"
                       className={fieldClass}
                     />
                   </div>
@@ -760,7 +789,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={qualForm.passingYear}
                       onChange={e => setQualForm(prev => ({ ...prev, passingYear: e.target.value }))}
-                      placeholder="e.g. 2020"
                       className={fieldClass}
                     />
                   </div>
@@ -770,7 +798,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={qualForm.percentageCgpa}
                       onChange={e => setQualForm(prev => ({ ...prev, percentageCgpa: e.target.value }))}
-                      placeholder="e.g. 88.5% or 8.9 CGPA"
                       className={fieldClass}
                     />
                   </div>
@@ -788,7 +815,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     onClick={handleSaveQualification}
                     className="px-3 py-1.5 rounded-xl bg-brand-600 text-white font-bold"
                   >
-                    Save Qualification
+                    Save
                   </button>
                 </div>
               </div>
@@ -876,9 +903,11 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             {/* Inline Add / Edit Experience Form */}
             {isAddingExp && (
               <div className="p-4 rounded-xl border border-brand-200 dark:border-brand-900 bg-brand-50/30 dark:bg-brand-950/20 space-y-3 mt-3">
-                <h4 className="font-black text-slate-900 dark:text-white text-xs">
-                  {editingExpId ? 'Edit Experience Record' : 'New Experience Entry'}
-                </h4>
+                {editingExpId && (
+                  <h4 className="font-black text-slate-900 dark:text-white text-xs mb-1.5">
+                    Edit Experience Record
+                  </h4>
+                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div>
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Previous Organization</label>
@@ -886,7 +915,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={expForm.previousOrganization}
                       onChange={e => setExpForm(prev => ({ ...prev, previousOrganization: e.target.value }))}
-                      placeholder="School / Company Name"
                       className={fieldClass}
                     />
                   </div>
@@ -896,7 +924,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={expForm.designation}
                       onChange={e => setExpForm(prev => ({ ...prev, designation: e.target.value }))}
-                      placeholder="e.g. Senior Teacher"
                       className={fieldClass}
                     />
                   </div>
@@ -941,7 +968,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       type="text"
                       value={expForm.reasonForLeaving}
                       onChange={e => setExpForm(prev => ({ ...prev, reasonForLeaving: e.target.value }))}
-                      placeholder="e.g. Relocation"
                       className={fieldClass}
                     />
                   </div>
@@ -959,7 +985,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     onClick={handleSaveExperience}
                     className="px-3 py-1.5 rounded-xl bg-brand-600 text-white font-bold"
                   >
-                    Save Experience
+                    Save
                   </button>
                 </div>
               </div>
@@ -1070,14 +1096,27 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
           Step {activeStep} of 5
         </span>
 
-        <button
-          type="button"
-          disabled={activeStep === 5}
-          onClick={() => setActiveStep(prev => Math.min(5, prev + 1))}
-          className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs disabled:opacity-40 shadow-xs"
-        >
-          Next Step
-        </button>
+        {activeStep === 5 ? (
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs disabled:opacity-40"
+          >
+            {isSubmitting
+              ? 'Saving...'
+              : staffToEdit
+                ? 'Save Changes'
+                : 'Create Employee Record'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setActiveStep(prev => Math.min(5, prev + 1))}
+            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
+          >
+            Next Step
+          </button>
+        )}
       </div>
 
       {/* DOCUMENT PREVIEW MODAL */}
