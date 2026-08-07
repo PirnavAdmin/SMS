@@ -1511,11 +1511,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               {/* Workspace tab navigation bar */}
               <div className="flex border-b border-slate-200 dark:border-slate-808 gap-1 overflow-x-auto no-scrollbar">
                 {[
-                  { id: 'overview', label: '📊 Overview', icon: BarChart2 },
-                  { id: 'sections', label: '🏫 Sections', icon: Layers },
-                  { id: 'subjects', label: '📘 Subjects', icon: BookOpen },
-                  { id: 'teachers', label: '👨‍🏫 Teachers', icon: Users },
-                  { id: 'students', label: '👨‍🎓 Students', icon: UserPlus }
+                  { id: 'overview', label: 'Overview', icon: BarChart2 },
+                  { id: 'sections', label: 'Sections', icon: Layers },
+                  { id: 'subjects', label: 'Subjects', icon: BookOpen },
+                  { id: 'teachers', label: 'Teachers', icon: Users },
+                  { id: 'students', label: 'Students', icon: UserPlus }
                 ].map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -1939,27 +1939,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             Configure Global Subjects &rarr;
                           </button>
                         </p>
-                      </div>
-
-                      {/* Copy subject mapping controller */}
-                      <div className="flex items-center gap-2 text-xs font-bold">
-                        <select
-                          value={copyClassSourceId}
-                          onChange={e => setCopyClassSourceId(e.target.value)}
-                          className="p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px]"
-                        >
-                          <option value="">Copy mapping from...</option>
-                          {academicClasses.filter(c => c.id !== activeClass.id).map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={handleCopySubjectMappings}
-                          disabled={!copyClassSourceId}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-705 border rounded-lg text-[11px] disabled:opacity-40"
-                        >
-                          Copy
-                        </button>
                       </div>
                     </div>
 

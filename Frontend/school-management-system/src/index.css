@@ -70,8 +70,16 @@
     background: white !important;
     color: black !important;
   }
-  .no-print {
+  #printable-content .no-print,
+  #printable-content .no-print *,
+  #printable-content .print\:hidden,
+  #printable-content .print\:hidden *,
+  .no-print,
+  .no-print *,
+  .print\:hidden,
+  .print\:hidden * {
     display: none !important;
+    visibility: hidden !important;
   }
 }
 
