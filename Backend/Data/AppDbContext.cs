@@ -120,6 +120,8 @@ namespace SMS.Api.Data
         public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
         public DbSet<StudentAttendanceSession> StudentAttendanceSessions { get; set; } = null!;
         public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
+        //public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+        public DbSet<Admission> Admissions { get; set; } = null!;
 
         // =====================================================
         // Examination Module
@@ -495,19 +497,24 @@ namespace SMS.Api.Data
             modelBuilder.Entity<ClassGrade>(entity =>
             {
                 entity.ToTable("classes");
+
                 entity.HasKey(x => x.ClassId);
 
-                entity.Property(x => x.ClassId).HasColumnName("id");
-                entity.Property(x => x.ClassName).HasColumnName("name").IsRequired().HasMaxLength(100);
-                entity.Property(x => x.CampusLocation).HasColumnName("campus_location").IsRequired().HasMaxLength(150);
-                entity.Property(x => x.AcademicYear).HasColumnName("academic_year").IsRequired().HasMaxLength(50);
-                entity.Property(x => x.DisplayOrder).HasColumnName("display_order");
-                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20).HasDefaultValue("Active");
-                entity.Property(x => x.Remarks).HasColumnName("remarks");
-                entity.Property(x => x.CreatedAt).HasColumnName("created_at");
-                entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+                entity.Property(x => x.ClassId)
+                    .HasColumnName("ClassId")
+                    .ValueGeneratedOnAdd();
 
-                entity.HasIndex(x => new { x.ClassName, x.CampusLocation, x.AcademicYear }).IsUnique();
+                entity.Property(x => x.ClassName)
+                    .HasColumnName("ClassName");
+
+                // These columns do not exist in the current classes table
+                entity.Ignore(x => x.AcademicYear);
+                entity.Ignore(x => x.CampusLocation);
+                entity.Ignore(x => x.CreatedAt);
+                entity.Ignore(x => x.DisplayOrder);
+                entity.Ignore(x => x.Remarks);
+                entity.Ignore(x => x.Status);
+                entity.Ignore(x => x.UpdatedAt);
             });
         }
 

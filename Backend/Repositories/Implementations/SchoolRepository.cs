@@ -175,21 +175,21 @@ public class SchoolRepository : ISchoolRepository
 
     public void RemoveSubject(Subject subject) => _context.Subjects.Remove(subject);
 
-	// --- CLASS GRADES & SECTIONS ---
-	public async Task<List<ClassGrade>> GetAllClassGradesAsync()
-	{
-		return await _context.Classes
-			.AsNoTracking()
-			.Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
-			.Include(c => c.CurriculumSubjects).ThenInclude(cs => cs.Subject)
-			.ToListAsync();
-	}
+    // --- CLASS GRADES & SECTIONS ---
+    public async Task<List<ClassGrade>> GetAllClassGradesAsync()
+    {
+        return await _context.Classes
+            .AsNoTracking()
+            .Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
+            .Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
+            .ToListAsync();
+    }
 
-	public async Task<ClassGrade?> GetClassGradeByIdAsync(int id) =>
-		await _context.Classes
-			.Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
-			.Include(c => c.CurriculumSubjects).ThenInclude(cs => cs.Subject)
-			.FirstOrDefaultAsync(c => c.ClassId == id);
+    public async Task<ClassGrade?> GetClassGradeByIdAsync(int id) =>
+        await _context.Classes
+            .Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
+            .Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
+            .FirstOrDefaultAsync(c => c.ClassId == id);
 
     public async Task AddClassGradeAsync(ClassGrade classGrade) => await _context.Classes.AddAsync(classGrade);
 
@@ -345,6 +345,7 @@ public class SchoolRepository : ISchoolRepository
             .Include(s => s.AcademicYear)
             .Include(s => s.ClassGrade)
             .Include(s => s.ClassSection)
+            .Where(s => !s.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -438,7 +439,7 @@ public class SchoolRepository : ISchoolRepository
     {
         return await _context.Students
             .AsNoTracking()
-            .Where(s => s.StudentId == studentId)
+            .Where(s => s.StudentId == studentId && !s.IsDeleted)
             .Select(s => new StudentDetailsDto
             {
                 StudentId = s.StudentId,
@@ -472,7 +473,7 @@ public class SchoolRepository : ISchoolRepository
     }
 
     public async Task<Student?> GetStudentEntityByIdAsync(int studentId) =>
-        await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
+        await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
 
     public async Task<bool> AdmissionNumberExistsAsync(string admissionNumber, int? excludeStudentId = null)
     {
