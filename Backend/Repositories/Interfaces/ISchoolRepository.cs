@@ -1,5 +1,6 @@
 namespace SMS.Api.Repositories.Interfaces;
 
+using SMS.Api.Dtos;
 using SMS.Api.Models;
 using System;
 using System.Collections.Generic;
@@ -62,6 +63,22 @@ public interface ISchoolRepository
     Task<HolidayCalendar?> GetHolidayByIdAsync(int id);
     Task AddHolidayAsync(HolidayCalendar holiday);
     void RemoveHoliday(HolidayCalendar holiday);
+
+    // Student Management Operations
+    Task<PagedStudentResponseDto> GetAllStudentsAsync(StudentFilterDto filter);
+    Task<StudentDetailsDto?> GetStudentByIdAsync(int studentId);
+    Task<Student?> GetStudentEntityByIdAsync(int studentId);
+    Task<bool> AdmissionNumberExistsAsync(string admissionNumber, int? excludeStudentId = null);
+    Task<bool> RollNumberExistsAsync(string rollNumber, int academicYearId, int classId, int sectionId, int? excludeStudentId = null);
+    Task<bool> BranchExistsAsync(int branchId);
+    Task<bool> AcademicYearExistsAsync(int academicYearId);
+    Task<bool> ClassGradeExistsAsync(int classId);
+    Task<bool> SectionBelongsToClassAsync(int sectionId, int classId);
+    Task AddStudentAsync(Student student);
+    void RemoveStudent(Student student);
+    Task<List<StudentDropdownDto>> GetAcademicYearDropdownAsync(string? search);
+    Task<List<StudentDropdownDto>> GetClassDropdownAsync(string? search);
+    Task<List<StudentDropdownDto>> GetSectionDropdownAsync(int classId, string? search);
 
     Task SaveChangesAsync();
 }

@@ -1,12 +1,17 @@
-namespace SMS.Api.Models;
-
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+
+namespace SMS.Api.Models;
 
 public class Branch
 {
-	[Key]
-	public int BranchId { get; set; }
+    [Key]
+    public int BranchId { get; set; }
 
-	[Required]
-	public string BranchName { get; set; } = string.Empty; // e.g., "Main Campus"
+    [Required]
+    [MaxLength(150)]
+    public string BranchName { get; set; } = string.Empty;
+
+    public ICollection<Student> Students { get; set; }
+        = new List<Student>();
 }
