@@ -117,9 +117,15 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+        <div 
+          onClick={() => {
+            setSelectedClassId('');
+            setClassWorkspaceTab('overview');
+            onNavigate('academic-class');
+          }}
+          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 dark:hover:border-sky-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+        >
           <div className="p-2 bg-sky-50 dark:bg-sky-955/20 text-sky-600 rounded-lg">
             <School className="w-4.5 h-4.5" />
           </div>
@@ -129,7 +135,14 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+        <div 
+          onClick={() => {
+            setSelectedClassId('');
+            setClassWorkspaceTab('sections');
+            onNavigate('academic-class');
+          }}
+          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+        >
           <div className="p-2 bg-indigo-50 dark:bg-indigo-955/20 text-indigo-650 rounded-lg">
             <Layers className="w-4.5 h-4.5" />
           </div>
@@ -139,7 +152,10 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+        <div 
+          onClick={() => onNavigate('subjects')}
+          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-500 dark:hover:border-purple-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+        >
           <div className="p-2 bg-purple-50 dark:bg-purple-955/20 text-purple-600 rounded-lg">
             <BookOpen className="w-4.5 h-4.5" />
           </div>
@@ -149,7 +165,10 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
           </div>
         </div>
 
-        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl flex items-center gap-4">
+        <div 
+          onClick={() => onNavigate('student-directory')}
+          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+        >
           <div className="p-2 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 rounded-lg">
             <Users className="w-4.5 h-4.5" />
           </div>

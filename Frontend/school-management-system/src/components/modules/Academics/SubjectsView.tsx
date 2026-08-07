@@ -16,7 +16,8 @@ export const SubjectsView: React.FC = () => {
   const { 
     departments: contextDepartments, addDepartment, updateDepartment, deleteDepartment,
     subjects: contextSubjects, addSubject, updateSubject, deleteSubject,
-    designations: contextDesignations, addDesignation, updateDesignation, deleteDesignation
+    designations: contextDesignations, addDesignation, updateDesignation, deleteDesignation,
+    academicClasses, teacherAssignments, timetable
   } = useData();
   const { addToast } = useToast();
 
@@ -199,6 +200,26 @@ export const SubjectsView: React.FC = () => {
 
     if (!formData.department) {
       addToast('warning', 'Department Required', 'Please assign a department to this subject.');
+      return;
+    }
+
+    const isDuplicateName = subjects.some(s => 
+      s.id !== (editingSubject?.id || '') && 
+      s.name.toLowerCase().trim() === formData.name.toLowerCase().trim()
+    );
+
+    const isDuplicateCode = formData.code.trim() !== '' && subjects.some(s => 
+      s.id !== (editingSubject?.id || '') && 
+      (s.code || s.subjectId || '').toLowerCase().trim() === formData.code.toLowerCase().trim()
+    );
+
+    if (isDuplicateName) {
+      addToast('warning', 'Duplicate Subject Name', `A subject named '${formData.name.trim()}' already exists.`);
+      return;
+    }
+
+    if (isDuplicateCode) {
+      addToast('warning', 'Duplicate Subject Code', `A subject with code '${formData.code.trim()}' already exists.`);
       return;
     }
 
@@ -1046,7 +1067,30 @@ export const SubjectsView: React.FC = () => {
         message={`Are you sure you want to delete ${deletingSubject?.name} (${deletingSubject?.code || deletingSubject?.subjectId})?`}
         onConfirm={async () => {
           if (deletingSubject) {
+            // Check validations
+            const assignedClass = academicClasses?.find(c => (c.subjects || []).includes(deletingSubject.name));
+            if (assignedClass) {
+              addToast('warning', 'Subject Assigned', `Cannot delete subject because it is assigned to ${assignedClass.name}.`);
+              setDeletingSubject(null);
+              return;
+            }
+
+            const assignedTeacher = teacherAssignments?.find(ta => ta.subject === deletingSubject.name);
+            if (assignedTeacher) {
+              addToast('warning', 'Subject Assigned', `Cannot delete subject because it is assigned to teacher ${assignedTeacher.teacherName}.`);
+              setDeletingSubject(null);
+              return;
+            }
+
+            const assignedTimetable = timetable?.find(t => t.subject === deletingSubject.name);
+            if (assignedTimetable) {
+              addToast('warning', 'Subject Assigned', `Cannot delete subject because it is allocated in the timetable for ${assignedTimetable.className}.`);
+              setDeletingSubject(null);
+              return;
+            }
+
             try {
+              deleteSubject(deletingSubject.id);
               await deleteSubjectApi(deletingSubject.id as any);
               await loadSubjects();
               addToast('success', 'Subject Deleted', `Deleted subject '${deletingSubject.name}'.`);
