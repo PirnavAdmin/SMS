@@ -12,10 +12,38 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
 
-  const [identifier, setIdentifier] = useState('javvadivenkat999@gmail.com');
-  const [password, setPassword] = useState('venkat');
+  const [rememberMe, setRememberMe] = useState(() => {
+    return localStorage.getItem('remember_me') === 'true';
+  });
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<UserRole>('Admin');
+
+  // Helper to load remembered credentials when user clicks/focuses input box or checks remember me
+  const loadRememberedDetails = () => {
+    const savedId = localStorage.getItem('remember_me_identifier');
+    const savedPw = localStorage.getItem('remember_me_password');
+    if (savedId && savedPw) {
+      setIdentifier(savedId);
+      setPassword(savedPw);
+      setRememberMe(true);
+    }
+  };
+
+  const handleInputFocus = () => {
+    if (!identifier && !password) {
+      loadRememberedDetails();
+    }
+  };
+
+  const handleRememberMeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isChecked = e.target.checked;
+    setRememberMe(isChecked);
+    if (isChecked && !identifier && !password) {
+      loadRememberedDetails();
+    }
+  };
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -36,6 +64,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
     if (!identifier || !password) {
       setError('Please fill in both fields.');
       return;
+    }
+    if (rememberMe) {
+      localStorage.setItem('remember_me', 'true');
+      localStorage.setItem('remember_me_identifier', identifier);
+      localStorage.setItem('remember_me_password', password);
+    } else {
+      localStorage.removeItem('remember_me');
+      localStorage.removeItem('remember_me_identifier');
+      localStorage.removeItem('remember_me_password');
     }
     setError('');
     setLoading(true);
@@ -211,6 +248,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                       type="text"
                       value={identifier}
                       onChange={e => setIdentifier(e.target.value)}
+                      onFocus={handleInputFocus}
+                      onClick={handleInputFocus}
                       placeholder="Enter your email or phone"
                       required
                       className="w-full pl-12 pr-4 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium"
@@ -229,9 +268,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      onFocus={handleInputFocus}
+                      onClick={handleInputFocus}
+                      placeholder="Enter your password"
                       required
-                      className="w-full pl-12 pr-12 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium tracking-wider"
+                      className="w-full pl-12 pr-12 py-3 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500 transition-all font-medium placeholder:tracking-normal tracking-wider"
                     />
                     <button
                       type="button"
@@ -242,7 +283,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack }) => {
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
-                  <div className="flex justify-end mt-1">
+                  <div className="flex items-center justify-between pt-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={handleRememberMeChange}
+                        className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500/40 dark:bg-slate-900 accent-brand-600 cursor-pointer"
+                      />
+                      <span className="text-sm font-medium text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200 transition-colors">
+                        Remember me
+                      </span>
+                    </label>
                     <button
                       type="button"
                       onClick={() => setMode('forgot')}

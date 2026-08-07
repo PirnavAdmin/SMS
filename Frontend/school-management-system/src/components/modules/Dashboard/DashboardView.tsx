@@ -354,7 +354,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <button onClick={() => onNavigate('staff-leaves')} className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-brand-400 dark:border-brand-800">
+              <button onClick={() => onNavigate('staff-leave')} className="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-brand-400 dark:border-brand-800">
                 <div className="flex flex-col items-start text-sm">
                   <span className="font-bold text-slate-900 dark:text-white">Leave Requests</span>
                   <span className="text-xs text-slate-500">Requires manager approval</span>
