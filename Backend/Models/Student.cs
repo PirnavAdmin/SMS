@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Collections.Generic;
 
 namespace SMS.Api.Models;
 
@@ -103,4 +104,7 @@ public class Student
 
     [Column("updated_at")]
     public DateTime? UpdatedAt { get; set; }
+
+    public ICollection<StudentAttendance> AttendanceRecords { get; set; }
+        = new List<StudentAttendance>();
 }

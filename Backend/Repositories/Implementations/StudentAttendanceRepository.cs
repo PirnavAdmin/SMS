@@ -29,9 +29,10 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
         string? statusFilter)
     {
         var query = _context.StudentAttendances
-            .AsNoTracking()
-            .Include(a => a.AttendanceSession)
-            .AsQueryable();
+       .AsNoTracking()
+       .Include(a => a.AttendanceSession)
+       .Include(a => a.Student)
+       .AsQueryable();
 
         // Filter by student
         if (studentId.HasValue && studentId.Value > 0)

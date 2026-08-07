@@ -24,4 +24,6 @@ public class StudentAttendance
     public DateTime? UpdatedAt { get; set; }
 
     public StudentAttendanceSession? AttendanceSession { get; set; }
+
+    public Student? Student { get; set; }
 }

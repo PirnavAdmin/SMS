@@ -81,7 +81,7 @@ public class StudentAttendanceService : IStudentAttendanceService
         return new StudentAttendanceRegisterResponseDto
         {
             StudentId = query.StudentId ?? 1,
-            StudentName = records.FirstOrDefault()?.StudentName ?? "Student",
+            StudentName = records.FirstOrDefault()?.Student?.StudentName ?? "Student",
             Summary = new StudentAttendanceSummaryDto
             {
                 AttendancePercentage = percentage,
