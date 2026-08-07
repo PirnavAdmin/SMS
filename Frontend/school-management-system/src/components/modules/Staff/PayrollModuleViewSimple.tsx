@@ -1208,7 +1208,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                   <th className="px-3 py-2 text-center">Designation</th>
                   <th className="px-3 py-2 text-center">Salary Structure</th>
                   <th className="px-3 py-2 text-center">Payroll Status</th>
-                  <th className="px-3 py-2 text-center">Actions</th>
+                  <th className="px-3 py-2 text-center"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1395,7 +1395,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <th className="px-3 py-2 text-center">Net Salary</th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-center">Employees</th>
-                <th className="px-3 py-2 text-center">Actions</th>
+                <th className="px-3 py-2 text-center"></th>
               </tr>
             </thead>
             <tbody>
@@ -1496,12 +1496,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
             <button type="button" onClick={handleBulkGenerate} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-3 text-xs font-black text-white shadow-lg shadow-brand-500/20">
               <ReceiptText className="h-3.5 w-3.5" /> {selectedGenerationIds.length === 1 ? 'Generate' : 'Generate All'}
             </button>
-            <button type="button" onClick={handleBulkDownload} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Download className="h-3.5 w-3.5" /> Download All
-            </button>
-            <button type="button" onClick={handleBulkEmail} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-              <Mail className="h-3.5 w-3.5" /> Email All
-            </button>
           </div>
         )}
       >
@@ -1569,7 +1563,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <th className="px-3 py-2 text-center">Net Salary</th>
                 <th className="px-3 py-2 text-center">Payslip Status</th>
                 <th className="px-3 py-2 text-center">Payment Date</th>
-                <th className="px-3 py-2 text-center">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -1605,25 +1598,6 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                     <Badge variant={row.existing ? 'success' : 'warning'} size="sm">{row.existing ? row.existing.status : 'Ready'}</Badge>
                   </td>
                   <td className="px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">{row.existing?.paymentDate || 'Pending'}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button type="button" onClick={() => setDrawerStaff(row.member)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Preview Profile">
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      <button type="button" onClick={() => {
-                        createPayslipForRow(row);
-                        addToast('success', 'Payslip ready', `${row.member.firstName} ${row.member.lastName} ${row.existing ? 'payslip already existed' : 'payslip generated'} for ${payrollMonthLabel}.`);
-                      }} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 dark:bg-brand-950/30 dark:text-brand-300 dark:hover:bg-brand-900/50 transition-colors" title="Generate PDF">
-                        <FileText className="h-3.5 w-3.5" />
-                      </button>
-                      <button type="button" onClick={() => addToast('info', 'Download queued', `${row.member.firstName} ${row.member.lastName} payslip download prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Download PDF">
-                        <Download className="h-3.5 w-3.5" />
-                      </button>
-                      <button type="button" onClick={() => addToast('info', 'Email queued', `${row.member.firstName} ${row.member.lastName} payslip email prepared.`)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 transition-colors" title="Email Payslip">
-                        <Mail className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
                 </tr>
               ))}
               {pendingGenerationRows.length === 0 && (
@@ -1644,54 +1618,55 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
 
   const renderHistoryTab = () => (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <StatCard label="History Rows" value={String(historyRows.length)} icon={Clock3} tone="sky" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <StatCard label="Paid" value={String(historyRows.filter(item => item.status === 'Paid').length)} icon={CheckCircle2} tone="emerald" />
         <StatCard label="Generated" value={String(historyRows.filter(item => item.status === 'Generated').length)} icon={ReceiptText} tone="amber" />
-        <StatCard label="Selected Period" value={historyRows.length > 0 ? activePreviewMonth : payrollMonthLabel} icon={CalendarDays} tone="brand" />
       </div>
 
       <Panel
         title="Payslip History"
         action={(
           <div className="flex items-center gap-2">
-            <button 
-              type="button" 
-              onClick={() => {
-                const count = selectedHistoryIds.length > 0 ? selectedHistoryIds.length : historyRows.length;
-                if (count === 0) return;
-                
-                // Create CSV string
-                const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
-                const rowsToDownload = selectedHistoryIds.length > 0 ? historyRows.filter(r => selectedHistoryIds.includes(r.id)) : historyRows;
-                const csvRows = rowsToDownload.map(row => [
-                  row.month,
-                  `"${row.employeeName}"`,
-                  row.empId,
-                  row.grossSalary,
-                  row.deductions,
-                  row.netSalary,
-                  row.paymentDate || 'Pending',
-                  row.status
-                ]);
-                const csvContent = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
-                
-                // Download
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.setAttribute('href', url);
-                link.setAttribute('download', `payslips_${new Date().getTime()}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+            {selectedHistoryIds.length > 0 && (
+              <button 
+                type="button" 
+                onClick={() => {
+                  const count = selectedHistoryIds.length;
+                  if (count === 0) return;
+                  
+                  // Create CSV string
+                  const headers = ['Month', 'Employee Name', 'Emp ID', 'Gross Salary', 'Deductions', 'Net Salary', 'Generated Date', 'Payment Status'];
+                  const rowsToDownload = historyRows.filter(r => selectedHistoryIds.includes(r.id));
+                  const csvRows = rowsToDownload.map(row => [
+                    row.month,
+                    `"${row.employeeName}"`,
+                    row.empId,
+                    row.grossSalary,
+                    row.deductions,
+                    row.netSalary,
+                    row.paymentDate || 'Pending',
+                    row.status
+                  ]);
+                  const csvContent = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n');
+                  
+                  // Download
+                  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', `payslips_${new Date().getTime()}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
 
-                addToast('success', 'Download Started', `Downloading ${count} payslip(s) data.`);
-              }} 
-              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
-            >
-              <Download className="h-3.5 w-3.5" /> {selectedHistoryIds.length > 0 ? `Download (${selectedHistoryIds.length})` : 'Download All'}
-            </button>
+                  addToast('success', 'Download Started', `Downloading ${count} payslip(s) data.`);
+                }} 
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-brand-600 px-4 text-xs font-black text-white shadow-lg shadow-brand-500/20"
+              >
+                <Download className="h-3.5 w-3.5" /> 
+                {selectedHistoryIds.length > 1 ? `Download All (${selectedHistoryIds.length})` : 'Download'}
+              </button>
+            )}
           </div>
         )}
       >
@@ -1746,7 +1721,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 <th className="px-3 py-2 text-center">Net Salary</th>
                 <th className="px-3 py-2 text-center">Generated Date</th>
                 <th className="px-3 py-2 text-center">Payment Status</th>
-                <th className="px-3 py-2 text-center">Actions</th>
+                <th className="px-3 py-2 text-center"></th>
               </tr>
             </thead>
             <tbody>
