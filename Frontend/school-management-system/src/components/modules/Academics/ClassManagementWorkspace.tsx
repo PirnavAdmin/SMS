@@ -514,9 +514,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
-    const ayObj = academicYears.find(ay => ay.academicYear === academicYear && ay.status === 'Active');
+    const ayObj = academicYears.find(ay => ay.academicYear === academicYear);
     if (!ayObj) {
-      addToast('warning', 'Academic Year Inactive', 'Please select an active academic year session.');
+      addToast('warning', 'Academic Year Invalid', 'Please select a valid academic year session.');
       return;
     }
 
@@ -1855,8 +1855,20 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               <div className="flex gap-2">
                                 {status !== 'Archived' ? (
                                   <>
-                                    <button onClick={() => handleOpenEditSection(sec)} className="text-sky-600 hover:underline">Edit Setup</button>
-                                    <button onClick={() => handleArchiveSection(sec)} className="text-slate-400 hover:text-amber-600 hover:underline">Archive</button>
+                                    <button 
+                                      onClick={() => handleOpenEditSection(sec)} 
+                                      className="p-1 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-400 hover:text-sky-600 transition-colors"
+                                      title="Edit Section Setup"
+                                    >
+                                      <Edit className="w-4.5 h-4.5" />
+                                    </button>
+                                    <button 
+                                      onClick={() => handleArchiveSection(sec)} 
+                                      className="p-1 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-400 hover:text-amber-600 transition-colors"
+                                      title="Archive Section"
+                                    >
+                                      <Archive className="w-4.5 h-4.5" />
+                                    </button>
                                   </>
                                 ) : (
                                   <>
@@ -2466,15 +2478,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             <>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleOpenEditClass(cl); }} 
-                                className="text-[11px] text-slate-500 hover:text-sky-600 font-bold hover:underline"
+                                className="p-1 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-400 hover:text-sky-600 transition-colors"
+                                title="Edit Class"
                               >
-                                Edit
+                                <Edit className="w-4.5 h-4.5" />
                               </button>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); handleArchiveClass(cl); }} 
-                                className="text-[11px] text-slate-500 hover:text-amber-600 font-bold hover:underline"
+                                className="p-1 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-400 hover:text-amber-600 transition-colors"
+                                title="Archive Class"
                               >
-                                Archive
+                                <Archive className="w-4.5 h-4.5" />
                               </button>
                             </>
                           ) : (
@@ -2563,11 +2577,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           <div className="bg-white dark:bg-slate-900 border border-slate-222 dark:border-slate-808 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl text-left">
             <div className="flex items-center justify-between pb-3">
               <h3 className="text-base font-black text-slate-900 dark:text-white">
-                {editingClass ? 'Edit Class Parameters' : 'Add Class Grade'}
+                {editingClass ? 'Edit Class' : 'Add Class'}
               </h3>
-              <button onClick={handleCloseClassModal} className="p-1 text-slate-405 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
             </div>
             
             <form onSubmit={editingClass ? handleUpdateClass : handleSaveClass} className="space-y-4 text-xs font-bold">
@@ -2705,7 +2716,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       {editingClass ? 'Saving...' : 'Creating...'}
                     </>
                   ) : (
-                    editingClass ? 'Save Setup' : 'Create Class'
+                    editingClass ? 'Save' : 'Create'
                   )}
                 </button>
               </div>
@@ -2720,9 +2731,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           <div className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-105 pb-2">
               <h3 className="font-extrabold text-slate-905 dark:text-white">Bulk Configure Sections</h3>
-              <button onClick={() => setShowBulkAddModal(false)} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
             </div>
             <div>
               <label className="block text-slate-700 dark:text-slate-300 mb-1">Section names list (Comma Separated)</label>
@@ -2747,7 +2755,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           <div className="bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-105 font-bold">
             <div className="flex items-center justify-between border-b border-slate-101 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingSectionName ? 'Configure Section Details' : 'Add Section'}</h3>
-              <button onClick={() => setIsSectionModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             
             <form onSubmit={handleSaveSection} className="space-y-4 text-xs font-bold">

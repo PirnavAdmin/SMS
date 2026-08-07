@@ -213,7 +213,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                 onClick={handleSaveGeneral}
                 className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-1.5 transition"
               >
-                <Save className="w-3.5 h-3.5" /> Save Setup Configuration
+                <Save className="w-3.5 h-3.5" /> Save
               </button>
             </div>
           </div>
@@ -241,7 +241,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                   onClick={handleSaveSubjects}
                   className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-1.5 transition"
                 >
-                  <Save className="w-3.5 h-3.5" /> Save Setup Configuration
+                  <Save className="w-3.5 h-3.5" /> Save
                 </button>
               </div>
             </div>
