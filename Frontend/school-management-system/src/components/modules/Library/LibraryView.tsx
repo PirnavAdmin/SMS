@@ -40,7 +40,7 @@ export const LibraryView: React.FC = () => {
     bookId: books[0]?.id || '',
     borrowerId: '',
     borrowerName: '',
-    borrowerRole: 'Student' as const,
+    borrowerRole: '' as any,
     dueDate: '2026-08-15'
   });
 
@@ -57,6 +57,10 @@ export const LibraryView: React.FC = () => {
     const bk = books.find(b => b.id === newIssue.bookId);
     if (!bk || bk.availableCopies <= 0) {
       addToast('error', 'Book Unavailable', 'No available copies left to issue.');
+      return;
+    }
+    if (!newIssue.borrowerRole) {
+      addToast('error', 'Missing Borrower Role', 'Please select a borrower role.');
       return;
     }
     if (!newIssue.borrowerId) {
@@ -262,8 +266,9 @@ export const LibraryView: React.FC = () => {
                         borrowerName: ''
                       }));
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer"
                   >
+                    <option value="">Select Role</option>
                     <option value="Student">Student</option>
                     <option value="Staff">Staff</option>
                   </select>
@@ -278,20 +283,34 @@ export const LibraryView: React.FC = () => {
                     onChange={e => {
                       const val = e.target.value;
                       let resolvedName = '';
-                      if (newIssue.borrowerRole === 'Student') {
+                      let resolvedRole = newIssue.borrowerRole;
+
+                      // Check students
+                      if (!resolvedRole || resolvedRole === 'Student') {
                         const found = students.find(s => s.id.toLowerCase() === val.toLowerCase() || s.admissionNo.toLowerCase() === val.toLowerCase());
-                        if (found) resolvedName = `${found.firstName} ${found.lastName}`;
-                      } else {
-                        const found = staff.find(st => st.id.toLowerCase() === val.toLowerCase() || st.empId.toLowerCase() === val.toLowerCase());
-                        if (found) resolvedName = `${found.firstName} ${found.lastName}`;
+                        if (found) {
+                          resolvedName = `${found.firstName} ${found.lastName}`;
+                          resolvedRole = 'Student';
+                        }
                       }
+
+                      // Check staff
+                      if (!resolvedName && (!resolvedRole || resolvedRole === 'Staff')) {
+                        const found = staff.find(st => st.id.toLowerCase() === val.toLowerCase() || st.empId.toLowerCase() === val.toLowerCase());
+                        if (found) {
+                          resolvedName = `${found.firstName} ${found.lastName}`;
+                          resolvedRole = 'Staff';
+                        }
+                      }
+
                       setNewIssue(prev => ({
                         ...prev,
                         borrowerId: val,
+                        borrowerRole: resolvedRole,
                         borrowerName: resolvedName || prev.borrowerName
                       }));
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono outline-none"
                   />
                 </div>
               </div>
