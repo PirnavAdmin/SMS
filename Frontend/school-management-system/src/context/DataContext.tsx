@@ -3512,7 +3512,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       ledgerItems.push({
         headId: 'FH-HST',
-        headName: 'Hostel Rent & Mess Charges',
+        headName: 'Hostel Fee & Mess Charges',
         category: 'Hostel Fee',
         originalAmount: 0,
         scholarshipDeduction: 0,

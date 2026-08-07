@@ -92,7 +92,7 @@ export function Panel({ title, action, className = '', children, description }: 
   const panelClass = 'rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900';
   return (
     <section className={`${panelClass} ${className}`}>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/70 px-5 py-4 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/70 px-5 py-4 dark:border-slate-800 print:hidden">
         <div>
           <h2 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white">{title}</h2>
           {description && <p className="text-xs text-slate-500 font-medium mt-0.5">{description}</p>}

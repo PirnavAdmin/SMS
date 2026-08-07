@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { IndianRupee, Search, Receipt, CheckCircle, AlertCircle, Calculator, History, ArrowRight } from 'lucide-react';
+import { IndianRupee, Search, Receipt, CheckCircle, AlertCircle, Calculator, History, ArrowRight, Printer } from 'lucide-react';
 import { Student, FeePayment, StudentFeeLedger } from '../../../types';
 import { useData, StudentCalculationResult } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -13,6 +13,7 @@ interface FeeCollectionViewProps {
 export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintReceipt }) => {
   const { 
     students, 
+    feePayments,
     calculateStudentPayableFee, 
     addFeePayment, 
     financeSettings, 
@@ -34,9 +35,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
   const [tempDiscountId, setTempDiscountId] = useState('');
 
   const [amountPaying, setAmountPaying] = useState<number | string>(0);
-  const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode']>('Online');
-  const [transactionId, setTransactionId] = useState('TXN-' + Math.floor(100000 + Math.random() * 900000));
-  const [remarks, setRemarks] = useState('Quarterly Fee Payment');
+  const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode'] | ''>('');
+  const [transactionId, setTransactionId] = useState('');
+  const [remarks, setRemarks] = useState('');
 
   const filteredStudents = students.filter(s =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,7 +165,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       amountPaid: numericAmount,
       discount: calcResult.scholarshipDeduction + calcResult.discountDeduction,
       fine: calcResult.fineAmount,
-      paymentMode,
+      paymentMode: (paymentMode || 'Online') as FeePayment['paymentMode'],
       transactionId: paymentMode !== 'Cash' ? transactionId : undefined,
       paymentDate: new Date().toISOString().split('T')[0],
       status: numericAmount >= remainingDue ? 'Paid' : 'Partial',
@@ -184,9 +185,27 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
     addToast('success', 'Payment Processed', `Issued receipt ${payment.receiptNo} for ${formatCurrency(Number(amountPaying))}`);
     onPrintReceipt(payment);
 
-    // Refresh calculation engine
-    const freshResult = calculateStudentPayableFee(selectedStudent.id);
-    updateCalculation(selectedStudent.id, freshResult);
+    // Refresh calculation engine with instant state override
+    const newPaidTotal = (calcResult.paidAmount || 0) + numericAmount;
+    const baseCalc = calculateStudentPayableFee(selectedStudent.id);
+    const freshResult = baseCalc ? {
+      ...baseCalc,
+      paidAmount: newPaidTotal
+    } : undefined;
+
+    const currentLedger = getStudentFeeLedger(selectedStudent.id);
+    const updatedLedger = currentLedger ? {
+      ...currentLedger,
+      paidAmount: newPaidTotal,
+      dueBalance: Math.max(0, (currentLedger.totalPayable || 0) - newPaidTotal)
+    } : undefined;
+
+    updateCalculation(selectedStudent.id, freshResult, updatedLedger);
+
+    // Reset inputs
+    setPaymentMode('');
+    setTransactionId('');
+    setRemarks('');
   };
   const ledger = selectedStudent ? getStudentFeeLedger(selectedStudent.id) : null;
   const items = ledger ? ledger.feeItems : [];
@@ -199,15 +218,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
     <div className="space-y-6 animate-in fade-in">
 
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left Column: Student Selector */}
-        <div className="glass-card p-5 rounded-3xl space-y-4">
+        <div className="glass-card p-4 rounded-2xl space-y-3 lg:sticky lg:top-4 h-fit">
           <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
             <Search className="w-4 h-4 text-sky-500" /> Select Student
           </h3>
 
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
               type="text"
               placeholder="Search student or adm no..."
@@ -217,7 +236,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
             />
           </div>
 
-          <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+          <div className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
             {filteredStudents.map(st => {
               const isSelected = selectedStudent?.id === st.id;
               return (
@@ -240,61 +259,67 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
             })}
           </div>
         </div>
-
         {/* Right 2 Columns: Dynamic Calculation Breakdown & Payment Terminal */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-3">
           {calcResult ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
                 {/* Formula Summary Banner */}
-                <div className="glass-card p-5 rounded-3xl space-y-3 bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl">
-                  <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-                    <div className="flex items-center gap-3">
-                      <img src={calcResult.student.avatar} alt="" className="w-10 h-10 rounded-xl object-cover ring-2 ring-sky-400" />
+                <div className="glass-card p-3.5 rounded-2xl space-y-2 bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
+                  <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <img src={calcResult.student.avatar} alt="" className="w-9 h-9 rounded-xl object-cover ring-2 ring-sky-500/40" />
                       <div>
-                        <h3 className="font-extrabold text-base">{calcResult.student.firstName} {calcResult.student.lastName}</h3>
-                        <p className="text-xs text-slate-300">{calcResult.student.className}-{calcResult.student.section} • Adm: {calcResult.student.admissionNo} • Branch: {calcResult.student.branch}</p>
+                        <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">{calcResult.student.firstName} {calcResult.student.lastName}</h3>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">{calcResult.student.className}-{calcResult.student.section} • Adm: {calcResult.student.admissionNo} • Branch: {calcResult.student.branch}</p>
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <p className="text-[10px] uppercase font-bold text-sky-400">Net Due Balance</p>
-                      <h4 className="text-2xl font-black text-emerald-400">{formatCurrency(remainingDue)}</h4>
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Net Due Balance</p>
+                      <div className="flex items-center justify-end gap-2 mt-0.5">
+                        <h4 className="text-xl font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(remainingDue)}</h4>
+                        {remainingDue === 0 && (
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-black text-[9px] tracking-wider uppercase">
+                            ✓ Paid In Full
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
                 {/* Calculation Formula Line Items */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
-                  <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Base Structure Fee</p>
-                    <p className="font-bold text-white mt-0.5">{formatCurrency(calcResult.baseFee)}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs pt-0.5">
+                  <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Base Structure Fee</p>
+                    <p className="font-bold text-slate-900 dark:text-white mt-0.5">{formatCurrency(calcResult.baseFee)}</p>
                   </div>
-                  <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Transport Fee</p>
-                    <p className="font-bold text-sky-400 mt-0.5">+{formatCurrency(calcResult.transportFee)}</p>
+                  <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Transport Fee</p>
+                    <p className="font-bold text-sky-600 dark:text-sky-400 mt-0.5">+{formatCurrency(calcResult.transportFee)}</p>
                   </div>
-                  <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Hostel Fee</p>
-                    <p className="font-bold text-sky-400 mt-0.5">+{formatCurrency(calcResult.hostelFee)}</p>
+                  <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Hostel Fee</p>
+                    <p className="font-bold text-sky-600 dark:text-sky-400 mt-0.5">+{formatCurrency(calcResult.hostelFee)}</p>
                   </div>
-                  <div className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700">
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Scholarships & Concessions</p>
-                    <p className="font-bold text-emerald-400 mt-0.5">-{formatCurrency(calcResult.scholarshipDeduction + calcResult.discountDeduction)}</p>
+                  <div className="bg-white dark:bg-slate-800/80 p-2 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Scholarships & Concessions</p>
+                    <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">-{formatCurrency(calcResult.scholarshipDeduction + calcResult.discountDeduction)}</p>
                   </div>
                 </div>
               </div>
 
               {/* Permanent Fee Ledger Line Item Breakdown */}
-              <div className="glass-card p-5 rounded-3xl space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+              <div className="glass-card p-3.5 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
                   <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400">Student Permanent Fee Ledger</h4>
                   <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px]">
                     {calcResult.student.studentType || 'Day Scholar'}
                   </span>
                 </div>
 
-                <div className="space-y-3 text-xs">
+                <div className="space-y-2 text-xs">
                   {/* Applied Fee Heads */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Applied Fee Types</p>
                     {(() => {
                       const ledger = getStudentFeeLedger(calcResult.student.id);
@@ -304,7 +329,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                         return <p className="text-[11px] text-slate-400 italic">No active fee types assigned.</p>;
                       }
                       return activeItems.map((fh, idx) => (
-                        <div key={idx} className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
+                        <div key={idx} className="flex justify-between py-0.5 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
                           <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 font-bold">
                             <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
                             {fh.headName}
@@ -320,151 +345,149 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                   <hr className="border-slate-100 dark:border-slate-800" />
 
                   {/* Scholarship Section */}
-                  <div className="space-y-2 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30">
-                    {calcResult.scholarshipDeduction > 0 ? (
-                      // Applied Status Card
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scholarship</p>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px]">
-                            ✓ Scholarship Applied
-                          </span>
-                        </div>
-                        <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 p-3.5 rounded-xl space-y-2">
-                          <div>
-                            <p className="font-extrabold text-slate-900 dark:text-white text-xs">{calcResult.scholarshipName}</p>
-                            {calcResult.scholarshipDescription && (
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{calcResult.scholarshipDescription}</p>
-                            )}
+                  {(remainingDue > 0 || calcResult.scholarshipDeduction > 0) && (
+                    <div className="space-y-1.5 border border-slate-100 dark:border-slate-800 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30">
+                      {calcResult.scholarshipDeduction > 0 ? (
+                        // Applied Status Card
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scholarship</p>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px]">
+                              ✓ Scholarship Applied
+                            </span>
                           </div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 border-t border-slate-200/50 dark:border-slate-800/50 pt-2">
-                            <span>Applied Amount:</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-black">-{formatCurrency(calcResult.scholarshipDeduction)}</span>
+                          <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 p-2.5 rounded-xl space-y-1.5">
+                            <div>
+                              <p className="font-extrabold text-slate-900 dark:text-white text-xs">{calcResult.scholarshipName}</p>
+                              {calcResult.scholarshipDescription && (
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{calcResult.scholarshipDescription}</p>
+                              )}
+                            </div>
+                            <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5">
+                              <span>Applied Amount:</span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-black">-{formatCurrency(calcResult.scholarshipDeduction)}</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                              <span>Remaining Payable:</span>
+                              <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(netPayable)}</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                            <span>Remaining Payable:</span>
-                            <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(netPayable)}</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleRemoveScholarship}
-                          className="w-full py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-sm transition-all"
-                        >
-                          Remove Scholarship
-                        </button>
-                      </div>
-                    ) : (
-                      // Selection Controls
-                      <div className="space-y-2">
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scholarship</p>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <select
-                            value={tempScholarshipId}
-                            onChange={e => setTempScholarshipId(e.target.value)}
-                            className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                          >
-                            <option value="">Select Scholarship...</option>
-                            {scholarships.filter(s => s.status === 'Active').map(s => (
-                              <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `${formatCurrency(s.fixedAmount || 0)}`})</option>
-                            ))}
-                          </select>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (!tempScholarshipId) {
-                                addToast('warning', 'Selection Required', 'Please select a scholarship from the list.');
-                                return;
-                              }
-                              handleApplyScholarship(tempScholarshipId);
-                            }}
-                            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-sm transition-all whitespace-nowrap"
+                            onClick={handleRemoveScholarship}
+                            className="w-full py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
                           >
-                            Apply Scholarship
+                            Remove Scholarship
                           </button>
                         </div>
-                        <div className="p-2.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl text-slate-400 font-bold text-[10px] text-center">
-                          Scholarship: Not Applicable
+                      ) : (
+                        // Selection Controls
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Scholarship</p>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <select
+                              value={tempScholarshipId}
+                              onChange={e => setTempScholarshipId(e.target.value)}
+                              className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                            >
+                              <option value="">Select Scholarship...</option>
+                              {scholarships.filter(s => s.status === 'Active').map(s => (
+                                <option key={s.id} value={s.id}>{s.name} ({s.discountType === 'Percentage' ? `${s.percentage}%` : `${formatCurrency(s.fixedAmount || 0)}`})</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!tempScholarshipId) {
+                                  addToast('warning', 'Selection Required', 'Please select a scholarship from the list.');
+                                  return;
+                                }
+                                handleApplyScholarship(tempScholarshipId);
+                              }}
+                              className="w-36 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-sm transition-all shrink-0 flex items-center justify-center cursor-pointer"
+                            >
+                              Apply Scholarship
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Discount Section */}
-                  <div className="space-y-2 border border-slate-100 dark:border-slate-800 p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30">
-                    {calcResult.discountDeduction > 0 ? (
-                      // Applied Status Card
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Discount</p>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px]">
-                            ✓ Discount Applied
-                          </span>
-                        </div>
-                        <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 p-3.5 rounded-xl space-y-2">
-                          <div>
-                            <p className="font-extrabold text-slate-900 dark:text-white text-xs">{calcResult.discountName}</p>
-                            {calcResult.discountDescription && (
-                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{calcResult.discountDescription}</p>
-                            )}
+                  {(remainingDue > 0 || calcResult.discountDeduction > 0) && (
+                    <div className="space-y-1.5 border border-slate-100 dark:border-slate-800 p-2.5 rounded-xl bg-slate-50/50 dark:bg-slate-900/30">
+                      {calcResult.discountDeduction > 0 ? (
+                        // Applied Status Card
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Discount</p>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px]">
+                              ✓ Discount Applied
+                            </span>
                           </div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 border-t border-slate-200/50 dark:border-slate-800/50 pt-2">
-                            <span>Applied Amount:</span>
-                            <span className="text-emerald-600 dark:text-emerald-400 font-black">-{formatCurrency(calcResult.discountDeduction)}</span>
+                          <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/50 p-2.5 rounded-xl space-y-1.5">
+                            <div>
+                              <p className="font-extrabold text-slate-900 dark:text-white text-xs">{calcResult.discountName}</p>
+                              {calcResult.discountDescription && (
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">{calcResult.discountDescription}</p>
+                              )}
+                            </div>
+                            <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 border-t border-slate-200/50 dark:border-slate-800/50 pt-1.5">
+                              <span>Applied Amount:</span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-black">-{formatCurrency(calcResult.discountDeduction)}</span>
+                            </div>
+                            <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                              <span>Remaining Payable:</span>
+                              <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(netPayable)}</span>
+                            </div>
                           </div>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                            <span>Remaining Payable:</span>
-                            <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(netPayable)}</span>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleRemoveDiscount}
-                          className="w-full py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-sm transition-all"
-                        >
-                          Remove Discount
-                        </button>
-                      </div>
-                    ) : (
-                      // Selection Controls
-                      <div className="space-y-2">
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Discount</p>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                          <select
-                            value={tempDiscountId}
-                            onChange={e => setTempDiscountId(e.target.value)}
-                            className="flex-1 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-                          >
-                            <option value="">Select Discount...</option>
-                            {discounts.filter(d => d.status === 'Active').map(d => (
-                              <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : `${formatCurrency(d.value)}`})</option>
-                            ))}
-                          </select>
                           <button
                             type="button"
-                            onClick={() => {
-                              if (!tempDiscountId) {
-                                addToast('warning', 'Selection Required', 'Please select a discount from the list.');
-                                return;
-                              }
-                              handleApplyDiscount(tempDiscountId);
-                            }}
-                            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-sm transition-all whitespace-nowrap"
+                            onClick={handleRemoveDiscount}
+                            className="w-full py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
                           >
-                            Apply Discount
+                            Remove Discount
                           </button>
                         </div>
-                        <div className="p-2.5 bg-slate-100/50 dark:bg-slate-800/40 rounded-xl text-slate-400 font-bold text-[10px] text-center">
-                          Discount: Not Applicable
+                      ) : (
+                        // Selection Controls
+                        <div className="space-y-1.5">
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Discount</p>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <select
+                              value={tempDiscountId}
+                              onChange={e => setTempDiscountId(e.target.value)}
+                              className="flex-1 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                            >
+                              <option value="">Select Discount...</option>
+                              {discounts.filter(d => d.status === 'Active').map(d => (
+                                <option key={d.id} value={d.id}>{d.name} ({d.mode === 'Percentage' ? `${d.value}%` : `${formatCurrency(d.value)}`})</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!tempDiscountId) {
+                                  addToast('warning', 'Selection Required', 'Please select a discount from the list.');
+                                  return;
+                                }
+                                handleApplyDiscount(tempDiscountId);
+                              }}
+                              className="w-36 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-sm transition-all shrink-0 flex items-center justify-center cursor-pointer"
+                            >
+                              Apply Discount
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
 
                   <hr className="border-slate-200 dark:border-slate-700 border-dashed" />
 
                   {/* Calculations breakdown list */}
-                  <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-2xl">
+                  <div className="space-y-1 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl">
                     <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400">
                       <span>Gross Amount:</span>
                       <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(grossAmount)}</span>
@@ -494,7 +517,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                       </div>
                     )}
                     {calcResult.paidAmount > 0 && (
-                      <div className="flex justify-between font-bold text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1.5 mt-1.5">
+                      <div className="flex justify-between font-bold text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1 mt-1">
                         <span>Total Paid Till Date:</span>
                         <span>{formatCurrency(calcResult.paidAmount)}</span>
                       </div>
@@ -504,7 +527,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                   <hr className="border-slate-200 dark:border-slate-700 border-dashed" />
 
                   {/* Total Net Payable Row */}
-                  <div className="flex justify-between items-center py-1 font-black text-slate-900 dark:text-white text-sm">
+                  <div className="flex justify-between items-center py-0.5 font-black text-slate-900 dark:text-white text-sm">
                     <span className="uppercase tracking-wider">Total Payable</span>
                     <span className="text-base text-sky-600 dark:text-sky-400">{formatCurrency(netPayable)}</span>
                   </div>
@@ -512,88 +535,145 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
               </div>
 
               {/* Payment Processing Form */}
-              <div className="glass-card p-5 rounded-3xl space-y-4">
-                <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <div className="glass-card p-3.5 rounded-2xl space-y-2.5">
+                <h4 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-wider">
                   <Calculator className="w-4 h-4 text-emerald-500" /> Collect Payment Terminal
                 </h4>
 
-                <form onSubmit={handleSubmitPayment} className="space-y-3 text-xs">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount to Collect (₹) *</label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        placeholder="0"
-                        value={amountPaying === 0 || amountPaying === '0' ? '' : amountPaying}
-                        onFocus={() => {
-                          if (amountPaying === 0 || amountPaying === '0') {
-                            setAmountPaying('');
-                          }
-                        }}
-                        onChange={e => {
-                          const val = e.target.value;
-                          if (val === '') {
-                            setAmountPaying('');
-                            return;
-                          }
-                          const cleaned = val.replace(/^0+(?=\d)/, '');
-                          setAmountPaying(cleaned === '' ? '' : Number(cleaned));
-                        }}
-                        onBlur={() => {
-                          if (amountPaying === '' || amountPaying === null || amountPaying === undefined) {
-                            setAmountPaying(0);
-                          }
-                        }}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-extrabold text-emerald-600 text-sm"
-                      />
+                {remainingDue === 0 ? (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl space-y-1.5 text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs">
+                      <CheckCircle className="w-4 h-4 text-emerald-500" /> Payment Complete — No Outstanding Dues
                     </div>
-                    <div>
-                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Mode</label>
-                      <select
-                        value={paymentMode}
-                        onChange={e => setPaymentMode(e.target.value as any)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                      >
-                        <option value="Online">Online / UPI</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Card">Card</option>
-                        <option value="Cheque">Cheque</option>
-                      </select>
-                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                      All fees for {calcResult.student.firstName} {calcResult.student.lastName} have been settled in full. Official payment receipts are listed below.
+                    </p>
                   </div>
+                ) : (
+                  <form onSubmit={handleSubmitPayment} className="space-y-2.5 text-xs">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount to Collect (₹) *</label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          placeholder="0"
+                          value={amountPaying === 0 || amountPaying === '0' ? '' : amountPaying}
+                          onFocus={() => {
+                            if (amountPaying === 0 || amountPaying === '0') {
+                              setAmountPaying('');
+                            }
+                          }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === '') {
+                              setAmountPaying('');
+                              return;
+                            }
+                            const cleaned = val.replace(/^0+(?=\d)/, '');
+                            setAmountPaying(cleaned === '' ? '' : Number(cleaned));
+                          }}
+                          onBlur={() => {
+                            if (amountPaying === '' || amountPaying === null || amountPaying === undefined) {
+                              setAmountPaying(0);
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-extrabold text-emerald-600 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Mode</label>
+                        <select
+                          value={paymentMode}
+                          onChange={e => setPaymentMode(e.target.value as any)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white cursor-pointer"
+                        >
+                          <option value="">Select Payment Mode</option>
+                          <option value="Online">Online / UPI</option>
+                          <option value="Cash">Cash</option>
+                          <option value="Card">Card</option>
+                          <option value="Cheque">Cheque</option>
+                        </select>
+                      </div>
+                    </div>
 
-                  {paymentMode !== 'Cash' && (
+                    {paymentMode !== 'Cash' && (
+                      <div>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / UTR No</label>
+                        <input
+                          type="text"
+                          placeholder="Enter transaction reference or UTR number..."
+                          value={transactionId}
+                          onChange={e => setTransactionId(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
+                        />
+                      </div>
+                    )}
+
                     <div>
-                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / UTR No</label>
+                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Remarks</label>
                       <input
                         type="text"
-                        value={transactionId}
-                        onChange={e => setTransactionId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
+                        placeholder="Enter payment remarks..."
+                        value={remarks}
+                        onChange={e => setRemarks(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
                       />
                     </div>
-                  )}
 
-                  <div>
-                    <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Remarks</label>
-                    <input
-                      type="text"
-                      value={remarks}
-                      onChange={e => setRemarks(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
-                    />
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    >
+                      <Receipt className="w-4 h-4" /> Issue Official Receipt & Record Payment
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              {/* Recorded Fee Payment Receipts List */}
+              {selectedStudent && (
+                <div className="glass-card p-3.5 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
+                    <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <Receipt className="w-4 h-4 text-sky-500" /> Recorded Payment Receipts ({feePayments.filter(p => p.studentId === selectedStudent.id).length})
+                    </h4>
                   </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all"
-                  >
-                    <Receipt className="w-4 h-4" /> Issue Official Receipt & Record Payment
-                  </button>
-                </form>
-              </div>
+                  <div className="space-y-2 text-xs max-h-60 overflow-y-auto pr-0.5">
+                    {feePayments.filter(p => p.studentId === selectedStudent.id).length === 0 ? (
+                      <p className="text-[11px] text-slate-400 italic">No payment receipts recorded yet.</p>
+                    ) : (
+                      feePayments.filter(p => p.studentId === selectedStudent.id).map(p => (
+                        <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-xs">{p.receiptNo}</span>
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[9px]">
+                                ✓ PAID ({p.paymentMode})
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                              Date: {p.paymentDate} {p.transactionId ? `• Ref: ${p.transactionId}` : ''}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-black text-emerald-600 text-xs">{formatCurrency(p.amountPaid)}</span>
+                            <button
+                              type="button"
+                              onClick={() => onPrintReceipt(p)}
+                              className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px] flex items-center gap-1 shadow-sm cursor-pointer"
+                            >
+                              <Printer className="w-3 h-3" /> Print Receipt
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="glass-card p-12 rounded-3xl text-center space-y-3">

@@ -10,7 +10,7 @@ export const LibraryView: React.FC = () => {
   const { role, user } = useAuth();
   const isStudentOrParent = role.toLowerCase() === 'student' || role.toLowerCase() === 'parent';
 
-  const { books, bookIssues, addBook, issueBook, returnBook, students } = useData();
+  const { books, bookIssues, addBook, issueBook, returnBook, students, staff } = useData();
   const { addToast } = useToast();
 
   // Find student ID/name if student
@@ -38,9 +38,10 @@ export const LibraryView: React.FC = () => {
 
   const [newIssue, setNewIssue] = useState({
     bookId: books[0]?.id || '',
-    borrowerName: studentDisplayName,
-    borrowerRole: 'Student' as const,
-    dueDate: '2026-08-01'
+    borrowerId: '',
+    borrowerName: '',
+    borrowerRole: '' as any,
+    dueDate: '2026-08-15'
   });
 
   const handleAddBook = (e: React.SyntheticEvent) => {
@@ -58,19 +59,27 @@ export const LibraryView: React.FC = () => {
       addToast('error', 'Book Unavailable', 'No available copies left to issue.');
       return;
     }
+    if (!newIssue.borrowerRole) {
+      addToast('error', 'Missing Borrower Role', 'Please select a borrower role.');
+      return;
+    }
+    if (!newIssue.borrowerId) {
+      addToast('error', 'Missing Borrower ID', 'Please enter a borrower ID.');
+      return;
+    }
 
     issueBook({
       bookId: bk.id,
       bookTitle: bk.title,
-      borrowerId: currentWard?.id || 'STU-001',
-      borrowerName: newIssue.borrowerName,
+      borrowerId: newIssue.borrowerId,
+      borrowerName: newIssue.borrowerName || 'Anonymous',
       borrowerRole: newIssue.borrowerRole,
       issueDate: new Date().toISOString().split('T')[0],
       dueDate: newIssue.dueDate,
       fineAmount: 0,
       status: 'Issued'
     });
-    addToast('success', 'Book Issued', `Issued "${bk.title}" to ${newIssue.borrowerName}`);
+    addToast('success', 'Book Issued', `Issued "${bk.title}" to ${newIssue.borrowerName || 'Anonymous'}`);
     setIsIssueOpen(false);
   };
 
@@ -170,6 +179,9 @@ export const LibraryView: React.FC = () => {
                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{iss.bookTitle}</td>
                   <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-200">
                     {isStudentOrParent ? iss.borrowerName : `${iss.borrowerName} (${iss.borrowerRole})`}
+                    {iss.borrowerId && (
+                      <span className="block text-[10px] text-slate-400 dark:text-slate-550 font-mono mt-0.5">ID: {iss.borrowerId}</span>
+                    )}
                   </td>
                   <td className="py-3 px-4 text-slate-500">{iss.issueDate}</td>
                   <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{iss.dueDate}</td>
@@ -240,9 +252,78 @@ export const LibraryView: React.FC = () => {
                   ))}
                 </select>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Borrower Role *</label>
+                  <select
+                    value={newIssue.borrowerRole}
+                    onChange={e => {
+                      const roleVal = e.target.value as any;
+                      setNewIssue(prev => ({
+                        ...prev,
+                        borrowerRole: roleVal,
+                        borrowerId: '',
+                        borrowerName: ''
+                      }));
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer"
+                  >
+                    <option value="">Select Role</option>
+                    <option value="Student">Student</option>
+                    <option value="Staff">Staff</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Borrower ID *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. STU-001"
+                    value={newIssue.borrowerId}
+                    onChange={e => {
+                      const val = e.target.value;
+                      let resolvedName = '';
+                      let resolvedRole = newIssue.borrowerRole;
+
+                      // Check students
+                      if (!resolvedRole || resolvedRole === 'Student') {
+                        const found = students.find(s => s.id.toLowerCase() === val.toLowerCase() || s.admissionNo.toLowerCase() === val.toLowerCase());
+                        if (found) {
+                          resolvedName = `${found.firstName} ${found.lastName}`;
+                          resolvedRole = 'Student';
+                        }
+                      }
+
+                      // Check staff
+                      if (!resolvedName && (!resolvedRole || resolvedRole === 'Staff')) {
+                        const found = staff.find(st => st.id.toLowerCase() === val.toLowerCase() || st.empId.toLowerCase() === val.toLowerCase());
+                        if (found) {
+                          resolvedName = `${found.firstName} ${found.lastName}`;
+                          resolvedRole = 'Staff';
+                        }
+                      }
+
+                      setNewIssue(prev => ({
+                        ...prev,
+                        borrowerId: val,
+                        borrowerRole: resolvedRole,
+                        borrowerName: resolvedName || prev.borrowerName
+                      }));
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono outline-none"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block font-semibold mb-1">Borrower Name</label>
-                <input type="text" required value={newIssue.borrowerName} onChange={e => setNewIssue({ ...newIssue, borrowerName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                <label className="block font-semibold mb-1">Borrower Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter name manually or let it auto-resolve"
+                  value={newIssue.borrowerName}
+                  onChange={e => setNewIssue({ ...newIssue, borrowerName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                />
               </div>
               <div>
                 <label className="block font-semibold mb-1">Due Return Date</label>

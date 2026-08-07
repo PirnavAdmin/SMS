@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { IndianRupee, Receipt, Clock } from 'lucide-react';
 import { Student, FeePayment } from '../../../types';
+import { useData } from '../../../context/DataContext';
+import { ExportButton } from '../../common/ExportButton';
 import { FeeCollectionView } from './FeeCollectionView';
 import { FeeReceiptsView } from './FeeReceiptsView';
 import { DueFeesView } from './DueFeesView';
@@ -10,6 +12,7 @@ interface FeeCollectionContainerViewProps {
 }
 
 export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProps> = ({ onPrintReceipt }) => {
+  const { students, feePayments } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'collect' | 'due' | 'receipts'>('collect');
 
   const subTabs = [
@@ -43,6 +46,21 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <IndianRupee className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Fee Collection
           </h2>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {activeSubTab === 'due' && (
+            <ExportButton
+              data={students.filter(s => s.dueFee > 0).map(s => ({ name: `${s.firstName} ${s.lastName}`, admissionNo: s.admissionNo, class: `${s.className}-${s.section}`, due: s.dueFee }))}
+              filename="outstanding_dues"
+            />
+          )}
+          {activeSubTab === 'receipts' && (
+            <ExportButton
+              data={feePayments}
+              filename="fee_receipts"
+            />
+          )}
         </div>
       </div>
 

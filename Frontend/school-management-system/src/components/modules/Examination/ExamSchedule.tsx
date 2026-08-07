@@ -302,8 +302,18 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
               auditSectionFilter={auditSectionFilter}
               setAuditClassFilter={setAuditClassFilter}
               setAuditSectionFilter={setAuditSectionFilter}
-              onPrintTimetable={() => window.print()}
-              onPrintAll={() => window.print()}
+              onPrintTimetable={(cls, sec) => {
+                setAuditClassFilter(cls);
+                setAuditSectionFilter(sec);
+                window.scrollTo(0, 0);
+                setTimeout(() => window.print(), 200);
+              }}
+              onPrintAll={() => {
+                setAuditClassFilter('All');
+                setAuditSectionFilter('All');
+                window.scrollTo(0, 0);
+                setTimeout(() => window.print(), 200);
+              }}
             />
           )
         )}

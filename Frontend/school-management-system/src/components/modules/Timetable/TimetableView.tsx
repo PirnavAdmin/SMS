@@ -487,11 +487,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   };
 
   const handlePrint = () => {
+    window.scrollTo(0, 0);
     if (activeTab === 'period-settings') {
       setActiveTab('class-timetable');
-      setTimeout(() => window.print(), 150);
+      setTimeout(() => window.print(), 200);
     } else {
-      window.print();
+      setTimeout(() => window.print(), 50);
     }
   };
 

@@ -60,7 +60,7 @@ export const BusAttendantMasterView: React.FC = () => {
     employeeId: 'ATT-2026-04',
     attendantName: '',
     mobileNumber: '+1 (555) 019-8800',
-    gender: 'Female',
+    gender: '' as any,
     branch: 'Main Campus',
     status: 'Active'
   });
@@ -81,7 +81,7 @@ export const BusAttendantMasterView: React.FC = () => {
       employeeId: `ATT-2026-${Math.floor(10 + Math.random() * 90)}`,
       attendantName: '',
       mobileNumber: '+1 (555) 019-8800',
-      gender: 'Female',
+      gender: '' as any,
       branch: 'Main Campus',
       status: 'Active'
     });
@@ -97,6 +97,10 @@ export const BusAttendantMasterView: React.FC = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.attendantName || !form.employeeId || !form.mobileNumber) return;
+    if (!form.gender) {
+      addToast('warning', 'Validation Error', 'Please select a gender.');
+      return;
+    }
 
     if (editingAttendant) {
       setAttendants(prev => prev.map(a => a.id === editingAttendant.id ? { ...a, ...form } as BusAttendantMaster : a));
@@ -107,7 +111,7 @@ export const BusAttendantMasterView: React.FC = () => {
         employeeId: form.employeeId || '',
         attendantName: form.attendantName || '',
         mobileNumber: form.mobileNumber || '',
-        gender: (form.gender || 'Female') as any,
+        gender: form.gender as any,
         branch: form.branch || 'Main Campus',
         status: (form.status || 'Active') as any
       };
@@ -237,8 +241,9 @@ export const BusAttendantMasterView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block font-semibold mb-1">Mobile Number *</label><input type="text" required value={form.mobileNumber} onChange={e => setForm({ ...form, mobileNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
                 <div>
-                  <label className="block font-semibold mb-1">Gender</label>
-                  <select value={form.gender} onChange={e => setForm({ ...form, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                  <label className="block font-semibold mb-1">Gender *</label>
+                  <select value={form.gender || ''} onChange={e => setForm({ ...form, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none cursor-pointer">
+                    <option value="">Select Gender</option>
                     <option value="Female">Female</option>
                     <option value="Male">Male</option>
                     <option value="Other">Other</option>

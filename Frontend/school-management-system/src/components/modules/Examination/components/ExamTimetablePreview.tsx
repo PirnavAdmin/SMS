@@ -56,7 +56,7 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
   return (
     <div className="space-y-4 mt-4">
       {/* Filter Bar */}
-      <div className="p-4 rounded-3xl border border-slate-200/80 bg-white dark:bg-slate-900 shadow-sm space-y-3">
+      <div className="p-4 rounded-3xl border border-slate-200/80 bg-white dark:bg-slate-900 shadow-sm space-y-3 print:hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h4 className="text-sm font-black uppercase tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
@@ -117,7 +117,7 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
       </div>
 
       {/* Grids list */}
-      <div className="space-y-6">
+      <div id="printable-content" className="space-y-6">
         {auditVisibleClasses.map(cls => (
           <div key={cls} className="space-y-4">
             {auditVisibleSections.map(sec => {
@@ -135,7 +135,7 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
                     <button
                       type="button"
                       onClick={() => onPrintTimetable(cls, sec)}
-                      className="px-3 py-1.5 rounded-xl border text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition"
+                      className="px-3 py-1.5 rounded-xl border text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition print:hidden"
                     >
                       <Printer className="w-3.5 h-3.5" /> Print Timetable
                     </button>
@@ -149,14 +149,12 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
                           <th className={tableHeaderClass}>Exam Date</th>
                           <th className={tableHeaderClass}>Time Slot</th>
                           <th className={tableHeaderClass}>Duration</th>
-                          <th className={tableHeaderClass}>Exam Room</th>
-                          <th className={tableHeaderClass}>Invigilator Staff</th>
                         </tr>
                       </thead>
                       <tbody>
                         {rowsToRender.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="px-3 py-8 text-center text-xs font-bold text-slate-400">
+                            <td colSpan={4} className="px-3 py-8 text-center text-xs font-bold text-slate-400">
                               No subjects scheduled for this class and section.
                             </td>
                           </tr>
@@ -167,8 +165,6 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
                             <td className="px-3 py-3 font-mono font-bold">{r.date}</td>
                             <td className="px-3 py-3 font-bold">{r.startTime} – {r.endTime}</td>
                             <td className="px-3 py-3 font-mono text-slate-550">{calculateDurationLabel(r.startTime, r.endTime)}</td>
-                            <td className="px-3 py-3 font-extrabold text-indigo-600 dark:text-indigo-400">{r.room || 'TBA'}</td>
-                            <td className="px-3 py-3 font-bold">{formatInvigilator(r.invigilatorName)}</td>
                           </tr>
                         ))}
                       </tbody>
