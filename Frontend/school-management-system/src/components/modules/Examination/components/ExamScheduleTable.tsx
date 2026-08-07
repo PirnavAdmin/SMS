@@ -165,8 +165,6 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
             <th className={tableHeaderClass}>Start Time</th>
             <th className={tableHeaderClass}>End Time</th>
             <th className={tableHeaderClass}>Duration</th>
-            <th className={tableHeaderClass}>Room Number</th>
-            <th className={tableHeaderClass}>Invigilator Staff</th>
             <th className={tableHeaderClass}>Actions</th>
           </tr>
         </thead>
@@ -224,33 +222,7 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
                 {calculateDurationLabel(row.startTime, row.endTime)}
               </td>
 
-              {/* Room */}
-              <td className="px-3 py-3">
-                {isEditing ? (
-                  <input
-                    type="text"
-                    value={row.room || ''}
-                    onChange={e => onUpdateRow(row.id, { room: e.target.value })}
-                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold outline-none w-24"
-                    placeholder="e.g. Room 101"
-                  />
-                ) : (
-                  <span className="font-bold text-slate-700 dark:text-slate-350">{row.room || 'TBA'}</span>
-                )}
-              </td>
 
-              {/* Invigilator */}
-              <td className="px-3 py-3">
-                {isEditing ? (
-                  <SearchableInvigilatorSelect
-                    value={row.invigilatorName}
-                    onChange={val => onUpdateRow(row.id, { invigilatorName: val })}
-                    teacherOptions={teacherOptions}
-                  />
-                ) : (
-                  <span className="font-bold text-slate-700 dark:text-slate-350">{formatInvigilator(row.invigilatorName)}</span>
-                )}
-              </td>
 
               {/* Actions */}
               <td className="px-3 py-3">

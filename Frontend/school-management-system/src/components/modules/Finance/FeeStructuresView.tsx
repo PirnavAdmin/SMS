@@ -20,7 +20,7 @@ export const FeeStructuresView: React.FC = () => {
   const [editingStruct, setEditingStruct] = useState<DynamicFeeStructure | null>(null);
   const [deletingStruct, setDeletingStruct] = useState<DynamicFeeStructure | null>(null);
 
-  const [className, setClassName] = useState('Class 10');
+  const [className, setClassName] = useState('');
   const [selectedHeadItems, setSelectedHeadItems] = useState<Record<string, number>>({});
 
   const activeFeeHeads = feeHeads.filter(h => h.status === 'Active');
@@ -35,7 +35,7 @@ export const FeeStructuresView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setEditingStruct(null);
-    setClassName(academicClasses[0]?.name || 'Class 10');
+    setClassName('');
 
     // Default pre-select active heads
     const initialItems: Record<string, number> = {};
@@ -79,6 +79,10 @@ export const FeeStructuresView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
+    if (!className) {
+      addToast('warning', 'Validation Error', 'Please select a Class Grade.');
+      return;
+    }
     const itemsList: FeeStructureItem[] = Object.entries(selectedHeadItems)
       .filter(([_, amt]) => amt > 0)
       .map(([headId, amount]) => {
@@ -233,6 +237,7 @@ export const FeeStructuresView: React.FC = () => {
                   onChange={e => setClassName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
                 >
+                  <option value="">Select Class</option>
                   {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>

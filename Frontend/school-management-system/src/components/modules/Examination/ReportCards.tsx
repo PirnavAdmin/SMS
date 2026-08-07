@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Award, Printer, Search, FileDown } from 'lucide-react';
 import { PrintableReportCard } from './PrintableReportCard';
 import { ExamSetup, Student, SubjectItem, ProcessedResult } from '../../../types';
@@ -31,6 +31,15 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
   const [selectedClass, setSelectedClass] = useState(classOptions[0] || 'Class 10');
   const [selectedSection, setSelectedSection] = useState('A');
   const [searchQuery, setSearchQuery] = useState('');
+  const [activePrintResult, setActivePrintResult] = useState<ProcessedResult | null>(null);
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      setActivePrintResult(null);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
 
   const visibleResults = getResultsForExamClass(exam?.id || '', selectedClass, selectedSection);
 
@@ -43,9 +52,18 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
 
   const handlePrintAll = () => {
     addToast('info', 'Print Job Sent', `Sending print request for ${filteredResults.length} student report cards...`);
+    window.scrollTo(0, 0);
     setTimeout(() => {
       window.print();
     }, 400);
+  };
+
+  const handlePrintSingle = (res: ProcessedResult) => {
+    setActivePrintResult(res);
+    window.scrollTo(0, 0);
+    setTimeout(() => {
+      window.print();
+    }, 200);
   };
 
   const getAttendanceForStudent = (studentId: string) => {
@@ -78,7 +96,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
           </div>
         }
       >
-        <div className="space-y-5">
+        <div className="space-y-5 print:hidden">
           {/* Filters */}
           <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/55 dark:bg-slate-950/60 shadow-sm flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -165,7 +183,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => window.print()}
+                      onClick={() => handlePrintSingle(res)}
                       className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-800 dark:text-slate-350 hover:bg-slate-50 font-bold text-xs flex items-center gap-1 transition flex-1 justify-center"
                     >
                       <Printer className="w-3.5 h-3.5 text-slate-400" /> Print Card
@@ -176,23 +194,42 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
             )}
           </div>
 
-          {/* Hidden Print Container for bulk output pages */}
-          <div className="hidden print:block">
-            {filteredResults.map(res => {
-              const studentObj = students.find(s => s.id === res.studentId) || null;
-              return (
-                <div key={`print-${res.id}`} className="page-break-card">
-                  <PrintableReportCard
-                    student={studentObj}
-                    exam={exam}
-                    processedResult={res}
-                    attendance={getAttendanceForStudent(res.studentId)}
-                    coScholastic={getCoScholasticForStudent(res.studentId)}
-                    onClose={() => {}}
-                  />
-                </div>
-              );
-            })}
+          {/* Hidden Print Container for bulk or single output pages */}
+          <div id="printable-content" className="hidden print:block">
+            {activePrintResult ? (
+              (() => {
+                const res = activePrintResult;
+                const studentObj = students.find(s => s.id === res.studentId) || null;
+                return (
+                  <div key={`print-single-${res.id}`} className="page-break-card">
+                    <PrintableReportCard
+                      student={studentObj}
+                      exam={exam}
+                      processedResult={res}
+                      attendance={getAttendanceForStudent(res.studentId)}
+                      coScholastic={getCoScholasticForStudent(res.studentId)}
+                      onClose={() => {}}
+                    />
+                  </div>
+                );
+              })()
+            ) : (
+              filteredResults.map(res => {
+                const studentObj = students.find(s => s.id === res.studentId) || null;
+                return (
+                  <div key={`print-${res.id}`} className="page-break-card">
+                    <PrintableReportCard
+                      student={studentObj}
+                      exam={exam}
+                      processedResult={res}
+                      attendance={getAttendanceForStudent(res.studentId)}
+                      coScholastic={getCoScholasticForStudent(res.studentId)}
+                      onClose={() => {}}
+                    />
+                  </div>
+                );
+              })
+            )}
           </div>
 
         </div>

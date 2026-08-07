@@ -156,7 +156,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       </div>
 
       {/* Routed Screens */}
-      <div className="no-print">
+      <div>
         {activeTab === 'dashboard' && (
           <ExamDashboard
             exams={exams}
