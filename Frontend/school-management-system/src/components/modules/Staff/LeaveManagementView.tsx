@@ -360,20 +360,20 @@ export const LeaveManagementView: React.FC = () => {
           </h2>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => { setEditingApplication(null); resetApplyForm(); setIsApplyOpen(true); }}
-            disabled={hasApprovalPermission}
-            title={hasApprovalPermission ? "Admins/Approvers cannot apply for leaves here" : ""}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-4 h-4" /> Submit Leave Application
-          </button>
-        </div>
+        {!hasApprovalPermission && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setEditingApplication(null); resetApplyForm(); setIsApplyOpen(true); }}
+              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
+            >
+              <Plus className="w-4 h-4" /> Submit Leave Application
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Dashboard Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
           <p className="text-lg font-black text-brand-600 mt-1">{approvedCount} Leaves</p>
@@ -385,10 +385,6 @@ export const LeaveManagementView: React.FC = () => {
         <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
           <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
           <p className="text-lg font-black text-rose-600 mt-1">{rejectedCount} Leaves</p>
-        </div>
-        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-slate-400">Total Leave Balance</span>
-          <p className="text-lg font-black text-slate-800 dark:text-white mt-1">{totalBalance} Days</p>
         </div>
       </div>
 
@@ -423,7 +419,7 @@ export const LeaveManagementView: React.FC = () => {
             activeTab === 'types' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
           }`}
         >
-          Leave Types Master
+          Leave Types
         </button>
         <button
           onClick={() => setActiveTab('balance')}

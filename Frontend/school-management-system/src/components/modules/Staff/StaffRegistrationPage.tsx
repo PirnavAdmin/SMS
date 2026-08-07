@@ -157,27 +157,19 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
             <h1 className="text-2xl font-black text-slate-900 dark:text-white">Add Staff</h1>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-brand-600/20 hover:bg-brand-500 transition-colors disabled:opacity-70"
-          >
-            <CheckCircle2 className="h-4 w-4" /> {submitting ? 'Creating...' : 'Create Employee Record'}
-          </button>
-        </div>
       </div>
-
+ 
       {/* Main 5-Section Stepper Form */}
-      <BasicStaffFormFields
-        value={form}
-        errors={errors}
-        onChange={handleChange}
-        onCategoryChange={handleCategoryChange}
-        employeeIdReadOnly
-      />
+      <form onSubmit={handleSubmit}>
+        <BasicStaffFormFields
+          value={form}
+          errors={errors}
+          onChange={handleChange}
+          onCategoryChange={handleCategoryChange}
+          employeeIdReadOnly
+          isSubmitting={submitting}
+        />
+      </form>
     </div>
   );
 };

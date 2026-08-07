@@ -128,6 +128,7 @@ const MainLayout: React.FC = () => {
       case 'dashboard':
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case 'students':
+      case 'student-directory':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <StudentList onNavigate={(mod) => setActiveModule(mod)} />;
       case 'staff':
       case 'staff-teachers':

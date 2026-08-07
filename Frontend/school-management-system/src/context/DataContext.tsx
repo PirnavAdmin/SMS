@@ -1171,7 +1171,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(() => getStored('fee_structures', initialFeeStructures));
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => getStored('fee_payments', initialFeePayments));
   const [attendance, setAttendance] = useState<DailyAttendance[]>(() => getStored('attendance', []));
-  const [exams, setExams] = useState<ExamSetup[]>(() => getStored('exams', initialExamSetups));
+  const [exams, setExams] = useState<ExamSetup[]>(() => {
+    const stored = getStored<ExamSetup[]>('exams', initialExamSetups);
+    return stored.length === 0 ? initialExamSetups : stored;
+  });
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => getStored('exam_marks', initialExamMarks));
 
   const [examSchedules, setExamSchedules] = useState<ExamSchedule[]>(() => getStored('exam_schedules', defaultExamSchedules));
@@ -1194,7 +1197,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => getStored('announcements', initialAnnouncements));
   const [holidays, setHolidays] = useState<Holiday[]>(() => getStored('holidays', initialHolidays));
   const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => getStored('school_events', initialSchoolEvents));
-  const [birthdays] = useState<Birthday[]>(() => getStored('birthdays', initialBirthdays));
+  const [birthdays] = useState<Birthday[]>(() => {
+    const val = getStored('birthdays', initialBirthdays);
+    if (val.some(b => b.name === 'Alexander Wright' && b.role === 'Student')) {
+      localStorage.setItem('birthdays', JSON.stringify(initialBirthdays));
+      return initialBirthdays;
+    }
+    return val;
+  });
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => getStored('audit_logs', initialAuditLogs));
 
   // Leave Management ERP States
@@ -1527,7 +1537,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_payroll_runs', JSON.stringify(payrollRuns)); }, [payrollRuns]);
 
   useEffect(() => { localStorage.setItem('edu_db_exams', JSON.stringify(exams)); }, [exams]);
-  useEffect(() => { localStorage.setItem('edu_db_exam_marks', JSON.stringify(examMarks)); }, [examMarks]);
   useEffect(() => { localStorage.setItem('edu_db_exam_schedules', JSON.stringify(examSchedules)); }, [examSchedules]);
   useEffect(() => { localStorage.setItem('edu_db_grade_configurations', JSON.stringify(gradeConfigurations)); }, [gradeConfigurations]);
   useEffect(() => { localStorage.setItem('edu_db_processed_results', JSON.stringify(processedResults)); }, [processedResults]);
@@ -2365,7 +2374,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
             const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
             additionalFees += ftc ? ftc.feeAmount : 5500;
-          } else if (app.studentType === 'Hosteller' && app.hostelBed) {
+          } else if ((app.studentType === 'Hosteller' || app.studentType === 'Residential') && app.hostelBed) {
             const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
             const fhc = financeHostelConfigs.find(c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active') || financeHostelConfigs[0];
             additionalFees += fhc ? fhc.hostelFee : 40000;
@@ -2480,8 +2489,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           }
 
-          // Auto-assign hostel facility if Hosteller
-          if (app.studentType === 'Hosteller' && app.hostelBed) {
+          // Auto-assign hostel facility if Hosteller or Residential
+          if ((app.studentType === 'Hosteller' || app.studentType === 'Residential') && app.hostelBed) {
             const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
             const rObj = roomMasters.find(r => r.id === app.hostelRoom) || roomMasters[0];
             const fhc = financeHostelConfigs.find(
@@ -3387,7 +3396,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const generateStudentFeeLedger = (studentId: string): StudentFeeLedger => {
     const student = students.find(s => s.id === studentId);
-    const stType: 'Day Scholar' | 'Hosteller' = (student?.studentType === 'Hosteller') ? 'Hosteller' : 'Day Scholar';
+    const stType: 'Day Scholar' | 'Hosteller' = (student?.studentType === 'Hosteller' || student?.studentType === 'Residential') ? 'Hosteller' : 'Day Scholar';
     const clsName = student?.className || 'Class 10';
     const secName = student?.section || 'A';
     const admNo = student?.admissionNo || 'ADM-2026-000';
@@ -4089,7 +4098,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const hostelAssign = studentHostels.find(h => h.studentId === studentId && h.status === 'Active');
-    const hostelFee = (student.studentType === 'Hosteller' && hostelAssign) ? hostelAssign.feeAmount : 0;
+    const hostelFee = ((student.studentType === 'Hosteller' || student.studentType === 'Residential') && hostelAssign) ? hostelAssign.feeAmount : 0;
 
     const previousDue = Math.max(0, student.dueFee || 0);
 
