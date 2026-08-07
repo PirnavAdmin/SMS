@@ -1192,7 +1192,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <h4 className="text-xs font-extrabold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4" /> 5. Student Type & Residential Allocation
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="w-full">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Student Type *</label>
                   <div className="relative">
@@ -1202,16 +1202,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                     >
                       <option value="">Select Type</option>
-                      <option value="Day Scholar">Day Scholar</option>
-                      <option value="Hosteller">Hosteller</option>
+                      <option value="Non-Residential">Non-Residential</option>
+                      <option value="Residential">Residential</option>
                     </select>
                     <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
                 </div>
               </div>
 
-              {/* Conditional Rendering for Day Scholar */}
-              {formData.studentType === 'Day Scholar' && (
+              {/* Conditional Rendering for Non-Residential */}
+              {(formData.studentType === 'Non-Residential' || formData.studentType === 'Day Scholar') && (
                 <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs">School Transport Facility Required?</span>
@@ -1274,8 +1274,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 </div>
               )}
 
-              {/* Conditional Rendering for Hosteller (Available Rooms & Beds Only) */}
-              {formData.studentType === 'Hosteller' && (
+              {/* Conditional Rendering for Residential (Available Rooms & Beds Only) */}
+              {(formData.studentType === 'Residential' || formData.studentType === 'Hosteller') && (
                 <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
                   <h5 className="font-bold text-sky-900 dark:text-sky-200">Hostel Bed Allocation</h5>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

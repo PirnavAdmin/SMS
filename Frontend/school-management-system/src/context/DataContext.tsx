@@ -2365,7 +2365,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const pObj = pickupPoints.find(p => p.id === app.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === app.pickupPoint));
             const ftc = financeTransportConfigs.find(c => c.routeId === rObj?.id && (c.pickupPointId === pObj?.id || c.pickupName === pObj?.pickupName) && c.status === 'Active');
             additionalFees += ftc ? ftc.feeAmount : 5500;
-          } else if (app.studentType === 'Hosteller' && app.hostelBed) {
+          } else if ((app.studentType === 'Hosteller' || app.studentType === 'Residential') && app.hostelBed) {
             const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
             const fhc = financeHostelConfigs.find(c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active') || financeHostelConfigs[0];
             additionalFees += fhc ? fhc.hostelFee : 40000;
@@ -2480,8 +2480,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             });
           }
 
-          // Auto-assign hostel facility if Hosteller
-          if (app.studentType === 'Hosteller' && app.hostelBed) {
+          // Auto-assign hostel facility if Hosteller or Residential
+          if ((app.studentType === 'Hosteller' || app.studentType === 'Residential') && app.hostelBed) {
             const hObj = hostelMasters.find(h => h.id === app.hostelBlock || h.hostelName === app.hostelBlock) || hostelMasters[0];
             const rObj = roomMasters.find(r => r.id === app.hostelRoom) || roomMasters[0];
             const fhc = financeHostelConfigs.find(
@@ -3387,7 +3387,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const generateStudentFeeLedger = (studentId: string): StudentFeeLedger => {
     const student = students.find(s => s.id === studentId);
-    const stType: 'Day Scholar' | 'Hosteller' = (student?.studentType === 'Hosteller') ? 'Hosteller' : 'Day Scholar';
+    const stType: 'Day Scholar' | 'Hosteller' = (student?.studentType === 'Hosteller' || student?.studentType === 'Residential') ? 'Hosteller' : 'Day Scholar';
     const clsName = student?.className || 'Class 10';
     const secName = student?.section || 'A';
     const admNo = student?.admissionNo || 'ADM-2026-000';
@@ -4089,7 +4089,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const hostelAssign = studentHostels.find(h => h.studentId === studentId && h.status === 'Active');
-    const hostelFee = (student.studentType === 'Hosteller' && hostelAssign) ? hostelAssign.feeAmount : 0;
+    const hostelFee = ((student.studentType === 'Hosteller' || student.studentType === 'Residential') && hostelAssign) ? hostelAssign.feeAmount : 0;
 
     const previousDue = Math.max(0, student.dueFee || 0);
 

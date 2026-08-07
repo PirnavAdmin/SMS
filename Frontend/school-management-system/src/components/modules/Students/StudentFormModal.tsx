@@ -488,12 +488,12 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 onChange={e => setFormData({ ...formData, studentType: e.target.value as StudentType })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-bold"
               >
-                <option value="Day Scholar">Day Scholar</option>
-                <option value="Hosteller">Hosteller</option>
+                <option value="Non-Residential">Non-Residential</option>
+                <option value="Residential">Residential</option>
               </select>
             </div>
 
-            {formData.studentType === 'Day Scholar' && (
+            {(formData.studentType === 'Non-Residential' || formData.studentType === 'Day Scholar') && (
               <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -521,7 +521,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               </div>
             )}
 
-            {formData.studentType === 'Hosteller' && (
+            {(formData.studentType === 'Residential' || formData.studentType === 'Hosteller') && (
               <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
                 <h5 className="font-bold text-sky-900 dark:text-sky-200">Hostel Bed Allocation</h5>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
