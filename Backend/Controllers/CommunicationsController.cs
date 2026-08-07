@@ -11,7 +11,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 [ApiController]
-[Route("api/communications")]
+[Route("api/communications-admin")]
 [Authorize(Roles = "Admin,Teacher,Staff")]
 [Tags("Communications & Meeting Management")]
 public class CommunicationsController : ControllerBase

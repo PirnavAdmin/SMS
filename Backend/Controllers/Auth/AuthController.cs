@@ -6,7 +6,7 @@ using SMS.Api.Dtos.Auth;
 using SMS.Api.Services.Interfaces;
 using System.Threading.Tasks;
 
-[ApiController]
+[ApiController]  
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
