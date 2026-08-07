@@ -1,215 +1,618 @@
-import React, { useState } from 'react';
-import { FileText, Search, Plus, Eye, Printer, UserCheck, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  FileText, Search, Plus, Eye, Printer, UserCheck, ShieldAlert, 
+  ChevronLeft, ChevronRight, Filter, Download, RotateCcw, AlertTriangle,
+  BarChart3, Calendar, Building2, CheckCircle2, ShieldCheck, FileSpreadsheet
+} from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { TransferStudentModal } from './TransferStudentModal';
-import { Student } from '../../../types';
+import { Student, TcRecord } from '../../../types';
 
 interface TransferCertificatesViewProps {
   onNavigate?: (module: string) => void;
 }
 
 export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> = ({ onNavigate }) => {
-  const { students } = useData();
+  const { students, academicClasses } = useData();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('All');
+  // Top Module View Tabs
+  const [activeTab, setActiveTab] = useState<'issue' | 'register' | 'reports'>('issue');
+
+  // Filter States
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Modal & Selection States
   const [selectedStudentForTC, setSelectedStudentForTC] = useState<Student | null>(null);
-  const [tcModalOpen, setTcModalOpen] = useState(false);
-  const [viewingTcStudent, setViewingTcStudent] = useState<Student | null>(null);
+  const [selectedTcRecord, setSelectedTcRecord] = useState<TcRecord | null>(null);
+  const [isTcModalOpen, setIsTcModalOpen] = useState<boolean>(false);
 
-  // Transferred or active students eligible for TC
-  const transferredStudents = students.filter(s => {
-    const isTransferred = s.status === 'Transferred';
-    const matchStatus = filterStatus === 'All' || 
-      (filterStatus === 'Transferred' && isTransferred) || 
-      (filterStatus === 'Active' && s.status === 'Active');
-    const matchQuery = !searchQuery || 
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.admissionNo.toLowerCase().includes(searchQuery.toLowerCase());
-    return (isTransferred || filterStatus === 'Active' || filterStatus === 'All') && matchStatus && matchQuery;
-  });
+  // TC Register State (Persisted in localStorage)
+  const [tcRegister, setTcRegister] = useState<TcRecord[]>([]);
 
-  const activeStudentsForIssue = students.filter(s => s.status === 'Active');
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
-  const handleOpenIssueModal = (student: Student) => {
-    setSelectedStudentForTC(student);
-    setTcModalOpen(true);
+  // Load TC Register from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('edu_db_tc_register');
+      if (saved) {
+        setTcRegister(JSON.parse(saved));
+      }
+    } catch (err) {
+      console.error('Failed to load TC register from localStorage', err);
+    }
+  }, [isTcModalOpen]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedClass, selectedSection, selectedBranch, selectedAcademicYear, activeTab]);
+
+  // Derived available sections for selected class
+  const availableSections = useMemo(() => {
+    if (!selectedClass) return ['A', 'B', 'C'];
+    const found = academicClasses?.find(c => c.name.toLowerCase() === selectedClass.toLowerCase());
+    return found ? found.sections : ['A', 'B', 'C'];
+  }, [academicClasses, selectedClass]);
+
+  // Eligible Active Students (Excludes Transferred, Alumni, Discontinued)
+  const eligibleActiveStudents = useMemo(() => {
+    if (!selectedClass) return [];
+
+    return students.filter(s => {
+      // Exclude Transferred, Alumni, Completed/Discontinued
+      if (s.status === 'Transferred' || s.status === 'Alumni' || s.status === 'Completed' || s.status === 'Inactive') {
+        return false;
+      }
+
+      // Class Filter
+      if (selectedClass && s.className.toLowerCase() !== selectedClass.toLowerCase()) {
+        return false;
+      }
+
+      // Section Filter
+      if (selectedSection && selectedSection !== 'All' && s.section.toLowerCase() !== selectedSection.toLowerCase()) {
+        return false;
+      }
+
+      // Branch Filter (from global header)
+      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && (s.branch || 'Main Campus').toLowerCase() !== selectedBranch.toLowerCase()) {
+        return false;
+      }
+
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+        if (!fullName.includes(q) && !s.admissionNo.toLowerCase().includes(q) && !s.rollNo.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [students, selectedClass, selectedSection, selectedBranch, searchQuery]);
+
+  // Filtered TC Register Records
+  const filteredTcRegister = useMemo(() => {
+    return tcRegister.filter(tc => {
+      if (selectedClass && tc.className.toLowerCase() !== selectedClass.toLowerCase()) {
+        return false;
+      }
+      if (selectedSection && selectedSection !== 'All' && tc.section.toLowerCase() !== selectedSection.toLowerCase()) {
+        return false;
+      }
+      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && (tc.branch || 'Main Campus').toLowerCase() !== selectedBranch.toLowerCase()) {
+        return false;
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        if (!tc.studentName.toLowerCase().includes(q) && !tc.admissionNo.toLowerCase().includes(q) && !tc.tcNo.toLowerCase().includes(q)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [tcRegister, selectedClass, selectedSection, selectedBranch, searchQuery]);
+
+  // Active dataset depending on activeTab
+  const activeDataset = activeTab === 'issue' ? eligibleActiveStudents : filteredTcRegister;
+  const totalPages = Math.ceil(activeDataset.length / pageSize) || 1;
+  const paginatedDataset = activeDataset.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  // Check if a student already has an issued TC
+  const getExistingTcForStudent = (studentId: string): TcRecord | undefined => {
+    return tcRegister.find(r => r.studentId === studentId);
   };
+
+  const handleOpenIssueModal = (student: Student, existingTc?: TcRecord) => {
+    setSelectedStudentForTC(student);
+    setSelectedTcRecord(existingTc || null);
+    setIsTcModalOpen(true);
+  };
+
+  // Reports Summaries
+  const reportsSummary = useMemo(() => {
+    const totalIssued = tcRegister.length;
+    const overriddenCount = tcRegister.filter(r => r.clearanceSummary?.overridden).length;
+    
+    // Reason breakdown
+    const reasonsMap: Record<string, number> = {};
+    tcRegister.forEach(r => {
+      const re = r.reason || 'Other';
+      reasonsMap[re] = (reasonsMap[re] || 0) + 1;
+    });
+
+    // Branch breakdown
+    const branchMap: Record<string, number> = {};
+    tcRegister.forEach(r => {
+      const b = r.branch || 'Main Campus';
+      branchMap[b] = (branchMap[b] || 0) + 1;
+    });
+
+    return { totalIssued, overriddenCount, reasonsMap, branchMap };
+  }, [tcRegister]);
 
   return (
     <div className="space-y-6 animate-in fade-in">
+      
       {/* Top Banner Header */}
-      <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+      <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
         <div>
-          <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileText className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Transfer Certificates
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+            <FileText className="w-6 h-6 text-brand-600 dark:text-brand-400 shrink-0" /> Transfer Certificate Processing
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Issue & track official Transfer Certificates (TC) for departing students</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <ExportButton data={transferredStudents} filename="transfer_certificates_log" />
-          <button
-            onClick={() => {
-              if (activeStudentsForIssue.length > 0) {
-                handleOpenIssueModal(activeStudentsForIssue[0]);
-              } else {
-                addToast('warning', 'No Eligible Students', 'No active students available for TC issuance.');
-              }
-            }}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
-          >
-            <Plus className="w-4 h-4" /> Issue Transfer Certificate
-          </button>
+        <div className="flex items-center gap-3">
+          <ExportButton data={tcRegister} filename="transfer_certificates_register" />
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search by student name or admission no..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-          />
-        </div>
+      {/* Main View Tab Switcher Bar */}
+      <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 w-fit">
+        <button
+          onClick={() => setActiveTab('issue')}
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+            activeTab === 'issue'
+              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <UserCheck className="w-4 h-4" /> Issue TC Workflow ({eligibleActiveStudents.length})
+        </button>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-bold text-slate-400">Status:</span>
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-          >
-            <option value="All">All Records</option>
-            <option value="Transferred">Transferred (TC Issued)</option>
-            <option value="Active">Active Students</option>
-          </select>
+        <button
+          onClick={() => setActiveTab('register')}
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+            activeTab === 'register'
+              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <FileSpreadsheet className="w-4 h-4" /> TC Register ({tcRegister.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-2 ${
+            activeTab === 'reports'
+              ? 'bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <BarChart3 className="w-4 h-4" /> TC Reports & Analytics
+        </button>
+      </div>
+
+      {/* Step 1: Filter Toolbar (Preserved Existing Filters + Enhanced Options) */}
+      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          
+          {/* Class Filter (Required for loading) */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Class *</label>
+            <select
+              value={selectedClass}
+              onChange={e => {
+                setSelectedClass(e.target.value);
+                setSelectedSection('');
+              }}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">Select Class</option>
+              {academicClasses?.map(c => (
+                <option key={c.id} value={c.name}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Section Filter */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Section</label>
+            <select
+              value={selectedSection}
+              onChange={e => setSelectedSection(e.target.value)}
+              disabled={!selectedClass}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer disabled:opacity-50 focus:ring-2 focus:ring-brand-500/20"
+            >
+              <option value="">All Sections</option>
+              {availableSections.map(sec => (
+                <option key={sec} value={sec}>Section {sec}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Search Student Input */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">Search Student</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Name or Adm No..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-500/20"
+              />
+            </div>
+          </div>
+
         </div>
       </div>
 
-      {/* Table Card */}
-      <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                <th className="py-3.5 px-4">TC Serial No</th>
-                <th className="py-3.5 px-4">Student Admission No</th>
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Class & Section</th>
-                <th className="py-3.5 px-4">TC Issue Status</th>
-                <th className="py-3.5 px-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {transferredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">No transfer certificate records match your filter.</td>
+      {/* TAB CONTENT 1: ISSUE TC WORKFLOW (ELIGIBLE STUDENTS) */}
+      {activeTab === 'issue' && (
+        <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                  <th className="py-3.5 px-4">Photo</th>
+                  <th className="py-3.5 px-4">Admission No</th>
+                  <th className="py-3.5 px-4">Student Name</th>
+                  <th className="py-3.5 px-4">Class & Sec</th>
+                  <th className="py-3.5 px-4">Roll No</th>
+                  <th className="py-3.5 px-4">Academic Result</th>
+                  <th className="py-3.5 px-4">Clearance Dues</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
-              ) : (
-                transferredStudents.map((st, idx) => {
-                  const tcNo = `TC-2026-${(idx + 101).toString().padStart(3, '0')}`;
-                  const isTransferred = st.status === 'Transferred';
-                  return (
-                    <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
-                        {isTransferred ? tcNo : 'Pending Request'}
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">{st.admissionNo}</td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{st.className} - {st.section}</td>
-                      <td className="py-3 px-4">
-                        {isTransferred ? (
-                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px]">
-                            TC Issued (Transferred)
-                          </span>
-                        ) : (
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
-                            Active Student
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {isTransferred ? (
-                            <button
-                              onClick={() => setViewingTcStudent(st)}
-                              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1"
-                            >
-                              <Eye className="w-3.5 h-3.5" /> View TC
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleOpenIssueModal(st)}
-                              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs flex items-center gap-1"
-                            >
-                              <FileText className="w-3.5 h-3.5" /> Issue TC
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {!selectedClass ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-12 text-slate-400">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Filter className="w-8 h-8 text-slate-300 dark:text-slate-600 animate-pulse" />
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Please select a Class to view eligible student records</p>
+                        <p className="text-xs text-slate-400">Select a Class and Section above to filter active students available for TC issuance.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedDataset.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-8 text-slate-400 font-bold">
+                      No active eligible student records matched your filter criteria for {selectedClass}.
+                    </td>
+                  </tr>
+                ) : (
+                  (paginatedDataset as Student[]).map(st => {
+                    const existingTc = getExistingTcForStudent(st.id);
+                    const dueFee = st.dueFee || 0;
+                    const isPassed = st.gpa >= 2.0;
 
-      {/* Issue TC Modal */}
-      {selectedStudentForTC && (
-        <TransferStudentModal
-          student={selectedStudentForTC}
-          isOpen={tcModalOpen}
-          onClose={() => { setTcModalOpen(false); setSelectedStudentForTC(null); }}
-        />
+                    return (
+                      <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        {/* Photo */}
+                        <td className="py-3 px-4">
+                          {st.avatar ? (
+                            <img src={st.avatar} alt={st.firstName} className="w-8 h-8 rounded-xl object-cover ring-2 ring-slate-100 dark:ring-slate-800" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-slate-500 text-[10px]">
+                              {st.firstName[0]}
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Adm No */}
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{st.admissionNo}</td>
+
+                        {/* Student Name */}
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                          {st.firstName} {st.lastName}
+                        </td>
+
+                        {/* Class & Section */}
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{st.className} - {st.section}</td>
+
+                        {/* Roll No */}
+                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400">{st.rollNo}</td>
+
+                        {/* Academic Result */}
+                        <td className="py-3 px-4">
+                          <span className={`px-2.5 py-0.5 rounded-md font-black text-[10px] ${
+                            isPassed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
+                          }`}>
+                            {isPassed ? 'PASS (' + st.gpa + ')' : 'FAIL'}
+                          </span>
+                        </td>
+
+                        {/* Clearance Dues */}
+                        <td className="py-3 px-4">
+                          {dueFee === 0 ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 font-bold text-[10px]">
+                              <ShieldCheck className="w-3 h-3" /> Cleared
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 font-bold text-[10px]">
+                              <AlertTriangle className="w-3 h-3" /> Dues: ₹{dueFee.toLocaleString()}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-3 px-4">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[10px]">
+                            {st.status}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {existingTc ? (
+                              <button
+                                onClick={() => handleOpenIssueModal(st, existingTc)}
+                                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                                title="This student already has an issued Transfer Certificate"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-brand-600" /> View TC
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleOpenIssueModal(st)}
+                                className="px-3.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                              >
+                                <FileText className="w-3.5 h-3.5" /> Issue TC
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination Footer */}
+          {eligibleActiveStudents.length > 0 && (
+            <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
+              <div className="flex items-center gap-3">
+                <span>
+                  Showing {paginatedDataset.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, eligibleActiveStudents.length)} of {eligibleActiveStudents.length} student(s)
+                </span>
+                <select
+                  value={pageSize}
+                  onChange={e => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                >
+                  <option value={10}>10 per page</option>
+                  <option value={20}>20 per page</option>
+                  <option value={50}>50 per page</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" /> Previous
+                </button>
+                <span className="font-bold text-slate-900 dark:text-white px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                  className="px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  Next <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      {/* View TC Preview Modal */}
-      {viewingTcStudent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="font-bold text-base text-slate-900 dark:text-white">Transfer Certificate Preview</h3>
-              <button onClick={() => setViewingTcStudent(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+      {/* TAB CONTENT 2: TC REGISTER */}
+      {activeTab === 'register' && (
+        <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs space-y-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                  <th className="py-3.5 px-4">TC Serial No</th>
+                  <th className="py-3.5 px-4">Issue Date</th>
+                  <th className="py-3.5 px-4">Admission No</th>
+                  <th className="py-3.5 px-4">Student Name</th>
+                  <th className="py-3.5 px-4">Class & Sec</th>
+                  <th className="py-3.5 px-4">Reason for Leaving</th>
+                  <th className="py-3.5 px-4">Issued By</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {filteredTcRegister.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="text-center py-12 text-slate-400 font-bold">
+                      No Transfer Certificate records found in TC Register.
+                    </td>
+                  </tr>
+                ) : (
+                  (paginatedDataset as TcRecord[]).map(tc => {
+                    const st = students.find(s => s.id === tc.studentId);
+
+                    return (
+                      <tr key={tc.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{tc.tcNo}</td>
+                        <td className="py-3 px-4 font-bold text-slate-700 dark:text-slate-300">{tc.issueDate}</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">{tc.admissionNo}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 dark:text-white whitespace-nowrap">{tc.studentName}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{tc.className} - {tc.section}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{tc.reason}</td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{tc.issuedBy}</td>
+                        <td className="py-3 px-4">
+                          <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 font-extrabold text-[10px]">
+                            {tc.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                if (st) handleOpenIssueModal(st, tc);
+                              }}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-brand-600" /> View TC
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT 3: TC REPORTS & ANALYTICS */}
+      {activeTab === 'reports' && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Top Metrics Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total TCs Issued</span>
+              <p className="text-2xl font-black text-slate-900 dark:text-white">{reportsSummary.totalIssued}</p>
+              <span className="text-[10px] font-bold text-emerald-600">Registered in System</span>
             </div>
 
-            <div className="border-2 border-dashed border-amber-300 dark:border-amber-700/60 p-6 rounded-2xl bg-amber-50/30 dark:bg-amber-950/20 space-y-3 text-xs">
-              <div className="text-center space-y-1">
-                <h4 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-wider">PIRNAV INTERNATIONAL SCHOOL</h4>
-                <p className="text-[10px] text-slate-500 font-bold uppercase">Affiliated to CBSE • School Code: 54109</p>
-                <p className="text-[11px] font-black text-amber-700 dark:text-amber-400 tracking-widest uppercase mt-2">OFFICIAL TRANSFER CERTIFICATE</p>
-              </div>
+            <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Overridden Clearances</span>
+              <p className="text-2xl font-black text-amber-600">{reportsSummary.overriddenCount}</p>
+              <span className="text-[10px] font-bold text-slate-400">Admin Approved Exception</span>
+            </div>
 
-              <div className="grid grid-cols-2 gap-2 border-t border-b border-amber-200/60 dark:border-amber-800/60 py-3 font-semibold text-slate-800 dark:text-slate-200">
-                <p>Student Name: <span className="font-bold text-slate-900 dark:text-white">{viewingTcStudent.firstName} {viewingTcStudent.lastName}</span></p>
-                <p>Admission No: <span className="font-mono font-bold">{viewingTcStudent.admissionNo}</span></p>
-                <p>Last Class: <span className="font-bold">{viewingTcStudent.className}-{viewingTcStudent.section}</span></p>
-                <p>Parent Name: <span className="font-bold">{viewingTcStudent.parentName || 'N/A'}</span></p>
-                <p>Status: <span className="font-bold text-amber-600">TC Issued / Transferred</span></p>
-                <p>Issue Date: <span className="font-bold">{new Date().toLocaleDateString()}</span></p>
+            <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Primary Reason</span>
+              <p className="text-lg font-black text-slate-900 dark:text-white truncate">Parent Request</p>
+              <span className="text-[10px] font-bold text-slate-400">Family & Relocation</span>
+            </div>
+
+            <div className="glass-card p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-1">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Branch Distribution</span>
+              <p className="text-lg font-black text-slate-900 dark:text-white">Main Campus</p>
+              <span className="text-[10px] font-bold text-slate-400">Primary Center</span>
+            </div>
+          </div>
+
+          {/* Detailed Reason & Branch Breakdown Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Reason Wise Report */}
+            <div className="glass-card p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-brand-600" /> Reason-Wise TC Distribution
+              </h3>
+
+              <div className="space-y-3 text-xs">
+                {Object.keys(reportsSummary.reasonsMap).length === 0 ? (
+                  <p className="text-slate-400 font-bold py-4">No TC issuance reasons recorded yet.</p>
+                ) : (
+                  Object.entries(reportsSummary.reasonsMap).map(([reasonKey, count]) => {
+                    const pct = Math.round((count / reportsSummary.totalIssued) * 100) || 0;
+                    return (
+                      <div key={reasonKey} className="space-y-1">
+                        <div className="flex items-center justify-between font-bold text-slate-700 dark:text-slate-300">
+                          <span>{reasonKey}</span>
+                          <span>{count} student(s) ({pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className="h-full bg-brand-600 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button onClick={() => window.print()} className="px-4 py-2 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center gap-1.5">
-                <Printer className="w-4 h-4" /> Print TC
-              </button>
-              <button onClick={() => setViewingTcStudent(null)} className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs">
-                Close
-              </button>
+            {/* Branch Wise Report */}
+            <div className="glass-card p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
+              <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-sky-600" /> Branch-Wise TC Breakdown
+              </h3>
+
+              <div className="space-y-3 text-xs">
+                {Object.keys(reportsSummary.branchMap).length === 0 ? (
+                  <p className="text-slate-400 font-bold py-4">No branch records found in TC register.</p>
+                ) : (
+                  Object.entries(reportsSummary.branchMap).map(([branchKey, count]) => {
+                    const pct = Math.round((count / reportsSummary.totalIssued) * 100) || 0;
+                    return (
+                      <div key={branchKey} className="space-y-1">
+                        <div className="flex items-center justify-between font-bold text-slate-700 dark:text-slate-300">
+                          <span>{branchKey}</span>
+                          <span>{count} student(s) ({pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className="h-full bg-sky-600 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Transfer Student Modal Dialog */}
+      {isTcModalOpen && selectedStudentForTC && (
+        <TransferStudentModal
+          student={selectedStudentForTC}
+          existingTcRecord={selectedTcRecord}
+          isOpen={isTcModalOpen}
+          onClose={() => {
+            setIsTcModalOpen(false);
+            setSelectedStudentForTC(null);
+            setSelectedTcRecord(null);
+          }}
+          onSuccess={(newTc) => {
+            setTcRegister(prev => [newTc, ...prev.filter(r => r.studentId !== newTc.studentId)]);
+          }}
+        />
+      )}
+
     </div>
   );
 };

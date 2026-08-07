@@ -1770,12 +1770,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return schoolProfile.highestClass;
     }
     if (academicClasses && academicClasses.length > 0) {
-      const sorted = [...academicClasses].sort((a, b) => {
-        const numA = parseInt(a.name.replace(/[^0-9]/g, '')) || 0;
-        const numB = parseInt(b.name.replace(/[^0-9]/g, '')) || 0;
-        return numB - numA;
-      });
-      if (sorted[0]?.name) return sorted[0].name;
+      const sorted = [...academicClasses]
+        .map(c => ({ name: c.name, num: parseInt(c.name.replace(/[^0-9]/g, '')) || 0 }))
+        .sort((a, b) => b.num - a.num);
+
+      if (sorted[0] && sorted[0].num >= 10) {
+        return sorted[0].name;
+      }
     }
     return 'Class 12';
   };

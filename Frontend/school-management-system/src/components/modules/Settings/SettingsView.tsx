@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Settings as SettingsIcon, Save, Database, Activity, RefreshCw, Building2, Plus, Edit, Trash2, CheckCircle, XCircle, Search, MapPin, Phone, Mail, X, Calendar, CheckCircle2 } from 'lucide-react';
+import { 
+  Settings as SettingsIcon, Save, Database, Activity, RefreshCw, Building2, 
+  Plus, Edit, Trash2, CheckCircle, XCircle, Search, MapPin, Phone, Mail, 
+  X, Calendar, CheckCircle2, Award, FileCheck, Layers, Palette, ShieldCheck, 
+  FileText, Check, Layout
+} from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { AcademicYearMaster } from '../../../types';
+import { AcademicYearMaster, CertificateTemplateConfig } from '../../../types';
 
 export interface CampusItem {
   id: string;
@@ -21,12 +26,105 @@ const defaultCampuses: CampusItem[] = [
   { id: 'CMP-03', name: 'West Campus', code: 'WEST', address: '99 Mission Way, Knowledge Hub, NY 10003', phone: '+1 (555) 333-111', email: 'west@stxaviers.edu', status: 'Active' }
 ];
 
+export const defaultCertificateTemplates: CertificateTemplateConfig[] = [
+  {
+    id: 'TPL-TC',
+    certificateType: 'Transfer Certificate',
+    title: 'OFFICIAL TRANSFER CERTIFICATE',
+    subTitle: 'CBSE Affiliation No: 883012 • School Code: 40192',
+    headerStyle: 'Classic Double Border',
+    themeColor: '#1e3a8a',
+    showLogo: true,
+    showSeal: true,
+    signatory1: 'Class Teacher Signature',
+    signatory2: 'Verified By (Accounts)',
+    signatory3: 'Principal Signature & Seal',
+    customPreamble: 'Certified that the student details listed below are verified from original school admission registers.',
+    footerDisclaimer: 'Official Transfer Certificate issued in accordance with Education Code Rules.'
+  },
+  {
+    id: 'TPL-BONAFIDE',
+    certificateType: 'Bonafide Certificate',
+    title: 'BONAFIDE STUDY CERTIFICATE',
+    subTitle: 'Recognized Educational Institution',
+    headerStyle: 'Modern Minimalist',
+    themeColor: '#065f46',
+    showLogo: true,
+    showSeal: true,
+    signatory1: 'Class Teacher',
+    signatory2: 'Administrative Officer',
+    signatory3: 'Headmaster / Principal',
+    customPreamble: 'This is to certify that the student is a genuine student studying in our institution.',
+    footerDisclaimer: 'Valid for official passport, bank, or scholarship verification.'
+  },
+  {
+    id: 'TPL-CONDUCT',
+    certificateType: 'Character Certificate',
+    title: 'CHARACTER & CONDUCT CERTIFICATE',
+    subTitle: 'General Student Conduct Evaluation',
+    headerStyle: 'Executive Slate',
+    themeColor: '#1e293b',
+    showLogo: true,
+    showSeal: true,
+    signatory1: 'Counselor / Class Teacher',
+    signatory2: 'Vice Principal',
+    signatory3: 'Principal',
+    customPreamble: 'Certified that the student bears exemplary moral character and satisfactory conduct.',
+    footerDisclaimer: 'Issued upon student or parent request for higher studies.'
+  },
+  {
+    id: 'TPL-LEAVING',
+    certificateType: 'Leaving Certificate',
+    title: 'SCHOOL LEAVING CERTIFICATE',
+    subTitle: 'Secondary Education Departure Record',
+    headerStyle: 'Classic Double Border',
+    themeColor: '#991b1b',
+    showLogo: true,
+    showSeal: true,
+    signatory1: 'Class Teacher',
+    signatory2: 'Registrar',
+    signatory3: 'Principal',
+    customPreamble: 'Certified that the student has completed course work and departed the institution.',
+    footerDisclaimer: 'Official leaving record for board verification.'
+  },
+  {
+    id: 'TPL-MERIT',
+    certificateType: 'Merit Certificate',
+    title: 'CERTIFICATE OF ACADEMIC EXCELLENCE',
+    subTitle: 'Awarded for Outstanding Academic Performance',
+    headerStyle: 'Royal Gold Crest',
+    themeColor: '#92400e',
+    showLogo: true,
+    showSeal: true,
+    signatory1: 'Academic Coordinator',
+    signatory2: 'Exam Controller',
+    signatory3: 'Principal',
+    customPreamble: 'In recognition of stellar academic achievements and exemplary effort.',
+    footerDisclaimer: 'Honorary academic award presented at annual convocation.'
+  },
+  {
+    id: 'TPL-SPORTS',
+    certificateType: 'Sports Certificate',
+    title: 'CERTIFICATE OF SPORTS ACHIEVEMENT',
+    subTitle: 'Annual Inter-School Athletics Championship',
+    headerStyle: 'Modern Minimalist',
+    themeColor: '#0284c7',
+    showLogo: true,
+    showSeal: true,
+    signatory1: 'Physical Education Director',
+    signatory2: 'Sports Coordinator',
+    signatory3: 'Principal',
+    customPreamble: 'Presented for outstanding sportsmanship and championship performance.',
+    footerDisclaimer: 'Official sports recognition certificate.'
+  }
+];
+
 export const SettingsView: React.FC = () => {
   const { schoolProfile, updateSchoolProfile, auditLogs, academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, setCurrentAcademicYear } = useData();
   const { addToast } = useToast();
 
   const [profileForm, setProfileForm] = useState(schoolProfile);
-  const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'academic-year' | 'backup' | 'audit'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'academic-year' | 'certificates' | 'backup' | 'audit'>('profile');
 
   // Academic Year Configuration States
   const [aySearch, setAySearch] = useState('');
@@ -69,12 +167,23 @@ export const SettingsView: React.FC = () => {
     status: 'Active'
   });
 
+  // Certificate Template Configuration States
+  const [certificateTemplates, setCertificateTemplates] = useState<CertificateTemplateConfig[]>(() => {
+    const saved = localStorage.getItem('edu_db_certificate_templates');
+    return saved ? JSON.parse(saved) : defaultCertificateTemplates;
+  });
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('TPL-TC');
+
+  // Currently Selected Certificate Template
+  const currentTemplate = useMemo(() => {
+    return certificateTemplates.find(t => t.id === selectedTemplateId) || certificateTemplates[0];
+  }, [certificateTemplates, selectedTemplateId]);
+
   // Sync campuses to localStorage and trigger Header sync event
   const syncCampuses = (updated: CampusItem[]) => {
     setCampuses(updated);
     localStorage.setItem('school_campuses', JSON.stringify(updated));
 
-    // Sync managed_branches and inactive_branches for Header selector compatibility
     const allActive = updated.filter(c => c.status === 'Active').map(c => c.name);
     const allInactive = updated.filter(c => c.status === 'Inactive').map(c => c.name);
     const allManaged = updated.map(c => c.name);
@@ -82,7 +191,6 @@ export const SettingsView: React.FC = () => {
     localStorage.setItem('managed_branches', JSON.stringify(allManaged));
     localStorage.setItem('inactive_branches', JSON.stringify(allInactive));
 
-    // Dispatch custom event to update Header dropdown instantly
     window.dispatchEvent(new Event('branches_updated'));
   };
 
@@ -90,6 +198,16 @@ export const SettingsView: React.FC = () => {
     e.preventDefault();
     updateSchoolProfile(profileForm);
     addToast('success', 'Settings Saved', 'School branding profile updated successfully.');
+  };
+
+  const handleUpdateTemplate = (updatedFields: Partial<CertificateTemplateConfig>) => {
+    const updated = certificateTemplates.map(t => t.id === selectedTemplateId ? { ...t, ...updatedFields } : t);
+    setCertificateTemplates(updated);
+  };
+
+  const handleSaveCertificateTemplates = () => {
+    localStorage.setItem('edu_db_certificate_templates', JSON.stringify(certificateTemplates));
+    addToast('success', 'Certificate Template Configured', `Saved layout and branding configurations for ${currentTemplate.certificateType}.`);
   };
 
   const handleOpenAddCampus = () => {
@@ -113,54 +231,39 @@ export const SettingsView: React.FC = () => {
 
   const handleSaveCampus = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!campusForm.name.trim()) return;
+    if (!campusForm.name.trim() || !campusForm.code.trim()) return;
 
+    let updated: CampusItem[];
     if (editingCampus) {
-      const updated = campuses.map(c => c.id === editingCampus.id ? { ...c, ...campusForm } : c);
-      syncCampuses(updated);
-      addToast('success', 'Campus Updated', `${campusForm.name} configuration updated.`);
+      updated = campuses.map(c => c.id === editingCampus.id ? { ...editingCampus, ...campusForm } : c);
+      addToast('success', 'Campus Updated', `Updated settings for ${campusForm.name}`);
     } else {
       const newCampus: CampusItem = {
         id: `CMP-${Date.now().toString().slice(-4)}`,
         ...campusForm
       };
-      const updated = [...campuses, newCampus];
-      syncCampuses(updated);
-      addToast('success', 'Campus Created', `${campusForm.name} added to campus configuration.`);
+      updated = [...campuses, newCampus];
+      addToast('success', 'Campus Added', `Added new campus ${campusForm.name}`);
     }
 
-    setIsCampusModalOpen(false);
-  };
-
-  const handleToggleStatus = (campus: CampusItem) => {
-    const nextStatus = campus.status === 'Active' ? 'Inactive' : 'Active';
-    const updated = campuses.map(c => c.id === campus.id ? { ...c, status: nextStatus as "Active" | "Inactive" } : c);
     syncCampuses(updated);
-    addToast('info', 'Status Changed', `${campus.name} set to ${nextStatus}.`);
+    setIsCampusModalOpen(false);
   };
 
   const confirmDeleteCampus = () => {
     if (!deletingCampus) return;
     const updated = campuses.filter(c => c.id !== deletingCampus.id);
     syncCampuses(updated);
-    addToast('success', 'Campus Removed', `${deletingCampus.name} removed from campus configuration.`);
+    addToast('success', 'Campus Removed', `Removed ${deletingCampus.name} campus.`);
     setDeletingCampus(null);
   };
-
-  const filteredCampuses = useMemo(() => {
-    return campuses.filter(c =>
-      c.name.toLowerCase().includes(campusSearch.toLowerCase()) ||
-      c.code.toLowerCase().includes(campusSearch.toLowerCase()) ||
-      c.address.toLowerCase().includes(campusSearch.toLowerCase())
-    );
-  }, [campuses, campusSearch]);
 
   const handleOpenAddAY = () => {
     setEditingAY(null);
     setAyForm({
       academicYear: '',
-      startDate: `${new Date().getFullYear()}-04-01`,
-      endDate: `${new Date().getFullYear() + 1}-03-31`,
+      startDate: '',
+      endDate: '',
       status: 'Upcoming',
       description: '',
       isCurrentAcademicYear: false
@@ -174,9 +277,9 @@ export const SettingsView: React.FC = () => {
       academicYear: ay.academicYear,
       startDate: ay.startDate || '',
       endDate: ay.endDate || '',
-      status: ay.status || 'Upcoming',
+      status: ay.status,
       description: ay.description || '',
-      isCurrentAcademicYear: ay.isCurrentAcademicYear || ay.status === 'Active'
+      isCurrentAcademicYear: ay.isCurrentAcademicYear || false
     });
     setIsAYModalOpen(true);
   };
@@ -228,8 +331,10 @@ export const SettingsView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <SettingsIcon className="w-6 h-6 text-brand-600" /> School Settings
         </h2>
-        </div>
+        <p className="text-xs text-slate-500 font-medium">Manage branding, campus configurations, certificate templates, session master, and system logs</p>
+      </div>
 
+      {/* Settings Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
         <button
           onClick={() => setActiveTab('profile')}
@@ -254,6 +359,14 @@ export const SettingsView: React.FC = () => {
           }`}
         >
           <Calendar className="w-3.5 h-3.5" /> Academic Year Configuration ({(academicYears || []).length})
+        </button>
+        <button
+          onClick={() => setActiveTab('certificates')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            activeTab === 'certificates' ? 'bg-brand-600 text-white shadow-md' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Award className="w-3.5 h-3.5" /> Certificate Templates ({certificateTemplates.length})
         </button>
         <button
           onClick={() => setActiveTab('backup')}
@@ -285,11 +398,11 @@ export const SettingsView: React.FC = () => {
                 required
                 value={profileForm.name}
                 onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
               />
             </div>
             <div>
-              <label className="block font-semibold mb-1">Tagline</label>
+              <label className="block font-semibold mb-1">Tagline / Motto</label>
               <input
                 type="text"
                 value={profileForm.tagline}
@@ -298,9 +411,9 @@ export const SettingsView: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block font-semibold mb-1">Address</label>
-              <input
-                type="text"
+              <label className="block font-semibold mb-1">Full Address</label>
+              <textarea
+                rows={2}
                 value={profileForm.address}
                 onChange={e => setProfileForm({ ...profileForm, address: e.target.value })}
                 className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -308,7 +421,7 @@ export const SettingsView: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block font-semibold mb-1">Phone</label>
+                <label className="block font-semibold mb-1">Contact Phone</label>
                 <input
                   type="text"
                   value={profileForm.phone}
@@ -317,7 +430,7 @@ export const SettingsView: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">Email</label>
+                <label className="block font-semibold mb-1">Contact Email</label>
                 <input
                   type="email"
                   value={profileForm.email}
@@ -328,6 +441,15 @@ export const SettingsView: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label className="block font-semibold mb-1">Website URL</label>
+                <input
+                  type="text"
+                  value={profileForm.website}
+                  onChange={e => setProfileForm({ ...profileForm, website: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                />
+              </div>
+              <div>
                 <label className="block font-semibold mb-1">Principal Name</label>
                 <input
                   type="text"
@@ -336,35 +458,23 @@ export const SettingsView: React.FC = () => {
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />
               </div>
-              <div>
-                <label className="block font-semibold mb-1">Academic Session Year</label>
-                <input
-                  type="text"
-                  value={profileForm.academicYear}
-                  onChange={e => setProfileForm({ ...profileForm, academicYear: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                />
-              </div>
             </div>
-
             <div>
-              <label className="block font-semibold mb-1">Highest Class Offered (Terminal Graduation Grade)</label>
-              <select
-                value={profileForm.highestClass || 'Class 12'}
-                onChange={e => setProfileForm({ ...profileForm, highestClass: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-brand-600 dark:text-brand-400"
-              >
-                <option value="Class 10">Class 10 (Secondary School Terminal)</option>
-                <option value="Class 12">Class 12 (Higher Secondary Terminal)</option>
-                <option value="Grade 10">Grade 10</option>
-                <option value="Grade 12">Grade 12</option>
-              </select>
-              <p className="text-[10px] text-slate-500 mt-1">Students completing this class during annual promotion will automatically graduate to Alumni.</p>
+              <label className="block font-semibold mb-1">School Logo URL</label>
+              <input
+                type="text"
+                value={profileForm.logoUrl}
+                onChange={e => setProfileForm({ ...profileForm, logoUrl: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+              />
             </div>
 
-            <div className="pt-2 flex justify-end">
-              <button type="submit" className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold flex items-center gap-1.5 shadow-md">
-                <Save className="w-4 h-4" /> Save School Profile
+            <div className="pt-2">
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md shadow-brand-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Save className="w-4 h-4" /> Save Profile Settings
               </button>
             </div>
           </form>
@@ -373,103 +483,68 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 2: CAMPUS CONFIGURATION */}
       {activeTab === 'campus' && (
-        <div className="space-y-6">
-          {/* Header Action & Filter Bar */}
-          <div className="glass-card p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100 dark:border-slate-800">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                Campus Branch Master Setup
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-600" /> Campus & Branch Master
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Configure school branches. Active campuses appear in the top header selector.</p>
+              <p className="text-xs text-slate-500">Configure multi-campus branches for global header selection</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search campus..."
-                  value={campusSearch}
-                  onChange={e => setCampusSearch(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none"
-                />
-              </div>
-              <button
-                onClick={handleOpenAddCampus}
-                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors shrink-0"
-              >
-                <Plus className="w-4 h-4" /> Add New Campus
-              </button>
-            </div>
+            <button
+              onClick={handleOpenAddCampus}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add Campus Branch
+            </button>
           </div>
 
-          {/* Campus Grid Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {filteredCampuses.map(campus => (
+            {campuses.map(campus => (
               <div
                 key={campus.id}
-                className={`glass-card p-5 rounded-3xl space-y-4 border transition-all ${
-                  campus.status === 'Active'
-                    ? 'border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700'
-                    : 'border-slate-200/50 bg-slate-50/50 opacity-70'
-                }`}
+                className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative group"
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="p-2.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{campus.name}</h4>
-                      <span className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
-                        {campus.code}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleToggleStatus(campus)}
-                    className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-colors ${
-                      campus.status === 'Active' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                    }`}
-                  >
+                  <span className="font-mono font-bold text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded-md">
+                    {campus.code}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    campus.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  }`}>
                     {campus.status}
-                  </button>
+                  </span>
                 </div>
 
-                <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium">
-                  {campus.address && (
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{campus.address}</span>
-                    </div>
-                  )}
-                  {campus.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>{campus.phone}</span>
-                    </div>
-                  )}
-                  {campus.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{campus.email}</span>
-                    </div>
-                  )}
+                <h4 className="font-extrabold text-base text-slate-900 dark:text-white">{campus.name}</h4>
+
+                <div className="space-y-1.5 text-xs text-slate-500">
+                  <div className="flex items-start gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <span>{campus.address}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>{campus.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>{campus.email}</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
                   <button
                     onClick={() => handleOpenEditCampus(campus)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
+                    className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded-lg transition-colors"
                   >
-                    <Edit className="w-3.5 h-3.5" /> Edit
+                    <Edit className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setDeletingCampus(campus)}
-                    className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-1 transition-colors"
+                    className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950 rounded-lg transition-colors"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -480,136 +555,330 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 3: ACADEMIC YEAR CONFIGURATION */}
       {activeTab === 'academic-year' && (
-        <div className="space-y-6">
-          {/* Header Action & Filter Bar */}
-          <div className="glass-card p-5 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-100 dark:border-slate-800">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-sky-600" />
-                Academic Year Master Setup
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-sky-600" /> Academic Year Master & Sessions
               </h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Configure school academic sessions. Active sessions reflect in the top header selector & entire system.
-              </p>
+              <p className="text-xs text-slate-500">Configure academic sessions, start/end dates, and set active academic year</p>
             </div>
-
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search academic year..."
-                  value={aySearch}
-                  onChange={e => setAySearch(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 rounded-xl border bg-slate-50 dark:bg-slate-800 text-xs font-bold outline-none"
-                />
-              </div>
-              <button
-                onClick={handleOpenAddAY}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors shrink-0"
-              >
-                <Plus className="w-4 h-4" /> Add Academic Year
-              </button>
-            </div>
+            <button
+              onClick={handleOpenAddAY}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-colors"
+            >
+              <Plus className="w-4 h-4" /> Add Academic Year
+            </button>
           </div>
 
-          {/* Academic Year Grid Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {filteredAcademicYears.map(ay => {
-              const isCurrent = ay.isCurrentAcademicYear || ay.status === 'Active';
-              return (
-                <div
-                  key={ay.id}
-                  className={`glass-card p-5 rounded-3xl space-y-4 border transition-all relative ${
-                    isCurrent
-                      ? 'border-emerald-300 dark:border-emerald-800/80 ring-2 ring-emerald-500/20'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2.5 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
-                        <Calendar className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-1.5">
-                          {ay.academicYear}
-                        </h4>
-                        <span className="text-[10px] font-mono font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
-                          {ay.id}
-                        </span>
-                      </div>
-                    </div>
+            {filteredAcademicYears.map(ay => (
+              <div
+                key={ay.id}
+                className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
+                    {ay.academicYear}
+                  </span>
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                    ay.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                  }`}>
+                    {ay.status}
+                  </span>
+                </div>
 
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-colors ${
-                        ay.status === 'Active'
-                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                          : ay.status === 'Upcoming'
-                          ? 'bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300'
-                          : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                      }`}
+                <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                  <p>Start Date: <strong>{ay.startDate || 'N/A'}</strong></p>
+                  <p>End Date: <strong>{ay.endDate || 'N/A'}</strong></p>
+                  {ay.description && <p className="text-slate-400 text-[11px]">{ay.description}</p>}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  {ay.status !== 'Active' ? (
+                    <button
+                      onClick={() => {
+                        setCurrentAcademicYear(ay.id);
+                        addToast('success', 'Current Session Updated', `Set ${ay.academicYear} as active academic session.`);
+                      }}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
                     >
-                      {ay.status}
+                      Set as Active Session
+                    </button>
+                  ) : (
+                    <span className="text-[11px] font-black text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Current Active Session
                     </span>
-                  </div>
+                  )}
 
-                  <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-semibold">Start Date:</span>
-                      <strong className="font-bold text-slate-800 dark:text-slate-200">{ay.startDate || 'N/A'}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400 font-semibold">End Date:</span>
-                      <strong className="font-bold text-slate-800 dark:text-slate-200">{ay.endDate || 'N/A'}</strong>
-                    </div>
-                    {ay.description && (
-                      <p className="text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
-                        {ay.description}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                    {!isCurrent ? (
-                      <button
-                        onClick={() => {
-                          setCurrentAcademicYear(ay.id);
-                          addToast('success', 'Active Session Updated', `${ay.academicYear} set as active. Header dropdown updated.`);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-xs font-bold transition-colors flex items-center gap-1"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" /> Make Active
-                      </button>
-                    ) : (
-                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Header Active
-                      </span>
-                    )}
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleOpenEditAY(ay)}
-                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors"
-                      >
-                        <Edit className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button
-                        onClick={() => setDeletingAY(ay)}
-                        className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-1 transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Delete
-                      </button>
-                    </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleOpenEditAY(ay)}
+                      className="p-1.5 text-slate-500 hover:text-sky-600 rounded-lg"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setDeletingAY(ay)}
+                      className="p-1.5 text-slate-500 hover:text-rose-600 rounded-lg"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* TAB 4: BACKUP & RESTORE */}
+      {/* TAB 4: CERTIFICATE TEMPLATE CONFIGURATION (NEW FEATURE) */}
+      {activeTab === 'certificates' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div>
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-600" /> Certificate Template Designer & Configuration
+              </h3>
+              <p className="text-xs text-slate-500">Configure layouts, titles, color themes, logos, seals, and signatories for all school certificates</p>
+            </div>
+
+            <button
+              onClick={handleSaveCertificateTemplates}
+              className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs shadow-md shadow-amber-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Save className="w-4 h-4" /> Save Certificate Configuration
+            </button>
+          </div>
+
+          {/* Template Selector & Editor Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Left: List of Available Certificate Templates */}
+            <div className="lg:col-span-4 space-y-2">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">Select Certificate Type</h4>
+              <div className="space-y-2">
+                {certificateTemplates.map(tpl => {
+                  const isSelected = tpl.id === selectedTemplateId;
+                  return (
+                    <button
+                      key={tpl.id}
+                      onClick={() => setSelectedTemplateId(tpl.id)}
+                      className={`w-full p-3.5 rounded-2xl text-left border transition-all flex items-center justify-between cursor-pointer ${
+                        isSelected
+                          ? 'bg-white dark:bg-slate-900 border-amber-500 dark:border-amber-500 shadow-md ring-2 ring-amber-500/20'
+                          : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-900'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-4 h-8 rounded-lg shrink-0"
+                          style={{ backgroundColor: tpl.themeColor }}
+                        />
+                        <div>
+                          <p className="font-extrabold text-xs text-slate-900 dark:text-white">{tpl.certificateType}</p>
+                          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[180px]">{tpl.title}</p>
+                        </div>
+                      </div>
+
+                      {isSelected && (
+                        <CheckCircle2 className="w-5 h-5 text-amber-600 shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right: Certificate Configuration Form & Live Preview */}
+            <div className="lg:col-span-8 space-y-6">
+              
+              {/* Form Config Card */}
+              <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h4 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-amber-600" /> Customize Layout: {currentTemplate.certificateType}
+                  </h4>
+                  <span className="px-2.5 py-0.5 rounded-md font-mono text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                    ID: {currentTemplate.id}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  {/* Certificate Title */}
+                  <div>
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Official Header Title *</label>
+                    <input
+                      type="text"
+                      value={currentTemplate.title}
+                      onChange={e => handleUpdateTemplate({ title: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </div>
+
+                  {/* Subtitle */}
+                  <div>
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Affiliation Sub-Header</label>
+                    <input
+                      type="text"
+                      value={currentTemplate.subTitle}
+                      onChange={e => handleUpdateTemplate({ subTitle: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500/20"
+                    />
+                  </div>
+
+                  {/* Theme Accent Color */}
+                  <div>
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Theme Accent Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={currentTemplate.themeColor}
+                        onChange={e => handleUpdateTemplate({ themeColor: e.target.value })}
+                        className="w-9 h-9 rounded-xl border border-slate-200 cursor-pointer p-0.5"
+                      />
+                      <input
+                        type="text"
+                        value={currentTemplate.themeColor}
+                        onChange={e => handleUpdateTemplate({ themeColor: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Header Border Style */}
+                  <div>
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Border Layout Style</label>
+                    <select
+                      value={currentTemplate.headerStyle}
+                      onChange={e => handleUpdateTemplate({ headerStyle: e.target.value as any })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                    >
+                      <option value="Classic Double Border">Classic Double Border</option>
+                      <option value="Modern Minimalist">Modern Minimalist</option>
+                      <option value="Royal Gold Crest">Royal Gold Crest</option>
+                      <option value="Executive Slate">Executive Slate</option>
+                    </select>
+                  </div>
+
+                  {/* Logo & Seal Toggles */}
+                  <div className="sm:col-span-2 grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700">
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={currentTemplate.showLogo}
+                        onChange={e => handleUpdateTemplate({ showLogo: e.target.checked })}
+                        className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      Display School Logo in Header
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={currentTemplate.showSeal}
+                        onChange={e => handleUpdateTemplate({ showSeal: e.target.checked })}
+                        className="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      Display Official School Stamp/Seal Graphic
+                    </label>
+                  </div>
+
+                  {/* Signatory Labels */}
+                  <div>
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Left Signatory Designation</label>
+                    <input
+                      type="text"
+                      value={currentTemplate.signatory1}
+                      onChange={e => handleUpdateTemplate({ signatory1: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Center Signatory Designation</label>
+                    <input
+                      type="text"
+                      value={currentTemplate.signatory2}
+                      onChange={e => handleUpdateTemplate({ signatory2: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Right Signatory Designation</label>
+                    <input
+                      type="text"
+                      value={currentTemplate.signatory3}
+                      onChange={e => handleUpdateTemplate({ signatory3: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Certificate Header Preview Box */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">Live Certificate Header Preview</h4>
+                
+                <div
+                  className="p-6 rounded-2xl bg-white text-slate-900 border-4 space-y-4 font-serif shadow-lg transition-all"
+                  style={{ borderColor: currentTemplate.themeColor }}
+                >
+                  <div className="text-center border-b pb-3 space-y-1" style={{ borderColor: currentTemplate.themeColor }}>
+                    <div className="flex items-center justify-center gap-3">
+                      {currentTemplate.showLogo && (
+                        schoolProfile.logoUrl ? (
+                          <img src={schoolProfile.logoUrl} alt="Logo" className="w-8 h-8 object-contain shrink-0" />
+                        ) : (
+                          <Building2 className="w-7 h-7 shrink-0" style={{ color: currentTemplate.themeColor }} />
+                        )
+                      )}
+                      <h3 className="text-xl font-black uppercase font-sans tracking-wide">{schoolProfile.name}</h3>
+                    </div>
+                    <p className="text-[11px] font-sans text-slate-600 font-bold">{schoolProfile.address}</p>
+                    <div className="pt-2">
+                      <span
+                        className="px-4 py-0.5 rounded-full text-white text-[11px] font-bold tracking-widest uppercase font-sans inline-block"
+                        style={{ backgroundColor: currentTemplate.themeColor }}
+                      >
+                        {currentTemplate.title}
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-sans text-slate-500 pt-1">{currentTemplate.subTitle}</p>
+                  </div>
+
+                  {/* Signatories Footer Preview */}
+                  <div className="pt-6 flex items-center justify-between text-[11px] font-sans">
+                    <div className="text-center">
+                      <div className="h-6"></div>
+                      <p className="font-bold text-slate-800 border-t border-slate-300 pt-0.5 px-2">{currentTemplate.signatory1}</p>
+                    </div>
+                    <div className="text-center">
+                      <div className="h-6"></div>
+                      <p className="font-bold text-slate-800 border-t border-slate-300 pt-0.5 px-2">{currentTemplate.signatory2}</p>
+                    </div>
+                    <div className="text-center">
+                      {currentTemplate.showSeal && (
+                        <div
+                          className="w-12 h-12 rounded-full border-2 border-dashed mx-auto flex items-center justify-center text-[8px] font-black rotate-12 mb-1"
+                          style={{ borderColor: currentTemplate.themeColor, color: currentTemplate.themeColor }}
+                        >
+                          SEAL
+                        </div>
+                      )}
+                      <p className="font-bold text-slate-800 border-t border-slate-300 pt-0.5 px-2">{currentTemplate.signatory3}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: BACKUP & RESTORE */}
       {activeTab === 'backup' && (
         <div className="glass-card p-6 rounded-3xl space-y-4 max-w-xl border border-slate-100 dark:border-slate-800">
           <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
@@ -629,7 +898,7 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 5: SYSTEM AUDIT LOGS */}
+      {/* TAB 6: SYSTEM AUDIT LOGS */}
       {activeTab === 'audit' && (
         <div className="glass-card rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
           <table className="w-full text-left border-collapse text-xs">
@@ -648,7 +917,7 @@ export const SettingsView: React.FC = () => {
                   <td className="py-3 px-4 font-mono text-slate-500">{log.timestamp}</td>
                   <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.userName} ({log.userRole})</td>
                   <td className="py-3 px-4 text-brand-600 font-semibold">{log.action}</td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{log.details}</td>
+                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">{log.details}</td>
                   <td className="py-3 px-4 font-mono text-slate-400">{log.ipAddress}</td>
                 </tr>
               ))}
@@ -657,119 +926,13 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* Add / Edit Academic Year Modal */}
-      {isAYModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-sky-600" />
-                {editingAY ? 'Edit Academic Year Configuration' : 'Add New Academic Year'}
-              </h3>
-              <button onClick={() => setIsAYModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveAY} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Academic Year Title *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 2026-2027 or 2027-2028"
-                  value={ayForm.academicYear}
-                  onChange={e => setAyForm({ ...ayForm, academicYear: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={ayForm.startDate}
-                    onChange={e => setAyForm({ ...ayForm, startDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={ayForm.endDate}
-                    onChange={e => setAyForm({ ...ayForm, endDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Session Status</label>
-                <select
-                  value={ayForm.status}
-                  onChange={e => setAyForm({ ...ayForm, status: e.target.value as any })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                >
-                  <option value="Upcoming">Upcoming (Future Academic Cycle)</option>
-                  <option value="Active">Active (Current Running Session)</option>
-                  <option value="Closed">Closed (Archived Past Session)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Description / Notes</label>
-                <textarea
-                  rows={2}
-                  placeholder="Additional notes for this session..."
-                  value={ayForm.description}
-                  onChange={e => setAyForm({ ...ayForm, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="isCurrentAcademicYear"
-                  checked={ayForm.isCurrentAcademicYear}
-                  onChange={e => setAyForm({ ...ayForm, isCurrentAcademicYear: e.target.checked })}
-                  className="w-4 h-4 rounded text-sky-600 cursor-pointer"
-                />
-                <label htmlFor="isCurrentAcademicYear" className="text-xs font-bold text-slate-700 dark:text-slate-300 cursor-pointer">
-                  Set as Active Academic Year in Header Selector
-                </label>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsAYModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md"
-                >
-                  Save Academic Year
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* Add / Edit Campus Modal */}
       {isCampusModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-indigo-600" />
-                {editingCampus ? 'Edit Campus Configuration' : 'Add New Campus Branch'}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white">
+                {editingCampus ? 'Edit Campus Branch' : 'Add Campus Branch'}
               </h3>
               <button onClick={() => setIsCampusModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
@@ -782,10 +945,10 @@ export const SettingsView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. South Campus"
+                  placeholder="e.g. North Branch"
                   value={campusForm.name}
                   onChange={e => setCampusForm({ ...campusForm, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                 />
               </div>
 
@@ -794,7 +957,7 @@ export const SettingsView: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. SOUTH"
+                  placeholder="e.g. NORTH"
                   value={campusForm.code}
                   onChange={e => setCampusForm({ ...campusForm, code: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
