@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { Clock, Search, AlertCircle, IndianRupee } from 'lucide-react';
+import { Clock, Search, AlertCircle, IndianRupee, Filter } from 'lucide-react';
 import { Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
-import { ExportButton } from '../../common/ExportButton';
 
 interface DueFeesViewProps {
   onCollectStudentFee: (student: Student) => void;
@@ -14,8 +13,13 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
 
   const [query, setQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('All');
+  const [selectedSection, setSelectedSection] = useState('All');
 
-  const studentsWithDues = students.map(st => {
+  const uniqueSections = Array.from(new Set(students.map(st => st.section))).filter(Boolean).sort();
+
+  const isFilterSelected = selectedClass !== 'All' || selectedSection !== 'All' || query.trim() !== '';
+
+  const studentsWithDues = !isFilterSelected ? [] : students.map(st => {
     const calc = calculateStudentPayableFee(st.id);
     return {
       student: st,
@@ -25,27 +29,27 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
     const due = item.calc ? item.calc.dueBalance : item.student.dueFee;
     const matchesQuery = `${item.student.firstName} ${item.student.lastName}`.toLowerCase().includes(query.toLowerCase()) || item.student.admissionNo.toLowerCase().includes(query.toLowerCase());
     const matchesClass = selectedClass === 'All' || item.student.className === selectedClass;
-    return due > 0 && matchesQuery && matchesClass;
+    const matchesSection = selectedSection === 'All' || item.student.section === selectedSection;
+    return due > 0 && matchesQuery && matchesClass && matchesSection;
   });
 
-  const totalOutstanding = studentsWithDues.reduce((acc, item) => acc + (item.calc ? item.calc.dueBalance : item.student.dueFee), 0);
+  const totalOutstanding = isFilterSelected ? studentsWithDues.reduce((acc, item) => acc + (item.calc ? item.calc.dueBalance : item.student.dueFee), 0) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      <div className="flex justify-end">
-        <ExportButton data={studentsWithDues.map(i => ({ name: `${i.student.firstName} ${i.student.lastName}`, admissionNo: i.student.admissionNo, class: i.student.className, due: i.calc?.dueBalance }))} filename="outstanding_dues" />
-      </div>
 
       {/* Summary KPI Banner */}
-      <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500">
-        <div>
-          <p className="text-xs font-semibold text-slate-500 uppercase">Total Outstanding Dues</p>
-          <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalOutstanding)}</h3>
+      {isFilterSelected && (
+        <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500">
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Total Outstanding Dues</p>
+            <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalOutstanding)}</h3>
+          </div>
+          <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
+            <AlertCircle className="w-6 h-6" />
+          </div>
         </div>
-        <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
-          <AlertCircle className="w-6 h-6" />
-        </div>
-      </div>
+      )}
 
       {/* Filter */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -60,64 +64,97 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
           />
         </div>
 
-        <select
-          value={selectedClass}
-          onChange={e => setSelectedClass(e.target.value)}
-          className="w-full sm:w-48 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-        >
-          <option value="All">All Class Grades</option>
-          {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-        </select>
-      </div>
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+          <select
+            value={selectedClass}
+            onChange={e => setSelectedClass(e.target.value)}
+            className="w-full sm:w-44 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
+          >
+            <option value="All">Select Class</option>
+            {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
 
-      {/* Dues Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Adm No</th>
-                <th className="py-3.5 px-4">Class</th>
-                <th className="py-3.5 px-4">Transport Due</th>
-                <th className="py-3.5 px-4">Hostel Due</th>
-                <th className="py-3.5 px-4">Fine Due</th>
-                <th className="py-3.5 px-4">Total Net Due</th>
-                <th className="py-3.5 px-4 text-right">Collect</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {studentsWithDues.map(({ student: st, calc }) => (
-                <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</td>
-                  <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
-                  <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
-                  <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                    {formatCurrency(calc?.transportFee || 0)}
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                    {formatCurrency(calc?.hostelFee || 0)}
-                  </td>
-                  <td className="py-3 px-4 font-semibold text-rose-500">
-                    {formatCurrency(calc?.fineAmount || 0)}
-                  </td>
-                  <td className="py-3 px-4 font-black text-rose-600 dark:text-rose-400">
-                    {formatCurrency(calc ? calc.dueBalance : st.dueFee)}
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => onCollectStudentFee(st)}
-                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto"
-                    >
-                      <IndianRupee className="w-3.5 h-3.5" /> Collect
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <select
+            value={selectedSection}
+            onChange={e => setSelectedSection(e.target.value)}
+            className="w-full sm:w-36 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
+          >
+            <option value="All">Select Section</option>
+            {uniqueSections.map(sec => <option key={sec} value={sec}>Section {sec}</option>)}
+          </select>
         </div>
       </div>
+
+      {/* Dues Table or Filter Required Message */}
+      {!isFilterSelected ? (
+        <div className="glass-card p-12 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center space-y-3 bg-white dark:bg-slate-900 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200/60 dark:border-sky-800/60">
+            <Filter className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="font-bold text-sm text-slate-900 dark:text-white">Select Filter to Display Dues</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+              Please select a Class or Section from the filter options above to view student outstanding fee balances.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3.5 px-4">Student Name</th>
+                  <th className="py-3.5 px-4">Adm No</th>
+                  <th className="py-3.5 px-4">Class</th>
+                  <th className="py-3.5 px-4">Transport Due</th>
+                  <th className="py-3.5 px-4">Hostel Due</th>
+                  <th className="py-3.5 px-4">Fine Due</th>
+                  <th className="py-3.5 px-4">Total Net Due</th>
+                  <th className="py-3.5 px-4 text-right">Collect</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                {studentsWithDues.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-slate-400 text-xs font-semibold">
+                      No students with outstanding dues match the selected filter criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  studentsWithDues.map(({ student: st, calc }) => (
+                    <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                        {formatCurrency(calc?.transportFee || 0)}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                        {formatCurrency(calc?.hostelFee || 0)}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-rose-500">
+                        {formatCurrency(calc?.fineAmount || 0)}
+                      </td>
+                      <td className="py-3 px-4 font-black text-rose-600 dark:text-rose-400">
+                        {formatCurrency(calc ? calc.dueBalance : st.dueFee)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => onCollectStudentFee(st)}
+                          className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto"
+                        >
+                          <IndianRupee className="w-3.5 h-3.5" /> Collect
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

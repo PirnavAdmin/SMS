@@ -111,37 +111,6 @@ export const HostelDashboardView: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Room Type Utilization */}
-            <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-lg space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-emerald-500" /> Room Type Inventory Utilization
-                </h3>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-extrabold text-[10px]">Capacity Engine</span>
-              </div>
-
-              <div className="space-y-3 text-xs">
-                {roomTypeMasters.map(rt => {
-                  const countRooms = roomMasters.filter(r => r.roomTypeId === rt.id).length;
-                  const configPricing = financeHostelConfigs.find(c => c.roomTypeId === rt.id);
-
-                  return (
-                    <div key={rt.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
-                      <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white">{rt.roomTypeName}</h4>
-                        <p className="text-[10px] text-slate-400">Total Rooms: {countRooms} | Bed Cap: {rt.capacity}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-extrabold text-sky-600 dark:text-sky-400">{formatCurrency(configPricing?.hostelFee || 40000)}</p>
-                        <p className="text-[10px] text-slate-400">Configured Fee</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
         </>
       )}
     </div>
