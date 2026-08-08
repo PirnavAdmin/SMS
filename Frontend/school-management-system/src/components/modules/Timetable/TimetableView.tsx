@@ -200,10 +200,13 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   };
 
   const classOptions = useMemo(() => academicClasses.map(c => c.name), [academicClasses]);
-  const getSectionsForClass = (className?: string) => academicClasses.find(c => c.name === className)?.sections || ['A', 'B'];
+  const getSectionsForClass = (className?: string) => {
+    if (!className) return [];
+    return academicClasses.find(c => c.name === className)?.sections || [];
+  };
 
-  const [selectedClass, setSelectedClass] = useState(academicClasses[0]?.name || 'Class 10');
-  const [selectedSection, setSelectedSection] = useState(getSectionsForClass(academicClasses[0]?.name)[0] || 'A');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
 
   const [selectedTeacherName, setSelectedTeacherName] = useState<string>(teacherFullName);
 
@@ -240,17 +243,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const days = includeSaturday ? [...baseDays, 'Saturday'] : baseDays;
 
   const sectionOptions = useMemo(
-    () => academicClasses.find(c => c.name === selectedClass)?.sections || ['A', 'B'],
+    () => {
+      if (!selectedClass) return [];
+      return academicClasses.find(c => c.name === selectedClass)?.sections || [];
+    },
     [academicClasses, selectedClass]
   );
 
   useEffect(() => {
-    if (sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
+    if (selectedClass && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
     }
-  }, [sectionOptions, selectedSection]);
-
-  useEffect(() => {
+  }, [sectionOptions, selectedSection, selectedClass]);  useEffect(() => {
     if (isBulkAssignModalOpen) {
       const remaining: string[] = [];
       academicClasses.forEach(c => {
@@ -1067,10 +1071,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   onChange={e => {
                     const nextClass = e.target.value;
                     setSelectedClass(nextClass);
-                    setSelectedSection(getSectionsForClass(nextClass)[0] || 'A');
+                    setSelectedSection('');
                   }}
                   className="appearance-none pr-9 pl-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
                 >
+                  <option value="">Select Class</option>
                   {classOptions.map(className => (
                     <option key={className} value={className}>{className}</option>
                   ))}
@@ -1085,6 +1090,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   onChange={e => setSelectedSection(e.target.value)}
                   className="appearance-none pr-9 pl-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
                 >
+                  <option value="">Select Section</option>
                   {sectionOptions.map(section => (
                     <option key={section} value={section}>Section {section}</option>
                   ))}
@@ -1108,13 +1114,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 <>
                   <button
                     onClick={handlePublishTimetable}
-                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
+                    disabled={!selectedClass || !selectedSection}
+                    className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" /> Publish Timetable
                   </button>
                   <button
                     onClick={() => handleOpenAdd()}
-                    className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
+                    disabled={!selectedClass || !selectedSection}
+                    className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Period Slot
                   </button>
@@ -1123,8 +1131,19 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             </div>
           </div>
 
-          <div className="glass-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl">
-            <div className="overflow-x-auto p-4">
+          {!selectedClass || !selectedSection ? (
+            <div className="glass-card bg-white dark:bg-slate-900 p-16 rounded-3xl border border-slate-200 dark:border-slate-800 text-center shadow-xl">
+              <div className="w-16 h-16 mx-auto mb-4 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
+                <SlidersHorizontal className="w-6 h-6 text-sky-650 dark:text-sky-400" />
+              </div>
+              <h3 className="text-base font-black text-slate-850 dark:text-white">Please Select Class and Section</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                Use the Class and Section dropdown filters located in the header above to load the weekly timetable view.
+              </p>
+            </div>
+          ) : (
+            <div className="glass-card bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xl">
+              <div className="overflow-x-auto p-4">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
@@ -1215,6 +1234,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </table>
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -1367,7 +1387,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
                   {/* Assigned classes list */}
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-500">Assigned Classes ({configuredClassSections.length}):</span>
+                    <span className="text-xs font-bold text-slate-500">Assigned Timetable for Classes ({configuredClassSections.length}):</span>
                     {configuredClassSections.length === 0 ? (
                       <p className="text-xs text-slate-400 italic">No classes configured yet.</p>
                     ) : (
@@ -1383,7 +1403,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
                   {/* Remaining classes list */}
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-slate-500">Remaining Classes ({remainingClassSections.length}):</span>
+                    <span className="text-xs font-bold text-slate-500">Remaining Timetable for Classes ({remainingClassSections.length}):</span>
                     {remainingClassSections.length === 0 ? (
                       <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">🎉 All classes & sections are fully configured!</p>
                     ) : (
@@ -1442,10 +1462,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                         onChange={e => {
                           const nextClass = e.target.value;
                           setSelectedClass(nextClass);
-                          setSelectedSection(getSectionsForClass(nextClass)[0] || 'A');
+                          setSelectedSection('');
                         }}
                         className="appearance-none pr-9 pl-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
                       >
+                        <option value="">Select Class</option>
                         {classOptions.map(className => (
                           <option key={className} value={className}>{className}</option>
                         ))}
@@ -1463,6 +1484,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                         onChange={e => setSelectedSection(e.target.value)}
                         className="appearance-none pr-9 pl-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
                       >
+                        <option value="">Select Section</option>
                         {sectionOptions.map(section => (
                           <option key={section} value={section}>Section {section}</option>
                         ))}
@@ -1487,17 +1509,19 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                     <button
                       onClick={() => {
                         setIsEditingMaster(false);
+                        const len = activePeriodsToDisplay?.length || 0;
                         setPeriodFormData({
-                          periodName: `Period ${activePeriodsToDisplay.length + 1}`,
+                          periodName: `Period ${len + 1}`,
                           startTime: '08:30 AM',
                           endTime: '09:15 AM',
-                          sequence: activePeriodsToDisplay.length + 1,
+                          sequence: len + 1,
                           periodType: 'Teaching',
                           status: 'Active'
                         });
                         setIsPeriodModalOpen(true);
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
+                      disabled={!selectedClass || !selectedSection}
+                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
                     >
                       <Plus className="w-4 h-4" /> Add Class Period
                     </button>
@@ -1505,7 +1529,17 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 </div>
               </div>
 
-              {!hasCustomPeriods ? (
+              {!selectedClass || !selectedSection ? (
+                <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-905/10">
+                  <div className="w-12 h-12 mx-auto mb-3 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
+                    <SlidersHorizontal className="w-5 h-5 text-sky-650 dark:text-sky-400" />
+                  </div>
+                  <p className="text-sm font-black text-slate-850 dark:text-white">Please Select Class and Section</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto leading-relaxed">
+                    Use the Class and Section dropdown filters located in the header above to load the schedule details.
+                  </p>
+                </div>
+              ) : !hasCustomPeriods ? (
                 <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-905/10">
                   <SlidersHorizontal className="w-9 h-9 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-350">No period schedule configured for {selectedClass} - Section {selectedSection}</p>

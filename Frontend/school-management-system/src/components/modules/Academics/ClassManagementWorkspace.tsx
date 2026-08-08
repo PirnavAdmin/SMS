@@ -467,6 +467,9 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     return allTeacherSubjects.some(s => s.includes(target) || target.includes(s));
   };
 
+  // Subject list search
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+
   // Student list search & filter parameters
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [studentFilterGender, setStudentFilterGender] = useState('');
@@ -1362,14 +1365,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       addToast('warning', 'Already Assigned', `${teacherFullName} is already assigned as Class Teacher for ${(assignedConflict as any).className} Section ${(assignedConflict as any).section}.`);
       return;
     }
-
     const updatedTeachers = {
       ...details,
       [activeWorkspaceSection]: teacherFullName
     };
 
     updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
-    addToast('success', 'Class Teacher Assigned', `Assigned ${teacherFullName} as Class Teacher for Section ${activeWorkspaceSection}.`);
 
     assignTeacherApi(activeClass.id, activeWorkspaceSection, {
       teacher_id: teacherId,
@@ -1377,6 +1378,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }).catch(() => {});
 
     // Auto-assign subject if class teacher is assigned and has a teaching subject
+    const autoAssignedSubjects: string[] = [];
     if (t) {
       const teacherSubjects = [
         t.primarySubject,
@@ -1417,12 +1419,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             status: 'Active'
           });
         }
+        autoAssignedSubjects.push(targetSubject);
       });
-
-      if (targetSubjects.length > 0) {
-        addToast('success', 'Auto-assigned Subject(s)', `Automatically mapped ${teacherFullName} to teach: ${targetSubjects.join(', ')} in Section ${activeWorkspaceSection}.`);
-      }
     }
+
+    const subjectsMsg = autoAssignedSubjects.length > 0
+      ? ` and auto-assigned to teach: ${autoAssignedSubjects.join(', ')}`
+      : '';
+
+    addToast('success', 'Class Teacher Assigned', `Assigned ${teacherFullName} as Class Teacher for Section ${activeWorkspaceSection}${subjectsMsg}.`);
   };
 
   const handleAssignSubjectTeacher = (subjectName: string, teacherId: string) => {
@@ -2082,6 +2087,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {classWorkspaceTab === 'subjects' && (() => {
                   const mappedSubjectsList = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
                   const mappedCount = mappedSubjectsList.length;
+                  const filteredSubjects = subjects.filter(sub => {
+                    const q = subjectSearchQuery.toLowerCase();
+                    return sub.name.toLowerCase().includes(q) ||
+                           (sub.code || sub.subjectId || '').toLowerCase().includes(q) ||
+                           (sub.department || '').toLowerCase().includes(q);
+                  });
 
                   return (
                     <div className="p-6 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-6 text-left animate-in fade-in">
@@ -2093,8 +2104,26 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             <span>Subject Allocation</span>
                           </h4>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="px-3 py-1 rounded-full text-xs font-black bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                          <div className="relative">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder="Search subjects..."
+                              value={subjectSearchQuery}
+                              onChange={e => setSubjectSearchQuery(e.target.value)}
+                              className="w-full sm:w-56 pl-9 pr-8 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-xs"
+                            />
+                            {subjectSearchQuery && (
+                              <button
+                                onClick={() => setSubjectSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800 shrink-0">
                             {mappedCount} Subjects Allocated
                           </span>
                         </div>
@@ -2102,7 +2131,12 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
                       {/* Subject Cards Grid */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {subjects.map(sub => {
+                        {filteredSubjects.length === 0 ? (
+                          <div className="col-span-full py-8 text-center text-slate-400 font-bold text-xs">
+                            No subjects match your search.
+                          </div>
+                        ) : (
+                          filteredSubjects.map(sub => {
                           const isMapped = (activeClass.subjects || []).includes(sub.name);
                           const subCode = sub.code || sub.subjectId;
                           const deptName = sub.department || 'General Academics';
@@ -2144,7 +2178,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                               </div>
                             </div>
                           );
-                        })}
+                        }))}
                       </div>
                     </div>
                   );
@@ -2277,9 +2311,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             
                             <div className="divide-y divide-slate-200/60 dark:divide-slate-800 space-y-2.5">
                               {mappedSubjectsForClass.length === 0 ? (
-                                <p className="text-slate-400 py-6 text-center font-bold">
-                                  No subjects mapped to this class. Select subjects in the <button onClick={() => setClassWorkspaceTab('subjects')} className="text-sky-600 underline font-bold">Subjects</button> tab first.
-                                </p>
+                                <div className="text-center py-8 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/60 shadow-xs">
+                                  <div className="w-10 h-10 mx-auto mb-3 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-xs animate-pulse">
+                                    <BookOpen className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400" />
+                                  </div>
+                                  <p className="text-xs font-black text-slate-800 dark:text-white">No subjects mapped to this class</p>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                                    Please configure the academic subjects first by navigating to the <button onClick={() => setClassWorkspaceTab('subjects')} className="text-sky-600 dark:text-sky-400 underline font-black hover:text-sky-500 transition-colors">Subjects tab</button> page.
+                                  </p>
+                                </div>
                               ) : (
                                 mappedSubjectsForClass.map(sub => {
                                   const subName = sub.name;

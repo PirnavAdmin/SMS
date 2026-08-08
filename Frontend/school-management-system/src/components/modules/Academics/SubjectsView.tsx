@@ -108,6 +108,23 @@ export const SubjectsView: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
+  const [deptCurrentPage, setDeptCurrentPage] = useState(1);
+  const [desigCurrentPage, setDesigCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setDeptCurrentPage(1);
+  }, [deptQuery]);
+
+  useEffect(() => {
+    setDesigCurrentPage(1);
+  }, [desigQuery, desigCategoryFilter]);
+
+  const deptTotalPages = Math.ceil(filteredDepartments.length / pageSize) || 1;
+  const paginatedDepartments = filteredDepartments.slice((deptCurrentPage - 1) * pageSize, deptCurrentPage * pageSize);
+
+  const desigTotalPages = Math.ceil(filteredDesignations.length / pageSize) || 1;
+  const paginatedDesignations = filteredDesignations.slice((desigCurrentPage - 1) * pageSize, desigCurrentPage * pageSize);
+
 
   const loadSubjects = async () => {
     try {
@@ -666,10 +683,10 @@ export const SubjectsView: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="font-medium">
-                    {filteredDepartments.length === 0 ? (
+                    {paginatedDepartments.length === 0 ? (
                       <tr><td colSpan={6} className="text-center py-8 text-slate-500 font-bold">No departments found.</td></tr>
                     ) : (
-                      filteredDepartments.map((dept, index) => {
+                      paginatedDepartments.map((dept, index) => {
                         const deptStaff = (contextStaff || []).filter(st => {
                           const dName = (dept.departmentName || '').toLowerCase().trim();
                           const dCode = (dept.departmentCode || '').toLowerCase().trim();
@@ -680,7 +697,7 @@ export const SubjectsView: React.FC = () => {
 
                         return (
                           <tr key={dept.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                            <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{index + 1}</td>
+                            <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{(deptCurrentPage - 1) * pageSize + index + 1}</td>
                             <td className="py-3.5 px-2">
                               <div className="font-extrabold text-slate-900 dark:text-white">{dept.departmentName}</div>
                               {dept.description && (
@@ -743,11 +760,33 @@ export const SubjectsView: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            {/* Pagination */}
+            {deptTotalPages > 1 && (
+              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>Page {deptCurrentPage} of {deptTotalPages}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={deptCurrentPage === 1}
+                    onClick={() => setDeptCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={deptCurrentPage === deptTotalPages}
+                    onClick={() => setDeptCurrentPage(p => Math.min(deptTotalPages, p + 1))}
+                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      
       {/* TAB 3: DESIGNATIONS MANAGEMENT SCREEN */}
       {activeTab === 'designations' && (
         <div className="space-y-4">
@@ -796,10 +835,10 @@ export const SubjectsView: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="font-medium">
-                    {filteredDesignations.length === 0 ? (
+                    {paginatedDesignations.length === 0 ? (
                       <tr><td colSpan={6} className="text-center py-8 text-slate-500 font-bold">No designations found.</td></tr>
                     ) : (
-                      filteredDesignations.map((desig, index) => {
+                      paginatedDesignations.map((desig, index) => {
                         const desigStaff = (contextStaff || []).filter(st => {
                           const dName = (desig.designationName || '').toLowerCase().trim();
                           const sDesig = (st.designation || '').toLowerCase().trim();
@@ -809,7 +848,7 @@ export const SubjectsView: React.FC = () => {
 
                         return (
                           <tr key={desig.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                            <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{index + 1}</td>
+                            <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{(desigCurrentPage - 1) * pageSize + index + 1}</td>
                             <td className="py-3.5 px-2">
                               <div className="font-extrabold text-slate-900 dark:text-white">{desig.designationName}</div>
                             </td>
@@ -861,6 +900,29 @@ export const SubjectsView: React.FC = () => {
                 </table>
               </div>
             </div>
+
+            {/* Pagination */}
+            {desigTotalPages > 1 && (
+              <div className="px-6 py-3 border-t border-slate-100 dark:border-slate-800/50 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>Page {desigCurrentPage} of {desigTotalPages}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={desigCurrentPage === 1}
+                    onClick={() => setDesigCurrentPage(p => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={desigCurrentPage === desigTotalPages}
+                    onClick={() => setDesigCurrentPage(p => Math.min(desigTotalPages, p + 1))}
+                    className="px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 disabled:opacity-40"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -81,17 +81,7 @@ const defaultPeriodSettings: PeriodSetting[] = [
   { id: 'PS-7', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 5', startTime: '12:30 PM', endTime: '01:15 PM', sequence: 7, periodType: 'Teaching', status: 'Active' },
   { id: 'PS-8', academicYear: '2026-2027', branch: 'Main Campus', periodName: 'Period 6', startTime: '01:15 PM', endTime: '02:00 PM', sequence: 8, periodType: 'Teaching', status: 'Active' }
 ];
-
-const defaultTeacherAssignments: TeacherAssignment[] = [
-  { id: 'TA-1', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Mathematics', teacherId: 'STF-01', teacherName: 'Jonathan Miller', status: 'Active' },
-  { id: 'TA-2', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Physics', teacherId: 'STF-02', teacherName: 'Sarah Jenkins', status: 'Active' },
-  { id: 'TA-3', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Computer Science', teacherId: 'STF-03', teacherName: 'Robert Langdon', status: 'Active' },
-  { id: 'TA-4', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'English', teacherId: 'STF-04', teacherName: 'Dr. Eleanor Vance', status: 'Active' },
-  { id: 'TA-5', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', section: 'A', subject: 'Biology', teacherId: 'STF-02', teacherName: 'Sarah Jenkins', status: 'Active' },
-  { id: 'TA-6', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 9', section: 'A', subject: 'Mathematics', teacherId: 'STF-02', teacherName: 'Sarah Jenkins', status: 'Active' },
-  { id: 'TA-7', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 9', section: 'A', subject: 'Physics', teacherId: 'STF-01', teacherName: 'Jonathan Miller', status: 'Active' }
-];
-
+const defaultTeacherAssignments: TeacherAssignment[] = [];
 export interface StudentCalculationResult {
   student: Student;
   assignment?: StudentFeeAssignment;
@@ -1162,10 +1152,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() => getStored('academic_years', initialAcademicYears));
   const [students, setStudents] = useState<Student[]>(() => {
     const stored = getStored('students', initialStudents);
-    const hasMigrated = localStorage.getItem('edu_db_students_section_cleaned_v2');
+    const hasMigrated = localStorage.getItem('edu_db_students_section_cleaned_v3');
     if (!hasMigrated) {
       const migrated = stored.map((s: any) => ({ ...s, section: '', rollNo: '' }));
-      localStorage.setItem('edu_db_students_section_cleaned_v2', 'true');
+      localStorage.setItem('edu_db_students_section_cleaned_v3', 'true');
       localStorage.setItem('edu_db_students', JSON.stringify(migrated));
       return migrated;
     }
@@ -1173,7 +1163,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [staff, setStaff] = useState<Staff[]>(() => getStored('staff', initialStaff));
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => getStored('admissions', initialAdmissions));
-  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(() => getStored('academic_classes', initialClasses));
+  const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(() => {
+    const stored = getStored('academic_classes', initialClasses);
+    const ids = stored.map((c: any) => c.id);
+    const hasDuplicates = ids.some((id: any, index: number) => ids.indexOf(id) !== index);
+    if (hasDuplicates) {
+      const seenIds = new Set<string>();
+      const migrated = stored.map((c: any) => {
+        let newId = c.id;
+        if (!newId || seenIds.has(newId)) {
+          let counter = 1;
+          do {
+            newId = `CL-${Math.floor(100 + Math.random() * 900)}`;
+          } while (stored.some((x: any) => x.id === newId) || seenIds.has(newId));
+        }
+        seenIds.add(newId);
+        return { ...c, id: newId };
+      });
+      localStorage.setItem('edu_db_academic_classes', JSON.stringify(migrated));
+      return migrated;
+    }
+    return stored;
+  });
   const [subjects, setSubjects] = useState<SubjectItem[]>(() => getStored('subjects', initialSubjects));
   const [buses, setBuses] = useState<Bus[]>(() => getStored('buses', initialBuses));
   const [hostelBlocks, setHostelBlocks] = useState<HostelBlock[]>(() => getStored('hostel_blocks', initialHostelBlocks));
@@ -2565,7 +2576,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 
   const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
-    const id = 'CL-' + Math.floor(10 + Math.random() * 90);
+    let id = '';
+    do {
+      id = 'CL-' + Math.floor(100 + Math.random() * 900);
+    } while (academicClasses.some(c => c.id === id));
     const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
     setAcademicClasses(prev => [...prev, newCls]);
     logActivity('Created Academic Class', `Added ${newCls.name}`);
@@ -2656,7 +2670,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>(defaultPeriodSettings);
-  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>(defaultTeacherAssignments);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>(() =>
+    getStored('teacher_assignments', defaultTeacherAssignments)
+  );
+
+  useEffect(() => {
+    localStorage.setItem('edu_db_teacher_assignments', JSON.stringify(teacherAssignments));
+  }, [teacherAssignments]);
 
   const addPeriodSetting = (data: Omit<PeriodSetting, 'id'>) => {
     // Check duplicate
