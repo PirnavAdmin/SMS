@@ -1849,6 +1849,8 @@ export interface ExamSchedule {
   room: string;
   invigilatorId: string;
   invigilatorName: string;
+  invigilatorIds?: string[];
+  invigilatorNames?: string[];
 }
 
 export interface GradeConfig {
@@ -1856,6 +1858,8 @@ export interface GradeConfig {
   academicYear?: string;
   branch?: string;
   schemeName?: string;
+  examType?: string;
+  gradingType?: 'Percentage' | 'Marks';
   grade?: string;
   gradeName: string;
   minPercent: number;

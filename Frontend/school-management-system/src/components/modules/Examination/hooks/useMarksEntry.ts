@@ -37,20 +37,25 @@ export function useMarksEntry() {
     if (!className) return [];
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
-      return clsObj?.sections || [];
+      if (!clsObj || !clsObj.sections || clsObj.sections.length === 0) return ['A'];
+      return clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
     }
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(
       ta => ta.className === className && ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
     );
-    return Array.from(new Set(assigned.map(ta => ta.section)));
+    const result = Array.from(new Set(assigned.map(ta => ta.section)));
+    return result.length > 0 ? result : ['A'];
   };
 
   const getAllowedSubjects = (className: string, section: string) => {
     if (!className || !section) return [];
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
-      return clsObj?.subjects || [];
+      if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
+        return clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.name || s.code || ''));
+      }
+      return [];
     }
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(

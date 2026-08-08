@@ -48,13 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }
 
-  const [financeExpanded, setFinanceExpanded] = useState(true);
-  const [hostelExpanded, setHostelExpanded] = useState(true);
-  const [transportExpanded, setTransportExpanded] = useState(true);
-  const [uniformExpanded, setUniformExpanded] = useState(true);
-  const [staffExpanded, setStaffExpanded] = useState(true);
-  const [academicsExpanded, setAcademicsExpanded] = useState(true);
-
   const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees' || activeModule.startsWith('parent-fee-');
   const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel' || activeModule.startsWith('parent-hostel-');
   const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule.startsWith('parent-bus-') || activeModule.startsWith('parent-transport-');
@@ -62,7 +55,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule.startsWith('parent-teacher-');
   const isAcademicsActive = activeModule.startsWith('academic-') || activeModule === 'academics' || activeModule === 'subjects' || activeModule === 'timetable';
 
-  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>('other');
+  const [financeExpanded, setFinanceExpanded] = useState(isFinanceActive);
+  const [hostelExpanded, setHostelExpanded] = useState(isHostelActive);
+  const [transportExpanded, setTransportExpanded] = useState(isTransportActive);
+  const [uniformExpanded, setUniformExpanded] = useState(isUniformActive);
+  const [staffExpanded, setStaffExpanded] = useState(isStaffActive);
+  const [academicsExpanded, setAcademicsExpanded] = useState(isAcademicsActive);
+
+  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>(
+    isFinanceActive ? 'finance' : isHostelActive ? 'hostel' : isTransportActive ? 'transport' : isUniformActive ? 'uniform' : isStaffActive ? 'staff' : isAcademicsActive ? 'academics' : 'other'
+  );
 
   React.useEffect(() => {
     if (isFinanceActive && lastActiveGroup !== 'finance') {
@@ -114,6 +116,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setStaffExpanded(false);
       setLastActiveGroup('academics');
     } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isStaffActive && !isAcademicsActive) {
+      setFinanceExpanded(false);
+      setHostelExpanded(false);
+      setTransportExpanded(false);
+      setUniformExpanded(false);
+      setStaffExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('other');
     }
   }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isStaffActive, isAcademicsActive, lastActiveGroup]);
@@ -679,6 +687,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setHostelExpanded(false);
                       setTransportExpanded(false);
                       setUniformExpanded(false);
+                      setAcademicsExpanded(false);
                     }}
                     title={collapsed ? item.label : undefined}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${

@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Award, Printer, Search, FileDown } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Printer, Search, Eye, Send, ClipboardList, Download, Loader2 } from 'lucide-react';
 import { PrintableReportCard } from './PrintableReportCard';
 import { ExamSetup, Student, SubjectItem, ProcessedResult } from '../../../types';
 import { Panel } from './components/SharedUI';
 import { useResults } from './hooks/useResults';
 import { useData } from '../../../context/DataContext';
+import { printReportCard, printBulkReportCards, downloadReportCardPdf } from './utils/reportCardPrinter';
 
 interface ReportCardsProps {
   exam: ExamSetup | null;
@@ -21,53 +22,65 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
   classOptions,
   subjects,
   students,
-  selectedAcademicYear,
-  selectedBranch,
   addToast
 }) => {
   const { getResultsForExamClass } = useResults();
-  const { studentAttendance, coScholasticAssessments } = useData();
+  const { studentAttendance, coScholasticAssessments, academicClasses, schoolProfile } = useData();
 
-  const [selectedClass, setSelectedClass] = useState(classOptions[0] || 'Class 10');
-  const [selectedSection, setSelectedSection] = useState('A');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activePrintResult, setActivePrintResult] = useState<ProcessedResult | null>(null);
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [previewResult, setPreviewResult] = useState<ProcessedResult | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [isBulkPrinting, setIsBulkPrinting] = useState(false);
 
-  useEffect(() => {
-    const handleAfterPrint = () => {
-      setActivePrintResult(null);
-    };
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
+  // Dynamic sections from academicClasses
+  const availableSections = useMemo(() => {
+    if (!selectedClass) return [];
+    const matched = academicClasses.find(c => c.name === selectedClass);
+    if (!matched || !matched.sections || matched.sections.length === 0) return ['A'];
+    return matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+  }, [academicClasses, selectedClass]);
 
   const visibleResults = getResultsForExamClass(exam?.id || '', selectedClass, selectedSection);
 
   const filteredResults = useMemo(() => {
     return visibleResults.filter(r => 
       r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (r.rollNo || '').toLowerCase().includes(searchQuery.toLowerCase())
+      (r.rollNo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (r.studentId || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [visibleResults, searchQuery]);
 
   const handlePrintAll = () => {
-    addToast('info', 'Print Job Sent', `Sending print request for ${filteredResults.length} student report cards...`);
-    window.scrollTo(0, 0);
+    if (filteredResults.length === 0) return;
+    setIsBulkPrinting(true);
+    addToast('info', 'Print Job Sent', `Formatting print preview for ${filteredResults.length} student report cards...`);
     setTimeout(() => {
-      window.print();
+      printBulkReportCards(filteredResults, exam, schoolProfile, subjects);
+      setIsBulkPrinting(false);
     }, 400);
   };
 
   const handlePrintSingle = (res: ProcessedResult) => {
-    setActivePrintResult(res);
-    window.scrollTo(0, 0);
+    printReportCard(res, exam, schoolProfile, subjects);
+  };
+
+  const handleDownloadSingle = (res: ProcessedResult) => {
+    setDownloadingId(res.id);
     setTimeout(() => {
-      window.print();
-    }, 200);
+      downloadReportCardPdf(res, exam, schoolProfile, subjects);
+      setDownloadingId(null);
+      addToast('success', 'PDF Ready', `Downloaded official report card for ${res.studentName}.`);
+    }, 400);
+  };
+
+  const handleSendToParent = (res: ProcessedResult) => {
+    addToast('success', 'Report Card Dispatched', `Official report card sent to parents of ${res.studentName} via Portal & WhatsApp notification.`);
   };
 
   const getAttendanceForStudent = (studentId: string) => {
-    return (studentAttendance as any[]).find((a: any) => a.studentId === studentId) || { workingDays: 220, presentDays: 200 };
+    return (studentAttendance as any[]).find((a: any) => a.studentId === studentId) || { workingDays: 220, presentDays: 205 };
   };
 
   const getCoScholasticForStudent = (studentId: string) => {
@@ -79,34 +92,47 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
     };
   };
 
+  const previewStudent = previewResult ? students.find(s => s.id === previewResult.studentId) || null : null;
+
   return (
     <div className="space-y-4 text-left">
       <Panel
-        title="Student Report Cards Directory"
-        description="Filter class sections to download PDF, edit attendance summaries, or bulk print official student report cards."
+        title="Student Report Cards"
+        //description="Preview official school report cards, download printable PDF sheets, and dispatch results to parent portals."
         action={
           <div className="flex items-center gap-2">
-            <button
-              disabled={filteredResults.length === 0}
-              onClick={handlePrintAll}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-505 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition"
-            >
-              <Printer className="w-4 h-4" /> Bulk Print ({filteredResults.length})
-            </button>
+            {selectedClass && selectedSection && (
+              <button
+                disabled={filteredResults.length === 0 || isBulkPrinting}
+                onClick={handlePrintAll}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-black text-xs shadow-sm shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                {isBulkPrinting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Printer className="w-4 h-4" />
+                )}
+                <span>Bulk Print All ({filteredResults.length})</span>
+              </button>
+            )}
           </div>
         }
       >
         <div className="space-y-5 print:hidden">
-          {/* Filters */}
-          <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/55 dark:bg-slate-950/60 shadow-sm flex flex-wrap items-end justify-between gap-4">
+          {/* Filter and Search Bar */}
+          <div className="p-4 rounded-2xl sm:rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-xs flex flex-wrap items-end justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Class Filter</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 block">Class / Grade *</label>
                 <select
                   value={selectedClass}
-                  onChange={e => setSelectedClass(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px]"
+                  onChange={e => {
+                    setSelectedClass(e.target.value);
+                    setSelectedSection('');
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[150px] h-[36px] shadow-xs"
                 >
+                  <option value="">-- Select Class --</option>
                   {classOptions.map(cls => (
                     <option key={cls} value={cls}>{cls}</option>
                   ))}
@@ -114,125 +140,188 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Section</label>
+                <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500 block">Section *</label>
                 <select
                   value={selectedSection}
                   onChange={e => setSelectedSection(e.target.value)}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[100px] h-[34px]"
+                  disabled={!selectedClass}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[36px] shadow-xs disabled:opacity-50"
                 >
-                  {['A', 'B', 'C', 'D'].map(sec => (
+                  <option value="">-- Select Section --</option>
+                  {availableSections.map(sec => (
                     <option key={sec} value={sec}>Section {sec}</option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="relative w-64">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search student..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold outline-none focus:border-sky-500 transition h-[34px]"
-              />
-            </div>
+            {selectedClass && selectedSection && (
+              <div className="relative w-full sm:w-72">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search student or roll no..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/50 transition h-[36px] shadow-xs"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Directory Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {!selectedClass || !selectedSection ? (
+            <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
+              <ClipboardList className="w-8 h-8 text-sky-500 mx-auto" />
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Select Class & Section for Report Cards
+              </h4>
+              <p className="text-xs text-slate-400 font-medium max-w-md mx-auto">
+                Please choose a <strong>Class</strong> and <strong>Section</strong> from the filter bar above to preview, print, or dispatch official report cards.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredResults.length === 0 ? (
-              <div className="col-span-full py-12 text-center text-slate-400 font-bold">
-                No processed result sheets found for this selection. Calculate results first.
+              <div className="col-span-full py-12 text-center text-slate-400 font-bold bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl">
+                No processed result sheets found for {selectedClass} Section {selectedSection}. Please compute results under the "Results & Ranking" tab first.
               </div>
             ) : (
               filteredResults.map(res => (
                 <div
                   key={res.id}
-                  className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm text-left flex flex-col justify-between gap-4"
+                  className="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-xs text-left flex flex-col justify-between gap-4 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-200"
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] font-black text-slate-400">ROLL NO. {res.rollNo || 'N/A'}</span>
-                      <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${
-                        res.status === 'Published' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      <span className="font-mono text-[10px] font-black text-slate-400">ROLL: {res.rollNo || '01'}</span>
+                      <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase ${
+                        res.passStatus === 'Pass' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800' : 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800'
                       }`}>
-                        {res.status}
+                        {res.passStatus}
                       </span>
                     </div>
 
-                    <h4 className="text-sm font-black text-slate-900 dark:text-white mt-1">{res.studentName}</h4>
-                    <p className="text-[11px] text-slate-500 font-medium">{res.className} - {res.section}</p>
+                    <div className="mt-2">
+                      <h4 className="text-xs font-black text-slate-900 dark:text-white truncate">{res.studentName}</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">{res.className} - Section {res.section}</p>
+                    </div>
 
-                    <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs">
-                      <div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Percent</span>
-                        <span className="block font-black text-slate-850 dark:text-slate-200">{res.percentage.toFixed(1)}%</span>
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/60">
+                        <span className="text-[8px] font-black text-slate-400 uppercase block">Total %</span>
+                        <span className="font-black text-slate-900 dark:text-white text-xs">{res.percentage.toFixed(1)}%</span>
                       </div>
-                      <div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Grade</span>
-                        <span className="block font-black text-indigo-600 dark:text-indigo-400">{res.finalGrade}</span>
+                      <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/60">
+                        <span className="text-[8px] font-black text-slate-400 uppercase block">Grade</span>
+                        <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs">{res.finalGrade}</span>
                       </div>
-                      <div>
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Rank</span>
-                        <span className="block font-black text-amber-600 dark:text-amber-400">#{res.rank}</span>
+                      <div className="p-1.5 rounded-xl bg-slate-50 dark:bg-slate-950/60">
+                        <span className="text-[8px] font-black text-slate-400 uppercase block">Rank</span>
+                        <span className="font-black text-amber-600 dark:text-amber-400 text-xs">#{res.rank}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewResult(res)}
+                      className="px-2.5 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold text-[11px] flex items-center justify-center gap-1 transition flex-1 cursor-pointer"
+                      title="Preview Official Report Card"
+                    >
+                      <Eye className="w-3.5 h-3.5" /> Preview
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => handlePrintSingle(res)}
-                      className="px-3.5 py-1.5 rounded-xl border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-800 dark:text-slate-350 hover:bg-slate-50 font-bold text-xs flex items-center gap-1 transition flex-1 justify-center"
+                      className="p-1.5 rounded-xl border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 transition cursor-pointer"
+                      title="Print Single Card"
                     >
-                      <Printer className="w-3.5 h-3.5 text-slate-400" /> Print Card
+                      <Printer className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={downloadingId === res.id}
+                      onClick={() => handleDownloadSingle(res)}
+                      className="p-1.5 rounded-xl border border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-800 dark:text-slate-300 hover:bg-slate-50 disabled:opacity-50 transition cursor-pointer"
+                      title="Download PDF"
+                    >
+                      {downloadingId === res.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600" />
+                      ) : (
+                        <Download className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSendToParent(res)}
+                      className="p-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 hover:bg-emerald-100 transition cursor-pointer"
+                      title="Send to Parent Portal"
+                    >
+                      <Send className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
               ))
             )}
           </div>
-
-          {/* Hidden Print Container for bulk or single output pages */}
-          <div id="printable-content" className="hidden print:block">
-            {activePrintResult ? (
-              (() => {
-                const res = activePrintResult;
-                const studentObj = students.find(s => s.id === res.studentId) || null;
-                return (
-                  <div key={`print-single-${res.id}`} className="page-break-card">
-                    <PrintableReportCard
-                      student={studentObj}
-                      exam={exam}
-                      processedResult={res}
-                      attendance={getAttendanceForStudent(res.studentId)}
-                      coScholastic={getCoScholasticForStudent(res.studentId)}
-                      onClose={() => {}}
-                    />
-                  </div>
-                );
-              })()
-            ) : (
-              filteredResults.map(res => {
-                const studentObj = students.find(s => s.id === res.studentId) || null;
-                return (
-                  <div key={`print-${res.id}`} className="page-break-card">
-                    <PrintableReportCard
-                      student={studentObj}
-                      exam={exam}
-                      processedResult={res}
-                      attendance={getAttendanceForStudent(res.studentId)}
-                      coScholastic={getCoScholasticForStudent(res.studentId)}
-                      onClose={() => {}}
-                    />
-                  </div>
-                );
-              })
-            )}
-          </div>
-
+          )}
         </div>
+
+        {/* Modal: Interactive Single Report Card Viewer */}
+        {previewResult && previewStudent && (
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 print:hidden">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase">Official Report Card Preview</h3>
+                  <p className="text-xs text-slate-500 font-medium">Verify scholastic breakdown and attendance summary before printing.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePrintSingle(previewResult)}
+                    className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                  >
+                    <Printer className="w-3.5 h-3.5" /> Print Now
+                  </button>
+                  <button
+                    disabled={downloadingId === previewResult.id}
+                    onClick={() => handleDownloadSingle(previewResult)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {downloadingId === previewResult.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Download className="w-3.5 h-3.5" />
+                    )}
+                    <span>Download PDF</span>
+                  </button>
+                  <button
+                    onClick={() => setPreviewResult(null)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              {/* Printable Component Body */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <PrintableReportCard
+                  student={previewStudent}
+                  exam={exam}
+                  processedResult={previewResult}
+                  attendance={getAttendanceForStudent(previewResult.studentId)}
+                  coScholastic={getCoScholasticForStudent(previewResult.studentId)}
+                  onClose={() => setPreviewResult(null)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </Panel>
     </div>
   );

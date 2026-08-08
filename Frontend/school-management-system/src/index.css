@@ -46,10 +46,9 @@
 }
 
 /* Printing styling */
-/* Printing styling */
 @media print {
   @page {
-    size: landscape;
+    size: auto;
     margin: 1cm;
   }
   body * {
@@ -58,18 +57,26 @@
   .overflow-x-auto, .overflow-hidden {
     overflow: visible !important;
   }
-  #printable-content, #printable-content * {
+  #printable-content, #printable-content *,
+  #printable-report-card, #printable-report-card *,
+  .report-card-sheet, .report-card-sheet *,
+  .printable-area, .printable-area * {
     visibility: visible;
   }
-  #printable-content {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 20px;
+  #printable-content,
+  #printable-report-card,
+  .report-card-sheet,
+  .printable-area {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 16px !important;
     background: white !important;
     color: black !important;
+    z-index: 999999 !important;
+    display: block !important;
   }
   #printable-content .no-print,
   #printable-content .no-print *,
