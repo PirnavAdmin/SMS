@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, Plus, Edit, Trash2, Search, X, Loader2, Building2, Layers, Briefcase, 
-  AlertCircle, CheckCircle2, ShieldAlert, FolderPlus, Eye 
+  AlertCircle, CheckCircle2, ShieldAlert, FolderPlus, Eye, Users, UserCheck 
 } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useData } from '../../../context/DataContext';
@@ -17,6 +17,7 @@ export const SubjectsView: React.FC = () => {
     departments: contextDepartments, addDepartment, updateDepartment, deleteDepartment,
     subjects: contextSubjects, addSubject, updateSubject, deleteSubject,
     designations: contextDesignations, addDesignation, updateDesignation, deleteDesignation,
+    staff: contextStaff,
     academicClasses, teacherAssignments, timetable
   } = useData();
   const { addToast } = useToast();
@@ -56,6 +57,11 @@ export const SubjectsView: React.FC = () => {
   const [blockedDeleteDept, setBlockedDeleteDept] = useState<{ dept: Department; count: number } | null>(null);
   const [viewingDeptSubjects, setViewingDeptSubjects] = useState<Department | null>(null);
   const [deptSubjectSearch, setDeptSubjectSearch] = useState('');
+
+  // Assigned Staff Modal State
+  const [viewingStaffDept, setViewingStaffDept] = useState<Department | null>(null);
+  const [viewingStaffDesig, setViewingStaffDesig] = useState<DesignationMaster | null>(null);
+  const [staffModalSearch, setStaffModalSearch] = useState('');
 
   const [deptFormData, setDeptFormData] = useState<{
     departmentName: string;
@@ -654,7 +660,7 @@ export const SubjectsView: React.FC = () => {
                       <th className="py-3 px-2">S.No</th>
                       <th className="py-3 px-2">Department Name</th>
                       <th className="py-3 px-2">Department Code</th>
-                      <th className="py-3 px-2">No. of Subjects</th>
+                      <th className="py-3 px-2">Assigned Staff</th>
                       <th className="py-3 px-2">Status</th>
                       <th className="py-3 px-2 text-right">Actions</th>
                     </tr>
@@ -664,10 +670,13 @@ export const SubjectsView: React.FC = () => {
                       <tr><td colSpan={6} className="text-center py-8 text-slate-500 font-bold">No departments found.</td></tr>
                     ) : (
                       filteredDepartments.map((dept, index) => {
-                        const count = subjects.filter(s => 
-                          s.department?.toLowerCase().trim() === dept.departmentName.toLowerCase().trim() ||
-                          s.departmentId === dept.id
-                        ).length;
+                        const deptStaff = (contextStaff || []).filter(st => {
+                          const dName = (dept.departmentName || '').toLowerCase().trim();
+                          const dCode = (dept.departmentCode || '').toLowerCase().trim();
+                          const sDept = (st.department || '').toLowerCase().trim();
+                          return sDept === dName || sDept === dCode || (dName && sDept.includes(dName)) || (dCode && sDept.includes(dCode));
+                        });
+                        const count = deptStaff.length;
 
                         return (
                           <tr key={dept.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
@@ -684,18 +693,19 @@ export const SubjectsView: React.FC = () => {
                             <td className="py-3.5 px-2">
                               <button
                                 onClick={() => {
-                                  setViewingDeptSubjects(dept);
-                                  setDeptSubjectSearch('');
+                                  setViewingStaffDept(dept);
+                                  setViewingStaffDesig(null);
+                                  setStaffModalSearch('');
                                 }}
-                                className={`px-2.5 py-1 rounded-full text-xs font-black font-mono inline-flex items-center gap-1.5 transition-all hover:scale-105 ${
+                                className={`px-2.5 py-1 rounded-full text-xs font-black font-mono inline-flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer ${
                                   count > 0 
-                                    ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200' 
+                                    ? 'bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/50 dark:text-sky-400 border border-sky-200 dark:border-sky-800' 
                                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
                                 }`}
-                                title="Click to view assigned subjects"
+                                title="Click to view assigned staff members"
                               >
-                                <Eye className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                                {count} Subject{count === 1 ? '' : 's'}
+                                <Users className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                                {count} {count === 1 ? 'Employee' : 'Employees'}
                               </button>
                             </td>
                             <td className="py-3.5 px-2">
@@ -710,26 +720,15 @@ export const SubjectsView: React.FC = () => {
                             <td className="py-3.5 px-2 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <button
-                                  onClick={() => {
-                                    setViewingDeptSubjects(dept);
-                                    setDeptSubjectSearch('');
-                                  }}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors flex items-center gap-1 text-xs font-bold"
-                                  title="View Department Subjects"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                  <span className="hidden md:inline">Subjects</span>
-                                </button>
-                                <button
                                   onClick={() => handleOpenEditDept(dept)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950/40 transition-colors cursor-pointer"
                                   title="Edit Department"
                                 >
                                   <Edit className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => handleAttemptDeleteDept(dept)}
-                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                                   title="Delete Department"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -791,44 +790,72 @@ export const SubjectsView: React.FC = () => {
                       <th className="py-3 px-2">S.No</th>
                       <th className="py-3 px-2">Designation Name</th>
                       <th className="py-3 px-2">Category</th>
+                      <th className="py-3 px-2">Assigned Staff</th>
                       <th className="py-3 px-2">Status</th>
                       <th className="py-3 px-2 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="font-medium">
                     {filteredDesignations.length === 0 ? (
-                      <tr><td colSpan={5} className="text-center py-8 text-slate-500 font-bold">No designations found.</td></tr>
+                      <tr><td colSpan={6} className="text-center py-8 text-slate-500 font-bold">No designations found.</td></tr>
                     ) : (
-                      filteredDesignations.map((desig, index) => (
-                        <tr key={desig.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                          <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{index + 1}</td>
-                          <td className="py-3.5 px-2">
-                            <div className="font-extrabold text-slate-900 dark:text-white">{desig.designationName}</div>
-                          </td>
-                          <td className="py-3.5 px-2 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
-                            {desig.employeeCategory}
-                          </td>
-                          <td className="py-3.5 px-2">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                              desig.status === 'Active'
-                                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200'
-                                : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200'
-                            }`}>
-                              {desig.status}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-2 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button onClick={() => handleOpenEditDesig(desig)} className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 transition-colors">
-                                <Edit className="w-4 h-4" />
+                      filteredDesignations.map((desig, index) => {
+                        const desigStaff = (contextStaff || []).filter(st => {
+                          const dName = (desig.designationName || '').toLowerCase().trim();
+                          const sDesig = (st.designation || '').toLowerCase().trim();
+                          return sDesig === dName || (dName && (sDesig.includes(dName) || dName.includes(sDesig)));
+                        });
+                        const count = desigStaff.length;
+
+                        return (
+                          <tr key={desig.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                            <td className="py-3.5 px-2 font-bold text-slate-400 text-xs">{index + 1}</td>
+                            <td className="py-3.5 px-2">
+                              <div className="font-extrabold text-slate-900 dark:text-white">{desig.designationName}</div>
+                            </td>
+                            <td className="py-3.5 px-2 font-mono text-xs font-bold text-slate-600 dark:text-slate-300">
+                              {desig.employeeCategory}
+                            </td>
+                            <td className="py-3.5 px-2">
+                              <button
+                                onClick={() => {
+                                  setViewingStaffDesig(desig);
+                                  setViewingStaffDept(null);
+                                  setStaffModalSearch('');
+                                }}
+                                className={`px-2.5 py-1 rounded-full text-xs font-black font-mono inline-flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer ${
+                                  count > 0 
+                                    ? 'bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-950/50 dark:text-sky-400 border border-sky-200 dark:border-sky-800' 
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400'
+                                }`}
+                                title="Click to view assigned staff members"
+                              >
+                                <Users className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                                {count} {count === 1 ? 'Employee' : 'Employees'}
                               </button>
-                              <button onClick={() => handleAttemptDeleteDesig(desig)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="py-3.5 px-2">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                                desig.status === 'Active'
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200'
+                                  : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200'
+                              }`}>
+                                {desig.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-2 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button onClick={() => handleOpenEditDesig(desig)} className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 transition-colors cursor-pointer">
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleAttemptDeleteDesig(desig)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors cursor-pointer">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1244,6 +1271,142 @@ export const SubjectsView: React.FC = () => {
               <button
                 onClick={() => setViewingDeptSubjects(null)}
                 className="px-4 py-1.5 font-bold text-xs text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW ASSIGNED STAFF MODAL (FOR DEPT OR DESIGNATION) */}
+      {(viewingStaffDept || viewingStaffDesig) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col text-slate-900 dark:text-slate-100 text-left">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-sky-50 dark:bg-sky-950/60 rounded-xl text-sky-600 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">
+                    Assigned Staff Members
+                  </h3>
+                  <p className="text-xs font-bold text-sky-600 dark:text-sky-400">
+                    {viewingStaffDept ? `Department: ${viewingStaffDept.departmentName}` : `Designation: ${viewingStaffDesig?.designationName}`}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setViewingStaffDept(null);
+                  setViewingStaffDesig(null);
+                }} 
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Search filter */}
+            <div className="relative shrink-0">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search..."
+                value={staffModalSearch}
+                onChange={e => setStaffModalSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+              />
+            </div>
+
+            {/* Staff List Table */}
+            <div className="flex-1 overflow-y-auto border border-slate-100 dark:border-slate-800 rounded-2xl p-1 scrollbar-thin">
+              {(() => {
+                const staffList = (contextStaff || []).filter(st => {
+                  if (viewingStaffDept) {
+                    const dName = (viewingStaffDept.departmentName || '').toLowerCase().trim();
+                    const dCode = (viewingStaffDept.departmentCode || '').toLowerCase().trim();
+                    const sDept = (st.department || '').toLowerCase().trim();
+                    return sDept === dName || sDept === dCode || (dName && sDept.includes(dName)) || (dCode && sDept.includes(dCode));
+                  }
+                  if (viewingStaffDesig) {
+                    const dName = (viewingStaffDesig.designationName || '').toLowerCase().trim();
+                    const sDesig = (st.designation || '').toLowerCase().trim();
+                    return sDesig === dName || (dName && (sDesig.includes(dName) || dName.includes(sDesig)));
+                  }
+                  return false;
+                }).filter(st => {
+                  const q = staffModalSearch.toLowerCase().trim();
+                  if (!q) return true;
+                  const fullName = `${st.firstName || ''} ${st.lastName || ''} ${st.name || ''}`.toLowerCase();
+                  const empCode = (st.empId || st.id || '').toLowerCase();
+                  const desig = (st.designation || '').toLowerCase();
+                  const dept = (st.department || '').toLowerCase();
+                  return fullName.includes(q) || empCode.includes(q) || desig.includes(q) || dept.includes(q);
+                });
+
+                if (staffList.length === 0) {
+                  return (
+                    <div className="text-center py-10 space-y-2">
+                      <Users className="w-8 h-8 text-slate-300 mx-auto" />
+                      <p className="text-xs font-bold text-slate-500">No staff members found.</p>
+                      <p className="text-[11px] text-slate-400">
+                        {staffModalSearch ? 'Try a different search keyword.' : 'No staff currently assigned in the Staff Directory.'}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="text-slate-400 font-extrabold uppercase text-[10px] border-b border-slate-100 dark:border-slate-800">
+                        <th className="py-2.5 px-3">S.No</th>
+                        <th className="py-2.5 px-3">Employee Code</th>
+                        <th className="py-2.5 px-3">Employee Name</th>
+                        <th className="py-2.5 px-3">Designation</th>
+                        <th className="py-2.5 px-3">Department</th>
+                      </tr>
+                    </thead>
+                    <tbody className="font-semibold">
+                      {staffList.map((st, idx) => {
+                        const fullName = (st.name || `${st.firstName || ''} ${st.lastName || ''}`).trim() || 'Staff Member';
+                        return (
+                          <tr key={st.id || idx} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                            <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                            <td className="py-2.5 px-3">
+                              <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800 font-mono font-black text-[11px]">
+                                {st.empId || st.id}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-extrabold text-slate-900 dark:text-white">
+                              {fullName}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 font-bold">
+                              {st.designation || '-'}
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-500 font-medium">
+                              {st.department || '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
+              <button
+                onClick={() => {
+                  setViewingStaffDept(null);
+                  setViewingStaffDesig(null);
+                }}
+                className="px-4 py-2 font-bold text-xs text-slate-700 dark:text-slate-300 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
               >
                 Close
               </button>

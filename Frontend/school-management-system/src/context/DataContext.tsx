@@ -440,6 +440,8 @@ interface DataContextType {
   addPeriodSetting: (data: Omit<PeriodSetting, 'id'>) => void;
   updatePeriodSetting: (id: string, updates: Partial<PeriodSetting>) => void;
   deletePeriodSetting: (id: string) => void;
+  bulkAssignPeriods: (classKeys: string[]) => void;
+  resetClassPeriods: (className: string, section: string) => void;
 
   teacherAssignments: TeacherAssignment[];
   addTeacherAssignment: (data: Omit<TeacherAssignment, 'id'>) => void;
@@ -1158,7 +1160,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => getStored('profile', initialSchoolProfile));
   const [academicYears, setAcademicYears] = useState<AcademicYearMaster[]>(() => getStored('academic_years', initialAcademicYears));
-  const [students, setStudents] = useState<Student[]>(() => getStored('students', initialStudents));
+  const [students, setStudents] = useState<Student[]>(() => {
+    const stored = getStored('students', initialStudents);
+    const hasMigrated = localStorage.getItem('edu_db_students_section_cleaned_v2');
+    if (!hasMigrated) {
+      const migrated = stored.map((s: any) => ({ ...s, section: '', rollNo: '' }));
+      localStorage.setItem('edu_db_students_section_cleaned_v2', 'true');
+      localStorage.setItem('edu_db_students', JSON.stringify(migrated));
+      return migrated;
+    }
+    return stored;
+  });
   const [staff, setStaff] = useState<Staff[]>(() => getStored('staff', initialStaff));
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => getStored('admissions', initialAdmissions));
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(() => getStored('academic_classes', initialClasses));
@@ -2647,6 +2659,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>(defaultTeacherAssignments);
 
   const addPeriodSetting = (data: Omit<PeriodSetting, 'id'>) => {
+    // Check duplicate
+    const isDuplicate = periodSettings.some(p => {
+      if (p.status !== 'Active') return false;
+      const sameScope = 
+        (!p.className && !p.section && !data.className && !data.section) ||
+        (p.className === data.className && p.section === data.section);
+      if (!sameScope) return false;
+      const sameName = p.periodName.trim().toLowerCase() === data.periodName.trim().toLowerCase();
+      const sameSeq = Number(p.sequence) === Number(data.sequence);
+      const sameTime = p.startTime === data.startTime && p.endTime === data.endTime;
+      return sameName || sameSeq || sameTime;
+    });
+
+    if (isDuplicate) return;
+
     const id = 'PS-' + Math.floor(100 + Math.random() * 900);
     const newPs: PeriodSetting = { ...data, id };
     setPeriodSettings(prev => [...prev, newPs]);
@@ -2654,11 +2681,87 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updatePeriodSetting = (id: string, updates: Partial<PeriodSetting>) => {
+    // Check duplicate if updates contains fields that can duplicate
+    if (updates.periodName || updates.sequence || updates.startTime || updates.endTime) {
+      const existing = periodSettings.find(p => p.id === id);
+      if (existing) {
+        const merged = { ...existing, ...updates };
+        const isDuplicate = periodSettings.some(p => {
+          if (p.id === id || p.status !== 'Active') return false;
+          const sameScope = 
+            (!p.className && !p.section && !merged.className && !merged.section) ||
+            (p.className === merged.className && p.section === merged.section);
+          if (!sameScope) return false;
+          const sameName = p.periodName.trim().toLowerCase() === merged.periodName.trim().toLowerCase();
+          const sameSeq = Number(p.sequence) === Number(merged.sequence);
+          const sameTime = p.startTime === merged.startTime && p.endTime === merged.endTime;
+          return sameName || sameSeq || sameTime;
+        });
+        if (isDuplicate) return;
+      }
+    }
+
     setPeriodSettings(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
   };
 
   const deletePeriodSetting = (id: string) => {
     setPeriodSettings(prev => prev.filter(p => p.id !== id));
+  };
+
+  const bulkAssignPeriods = (classKeys: string[]) => {
+    const master = periodSettings.filter(p => !p.className && p.status === 'Active');
+    
+    // Deduplicate master list on the fly to ensure we never write duplicates
+    const uniqueMaster: PeriodSetting[] = [];
+    const seenNames = new Set<string>();
+    const seenSequences = new Set<number>();
+    const seenTimes = new Set<string>();
+
+    master.forEach(mp => {
+      const nameKey = mp.periodName.trim().toLowerCase();
+      const seqKey = Number(mp.sequence);
+      const timeKey = `${mp.startTime}-${mp.endTime}`;
+
+      if (!seenNames.has(nameKey) && !seenSequences.has(seqKey) && !seenTimes.has(timeKey)) {
+        uniqueMaster.push(mp);
+        seenNames.add(nameKey);
+        seenSequences.add(seqKey);
+        seenTimes.add(timeKey);
+      }
+    });
+
+    setPeriodSettings(prev => {
+      let updated = [...prev];
+      classKeys.forEach(key => {
+        const [className, section] = key.split('-');
+        // Remove existing class-specific periods
+        updated = updated.filter(p => !(p.className === className && p.section === section));
+        // Add cloned master periods
+        uniqueMaster.forEach(mp => {
+          const id = 'PS-' + Math.floor(100 + Math.random() * 900);
+          updated.push({
+            academicYear: mp.academicYear,
+            branch: mp.branch,
+            className,
+            section,
+            periodName: mp.periodName,
+            startTime: mp.startTime,
+            endTime: mp.endTime,
+            sequence: mp.sequence,
+            periodType: mp.periodType,
+            status: 'Active',
+            id
+          });
+        });
+      });
+      return updated;
+    });
+    logActivity('Bulk Assigned Periods', `Assigned template to ${classKeys.length} class sections.`);
+  };
+
+  const resetClassPeriods = (className: string, section: string) => {
+    setPeriodSettings(prev => prev.filter(p => !(p.className === className && p.section === section)));
+    logActivity('Reset Class Periods', `Reverted ${className}-${section} to master template`);
   };
 
   const addTeacherAssignment = (data: Omit<TeacherAssignment, 'id'>) => {
@@ -5637,7 +5740,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         processedResults, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
         studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment,
         timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,
-        periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting,
+        periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
         teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
         homework: filteredHomework, addHomework, updateHomework, deleteHomework,
         books, bookIssues: filteredBookIssues, addBook, issueBook, returnBook,

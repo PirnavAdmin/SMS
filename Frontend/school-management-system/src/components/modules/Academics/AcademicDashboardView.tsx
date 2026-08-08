@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { School, Layers, BookOpen, Users, Plus, Play, UserCheck, ArrowRight, GraduationCap, ClipboardList, Zap } from 'lucide-react';
+import { School, Layers, BookOpen, Users, Plus, Play, UserCheck, ArrowRight, GraduationCap, ClipboardList, Zap, Calendar } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 
@@ -79,7 +79,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
     });
   }, [academicClasses, students]);
 
-  const handleOpenClass = (classId: string, tab: any = 'sections') => {
+  const handleOpenClass = (classId: string, tab: any = 'overview') => {
     setSelectedClassId(classId);
     setClassWorkspaceTab(tab);
     onNavigate('academic-class');
@@ -87,20 +87,17 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
 
   const handleQuickAction = (actionType: string) => {
     if (actionType === 'create-class') {
+      setSelectedClassId('');
       if (setAutoOpenClassModal) setAutoOpenClassModal(true);
       onNavigate('academic-class');
-    } else if (actionType === 'add-section') {
+    } else if (actionType === 'class-management') {
       setSelectedClassId('');
-      setClassWorkspaceTab('sections');
+      setClassWorkspaceTab('overview');
       onNavigate('academic-class');
-    } else if (actionType === 'assign-teachers') {
-      setSelectedClassId('');
-      setClassWorkspaceTab('teachers');
-      onNavigate('academic-class');
-    } else if (actionType === 'allocate-students') {
-      setSelectedClassId('');
-      setClassWorkspaceTab('students');
-      onNavigate('academic-class');
+    } else if (actionType === 'subject-management') {
+      onNavigate('subjects');
+    } else if (actionType === 'timetable') {
+      onNavigate('timetable');
     }
   };
 
@@ -124,9 +121,9 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
             setClassWorkspaceTab('overview');
             onNavigate('academic-class');
           }}
-          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-sky-500 dark:hover:border-sky-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+          className="group p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-400 hover:border-brand-500 dark:hover:border-brand-300 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out"
         >
-          <div className="p-2 bg-sky-50 dark:bg-sky-955/20 text-sky-600 rounded-lg">
+          <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl group-hover:scale-110 transition-transform duration-300">
             <School className="w-4.5 h-4.5" />
           </div>
           <div>
@@ -141,9 +138,9 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
             setClassWorkspaceTab('sections');
             onNavigate('academic-class');
           }}
-          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+          className="group p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-400 hover:border-brand-500 dark:hover:border-brand-300 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out"
         >
-          <div className="p-2 bg-indigo-50 dark:bg-indigo-955/20 text-indigo-650 rounded-lg">
+          <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl group-hover:scale-110 transition-transform duration-300">
             <Layers className="w-4.5 h-4.5" />
           </div>
           <div>
@@ -154,9 +151,9 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
 
         <div 
           onClick={() => onNavigate('subjects')}
-          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-500 dark:hover:border-purple-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+          className="group p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-400 hover:border-brand-500 dark:hover:border-brand-300 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out"
         >
-          <div className="p-2 bg-purple-50 dark:bg-purple-955/20 text-purple-600 rounded-lg">
+          <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl group-hover:scale-110 transition-transform duration-300">
             <BookOpen className="w-4.5 h-4.5" />
           </div>
           <div>
@@ -167,9 +164,9 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
 
         <div 
           onClick={() => onNavigate('students')}
-          className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
+          className="group p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-400 hover:border-brand-500 dark:hover:border-brand-300 rounded-xl flex items-center gap-4 cursor-pointer hover:shadow-lg hover:shadow-brand-500/10 hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ease-out"
         >
-          <div className="p-2 bg-emerald-50 dark:bg-emerald-955/20 text-emerald-600 rounded-lg">
+          <div className="p-2.5 bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 rounded-xl group-hover:scale-110 transition-transform duration-300">
             <Users className="w-4.5 h-4.5" />
           </div>
           <div>
@@ -213,7 +210,7 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button 
-                        onClick={() => handleOpenClass(item.class.id, 'sections')}
+                        onClick={() => handleOpenClass(item.class.id, 'overview')}
                         className="px-3 py-1 bg-slate-50 hover:bg-brand-600 hover:text-white dark:bg-slate-850 dark:hover:bg-brand-600 text-slate-700 dark:text-slate-300 dark:hover:text-white font-extrabold text-[10px] rounded-lg transition-all inline-flex items-center gap-1 shadow-2xs border border-slate-200 dark:border-slate-700"
                       >
                         {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5" />
@@ -234,39 +231,62 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
         </div>
 
         {/* Quick Actions Grid */}
-        <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-4">
-          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <Zap className="w-5 h-5 text-amber-500 fill-amber-500" />
+        <div className="p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-2.5 shadow-xs">
+          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 gap-2.5 text-xs">
+          <div className="grid grid-cols-1 gap-1.5 text-xs">
             <button 
               onClick={() => handleQuickAction('create-class')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
+              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <span>+ Create Class</span>
-              <Play className="w-3 h-3 text-slate-400 fill-current" />
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+                  <Plus className="w-3.5 h-3.5" />
+                </div>
+                <span>Create Class</span>
+              </div>
+              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-sky-600 group-hover:translate-x-0.5 transition-all" />
             </button>
+
             <button 
-              onClick={() => handleQuickAction('add-section')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
+              onClick={() => handleQuickAction('class-management')}
+              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <span>+ Add Section</span>
-              <Play className="w-3 h-3 text-slate-400 fill-current" />
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
+                  <Layers className="w-3.5 h-3.5" />
+                </div>
+                <span>Class Management</span>
+              </div>
+              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
             </button>
+
             <button 
-              onClick={() => handleQuickAction('assign-teachers')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
+              onClick={() => handleQuickAction('subject-management')}
+              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <span>+ Assign Teachers</span>
-              <Play className="w-3 h-3 text-slate-400 fill-current" />
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                  <BookOpen className="w-3.5 h-3.5" />
+                </div>
+                <span>Subject Management</span>
+              </div>
+              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
             </button>
+
             <button 
-              onClick={() => handleQuickAction('allocate-students')}
-              className="p-3.5 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-850 dark:text-white border border-slate-200/60 dark:border-slate-700 rounded-xl text-left flex items-center justify-between transition-colors font-bold"
+              onClick={() => handleQuickAction('timetable')}
+              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
             >
-              <span>+ Allocate Students</span>
-              <Play className="w-3 h-3 text-slate-400 fill-current" />
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+                  <Calendar className="w-3.5 h-3.5" />
+                </div>
+                <span>Timetable</span>
+              </div>
+              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
             </button>
           </div>
         </div>

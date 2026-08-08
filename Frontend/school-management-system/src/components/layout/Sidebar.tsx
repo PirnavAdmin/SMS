@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const staffSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'staff-directory', label: 'Staff Directory', icon: Users },
-    { id: 'staff-attendance', label: 'Attendance Register', icon: CalendarCheck },
+    { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
     { id: 'staff-leave', label: 'Leave Management', icon: FileText },
     { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
   ];
@@ -180,6 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
         { id: 'students', label: 'Student Directory', icon: UserCheck },
+        { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
         { id: 'student-promotion', label: 'Student Promotion', icon: TrendingUp },
         { id: 'transfer-certificates', label: 'Transfer Certificates', icon: FileText },
         { id: 'alumni', label: 'Alumni', icon: Award },
@@ -190,7 +191,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'academics', label: 'Class Management', icon: Presentation },
         { id: 'subjects', label: 'Subject Management', icon: BookOpen },
-        { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
         { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Timetable' : 'Time Table', icon: Clock },
         { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
         { id: 'homework', label: 'Homework', icon: FileText },

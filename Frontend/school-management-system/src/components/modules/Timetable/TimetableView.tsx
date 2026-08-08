@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,
   Copy, User, BookOpen, AlertTriangle, Layers, SlidersHorizontal, Check, RefreshCw,
-  Send, Lock, FileSpreadsheet, ShieldAlert, CheckCircle2, Info,
-  Zap, UserCheck, Users, BookMarked, ChevronRight
+  Send, Lock, FileSpreadsheet, ShieldAlert, CheckCircle2, Info, Search,
+  Zap, UserCheck, Users, BookMarked, ChevronRight, School
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -16,7 +16,7 @@ type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
 export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
     timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,
-    periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting,
+    periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
     staff, academicClasses, subjects, holidays
   } = useData();
@@ -218,6 +218,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   });
   const [deletingPeriodSetting, setDeletingPeriodSetting] = useState<PeriodSetting | null>(null);
   const [customPeriodType, setCustomPeriodType] = useState('');
+  const [isEditingMaster, setIsEditingMaster] = useState(false);
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+  const [bulkSelectedClasses, setBulkSelectedClasses] = useState<string[]>([]);
+  const [bulkSearchQuery, setBulkSearchQuery] = useState('');
+  const [showApplySuggestion, setShowApplySuggestion] = useState(false);
+  const [isSubjectDropdownOpen, setIsSubjectDropdownOpen] = useState(false);
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+  const [isTeacherDropdownOpen, setIsTeacherDropdownOpen] = useState(false);
+  const [teacherSearchQuery, setTeacherSearchQuery] = useState('');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<TimetableSlot | null>(null);
@@ -241,10 +250,29 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     }
   }, [sectionOptions, selectedSection]);
 
+  useEffect(() => {
+    if (isBulkAssignModalOpen) {
+      const remaining: string[] = [];
+      academicClasses.forEach(c => {
+        (c.sections || ['A']).forEach(sec => {
+          const hasCustom = periodSettings.some(p => p.className === c.name && p.section === sec && p.status === 'Active');
+          if (!hasCustom) {
+            remaining.push(`${c.name}-${sec}`);
+          }
+        });
+      });
+      setBulkSelectedClasses(remaining);
+    }
+  }, [isBulkAssignModalOpen, periodSettings, academicClasses]);
+
   const activeBranchPeriods = useMemo(() => {
-    const matched = periodSettings.filter(p => p.status === 'Active');
-    return matched.sort((a, b) => a.sequence - b.sequence);
-  }, [periodSettings]);
+    const specific = periodSettings.filter(p => 
+      p.className === selectedClass && 
+      p.section === selectedSection && 
+      p.status === 'Active'
+    );
+    return specific.sort((a, b) => a.sequence - b.sequence);
+  }, [periodSettings, selectedClass, selectedSection]);
 
   const parseSortable = (ts: any) => {
     if (!ts || typeof ts !== 'string') return 9999;
@@ -319,7 +347,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         return {
           id: globalSub?.id || `class-sub-${idx}-${name}`,
           name: name,
-          weeklyPeriodCount: globalSub?.weeklyPeriodCount || 5
+          weeklyPeriodCount: globalSub?.weeklyPeriodCount || 5,
+          code: globalSub?.code || globalSub?.subjectId || ''
         };
       });
     }
@@ -405,10 +434,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       section: selectedSection,
       subject: firstSubject,
       teacherName: '',
-      roomNo: 'Room 101',
+      roomNo: '',
       status: 'Draft' as 'Draft' | 'Published' | 'Archived'
     };
     setFormData(initialSlot);
+    setIsSubjectDropdownOpen(false);
+    setSubjectSearchQuery('');
     setIsFormOpen(true);
   };
 
@@ -419,6 +450,8 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const parts = t.timeSlot.split('-');
     setStartTime(parseTo24(parts[0]?.trim() || '08:30 AM'));
     setEndTime(parseTo24(parts[1]?.trim() || '09:15 AM'));
+    setIsSubjectDropdownOpen(false);
+    setSubjectSearchQuery('');
     setIsFormOpen(true);
   };
 
@@ -462,28 +495,146 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     e.preventDefault();
     if (!periodFormData.periodName || !periodFormData.startTime || !periodFormData.endTime) return;
     
+    // Duplicate validation
+    const targetClass = isEditingMaster ? undefined : selectedClass;
+    const targetSection = isEditingMaster ? undefined : selectedSection;
+
+    const isDuplicate = periodSettings.some(p => {
+      if (p.id === periodFormData.id) return false;
+      if (p.status !== 'Active') return false;
+
+      const sameScope =
+        (!p.className && !p.section && !targetClass && !targetSection) ||
+        (p.className === targetClass && p.section === targetSection);
+
+      if (!sameScope) return false;
+
+      const sameName = p.periodName.trim().toLowerCase() === periodFormData.periodName!.trim().toLowerCase();
+      const sameSequence = Number(p.sequence) === Number(periodFormData.sequence);
+      const sameTime = p.startTime === periodFormData.startTime && p.endTime === periodFormData.endTime;
+
+      return sameName || sameSequence || sameTime;
+    });
+
+    if (isDuplicate) {
+      addToast('error', 'Duplicate Period', 'A period with the same name, sequence, or time range already exists in this schedule.');
+      return;
+    }
+
     const finalPeriodType = periodFormData.periodType === 'Other' ? customPeriodType : periodFormData.periodType;
     
     if (periodFormData.id) {
-      updatePeriodSetting(periodFormData.id, {
-        ...periodFormData,
-        periodType: finalPeriodType || 'Teaching'
-      });
-      addToast('success', 'Period Configured', `Updated ${periodFormData.periodName}`);
+      if (isEditingMaster || periodFormData.className) {
+        updatePeriodSetting(periodFormData.id, {
+          ...periodFormData,
+          periodType: finalPeriodType || 'Teaching'
+        });
+        addToast('success', 'Period Configured', `Updated ${periodFormData.periodName}`);
+      } else {
+        // Cloning master periods for this class since we edited an inherited period
+        const master = periodSettings.filter(p => !p.className && p.status === 'Active');
+        master.forEach(mp => {
+          if (mp.id === periodFormData.id) {
+            addPeriodSetting({
+              academicYear,
+              branch: selectedBranch || 'Main Campus',
+              className: selectedClass,
+              section: selectedSection,
+              periodName: periodFormData.periodName!,
+              startTime: periodFormData.startTime!,
+              endTime: periodFormData.endTime!,
+              sequence: Number(periodFormData.sequence || mp.sequence),
+              periodType: finalPeriodType || 'Teaching',
+              status: 'Active'
+            });
+          } else {
+            addPeriodSetting({
+              academicYear: mp.academicYear,
+              branch: mp.branch,
+              className: selectedClass,
+              section: selectedSection,
+              periodName: mp.periodName,
+              startTime: mp.startTime,
+              endTime: mp.endTime,
+              sequence: mp.sequence,
+              periodType: mp.periodType,
+              status: 'Active'
+            });
+          }
+        });
+        addToast('success', 'Custom Schedule Created', `Customized ${periodFormData.periodName} for ${selectedClass}-${selectedSection}`);
+      }
     } else {
-      addPeriodSetting({
-        academicYear,
-        branch: selectedBranch || 'Main Campus',
-        periodName: periodFormData.periodName,
-        startTime: periodFormData.startTime,
-        endTime: periodFormData.endTime,
-        sequence: Number(periodFormData.sequence || 9),
-        periodType: finalPeriodType || 'Teaching',
-        status: 'Active'
-      });
-      addToast('success', 'Period Configured', `Added ${periodFormData.periodName} to Period Settings`);
+      if (isEditingMaster) {
+        addPeriodSetting({
+          academicYear,
+          branch: selectedBranch || 'Main Campus',
+          periodName: periodFormData.periodName,
+          startTime: periodFormData.startTime,
+          endTime: periodFormData.endTime,
+          sequence: Number(periodFormData.sequence || 9),
+          periodType: finalPeriodType || 'Teaching',
+          status: 'Active'
+        });
+        addToast('success', 'Period Configured', `Added ${periodFormData.periodName} to Master Template`);
+        setShowApplySuggestion(true);
+      } else {
+        addPeriodSetting({
+          academicYear,
+          branch: selectedBranch || 'Main Campus',
+          className: selectedClass,
+          section: selectedSection,
+          periodName: periodFormData.periodName,
+          startTime: periodFormData.startTime,
+          endTime: periodFormData.endTime,
+          sequence: Number(periodFormData.sequence || 9),
+          periodType: finalPeriodType || 'Teaching',
+          status: 'Active'
+        });
+        addToast('success', 'Period Configured', `Added custom period ${periodFormData.periodName} to ${selectedClass}-${selectedSection}`);
+      }
     }
     setIsPeriodModalOpen(false);
+  };
+
+  const handleDeletePeriod = (p: PeriodSetting) => {
+    if (isEditingMaster || p.className) {
+      deletePeriodSetting(p.id);
+      addToast('success', 'Period Deleted', `Deleted ${p.periodName}`);
+    } else {
+      const master = periodSettings.filter(mp => !mp.className && mp.status === 'Active');
+      master.forEach(mp => {
+        if (mp.id !== p.id) {
+          addPeriodSetting({
+            academicYear: mp.academicYear,
+            branch: mp.branch,
+            className: selectedClass,
+            section: selectedSection,
+            periodName: mp.periodName,
+            startTime: mp.startTime,
+            endTime: mp.endTime,
+            sequence: mp.sequence,
+            periodType: mp.periodType,
+            status: 'Active'
+          });
+        }
+      });
+      addToast('success', 'Custom Schedule Created', `Removed ${p.periodName} from ${selectedClass}-${selectedSection}`);
+    }
+  };
+
+  const handleSaveBulkAssign = () => {
+    if (bulkSelectedClasses.length === 0) {
+      addToast('warning', 'Selection Required', 'Please select at least one class and section.');
+      return;
+    }
+
+    bulkAssignPeriods(bulkSelectedClasses);
+
+    addToast('success', 'Periods Assigned', `Periods successfully assigned to ${bulkSelectedClasses.length} class-section combinations.`);
+    setIsBulkAssignModalOpen(false);
+    setBulkSelectedClasses([]);
+    setBulkSearchQuery('');
   };
 
   const handlePrint = () => {
@@ -801,7 +952,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                             <td key={day} className="py-2 px-1 text-center align-middle">
                               {match ? (
                                 <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border space-y-0.5 text-left mx-auto w-28 shadow-xs border-slate-100 dark:border-slate-700/50">
-                                  <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">{match.subject}</p>
+                                   {(() => {
+                                      const globalSub = subjects.find(s => s.name.toLowerCase().trim() === match.subject.toLowerCase().trim());
+                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : '';
+                                      return (
+                                        <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
+                                          {match.subject}{codeStr}
+                                        </p>
+                                      );
+                                    })()}
                                   <p className="text-[9.5px] font-bold text-sky-650 dark:text-sky-400 truncate">Cl. {match.className.replace('Class ', '')}-{match.section}</p>
                                 </div>
                               ) : <span className="text-[10px] text-slate-400 italic font-bold">Free</span>}
@@ -852,44 +1011,12 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         </div>
 
         {/* Global Timetable Filters */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Class Selector */}
-          <div className="relative">
-            <select
-              value={selectedClass}
-              onChange={e => {
-                const nextClass = e.target.value;
-                setSelectedClass(nextClass);
-                setSelectedSection(getSectionsForClass(nextClass)[0] || 'A');
-              }}
-              className="appearance-none pr-9 pl-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
-            >
-              {classOptions.map(className => (
-                <option key={className} value={className}>{className}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
-          {/* Section Selector */}
-          <div className="relative">
-            <select
-              value={selectedSection}
-              onChange={e => setSelectedSection(e.target.value)}
-              className="appearance-none pr-9 pl-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
-            >
-              {sectionOptions.map(section => (
-                <option key={section} value={section}>Section {section}</option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
+        <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
           {/* Print Button */}
           {activeTab !== 'period-settings' && (
             <button
               onClick={handlePrint}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer"
               title="Print Timetable"
             >
               <Printer className="w-4 h-4" />
@@ -929,13 +1056,41 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         <div id="printable-content" className="space-y-4">
           <div className="hidden print:block mb-4 text-center border-b pb-4">
             <h1 className="text-2xl font-black">Class Timetable</h1>
-            <p className="text-sm font-bold text-slate-600 mt-2">Class: {selectedClass} | Section: {selectedSection} | Year: {academicYear}</p>
+            <p className="text-sm font-bold text-slate-600 mt-2">Class: {selectedClass} | Section: {selectedSection}</p>
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Class Selector */}
+              <div className="relative">
+                <select
+                  value={selectedClass}
+                  onChange={e => {
+                    const nextClass = e.target.value;
+                    setSelectedClass(nextClass);
+                    setSelectedSection(getSectionsForClass(nextClass)[0] || 'A');
+                  }}
+                  className="appearance-none pr-9 pl-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
+                >
+                  {classOptions.map(className => (
+                    <option key={className} value={className}>{className}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
 
-
-              <span className="text-xs text-slate-500 font-medium hidden md:inline">Academic Year: {academicYear}</span>
+              {/* Section Selector */}
+              <div className="relative">
+                <select
+                  value={selectedSection}
+                  onChange={e => setSelectedSection(e.target.value)}
+                  className="appearance-none pr-9 pl-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
+                >
+                  {sectionOptions.map(section => (
+                    <option key={section} value={section}>Section {section}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
             <div className="flex items-center gap-3 no-print">
@@ -1017,7 +1172,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                               <td key={day} className="py-3 px-2 text-center align-middle">
                                 {match ? (
                                   <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-1 relative group text-left mx-auto w-40 hover:shadow-lg hover:border-sky-400 transition-all">
-                                    <p className="font-extrabold text-slate-900 dark:text-white truncate">{match.subject}</p>
+                                    {(() => {
+                                      const globalSub = subjects.find(s => s.name.toLowerCase().trim() === match.subject.toLowerCase().trim());
+                                      const codeStr = globalSub?.code ? ` (${globalSub.code.toLowerCase()})` : '';
+                                      return (
+                                        <p className="font-extrabold text-slate-900 dark:text-white truncate">
+                                          {match.subject}{codeStr}
+                                        </p>
+                                      );
+                                    })()}
                                     <p className="text-[11px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName}</p>
                                     <div className="flex items-center justify-between pt-1">
                                       <span className="px-2 py-0.5 rounded-lg bg-white dark:bg-slate-900 text-[10px] font-mono font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
@@ -1056,68 +1219,366 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       )}
 
       {/* TAB 2: PERIOD SETTINGS */}
-      {activeTab === 'period-settings' && (
-        <div className="glass-card p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-black text-slate-900 dark:text-white">Period Settings Configuration</h3>
-            </div>
-            <button
-              onClick={() => setIsPeriodModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" /> Add New Period
-            </button>
-          </div>
+      {activeTab === 'period-settings' && (() => {
+        // Master periods
+        const masterPeriods = periodSettings.filter(p => !p.className && p.status === 'Active')
+          .sort((a, b) => a.sequence - b.sequence);
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {activeBranchPeriods.map(p => (
-              <div
-                key={p.id}
-                className={`p-4 rounded-2xl border transition-all ${
-                  p.periodType === 'Break' || p.periodType === 'Lunch'
-                    ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900'
-                    : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-extrabold text-sm text-slate-900 dark:text-white">{p.periodName}</span>
+        // Class-specific periods
+        const classSpecificPeriods = periodSettings.filter(p => 
+          p.className === selectedClass && 
+          p.section === selectedSection && 
+          p.status === 'Active'
+        ).sort((a, b) => a.sequence - b.sequence);
+
+        const hasCustomPeriods = classSpecificPeriods.length > 0;
+        const activePeriodsToDisplay = classSpecificPeriods;
+
+        // All classes & sections
+        const allClassesAndSections: { className: string; section: string }[] = [];
+        academicClasses.forEach(c => {
+          (c.sections || ['A']).forEach(sec => {
+            allClassesAndSections.push({ className: c.name, section: sec });
+          });
+        });
+
+        // Configured / remaining
+        const configuredClassSections = allClassesAndSections.filter(cs =>
+          periodSettings.some(p => p.className === cs.className && p.section === cs.section && p.status === 'Active')
+        );
+        const remainingClassSections = allClassesAndSections.filter(cs =>
+          !periodSettings.some(p => p.className === cs.className && p.section === cs.section && p.status === 'Active')
+        );
+
+        return (
+          <div className="space-y-6 text-left">
+            {/* Split layout: Left (Master Template Config), Right (Status Tracker & Quick Actions) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Column 1 & 2: Master Template Setup */}
+              <div className="lg:col-span-2 glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 dark:border-slate-800">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                      <Layers className="w-5 h-5 text-sky-600" />
+                      <span>Master Period Schedule Template</span>
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsEditingMaster(true);
+                      setPeriodFormData({
+                        periodName: `Period ${masterPeriods.length + 1}`,
+                        startTime: '08:30 AM',
+                        endTime: '09:15 AM',
+                        sequence: masterPeriods.length + 1,
+                        periodType: 'Teaching',
+                        status: 'Active'
+                      });
+                      setIsPeriodModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all shrink-0 self-start sm:self-center"
+                  >
+                    <Plus className="w-4 h-4" /> Add Template Period
+                  </button>
+                </div>
+
+                {masterPeriods.length === 0 ? (
+                  <div className="text-center py-10 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                    <Clock className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                    <p className="text-xs font-bold text-slate-500">No master periods defined yet.</p>
+                    <p className="text-[11px] text-slate-400 mt-1">Click the button above to add the first period to your schedule.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {masterPeriods.map(p => (
+                      <div
+                        key={p.id}
+                        className={`p-3.5 rounded-2xl border transition-all flex justify-between items-center ${
+                          p.periodType === 'Break' || p.periodType === 'Lunch'
+                            ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900'
+                            : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200/80 dark:border-slate-700'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-xs text-slate-900 dark:text-white">{p.periodName}</span>
+                            <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold ${
+                              p.periodType === 'Teaching' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200' : 'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                            }`}>
+                              {p.periodType}
+                            </span>
+                          </div>
+                          <p className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300 mt-1">
+                            {p.startTime} - {p.endTime}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => {
+                              setIsEditingMaster(true);
+                              setPeriodFormData(p);
+                              if (!['Teaching', 'Break', 'Lunch'].includes(p.periodType)) {
+                                setCustomPeriodType(p.periodType);
+                                setPeriodFormData({ ...p, periodType: 'Other' });
+                              }
+                              setIsPeriodModalOpen(true);
+                            }} 
+                            className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-sky-600 transition-colors cursor-pointer"
+                            title="Edit Period Template"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => setDeletingPeriodSetting(p)} 
+                            className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Delete Period Template"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Column 3: Bulk Actions & Coverage Tracker */}
+              <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-5 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 border-b pb-2.5 dark:border-slate-800">
+                    <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    Schedule Allocation
+                  </h3>
+                  
+                  {/* Allocation Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-300">
+                      <span>Periods Assigned</span>
+                      <span>{configuredClassSections.length} / {allClassesAndSections.length} Class Sections</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        style={{ width: `${(configuredClassSections.length / (allClassesAndSections.length || 1)) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Assigned classes list */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-500">Assigned Classes ({configuredClassSections.length}):</span>
+                    {configuredClassSections.length === 0 ? (
+                      <p className="text-xs text-slate-400 italic">No classes configured yet.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-950/20 scrollbar-thin">
+                        {configuredClassSections.map(cs => (
+                          <span key={`${cs.className}-${cs.section}`} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
+                            {cs.className} ({cs.section})
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Remaining classes list */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-slate-500">Remaining Classes ({remainingClassSections.length}):</span>
+                    {remainingClassSections.length === 0 ? (
+                      <p className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">🎉 All classes & sections are fully configured!</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1.5 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-950/20 scrollbar-thin">
+                        {remainingClassSections.map(cs => (
+                          <span key={`${cs.className}-${cs.section}`} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50">
+                            {cs.className} ({cs.section})
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setIsBulkAssignModalOpen(true);
+                  }}
+                  className="w-full px-4 py-2.5 mt-4 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
+                >
+                  <Layers className="w-4 h-4" /> Bulk Assign
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Active Class periods override grid */}
+            <div className="glass-card p-6 sm:p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-3 dark:border-slate-800">
+                {/* Left Side: Title & Badge */}
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                    <School className="w-5 h-5 text-sky-600" />
+                    <span>Class Period Schedule</span>
+                  </h3>
                   <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                      p.periodType === 'Teaching' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200' : 'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
-                    }`}>
-                      {p.periodType}
-                    </span>
-                    <button 
+                    {hasCustomPeriods ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-400 border border-emerald-200">
+                        🟢 Custom Class Schedule (Overrides Master)
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 dark:bg-rose-950/45 dark:text-rose-400 border border-rose-200">
+                        🔴 Timetable Not Configured (Unassigned)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Side: Filters with Labels & Buttons */}
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Class Filter */}
+                  <div className="flex items-center gap-1.5 no-print">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Class:</span>
+                    <div className="relative">
+                      <select
+                        value={selectedClass}
+                        onChange={e => {
+                          const nextClass = e.target.value;
+                          setSelectedClass(nextClass);
+                          setSelectedSection(getSectionsForClass(nextClass)[0] || 'A');
+                        }}
+                        className="appearance-none pr-9 pl-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
+                      >
+                        {classOptions.map(className => (
+                          <option key={className} value={className}>{className}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Section Filter */}
+                  <div className="flex items-center gap-1.5 no-print">
+                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Section:</span>
+                    <div className="relative">
+                      <select
+                        value={selectedSection}
+                        onChange={e => setSelectedSection(e.target.value)}
+                        className="appearance-none pr-9 pl-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer shadow-sm"
+                      >
+                        {sectionOptions.map(section => (
+                          <option key={section} value={section}>Section {section}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex items-center gap-2">
+                    {hasCustomPeriods && (
+                      <button
+                        onClick={() => {
+                          resetClassPeriods(selectedClass, selectedSection);
+                          addToast('success', 'Reset Completed', `Reverted ${selectedClass} - Section ${selectedSection} to Master Template.`);
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
+                      >
+                        Reset / Clear Overrides
+                      </button>
+                    )}
+                    <button
                       onClick={() => {
-                        setPeriodFormData(p);
-                        if (!['Teaching', 'Break', 'Lunch'].includes(p.periodType)) {
-                          setCustomPeriodType(p.periodType);
-                          setPeriodFormData({ ...p, periodType: 'Other' });
-                        }
+                        setIsEditingMaster(false);
+                        setPeriodFormData({
+                          periodName: `Period ${activePeriodsToDisplay.length + 1}`,
+                          startTime: '08:30 AM',
+                          endTime: '09:15 AM',
+                          sequence: activePeriodsToDisplay.length + 1,
+                          periodType: 'Teaching',
+                          status: 'Active'
+                        });
                         setIsPeriodModalOpen(true);
-                      }} 
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-sky-600"
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all"
                     >
-                      <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button 
-                      onClick={() => setDeletingPeriodSetting(p)} 
-                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-rose-600"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Plus className="w-4 h-4" /> Add Class Period
                     </button>
                   </div>
                 </div>
-                <p className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
-                  {p.startTime} - {p.endTime}
-                </p>
-                <p className="text-[10px] text-slate-400 mt-2">Sequence: #{p.sequence}</p>
               </div>
-            ))}
+
+              {!hasCustomPeriods ? (
+                <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/20 dark:bg-slate-905/10">
+                  <SlidersHorizontal className="w-9 h-9 text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-350">No period schedule configured for {selectedClass} - Section {selectedSection}</p>
+                  <p className="text-[11px] text-slate-450 dark:text-slate-500 mt-1 max-w-sm mx-auto">
+                    Configure periods specifically for this class-section or assign the Master Template layout below.
+                  </p>
+                  <div className="flex gap-2.5 justify-center mt-4">
+                    <button
+                      onClick={() => {
+                        bulkAssignPeriods([`${selectedClass}-${selectedSection}`]);
+                        addToast('success', 'Template Applied', `Successfully copied Master Template to ${selectedClass}-${selectedSection}.`);
+                      }}
+                      className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                    >
+                      Apply Master Template
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {activePeriodsToDisplay.map(p => (
+                  <div
+                    key={p.id}
+                    className={`p-4 rounded-2xl border transition-all ${
+                      p.periodType === 'Break' || p.periodType === 'Lunch'
+                        ? 'bg-amber-50/50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900'
+                        : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-extrabold text-sm text-slate-900 dark:text-white">{p.periodName}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                          p.periodType === 'Teaching' ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200' : 'bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+                        }`}>
+                          {p.periodType}
+                        </span>
+                        <button 
+                          onClick={() => {
+                            setIsEditingMaster(false);
+                            setPeriodFormData(p);
+                            if (!['Teaching', 'Break', 'Lunch'].includes(p.periodType)) {
+                              setCustomPeriodType(p.periodType);
+                              setPeriodFormData({ ...p, periodType: 'Other' });
+                            }
+                            setIsPeriodModalOpen(true);
+                          }} 
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-750 rounded text-slate-500 hover:text-sky-600 cursor-pointer"
+                          title="Edit Class Period"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={() => handleDeletePeriod(p)} 
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-750 rounded text-slate-500 hover:text-rose-600 cursor-pointer"
+                          title="Delete Class Period"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs font-mono font-bold text-slate-600 dark:text-slate-300">
+                      {p.startTime} - {p.endTime}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-2">Sequence: #{p.sequence}</p>
+                  </div>
+                ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* TAB 3: TEACHER TIMETABLE */}
       {activeTab === 'teacher-timetable' && (
@@ -1127,24 +1588,95 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             <p className="text-sm font-bold text-slate-600 mt-2">Teacher: {selectedTeacherName} | Year: {academicYear}</p>
           </div>
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 no-print">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Teacher:</label>
-              <select
-                value={selectedTeacherName}
-                onChange={e => setSelectedTeacherName(e.target.value)}
-                className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-              >
-                {teachingStaff.map(st => {
-                  const name = `${st.firstName} ${st.lastName}`;
-                  const empId = st.empId || st.id;
-                  const dept = st.department || 'Faculty';
-                  return (
-                    <option key={st.id} value={name}>
-                      {name} ({empId}) - {dept}
-                    </option>
-                  );
-                })}
-              </select>
+              
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsTeacherDropdownOpen(!isTeacherDropdownOpen)}
+                  className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none flex items-center justify-between gap-2 shadow-xs cursor-pointer text-left min-w-[240px]"
+                >
+                  <span>
+                    {selectedTeacherName 
+                      ? (() => {
+                          const match = teachingStaff.find(st => `${st.firstName} ${st.lastName}` === selectedTeacherName);
+                          if (match) {
+                            const empId = match.empId || match.id;
+                            const dept = match.department || 'Faculty';
+                            return `${selectedTeacherName} (${empId}) - ${dept}`;
+                          }
+                          return selectedTeacherName;
+                        })()
+                      : "Select Teacher"}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                </button>
+
+                {isTeacherDropdownOpen && (
+                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2.5 space-y-2 max-h-60 overflow-y-auto min-w-[280px]">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search teacher or employee ID..."
+                        value={teacherSearchQuery}
+                        onChange={e => setTeacherSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none placeholder:text-slate-400 focus:border-sky-500"
+                        onClick={e => e.stopPropagation()}
+                      />
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    </div>
+                    
+                    <div className="space-y-0.5">
+                      {teachingStaff.filter(st => {
+                        const name = `${st.firstName} ${st.lastName}`;
+                        const empId = st.empId || st.id;
+                        const dept = st.department || 'Faculty';
+                        const query = teacherSearchQuery.toLowerCase();
+                        return name.toLowerCase().includes(query) ||
+                          empId.toLowerCase().includes(query) ||
+                          dept.toLowerCase().includes(query);
+                      }).length === 0 ? (
+                        <p className="text-[10px] text-slate-400 text-center py-2">No matching teachers found</p>
+                      ) : (
+                        teachingStaff
+                          .filter(st => {
+                            const name = `${st.firstName} ${st.lastName}`;
+                            const empId = st.empId || st.id;
+                            const dept = st.department || 'Faculty';
+                            const query = teacherSearchQuery.toLowerCase();
+                            return name.toLowerCase().includes(query) ||
+                              empId.toLowerCase().includes(query) ||
+                              dept.toLowerCase().includes(query);
+                          })
+                          .map(st => {
+                            const name = `${st.firstName} ${st.lastName}`;
+                            const empId = st.empId || st.id;
+                            const dept = st.department || 'Faculty';
+                            return (
+                              <button
+                                key={st.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTeacherName(name);
+                                  setIsTeacherDropdownOpen(false);
+                                  setTeacherSearchQuery('');
+                                }}
+                                className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
+                                  selectedTeacherName === name
+                                    ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
+                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                }`}
+                              >
+                                <span>{name} ({empId}) - {dept}</span>
+                              </button>
+                            );
+                          })
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <span className="text-xs font-bold text-sky-600 dark:text-sky-400">Auto Generated from Published Timetables</span>
           </div>
@@ -1288,6 +1820,208 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
         </div>
       )}
 
+      {/* Bulk Assign Period Schedule Modal */}
+      {isBulkAssignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 text-slate-900 dark:text-slate-100 text-left">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <Layers className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-white">Assign Master Schedule to Classes</h3>
+                  <p className="text-[11px] text-slate-500 font-bold">Clone the master period template directly to the selected classes & sections.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsBulkAssignModalOpen(false);
+                  setBulkSelectedClasses([]);
+                  setBulkSearchQuery('');
+                }} 
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+                       {/* Selection Options & Class List (Remaining Only) */}
+            {(() => {
+              const remainingList: { className: string; section: string; key: string }[] = [];
+              academicClasses.forEach(c => {
+                (c.sections || ['A']).forEach(sec => {
+                  const hasCustom = periodSettings.some(p => p.className === c.name && p.section === sec && p.status === 'Active');
+                  if (!hasCustom) {
+                    remainingList.push({ className: c.name, section: sec, key: `${c.name}-${sec}` });
+                  }
+                });
+              });
+
+              // Filter based on search query
+              const filteredList = remainingList.filter(item => 
+                item.className.toLowerCase().includes(bulkSearchQuery.toLowerCase()) ||
+                item.section.toLowerCase().includes(bulkSearchQuery.toLowerCase())
+              );
+
+              return (
+                <>
+                  {/* Search bar */}
+                  {remainingList.length > 0 && (
+                    <div className="relative no-print mt-2">
+                      <input
+                        type="text"
+                        placeholder="Search class or section..."
+                        value={bulkSearchQuery}
+                        onChange={e => setBulkSearchQuery(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 text-xs font-bold outline-none placeholder:text-slate-400 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-all shadow-inner"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 justify-between items-center no-print">
+                    {remainingList.length > 0 && (
+                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-400">
+                        Showing {filteredList.length} of {remainingList.length} remaining
+                      </span>
+                    )}
+                    <div className="flex gap-2 ml-auto">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const keys = filteredList.map(item => item.key);
+                          setBulkSelectedClasses(prev => Array.from(new Set([...prev, ...keys])));
+                        }}
+                        disabled={filteredList.length === 0}
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                      >
+                        Select All Shown
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const keysToRemove = filteredList.map(item => item.key);
+                          setBulkSelectedClasses(prev => prev.filter(k => !keysToRemove.includes(k)));
+                        }}
+                        disabled={filteredList.length === 0}
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 disabled:pointer-events-none dark:bg-slate-800 dark:hover:bg-slate-700 text-[11px] font-bold rounded-lg transition-colors cursor-pointer"
+                      >
+                        Deselect All Shown
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Class and Section List */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5 max-h-[45vh] overflow-y-auto p-1 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/55 dark:bg-slate-950/10 scrollbar-thin">
+                    {remainingList.length === 0 ? (
+                      <div className="col-span-full py-12 text-center text-slate-500 dark:text-slate-400">
+                        <Check className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                        <p className="text-xs font-bold">All classes & sections are fully configured!</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">There are no remaining classes that need a template assigned.</p>
+                      </div>
+                    ) : filteredList.length === 0 ? (
+                      <div className="col-span-full py-12 text-center text-slate-500 dark:text-slate-400">
+                        <SlidersHorizontal className="w-8 h-8 text-slate-355 mx-auto mb-2" />
+                        <p className="text-xs font-bold">No matching classes or sections found</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search query.</p>
+                      </div>
+                    ) : (
+                      filteredList.map(item => {
+                        const isChecked = bulkSelectedClasses.includes(item.key);
+                        return (
+                          <label
+                            key={item.key}
+                            className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-start gap-2.5 ${
+                              isChecked 
+                                ? 'bg-sky-50/70 dark:bg-sky-950/30 border-sky-300 dark:border-sky-800' 
+                                : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                if (e.target.checked) {
+                                  setBulkSelectedClasses(prev => [...prev, item.key]);
+                                } else {
+                                  setBulkSelectedClasses(prev => prev.filter(k => k !== item.key));
+                                }
+                              }}
+                              className="mt-0.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500 w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-black text-slate-900 dark:text-white leading-tight">{item.className}</p>
+                              <p className="text-[10px] font-bold text-slate-500 mt-0.5">Section {item.section}</p>
+                              <span className="inline-block text-[8px] font-black uppercase tracking-wider mt-1.5 px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40">
+                                Remaining
+                              </span>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Footer buttons */}
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-xs font-bold text-slate-500">
+                Selected: <span className="text-sky-600 dark:text-sky-400 font-extrabold">{bulkSelectedClasses.length}</span> Class Sections
+              </span>
+              <div className="flex items-center gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsBulkAssignModalOpen(false);
+                    setBulkSelectedClasses([]);
+                    setBulkSearchQuery('');
+                  }} 
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveBulkAssign}
+                  disabled={bulkSelectedClasses.length === 0}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
+                >
+                  Apply & Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Apply Suggestion Toast/Banner (When template is edited/created) */}
+      {showApplySuggestion && (
+        <div className="fixed bottom-6 right-6 z-50 max-w-sm w-full bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900 rounded-3xl p-4 shadow-2xl flex gap-3.5 items-start text-left animate-in slide-in-from-bottom-5">
+          <div className="p-2 bg-amber-50 dark:bg-amber-950/40 rounded-xl text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900">
+            <Zap className="w-5 h-5 fill-amber-500 text-amber-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-xs font-black text-slate-900 dark:text-white">Apply Updates to Classes?</h4>
+            <p className="text-[11px] text-slate-500 font-bold mt-1">You updated the Master Period template. Would you like to update your classes and sections too?</p>
+            <div className="flex items-center gap-2 mt-3">
+              <button 
+                onClick={() => {
+                  setShowApplySuggestion(false);
+                  setIsBulkAssignModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-black rounded-lg transition-colors cursor-pointer"
+              >
+                Yes, Assign Now
+              </button>
+              <button 
+                onClick={() => setShowApplySuggestion(false)}
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-black rounded-lg transition-colors cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add / Edit Period Allocation Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
@@ -1388,25 +2122,89 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 <label className="block font-bold mb-1 flex items-center justify-between">
                   <span>Subject * (Loaded from Subject Mapping)</span>
                   <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold">
-                    Class {formData.className} Mapping
+                    {formData.className} Mapping
                   </span>
                 </label>
-                <select
-                  required
-                  value={formData.subject}
-                  onChange={e => setFormData({ ...formData, subject: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none"
-                >
-                  <option value="">Select Subject</option>
-                  {availableClassSubjects.map(sub => (
-                    <option key={sub.id} value={sub.name}>
-                      {sub.name} ({sub.weeklyPeriodCount || 5} periods/wk)
-                    </option>
-                  ))}
-                </select>
-                {availableClassSubjects.length > 0 && (
-                  <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-1 font-semibold flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-sky-600" /> Loaded {availableClassSubjects.length} subject(s) assigned to {formData.className} in Class Management
+                
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={availableClassSubjects.length === 0}
+                    onClick={() => setIsSubjectDropdownOpen(!isSubjectDropdownOpen)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none flex items-center justify-between shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                  >
+                    <span>
+                      {formData.subject 
+                        ? (() => {
+                            const sub = availableClassSubjects.find(s => s.name === formData.subject);
+                            const codeStr = sub?.code ? ` (${sub.code.toLowerCase()})` : '';
+                            return `${formData.subject}${codeStr}`;
+                          })()
+                        : "Select Subject"}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  </button>
+
+                  {isSubjectDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2.5 space-y-2 max-h-60 overflow-y-auto">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search subject..."
+                          value={subjectSearchQuery}
+                          onChange={e => setSubjectSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none placeholder:text-slate-400 focus:border-sky-500"
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                      
+                      <div className="space-y-0.5">
+                        {availableClassSubjects.filter(sub => 
+                          sub.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
+                          (sub.code && sub.code.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
+                        ).length === 0 ? (
+                          <p className="text-[10px] text-slate-400 text-center py-2">No matching subjects found</p>
+                        ) : (
+                          availableClassSubjects
+                            .filter(sub => 
+                              sub.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
+                              (sub.code && sub.code.toLowerCase().includes(subjectSearchQuery.toLowerCase()))
+                            )
+                            .map(sub => {
+                              const codeStr = sub.code ? ` (${sub.code.toLowerCase()})` : '';
+                              return (
+                                <button
+                                  key={sub.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData({ ...formData, subject: sub.name });
+                                    setIsSubjectDropdownOpen(false);
+                                    setSubjectSearchQuery('');
+                                  }}
+                                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
+                                    formData.subject === sub.name
+                                      ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
+                                      : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <span>{sub.name}{codeStr}</span>
+                                </button>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {availableClassSubjects.length === 0 ? (
+                  <p className="text-[10px] text-rose-600 dark:text-rose-450 mt-1.5 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-500 fill-rose-50" /> No subjects assigned to {formData.className} in Class Management.
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-1.5 font-semibold flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" /> Loaded {availableClassSubjects.length} subject(s) assigned to {formData.className} in Class Management
                   </p>
                 )}
               </div>
@@ -1422,6 +2220,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   value={autoAssignedTeacher}
                   className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none cursor-not-allowed"
                 />
+                {autoAssignedTeacher === 'No Teacher Assigned' && formData.subject && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-450 mt-1.5 font-bold flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 fill-amber-50" /> No teacher assigned to this subject in Class Management.
+                  </p>
+                )}
               </div>
 
               <div>

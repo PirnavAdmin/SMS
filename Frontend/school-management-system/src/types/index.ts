@@ -589,6 +589,8 @@ export interface PeriodSetting {
   id: string;
   academicYear: string;
   branch: string;
+  className?: string;
+  section?: string;
   periodName: string;
   startTime: string;
   endTime: string;
