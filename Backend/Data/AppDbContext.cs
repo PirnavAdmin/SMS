@@ -49,6 +49,7 @@ namespace SMS.Api.Data
         public DbSet<ClassSubjectMapping> ClassSubjectMappings { get; set; } = null!;
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+        public DbSet<Admission> Admissions { get; set; } = null!;
 
         // Homework Module
         public DbSet<Homework> Homeworks { get; set; } = null!;

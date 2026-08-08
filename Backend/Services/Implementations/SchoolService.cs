@@ -1725,4 +1725,203 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.SaveChangesAsync();
 		return true;
 	}
+
+	// --- STUDENT MANAGEMENT ---
+	public async Task<PagedStudentResponseDto> GetAllStudentsAsync(StudentFilterDto filter)
+	{
+		filter ??= new StudentFilterDto();
+		filter.PageNumber = filter.PageNumber < 1 ? 1 : filter.PageNumber;
+		filter.PageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+
+		return await _schoolRepository.GetAllStudentsAsync(filter);
+	}
+
+	public async Task<StudentDetailsDto> GetStudentByIdAsync(int studentId)
+	{
+		if (studentId <= 0)
+			throw new InvalidOperationException("A valid student ID is required.");
+
+		return await _schoolRepository.GetStudentByIdAsync(studentId)
+			?? throw new NotFoundException($"Student with ID '{studentId}' not found.");
+	}
+
+	public async Task<StudentDetailsDto> CreateStudentAsync(CreateStudentDto dto)
+	{
+		await ValidateStudentReferencesAsync(
+			dto.BranchId,
+			dto.AcademicYearId,
+			dto.ClassId,
+			dto.SectionId);
+
+		var admissionNumber = dto.AdmissionNumber.Trim();
+		var rollNumber = dto.RollNumber.Trim();
+
+		if (await _schoolRepository.AdmissionNumberExistsAsync(admissionNumber))
+			throw new InvalidOperationException($"Admission number '{admissionNumber}' already exists.");
+
+		if (await _schoolRepository.RollNumberExistsAsync(
+			rollNumber,
+			dto.AcademicYearId,
+			dto.ClassId,
+			dto.SectionId))
+		{
+			throw new InvalidOperationException(
+				$"Roll number '{rollNumber}' already exists for the selected academic year, class, and section.");
+		}
+
+		var student = new Student
+		{
+			AdmissionNumber = admissionNumber,
+			RollNumber = rollNumber,
+			StudentName = dto.StudentName.Trim(),
+			DateOfBirth = dto.DateOfBirth,
+			Gender = Clean(dto.Gender),
+			FatherName = Clean(dto.FatherName),
+			FatherMobile = Clean(dto.FatherMobile),
+			MotherName = Clean(dto.MotherName),
+			MotherMobile = Clean(dto.MotherMobile),
+			Email = Clean(dto.Email),
+			MobileNumber = Clean(dto.MobileNumber),
+			Address = Clean(dto.Address),
+			BranchId = dto.BranchId,
+			AcademicYearId = dto.AcademicYearId,
+			ClassId = dto.ClassId,
+			SectionId = dto.SectionId,
+			Status = NormalizeStudentStatus(dto.Status),
+			IsDeleted = false,
+			CreatedAt = DateTime.UtcNow
+		};
+
+		await _schoolRepository.AddStudentAsync(student);
+		await _schoolRepository.SaveChangesAsync();
+
+		return await GetStudentByIdAsync(student.StudentId);
+	}
+
+	public async Task<StudentDetailsDto> UpdateStudentAsync(int studentId, UpdateStudentDto dto)
+	{
+		var student = await _schoolRepository.GetStudentEntityByIdAsync(studentId)
+			?? throw new NotFoundException($"Student with ID '{studentId}' not found.");
+
+		await ValidateStudentReferencesAsync(
+			dto.BranchId,
+			dto.AcademicYearId,
+			dto.ClassId,
+			dto.SectionId);
+
+		var admissionNumber = dto.AdmissionNumber.Trim();
+		var rollNumber = dto.RollNumber.Trim();
+
+		if (await _schoolRepository.AdmissionNumberExistsAsync(admissionNumber, studentId))
+			throw new InvalidOperationException($"Admission number '{admissionNumber}' already exists.");
+
+		if (await _schoolRepository.RollNumberExistsAsync(
+			rollNumber,
+			dto.AcademicYearId,
+			dto.ClassId,
+			dto.SectionId,
+			studentId))
+		{
+			throw new InvalidOperationException(
+				$"Roll number '{rollNumber}' already exists for the selected academic year, class, and section.");
+		}
+
+		student.AdmissionNumber = admissionNumber;
+		student.RollNumber = rollNumber;
+		student.StudentName = dto.StudentName.Trim();
+		student.DateOfBirth = dto.DateOfBirth;
+		student.Gender = Clean(dto.Gender);
+		student.FatherName = Clean(dto.FatherName);
+		student.FatherMobile = Clean(dto.FatherMobile);
+		student.MotherName = Clean(dto.MotherName);
+		student.MotherMobile = Clean(dto.MotherMobile);
+		student.Email = Clean(dto.Email);
+		student.MobileNumber = Clean(dto.MobileNumber);
+		student.Address = Clean(dto.Address);
+		student.BranchId = dto.BranchId;
+		student.AcademicYearId = dto.AcademicYearId;
+		student.ClassId = dto.ClassId;
+		student.SectionId = dto.SectionId;
+		student.Status = NormalizeStudentStatus(dto.Status);
+		student.UpdatedAt = DateTime.UtcNow;
+
+		await _schoolRepository.SaveChangesAsync();
+		return await GetStudentByIdAsync(studentId);
+	}
+
+	public async Task<bool> UpdateStudentStatusAsync(int studentId, UpdateStudentStatusDto dto)
+	{
+		var student = await _schoolRepository.GetStudentEntityByIdAsync(studentId)
+			?? throw new NotFoundException($"Student with ID '{studentId}' not found.");
+
+		student.Status = NormalizeStudentStatus(dto.Status);
+		student.UpdatedAt = DateTime.UtcNow;
+
+		await _schoolRepository.SaveChangesAsync();
+		return true;
+	}
+
+	public async Task<bool> DeleteStudentAsync(int studentId)
+	{
+		var student = await _schoolRepository.GetStudentEntityByIdAsync(studentId)
+			?? throw new NotFoundException($"Student with ID '{studentId}' not found.");
+
+		student.IsDeleted = true;
+		student.Status = "Inactive";
+		student.UpdatedAt = DateTime.UtcNow;
+
+		await _schoolRepository.SaveChangesAsync();
+		return true;
+	}
+
+	public Task<List<StudentDropdownDto>> GetAcademicYearDropdownAsync(string? search)
+		=> _schoolRepository.GetAcademicYearDropdownAsync(search);
+
+	public Task<List<StudentDropdownDto>> GetClassDropdownAsync(string? search)
+		=> _schoolRepository.GetClassDropdownAsync(search);
+
+	public async Task<List<StudentDropdownDto>> GetSectionDropdownAsync(int classId, string? search)
+	{
+		if (!await _schoolRepository.ClassGradeExistsAsync(classId))
+			throw new NotFoundException($"Class with ID '{classId}' not found.");
+
+		return await _schoolRepository.GetSectionDropdownAsync(classId, search);
+	}
+
+	private async Task ValidateStudentReferencesAsync(
+		int branchId,
+		int academicYearId,
+		int classId,
+		int sectionId)
+	{
+		if (!await _schoolRepository.BranchExistsAsync(branchId))
+			throw new NotFoundException($"Branch with ID '{branchId}' not found.");
+
+		if (!await _schoolRepository.AcademicYearExistsAsync(academicYearId))
+			throw new NotFoundException($"Academic year with ID '{academicYearId}' not found.");
+
+		if (!await _schoolRepository.ClassGradeExistsAsync(classId))
+			throw new NotFoundException($"Class with ID '{classId}' not found.");
+
+		if (!await _schoolRepository.SectionBelongsToClassAsync(sectionId, classId))
+			throw new InvalidOperationException(
+				$"Section with ID '{sectionId}' does not belong to class ID '{classId}'.");
+	}
+
+	private static string NormalizeStudentStatus(string? status)
+	{
+		if (string.IsNullOrWhiteSpace(status))
+			return "Active";
+
+		if (status.Equals("Active", StringComparison.OrdinalIgnoreCase))
+			return "Active";
+
+		if (status.Equals("Inactive", StringComparison.OrdinalIgnoreCase))
+			return "Inactive";
+
+		throw new InvalidOperationException("Student status must be either 'Active' or 'Inactive'.");
+	}
+
+	private static string? Clean(string? value)
+		=> string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
