@@ -74,15 +74,22 @@ public interface ISchoolService
     Task<List<HolidayCalendarDto>> GetAllHolidaysAsync();
     Task<HolidayCalendarDto> CreateHolidayAsync(HolidayCalendarDto dto);
     Task<bool> DeleteHolidayAsync(int id);
-
     // Student Management Operations
     Task<PagedStudentResponseDto> GetAllStudentsAsync(StudentFilterDto filter);
     Task<StudentDetailsDto> GetStudentByIdAsync(int studentId);
     Task<StudentDetailsDto> CreateStudentAsync(CreateStudentDto dto);
-    Task<StudentDetailsDto> UpdateStudentAsync(int studentId, UpdateStudentDto dto);
-    Task<bool> UpdateStudentStatusAsync(int studentId, UpdateStudentStatusDto dto);
+    Task<StudentDetailsDto> UpdateStudentAsync(
+        int studentId,
+        UpdateStudentDto dto);
+    Task<bool> UpdateStudentStatusAsync(
+        int studentId,
+        UpdateStudentStatusDto dto);
     Task<bool> DeleteStudentAsync(int studentId);
-    Task<List<StudentDropdownDto>> GetAcademicYearDropdownAsync(string? search);
+    Task<List<StudentDropdownDto>> GetAcademicYearDropdownAsync(
+        string? search);
     Task<List<StudentDropdownDto>> GetClassDropdownAsync(string? search);
-    Task<List<StudentDropdownDto>> GetSectionDropdownAsync(int classId, string? search);
+    Task<List<StudentDropdownDto>> GetSectionDropdownAsync(
+        int classId,
+        string? search);
+
 }
