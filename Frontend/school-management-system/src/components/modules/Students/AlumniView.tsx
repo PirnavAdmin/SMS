@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import {
   Award, Search, GraduationCap, Building2, Briefcase, Mail, Phone,
   Eye, Edit3, FileText, CheckCircle2, Printer, Download, User, Calendar,
-  BarChart3, Filter, Check, X, Shield, BookOpen, Clock, ChevronRight, RefreshCw, Compass
+  BarChart3, Filter, Check, X, Shield, BookOpen, Clock, ChevronLeft, ChevronRight, RefreshCw, Compass
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -81,21 +81,46 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
   const uniqueClasses = useMemo(() => Array.from(new Set(masterAlumniList.map(a => a.finalClass))).filter(Boolean).sort(), [masterAlumniList]);
   const uniqueBranches = useMemo(() => Array.from(new Set(masterAlumniList.map(a => a.branch).filter(Boolean))), [masterAlumniList]);
 
-  // Filtered Alumni list
+  // Track whether any search query or filter is actively applied
+  const isFilterActive = useMemo(() => {
+    return searchQuery.trim() !== '' || filterYear !== 'All' || filterBatch !== 'All' || filterClass !== 'All' || filterBranch !== 'All';
+  }, [searchQuery, filterYear, filterBatch, filterClass, filterBranch]);
+
+  // Filtered Alumni list (Empty by default until search or filter is applied)
   const filteredAlumni = useMemo(() => {
+    if (!isFilterActive) {
+      return [];
+    }
+
     return masterAlumniList.filter(a => {
       const matchYear = filterYear === 'All' || a.completionAcademicYear === filterYear;
       const matchBatch = filterBatch === 'All' || a.batch === filterBatch;
       const matchClass = filterClass === 'All' || a.finalClass === filterClass;
       const matchBranch = filterBranch === 'All' || a.branch === filterBranch;
-      const matchQuery = !searchQuery ||
+      const matchQuery = !searchQuery.trim() ||
         a.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.batch.toLowerCase().includes(searchQuery.toLowerCase());
 
       return matchYear && matchBatch && matchClass && matchBranch && matchQuery;
     });
-  }, [masterAlumniList, filterYear, filterBatch, filterClass, filterBranch, searchQuery]);
+  }, [masterAlumniList, filterYear, filterBatch, filterClass, filterBranch, searchQuery, isFilterActive]);
+
+  // Pagination State for Alumni Directory
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Reset pagination when search query or filter values change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterYear, filterBatch, filterClass, filterBranch]);
+
+  const totalPages = Math.ceil(filteredAlumni.length / pageSize) || 1;
+
+  const paginatedAlumni = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAlumni.slice(start, start + pageSize);
+  }, [filteredAlumni, currentPage, pageSize]);
 
   // Status Metrics
   const higherStudiesCount = masterAlumniList.filter(a => a.currentStatus === 'Higher Studies').length;
@@ -219,14 +244,13 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
           {/* Filters Toolbar */}
           <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
             <div className="flex flex-col lg:flex-row items-center justify-between gap-3">
-              <div className="relative w-full lg:w-72">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <div className="w-full lg:w-72">
                 <input
                   type="text"
                   placeholder="Search name, adm no, batch..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                  className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
                 />
               </div>
 
@@ -300,14 +324,24 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                     <tr>
                       <td colSpan={7} className="text-center py-12 text-slate-400">
                         <div className="flex flex-col items-center justify-center space-y-2">
-                          <GraduationCap className="w-8 h-8 text-slate-300" />
-                          <p className="font-bold">No alumni records found matching filters.</p>
-                          <p className="text-[11px]">Alumni records are created automatically when students complete the highest class during Promotion.</p>
+                          {!isFilterActive ? (
+                            <>
+                              <Filter className="w-8 h-8 text-slate-300 dark:text-slate-600 animate-pulse" />
+                              <p className="font-bold text-slate-700 dark:text-slate-200">Search or filter to view alumni records</p>
+                              <p className="text-[11px] text-slate-400">Enter a student name, admission number, or select an Academic Year / Batch filter above to display results.</p>
+                            </>
+                          ) : (
+                            <>
+                              <GraduationCap className="w-8 h-8 text-slate-300" />
+                              <p className="font-bold">No alumni records found matching filters.</p>
+                              <p className="text-[11px]">Try searching with a different keyword or selecting a different batch filter.</p>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
                   ) : (
-                    filteredAlumni.map((a) => {
+                    paginatedAlumni.map((a) => {
                       const statusColor =
                         a.currentStatus === 'Higher Studies' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200' :
                         a.currentStatus === 'Working' || a.currentStatus === 'Business' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200' :
@@ -383,6 +417,49 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                 </tbody>
               </table>
             </div>
+
+            {/* Alumni Pagination Footer */}
+            {filteredAlumni.length > 0 && (
+              <div className="p-4 bg-slate-50/70 dark:bg-slate-800/40 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span>
+                    Showing {paginatedAlumni.length > 0 ? (currentPage - 1) * pageSize + 1 : 0} to {Math.min(currentPage * pageSize, filteredAlumni.length)} of {filteredAlumni.length} alumni records
+                  </span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="ml-2 px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                  >
+                    <option value={5}>5 per page</option>
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition-all cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="font-bold text-slate-900 dark:text-white px-2">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 font-bold transition-all cursor-pointer"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : (
