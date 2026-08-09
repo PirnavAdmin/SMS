@@ -57,14 +57,40 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   // Sync state if selected exam changes
   useEffect(() => {
     if (exam) {
+      const appClasses = exam.applicableClasses || (exam.className ? [exam.className] : []);
+      const existingClassWise = (exam.marksConfig as any)?.classWiseConfig || {};
+      const existingSubjectWise = exam.marksConfig?.subjectWiseConfig || {};
+
+      const initialClassWise: Record<string, Record<string, { maxMarks: number; passMarks: number }>> = {};
+      appClasses.forEach(cls => {
+        if (existingClassWise[cls]) {
+          initialClassWise[cls] = { ...existingClassWise[cls] };
+        } else {
+          // Inherit default subjects from class definition
+          const matchedClass = academicClasses.find(c => c.name === cls);
+          const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+            ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || ''))
+            : Object.keys(existingSubjectWise);
+
+          const subMap: Record<string, { maxMarks: number; passMarks: number }> = {};
+          classSubs.forEach(s => {
+            if (s) {
+              subMap[s] = existingSubjectWise[s] || { maxMarks: 100, passMarks: 35 };
+            }
+          });
+          initialClassWise[cls] = subMap;
+        }
+      });
+
       setFormData({
         ...exam,
-        applicableClasses: exam.applicableClasses || (exam.className ? [exam.className] : []),
-        marksConfig: exam.marksConfig || {
-          maxMarks: 100,
-          passMarks: 35,
-          subjectWiseConfig: {}
-        }
+        applicableClasses: appClasses,
+        marksConfig: {
+          maxMarks: exam.marksConfig?.maxMarks || 100,
+          passMarks: exam.marksConfig?.passMarks || 35,
+          subjectWiseConfig: exam.marksConfig?.subjectWiseConfig || {},
+          classWiseConfig: initialClassWise
+        } as any
       });
     } else {
       setFormData({
@@ -78,50 +104,169 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         marksConfig: {
           maxMarks: 100,
           passMarks: 35,
-          subjectWiseConfig: {}
+          subjectWiseConfig: {},
+          classWiseConfig: {}
         } as any
       });
     }
-  }, [exam]);
+  }, [exam, academicClasses]);
 
   const handleUpdateForm = (updates: any) => {
     setFormData(prev => {
       const next = { ...prev, ...updates };
+
+      // When applicableClasses change, synchronize classWiseConfig keys
+      if (updates.applicableClasses) {
+        const nextClasses: string[] = updates.applicableClasses;
+        const currentClassWise = { ...((prev.marksConfig as any)?.classWiseConfig || {}) };
+        const updatedClassWise: Record<string, Record<string, { maxMarks: number; passMarks: number }>> = {};
+
+        nextClasses.forEach(cls => {
+          if (currentClassWise[cls]) {
+            updatedClassWise[cls] = currentClassWise[cls];
+          } else {
+            const matchedClass = academicClasses.find(c => c.name === cls);
+            const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+              ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || ''))
+              : [];
+
+            const subMap: Record<string, { maxMarks: number; passMarks: number }> = {};
+            classSubs.forEach(s => {
+              if (s) subMap[s] = { maxMarks: 100, passMarks: 35 };
+            });
+            updatedClassWise[cls] = subMap;
+          }
+        });
+
+        const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+        Object.values(updatedClassWise).forEach(cw => {
+          Object.entries(cw).forEach(([sub, conf]) => {
+            aggregatedSubjectWise[sub] = conf;
+          });
+        });
+
+        next.marksConfig = {
+          ...(prev.marksConfig || { maxMarks: 100, passMarks: 35 }),
+          classWiseConfig: updatedClassWise,
+          subjectWiseConfig: aggregatedSubjectWise
+        };
+      }
+
       return next;
     });
   };
 
-  const handleUpdateSubjectConfig = (subjectName: string, maxMarks: number, passMarks: number) => {
-    const config = formData.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
-    const subjectWise = { ...(config.subjectWiseConfig || {}) };
-    subjectWise[subjectName] = { maxMarks, passMarks };
-    
-    setFormData(prev => ({
-      ...prev,
-      marksConfig: {
-        ...config,
-        subjectWiseConfig: subjectWise
-      }
-    }));
+  const handleUpdateSubjectConfig = (className: string, subjectName: string, maxMarks: number, passMarks: number) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      const currentClassSubjects = { ...(classWise[className] || {}) };
+
+      currentClassSubjects[subjectName] = { maxMarks, passMarks };
+      classWise[className] = currentClassSubjects;
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
   };
 
-  const handleToggleSubject = (subjectName: string) => {
-    const config = formData.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
-    const subjectWise = { ...(config.subjectWiseConfig || {}) };
-    
-    if (subjectWise[subjectName]) {
-      delete subjectWise[subjectName];
-    } else {
-      subjectWise[subjectName] = { maxMarks: config.maxMarks || 100, passMarks: config.passMarks || 35 };
-    }
+  const handleToggleSubject = (className: string, subjectName: string) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      const currentClassSubjects = { ...(classWise[className] || {}) };
 
-    setFormData(prev => ({
-      ...prev,
-      marksConfig: {
-        ...config,
-        subjectWiseConfig: subjectWise
+      if (currentClassSubjects[subjectName]) {
+        delete currentClassSubjects[subjectName];
+      } else {
+        currentClassSubjects[subjectName] = { maxMarks: config.maxMarks || 100, passMarks: config.passMarks || 35 };
       }
-    }));
+
+      classWise[className] = currentClassSubjects;
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
+  };
+
+  const handleSelectAllForClass = (className: string, subjectsList: string[]) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      const currentClassSubjects: Record<string, { maxMarks: number; passMarks: number }> = {};
+
+      subjectsList.forEach(s => {
+        currentClassSubjects[s] = classWise[className]?.[s] || { maxMarks: config.maxMarks || 100, passMarks: config.passMarks || 35 };
+      });
+
+      classWise[className] = currentClassSubjects;
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
+  };
+
+  const handleClearAllForClass = (className: string) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      classWise[className] = {};
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
   };
 
   const handleSaveGeneral = () => {
@@ -141,36 +286,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     onSaveSetup(formData);
     onNavigateNext();
   };
-
-  const activeSubjects = Object.keys(formData.marksConfig?.subjectWiseConfig || {});
-  const maxMarksMap: Record<string, number> = {};
-  const passMarksMap: Record<string, number> = {};
-  activeSubjects.forEach(s => {
-    const item = formData.marksConfig?.subjectWiseConfig?.[s] || { maxMarks: 100, passMarks: 35 };
-    maxMarksMap[s] = item.maxMarks;
-    passMarksMap[s] = item.passMarks;
-  });
-
-  const classSubjects = useMemo(() => {
-    const appClasses = formData.applicableClasses || [];
-    if (appClasses.length === 0) {
-      return [];
-    }
-    const uniqueSubjects = new Set<string>();
-    appClasses.forEach(className => {
-      const matchedClass = academicClasses.find(c => c.name === className);
-      if (matchedClass && matchedClass.subjects) {
-        matchedClass.subjects.forEach(sub => {
-          const name = typeof sub === 'string' ? sub : (sub as any).name;
-          if (name) uniqueSubjects.add(name);
-        });
-      }
-    });
-    if (uniqueSubjects.size === 0) {
-      return subjects.map(s => s.name);
-    }
-    return Array.from(uniqueSubjects);
-  }, [formData.applicableClasses, academicClasses, subjects]);
 
   return (
     <div className="space-y-4 text-left">
@@ -219,107 +334,127 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       >
 
 
-        {!exam?.id && (
-          <div className="mb-4 p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Please create or select an examination to configure setup.</span>
-          </div>
-        )}
-
-        {/* Subtabs wizard */}
-        <div className="flex gap-2 border-b border-slate-200/70 pb-3 dark:border-slate-800 mb-4">
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('general')}
-            className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
-              activeSubTab === 'general'
-                ? 'border-sky-600 bg-sky-600 text-white shadow-sm'
-                : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            1. Exam Details
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('subjects')}
-            className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
-              activeSubTab === 'subjects'
-                ? 'border-sky-600 bg-sky-600 text-white shadow-sm'
-                : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50'
-            }`}
-          >
-            2. Subjects & Marks
-          </button>
-        </div>
-
-        {activeSubTab === 'general' ? (
-          <div className="space-y-4">
-            <ExamGeneralForm
-              name={formData.name || ''}
-              examType={formData.examType || ''}
-              term={(formData as any).term || ''}
-              startDate={formData.startDate || ''}
-              endDate={formData.endDate || ''}
-              applicableClasses={formData.applicableClasses || []}
-              classOptions={classOptions}
-              selectedAcademicYear={selectedAcademicYear}
-              selectedBranch={selectedBranch}
-              onChange={handleUpdateForm}
-            />
-            <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+        {!exam?.id ? (
+          <div className="p-12 text-center bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-3xl space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200 dark:border-sky-900/60">
+              <Award className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                Select or Create an Examination
+              </h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Select an existing examination from the dropdown above to edit, or click <strong>+ Create New Exam</strong> to start configuring exam details and subjects.
+              </p>
+            </div>
+            {/* {onCreateNewExam && (
               <button
                 type="button"
-                onClick={handleSaveGeneral}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-1.5 transition shadow-sm shadow-sky-600/20 cursor-pointer"
+                onClick={onCreateNewExam}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
               >
-                <Save className="w-3.5 h-3.5" /> Save & Continue
+                <Plus className="w-4 h-4" /> Create New Exam
               </button>
-            </div>
+            )} */}
           </div>
         ) : (
-          (formData.applicableClasses || []).length === 0 ? (
-            <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-200 dark:border-amber-900/60">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                  No Applicable Classes Selected
-                </h4>
-                <p className="text-xs text-slate-500 max-w-md mx-auto">
-                  Please select at least one class in <strong>1. Exam Details</strong> to configure examination subjects.
-                </p>
-              </div>
+          <>
+            {/* Subtabs wizard */}
+            <div className="flex gap-2 border-b border-slate-200/70 pb-3 dark:border-slate-800 mb-4">
               <button
                 type="button"
                 onClick={() => setActiveSubTab('general')}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
+                  activeSubTab === 'general'
+                    ? 'border-sky-600 bg-sky-600 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50'
+                }`}
               >
-                Go to Exam Details & Select Classes
+                1. Exam Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSubTab('subjects')}
+                className={`px-3.5 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
+                  activeSubTab === 'subjects'
+                    ? 'border-sky-600 bg-sky-600 text-white shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                2. Subjects & Marks
               </button>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <ExamSubjectConfiguration
-                subjects={classSubjects}
-                applicableClasses={formData.applicableClasses || []}
-                activeSubjects={activeSubjects}
-                maxMarksMap={maxMarksMap}
-                passMarksMap={passMarksMap}
-                onToggleSubject={handleToggleSubject}
-                onUpdateMarks={handleUpdateSubjectConfig}
-              />
-              <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={handleSaveSubjects}
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1.5 transition shadow-sm shadow-emerald-600/20 cursor-pointer"
-                >
-                  <Save className="w-3.5 h-3.5" /> Save & Proceed to Schedule
-                </button>
+
+            {activeSubTab === 'general' ? (
+              <div className="space-y-4">
+                <ExamGeneralForm
+                  name={formData.name || ''}
+                  examType={formData.examType || ''}
+                  term={(formData as any).term || ''}
+                  startDate={formData.startDate || ''}
+                  endDate={formData.endDate || ''}
+                  applicableClasses={formData.applicableClasses || []}
+                  classOptions={classOptions}
+                  selectedAcademicYear={selectedAcademicYear}
+                  selectedBranch={selectedBranch}
+                  onChange={handleUpdateForm}
+                />
+
+                <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={handleSaveGeneral}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-black flex items-center gap-1.5 transition shadow-sm shadow-sky-600/20 cursor-pointer"
+                  >
+                    <Save className="w-3.5 h-3.5" /> Save & Continue
+                  </button>
+                </div>
               </div>
-            </div>
-          )
+            ) : (
+              (formData.applicableClasses || []).length === 0 ? (
+                <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-200 dark:border-amber-900/60">
+                    <AlertTriangle className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      No Applicable Classes Selected
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      Please select at least one class in <strong>1. Exam Details</strong> to configure examination subjects.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubTab('general')}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    Go to Exam Details & Select Classes
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <ExamSubjectConfiguration
+                    applicableClasses={formData.applicableClasses || []}
+                    classWiseConfig={(formData.marksConfig as any)?.classWiseConfig || {}}
+                    onToggleSubject={handleToggleSubject}
+                    onUpdateMarks={handleUpdateSubjectConfig}
+                    onSelectAllForClass={handleSelectAllForClass}
+                    onClearAllForClass={handleClearAllForClass}
+                  />
+                  <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      type="button"
+                      onClick={handleSaveSubjects}
+                      className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1.5 transition shadow-sm shadow-emerald-600/20 cursor-pointer"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Save & Proceed to Schedule
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
+          </>
         )}
       </Panel>
     </div>

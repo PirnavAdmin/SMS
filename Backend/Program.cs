@@ -11,6 +11,10 @@ using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Implementations;
 using SMS.Api.Services.Interfaces;
 using SMS.Api.Repositories.Implementations;
+using SMS.Api.Repositories.Interfaces.ExaminationNew;
+using SMS.Api.Repositories.Implementations.ExaminationNew;
+using SMS.Api.Services.Interfaces.ExaminationNew;
+using SMS.Api.Services.Implementations.ExaminationNew;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +78,18 @@ builder.Services.AddScoped<IStudentTransportAssignmentService,StudentTransportAs
 builder.Services.AddScoped<IVehicleMaintenanceRepository,VehicleMaintenanceRepository>();
 
 builder.Services.AddScoped<IVehicleMaintenanceService,VehicleMaintenanceService>();
+
+// Examination New
+builder.Services.AddScoped<IExamNewRepository, ExamNewRepository>();
+builder.Services.AddScoped<IExamNewService, ExamNewService>();
+builder.Services.AddScoped<IExamScheduleRepository, ExamScheduleRepository>();
+builder.Services.AddScoped<IExamScheduleService, ExamScheduleService>();
+builder.Services.AddScoped<IExamMarksEntryRepository, ExamMarksEntryRepository>();
+builder.Services.AddScoped<IExamMarksEntryService, ExamMarksEntryService>();
+builder.Services.AddScoped<IExamResultsReportsRepository, ExamResultsReportsRepository>();
+builder.Services.AddScoped<IExamResultsReportsService, ExamResultsReportsService>();
+builder.Services.AddScoped<IExamGradingScaleRepository, ExamGradingScaleRepository>();
+builder.Services.AddScoped<IExamGradingScaleService, ExamGradingScaleService>();
 
 // Transport Dashboard
 builder.Services.AddScoped<ITransportDashboardRepository,TransportDashboardRepository>();

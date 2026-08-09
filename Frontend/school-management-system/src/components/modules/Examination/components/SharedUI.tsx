@@ -2,8 +2,9 @@ import React, { useRef } from 'react';
 import { CalendarDays } from 'lucide-react';
 
 export function formatDateDDMMYYYY(dateStr: string): string {
-  if (!dateStr) return '—';
+  if (!dateStr || dateStr === '—' || dateStr === '-') return '';
   const clean = dateStr.trim();
+  if (!clean || clean === '—' || clean === '-') return '';
   if (clean.includes('-')) {
     const parts = clean.split('-');
     if (parts.length === 3) {
@@ -27,16 +28,18 @@ export function formatDateDDMMYYYY(dateStr: string): string {
 export function DatePickerInput({
   value,
   onChange,
-  className = ''
+  className = '',
+  placeholder = 'DD-MM-YYYY'
 }: {
   value: string;
   onChange: (newDateStr: string) => void;
   className?: string;
+  placeholder?: string;
 }) {
   const hiddenNativeRef = useRef<HTMLInputElement>(null);
   const displayVal = formatDateDDMMYYYY(value);
 
-  let isoVal = value;
+  let isoVal = value || '';
   if (value && value.includes('-')) {
     const parts = value.split('-');
     if (parts[0].length === 2 && parts[2].length === 4) {
@@ -44,30 +47,33 @@ export function DatePickerInput({
     }
   }
 
+  const openPicker = () => {
+    if (hiddenNativeRef.current) {
+      if (typeof hiddenNativeRef.current.showPicker === 'function') {
+        hiddenNativeRef.current.showPicker();
+      } else {
+        hiddenNativeRef.current.click();
+      }
+    }
+  };
+
   return (
     <div className="relative flex items-center w-full">
       <input
         type="text"
         value={displayVal}
-        placeholder="DD-MM-YYYY"
+        placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
-        className={`${className} pr-7 font-mono w-full`}
+        onClick={openPicker}
+        className={`${className} pr-8 font-mono w-full cursor-pointer`}
       />
       <button
         type="button"
-        onClick={() => {
-          if (hiddenNativeRef.current) {
-            if (typeof hiddenNativeRef.current.showPicker === 'function') {
-              hiddenNativeRef.current.showPicker();
-            } else {
-              hiddenNativeRef.current.click();
-            }
-          }
-        }}
-        className="absolute right-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition p-0.5"
-        title="Calendar Date Picker"
+        onClick={openPicker}
+        className="absolute right-2.5 text-slate-400 hover:text-sky-600 dark:hover:text-sky-400 transition p-1 cursor-pointer"
+        title="Select Date"
       >
-        <CalendarDays className="w-3.5 h-3.5" />
+        <CalendarDays className="w-4 h-4" />
       </button>
       <input
         ref={hiddenNativeRef}
