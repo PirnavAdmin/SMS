@@ -4,6 +4,9 @@ namespace SMS.Api.Dtos.Transport.Dashboard
     {
         public TransportDashboardDto Summary { get; set; } = new();
 
+        public IEnumerable<TodayOperationDto> TodayOperations { get; set; }
+            = new List<TodayOperationDto>();
+
         public IEnumerable<RouteStudentSummaryDto> RouteStudents { get; set; }
             = new List<RouteStudentSummaryDto>();
 

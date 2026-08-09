@@ -8,6 +8,8 @@ namespace SMS.Api.Controllers.Transport
 {
     [ApiController]
     [Route("api/transport/vehicle-maintenance")]
+    [Route("api/transport/maintenance")]
+    [Route("api/transport/operations/maintenance")]
     [Authorize(Roles = "Admin")]
     public class VehicleMaintenanceController : ControllerBase
     {

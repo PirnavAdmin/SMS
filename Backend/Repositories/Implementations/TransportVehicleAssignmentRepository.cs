@@ -23,6 +23,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted);
 
             if (filter.RouteId.HasValue)
@@ -50,7 +51,8 @@ namespace SMS.Api.Repositories.Implementations
                 query = query.Where(x =>
                     (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.ToLower().Contains(search)) ||
                     (x.Vehicle != null && x.Vehicle.VehicleNumber != null && x.Vehicle.VehicleNumber.ToLower().Contains(search)) ||
-                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)));
+                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)) ||
+                    (x.Attendant != null && x.Attendant.AttendantName != null && x.Attendant.AttendantName.ToLower().Contains(search)));
             }
 
             var totalCount = await query.CountAsync();
@@ -69,10 +71,19 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
                     VehicleName = x.Vehicle != null && x.Vehicle.VehicleName != null ? x.Vehicle.VehicleName : string.Empty,
+                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 50,
 
                     DriverId = x.DriverId,
                     DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty,
                     DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
+
+                    AttendantId = x.AttendantId,
+                    AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+
+                    BranchName = x.BranchName ?? "Main Campus",
+                    AcademicYear = x.AcademicYear ?? "2026-2027",
+                    MorningTripTime = x.MorningTripTime ?? "07:00 AM",
+                    EveningTripTime = x.EveningTripTime ?? "03:45 PM",
 
                     AssignmentDate = x.AssignmentDate,
                     EffectiveFrom = x.EffectiveFrom,
@@ -102,6 +113,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
+                .Include(x => x.Attendant)
                 .Where(x => x.AssignmentId == assignmentId && !x.IsDeleted)
                 .Select(x => new TransportVehicleAssignmentDto
                 {
@@ -113,10 +125,19 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
                     VehicleName = x.Vehicle != null && x.Vehicle.VehicleName != null ? x.Vehicle.VehicleName : string.Empty,
+                    VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 50,
 
                     DriverId = x.DriverId,
                     DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty,
                     DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
+
+                    AttendantId = x.AttendantId,
+                    AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+
+                    BranchName = x.BranchName ?? "Main Campus",
+                    AcademicYear = x.AcademicYear ?? "2026-2027",
+                    MorningTripTime = x.MorningTripTime ?? "07:00 AM",
+                    EveningTripTime = x.EveningTripTime ?? "03:45 PM",
 
                     AssignmentDate = x.AssignmentDate,
                     EffectiveFrom = x.EffectiveFrom,
@@ -138,9 +159,14 @@ namespace SMS.Api.Repositories.Implementations
         {
             var entity = new TransportVehicleAssignment
             {
-                RouteId = dto.RouteId,
-                VehicleId = dto.VehicleId,
-                DriverId = dto.DriverId,
+                RouteId = dto.RouteId > 0 ? dto.RouteId : 1,
+                VehicleId = dto.VehicleId > 0 ? dto.VehicleId : 1,
+                DriverId = dto.DriverId > 0 ? dto.DriverId : 1,
+                AttendantId = dto.AttendantId > 0 ? dto.AttendantId : null,
+                BranchName = dto.BranchName?.Trim(),
+                AcademicYear = dto.AcademicYear?.Trim(),
+                MorningTripTime = dto.MorningTripTime?.Trim(),
+                EveningTripTime = dto.EveningTripTime?.Trim(),
                 AssignmentDate = dto.AssignmentDate,
                 EffectiveFrom = dto.EffectiveFrom,
                 EffectiveTo = dto.EffectiveTo,
@@ -171,15 +197,22 @@ namespace SMS.Api.Repositories.Implementations
             if (entity == null)
                 return false;
 
-            entity.RouteId = dto.RouteId;
-            entity.VehicleId = dto.VehicleId;
-            entity.DriverId = dto.DriverId;
+            if (dto.RouteId > 0) entity.RouteId = dto.RouteId;
+            if (dto.VehicleId > 0) entity.VehicleId = dto.VehicleId;
+            if (dto.DriverId > 0) entity.DriverId = dto.DriverId;
+            if (dto.AttendantId.HasValue) entity.AttendantId = dto.AttendantId > 0 ? dto.AttendantId : null;
+            if (dto.BranchName != null) entity.BranchName = dto.BranchName.Trim();
+            if (dto.AcademicYear != null) entity.AcademicYear = dto.AcademicYear.Trim();
+            if (dto.MorningTripTime != null) entity.MorningTripTime = dto.MorningTripTime.Trim();
+            if (dto.EveningTripTime != null) entity.EveningTripTime = dto.EveningTripTime.Trim();
             entity.AssignmentDate = dto.AssignmentDate;
             entity.EffectiveFrom = dto.EffectiveFrom;
             entity.EffectiveTo = dto.EffectiveTo;
             entity.Shift = dto.Shift;
             entity.Remarks = dto.Remarks;
             entity.Status = dto.Status;
+            entity.UpdatedBy = userId;
+            entity.UpdatedAt = DateTime.UtcNow;
             entity.UpdatedBy = userId;
             entity.UpdatedAt = DateTime.UtcNow;
 

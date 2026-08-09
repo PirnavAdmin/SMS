@@ -16,9 +16,29 @@ namespace SMS.Api.Dtos.Transport.Dashboard
 
         public int ActiveDrivers { get; set; }
 
+        public int TotalBusAttendants { get; set; }
+
+        public int ActiveBusAttendants { get; set; }
+
         public int TotalPickupPoints { get; set; }
 
         public int StudentsUsingTransport { get; set; }
+
+        public int VehiclesUnderMaintenance { get; set; }
+
+        public int ExpiringVehicleDocuments { get; set; }
+
+        public int ExpiringDriverLicenses { get; set; }
+
+        public string WarningMessage { get; set; } = string.Empty;
+
+        public int MorningRunningCount { get; set; }
+
+        public int MorningCompletedCount { get; set; }
+
+        public int EveningPendingCount { get; set; }
+
+        public int DelayedTripsCount { get; set; }
 
         public int TotalVehicleCapacity { get; set; }
 
