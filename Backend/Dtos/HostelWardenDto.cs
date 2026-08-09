@@ -1,47 +1,165 @@
-namespace SMS.Api.Dtos;
-
-using System;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
-public class HostelWardenDto
+namespace SMS.Api.Dtos
 {
-    public int WardenId { get; set; }
-    public int HostelId { get; set; }
-    public string HostelName { get; set; } = string.Empty;
-    public int? StaffId { get; set; }
-    public string? EmployeeId { get; set; }
-    public string WardenName { get; set; } = string.Empty;
-    public string MobileNumber { get; set; } = string.Empty;
-    public string? AlternateMobile { get; set; }
-    public string? EmailAddress { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+    public class HostelWardenDto
+    {
+        [JsonPropertyName("wardenId")]
+        public int WardenId { get; set; }
 
-public class SaveHostelWardenDto
-{
-    [Required(ErrorMessage = "Assigned Hostel Block is required.")]
-    public int HostelId { get; set; }
+        [JsonPropertyName("id")]
+        public int Id => WardenId;
 
-    public int? StaffId { get; set; }
+        [JsonPropertyName("hostelId")]
+        public int HostelId { get; set; }
 
-    public string? EmployeeId { get; set; }
+        [JsonPropertyName("hostelName")]
+        public string HostelName { get; set; } = string.Empty;
 
-    public string? WardenName { get; set; }
+        [JsonPropertyName("assignedHostel")]
+        public string AssignedHostel => HostelName;
 
-    public string? MobileNumber { get; set; }
+        [JsonPropertyName("staffId")]
+        public int? StaffId { get; set; }
 
-    public string? AlternateMobile { get; set; }
+        [JsonPropertyName("employeeId")]
+        public string? EmployeeId { get; set; }
 
-    public string? EmailAddress { get; set; }
-}
+        [JsonPropertyName("wardenName")]
+        public string WardenName { get; set; } = string.Empty;
 
-public class StaffWardenCandidateDto
-{
-    public int StaffId { get; set; }
-    public string EmployeeId { get; set; } = string.Empty;
-    public string StaffName { get; set; } = string.Empty;
-    public string Designation { get; set; } = string.Empty;
-    public string Department { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string Phone { get; set; } = string.Empty;
+        [JsonPropertyName("mobileNumber")]
+        public string MobileNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("phone")]
+        public string Phone => MobileNumber;
+
+        [JsonPropertyName("alternateMobile")]
+        public string? AlternateMobile { get; set; }
+
+        [JsonPropertyName("emailAddress")]
+        public string? EmailAddress { get; set; }
+
+        [JsonPropertyName("email")]
+        public string? Email => EmailAddress;
+
+        [JsonPropertyName("blockName")]
+        public string? BlockName { get; set; }
+
+        [JsonPropertyName("floorLevel")]
+        public string? FloorLevel { get; set; }
+
+        [JsonPropertyName("effectiveDate")]
+        public DateTime? EffectiveDate { get; set; }
+
+        [JsonPropertyName("effectiveDateString")]
+        public string? EffectiveDateString => EffectiveDate?.ToString("yyyy-MM-dd");
+
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class SaveHostelWardenDto
+    {
+        [Required(ErrorMessage = "Assigned Hostel Block is required.")]
+        [JsonPropertyName("hostelId")]
+        public int HostelId { get; set; }
+
+        [JsonPropertyName("selectHostel")]
+        public string? SelectHostelAlias
+        {
+            get => HostelId.ToString();
+            set { if (int.TryParse(value, out int val)) HostelId = val; }
+        }
+
+        [JsonPropertyName("staffId")]
+        public int? StaffId { get; set; }
+
+        [JsonPropertyName("selectEmployee")]
+        public string? SelectEmployeeAlias
+        {
+            get => StaffId?.ToString();
+            set { if (int.TryParse(value, out int val)) StaffId = val; }
+        }
+
+        [JsonPropertyName("employeeId")]
+        public string? EmployeeId { get; set; }
+
+        [JsonPropertyName("wardenName")]
+        public string? WardenName { get; set; }
+
+        [JsonPropertyName("mobileNumber")]
+        public string? MobileNumber { get; set; }
+
+        [JsonPropertyName("alternateMobile")]
+        public string? AlternateMobile { get; set; }
+
+        [JsonPropertyName("emailAddress")]
+        public string? EmailAddress { get; set; }
+
+        [JsonPropertyName("email")]
+        public string? EmailAlias
+        {
+            get => EmailAddress;
+            set { if (!string.IsNullOrWhiteSpace(value)) EmailAddress = value; }
+        }
+
+        [JsonPropertyName("blockName")]
+        public string? BlockName { get; set; }
+
+        [JsonPropertyName("assignBlock")]
+        public string? AssignBlockAlias
+        {
+            get => BlockName;
+            set { if (!string.IsNullOrWhiteSpace(value)) BlockName = value; }
+        }
+
+        [JsonPropertyName("floorLevel")]
+        public string? FloorLevel { get; set; }
+
+        [JsonPropertyName("assignFloor")]
+        public string? AssignFloorAlias
+        {
+            get => FloorLevel;
+            set { if (!string.IsNullOrWhiteSpace(value)) FloorLevel = value; }
+        }
+
+        [JsonPropertyName("effectiveDate")]
+        public DateTime? EffectiveDate { get; set; }
+
+        [JsonPropertyName("assignmentEffectiveDate")]
+        public DateTime? AssignmentEffectiveDateAlias
+        {
+            get => EffectiveDate;
+            set { if (value.HasValue) EffectiveDate = value.Value; }
+        }
+    }
+
+    public class StaffWardenCandidateDto
+    {
+        [JsonPropertyName("staffId")]
+        public int StaffId { get; set; }
+
+        [JsonPropertyName("employeeId")]
+        public string EmployeeId { get; set; } = string.Empty;
+
+        [JsonPropertyName("staffName")]
+        public string StaffName { get; set; } = string.Empty;
+
+        [JsonPropertyName("designation")]
+        public string Designation { get; set; } = string.Empty;
+
+        [JsonPropertyName("department")]
+        public string Department { get; set; } = string.Empty;
+
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = string.Empty;
+
+        [JsonPropertyName("phone")]
+        public string Phone { get; set; } = string.Empty;
+
+        [JsonPropertyName("displayText")]
+        public string DisplayText => $"{StaffName} ({EmployeeId} • {Designation})";
+    }
 }

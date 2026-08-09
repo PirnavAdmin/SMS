@@ -1,33 +1,85 @@
-namespace SMS.Api.Dtos;
-
-using System;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
-public class RoomTypeConfigDto
+namespace SMS.Api.Dtos
 {
-    public int RoomTypeId { get; set; }
-    public string RoomTypeSpecification { get; set; } = string.Empty;
-    public int BedCapacity { get; set; }
-    public string AcType { get; set; } = "AC";
-    public string Status { get; set; } = "Active";
-    public string? Description { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+    public class RoomTypeConfigDto
+    {
+        [JsonPropertyName("roomTypeId")]
+        public int RoomTypeId { get; set; }
 
-public class CreateRoomTypeConfigDto
-{
-    [Required(ErrorMessage = "Room Type Specification is required.")]
-    public string RoomTypeSpecification { get; set; } = string.Empty;
+        [JsonPropertyName("id")]
+        public int Id => RoomTypeId;
 
-    [Required(ErrorMessage = "Bed Capacity is required.")]
-    [Range(1, 20, ErrorMessage = "Bed Capacity must be between 1 and 20.")]
-    public int BedCapacity { get; set; } = 1;
+        [JsonPropertyName("roomTypeSpecification")]
+        public string RoomTypeSpecification { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "AC Type is required.")]
-    public string AcType { get; set; } = "AC";
+        [JsonPropertyName("specification")]
+        public string Specification => RoomTypeSpecification;
 
-    [Required(ErrorMessage = "Status is required.")]
-    public string Status { get; set; } = "Active";
+        [JsonPropertyName("roomTypeName")]
+        public string RoomTypeName => RoomTypeSpecification;
 
-    public string? Description { get; set; }
+        [JsonPropertyName("bedCapacity")]
+        public int BedCapacity { get; set; }
+
+        [JsonPropertyName("capacity")]
+        public int Capacity => BedCapacity;
+
+        [JsonPropertyName("acType")]
+        public string AcType { get; set; } = "AC";
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "Active";
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class CreateRoomTypeConfigDto
+    {
+        [Required(ErrorMessage = "Room Type Specification is required.")]
+        [JsonPropertyName("roomTypeSpecification")]
+        public string RoomTypeSpecification { get; set; } = string.Empty;
+
+        [JsonPropertyName("specification")]
+        public string? SpecificationAlias
+        {
+            get => RoomTypeSpecification;
+            set { if (!string.IsNullOrWhiteSpace(value)) RoomTypeSpecification = value; }
+        }
+
+        [JsonPropertyName("roomTypeName")]
+        public string? RoomTypeNameAlias
+        {
+            get => RoomTypeSpecification;
+            set { if (!string.IsNullOrWhiteSpace(value)) RoomTypeSpecification = value; }
+        }
+
+        [Required(ErrorMessage = "Bed Capacity is required.")]
+        [Range(1, 20, ErrorMessage = "Bed Capacity must be between 1 and 20.")]
+        [JsonPropertyName("bedCapacity")]
+        public int BedCapacity { get; set; } = 1;
+
+        [JsonPropertyName("capacity")]
+        public int? CapacityAlias
+        {
+            get => BedCapacity;
+            set { if (value.HasValue) BedCapacity = value.Value; }
+        }
+
+        [Required(ErrorMessage = "AC Type is required.")]
+        [JsonPropertyName("acType")]
+        public string AcType { get; set; } = "AC";
+
+        [Required(ErrorMessage = "Status is required.")]
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "Active";
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+    }
 }
