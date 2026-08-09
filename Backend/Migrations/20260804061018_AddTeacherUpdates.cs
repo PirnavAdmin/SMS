@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -12,93 +12,33 @@ namespace Backend.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_admissionapplications_Classes_AppliedClassId",
-                table: "admissionapplications");
+            // migrationBuilder.DropForeignKey(
+            //     name: "FK_admissionapplications_Classes_AppliedClassId",
+            //     table: "admissionapplications");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_class_sections_Classes_AcademicClassId",
-                table: "class_sections");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_class_sections_Staff_ClassTeacherId",
-                table: "class_sections");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_ClassCurriculumSubjects_Classes_ClassGradeClassId",
-                table: "ClassCurriculumSubjects");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_ClassCurriculumSubjects_subjects_SubjectId",
-                table: "ClassCurriculumSubjects");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_exam_classes_Classes_class_id",
-                table: "exam_classes");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_ExamInvigilatorAssignments_ExamSchedules_ScheduleId",
-                table: "ExamInvigilatorAssignments");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_HomeworkSubmissions_Homeworks_HomeworkId",
-                table: "HomeworkSubmissions");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_hostel_wardens_Staff_StaffId",
-                table: "hostel_wardens");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_LeaveApplications_LeaveTypeConfigs_LeaveTypeId",
-                table: "LeaveApplications");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_LeaveApplications_Staff_StaffId",
-                table: "LeaveApplications");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_OtpVerifications_Users_UserId",
-                table: "OtpVerifications");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_SalaryStructureItems_SalaryStructures_StructureId",
-                table: "SalaryStructureItems");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_Section_Staff_ClassTeacherId",
-                table: "Section");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_StaffAttendances_Staff_StaffId",
-                table: "StaffAttendances");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_StaffDocuments_Staff_StaffId",
-                table: "StaffDocuments");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_student_bed_allocations_admissionapplications_StudentId",
-                table: "student_bed_allocations");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_teacher_subject_assignments_Classes_ClassId",
-                table: "teacher_subject_assignments");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_teacher_subject_assignments_Staff_StaffId",
-                table: "teacher_subject_assignments");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_timetable_headers_Classes_ClassId",
-                table: "timetable_headers");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_timetable_slots_Staff_TeacherId",
-                table: "timetable_slots");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_transport_vehicle_maintenance_transport_vehicles_vehicle_id",
-                table: "transport_vehicle_maintenance");
+            /* Legacy DropForeignKey statements bypassed for MySQL compatibility
+            migrationBuilder.DropForeignKey(name: "FK_class_sections_Classes_AcademicClassId", table: "class_sections");
+            migrationBuilder.DropForeignKey(name: "FK_class_sections_Staff_ClassTeacherId", table: "class_sections");
+            migrationBuilder.DropForeignKey(name: "FK_ClassCurriculumSubjects_Classes_ClassGradeClassId", table: "ClassCurriculumSubjects");
+            migrationBuilder.DropForeignKey(name: "FK_ClassCurriculumSubjects_subjects_SubjectId", table: "ClassCurriculumSubjects");
+            migrationBuilder.DropForeignKey(name: "FK_exam_classes_Classes_class_id", table: "exam_classes");
+            migrationBuilder.DropForeignKey(name: "FK_ExamInvigilatorAssignments_ExamSchedules_ScheduleId", table: "ExamInvigilatorAssignments");
+            migrationBuilder.DropForeignKey(name: "FK_HomeworkSubmissions_Homeworks_HomeworkId", table: "HomeworkSubmissions");
+            migrationBuilder.DropForeignKey(name: "FK_hostel_wardens_Staff_StaffId", table: "hostel_wardens");
+            migrationBuilder.DropForeignKey(name: "FK_LeaveApplications_LeaveTypeConfigs_LeaveTypeId", table: "LeaveApplications");
+            migrationBuilder.DropForeignKey(name: "FK_LeaveApplications_Staff_StaffId", table: "LeaveApplications");
+            migrationBuilder.DropForeignKey(name: "FK_OtpVerifications_Users_UserId", table: "OtpVerifications");
+            migrationBuilder.DropForeignKey(name: "FK_SalaryStructureItems_SalaryStructures_StructureId", table: "SalaryStructureItems");
+            migrationBuilder.DropForeignKey(name: "FK_Section_Staff_ClassTeacherId", table: "Section");
+            migrationBuilder.DropForeignKey(name: "FK_StaffAttendances_Staff_StaffId", table: "StaffAttendances");
+            migrationBuilder.DropForeignKey(name: "FK_StaffDocuments_Staff_StaffId", table: "StaffDocuments");
+            migrationBuilder.DropForeignKey(name: "FK_student_bed_allocations_admissionapplications_StudentId", table: "student_bed_allocations");
+            migrationBuilder.DropForeignKey(name: "FK_teacher_subject_assignments_Classes_ClassId", table: "teacher_subject_assignments");
+            migrationBuilder.DropForeignKey(name: "FK_teacher_subject_assignments_Staff_StaffId", table: "teacher_subject_assignments");
+            migrationBuilder.DropForeignKey(name: "FK_timetable_headers_Classes_ClassId", table: "timetable_headers");
+            migrationBuilder.DropForeignKey(name: "FK_timetable_slots_Staff_TeacherId", table: "timetable_slots");
+            migrationBuilder.DropForeignKey(name: "FK_transport_vehicle_maintenance_transport_vehicles_vehicle_id", table: "transport_vehicle_maintenance");
+            */
 
             migrationBuilder.DropTable(
                 name: "UserRoles");
