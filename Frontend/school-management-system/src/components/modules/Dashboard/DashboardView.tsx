@@ -154,12 +154,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           <div className="space-y-1">
             <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
               <span>{greeting}, {user?.name || 'Admin'}</span>
-              <Sparkles className="w-4 h-4 text-brand-500 dark:text-brand-400 animate-pulse" />
+              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
           </div>
           <div className="hidden md:flex items-center gap-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-3 py-1.5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-50 dark:bg-slate-900 shrink-0">
-              {hour < 17 ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-200/80 dark:border-sky-900/50 shrink-0">
+              <Calendar className="w-4 h-4" />
             </div>
             <div className="text-left font-mono shrink-0">
               <p className="text-xs font-black text-slate-850 dark:text-slate-100 leading-none">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>

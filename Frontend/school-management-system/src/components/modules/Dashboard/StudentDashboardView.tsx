@@ -70,7 +70,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
           <div className="space-y-0.5">
             <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
               <span>{greeting}, {studentDisplayName}</span>
-              <Sparkles className="w-4 h-4 text-brand-500 dark:text-brand-400 animate-pulse" />
+              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
             <p className="text-xs text-slate-600 dark:text-slate-400">
               <strong className="text-slate-800 dark:text-slate-200">{currentWard.className.startsWith('Class') ? currentWard.className : `Class ${currentWard.className}`}-{currentWard.section}</strong> • Adm No: <strong className="text-slate-800 dark:text-slate-200">{currentWard.admissionNo}</strong>
@@ -78,8 +78,8 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
           </div>
           
           <div className="hidden md:flex items-center gap-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
-            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-50 dark:bg-slate-900 shrink-0">
-              {hour < 17 ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-200/80 dark:border-sky-900/50 shrink-0">
+              <Calendar className="w-4 h-4" />
             </div>
             <div className="text-left font-mono shrink-0">
               <p className="text-xs font-black text-slate-850 dark:text-slate-100 leading-none">{dateFormatted}</p>
