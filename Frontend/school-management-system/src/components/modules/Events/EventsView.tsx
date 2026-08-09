@@ -55,6 +55,84 @@ export const EventsView: React.FC = () => {
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [eventToNotify, setEventToNotify] = useState<UnifiedCalendarEvent | null>(null);
   const [holidayToDelete, setHolidayToDelete] = useState<Holiday | null>(null);
+  const [editingHoliday, setEditingHoliday] = useState<Holiday | null>(null);
+  const [editingEvent, setEditingEvent] = useState<SchoolEvent | null>(null);
+
+  const handleEditHolidayClick = (h: Holiday) => {
+    setEditingHoliday(h);
+    setHolidayForm({
+      name: h.name,
+      type: h.type,
+      startDate: h.startDate,
+      endDate: h.endDate || h.startDate,
+      branch: h.branch || 'Main Campus',
+      description: h.description || '',
+      status: h.status || 'Active'
+    });
+    setIsAddHolidayModalOpen(true);
+  };
+
+  const handleEditEventClick = (evt: SchoolEvent) => {
+    setEditingEvent(evt);
+    setEventForm({
+      title: evt.title,
+      category: evt.category || 'Sports Day',
+      description: evt.description || '',
+      organizer: evt.organizer || '',
+      venue: evt.venue || '',
+      startDate: evt.startDate,
+      endDate: evt.endDate || evt.startDate,
+      startTime: evt.startTime || '09:00 AM',
+      endTime: evt.endTime || '04:00 PM',
+      branch: evt.branch || 'Main Campus',
+      academicYear: evt.academicYear || '2026-2027',
+      participants: evt.participants || 'All Students & Staff',
+      applicableClasses: evt.applicableClasses || ['All Classes'],
+      status: evt.status || 'Published',
+      attachmentName: evt.attachments?.[0]?.name || '',
+      targetClass: evt.targetClass || 'Class 10',
+      targetSection: evt.targetSection || 'A'
+    });
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleCloseHolidayModal = () => {
+    setIsAddHolidayModalOpen(false);
+    setEditingHoliday(null);
+    setHolidayForm({
+      name: '',
+      type: 'National',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      branch: 'Main Campus',
+      description: '',
+      status: 'Active'
+    });
+  };
+
+  const handleCloseEventModal = () => {
+    setIsAddEventModalOpen(false);
+    setEditingEvent(null);
+    setEventForm({
+      title: '',
+      category: 'Sports Day',
+      description: '',
+      organizer: '',
+      venue: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date().toISOString().split('T')[0],
+      startTime: '09:00 AM',
+      endTime: '04:00 PM',
+      branch: 'Main Campus',
+      academicYear: '2026-2027',
+      participants: 'All Students & Staff',
+      applicableClasses: ['All Classes'],
+      status: 'Published',
+      attachmentName: '',
+      targetClass: 'Class 10',
+      targetSection: 'A'
+    });
+  };
 
   // Add Event Form State
   const [eventForm, setEventForm] = useState({
@@ -71,7 +149,7 @@ export const EventsView: React.FC = () => {
     academicYear: '2026-2027',
     participants: 'All Students & Staff',
     applicableClasses: ['All Classes'],
-    status: 'Published' as const,
+    status: 'Published' as 'Completed' | 'Cancelled' | 'Draft' | 'Published',
     attachmentName: '',
     targetClass: 'Class 10',
     targetSection: 'A'
@@ -85,7 +163,7 @@ export const EventsView: React.FC = () => {
     endDate: new Date().toISOString().split('T')[0],
     branch: 'Main Campus',
     description: '',
-    status: 'Active' as const
+    status: 'Active' as 'Active' | 'Inactive'
   });
 
   // Today's formatted ISO date string
@@ -359,23 +437,46 @@ export const EventsView: React.FC = () => {
       return;
     }
 
-    addSchoolEvent({
-      title: eventForm.title.trim(),
-      category: eventForm.category,
-      description: eventForm.description,
-      organizer: eventForm.organizer || (role === 'Teacher' ? 'Teacher' : 'School Administration'),
-      venue: eventForm.venue || 'Main Auditorium',
-      startDate: eventForm.startDate,
-      endDate: eventForm.endDate || eventForm.startDate,
-      branch: eventForm.branch,
-      academicYear: eventForm.academicYear,
-      participants: eventForm.participants,
-      applicableClasses: eventForm.applicableClasses,
-      status: eventForm.status,
-      targetClass: role === 'Teacher' ? eventForm.targetClass : undefined,
-      targetSection: role === 'Teacher' ? eventForm.targetSection : undefined,
-      attachments: eventForm.attachmentName ? [{ id: 'ATT-NEW', name: eventForm.attachmentName, url: '#', type: 'PDF' }] : []
-    });
+    if (editingEvent) {
+      updateSchoolEvent(editingEvent.id, {
+        title: eventForm.title.trim(),
+        category: eventForm.category,
+        description: eventForm.description,
+        organizer: eventForm.organizer || (role === 'Teacher' ? 'Teacher' : 'School Administration'),
+        venue: eventForm.venue || 'Main Auditorium',
+        startDate: eventForm.startDate,
+        endDate: eventForm.endDate || eventForm.startDate,
+        branch: eventForm.branch,
+        academicYear: eventForm.academicYear,
+        participants: eventForm.participants,
+        applicableClasses: eventForm.applicableClasses,
+        status: eventForm.status,
+        targetClass: role === 'Teacher' ? eventForm.targetClass : undefined,
+        targetSection: role === 'Teacher' ? eventForm.targetSection : undefined,
+        attachments: eventForm.attachmentName ? [{ id: 'ATT-NEW', name: eventForm.attachmentName, url: '#', type: 'PDF' }] : editingEvent.attachments
+      });
+      addToast('success', 'Event Updated', 'School event updated successfully.');
+      setEditingEvent(null);
+    } else {
+      addSchoolEvent({
+        title: eventForm.title.trim(),
+        category: eventForm.category,
+        description: eventForm.description,
+        organizer: eventForm.organizer || (role === 'Teacher' ? 'Teacher' : 'School Administration'),
+        venue: eventForm.venue || 'Main Auditorium',
+        startDate: eventForm.startDate,
+        endDate: eventForm.endDate || eventForm.startDate,
+        branch: eventForm.branch,
+        academicYear: eventForm.academicYear,
+        participants: eventForm.participants,
+        applicableClasses: eventForm.applicableClasses,
+        status: eventForm.status,
+        targetClass: role === 'Teacher' ? eventForm.targetClass : undefined,
+        targetSection: role === 'Teacher' ? eventForm.targetSection : undefined,
+        attachments: eventForm.attachmentName ? [{ id: 'ATT-NEW', name: eventForm.attachmentName, url: '#', type: 'PDF' }] : []
+      });
+      addToast('success', 'Event Created', 'School event published to academic calendar successfully.');
+    }
 
     setIsAddEventModalOpen(false);
     setEventForm({
@@ -397,7 +498,6 @@ export const EventsView: React.FC = () => {
       targetClass: 'Class 10',
       targetSection: 'A'
     });
-    addToast('success', 'Event Created', 'School event published to academic calendar successfully.');
   };
 
   const handleAddHolidaySubmit = (e: React.FormEvent) => {
@@ -407,15 +507,29 @@ export const EventsView: React.FC = () => {
       return;
     }
 
-    addHoliday({
-      name: holidayForm.name.trim(),
-      type: holidayForm.type,
-      startDate: holidayForm.startDate,
-      endDate: holidayForm.endDate || holidayForm.startDate,
-      branch: holidayForm.branch,
-      description: holidayForm.description,
-      status: holidayForm.status
-    });
+    if (editingHoliday) {
+      updateHoliday(editingHoliday.id, {
+        name: holidayForm.name.trim(),
+        type: holidayForm.type,
+        startDate: holidayForm.startDate,
+        endDate: holidayForm.endDate || holidayForm.startDate,
+        description: holidayForm.description,
+        status: holidayForm.status
+      });
+      addToast('success', 'Holiday Updated', 'Official holiday details updated successfully.');
+      setEditingHoliday(null);
+    } else {
+      addHoliday({
+        name: holidayForm.name.trim(),
+        type: holidayForm.type,
+        startDate: holidayForm.startDate,
+        endDate: holidayForm.endDate || holidayForm.startDate,
+        branch: holidayForm.branch,
+        description: holidayForm.description,
+        status: holidayForm.status
+      });
+      addToast('success', 'Holiday Added', 'Official holiday recorded in the academic master.');
+    }
 
     setIsAddHolidayModalOpen(false);
     setHolidayForm({
@@ -427,7 +541,6 @@ export const EventsView: React.FC = () => {
       description: '',
       status: 'Active'
     });
-    addToast('success', 'Holiday Added', 'Official holiday recorded in the academic master.');
   };
 
   // Filtered Holidays List
@@ -536,21 +649,25 @@ export const EventsView: React.FC = () => {
         <div className="flex items-center gap-2 shrink-0 flex-wrap">
           {canManageEvents && (
             <>
-              <button
-                type="button"
-                onClick={() => setIsAddHolidayModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-xs flex items-center gap-1.5 transition cursor-pointer h-[34px]"
-              >
-                <Plus className="w-3.5 h-3.5 text-sky-600" /> Add Holiday
-              </button>
+              {activeTab === 'holidays' && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddHolidayModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600  hover:bg-sky-500 text-white text-xs font-extrabold shadow-sm shadow-sky-600/30 flex items-center gap-1.5 transition cursor-pointer h-[34px]"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Holiday
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => setIsAddEventModalOpen(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-sm shadow-sky-600/30 flex items-center gap-1.5 transition cursor-pointer h-[34px]"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add School Event
-              </button>
+              {activeTab === 'school-events' && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddEventModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-sm shadow-sky-600/30 flex items-center gap-1.5 transition cursor-pointer h-[34px]"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add School Event
+                </button>
+              )}
             </>
           )}
         </div>
@@ -984,14 +1101,24 @@ export const EventsView: React.FC = () => {
                         </td>
                         {canManageEvents && (
                           <td className="px-4 py-3.5 text-center whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => setHolidayToDelete(h)}
-                              className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer"
-                              title="Delete Holiday"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleEditHolidayClick(h)}
+                                className="p-1.5 rounded-xl text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
+                                title="Edit Holiday"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setHolidayToDelete(h)}
+                                className="p-1.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition cursor-pointer"
+                                title="Delete Holiday"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -1058,14 +1185,7 @@ export const EventsView: React.FC = () => {
       {/* ========================================================================= */}
       {activeTab === 'school-events' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm">
-            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-              <Award className="w-4 h-4 text-sky-600" />
-              School Events
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-semibold">
             {schoolEvents.map(evt => (
               <div key={evt.id} className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-3.5 hover:border-sky-500 dark:hover:border-sky-400 transition">
                 <div className="flex justify-between items-start">
@@ -1076,22 +1196,11 @@ export const EventsView: React.FC = () => {
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => {
-                          setEventToNotify({
-                            id: `SE-${evt.id}`,
-                            title: evt.title,
-                            date: evt.startDate,
-                            type: 'School Event',
-                            color: 'blue',
-                            sourceModule: 'School Events',
-                            rawItem: evt
-                          });
-                          setIsNotifyModalOpen(true);
-                        }}
+                        onClick={() => handleEditEventClick(evt)}
                         className="p-1.5 rounded-xl text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/50 transition cursor-pointer"
-                        title="Send Notification"
+                        title="Edit Event"
                       >
-                        <Bell className="w-3.5 h-3.5" />
+                        <Edit className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
@@ -1207,11 +1316,11 @@ export const EventsView: React.FC = () => {
                 <div className="p-2 bg-sky-100 dark:bg-sky-950 text-sky-600 rounded-xl">
                   <Award className="w-4 h-4" />
                 </div>
-                <h3 className="font-black text-sm text-slate-900 dark:text-white">Add School Event</h3>
+                <h3 className="font-black text-sm text-slate-900 dark:text-white">{editingEvent ? 'Edit School Event' : 'Add School Event'}</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setIsAddEventModalOpen(false)}
+                onClick={handleCloseEventModal}
                 className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
@@ -1299,7 +1408,7 @@ export const EventsView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setIsAddEventModalOpen(false)}
+                  onClick={handleCloseEventModal}
                   className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl font-bold transition cursor-pointer"
                 >
                   Cancel
@@ -1308,7 +1417,7 @@ export const EventsView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white font-extrabold rounded-xl shadow-md transition cursor-pointer"
                 >
-                  Publish to Calendar
+                  {editingEvent ? 'Save Changes' : 'Publish to Calendar'}
                 </button>
               </div>
             </form>
@@ -1325,11 +1434,11 @@ export const EventsView: React.FC = () => {
                 <div className="p-2 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 rounded-xl">
                   <Landmark className="w-4 h-4" />
                 </div>
-                <h3 className="font-black text-sm text-slate-900 dark:text-white">Add Official Holiday</h3>
+                <h3 className="font-black text-sm text-slate-900 dark:text-white">{editingHoliday ? 'Edit Official Holiday' : 'Add Official Holiday'}</h3>
               </div>
               <button
                 type="button"
-                onClick={() => setIsAddHolidayModalOpen(false)}
+                onClick={handleCloseHolidayModal}
                 className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-4 h-4" />
@@ -1401,7 +1510,7 @@ export const EventsView: React.FC = () => {
               <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setIsAddHolidayModalOpen(false)}
+                  onClick={handleCloseHolidayModal}
                   className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl font-bold transition cursor-pointer"
                 >
                   Cancel
@@ -1410,7 +1519,7 @@ export const EventsView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white font-extrabold rounded-xl shadow-md transition cursor-pointer"
                 >
-                  Save
+                  {editingHoliday ? 'Save Changes' : 'Save'}
                 </button>
               </div>
             </form>
