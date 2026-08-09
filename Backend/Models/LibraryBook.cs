@@ -38,6 +38,8 @@ public class LibraryIssueRecord
 
     public string BorrowerRole { get; set; } = "Student"; // "Student" or "Staff"
 
+    public string BorrowerIdCode { get; set; } = "STU-001";
+
     public int? StudentId { get; set; }
 
     public int? StaffId { get; set; }
