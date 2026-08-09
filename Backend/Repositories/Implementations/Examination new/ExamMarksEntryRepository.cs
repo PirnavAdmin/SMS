@@ -31,7 +31,7 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
     {
         try
         {
-            var dbEntries = await _context.Set<NewStudentMarksEntry>()
+            var dbEntries = await _context.NewStudentMarksEntries
                 .AsNoTracking()
                 .Where(m => m.ClassName == className && m.SectionName == sectionName && m.SubjectCode == subjectCode)
                 .ToListAsync();
@@ -59,29 +59,34 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
             entry.Status = statusText;
         }
 
-        _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                      m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
-                                      m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
-        _inMemoryMarks.AddRange(entries);
-
         try
         {
-            var existingDb = await _context.Set<NewStudentMarksEntry>()
+            var existingDb = await _context.NewStudentMarksEntries
                 .Where(m => m.ClassName == className && m.SectionName == sectionName && m.SubjectCode == subjectCode)
                 .ToListAsync();
 
             if (existingDb.Any())
             {
-                _context.Set<NewStudentMarksEntry>().RemoveRange(existingDb);
+                _context.NewStudentMarksEntries.RemoveRange(existingDb);
             }
 
-            await _context.Set<NewStudentMarksEntry>().AddRangeAsync(entries);
+            foreach (var e in entries)
+            {
+                e.EntryId = 0; // Reset EntryId for AUTO_INCREMENT
+            }
+
+            await _context.NewStudentMarksEntries.AddRangeAsync(entries);
             await _context.SaveChangesAsync();
         }
         catch
         {
             // Fallback
         }
+
+        _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                      m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
+                                      m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
+        _inMemoryMarks.AddRange(entries);
 
         return true;
     }

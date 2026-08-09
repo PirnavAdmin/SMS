@@ -33,7 +33,7 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
     {
         try
         {
-            var dbRules = await _context.Set<NewGradingScaleRule>()
+            var dbRules = await _context.NewGradingScaleRules
                 .AsNoTracking()
                 .Where(r => r.ExamType == examType || r.ExamType == "All")
                 .ToListAsync();
@@ -53,27 +53,32 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
 
     public async Task<bool> SaveScaleRulesAsync(string examType, List<NewGradingScaleRule> rules)
     {
-        _inMemoryRules.RemoveAll(r => r.ExamType.Equals(examType, StringComparison.OrdinalIgnoreCase) || r.ExamType.Equals("All", StringComparison.OrdinalIgnoreCase));
-        _inMemoryRules.AddRange(rules);
-
         try
         {
-            var existingDb = await _context.Set<NewGradingScaleRule>()
+            var existingDb = await _context.NewGradingScaleRules
                 .Where(r => r.ExamType == examType || r.ExamType == "All")
                 .ToListAsync();
 
             if (existingDb.Any())
             {
-                _context.Set<NewGradingScaleRule>().RemoveRange(existingDb);
+                _context.NewGradingScaleRules.RemoveRange(existingDb);
             }
 
-            await _context.Set<NewGradingScaleRule>().AddRangeAsync(rules);
+            foreach (var r in rules)
+            {
+                r.RuleId = 0; // Reset RuleId for AUTO_INCREMENT
+            }
+
+            await _context.NewGradingScaleRules.AddRangeAsync(rules);
             await _context.SaveChangesAsync();
         }
         catch
         {
             // Fallback
         }
+
+        _inMemoryRules.RemoveAll(r => r.ExamType.Equals(examType, StringComparison.OrdinalIgnoreCase) || r.ExamType.Equals("All", StringComparison.OrdinalIgnoreCase));
+        _inMemoryRules.AddRange(rules);
 
         return true;
     }

@@ -41,7 +41,7 @@ public class ExamScheduleRepository : IExamScheduleRepository
     {
         try
         {
-            var dbSlots = await _context.Set<NewExamTimetableSlot>()
+            var dbSlots = await _context.NewExamTimetableSlots
                 .AsNoTracking()
                 .Where(s => s.ClassName == className && s.SectionName == sectionName)
                 .ToListAsync();
@@ -62,27 +62,32 @@ public class ExamScheduleRepository : IExamScheduleRepository
 
     public async Task<bool> SaveTimetableSlotsAsync(string className, string sectionName, List<NewExamTimetableSlot> slots)
     {
-        _inMemoryTimetable.RemoveAll(s => s.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) && s.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
-        _inMemoryTimetable.AddRange(slots);
-
         try
         {
-            var existingDb = await _context.Set<NewExamTimetableSlot>()
+            var existingDb = await _context.NewExamTimetableSlots
                 .Where(s => s.ClassName == className && s.SectionName == sectionName)
                 .ToListAsync();
 
             if (existingDb.Any())
             {
-                _context.Set<NewExamTimetableSlot>().RemoveRange(existingDb);
+                _context.NewExamTimetableSlots.RemoveRange(existingDb);
             }
 
-            await _context.Set<NewExamTimetableSlot>().AddRangeAsync(slots);
+            foreach (var s in slots)
+            {
+                s.SlotId = 0; // Reset SlotId to 0 for auto-increment in MySQL
+            }
+
+            await _context.NewExamTimetableSlots.AddRangeAsync(slots);
             await _context.SaveChangesAsync();
         }
         catch
         {
             // Fallback
         }
+
+        _inMemoryTimetable.RemoveAll(s => s.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) && s.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+        _inMemoryTimetable.AddRange(slots);
 
         return true;
     }
@@ -91,7 +96,7 @@ public class ExamScheduleRepository : IExamScheduleRepository
     {
         try
         {
-            var dbSlots = await _context.Set<NewExamTimetableSlot>().AsNoTracking().ToListAsync();
+            var dbSlots = await _context.NewExamTimetableSlots.AsNoTracking().ToListAsync();
             if (dbSlots != null && dbSlots.Any())
                 return dbSlots;
         }

@@ -31,7 +31,7 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
     {
         try
         {
-            var dbResults = await _context.Set<NewStudentExamResult>()
+            var dbResults = await _context.NewStudentExamResults
                 .AsNoTracking()
                 .Where(r => r.ClassName == className && r.SectionName == sectionName)
                 .ToListAsync();
@@ -52,28 +52,33 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
 
     public async Task<bool> SaveExamResultsAsync(string className, string sectionName, List<NewStudentExamResult> results)
     {
-        _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
-                                        r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
-        _inMemoryResults.AddRange(results);
-
         try
         {
-            var existingDb = await _context.Set<NewStudentExamResult>()
+            var existingDb = await _context.NewStudentExamResults
                 .Where(r => r.ClassName == className && r.SectionName == sectionName)
                 .ToListAsync();
 
             if (existingDb.Any())
             {
-                _context.Set<NewStudentExamResult>().RemoveRange(existingDb);
+                _context.NewStudentExamResults.RemoveRange(existingDb);
             }
 
-            await _context.Set<NewStudentExamResult>().AddRangeAsync(results);
+            foreach (var r in results)
+            {
+                r.ResultId = 0; // Reset ResultId for AUTO_INCREMENT
+            }
+
+            await _context.NewStudentExamResults.AddRangeAsync(results);
             await _context.SaveChangesAsync();
         }
         catch
         {
             // Fallback
         }
+
+        _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                        r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+        _inMemoryResults.AddRange(results);
 
         return true;
     }
