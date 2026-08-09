@@ -42,15 +42,10 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
   ];
 
   const termCycles = [
-    'Term 1 (First Term)',
-    'Term 2 (Second Term)',
-    'Semester 1',
-    'Semester 2',
-    'Full Academic Session',
-    'Quarter 1',
-    'Quarter 2',
-    'Quarter 3',
-    'Quarter 4'
+    'Mid Term 1',
+    'Mid Term 2',
+    'Half Yearly',
+    'Annual / Final'
   ];
 
   const [isCustomType, setIsCustomType] = useState(() => {

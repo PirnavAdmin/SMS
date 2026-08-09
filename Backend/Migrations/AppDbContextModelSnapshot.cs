@@ -235,9 +235,7 @@ namespace Backend.Migrations
 
                     b.HasKey("AdmissionId");
 
-                    b.HasIndex("ClassId");
-
-                    b.ToTable("admissions", (string)null);
+                    b.ToTable("students", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.AdmissionApplication", b =>
@@ -3137,6 +3135,85 @@ namespace Backend.Migrations
                     b.ToTable("timetable_slots", (string)null);
                 });
 
+            modelBuilder.Entity("SMS.Api.Models.TransportAttendant", b =>
+                {
+                    b.Property<long>("AttendantId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("AttendantId"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AlternateMobileNumber")
+                        .HasColumnType("longtext");
+
+                    b.Property<long?>("AssignedVehicleId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("AttendantName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<string>("BloodGroup")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("CreatedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("EmergencyContactName")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EmergencyContactNumber")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("EmployeeId")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("MobileNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<bool>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(1)")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("AttendantId");
+
+                    b.HasIndex("AssignedVehicleId");
+
+                    b.HasIndex("MobileNumber");
+
+                    b.ToTable("transport_attendants", (string)null);
+                });
+
             modelBuilder.Entity("SMS.Api.Models.TransportDriver", b =>
                 {
                     b.Property<long>("DriverId")
@@ -3167,6 +3244,10 @@ namespace Backend.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("varchar(100)");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
 
                     b.Property<string>("EmergencyContactName")
                         .HasColumnType("longtext");
@@ -3400,6 +3481,17 @@ namespace Backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<long>("AssignmentId"));
 
+                    b.Property<string>("AcademicYear")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<long?>("AttendantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("BranchName")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
                     b.Property<long>("DriverId")
                         .HasColumnType("bigint");
 
@@ -3409,10 +3501,18 @@ namespace Backend.Migrations
                     b.Property<DateTime?>("EffectiveTo")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("EveningTripTime")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false);
+
+                    b.Property<string>("MorningTripTime")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("Remarks")
                         .HasMaxLength(255)
@@ -3430,6 +3530,8 @@ namespace Backend.Migrations
                         .HasColumnType("bigint");
 
                     b.HasKey("AssignmentId");
+
+                    b.HasIndex("AttendantId");
 
                     b.HasIndex("DriverId");
 
@@ -4131,6 +4233,15 @@ namespace Backend.Migrations
                     b.Navigation("Teacher");
                 });
 
+            modelBuilder.Entity("SMS.Api.Models.TransportAttendant", b =>
+                {
+                    b.HasOne("SMS.Api.Models.TransportVehicle", "AssignedVehicle")
+                        .WithMany()
+                        .HasForeignKey("AssignedVehicleId");
+
+                    b.Navigation("AssignedVehicle");
+                });
+
             modelBuilder.Entity("SMS.Api.Models.TransportDriver", b =>
                 {
                     b.HasOne("SMS.Api.Models.TransportVehicle", "AssignedVehicle")
@@ -4151,6 +4262,11 @@ namespace Backend.Migrations
 
             modelBuilder.Entity("SMS.Api.Models.TransportVehicleAssignment", b =>
                 {
+                    b.HasOne("SMS.Api.Models.TransportAttendant", "Attendant")
+                        .WithMany()
+                        .HasForeignKey("AttendantId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SMS.Api.Models.TransportDriver", "Driver")
                         .WithMany()
                         .HasForeignKey("DriverId")
@@ -4168,6 +4284,8 @@ namespace Backend.Migrations
                         .HasForeignKey("VehicleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("Attendant");
 
                     b.Navigation("Driver");
 

@@ -18,7 +18,7 @@ interface DashboardViewProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { user, selectedAcademicYear } = useAuth();
   const {
-    students, staff, announcements, holidays,
+    students, staff, announcements, holidays, schoolEvents,
     schoolProfile, admissions, leaveApplications, attendance,
     academicClasses, departments, birthdays, exams
   } = useData();
@@ -47,7 +47,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Time-based greeting
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';  const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
+  const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';  
+  
+  const teachingStaff = useMemo(() => staff.filter(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher' || s.designation?.toLowerCase().includes('teacher') || s.department?.toLowerCase() === 'academic'), [staff]);
   const nonTeachingStaff = useMemo(() => staff.filter(s => !teachingStaff.includes(s)), [staff, teachingStaff]);
 
   // Pie chart calculation (Student Attendance)
@@ -99,7 +101,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
   }, [attendance, teachingStaff]);
 
-  // Pie chart calculation (Non-Teaching Staff Attendance)
+  // Section 2: Non-Teaching Staff Attendance calculation
   const nonTeachingAttendanceStats = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const nonTeachingStaffIds = new Set(nonTeachingStaff.map(s => s.id));
@@ -114,19 +116,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       });
     } else {
        // Mock data if no attendance found for today
-       present = Math.max(1, Math.floor(nonTeachingStaff.length * 0.5));
-       late = 0;
-       halfDay = 0;
-       absent = Math.max(0, nonTeachingStaff.length - present);
+       present = Math.floor(nonTeachingStaff.length * 0.92);
+       late = Math.floor(nonTeachingStaff.length * 0.04);
+       halfDay = Math.floor(nonTeachingStaff.length * 0.01);
+       absent = nonTeachingStaff.length - present - late - halfDay;
     }
     const total = present + absent + late + halfDay || 1;
     return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
   }, [attendance, nonTeachingStaff]);
 
-  // Class-wise strength
-  const classCounts: Record<string, number> = {};
-  students.forEach(s => {
-    classCounts[s.className] = (classCounts[s.className] || 0) + 1;
+  // Class wise strength calculation
+  const classCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    academicClasses.forEach(c => { counts[c.name] = 0; });
+    students.forEach(s => {
+      const cName = s.className.startsWith('Class ') ? s.className : `Class ${s.className}`;
+      if (counts[cName] !== undefined) {
+        counts[cName]++;
+      }
+    });
+    return counts;
+  }, [academicClasses, students]);
+
+  const sortedClasses = Object.entries(classCounts).sort((a, b) => {
+    const numA = parseInt(a[0].replace(/\D/g, '')) || 0;
+    const numB = parseInt(b[0].replace(/\D/g, '')) || 0;
+    return numA - numB;
   });
   const maxStrength = Math.max(...Object.values(classCounts), 1);
 
@@ -135,15 +150,75 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const pendingAdmissions = admissions?.filter(a => a.status === 'Pending') || [];
 
   const upcomingEventsAndHolidays = useMemo(() => {
-    const events = announcements.map(a => ({ id: a.id, title: a.title, category: a.category || 'Event', date: a.date, type: 'Event' }));
-    const hols = holidays.map(h => ({ id: h.id, title: h.name, category: h.type || 'Holiday', date: h.startDate, type: 'Holiday' }));
-    return [...events, ...hols].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8); // Changed to sort ascending (upcoming first)
-  }, [announcements, holidays]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-  // Upcoming Teacher Birthdays (Next 30 days) - Using static birthdays as requested
+    const eventsList = (schoolEvents || []).map(e => ({
+      id: `SE-${e.id}`,
+      title: e.title,
+      category: e.category || 'School Event',
+      date: e.startDate,
+      type: 'Event'
+    }));
+
+    const announces = (announcements || []).map(a => ({
+      id: `AN-${a.id}`,
+      title: a.title,
+      category: a.category || 'Event',
+      date: a.date,
+      type: 'Event'
+    }));
+
+    const hols = (holidays || []).map(h => ({
+      id: `HL-${h.id}`,
+      title: h.name,
+      category: h.type || 'Holiday',
+      date: h.startDate,
+      type: 'Holiday'
+    }));
+
+    const all = [...eventsList, ...announces, ...hols].filter(item => Boolean(item.date));
+
+    // Filter for upcoming items (today onwards)
+    const upcoming = all.filter(item => {
+      const itemDate = new Date(item.date);
+      itemDate.setHours(0, 0, 0, 0);
+      return itemDate.getTime() >= today.getTime();
+    });
+
+    if (upcoming.length > 0) {
+      return upcoming.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
+    }
+
+    // Fallback: If all are in the past or none upcoming, sort closest by date
+    return all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
+  }, [schoolEvents, announcements, holidays]);
+
+  // Valid examinations with names, sorted by date
+  const validExams = useMemo(() => {
+    return exams
+      .filter(ex => ex.name && ex.name.trim() !== '')
+      .sort((a, b) => {
+        if (!a.startDate) return 1;
+        if (!b.startDate) return -1;
+        return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
+      });
+  }, [exams]);
+
+  // Upcoming Teacher Birthdays
   const upcomingBirthdays = useMemo(() => {
-    return birthdays.filter(b => b.role === 'Staff').slice(0, 5);
-  }, [birthdays]);
+    const staffBdays = (birthdays || []).filter(b => b.role === 'Staff');
+    if (staffBdays.length > 0) return staffBdays.slice(0, 5);
+
+    // Fallback: derive from teaching staff records
+    return teachingStaff.slice(0, 4).map((s, idx) => ({
+      id: s.id,
+      name: `${s.firstName} ${s.lastName}`.trim(),
+      role: s.designation || 'Teacher',
+      dob: s.dob || (idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : '15 Aug'),
+      avatar: s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.firstName + ' ' + s.lastName)}`
+    }));
+  }, [birthdays, teachingStaff]);
   
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -378,19 +453,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Examinations</h3>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
-              {exams.length === 0 ? (
+              {validExams.length === 0 ? (
                 <p className="text-xs text-slate-500 py-4 text-center">No exams scheduled.</p>
-              ) : exams.slice(0, 3).map(ex => (
-                <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
-                  <div className="min-w-0 flex-1 pr-2">
-                    <p className="font-bold text-slate-900 dark:text-white truncate">{ex.name}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{ex.className || 'All Classes'}</p>
+              ) : validExams.slice(0, 3).map(ex => {
+                const classLabel = (ex.applicableClasses && ex.applicableClasses.length > 0)
+                  ? ex.applicableClasses.join(', ')
+                  : (ex.className || 'All Classes');
+                return (
+                  <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs">
+                    <div className="min-w-0 flex-1 pr-2">
+                      <p className="font-bold text-slate-900 dark:text-white truncate">{ex.name}</p>
+                      <p className="text-[10px] text-slate-500 truncate">{classLabel}</p>
+                    </div>
+                    <span className="font-semibold px-2 py-0.5 rounded-md text-[9px] shrink-0 ml-auto bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
+                      {ex.startDate ? new Date(ex.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'TBD'}
+                    </span>
                   </div>
-                  <span className="font-semibold px-2 py-0.5 rounded-md text-[9px] shrink-0 ml-auto bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
-                    {ex.startDate ? new Date(ex.startDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'TBD'}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

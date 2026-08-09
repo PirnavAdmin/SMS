@@ -212,12 +212,12 @@ namespace Backend.Migrations
             //     type: "int",
             //     nullable: true);
 
-            migrationBuilder.UpdateData(
-                table: "classes",
-                keyColumn: "name",
-                keyValue: null,
-                column: "name",
-                value: "");
+            // migrationBuilder.UpdateData(
+            //     table: "classes",
+            //     keyColumn: "name",
+            //     keyValue: null,
+            //     column: "name",
+            //     value: "");
 
             // migrationBuilder.AlterColumn<string>(
             //     name: "name",
@@ -516,16 +516,16 @@ namespace Backend.Migrations
             //     table: "admins",
             //     column: "SchoolId");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_class_subject_mappings_class_id_subject_id",
-                table: "class_subject_mappings",
-                columns: new[] { "class_id", "subject_id" },
-                unique: true);
+            // migrationBuilder.CreateIndex(
+            //     name: "IX_class_subject_mappings_class_id_subject_id",
+            //     table: "class_subject_mappings",
+            //     columns: new[] { "class_id", "subject_id" },
+            //     unique: true);
 
-            migrationBuilder.CreateIndex(
-                name: "IX_class_subject_mappings_subject_id",
-                table: "class_subject_mappings",
-                column: "subject_id");
+            // migrationBuilder.CreateIndex(
+            //     name: "IX_class_subject_mappings_subject_id",
+            //     table: "class_subject_mappings",
+            //     column: "subject_id");
 
             // migrationBuilder.CreateIndex(
             //     name: "IX_employee_salary_assignments_StaffId",
@@ -537,28 +537,28 @@ namespace Backend.Migrations
             //     table: "employee_salary_assignments",
             //     column: "StructureId");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_teacher_assignments_subject_id",
-                table: "teacher_assignments",
-                column: "subject_id");
+            // migrationBuilder.CreateIndex(
+            //     name: "IX_teacher_assignments_subject_id",
+            //     table: "teacher_assignments",
+            //     column: "subject_id");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_teacher_assignments_teacher_id",
-                table: "teacher_assignments",
-                column: "teacher_id");
+            // migrationBuilder.CreateIndex(
+            //     name: "IX_teacher_assignments_teacher_id",
+            //     table: "teacher_assignments",
+            //     column: "teacher_id");
 
-            migrationBuilder.CreateIndex(
-                name: "ux_teacher_assignments_class_sec_role",
-                table: "teacher_assignments",
-                columns: new[] { "class_id", "section_letter", "role" });
+            // migrationBuilder.CreateIndex(
+            //     name: "ux_teacher_assignments_class_sec_role",
+            //     table: "teacher_assignments",
+            //     columns: new[] { "class_id", "section_letter", "role" });
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_class_sections_classes_class_id",
-                table: "class_sections",
-                column: "class_id",
-                principalTable: "classes",
-                principalColumn: "id",
-                onDelete: ReferentialAction.Cascade);
+            // migrationBuilder.AddForeignKey(
+            //     name: "FK_class_sections_classes_class_id",
+            //     table: "class_sections",
+            //     column: "class_id",
+            //     principalTable: "classes",
+            //     principalColumn: "id",
+            //     onDelete: ReferentialAction.Cascade);
 
             // migrationBuilder.AddForeignKey(
             //     name: "FK_otp_verifications_admins_AdminId",
@@ -568,13 +568,13 @@ namespace Backend.Migrations
             //     principalColumn: "AdminId",
             //     onDelete: ReferentialAction.Cascade);
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_students_classes_class_id",
-                table: "students",
-                column: "class_id",
-                principalTable: "classes",
-                principalColumn: "id",
-                onDelete: ReferentialAction.SetNull);
+            // migrationBuilder.AddForeignKey(
+            //     name: "FK_students_classes_class_id",
+            //     table: "students",
+            //     column: "class_id",
+            //     principalTable: "classes",
+            //     principalColumn: "id",
+            //     onDelete: ReferentialAction.SetNull);
         }
 
         /// <inheritdoc />

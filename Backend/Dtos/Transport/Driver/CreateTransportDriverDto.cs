@@ -17,6 +17,27 @@ namespace SMS.Api.Dtos.Transport.Driver
             set => _driverName = value ?? string.Empty;
         }
 
+        [JsonPropertyName("driverFullName")]
+        public string? DriverFullName
+        {
+            get => DriverName;
+            set { if (!string.IsNullOrWhiteSpace(value)) DriverName = value; }
+        }
+
+        [JsonPropertyName("fullName")]
+        public string? FullName
+        {
+            get => DriverName;
+            set { if (!string.IsNullOrWhiteSpace(value)) DriverName = value; }
+        }
+
+        [JsonPropertyName("name")]
+        public string? Name
+        {
+            get => DriverName;
+            set { if (!string.IsNullOrWhiteSpace(value)) DriverName = value; }
+        }
+
         [JsonPropertyName("mobileNumber")]
         public string MobileNumber
         {
@@ -24,8 +45,18 @@ namespace SMS.Api.Dtos.Transport.Driver
             set => _mobileNumber = value ?? string.Empty;
         }
 
+        [JsonPropertyName("phone")]
+        public string? Phone
+        {
+            get => MobileNumber;
+            set { if (!string.IsNullOrWhiteSpace(value)) MobileNumber = value; }
+        }
+
         [JsonPropertyName("alternateMobileNumber")]
         public string? AlternateMobileNumber { get; set; }
+
+        [JsonPropertyName("email")]
+        public string? Email { get; set; }
 
         [JsonPropertyName("licenceNumber")]
         public string LicenceNumber
@@ -36,6 +67,13 @@ namespace SMS.Api.Dtos.Transport.Driver
 
         [JsonPropertyName("licenseNumber")]
         public string? LicenseNumber
+        {
+            get => LicenceNumber;
+            set { if (!string.IsNullOrWhiteSpace(value)) LicenceNumber = value; }
+        }
+
+        [JsonPropertyName("commercialLicenseNo")]
+        public string? CommercialLicenseNo
         {
             get => LicenceNumber;
             set { if (!string.IsNullOrWhiteSpace(value)) LicenceNumber = value; }

@@ -90,6 +90,8 @@ namespace SMS.Api.Data
 
         public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
 
+        public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;
+
         public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
 
         public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
@@ -163,6 +165,7 @@ namespace SMS.Api.Data
             ConfigurePickupPoint(modelBuilder);
             ConfigureTransportVehicle(modelBuilder);
             ConfigureTransportDriver(modelBuilder);
+            ConfigureTransportAttendant(modelBuilder);
             ConfigureTransportVehicleAssignment(modelBuilder);
             ConfigureStudentTransportAssignment(modelBuilder);
             ConfigureVehicleMaintenance(modelBuilder);
@@ -805,6 +808,48 @@ namespace SMS.Api.Data
                     .IsRequired()
                     .HasMaxLength(50);
 
+                entity.Property(x => x.Email)
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.Status)
+                    .HasDefaultValue(true);
+
+                entity.Property(x => x.IsDeleted)
+                    .HasDefaultValue(false);
+            });
+        }
+
+        // =====================================================
+        // Transport Attendant Configuration
+        // =====================================================
+
+        private static void ConfigureTransportAttendant(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<TransportAttendant>(entity =>
+            {
+                entity.ToTable("transport_attendants");
+
+                entity.HasKey(x => x.AttendantId);
+
+                entity.HasIndex(x => x.MobileNumber);
+
+                entity.Property(x => x.AttendantName)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.MobileNumber)
+                    .IsRequired()
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.EmployeeId)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.Gender)
+                    .HasMaxLength(20);
+
+                entity.Property(x => x.BranchName)
+                    .HasMaxLength(150);
+
                 entity.Property(x => x.Status)
                     .HasDefaultValue(true);
 
@@ -841,6 +886,11 @@ namespace SMS.Api.Data
                         .HasForeignKey(x => x.DriverId)
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    entity.HasOne(x => x.Attendant)
+                        .WithMany()
+                        .HasForeignKey(x => x.AttendantId)
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     entity.HasIndex(x => new
                     {
                         x.RouteId,
@@ -864,6 +914,18 @@ namespace SMS.Api.Data
                         x.IsDeleted
                     })
                         .HasDatabaseName("IX_TVA_Vehicle_Driver_Route");
+
+                    entity.Property(x => x.BranchName)
+                        .HasMaxLength(150);
+
+                    entity.Property(x => x.AcademicYear)
+                        .HasMaxLength(50);
+
+                    entity.Property(x => x.MorningTripTime)
+                        .HasMaxLength(50);
+
+                    entity.Property(x => x.EveningTripTime)
+                        .HasMaxLength(50);
 
                     entity.Property(x => x.Status)
                         .HasDefaultValue(true);

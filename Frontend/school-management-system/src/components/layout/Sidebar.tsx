@@ -186,7 +186,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'Student Management',
       items: [
-        { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
+        { id: 'admissions', label: 'Admissions', icon: GraduationCap },
         { id: 'students', label: 'Student Directory', icon: UserCheck },
         { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
         { id: 'student-promotion', label: 'Student Promotion', icon: TrendingUp },

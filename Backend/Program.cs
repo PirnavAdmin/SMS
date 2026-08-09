@@ -63,6 +63,11 @@ builder.Services.AddScoped<ITransportDriverRepository,TransportDriverRepository>
 
 builder.Services.AddScoped<ITransportDriverService,TransportDriverService>();
 
+// Transport Attendant
+builder.Services.AddScoped<ITransportAttendantRepository,TransportAttendantRepository>();
+
+builder.Services.AddScoped<ITransportAttendantService,TransportAttendantService>();
+
 // Vehicle Assignment
 builder.Services.AddScoped<ITransportVehicleAssignmentRepository,TransportVehicleAssignmentRepository>();
 

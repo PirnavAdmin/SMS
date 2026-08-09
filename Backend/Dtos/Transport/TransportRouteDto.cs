@@ -46,6 +46,27 @@ namespace SMS.Api.Dtos.Transport
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 
+        [JsonPropertyName("totalPickupPoints")]
+        public int TotalPickupPoints { get; set; } = 0;
+
+        [JsonPropertyName("pickupPointCount")]
+        public int PickupPointCount => TotalPickupPoints;
+
+        [JsonPropertyName("assignedBus")]
+        public string AssignedBus { get; set; } = "Unassigned";
+
+        [JsonPropertyName("assignedVehicleNumber")]
+        public string AssignedVehicleNumber => AssignedBus;
+
+        [JsonPropertyName("assignedDriver")]
+        public string AssignedDriver { get; set; } = "Unassigned";
+
+        [JsonPropertyName("assignedDriverName")]
+        public string AssignedDriverName => AssignedDriver;
+
+        [JsonPropertyName("pickupPointSequenceText")]
+        public string PickupPointSequenceText { get; set; } = string.Empty;
+
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
 
