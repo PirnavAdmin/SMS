@@ -35,9 +35,22 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
   });
 
   const calculateGrade = (percent: number, rules: GradeConfig[]): string => {
-    const sorted = [...rules].sort((a, b) => b.minPercent - a.minPercent);
-    const matched = sorted.find(r => percent >= r.minPercent);
-    return matched ? (matched.grade || matched.gradeName || '—') : 'F';
+    if (rules && rules.length > 0) {
+      const sorted = [...rules].sort((a, b) => (b.minPercent ?? b.minMark ?? 0) - (a.minPercent ?? a.minMark ?? 0));
+      const matched = sorted.find(r => {
+        const min = r.minPercent ?? r.minMark ?? 0;
+        const max = r.maxPercent ?? r.maxMark ?? 100;
+        return percent >= min && percent <= max;
+      });
+      if (matched) return matched.grade || matched.gradeName || '—';
+    }
+    // Standard percentage fallbacks if not matched by scale
+    if (percent >= 90) return 'A+';
+    if (percent >= 80) return 'A';
+    if (percent >= 70) return 'B';
+    if (percent >= 60) return 'C';
+    if (percent >= 33) return 'D';
+    return 'F';
   };
 
   const getAttendanceBadgeClass = (status: string) => {
@@ -80,18 +93,21 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
             filteredStudents.map((student, idx) => {
               const rowState = marksState[student.id] || {
                 attendance: 'Present',
-                marks: '0',
+                marks: '',
                 remarks: '',
                 status: 'Not Started'
               };
 
               const isDisabled = isLocked || rowState.status === 'Locked';
               const isAbsent = rowState.attendance === 'Absent' || rowState.attendance === 'Medical Leave' || rowState.attendance === 'Exempted';
+              const hasMarks = rowState.marks !== undefined && rowState.marks !== '';
               const rawMarks = Number(rowState.marks) || 0;
               const hasExceededMax = rawMarks > maxMarks && !isAbsent;
               const marksNum = isAbsent ? 0 : rawMarks;
               const percentage = maxMarks > 0 ? (marksNum / maxMarks) * 100 : 0;
-              const autoGrade = isAbsent ? (rowState.attendance === 'Absent' ? 'AB' : 'EX') : calculateGrade(percentage, gradeRules);
+              const autoGrade = isAbsent 
+                ? (rowState.attendance === 'Absent' ? 'AB' : (rowState.attendance === 'Medical Leave' ? 'ML' : 'EX')) 
+                : (hasMarks ? calculateGrade(percentage, gradeRules) : '—');
 
               // Ensure unique sequential Roll Number for display
               const rawRoll = student.rollNo?.trim();
@@ -159,15 +175,29 @@ export const MarksEntryTable: React.FC<MarksEntryTableProps> = ({
 
                   {/* Auto-Grade */}
                   <td className="px-3.5 py-3.5 text-center whitespace-nowrap">
-                    <span className={`px-2.5 py-1 rounded-lg font-black text-xs ${
-                      autoGrade === 'A1' || autoGrade === 'A2' || autoGrade === 'A+' || autoGrade === 'A'
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                        : autoGrade === 'F' || autoGrade === 'AB'
-                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300'
-                        : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300'
-                    }`}>
-                      {autoGrade}
-                    </span>
+                    {(() => {
+                      const displayGrade = autoGrade;
+                      
+                      const isNeutral = displayGrade === '—';
+                      const isHigh = displayGrade === 'A1' || displayGrade === 'A2' || displayGrade === 'A+' || displayGrade === 'A';
+                      const isAbsent = displayGrade === 'AB' || displayGrade === 'EX' || displayGrade === 'ML';
+                      const isFail = displayGrade === 'F' || displayGrade === 'Fail';
+                      
+                      let badgeClass = 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300';
+                      if (isNeutral) {
+                        badgeClass = 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500';
+                      } else if (isHigh) {
+                        badgeClass = 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300';
+                      } else if (isAbsent || isFail) {
+                        badgeClass = 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300';
+                      }
+
+                      return (
+                        <span className={`px-2.5 py-1 rounded-lg font-black text-xs ${badgeClass}`}>
+                          {displayGrade}
+                        </span>
+                      );
+                    })()}
                   </td>
 
                   {/* Remarks */}

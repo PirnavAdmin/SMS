@@ -36,7 +36,10 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const classOptions = academicClasses.map(c => c.name);
+  const classOptions = useMemo(() => {
+    return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
+  }, [academicClasses]);
+
   const activeExam = exams.find(e => e.id === selectedExamId) || null;
 
   const handleCreateNewExam = () => {
@@ -56,7 +59,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         maxMarks: 100,
         passMarks: 35,
         subjectWiseConfig: {}
-      }
+      } as any
     } as any);
     setSelectedExamId(id);
     setActiveTab('setup');
@@ -98,16 +101,23 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   const examApplicableClasses = useMemo(() => {
     if (!activeExam) return classOptions;
     const app = activeExam.applicableClasses || [];
-    return app.length > 0 ? app : classOptions;
+    const validApp = app.filter(Boolean);
+    if (validApp.length > 0) {
+      return Array.from(new Set(validApp));
+    }
+    if (activeExam.className) {
+      return [activeExam.className];
+    }
+    return classOptions;
   }, [activeExam, classOptions]);
 
   return (
     <div className="space-y-4 text-left w-full">
       {/* 1. Sleek Top Header Card */}
-      <div className="py-3 px-5 sm:py-3.5 sm:px-6 rounded-2xl border border-sky-400 bg-white dark:bg-slate-900 shadow-xs flex items-center justify-between gap-3 no-print">
+      <div className="py-3.5 px-5 sm:py-4 sm:px-6 rounded-2xl border border-sky-400 bg-white dark:bg-slate-900 shadow-xs flex items-center justify-between gap-3 no-print">
         <div className="flex items-center gap-2.5">
-          <Award className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
-          <h1 className="text-sm sm:text-base font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+          <Award className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
+          <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
             Examinations
           </h1>
         </div>
@@ -211,7 +221,6 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
               </div>
               <div>
                 <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white">Delete Examination?</h3>
-                <p className="text-[11px] font-bold text-slate-400">This action cannot be undone.</p>
               </div>
             </div>
             <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">

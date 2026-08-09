@@ -41,7 +41,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'subjects'>('general');
   const [formData, setFormData] = useState<Partial<ExamSetupType>>({
     name: '',
-    examType: 'Unit Test',
+    examType: '',
     applicableClasses: [],
     startDate: '',
     endDate: '',
@@ -59,12 +59,27 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     if (exam) {
       setFormData({
         ...exam,
-        applicableClasses: exam.applicableClasses || [exam.className || 'Class 10'],
+        applicableClasses: exam.applicableClasses || (exam.className ? [exam.className] : []),
         marksConfig: exam.marksConfig || {
           maxMarks: 100,
           passMarks: 35,
           subjectWiseConfig: {}
         }
+      });
+    } else {
+      setFormData({
+        name: '',
+        examType: '',
+        applicableClasses: [],
+        startDate: '',
+        endDate: '',
+        status: 'Scheduled',
+        publishStatus: 'Draft',
+        marksConfig: {
+          maxMarks: 100,
+          passMarks: 35,
+          subjectWiseConfig: {}
+        } as any
       });
     }
   }, [exam]);
@@ -139,7 +154,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   const classSubjects = useMemo(() => {
     const appClasses = formData.applicableClasses || [];
     if (appClasses.length === 0) {
-      return subjects.map(s => s.name);
+      return [];
     }
     const uniqueSubjects = new Set<string>();
     appClasses.forEach(className => {
@@ -161,7 +176,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     <div className="space-y-4 text-left">
       <Panel
         title="Exam Configuration"
-        //description="Configure exam name, dates, target classes, and subject mark thresholds."
         action={
           <div className="flex flex-wrap items-center gap-2.5">
             {exams.length > 0 && onSelectExam && (
@@ -223,7 +237,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                 : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50'
             }`}
           >
-            1. General Form
+            1. Exam Details
           </button>
           <button
             type="button"
@@ -234,7 +248,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                 : 'border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 hover:bg-slate-50'
             }`}
           >
-            2. Exam Subjects
+            2. Subjects & Marks
           </button>
         </div>
 
@@ -242,7 +256,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           <div className="space-y-4">
             <ExamGeneralForm
               name={formData.name || ''}
-              examType={formData.examType || 'Unit Test'}
+              examType={formData.examType || ''}
               term={(formData as any).term || ''}
               startDate={formData.startDate || ''}
               endDate={formData.endDate || ''}
@@ -263,25 +277,49 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <ExamSubjectConfiguration
-              subjects={classSubjects}
-              activeSubjects={activeSubjects}
-              maxMarksMap={maxMarksMap}
-              passMarksMap={passMarksMap}
-              onToggleSubject={handleToggleSubject}
-              onUpdateMarks={handleUpdateSubjectConfig}
-            />
-            <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+          (formData.applicableClasses || []).length === 0 ? (
+            <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto border border-amber-200 dark:border-amber-900/60">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  No Applicable Classes Selected
+                </h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Please select at least one class in <strong>1. Exam Details</strong> to configure examination subjects.
+                </p>
+              </div>
               <button
                 type="button"
-                onClick={handleSaveSubjects}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1.5 transition shadow-sm shadow-emerald-600/20 cursor-pointer"
+                onClick={() => setActiveSubTab('general')}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition shadow-xs cursor-pointer inline-flex items-center gap-1.5"
               >
-                <Save className="w-3.5 h-3.5" /> Save & Proceed to Schedule
+                Go to Exam Details & Select Classes
               </button>
             </div>
-          </div>
+          ) : (
+            <div className="space-y-4">
+              <ExamSubjectConfiguration
+                subjects={classSubjects}
+                applicableClasses={formData.applicableClasses || []}
+                activeSubjects={activeSubjects}
+                maxMarksMap={maxMarksMap}
+                passMarksMap={passMarksMap}
+                onToggleSubject={handleToggleSubject}
+                onUpdateMarks={handleUpdateSubjectConfig}
+              />
+              <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={handleSaveSubjects}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black flex items-center gap-1.5 transition shadow-sm shadow-emerald-600/20 cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" /> Save & Proceed to Schedule
+                </button>
+              </div>
+            </div>
+          )
         )}
       </Panel>
     </div>

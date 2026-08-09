@@ -45,7 +45,7 @@ export function generateReportCardHtml(
         <div style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1;">${schoolName}</div>
         <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 4px;">${schoolAddress} ${schoolContact ? `<br>${schoolContact}` : ''}</div>
         <div style="margin-top: 10px; display: inline-block; background: #0f172a; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 4px 16px; border-radius: 9999px;">
-          Official Student Progress Report Card
+          Student Progress Report Card
         </div>
         <div style="font-size: 12px; font-weight: 800; color: #0284c7; margin-top: 6px; text-transform: uppercase;">${examName} • Academic Session ${academicYear}</div>
       </div>

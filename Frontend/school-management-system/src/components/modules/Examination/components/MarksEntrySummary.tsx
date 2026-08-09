@@ -48,36 +48,40 @@ export const MarksEntrySummary: React.FC<MarksEntrySummaryProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* 4 KPI cards & save buttons bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs flex-1">
-          <div className={cardClass}>
-            <span className={labelStyle}>Total Students</span>
-            <span className={numStyle}>{total}</span>
-          </div>
-
-          <div className={cardClass}>
-            <span className={`${labelStyle} text-emerald-600`}>Present</span>
-            <span className={`${numStyle} text-emerald-600`}>{present}</span>
-          </div>
-
-          <div className={cardClass}>
-            <span className={`${labelStyle} text-rose-600`}>Absent</span>
-            <span className={`${numStyle} text-rose-600`}>{absent}</span>
-          </div>
-
-          <div className={cardClass}>
-            <span className={`${labelStyle} text-sky-600`}>Class Average</span>
-            <span className={`${numStyle} text-sky-600`}>{avgMarks.toFixed(1)} / {maxMarks}</span>
-          </div>
+      {/* 4 KPI cards row (always full width) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className={cardClass}>
+          <span className={labelStyle}>Total Students</span>
+          <span className={numStyle}>{total}</span>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          {/* Status Badge */}
+        <div className={cardClass}>
+          <span className={`${labelStyle} text-emerald-600`}>Present</span>
+          <span className={`${numStyle} text-emerald-600`}>{present}</span>
+        </div>
+
+        <div className={cardClass}>
+          <span className={`${labelStyle} text-rose-600`}>Absent</span>
+          <span className={`${numStyle} text-rose-600`}>{absent}</span>
+        </div>
+
+        <div className={cardClass}>
+          <span className={`${labelStyle} text-sky-600`}>Class Average</span>
+          <span className={`${numStyle} text-sky-600`}>{avgMarks.toFixed(1)} / {maxMarks}</span>
+        </div>
+      </div>
+
+      {/* Save / Submit buttons sub-bar (aligned below KPIs) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60">
+        {/* Status Badge on the left */}
+        <div className="flex items-center gap-2">
           <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border ${getMarksStatusBadgeClass(marksStatus)}`}>
             Status: {marksStatus}
           </span>
+        </div>
 
+        {/* Action Buttons on the right */}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
           {/* Teacher Actions */}
           {marksStatus !== 'Submitted' && marksStatus !== 'Verified' && marksStatus !== 'Locked' && (
             <>
@@ -85,18 +89,18 @@ export const MarksEntrySummary: React.FC<MarksEntrySummaryProps> = ({
                 type="button"
                 disabled={isLocked}
                 onClick={onSaveDraft}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition disabled:opacity-60"
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition disabled:opacity-60 h-[34px] cursor-pointer"
               >
-                <Save className="w-4 h-4 text-slate-400" /> Save Draft
+                <Save className="w-3.5 h-3.5 text-slate-400" /> Save Draft
               </button>
 
               <button
                 type="button"
                 disabled={isLocked}
                 onClick={onSubmit}
-                className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition disabled:opacity-60"
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition disabled:opacity-60 h-[34px] cursor-pointer"
               >
-                <Send className="w-4 h-4" /> Submit Marks
+                <Send className="w-3.5 h-3.5" /> Submit Marks
               </button>
             </>
           )}
@@ -108,9 +112,9 @@ export const MarksEntrySummary: React.FC<MarksEntrySummaryProps> = ({
                 <button
                   type="button"
                   onClick={onVerify}
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition border border-indigo-200"
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition border border-indigo-200 h-[34px] cursor-pointer"
                 >
-                  <CheckCircle className="w-4 h-4" /> Verify Marks
+                  <CheckCircle className="w-3.5 h-3.5" /> Verify Marks
                 </button>
               )}
 
@@ -118,9 +122,9 @@ export const MarksEntrySummary: React.FC<MarksEntrySummaryProps> = ({
                 <button
                   type="button"
                   onClick={onLock}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition dark:bg-slate-800 dark:hover:bg-slate-700"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition dark:bg-slate-800 dark:hover:bg-slate-700 h-[34px] cursor-pointer"
                 >
-                  <Lock className="w-4 h-4" /> Lock Marks
+                  <Lock className="w-3.5 h-3.5" /> Lock Marks
                 </button>
               )}
 
@@ -128,9 +132,9 @@ export const MarksEntrySummary: React.FC<MarksEntrySummaryProps> = ({
                 <button
                   type="button"
                   onClick={onUnlock}
-                  className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition"
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition h-[34px] cursor-pointer"
                 >
-                  <Unlock className="w-4 h-4" /> Unlock Marks
+                  <Unlock className="w-3.5 h-3.5" /> Unlock Marks
                 </button>
               )}
             </>

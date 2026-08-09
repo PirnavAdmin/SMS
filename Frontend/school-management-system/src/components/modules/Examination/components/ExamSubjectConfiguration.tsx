@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CheckCircle2, Circle } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 
 interface ExamSubjectConfigurationProps {
   subjects: string[];
+  applicableClasses: string[];
   activeSubjects: string[];
   maxMarksMap: Record<string, number>;
   passMarksMap: Record<string, number>;
@@ -13,13 +14,36 @@ interface ExamSubjectConfigurationProps {
 
 export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> = ({
   subjects,
+  applicableClasses,
   activeSubjects,
   maxMarksMap,
   passMarksMap,
   onToggleSubject,
   onUpdateMarks
 }) => {
-  const { subjects: allSubjects } = useData();
+  const { subjects: allSubjects, academicClasses } = useData();
+  
+  const [selectedClass, setSelectedClass] = useState<string>(() => {
+    return applicableClasses[0] || '';
+  });
+
+  useEffect(() => {
+    if (applicableClasses.length > 0 && !applicableClasses.includes(selectedClass)) {
+      setSelectedClass(applicableClasses[0]);
+    }
+  }, [applicableClasses, selectedClass]);
+
+  const filteredSubjects = useMemo(() => {
+    if (!selectedClass) return subjects;
+
+    const matchedClass = academicClasses.find(c => c.name === selectedClass);
+    if (!matchedClass || !matchedClass.subjects || matchedClass.subjects.length === 0) {
+      return subjects;
+    }
+
+    const classSubjectNames = matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || ''));
+    return subjects.filter(name => classSubjectNames.includes(name));
+  }, [selectedClass, subjects, academicClasses]);
   const labelClass = "text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-0.5";
   const numInputClass = "w-full px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 font-mono transition h-[30px]";
 
@@ -37,12 +61,27 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
 
   return (
     <div className="space-y-4 text-left">
-      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-850">
+      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-850 flex flex-wrap items-center justify-between gap-3">
         <h4 className="text-xs font-black uppercase text-slate-900 dark:text-white">Configure Exam Subjects</h4>
+        
+        {applicableClasses.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Configure for Class:</span>
+            <select
+              value={selectedClass}
+              onChange={e => setSelectedClass(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[150px] h-[34px] shadow-xs"
+            >
+              {applicableClasses.map(cls => (
+                <option key={cls} value={cls}>{cls}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5">
-        {subjects.map(subject => {
+        {filteredSubjects.map(subject => {
           const isActive = activeSubjects.includes(subject);
           const rawMax = maxMarksMap[subject];
           const rawPass = passMarksMap[subject];
