@@ -63,7 +63,19 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     return students.filter(s => s.className === selectedClass && s.section === selectedSection);
   }, [students, selectedClass, selectedSection]);
 
-  const activeSubjects = Object.keys(exam?.marksConfig?.subjectWiseConfig || {});
+  const activeSubjects = useMemo(() => {
+    if (!exam || !selectedClass) return [];
+    const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass];
+    if (classConfig && Object.keys(classConfig).length > 0) {
+      return Object.keys(classConfig);
+    }
+    const matchedClass = academicClasses.find(c => c.name === selectedClass);
+    if (matchedClass && matchedClass.subjects && matchedClass.subjects.length > 0) {
+      const names = matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean);
+      if (names.length > 0) return names;
+    }
+    return Object.keys(exam.marksConfig?.subjectWiseConfig || {});
+  }, [exam, selectedClass, academicClasses]);
 
   // Pre-calculations validation
   const validationIssues = useMemo(() => {

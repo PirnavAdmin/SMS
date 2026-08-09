@@ -184,16 +184,16 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto rounded-3xl border border-sky-400/80 dark:border-sky-500 shadow-sm min-h-[350px]">
-      <table className="w-full text-left text-xs border-collapse">
+    <div className="overflow-x-auto rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm min-h-[350px]">
+      <table className="w-full text-left text-xs border-collapse min-w-[980px]">
         <thead>
           <tr>
-            <th className={`${tableHeaderClass} w-44 text-left`}>Subject</th>
-            <th className={`${tableHeaderClass} w-32 text-center`}>Exam Date</th>
-            <th className={`${tableHeaderClass} w-40 text-center`}>Time Slot</th>
-            <th className={`${tableHeaderClass} w-16 text-center`}>Duration</th>
-            <th className={`${tableHeaderClass} w-24 text-center`}>Room / Hall</th>
-            <th className={`${tableHeaderClass} w-56 text-left`}>Invigilator Faculty</th>
+            <th className={`${tableHeaderClass} min-w-[160px] text-left`}>Subject</th>
+            <th className={`${tableHeaderClass} min-w-[155px] text-center`}>Exam Date</th>
+            <th className={`${tableHeaderClass} min-w-[290px] text-center`}>Time Slot</th>
+            <th className={`${tableHeaderClass} min-w-[90px] text-center`}>Duration</th>
+            <th className={`${tableHeaderClass} min-w-[110px] text-center`}>Room / Hall</th>
+            <th className={`${tableHeaderClass} min-w-[200px] text-left`}>Invigilator Faculty</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -226,11 +226,14 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
                 {/* Exam Date */}
                 <td className={`${tdClass} whitespace-nowrap text-center`}>
                   {isEditing ? (
-                    <DatePickerInput
-                      value={row.date || ''}
-                      onChange={(val: string) => onUpdateRow(row.id, { date: val })}
-                      className="w-28 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none"
-                    />
+                    <div className="flex justify-center">
+                      <DatePickerInput
+                        value={row.date || ''}
+                        onChange={(val: string) => onUpdateRow(row.id, { date: val })}
+                        className="w-36 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 shadow-xs"
+                        placeholder="DD-MM-YYYY"
+                      />
+                    </div>
                   ) : (
                     <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{row.date || '—'}</span>
                   )}
@@ -239,19 +242,19 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
                 {/* Time Slot */}
                 <td className={`${tdClass} whitespace-nowrap text-center`}>
                   {isEditing ? (
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-2">
                       <input
                         type="time"
                         value={row.startTime || '09:00'}
                         onChange={e => onUpdateRow(row.id, { startTime: e.target.value })}
-                        className="px-1.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-semibold outline-none w-16"
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none w-[128px] focus:border-sky-500 shadow-xs"
                       />
-                      <span className="text-slate-400 font-bold">-</span>
+                      <span className="text-slate-400 font-bold text-xs">-</span>
                       <input
                         type="time"
                         value={row.endTime || '12:00'}
                         onChange={e => onUpdateRow(row.id, { endTime: e.target.value })}
-                        className="px-1.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-semibold outline-none w-16"
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none w-[128px] focus:border-sky-500 shadow-xs"
                       />
                     </div>
                   ) : (
@@ -267,13 +270,15 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
                 {/* Room / Hall */}
                 <td className={`${tdClass} whitespace-nowrap text-center`}>
                   {isEditing ? (
-                    <input
-                      type="text"
-                      placeholder="e.g. 101"
-                      value={row.room === 'TBA' ? '' : (row.room || '')}
-                      onChange={e => onUpdateRow(row.id, { room: e.target.value || 'TBA' })}
-                      className="w-20 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold outline-none text-center"
-                    />
+                    <div className="flex justify-center">
+                      <input
+                        type="text"
+                        placeholder="e.g. 101"
+                        value={row.room === 'TBA' ? '' : (row.room || '')}
+                        onChange={e => onUpdateRow(row.id, { room: e.target.value || 'TBA' })}
+                        className="w-24 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none text-center focus:border-sky-500 shadow-xs"
+                      />
+                    </div>
                   ) : (
                     <span className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-bold ${
                       row.room && row.room !== 'TBA'

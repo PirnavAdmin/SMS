@@ -252,6 +252,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
             value={startDate || ''}
             onChange={(val: string) => onChange({ startDate: val })}
             className={inputClass}
+            placeholder="DD-MM-YYYY"
           />
         </div>
 
@@ -264,6 +265,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
             value={endDate || ''}
             onChange={(val: string) => onChange({ endDate: val })}
             className={inputClass}
+            placeholder="DD-MM-YYYY"
           />
         </div>
       </div>
