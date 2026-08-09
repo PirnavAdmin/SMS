@@ -499,7 +499,7 @@ export interface ExamSetup {
   
   // Enterprise & Unified Fields
   branch?: string;
-  examType?: 'Unit Test' | 'Quarterly' | 'Half-Yearly' | 'Annual' | 'Practical' | 'Custom';
+  examType?: string;
   applicableClasses?: string[];
   sections?: string[];
   description?: string;

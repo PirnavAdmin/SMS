@@ -9,7 +9,8 @@ export function useResults() {
     saveProcessedResults, 
     updateResultStatus, 
     examMarks, 
-    gradeConfigurations 
+    gradeConfigurations,
+    exams
   } = useData();
 
   const getResultsForExamClass = (examId: string, className: string, section: string) => {
@@ -27,13 +28,35 @@ export function useResults() {
   ) => {
     const calculatedList: ProcessedResult[] = [];
     
+    const activeExam = (exams || []).find(e => e.id === examId) || null;
+    
+    // Filter grade rules
+    let filteredRules = gradeConfigurations || [];
+    if (activeExam) {
+      if (activeExam.gradeSchemeName) {
+        const matched = (gradeConfigurations || []).filter(r => r.schemeName === activeExam.gradeSchemeName);
+        if (matched.length > 0) filteredRules = matched;
+      } else if (activeExam.examType) {
+        const typeStr = activeExam.examType;
+        const matched = (gradeConfigurations || []).filter(r => 
+          r.schemeName === typeStr || 
+          r.examType === typeStr ||
+          (r.schemeName && r.schemeName.toLowerCase().includes(typeStr.toLowerCase()))
+        );
+        if (matched.length > 0) filteredRules = matched;
+      } else {
+        const defaultScholastic = (gradeConfigurations || []).filter(r => r.schemeName === 'Default Scholastic');
+        if (defaultScholastic.length > 0) filteredRules = defaultScholastic;
+      }
+    }
+
     // 1. Calculate scores student-by-student
     const studentScores = classStudents.map(student => {
       const studentMarks = examMarks.filter(
         m => m.examId === examId && m.studentId === student.id
       );
 
-      const res = calculateStudentResult(studentMarks, subjectsList, gradeConfigurations);
+      const res = calculateStudentResult(studentMarks, subjectsList, filteredRules);
       return {
         student,
         res

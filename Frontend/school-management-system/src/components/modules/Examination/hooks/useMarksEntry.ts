@@ -23,14 +23,14 @@ export function useMarksEntry() {
   // Filter options based on logged-in teacher assignments
   const allowedClasses = useMemo(() => {
     if (isUserAdmin) {
-      return academicClasses.map(c => c.name);
+      return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
     }
     // Filter classes assigned to this teacher
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(
       ta => ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
     );
-    return Array.from(new Set(assigned.map(ta => ta.className)));
+    return Array.from(new Set(assigned.map(ta => ta.className).filter(Boolean)));
   }, [academicClasses, teacherAssignments, user, isUserAdmin]);
 
   const getAllowedSections = (className: string) => {
@@ -38,13 +38,14 @@ export function useMarksEntry() {
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
       if (!clsObj || !clsObj.sections || clsObj.sections.length === 0) return ['A'];
-      return clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+      const raw = clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+      return Array.from(new Set(raw.filter(Boolean)));
     }
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(
       ta => ta.className === className && ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
     );
-    const result = Array.from(new Set(assigned.map(ta => ta.section)));
+    const result = Array.from(new Set(assigned.map(ta => ta.section).filter(Boolean)));
     return result.length > 0 ? result : ['A'];
   };
 
@@ -99,7 +100,7 @@ export function useMarksEntry() {
         } else {
           rosterMarks[student.id] = {
             attendance: 'Present',
-            marks: '0',
+            marks: '',
             remarks: '',
             status: 'Not Started'
           };

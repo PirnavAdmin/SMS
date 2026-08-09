@@ -44,7 +44,8 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     if (!selectedClass) return [];
     const matched = academicClasses.find(c => c.name === selectedClass);
     if (!matched || !matched.sections || matched.sections.length === 0) return ['A'];
-    return matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+    const raw = matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+    return Array.from(new Set(raw.filter(Boolean)));
   }, [academicClasses, selectedClass]);
 
   // Detailed Modal Viewer State
@@ -294,9 +295,6 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                 <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   Select Class & Section to Process Results
                 </h4>
-                <p className="text-xs text-slate-400 font-medium max-w-md mx-auto">
-                  Please choose a <strong>Class</strong> and <strong>Section</strong> from above to compile student academic performance, CGPA, and class rankings.
-                </p>
               </div>
             ) : (
               <>
@@ -384,9 +382,6 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
           onClose={() => setSelectedResultRow(null)}
           onPrintCard={() => window.print()}
           onDownloadPdf={() => addToast('info', 'Download PDF', 'Generating PDF report card sheet...')}
-          onPublishResult={handlePublish}
-          onLockResult={handleLockToggle}
-          statusChipClass={getStatusBadgeColor}
         />
       )}
     </div>

@@ -39,10 +39,10 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
   const [selectedSection, setSelectedSection] = useState<string>('');
 
   const allowedClasses = useMemo(() => {
-    if (!exam) return classOptions;
+    if (!exam) return Array.from(new Set(classOptions.filter(Boolean)));
     const app = exam.applicableClasses || [];
-    if (app.length === 0) return classOptions;
-    return classOptions.filter(c => app.includes(c));
+    if (app.length === 0) return Array.from(new Set(classOptions.filter(Boolean)));
+    return Array.from(new Set(classOptions.filter(c => app.includes(c))));
   }, [exam, classOptions]);
 
   // Dynamic sections from academicClasses
@@ -50,7 +50,8 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
     if (!selectedClass) return [];
     const matched = academicClasses.find(c => c.name === selectedClass);
     if (!matched || !matched.sections || matched.sections.length === 0) return ['A'];
-    return matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+    const raw = matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+    return Array.from(new Set(raw.filter(Boolean)));
   }, [academicClasses, selectedClass]);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -324,9 +325,6 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                 <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                   Select Class & Section to Schedule
                 </h4>
-                <p className="text-xs text-slate-400 font-medium max-w-md mx-auto">
-                  Please choose a <strong>Class</strong> and <strong>Section</strong> from above to view and configure subject timetable dates, halls, and invigilator staff.
-                </p>
               </div>
             ) : visibleSchedules.length === 0 ? (
               <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">

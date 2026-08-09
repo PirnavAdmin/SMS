@@ -76,12 +76,12 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
 
   // Only classes applicable to the active examination
   const examApplicableClasses = useMemo(() => {
-    if (!exam) return [];
+    if (!exam) return Array.from(new Set((allowedClasses || []).filter(Boolean)));
     const app = exam.applicableClasses || [];
     if (app.length > 0) {
-      return allowedClasses.filter(c => app.includes(c));
+      return Array.from(new Set(allowedClasses.filter(c => app.includes(c))));
     }
-    return allowedClasses;
+    return Array.from(new Set((allowedClasses || []).filter(Boolean)));
   }, [exam, allowedClasses]);
 
   // Only display subjects configured / held for this specific examination with their subject codes
@@ -114,6 +114,33 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
     if (!selectedClass || !selectedSection) return [];
     return students.filter(s => s.className === selectedClass && s.section === selectedSection);
   }, [students, selectedClass, selectedSection]);
+
+  const filteredGradeRules = useMemo(() => {
+    const allRules = gradeRules || [];
+    
+    // 1. Try selected gradeSchemeName
+    if (exam?.gradeSchemeName) {
+      const matched = allRules.filter(r => r.schemeName === exam.gradeSchemeName);
+      if (matched.length > 0) return matched;
+    }
+    
+    // 2. Try examType name
+    if (exam?.examType) {
+      const typeStr = exam.examType;
+      const matched = allRules.filter(r => 
+        r.schemeName === typeStr || 
+        r.examType === typeStr ||
+        (r.schemeName && r.schemeName.toLowerCase().includes(typeStr.toLowerCase()))
+      );
+      if (matched.length > 0) return matched;
+    }
+    
+    // 3. Fallback to Default Scholastic
+    const defaultScholastic = allRules.filter(r => r.schemeName === 'Default Scholastic');
+    if (defaultScholastic.length > 0) return defaultScholastic;
+    
+    return allRules;
+  }, [gradeRules, exam]);
 
   // Load roster marks from context / draft
   useEffect(() => {
@@ -343,14 +370,11 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
             <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
               Select Class, Section & Subject
             </h4>
-            <p className="text-xs text-slate-400 font-medium max-w-md mx-auto">
-              Please choose a <strong>Class</strong>, <strong>Section</strong>, and <strong>Subject</strong> from the filter bar above to load student evaluation marks roster.
-            </p>
           </div>
         )}
 
         {exam?.id && selectedClass && selectedSection && selectedSubject && (
-          <div className="space-y-5">
+          <div className="space-y-5 mt-5">
 
             {/* Stats Summary Widgets */}
             <MarksEntrySummary
@@ -374,7 +398,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
               <MarksEntryTable
                 students={activeClassStudents}
                 marksState={marksState}
-                gradeRules={gradeRules}
+                gradeRules={filteredGradeRules}
                 searchQuery={searchQuery}
                 isLocked={isMarksLocked}
                 onUpdateRow={handleUpdateRow}

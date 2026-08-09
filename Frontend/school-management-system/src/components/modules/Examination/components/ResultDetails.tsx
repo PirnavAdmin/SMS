@@ -13,21 +13,17 @@ interface ResultDetailsProps {
   onClose: () => void;
   onPrintCard?: () => void;
   onDownloadPdf?: () => void;
-  onPublishResult: () => void;
-  onLockResult: () => void;
-  statusChipClass: (status: string) => string;
+  onPublishResult?: () => void;
+  onLockResult?: () => void;
+  statusChipClass?: (status: string) => string;
 }
 
 export const ResultDetails: React.FC<ResultDetailsProps> = ({
   data,
   exam,
   academicYear,
-  branch,
   subjects,
-  onClose,
-  onPublishResult,
-  onLockResult,
-  statusChipClass
+  onClose
 }) => {
   const { schoolProfile } = useData();
   const [isPrinting, setIsPrinting] = useState(false);
@@ -223,22 +219,6 @@ export const ResultDetails: React.FC<ResultDetailsProps> = ({
                   <Download className="w-4 h-4 text-slate-500" /> Download PDF
                 </>
               )}
-            </button>
-
-            <button
-              type="button"
-              onClick={onPublishResult}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <Send className="w-4 h-4" /> Publish
-            </button>
-
-            <button
-              type="button"
-              onClick={onLockResult}
-              className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition cursor-pointer"
-            >
-              <Lock className="w-4 h-4" /> Lock
             </button>
           </div>
         </div>
