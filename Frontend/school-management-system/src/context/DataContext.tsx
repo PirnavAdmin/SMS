@@ -1218,7 +1218,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [hostelRooms] = useState<HostelRoom[]>(() => getStored('hostel', initialHostelRooms));
   const [inventory, setInventory] = useState<InventoryItem[]>(() => getStored('inventory', initialInventory));
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => getStored('announcements', initialAnnouncements));
-  const [holidays, setHolidays] = useState<Holiday[]>(() => getStored('holidays', initialHolidays));
+  const [holidays, setHolidays] = useState<Holiday[]>(() => {
+    const stored = getStored('holidays', initialHolidays);
+    if (!stored || stored.length <= 1) {
+      localStorage.setItem('edu_db_holidays', JSON.stringify(initialHolidays));
+      return initialHolidays;
+    }
+    return stored;
+  });
   const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() => getStored('school_events', initialSchoolEvents));
   const [birthdays] = useState<Birthday[]>(() => {
     const val = getStored('birthdays', initialBirthdays);

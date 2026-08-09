@@ -976,7 +976,26 @@ export const initialAnnouncements: Announcement[] = [
 ];
 
 export const initialHolidays: Holiday[] = [
-  { id: "HOL-01", name: "Independence Holiday", startDate: "2026-07-04", endDate: "2026-07-04", type: "Gazetted" }
+  { id: "HOL-01", name: "New Year's Day", startDate: "2026-01-01", endDate: "2026-01-01", type: "Gazetted", description: "Official New Year holiday", branch: "Main Campus", status: "Active" },
+  { id: "HOL-02", name: "Makar Sankranti / Pongal", startDate: "2026-01-14", endDate: "2026-01-15", type: "Festival", description: "Traditional harvest festival holiday", branch: "Main Campus", status: "Active" },
+  { id: "HOL-03", name: "Republic Day", startDate: "2026-01-26", endDate: "2026-01-26", type: "National", description: "National Republic Day flag hoisting and official holiday", branch: "Main Campus", status: "Active" },
+  { id: "HOL-04", name: "Maha Shivaratri", startDate: "2026-02-15", endDate: "2026-02-15", type: "Gazetted", description: "Religious festival of Maha Shivaratri", branch: "Main Campus", status: "Active" },
+  { id: "HOL-05", name: "Holi Festival", startDate: "2026-03-04", endDate: "2026-03-05", type: "Festival", description: "Festival of colors holiday break", branch: "Main Campus", status: "Active" },
+  { id: "HOL-06", name: "Good Friday", startDate: "2026-04-03", endDate: "2026-04-03", type: "Gazetted", description: "Christian holy day observance", branch: "Main Campus", status: "Active" },
+  { id: "HOL-07", name: "Dr. B. R. Ambedkar Jayanti", startDate: "2026-04-14", endDate: "2026-04-14", type: "National", description: "Birth anniversary of Dr. B. R. Ambedkar", branch: "Main Campus", status: "Active" },
+  { id: "HOL-08", name: "Mahavir Jayanti", startDate: "2026-04-20", endDate: "2026-04-20", type: "Gazetted", description: "Jain religious festival", branch: "Main Campus", status: "Active" },
+  { id: "HOL-09", name: "Annual Summer Vacation", startDate: "2026-05-01", endDate: "2026-05-31", type: "Vacation", description: "Annual summer holidays for students and academic staff", branch: "Main Campus", status: "Active" },
+  { id: "HOL-10", name: "Eid-ul-Adha (Bakrid)", startDate: "2026-05-27", endDate: "2026-05-27", type: "Gazetted", description: "Islamic religious festival holiday", branch: "Main Campus", status: "Active" },
+  { id: "HOL-11", name: "Muharram", startDate: "2026-06-26", endDate: "2026-06-26", type: "Gazetted", description: "Islamic calendar holy day", branch: "Main Campus", status: "Active" },
+  { id: "HOL-12", name: "Independence Day", startDate: "2026-08-15", endDate: "2026-08-15", type: "National", description: "Independence Day flag hoisting ceremony & national holiday", branch: "Main Campus", status: "Active" },
+  { id: "HOL-13", name: "Raksha Bandhan", startDate: "2026-08-28", endDate: "2026-08-28", type: "Festival", description: "Traditional festival holiday", branch: "Main Campus", status: "Active" },
+  { id: "HOL-14", name: "Janmashtami (Gokulashtami)", startDate: "2026-09-04", endDate: "2026-09-04", type: "Festival", description: "Birth celebration of Lord Krishna", branch: "Main Campus", status: "Active" },
+  { id: "HOL-15", name: "Milad-un-Nabi (Eid-e-Milad)", startDate: "2026-09-24", endDate: "2026-09-24", type: "Gazetted", description: "Prophet Muhammad birthday observance", branch: "Main Campus", status: "Active" },
+  { id: "HOL-16", name: "Mahatma Gandhi Jayanti", startDate: "2026-10-02", endDate: "2026-10-02", type: "National", description: "National holiday commemorating Mahatma Gandhi", branch: "Main Campus", status: "Active" },
+  { id: "HOL-17", name: "Dussehra / Vijayadashami Break", startDate: "2026-10-20", endDate: "2026-10-21", type: "Festival", description: "Dussehra & Vijayadashami festive holidays", branch: "Main Campus", status: "Active" },
+  { id: "HOL-18", name: "Diwali / Deepavali Holidays", startDate: "2026-11-08", endDate: "2026-11-10", type: "Festival", description: "Festival of Lights grand school holidays", branch: "Main Campus", status: "Active" },
+  { id: "HOL-19", name: "Guru Nanak Jayanti", startDate: "2026-11-24", endDate: "2026-11-24", type: "Gazetted", description: "Birth of Guru Nanak Dev Ji celebration", branch: "Main Campus", status: "Active" },
+  { id: "HOL-20", name: "Christmas & Winter Vacation", startDate: "2026-12-25", endDate: "2026-12-31", type: "Vacation", description: "Christmas Day and winter school vacation break", branch: "Main Campus", status: "Active" }
 ];
 
 export const initialBirthdays: Birthday[] = [
