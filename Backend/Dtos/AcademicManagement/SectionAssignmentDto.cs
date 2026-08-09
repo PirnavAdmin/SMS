@@ -1,4 +1,4 @@
-namespace SMS.Api.Dtos;
+namespace SMS.Api.Dtos.AcademicManagement;
 
 public class SectionAssignmentDto
 {

@@ -2,6 +2,7 @@ namespace SMS.Api.Repositories.Interfaces;
 
 using SMS.Api.Dtos;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;

@@ -2575,28 +2575,78 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const addAcademicClass = (clsData: Omit<AcademicClass, 'id'>) => {
-    let id = '';
-    do {
-      id = 'CL-' + Math.floor(100 + Math.random() * 900);
-    } while (academicClasses.some(c => c.id === id));
-    const newCls: AcademicClass = { ...clsData, id, branch: (clsData as any).branch || selectedBranch || 'Main Campus' } as any;
-    setAcademicClasses(prev => [...prev, newCls]);
-    logActivity('Created Academic Class', `Added ${newCls.name}`);
+  const addAcademicClass = async (clsData: Omit<AcademicClass, 'id'>) => {
+    try {
+      const response = await createClassApi({
+        name: clsData.name,
+        campus_location: (clsData as any).campus || (clsData as any).branch || selectedBranch || 'Main Campus',
+        academic_year: (clsData as any).academicYear || selectedAcademicYear || '2026-2027',
+        status: (clsData as any).status || 'Active',
+        remarks: (clsData as any).remarks || '',
+        display_order: (clsData as any).displayOrder || 0,
+        sections: clsData.sections || ['A'],
+        subjects: clsData.subjects || [],
+        sectionTeachers: clsData.sectionTeachers || {}
+      });
+      if (response && response.success) {
+        addToast('success', 'Class Created', response.message || 'Academic Class added successfully.');
+        await fetchAcademicClasses();
+      } else {
+        addToast('error', 'Creation Failed', response?.message || 'Failed to create class.');
+      }
+    } catch (err: any) {
+      console.error('Error adding class', err);
+      addToast('error', 'Network Error', err.message || 'Failed to communicate with API.');
+    }
   };
 
-  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
+  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
+    // Update local state reactively
     setAcademicClasses(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
     logActivity('Updated Academic Class', `Updated class ID ${id}`);
+
+    // If it's a class-level property update (e.g. edit class modal save)
+    if ((updates as any).status || (updates as any).remarks || (updates as any).displayName || (updates as any).displayOrder !== undefined) {
+      try {
+        const response = await updateClassApi(id, {
+          name: updates.name,
+          campus_location: (updates as any).campus || (updates as any).branch || selectedBranch || 'Main Campus',
+          academic_year: (updates as any).academicYear || selectedAcademicYear || '2026-2027',
+          status: (updates as any).status || 'Active',
+          remarks: (updates as any).remarks || '',
+          display_order: (updates as any).displayOrder || 0
+        });
+        if (response && response.success) {
+          await fetchAcademicClasses();
+        } else {
+          addToast('error', 'Update Failed', response?.message || 'Failed to sync class parameters with server.');
+        }
+      } catch (err: any) {
+        console.error('Error syncing class parameters with server', err);
+      }
+    }
   };
 
-  const deleteAcademicClass = (id: string) => {
+  const deleteAcademicClass = async (id: string) => {
     const cls = academicClasses.find(c => c.id === id);
     if (cls) {
       setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
     }
     setAcademicClasses(prev => prev.filter(c => c.id !== id));
     logActivity('Deleted Academic Class', `Removed class ID ${id}`);
+
+    try {
+      const response = await deleteClassApi(id);
+      if (response && response.success) {
+        addToast('success', 'Class Deleted', response.message || 'Academic Class deleted successfully.');
+        await fetchAcademicClasses();
+      } else {
+        addToast('error', 'Deletion Failed', response?.message || 'Failed to delete class.');
+      }
+    } catch (err: any) {
+      console.error('Error deleting class', err);
+      addToast('error', 'Network Error', err.message || 'Failed to communicate with API.');
+    }
   };
 
   // Subjects CRUD

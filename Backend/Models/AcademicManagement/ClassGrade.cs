@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using SMS.Api.Models;
 
-namespace SMS.Api.Models;
+namespace SMS.Api.Models.AcademicManagement;
 
 public class ClassGrade
 {

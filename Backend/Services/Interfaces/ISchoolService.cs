@@ -1,6 +1,7 @@
 namespace SMS.Api.Services.Interfaces;
 
 using SMS.Api.Dtos;
+using SMS.Api.Dtos.AcademicManagement;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;

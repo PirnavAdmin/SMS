@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
 
 public class TimetableRepository : ITimetableRepository

@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SMS.Api.Models
+using SMS.Api.Models;
+
+namespace SMS.Api.Models.AcademicManagement
 {
     [Table("teacher_assignments")]
     public class TeacherAssignment

@@ -781,54 +781,54 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setIsSubmitting(true);
     setClassFormErrors([]);
 
-    // Simulate API request submission
-    setTimeout(() => {
-      const cleanName = finalName.trim();
-      const newClassData = {
-        name: cleanName,
-        branch: campus,
-        campus,
-        academicYear,
-        displayName: cleanName,
-        status,
-        remarks,
-        displayOrder: displayOrder !== '' ? parseInt(displayOrder) : undefined,
-        createdDate: new Date().toLocaleDateString(),
-        lastUpdated: new Date().toLocaleDateString(),
-        sections: [],
-        subjects: [],
-        teacher: '',
-        sectionTeachers: {},
-        sectionDetails: {}
-      };
+    const cleanName = finalName.trim();
+    const newClassData = {
+      name: cleanName,
+      branch: campus,
+      campus,
+      academicYear,
+      displayName: cleanName,
+      status,
+      remarks,
+      displayOrder: displayOrder !== '' ? parseInt(displayOrder) : undefined,
+      sections: [],
+      subjects: [],
+      teacher: '',
+      sectionTeachers: {},
+      sectionDetails: {}
+    };
 
-      // Update active top bar branch/year filters in global auth context
-      setSelectedBranch(campus);
-      setSelectedAcademicYear(academicYear);
+    // Update active top bar branch/year filters in global auth context
+    setSelectedBranch(campus);
+    setSelectedAcademicYear(academicYear);
 
-      // Reset local views filters
-      setFilterCampus('');
-      setFilterYear('');
-      setFilterStatus('');
-      setSearchClassName('');
+    // Reset local views filters
+    setFilterCampus('');
+    setFilterYear('');
+    setFilterStatus('');
+    setSearchClassName('');
 
-      addAcademicClass(newClassData as any);
-      addToast('success', 'Class created successfully', `Class ${cleanName} has been added to the dashboard.`);
-      setIsClassModalOpen(false);
-      setIsSubmitting(false);
+    Promise.resolve(addAcademicClass(newClassData as any))
+      .then(() => {
+        setIsClassModalOpen(false);
+        setIsSubmitting(false);
 
-      // Form reset only on successful creation
-      setClassForm({
-        campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
-        academicYear: ayObj ? ayObj.academicYear : '',
-        name: '',
-        displayName: '',
-        status: '' as any,
-        remarks: '',
-        displayOrder: ''
+        // Form reset on successful creation
+        setClassForm({
+          campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
+          academicYear: ayObj ? ayObj.academicYear : '',
+          name: '',
+          displayName: '',
+          status: '' as any,
+          remarks: '',
+          displayOrder: ''
+        });
+        setCustomClassName('');
+      })
+      .catch(err => {
+        console.error(err);
+        setIsSubmitting(false);
       });
-      setCustomClassName('');
-    }, 400);
   };
 
   const handleUpdateClass = (e: React.FormEvent) => {

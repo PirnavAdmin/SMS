@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using SMS.Api.Data;
 using SMS.Api.Middleware;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Implementations;
 using SMS.Api.Services.Interfaces;
@@ -1445,6 +1446,10 @@ using (var scope = app.Services.CreateScope())
             var staff1 = staffMembers.ElementAtOrDefault(0);
             var staff2 = staffMembers.ElementAtOrDefault(1);
 
+            // Fetch a default subject to satisfy FK constraint on teacher_assignments
+            var defaultSubject = await context.Subjects.FirstOrDefaultAsync();
+            var defaultSubjectId = defaultSubject?.SubjectId ?? 1;
+
             for (var classNumber = 1;
                  classNumber <= 12;
                  classNumber++)
@@ -1474,6 +1479,7 @@ using (var scope = app.Services.CreateScope())
                                 ClassId = classGrade.ClassId,
                                 SectionLetter = "A",
                                 TeacherId = staff1.StaffId,
+                                SubjectId = defaultSubjectId,
                                 Role = "Class Teacher",
                                 Status = "Active"
                             });
@@ -1495,6 +1501,7 @@ using (var scope = app.Services.CreateScope())
                                 ClassId = classGrade.ClassId,
                                 SectionLetter = "A",
                                 TeacherId = staff2.StaffId,
+                                SubjectId = defaultSubjectId,
                                 Role = "Class Teacher",
                                 Status = "Active"
                             });
@@ -1521,6 +1528,7 @@ using (var scope = app.Services.CreateScope())
                                 ClassId = classGrade.ClassId,
                                 SectionLetter = "A",
                                 TeacherId = staff1.StaffId,
+                                SubjectId = defaultSubjectId,
                                 Role = "Class Teacher",
                                 Status = "Active"
                             });
@@ -1533,6 +1541,7 @@ using (var scope = app.Services.CreateScope())
                                 ClassId = classGrade.ClassId,
                                 SectionLetter = "B",
                                 TeacherId = staff2.StaffId,
+                                SubjectId = defaultSubjectId,
                                 Role = "Class Teacher",
                                 Status = "Active"
                             });

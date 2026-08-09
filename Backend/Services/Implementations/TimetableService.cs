@@ -10,6 +10,7 @@ using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Interfaces;
 

@@ -12,77 +12,24 @@ namespace Backend.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "PayrollFrequency",
-                table: "salary_structures",
-                type: "varchar(50)",
-                maxLength: 50,
-                nullable: false,
-                defaultValue: "Monthly");
-
-            migrationBuilder.AddColumn<string>(
-                name: "SalaryPaymentDay",
-                table: "salary_structures",
-                type: "varchar(50)",
-                maxLength: 50,
-                nullable: false,
-                defaultValue: "5");
-
-            migrationBuilder.AddColumn<bool>(
-                name: "PfApplicable",
-                table: "salary_structures",
-                type: "tinyint(1)",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "PfPercentage",
-                table: "salary_structures",
-                type: "decimal(5,2)",
-                precision: 5,
-                scale: 2,
-                nullable: false,
-                defaultValue: 0m);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "EsiApplicable",
-                table: "salary_structures",
-                type: "tinyint(1)",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "EsiPercentage",
-                table: "salary_structures",
-                type: "decimal(5,2)",
-                precision: 5,
-                scale: 2,
-                nullable: false,
-                defaultValue: 0m);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "ProfessionalTaxApplicable",
-                table: "salary_structures",
-                type: "tinyint(1)",
-                nullable: false,
-                defaultValue: false);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "ProfessionalTaxAmount",
-                table: "salary_structures",
-                type: "decimal(18,2)",
-                precision: 18,
-                scale: 2,
-                nullable: false,
-                defaultValue: 0m);
-
-            migrationBuilder.AddColumn<string>(
-                name: "RoundOffRule",
-                table: "salary_structures",
-                type: "varchar(50)",
-                maxLength: 50,
-                nullable: false,
-                defaultValue: "No Round Off");
+            migrationBuilder.Sql(@"
+DROP PROCEDURE IF EXISTS AddMissingColumnsSafely;
+CREATE PROCEDURE AddMissingColumnsSafely()
+BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+    ALTER TABLE salary_structures ADD COLUMN PayrollFrequency varchar(50) NOT NULL DEFAULT 'Monthly';
+    ALTER TABLE salary_structures ADD COLUMN SalaryPaymentDay varchar(50) NOT NULL DEFAULT '5';
+    ALTER TABLE salary_structures ADD COLUMN PfApplicable tinyint(1) NOT NULL DEFAULT 0;
+    ALTER TABLE salary_structures ADD COLUMN PfPercentage decimal(5,2) NOT NULL DEFAULT 0.00;
+    ALTER TABLE salary_structures ADD COLUMN EsiApplicable tinyint(1) NOT NULL DEFAULT 0;
+    ALTER TABLE salary_structures ADD COLUMN EsiPercentage decimal(5,2) NOT NULL DEFAULT 0.00;
+    ALTER TABLE salary_structures ADD COLUMN ProfessionalTaxApplicable tinyint(1) NOT NULL DEFAULT 0;
+    ALTER TABLE salary_structures ADD COLUMN ProfessionalTaxAmount decimal(18,2) NOT NULL DEFAULT 0.00;
+    ALTER TABLE salary_structures ADD COLUMN RoundOffRule varchar(50) NOT NULL DEFAULT 'No Round Off';
+END;
+CALL AddMissingColumnsSafely();
+DROP PROCEDURE IF EXISTS AddMissingColumnsSafely;
+");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

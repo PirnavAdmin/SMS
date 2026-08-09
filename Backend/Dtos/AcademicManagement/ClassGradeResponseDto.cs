@@ -1,4 +1,4 @@
-namespace SMS.Api.Dtos;
+namespace SMS.Api.Dtos.AcademicManagement;
 
 using System.Collections.Generic;
 using System.Linq;
