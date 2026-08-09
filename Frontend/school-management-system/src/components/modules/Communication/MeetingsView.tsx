@@ -674,31 +674,30 @@ export const MeetingsView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      {/* Top Header */}
-      <div className="glass-card p-6 rounded-3xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-gradient-to-tr from-sky-600 to-sky-600 text-white rounded-2xl shadow-lg shadow-sky-500/20">
-            <Users className="w-6 h-6" />
+      {/* Top Header Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-xs">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 rounded-xl border border-sky-200/80 dark:border-sky-900/50 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Meeting Management</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">Schedule & manage Individual in-person meetings, group syncs, venue availability & private alerts</p>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Meeting Management</h2>
           </div>
         </div>
 
         {canManageMeetings && (
           <button
             onClick={handleOpenAddModal}
-            className="px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-2xl shadow-lg shadow-sky-600/20 flex items-center gap-2 text-xs transition-all self-start md:self-auto"
+            className="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold rounded-xl shadow-sm shadow-sky-600/30 flex items-center gap-1.5 transition cursor-pointer h-[34px]"
           >
-            <Plus className="w-4 h-4" />
-            Schedule Meeting
+            <Plus className="w-3.5 h-3.5" />
+            <span>Schedule Meeting</span>
           </button>
         )}
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-3xl grid grid-cols-2 md:grid-cols-5 gap-3 text-xs font-semibold">
+      <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-xs grid grid-cols-2 md:grid-cols-5 gap-3 text-xs font-semibold">
         <div>
           <label className="block text-[10px] font-bold text-slate-400 mb-1">Audience</label>
           <select
@@ -1780,7 +1779,7 @@ export const MeetingsView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-455 mb-1">Agenda / Description</label>
+                <label className="block text-[10px] font-bold text-slate-455 mb-1">Description</label>
                 <textarea
                   rows={2}
                   placeholder="Enter meeting agenda or discussion topics..."
@@ -1932,9 +1931,9 @@ export const MeetingsView: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
+              <div className="flex items-center justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition cursor-pointer">Cancel</button>
+                <button type="submit" className="px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-sm shadow-sky-600/30 transition cursor-pointer">
                   {editingMeeting ? 'Save Changes' : 'Schedule Meeting'}
                 </button>
               </div>
