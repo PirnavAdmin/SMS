@@ -439,6 +439,110 @@ public class SchoolService : ISchoolService
 		NumberOfSubjects = d.Subjects?.Count ?? 0
 	};
 
+	// --- DESIGNATIONS ---
+	public async Task<List<DesignationMasterDto>> GetAllDesignationsAsync(string? search)
+	{
+		var query = _context.DesignationMasters.AsNoTracking().AsQueryable();
+		if (!string.IsNullOrWhiteSpace(search))
+		{
+			query = query.Where(d => d.DesignationName.Contains(search) || d.EmployeeCategory.Contains(search));
+		}
+		var list = await query.OrderBy(d => d.DesignationName).ToListAsync();
+		return list.Select(d => new DesignationMasterDto
+		{
+			Id = d.Id,
+			DesignationName = d.DesignationName,
+			EmployeeCategory = d.EmployeeCategory,
+			Status = d.Status
+		}).ToList();
+	}
+
+	public async Task<DesignationMasterDto> GetDesignationByIdAsync(int id)
+	{
+		var d = await _context.DesignationMasters.FindAsync(id)
+			?? throw new NotFoundException($"Designation with ID '{id}' not found.");
+		return new DesignationMasterDto
+		{
+			Id = d.Id,
+			DesignationName = d.DesignationName,
+			EmployeeCategory = d.EmployeeCategory,
+			Status = d.Status
+		};
+	}
+
+	public async Task<DesignationMasterDto> CreateDesignationAsync(CreateDesignationMasterDto dto)
+	{
+		if (string.IsNullOrWhiteSpace(dto.DesignationName))
+			throw new InvalidOperationException("Designation name is required.");
+
+		var isDuplicate = await _context.DesignationMasters.AnyAsync(d => d.DesignationName.ToLower() == dto.DesignationName.ToLower().Trim());
+		if (isDuplicate)
+			throw new InvalidOperationException($"Designation '{dto.DesignationName}' already exists.");
+
+		var designation = new SMS.Api.Models.AcademicManagement.DesignationMaster
+		{
+			DesignationName = dto.DesignationName.Trim(),
+			EmployeeCategory = dto.EmployeeCategory,
+			Status = dto.Status,
+			CreatedDate = DateTime.UtcNow
+		};
+
+		await _context.DesignationMasters.AddAsync(designation);
+		await _context.SaveChangesAsync();
+
+		return new DesignationMasterDto
+		{
+			Id = designation.Id,
+			DesignationName = designation.DesignationName,
+			EmployeeCategory = designation.EmployeeCategory,
+			Status = designation.Status
+		};
+	}
+
+	public async Task<DesignationMasterDto> UpdateDesignationAsync(int id, CreateDesignationMasterDto dto)
+	{
+		if (string.IsNullOrWhiteSpace(dto.DesignationName))
+			throw new InvalidOperationException("Designation name is required.");
+
+		var designation = await _context.DesignationMasters.FindAsync(id)
+			?? throw new NotFoundException($"Designation with ID '{id}' not found.");
+
+		var isDuplicate = await _context.DesignationMasters.AnyAsync(d => d.Id != id && d.DesignationName.ToLower() == dto.DesignationName.ToLower().Trim());
+		if (isDuplicate)
+			throw new InvalidOperationException($"Another designation with name '{dto.DesignationName}' already exists.");
+
+		designation.DesignationName = dto.DesignationName.Trim();
+		designation.EmployeeCategory = dto.EmployeeCategory;
+		designation.Status = dto.Status;
+
+		await _context.SaveChangesAsync();
+
+		return new DesignationMasterDto
+		{
+			Id = designation.Id,
+			DesignationName = designation.DesignationName,
+			EmployeeCategory = designation.EmployeeCategory,
+			Status = designation.Status
+		};
+	}
+
+	public async Task<bool> DeleteDesignationAsync(int id)
+	{
+		var designation = await _context.DesignationMasters.FindAsync(id)
+			?? throw new NotFoundException($"Designation with ID '{id}' not found.");
+
+		// Verify if designation is currently referenced by active staff records
+		var hasStaff = await _context.Staff.AnyAsync(s => s.Designation != null && s.Designation.ToLower() == designation.DesignationName.ToLower());
+		if (hasStaff)
+		{
+			throw new InvalidOperationException("Cannot delete designation because staff members are currently assigned to it.");
+		}
+
+		_context.DesignationMasters.Remove(designation);
+		await _context.SaveChangesAsync();
+		return true;
+	}
+
 	// --- SUBJECTS ---
 	public async Task<List<SubjectDto>> GetAllSubjectsAsync(string? search)
 	{

@@ -1,37 +1,56 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Moq;
-using SMS.Api.Controllers;
-using SMS.Api.Dtos;
-using SMS.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using SMS.Api.Controllers.AcademicManagement;
+using SMS.Api.Data;
+using SMS.Api.Dtos.AcademicManagement;
+using SMS.Api.Models.AcademicManagement;
 using Xunit;
 
 namespace Backend.Tests.Controllers
 {
     public class ClassesControllerTests
     {
-        private readonly Mock<ISchoolService> _schoolServiceMock;
-        private readonly ClassesController _controller;
-
-        public ClassesControllerTests()
+        private AppDbContext GetInMemoryDbContext()
         {
-            _schoolServiceMock = new Mock<ISchoolService>();
-            _controller = new ClassesController(_schoolServiceMock.Object);
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .Options;
+            return new AppDbContext(options);
+        }
+
+        private void SetupControllerContext(ClassesController controller)
+        {
+            var httpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext();
+            httpContext.Request.Headers["X-Branch-Id"] = "Main Campus";
+            httpContext.Request.Headers["X-Academic-Year-Id"] = "2026-2027";
+            
+            var claims = new List<System.Security.Claims.Claim>
+            {
+                new System.Security.Claims.Claim("id", "1"),
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Admin"),
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin")
+            };
+            var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+            var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+            httpContext.User = principal;
+            
+            controller.ControllerContext = new ControllerContext { HttpContext = httpContext };
         }
 
         [Fact]
         public async Task GetClasses_ReturnsOkWithList()
         {
-            var expectedList = new List<ClassGradeResponseDto>
-            {
-                new ClassGradeResponseDto { ClassId = 1, ClassName = "Grade 10" }
-            };
+            using var db = GetInMemoryDbContext();
+            db.Classes.Add(new ClassGrade { ClassId = 1, ClassName = "Grade 10", CampusLocation = "Main Campus", AcademicYear = "2026-2027" });
+            await db.SaveChangesAsync();
 
-            _schoolServiceMock.Setup(s => s.GetAllClassesAsync())
-                .ReturnsAsync(expectedList);
+            var controller = new ClassesController(db);
+            SetupControllerContext(controller);
 
-            var result = await _controller.GetClasses();
+            var result = await controller.GetClasses();
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -40,11 +59,14 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task GetClassById_ReturnsOkWithDto()
         {
-            var expectedDto = new ClassGradeResponseDto { ClassId = 1, ClassName = "Grade 10" };
-            _schoolServiceMock.Setup(s => s.GetClassByIdAsync(1))
-                .ReturnsAsync(expectedDto);
+            using var db = GetInMemoryDbContext();
+            db.Classes.Add(new ClassGrade { ClassId = 1, ClassName = "Grade 10", CampusLocation = "Main Campus", AcademicYear = "2026-2027" });
+            await db.SaveChangesAsync();
 
-            var result = await _controller.GetClassById(1);
+            var controller = new ClassesController(db);
+            SetupControllerContext(controller);
+
+            var result = await controller.GetClassById(1);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -53,12 +75,20 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task CreateClassGrade_ReturnsOk()
         {
-            var dto = new CreateClassGradeDto { ClassName = "Grade 11" };
+            using var db = GetInMemoryDbContext();
+            var controller = new ClassesController(db);
+            SetupControllerContext(controller);
 
-            _schoolServiceMock.Setup(s => s.CreateClassGradeAsync(dto))
-                .ReturnsAsync(true);
+            var dto = new CreateClassGradeDto 
+            { 
+                ClassName = "Grade 11",
+                CampusLocation = "Main Campus",
+                AcademicYear = "2026-2027",
+                Status = "Active",
+                Sections = new List<SectionAssignmentDto> { new SectionAssignmentDto { SectionName = "A" } }
+            };
 
-            var result = await _controller.CreateClassGrade(dto);
+            var result = await controller.CreateClassGrade(dto);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -67,12 +97,23 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task UpdateClassGrade_ReturnsOk()
         {
-            var dto = new CreateClassGradeDto { ClassName = "Grade 11 Updated" };
+            using var db = GetInMemoryDbContext();
+            var classObj = new ClassGrade { ClassId = 1, ClassName = "Grade 11 Old", CampusLocation = "Main Campus", AcademicYear = "2026-2027" };
+            db.Classes.Add(classObj);
+            await db.SaveChangesAsync();
 
-            _schoolServiceMock.Setup(s => s.UpdateClassGradeAsync(1, dto))
-                .ReturnsAsync(true);
+            var controller = new ClassesController(db);
+            SetupControllerContext(controller);
 
-            var result = await _controller.UpdateClassGrade(1, dto);
+            var dto = new CreateClassGradeDto 
+            { 
+                ClassName = "Grade 11 Updated",
+                CampusLocation = "Main Campus",
+                AcademicYear = "2026-2027",
+                Status = "Active"
+            };
+
+            var result = await controller.UpdateClassGrade(1, dto);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);
@@ -81,10 +122,15 @@ namespace Backend.Tests.Controllers
         [Fact]
         public async Task DeleteClassGrade_ReturnsOk()
         {
-            _schoolServiceMock.Setup(s => s.DeleteClassGradeAsync(1))
-                .ReturnsAsync(true);
+            using var db = GetInMemoryDbContext();
+            var classObj = new ClassGrade { ClassId = 1, ClassName = "Grade 11 ToDelete", CampusLocation = "Main Campus", AcademicYear = "2026-2027" };
+            db.Classes.Add(classObj);
+            await db.SaveChangesAsync();
 
-            var result = await _controller.DeleteClassGrade(1);
+            var controller = new ClassesController(db);
+            SetupControllerContext(controller);
+
+            var result = await controller.DeleteClassGrade(1);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
             Assert.NotNull(okResult.Value);

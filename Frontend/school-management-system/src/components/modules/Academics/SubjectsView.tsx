@@ -9,7 +9,8 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { SubjectItem, Department, DesignationMaster } from '../../../types';
 import { 
   fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi,
-  fetchDepartmentsApi, createDepartmentApi, updateDepartmentApi, deleteDepartmentApi
+  fetchDepartmentsApi, createDepartmentApi, updateDepartmentApi, deleteDepartmentApi,
+  fetchDesignationsApi, createDesignationApi, updateDesignationApi, deleteDesignationApi
 } from '../../../api/academic';
 
 export const SubjectsView: React.FC = () => {
@@ -164,7 +165,6 @@ export const SubjectsView: React.FC = () => {
           status: item.status || 'Active'
         }));
         setDepartments(mappedData);
-        if (contextDesignations) setDesignations(contextDesignations);
       } else {
         setDepartments([]);
       }
@@ -174,7 +174,33 @@ export const SubjectsView: React.FC = () => {
       } else {
         addToast('error', 'Error Fetching Departments', 'Failed to load departments.');
       }
-      if (contextDesignations) setDesignations(contextDesignations);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadDesignations = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchDesignationsApi();
+      if (res && res.success && Array.isArray(res.data)) {
+        const mapped = res.data.map((d: any) => ({
+          id: d.designationId.toString(),
+          designationName: d.designationName,
+          designationCode: d.designationCode || '',
+          description: d.description || '',
+          status: d.status || 'Active'
+        }));
+        setDesignations(mapped);
+      } else {
+        setDesignations([]);
+      }
+    } catch (error) {
+      if (contextDesignations && contextDesignations.length > 0) {
+        setDesignations(contextDesignations);
+      } else {
+        addToast('error', 'Error Fetching Designations', 'Failed to load designations.');
+      }
     } finally {
       setLoading(false);
     }
@@ -183,6 +209,7 @@ export const SubjectsView: React.FC = () => {
   useEffect(() => {
     loadSubjects();
     loadDepartments();
+    loadDesignations();
   }, []);
 
   // Update local subjects list if context subjects change
@@ -249,49 +276,56 @@ export const SubjectsView: React.FC = () => {
     const selectedDeptObj = departments.find(d => d.departmentName === formData.department);
 
     if (editingSubject) {
-      updateSubject(editingSubject.id, {
-        subjectId: finalSubjectId,
-        name: formData.name.trim(),
-        code: formData.code.trim(),
-        department: formData.department,
-        departmentId: selectedDeptObj?.id
-      });
-
       try {
-        await updateSubjectApi(editingSubject.id as any, {
+        const res = await updateSubjectApi(editingSubject.id as any, {
           subjectName: formData.name,
           courseCode: formData.code,
           departmentId: selectedDeptObj?.id || 1
         } as any);
-        await loadSubjects();
-      } catch (err) {
-        // Silently handled
+        if (res && res.success) {
+          updateSubject(editingSubject.id, {
+            subjectId: finalSubjectId,
+            name: formData.name.trim(),
+            code: formData.code.trim(),
+            department: formData.department,
+            departmentId: selectedDeptObj?.id
+          });
+          await loadSubjects();
+          addToast('success', 'Subject Updated', `Updated subject '${formData.name}' assigned to '${formData.department}'.`);
+          setIsFormOpen(false);
+        } else {
+          addToast('error', 'Update Failed', res?.message || 'Could not update subject.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        addToast('error', 'Error', err.message || 'An error occurred while updating subject.');
       }
-
-      addToast('success', 'Subject Updated', `Updated subject '${formData.name}' assigned to '${formData.department}'.`);
     } else {
-      addSubject({
-        subjectId: finalSubjectId,
-        name: formData.name.trim(),
-        code: formData.code.trim(),
-        department: formData.department,
-        departmentId: selectedDeptObj?.id
-      });
-
       try {
-        await createSubjectApi({
+        const res = await createSubjectApi({
           subjectName: formData.name,
           courseCode: formData.code,
           departmentId: selectedDeptObj?.id || 1
         } as any);
-        await loadSubjects();
-      } catch (err) {
-        // Silently handled
+        if (res && res.success) {
+          addSubject({
+            subjectId: finalSubjectId,
+            name: formData.name.trim(),
+            code: formData.code.trim(),
+            department: formData.department,
+            departmentId: selectedDeptObj?.id
+          });
+          await loadSubjects();
+          addToast('success', 'Subject Created', `Added subject '${formData.name}' assigned to '${formData.department}'.`);
+          setIsFormOpen(false);
+        } else {
+          addToast('error', 'Creation Failed', res?.message || 'Could not create subject.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        addToast('error', 'Error', err.message || 'An error occurred while creating subject.');
       }
-
-      addToast('success', 'Subject Created', `Added subject '${formData.name}' assigned to '${formData.department}'.`);
     }
-    setIsFormOpen(false);
   };
 
 
@@ -325,7 +359,7 @@ export const SubjectsView: React.FC = () => {
     setIsDesigModalOpen(true);
   };
 
-  const handleDesigSubmit = (e: React.FormEvent) => {
+  const handleDesigSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = desigFormData.designationName.trim();
     if (!name) {
@@ -333,23 +367,67 @@ export const SubjectsView: React.FC = () => {
       return;
     }
     if (editingDesignation) {
-      updateDesignation(editingDesignation.id, desigFormData);
-      addToast('success', 'Designation Updated', `Updated designation '${name}'.`);
+      try {
+        const res = await updateDesignationApi(editingDesignation.id, {
+          designationName: desigFormData.designationName,
+          designationCode: desigFormData.designationName.slice(0, 4).toUpperCase(),
+          description: desigFormData.employeeCategory + " Designation",
+          status: desigFormData.status
+        });
+        if (res && res.success) {
+          updateDesignation(editingDesignation.id, desigFormData);
+          await loadDesignations();
+          addToast('success', 'Designation Updated', `Updated designation '${name}'.`);
+          setIsDesigModalOpen(false);
+        } else {
+          addToast('error', 'Update Failed', res?.message || 'Could not update designation.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        addToast('error', 'Error', err.message || 'An error occurred while updating designation.');
+      }
     } else {
-      addDesignation(desigFormData as any);
-      addToast('success', 'Designation Created', `Created designation '${name}'.`);
+      try {
+        const res = await createDesignationApi({
+          designationName: desigFormData.designationName,
+          designationCode: desigFormData.designationName.slice(0, 4).toUpperCase(),
+          description: desigFormData.employeeCategory + " Designation",
+          status: desigFormData.status
+        });
+        if (res && res.success) {
+          addDesignation(desigFormData as any);
+          await loadDesignations();
+          addToast('success', 'Designation Created', `Created designation '${name}'.`);
+          setIsDesigModalOpen(false);
+        } else {
+          addToast('error', 'Creation Failed', res?.message || 'Could not create designation.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        addToast('error', 'Error', err.message || 'An error occurred while creating designation.');
+      }
     }
-    setIsDesigModalOpen(false);
   };
 
   const handleAttemptDeleteDesig = (desig: DesignationMaster) => {
     setDeletingDesignation(desig);
   };
 
-  const handleConfirmDeleteDesig = () => {
+  const handleConfirmDeleteDesig = async () => {
     if (deletingDesignation) {
-      deleteDesignation(deletingDesignation.id);
-      addToast('success', 'Designation Deleted', `Removed designation '${deletingDesignation.designationName}'.`);
+      try {
+        const res = await deleteDesignationApi(deletingDesignation.id);
+        if (res && res.success) {
+          deleteDesignation(deletingDesignation.id);
+          await loadDesignations();
+          addToast('success', 'Designation Deleted', `Removed designation '${deletingDesignation.designationName}'.`);
+        } else {
+          addToast('error', 'Deletion Failed', res?.message || 'Could not delete designation.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        addToast('error', 'Error', err.message || 'An error occurred while deleting designation.');
+      }
       setDeletingDesignation(null);
     }
   };
@@ -477,16 +555,20 @@ export const SubjectsView: React.FC = () => {
 
   const handleConfirmDeleteDept = async () => {
     if (!deletingDepartment) return;
-    deleteDepartment(deletingDepartment.id);
     
     try {
-      await deleteDepartmentApi(deletingDepartment.id);
-      await loadDepartments();
-    } catch (err) {
-      // Error handling
+      const res = await deleteDepartmentApi(deletingDepartment.id);
+      if (res && res.success) {
+        deleteDepartment(deletingDepartment.id);
+        await loadDepartments();
+        addToast('success', 'Department Deleted', `Removed department '${deletingDepartment.departmentName}'.`);
+      } else {
+        addToast('error', 'Deletion Failed', res?.message || 'Could not delete department.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', 'Error', err.message || 'An error occurred while communicating with the server.');
     }
-    
-    addToast('info', 'Department Deleted', `Removed department '${deletingDepartment.departmentName}'.`);
     setDeletingDepartment(null);
   };
 
@@ -1179,11 +1261,18 @@ export const SubjectsView: React.FC = () => {
             }
 
             try {
-              deleteSubject(deletingSubject.id);
-              await deleteSubjectApi(deletingSubject.id as any);
-              await loadSubjects();
-              addToast('success', 'Subject Deleted', `Deleted subject '${deletingSubject.name}'.`);
-            } catch (error: any) {}
+              const res = await deleteSubjectApi(deletingSubject.id as any);
+              if (res && res.success) {
+                deleteSubject(deletingSubject.id);
+                await loadSubjects();
+                addToast('success', 'Subject Deleted', `Deleted subject '${deletingSubject.name}'.`);
+              } else {
+                addToast('error', 'Deletion Failed', res?.message || 'Could not delete subject.');
+              }
+            } catch (error: any) {
+              console.error(error);
+              addToast('error', 'Error', error.message || 'An error occurred while communicating with the server.');
+            }
             setDeletingSubject(null);
           }
         }}

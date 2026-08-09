@@ -51,6 +51,7 @@ namespace SMS.Api.Data
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
         public DbSet<Admission> Admissions { get; set; } = null!;
+        public DbSet<SMS.Api.Models.AcademicManagement.DesignationMaster> DesignationMasters { get; set; } = null!;
 
         // Homework Module
         public DbSet<Homework> Homeworks { get; set; } = null!;
@@ -168,6 +169,7 @@ namespace SMS.Api.Data
             ConfigureStudentBedAllocation(modelBuilder);
             ConfigureTeacherAttendanceCorrection(modelBuilder);
             ConfigureAdmission(modelBuilder);
+            ConfigureDesignationMaster(modelBuilder);
 
             ConfigureStandardTableNames(modelBuilder);
             ConfigureAcademicYear(modelBuilder);
@@ -1483,6 +1485,18 @@ namespace SMS.Api.Data
                     .WithMany()
                     .HasForeignKey(x => x.ClassId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+        }
+
+        private static void ConfigureDesignationMaster(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SMS.Api.Models.AcademicManagement.DesignationMaster>(entity =>
+            {
+                entity.ToTable("designation_masters");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.DesignationName).HasMaxLength(150).IsRequired();
+                entity.Property(x => x.EmployeeCategory).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
             });
         }
     }

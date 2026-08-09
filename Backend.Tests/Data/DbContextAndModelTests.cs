@@ -7,6 +7,8 @@ using SMS.Api.Dtos;
 using SMS.Api.Dtos.Auth;
 using SMS.Api.Dtos.Otp;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
+using SMS.Api.Dtos.AcademicManagement;
 using Xunit;
 
 namespace Backend.Tests.Data
@@ -44,12 +46,12 @@ namespace Backend.Tests.Data
             db.Subjects.Add(subject);
             await db.SaveChangesAsync();
 
-            var ccs = new ClassCurriculumSubject
+            var ccs = new ClassSubjectMapping
             {
                 ClassId = classGrade.ClassId,
                 SubjectId = subject.SubjectId
             };
-            db.ClassCurriculumSubjects.Add(ccs);
+            db.ClassSubjectMappings.Add(ccs);
 
             var staff = new Staff
             {
@@ -63,8 +65,7 @@ namespace Backend.Tests.Data
             var section = new ClassSection
             {
                 ClassId = classGrade.ClassId,
-                SectionName = "A",
-                ClassTeacherEmpId = staff.StaffId
+                SectionName = "A"
             };
             db.ClassSections.Add(section);
             await db.SaveChangesAsync();
@@ -73,9 +74,8 @@ namespace Backend.Tests.Data
             Assert.NotNull(fetchedUser);
             Assert.Single(fetchedUser!.Roles);
 
-            var fetchedSection = await db.ClassSections.Include(cs => cs.ClassTeacher).FirstOrDefaultAsync(cs => cs.SectionId == section.SectionId);
+            var fetchedSection = await db.ClassSections.FirstOrDefaultAsync(cs => cs.SectionId == section.SectionId);
             Assert.NotNull(fetchedSection);
-            Assert.Equal("Teacher", fetchedSection!.ClassTeacher!.FirstName);
         }
 
         [Fact]

@@ -57,6 +57,11 @@ public class ExceptionMiddleware
             statusCode = HttpStatusCode.BadRequest;
             message = exception.Message;
         }
+        else if (exception is Microsoft.EntityFrameworkCore.DbUpdateException)
+        {
+            statusCode = HttpStatusCode.BadRequest;
+            message = "This operation could not be completed because this record is referenced by other items in the database (e.g., classes, assignments, or student records).";
+        }
 
         context.Response.StatusCode = (int)statusCode;
 

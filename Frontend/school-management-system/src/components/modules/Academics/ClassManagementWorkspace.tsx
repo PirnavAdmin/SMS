@@ -1572,11 +1572,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleRemoveStudentFromSection = (studId: string) => {
     verifySafetyLock(() => {
-      updateStudent(studId, {
-        section: '',
-        rollNo: ''
-      } as any);
-      addToast('info', 'Student de-allocated');
+      allocateStudentApi(studId, { section_letter: 'Unassigned', roll_no: '' })
+        .then(res => {
+          if (res && res.success) {
+            updateStudent(studId, {
+              section: '',
+              rollNo: ''
+            } as any);
+            addToast('success', 'Student De-allocated', 'Student unassigned from section successfully.');
+          } else {
+            addToast('error', 'Error', res?.message || 'Failed to unassign student.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          addToast('error', 'Error', 'Failed to communicate with server.');
+        });
     });
   };
 

@@ -9,6 +9,7 @@ using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Implementations;
 using SMS.Api.Services.Implementations;
 using Xunit;

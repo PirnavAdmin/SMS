@@ -662,6 +662,17 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return BadRequest(new { success = false, message = "Student is not assigned to any class yet." });
             }
 
+            if (string.IsNullOrWhiteSpace(dto.SectionLetter) || 
+                dto.SectionLetter.Equals("Unassigned", System.StringComparison.OrdinalIgnoreCase) || 
+                dto.SectionLetter.Equals("None", System.StringComparison.OrdinalIgnoreCase))
+            {
+                student.SectionLetter = null;
+                student.RollNo = null;
+                await _context.SaveChangesAsync();
+                await LogAuditActionAsync("Deallocate Student", $"De-allocated student '{student.StudentName}' (ID {dbStudentId}).");
+                return Ok(new { success = true, message = "Student de-allocated successfully." });
+            }
+
             // Check capacity constraint
             var section = await _context.ClassSections
                 .FirstOrDefaultAsync(s => s.ClassId == student.ClassId && s.SectionName.ToLower() == dto.SectionLetter.ToLower());

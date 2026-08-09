@@ -145,6 +145,7 @@ namespace SMS.Api.Services.Implementations
                         userToken,
                         userRolesList);
                 }
+                throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
             }
             catch (AppException)
             {

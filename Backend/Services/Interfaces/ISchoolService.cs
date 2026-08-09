@@ -32,6 +32,13 @@ public interface ISchoolService
     Task<bool> DeleteDepartmentAsync(int id);
     Task<bool> DeleteDepartmentAsync(string idOrCode);
 
+    // Designation Operations
+    Task<List<DesignationMasterDto>> GetAllDesignationsAsync(string? search);
+    Task<DesignationMasterDto> GetDesignationByIdAsync(int id);
+    Task<DesignationMasterDto> CreateDesignationAsync(CreateDesignationMasterDto dto);
+    Task<DesignationMasterDto> UpdateDesignationAsync(int id, CreateDesignationMasterDto dto);
+    Task<bool> DeleteDesignationAsync(int id);
+
     // Subject Operations
     Task<List<SubjectDto>> GetAllSubjectsAsync(string? search);
     Task<SubjectDto> GetSubjectByIdAsync(int id);

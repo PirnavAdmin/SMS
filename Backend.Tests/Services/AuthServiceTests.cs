@@ -16,19 +16,21 @@ namespace Backend.Tests.Services
     public class AuthServiceTests
     {
         private readonly Mock<IUserRepository> _userRepoMock;
+        private readonly Mock<IAdminRepository> _adminRepoMock;
         private readonly Mock<IConfiguration> _configMock;
         private readonly AuthService _service;
 
         public AuthServiceTests()
         {
             _userRepoMock = new Mock<IUserRepository>();
+            _adminRepoMock = new Mock<IAdminRepository>();
             _configMock = new Mock<IConfiguration>();
 
             _configMock.Setup(c => c["Jwt:Key"]).Returns("SuperSecretKeyThatIsAtLeast32BytesLongForSecurity!");
             _configMock.Setup(c => c["Jwt:Issuer"]).Returns("SMS.Api");
             _configMock.Setup(c => c["Jwt:Audience"]).Returns("SMS.Client");
 
-            _service = new AuthService(_userRepoMock.Object, _configMock.Object);
+            _service = new AuthService(_userRepoMock.Object, _adminRepoMock.Object, _configMock.Object);
         }
 
         [Fact]
@@ -36,6 +38,8 @@ namespace Backend.Tests.Services
         {
             var dto = new RegisterRequestDto("Jane Doe", "jane@example.com", "1234567890", "Password123!", 1);
 
+            _userRepoMock.Setup(r => r.GetRoleByIdAsync(dto.RoleId))
+                .ReturnsAsync(new Role { RoleId = dto.RoleId, RoleName = "Teacher" });
             _userRepoMock.Setup(r => r.ExistsAsync(dto.MobileNumber, dto.Email))
                 .ReturnsAsync(true);
 
@@ -70,8 +74,8 @@ namespace Backend.Tests.Services
             _userRepoMock.Setup(r => r.GetRoleByIdAsync(1))
                 .ReturnsAsync(role);
 
-            _userRepoMock.Setup(r => r.AddAsync(It.IsAny<User>()))
-                .Callback<User>(u => u.UserId = 10)
+            _adminRepoMock.Setup(r => r.AddAsync(It.IsAny<Admin>()))
+                .Callback<Admin>(a => a.AdminId = 10)
                 .Returns(Task.CompletedTask);
 
             var response = await _service.RegisterAsync(dto);

@@ -1632,6 +1632,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchSubjects = async () => {
+    try {
+      const data = await fetchSubjectsApi();
+      const dataArray = Array.isArray(data) ? data : (data?.data || []);
+      if (Array.isArray(dataArray)) {
+        const mappedData = dataArray.map((item: any) => ({
+          id: item.subjectId?.toString() || item.id?.toString() || Math.random().toString(),
+          name: item.subjectName || '',
+          code: item.courseCode || '',
+          department: item.departmentName || '',
+          status: item.status || 'Active'
+        }));
+        setSubjects(mappedData);
+      }
+    } catch (err: any) {
+      console.warn('Error fetching subjects', err);
+    }
+
   const fetchAdmissions = async () => {
     try {
       const json = await fetchAdmissionsApi();
@@ -1734,6 +1752,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (isAuthenticated) {
       fetchAcademicClasses();
+      fetchSubjects();
     }
     const allowedAdmissionsRoles = ['Super Admin', 'Admin', 'Principal', 'Receptionist'];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
@@ -2671,16 +2690,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteAcademicClass = async (id: string) => {
-    const cls = academicClasses.find(c => c.id === id);
-    if (cls) {
-      setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
-    }
-    setAcademicClasses(prev => prev.filter(c => c.id !== id));
-    logActivity('Deleted Academic Class', `Removed class ID ${id}`);
-
     try {
       const response = await deleteClassApi(id);
       if (response && response.success) {
+        const cls = academicClasses.find(c => c.id === id);
+        if (cls) {
+          setStudents(prev => prev.map(s => s.className === cls.name ? { ...s, className: '', section: '', rollNo: '' } : s));
+        }
+        setAcademicClasses(prev => prev.filter(c => c.id !== id));
+        logActivity('Deleted Academic Class', `Removed class ID ${id}`);
         addToast('success', 'Class Deleted', response.message || 'Academic Class deleted successfully.');
         await fetchAcademicClasses();
       } else {

@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Implementations;
 using Xunit;
 
@@ -134,11 +135,10 @@ namespace Backend.Tests.Repositories
             classGrade.Sections.Add(new ClassSection
             {
                 ClassId = classGrade.ClassId,
-                SectionName = "A",
-                ClassTeacherEmpId = teacher.StaffId
+                SectionName = "A"
             });
 
-            classGrade.CurriculumSubjects.Add(new ClassCurriculumSubject
+            classGrade.SubjectMappings.Add(new ClassSubjectMapping
             {
                 ClassId = classGrade.ClassId,
                 SubjectId = subject.SubjectId
@@ -151,7 +151,7 @@ namespace Backend.Tests.Repositories
             Assert.Equal("Grade 10", allGrades[0].ClassName);
             Assert.Single(allGrades[0].Sections);
             Assert.Equal("A", allGrades[0].Sections.First().SectionName);
-            Assert.Single(allGrades[0].CurriculumSubjects);
+            Assert.Single(allGrades[0].SubjectMappings);
 
             var byId = await repo.GetClassGradeByIdAsync(classGrade.ClassId);
             Assert.NotNull(byId);

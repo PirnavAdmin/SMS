@@ -2,8 +2,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
-using SMS.Api.Controllers;
+using SMS.Api.Controllers.AcademicManagement;
 using SMS.Api.Dtos;
+using SMS.Api.Dtos.AcademicManagement;
 using SMS.Api.Services.Interfaces;
 using Xunit;
 

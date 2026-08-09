@@ -214,3 +214,124 @@ export const autoAllocateApi = async (classId: number | string) => {
   const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
   return apiClient(`/api/classes/${numericId}/auto-allocate`, { method: 'POST' });
 };
+
+// ============================
+// TIMETABLE API
+// ============================
+
+export const fetchPeriodsApi = async () => {
+  return apiClient('/api/timetable/periods', { method: 'GET' });
+};
+
+export const savePeriodApi = async (payload: {
+  periodId?: number;
+  periodName: string;
+  startTime: string;
+  endTime: string;
+  periodType: string;
+  displayOrder: number;
+}) => {
+  return apiClient('/api/timetable/period', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deletePeriodApi = async (id: number | string) => {
+  const numericId = typeof id === 'string' && id.startsWith('PS-') ? id.replace('PS-', '') : id;
+  return apiClient(`/api/timetable/period/${numericId}`, { method: 'DELETE' });
+};
+
+export const fetchTimetableGridApi = async (classId: number | string, sectionId: number | string, academicYear: string) => {
+  const numericClassId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  const numericSectionId = typeof sectionId === 'string' && sectionId.startsWith('SEC-') ? sectionId.replace('SEC-', '') : sectionId;
+  return apiClient(`/api/timetable/class-grid?classId=${numericClassId}&sectionId=${numericSectionId}&academicYear=${encodeURIComponent(academicYear)}`, {
+    method: 'GET'
+  });
+};
+
+export const saveTimetableSlotApi = async (payload: {
+  classId: number | string;
+  sectionId: number | string;
+  academicYear: string;
+  branchName: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  subjectId: number | string;
+  teacherId?: number | string;
+  roomNo?: string;
+  periodId?: number | string;
+}) => {
+  return apiClient('/api/timetable/slot', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteTimetableSlotApi = async (id: number | string) => {
+  const numericId = typeof id === 'string' && id.startsWith('TT-') ? id.replace('TT-', '') : id;
+  return apiClient(`/api/timetable/slot/${numericId}`, { method: 'DELETE' });
+};
+
+export const publishTimetableApi = async (payload: {
+  classId: number | string;
+  sectionId: number | string;
+  academicYear: string;
+  status: string;
+}) => {
+  return apiClient('/api/timetable/publish', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const copyTimetableApi = async (payload: {
+  sourceClassId: number | string;
+  sourceSectionId: number | string;
+  targetClassId: number | string;
+  targetSectionId: number | string;
+  academicYear: string;
+}) => {
+  return apiClient('/api/timetable/copy', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+// ============================
+// DESIGNATIONS API
+// ============================
+
+export const fetchDesignationsApi = async (search?: string) => {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  return apiClient(`/api/designations${query}`, { method: 'GET' });
+};
+
+export const createDesignationApi = async (payload: {
+  designationName: string;
+  designationCode: string;
+  description?: string;
+  status: string;
+}) => {
+  return apiClient('/api/designations', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateDesignationApi = async (id: number | string, payload: {
+  designationName: string;
+  designationCode: string;
+  description?: string;
+  status: string;
+}) => {
+  return apiClient(`/api/designations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteDesignationApi = async (id: number | string) => {
+  return apiClient(`/api/designations/${id}`, { method: 'DELETE' });
+};
