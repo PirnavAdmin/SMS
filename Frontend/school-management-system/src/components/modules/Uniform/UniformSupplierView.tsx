@@ -99,7 +99,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                 <th className="py-3 px-4">Email</th>
                 <th className="py-3 px-4 font-mono">GST Number</th>
                 <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -118,9 +118,11 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                     <td className="py-3 px-4">
                       <Badge variant={s.status === 'Active' ? 'success' : 'neutral'}>{s.status}</Badge>
                     </td>
-                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
-                      <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeletingSupplier(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeletingSupplier(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -133,13 +135,14 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Supplier Details</h3>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Supplier Master</h3>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier Company Name *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Supplier / Company Name *</label>
                 <input
                   type="text"
                   required
+                  placeholder="e.g. Apex Uniform Mills Ltd"
                   value={form.supplierName}
                   onChange={e => setForm({ ...form, supplierName: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -148,10 +151,11 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contact Representative *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Contact Person *</label>
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Rahul Sharma"
                     value={form.contactPerson}
                     onChange={e => setForm({ ...form, contactPerson: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -162,6 +166,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                   <input
                     type="text"
                     required
+                    placeholder="10-digit mobile"
                     value={form.mobile}
                     onChange={e => setForm({ ...form, mobile: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -171,21 +176,23 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">GSTIN / Tax ID</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Email Address</label>
                   <input
-                    type="text"
-                    value={form.gstNumber || ''}
-                    onChange={e => setForm({ ...form, gstNumber: e.target.value })}
+                    type="email"
+                    placeholder="supplier@company.com"
+                    value={form.email || ''}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Email Address</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">GST Registration No</label>
                   <input
-                    type="email"
-                    value={form.email || ''}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                    type="text"
+                    placeholder="22AAAAA0000A1Z5"
+                    value={form.gstNumber || ''}
+                    onChange={e => setForm({ ...form, gstNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono uppercase"
                   />
                 </div>
               </div>
@@ -198,6 +205,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                     onChange={e => setForm({ ...form, status: e.target.value as any })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
                   >
+                    <option value="">Select Status *</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>

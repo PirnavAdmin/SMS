@@ -927,7 +927,9 @@ export const initialHostelBeds: HostelBed[] = [
 
 export const initialUniforms: UniformItem[] = [
   { id: "UNI-01", category: "Summer Polo Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 35, availableStock: 120 },
-  { id: "UNI-02", category: "Winter Blazer", gender: "Male", className: "Class 10", size: "L", color: "Dark Charcoal", price: 85, availableStock: 45 }
+  { id: "UNI-02", category: "Winter Blazer", gender: "Male", className: "Class 10", size: "L", color: "Dark Charcoal", price: 85, availableStock: 45 },
+  { id: "UNI-03", category: "Summer blazer", gender: "Female", className: "Class 10", size: "S", color: "Emerald Green", price: 65, availableStock: 50 },
+  { id: "UNI-04", category: "Summer Sweater", gender: "Unisex", className: "Class 10", size: "M", color: "Sky Blue", price: 40, availableStock: 50 }
 ];
 
 export const initialBooks: BookItem[] = [
@@ -1730,7 +1732,9 @@ export const initialUniformSuppliers: UniformSupplier[] = [
 
 export const initialUniformInventory: UniformInventoryItem[] = [
   { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'M', openingStock: 200, currentStock: 120, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
-  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Winter Blazer', category: 'Blazer', size: 'L', openingStock: 50, currentStock: 45, minimumStock: 10, reorderLevel: 15, status: 'In Stock' }
+  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Winter Blazer', category: 'Blazer', size: 'L', openingStock: 50, currentStock: 45, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-03', itemId: 'UNI-03', itemName: 'Summer blazer', category: 'Blazer', size: 'S', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-04', itemId: 'UNI-04', itemName: 'Summer Sweater', category: 'Sweater', size: 'M', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' }
 ];
 
 export const initialStudentUniformIssues: StudentUniformIssue[] = [
