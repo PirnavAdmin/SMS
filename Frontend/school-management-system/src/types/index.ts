@@ -1539,6 +1539,7 @@ export interface UniformInventoryItem {
   minimumStock: number;
   reorderLevel: number;
   status: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  lastUpdated?: string;
 }
 
 export interface StudentUniformIssue {

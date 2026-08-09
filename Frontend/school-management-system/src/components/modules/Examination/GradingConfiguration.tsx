@@ -179,7 +179,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
       >
         <div className="space-y-4">
           {/* Controls Bar: Exam Type & Add Scale Row Button (when editing) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl border border-sky-400 dark:border-sky-500 bg-slate-50/50 dark:bg-slate-950/60">
             {/* Exam Type Selector */}
             <div className="flex items-center gap-3">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0">Exam Type *</span>
@@ -207,7 +207,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({ addT
           </div>
 
           {/* Table of Grade Rules */}
-          <div className="overflow-x-auto rounded-3xl border border-sky-400/80 dark:border-sky-500 shadow-sm">
+          <div className="overflow-x-auto rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm">
             <table className="w-full text-left text-xs border-collapse min-w-[680px]">
               <thead>
                 <tr>

@@ -269,7 +269,7 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
       </div>
 
       {/* Target Classes Selection */}
-      <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 space-y-3">
+      <div className="p-4 rounded-2xl border border-sky-400 dark:border-sky-500 bg-slate-50/50 dark:bg-slate-950/60 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h4 className="text-xs font-black uppercase text-slate-900 dark:text-white tracking-wider">

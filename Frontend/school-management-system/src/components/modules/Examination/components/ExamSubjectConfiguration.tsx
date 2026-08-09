@@ -61,7 +61,7 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
 
   return (
     <div className="space-y-4 text-left">
-      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-850 flex flex-wrap items-center justify-between gap-3">
+      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-sky-400 dark:border-sky-500 flex flex-wrap items-center justify-between gap-3">
         <h4 className="text-xs font-black uppercase text-slate-900 dark:text-white">Configure Exam Subjects</h4>
         
         {applicableClasses.length > 0 && (

@@ -91,7 +91,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
   // 5 Clear, streamlined tabs with school terminology
   const tabs = [
-    { id: 'setup', label: 'Exams & Setup', icon: Settings },
+    { id: 'setup', label: 'Exam Configuration', icon: Settings },
     { id: 'schedule', label: 'Exam Schedule', icon: Calendar },
     { id: 'evaluation', label: 'Marks Entry', icon: Edit3 },
     { id: 'results-reports', label: 'Results & Reports', icon: Award },
@@ -125,7 +125,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
 
       {/* 2. Streamlined 5-Tab Navigation Container */}
-      <div className="p-1.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs w-full no-print">
+      <div className="p-1.5 bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-2xl shadow-xs w-full no-print">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 w-full">
           {tabs.map(tab => {
             const Icon = tab.icon;
@@ -191,6 +191,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             gradeRules={gradeConfigurations}
             addToast={addToast}
             onGotoSetup={() => setActiveTab('setup')}
+            onProceedToResults={() => setActiveTab('results-reports')}
           />
         )}
 

@@ -315,7 +315,6 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
               <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
                 Select Class & Section for Report Cards
               </h4>
-              <p className="text-xs text-slate-500">Choose a class and section above to view, generate, or dispatch student report cards.</p>
             </div>
           ) : (
             <div className="space-y-4">

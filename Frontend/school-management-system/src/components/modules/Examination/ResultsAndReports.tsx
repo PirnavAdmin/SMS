@@ -30,7 +30,7 @@ export const ResultsAndReports: React.FC<ResultsAndReportsProps> = ({
   return (
     <div className="space-y-4 text-left">
       {/* Sub-view switcher tabs */}
-      <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs w-fit no-print">
+      <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-2xl shadow-xs w-fit no-print">
         <button
           type="button"
           onClick={() => setSubView('results')}

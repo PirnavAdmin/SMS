@@ -255,7 +255,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                 onClick={onGotoSetup}
                 className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] uppercase tracking-wider transition cursor-pointer"
               >
-                Go to Setup
+                Go to Exam Configuration
               </button>
             )}
           </div>
@@ -331,7 +331,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                 <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
                 <h4 className="text-sm font-extrabold uppercase text-slate-800 dark:text-slate-200">No subjects configured for scheduling</h4>
                 <p className="text-xs text-slate-400 font-medium max-w-md mx-auto">
-                  To define schedules, please configure subjects in the <strong>"Exams & Setup"</strong> tab first.
+                  To define schedules, please configure subjects in the <strong>"Exam Configuration"</strong> tab first.
                 </p>
               </div>
             ) : (

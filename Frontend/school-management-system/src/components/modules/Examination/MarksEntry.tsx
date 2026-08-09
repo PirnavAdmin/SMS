@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Award, Search, Edit3, AlertCircle } from 'lucide-react';
+import { Award, Search, Edit3, AlertCircle, CheckCircle, ArrowRight, X, Lock } from 'lucide-react';
 import { MarksEntryTable } from './components/MarksEntryTable';
 import { MarksEntrySummary } from './components/MarksEntrySummary';
 import { ExamSetup, Student, GradeConfig, SubjectItem } from '../../../types';
@@ -15,6 +15,7 @@ interface MarksEntryProps {
   gradeRules: GradeConfig[];
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
   onGotoSetup?: () => void;
+  onProceedToResults?: () => void;
 }
 
 export const MarksEntry: React.FC<MarksEntryProps> = ({
@@ -24,7 +25,8 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   students,
   gradeRules,
   addToast,
-  onGotoSetup
+  onGotoSetup,
+  onProceedToResults
 }) => {
   const { isUserAdmin, allowedClasses, getAllowedSections, getAllowedSubjects, loadRosterMarks, saveRosterMarksDraft, submitRosterMarks } = useMarksEntry();
   const { studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment, saveMarks, examMarks } = useData();
@@ -34,6 +36,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   const [selectedSection, setSelectedSection] = useState<string>('');
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
 
   // active state
   const [marksState, setMarksState] = useState<Record<string, RosterMarkRowState>>({});
@@ -172,6 +175,13 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   const handleSaveDraft = () => {
     if (!exam || !selectedClass || !selectedSection || !selectedSubject) return;
     saveRosterMarksDraft(exam.id, selectedClass, selectedSection, selectedSubject, marksState);
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'In Progress' };
+      });
+      return next;
+    });
     addToast('success', 'Draft Saved', 'Marks entry draft has been saved locally.');
   };
 
@@ -191,7 +201,14 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
     }
 
     submitRosterMarks(exam.id, selectedClass, selectedSection, selectedSubject, marksState, maxMarks, passMarks);
-    addToast('success', 'Marks Transmitted', 'Successfully submitted marks roster to Admin verification workflow.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Submitted' };
+      });
+      return next;
+    });
+    addToast('success', 'Marks Submitted', 'Successfully submitted student marks for verification.');
   };
 
   const handleVerifyMarks = () => {
@@ -215,7 +232,15 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       };
     });
     saveMarks(formattedList);
-    addToast('success', 'Marks Verified', 'Roster marks have been verified.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Verified' };
+      });
+      return next;
+    });
+    setShowVerifyModal(true);
+    addToast('success', 'Marks Verified', `Student marks for ${selectedSubject} have been verified.`);
   };
 
   const handleLockMarks = () => {
@@ -239,7 +264,15 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       };
     });
     saveMarks(formattedList);
-    addToast('success', 'Marks Locked', 'Roster marks have been locked. Teachers can no longer make edits.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Locked' };
+      });
+      return next;
+    });
+    setShowVerifyModal(false);
+    addToast('success', 'Marks Locked', 'Student marks have been locked. Further edits are disabled.');
   };
 
   const handleUnlockMarks = () => {
@@ -263,13 +296,23 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       };
     });
     saveMarks(formattedList);
-    addToast('info', 'Marks Unlocked', 'Roster marks have been unlocked for correction.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Submitted' };
+      });
+      return next;
+    });
+    addToast('info', 'Marks Unlocked', 'Student marks have been unlocked for correction.');
   };
 
   // Stats calculators
   const totalStudents = activeClassStudents.length;
   const presentCount = Object.values(marksState).filter(m => m.attendance === 'Present').length;
   const absentCount = Object.values(marksState).filter(m => m.attendance === 'Absent').length;
+  const passCount = Object.values(marksState).filter(m => m.attendance === 'Present' && (Number(m.marks) || 0) >= passMarks).length;
+  const failCount = presentCount - passCount;
+  const passPercentage = presentCount > 0 ? Math.round((passCount / presentCount) * 100) : 0;
   const totalScores = Object.values(marksState)
     .filter(m => m.attendance === 'Present')
     .map(m => Number(m.marks) || 0);
@@ -281,134 +324,220 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
     <div className="space-y-4 text-left">
       <Panel
         title="Student Marks Entry"
-        //description="Select class, section, and subject to input student attendance and assessment marks."
       >
-        {/* Entry Filter Selection Card */}
-        <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-sm flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class / Grade *</label>
-              <select
-                value={selectedClass}
-                onChange={e => handleClassChange(e.target.value)}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[150px] h-[34px] shadow-xs"
-              >
-                <option value="">-- Select Class --</option>
-                {examApplicableClasses.map(cls => (
-                  <option key={cls} value={cls}>{cls}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section *</label>
-              <select
-                value={selectedSection}
-                onChange={e => handleSectionChange(e.target.value)}
-                disabled={!selectedClass}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px] shadow-xs disabled:opacity-50"
-              >
-                <option value="">-- Select Section --</option>
-                {getAllowedSections(selectedClass).map(sec => (
-                  <option key={sec} value={sec}>Section {sec}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Exam Subject *</label>
-              <select
-                value={selectedSubject}
-                onChange={e => setSelectedSubject(e.target.value)}
-                disabled={!selectedSection}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[210px] h-[34px] shadow-xs disabled:opacity-50"
-              >
-                <option value="">-- Select Exam Subject --</option>
-                {examSubjects.map(sub => (
-                  <option key={sub.name} value={sub.name}>{sub.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Roster Search Bar */}
-          {selectedClass && selectedSection && selectedSubject && (
-            <div className="relative w-64">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search Roll No or Student Name..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold outline-none focus:border-sky-500 transition h-[34px]"
-              />
-            </div>
-          )}
-        </div>
-
-        {!exam?.id && (
-          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Please select an examination template first to input student marks.</span>
+        {!exam?.id ? (
+          <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center justify-between gap-3 flex-wrap shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>Please select an examination template first under "Exam Configuration" to input student marks.</span>
             </div>
             {onGotoSetup && (
               <button
                 type="button"
                 onClick={onGotoSetup}
-                className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] uppercase tracking-wider transition cursor-pointer"
+                className="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs uppercase tracking-wider transition cursor-pointer shadow-xs"
               >
-                Go to Setup
+                Go to Exam Configuration
               </button>
             )}
           </div>
-        )}
+        ) : (
+          <div className="space-y-4">
+            {/* Entry Filter Selection Card */}
+            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-xs flex flex-wrap items-end justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class / Grade *</label>
+                  <select
+                    value={selectedClass}
+                    onChange={e => handleClassChange(e.target.value)}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[150px] h-[34px] shadow-xs"
+                  >
+                    <option value="">-- Select Class --</option>
+                    {examApplicableClasses.map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
 
-        {exam?.id && (!selectedClass || !selectedSection || !selectedSubject) && (
-          <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
-            <Edit3 className="w-8 h-8 text-sky-500 mx-auto" />
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-              Select Class, Section & Subject
-            </h4>
-          </div>
-        )}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section *</label>
+                  <select
+                    value={selectedSection}
+                    onChange={e => handleSectionChange(e.target.value)}
+                    disabled={!selectedClass}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px] shadow-xs disabled:opacity-50"
+                  >
+                    <option value="">-- Select Section --</option>
+                    {getAllowedSections(selectedClass).map(sec => (
+                      <option key={sec} value={sec}>Section {sec}</option>
+                    ))}
+                  </select>
+                </div>
 
-        {exam?.id && selectedClass && selectedSection && selectedSubject && (
-          <div className="space-y-5 mt-5">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Exam Subject *</label>
+                  <select
+                    value={selectedSubject}
+                    onChange={e => setSelectedSubject(e.target.value)}
+                    disabled={!selectedSection}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[210px] h-[34px] shadow-xs disabled:opacity-50"
+                  >
+                    <option value="">-- Select Exam Subject --</option>
+                    {examSubjects.map(sub => (
+                      <option key={sub.name} value={sub.name}>{sub.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-            {/* Stats Summary Widgets */}
-            <MarksEntrySummary
-              total={totalStudents}
-              present={presentCount}
-              absent={absentCount}
-              avgMarks={averageMarks}
-              onSaveDraft={handleSaveDraft}
-              onSubmit={handleSubmitMarks}
-              isLocked={isMarksLocked}
-              maxMarks={maxMarks}
-              isUserAdmin={isUserAdmin}
-              marksStatus={currentMarksStatus}
-              onVerify={handleVerifyMarks}
-              onLock={handleLockMarks}
-              onUnlock={handleUnlockMarks}
-            />
-
-            {/* Roster Table */}
-            <div className="w-full">
-              <MarksEntryTable
-                students={activeClassStudents}
-                marksState={marksState}
-                gradeRules={filteredGradeRules}
-                searchQuery={searchQuery}
-                isLocked={isMarksLocked}
-                onUpdateRow={handleUpdateRow}
-                maxMarks={maxMarks}
-              />
+              {/* Roster Search Bar */}
+              {selectedClass && selectedSection && selectedSubject && (
+                <div className="relative w-64">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Roll No or Student Name..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold outline-none focus:border-sky-500 transition h-[34px]"
+                  />
+                </div>
+              )}
             </div>
 
+            {(!selectedClass || !selectedSection || !selectedSubject) && (
+              <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
+                <Edit3 className="w-8 h-8 text-sky-500 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Select Class, Section & Subject
+                </h4>
+              </div>
+            )}
+
+            {selectedClass && selectedSection && selectedSubject && (
+              <div className="space-y-5 mt-5">
+                {/* Stats Summary Widgets */}
+                <MarksEntrySummary
+                  total={totalStudents}
+                  present={presentCount}
+                  absent={absentCount}
+                  avgMarks={averageMarks}
+                  onSaveDraft={handleSaveDraft}
+                  onSubmit={handleSubmitMarks}
+                  isLocked={isMarksLocked}
+                  maxMarks={maxMarks}
+                  isUserAdmin={isUserAdmin}
+                  marksStatus={currentMarksStatus}
+                  onVerify={handleVerifyMarks}
+                  onLock={handleLockMarks}
+                  onUnlock={handleUnlockMarks}
+                />
+
+                {/* Roster Table */}
+                <div className="w-full">
+                  <MarksEntryTable
+                    students={activeClassStudents}
+                    marksState={marksState}
+                    gradeRules={filteredGradeRules}
+                    searchQuery={searchQuery}
+                    isLocked={isMarksLocked}
+                    onUpdateRow={handleUpdateRow}
+                    maxMarks={maxMarks}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </Panel>
+
+      {/* Verification Summary Alert Modal */}
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200 text-left relative">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowVerifyModal(false)}
+              className="absolute right-4 top-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-900/60 shrink-0">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                  Marks Verified Successfully!
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {selectedClass} - Section {selectedSection} • {selectedSubject}
+                </p>
+              </div>
+            </div>
+
+            {/* Summary Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 text-center">
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Total</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{totalStudents}</span>
+              </div>
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-emerald-600 block tracking-wider">Present</span>
+                <span className="text-sm font-black text-emerald-600">{presentCount}</span>
+              </div>
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-rose-600 block tracking-wider">Absent</span>
+                <span className="text-sm font-black text-rose-600">{absentCount}</span>
+              </div>
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-sky-600 block tracking-wider">Pass Rate</span>
+                <span className="text-sm font-black text-sky-600">{passPercentage}%</span>
+              </div>
+            </div>
+
+            {/* Status & Guidance Card */}
+            <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs font-semibold space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Status: VERIFIED & READY</span>
+              </div>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                The student marks have been successfully verified. You can now proceed to <strong>Results & Reports</strong> to compute class merit ranks and generate report cards.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              {onProceedToResults ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVerifyModal(false);
+                    onProceedToResults();
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-sm shadow-sky-600/30 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <span>Proceed to Results & Ranking</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowVerifyModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition cursor-pointer"
+                >
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
