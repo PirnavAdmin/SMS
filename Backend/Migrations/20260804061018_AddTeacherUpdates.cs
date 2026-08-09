@@ -40,8 +40,7 @@ namespace Backend.Migrations
             migrationBuilder.DropForeignKey(name: "FK_transport_vehicle_maintenance_transport_vehicles_vehicle_id", table: "transport_vehicle_maintenance");
             */
 
-            migrationBuilder.DropTable(
-                name: "UserRoles");
+            // migrationBuilder.DropTable(name: "UserRoles");
 
             migrationBuilder.DropPrimaryKey(
                 name: "PK_Users",

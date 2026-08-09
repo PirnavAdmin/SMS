@@ -47,7 +47,7 @@ public class ExamNewRepository : IExamNewRepository
     {
         try
         {
-            var dbExams = await _context.Set<NewExamination>().AsNoTracking().ToListAsync();
+            var dbExams = await _context.NewExaminations.AsNoTracking().ToListAsync();
             if (dbExams != null && dbExams.Any())
                 return dbExams;
         }
@@ -63,7 +63,7 @@ public class ExamNewRepository : IExamNewRepository
     {
         try
         {
-            var dbExam = await _context.Set<NewExamination>().AsNoTracking().FirstOrDefaultAsync(e => e.ExamId == examId);
+            var dbExam = await _context.NewExaminations.AsNoTracking().FirstOrDefaultAsync(e => e.ExamId == examId);
             if (dbExam != null)
                 return dbExam;
         }
@@ -77,64 +77,102 @@ public class ExamNewRepository : IExamNewRepository
 
     public async Task<NewExamination> SaveExamDetailsAsync(NewExamination exam)
     {
-        if (exam.ExamId == 0)
+        try
         {
-            exam.ExamId = _inMemoryExams.Any() ? _inMemoryExams.Max(e => e.ExamId) + 1 : 1;
-            _inMemoryExams.Add(exam);
-        }
-        else
-        {
-            var existing = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
-            if (existing != null)
+            if (exam.ExamId == 0)
             {
-                existing.ExamName = exam.ExamName;
-                existing.AssessmentType = exam.AssessmentType;
-                existing.AcademicTerm = exam.AcademicTerm;
-                existing.StartDate = exam.StartDate;
-                existing.EndDate = exam.EndDate;
-                existing.ApplicableClasses = exam.ApplicableClasses;
-                existing.Status = exam.Status;
+                await _context.NewExaminations.AddAsync(exam);
+            }
+            else
+            {
+                var dbExisting = await _context.NewExaminations.FindAsync(exam.ExamId);
+                if (dbExisting != null)
+                {
+                    dbExisting.ExamName = exam.ExamName;
+                    dbExisting.AssessmentType = exam.AssessmentType;
+                    dbExisting.AcademicTerm = exam.AcademicTerm;
+                    dbExisting.StartDate = exam.StartDate;
+                    dbExisting.EndDate = exam.EndDate;
+                    dbExisting.ApplicableClasses = exam.ApplicableClasses;
+                    dbExisting.Status = exam.Status;
+                }
+                else
+                {
+                    await _context.NewExaminations.AddAsync(exam);
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Sync in memory
+            var existingInMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
+            if (existingInMem != null)
+            {
+                existingInMem.ExamName = exam.ExamName;
+                existingInMem.AssessmentType = exam.AssessmentType;
+                existingInMem.AcademicTerm = exam.AcademicTerm;
+                existingInMem.StartDate = exam.StartDate;
+                existingInMem.EndDate = exam.EndDate;
+                existingInMem.ApplicableClasses = exam.ApplicableClasses;
+                existingInMem.Status = exam.Status;
             }
             else
             {
                 _inMemoryExams.Add(exam);
             }
-        }
 
-        try
-        {
-            _context.Set<NewExamination>().Update(exam);
-            await _context.SaveChangesAsync();
+            return exam;
         }
         catch
         {
-            // Database offline/unreachable fallback
-        }
+            if (exam.ExamId == 0)
+            {
+                exam.ExamId = _inMemoryExams.Any() ? _inMemoryExams.Max(e => e.ExamId) + 1 : 1;
+            }
 
-        return exam;
+            var existingInMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == exam.ExamId);
+            if (existingInMem == null)
+            {
+                _inMemoryExams.Add(exam);
+            }
+
+            return exam;
+        }
     }
 
     public async Task<bool> SaveSubjectConfigsAsync(int examId, string className, List<NewExamSubjectConfig> configs, bool markAsScheduled)
     {
+        try
+        {
+            var exam = await _context.NewExaminations.FirstOrDefaultAsync(e => e.ExamId == examId);
+            if (exam != null && markAsScheduled)
+            {
+                exam.Status = "Scheduled";
+            }
+
+            var existingDbConfigs = await _context.NewExamSubjectConfigs
+                .Where(c => c.ExamId == examId && c.ClassName == className)
+                .ToListAsync();
+
+            if (existingDbConfigs.Any())
+            {
+                _context.NewExamSubjectConfigs.RemoveRange(existingDbConfigs);
+            }
+
+            await _context.NewExamSubjectConfigs.AddRangeAsync(configs);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Fallback
+        }
+
         var inMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
         if (inMem != null && markAsScheduled)
         {
             inMem.Status = "Scheduled";
         }
 
-        try
-        {
-            var exam = await _context.Set<NewExamination>().FirstOrDefaultAsync(e => e.ExamId == examId);
-            if (exam != null && markAsScheduled)
-            {
-                exam.Status = "Scheduled";
-                await _context.SaveChangesAsync();
-            }
-            return true;
-        }
-        catch
-        {
-            return true;
-        }
+        return true;
     }
 }

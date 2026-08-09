@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Models;
+using SMS.Api.Models.ExaminationNew;
 
 namespace SMS.Api.Data
 {
@@ -143,6 +144,14 @@ namespace SMS.Api.Data
 
         public DbSet<ExamClass> ExamClasses => Set<ExamClass>();
 
+        // Examination Module - New Setup
+        public DbSet<NewExamination> NewExaminations { get; set; } = null!;
+        public DbSet<NewExamSubjectConfig> NewExamSubjectConfigs { get; set; } = null!;
+        public DbSet<NewExamTimetableSlot> NewExamTimetableSlots { get; set; } = null!;
+        public DbSet<NewStudentMarksEntry> NewStudentMarksEntries { get; set; } = null!;
+        public DbSet<NewStudentExamResult> NewStudentExamResults { get; set; } = null!;
+        public DbSet<NewGradingScaleRule> NewGradingScaleRules { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -181,6 +190,7 @@ namespace SMS.Api.Data
             ConfigureTeacherAttendanceCorrection(modelBuilder);
             ConfigureAdmission(modelBuilder);
 
+            ConfigureExaminationNew(modelBuilder);
             ConfigureStandardTableNames(modelBuilder);
             ConfigureAcademicYear(modelBuilder);
             ConfigureStudent(modelBuilder);
@@ -1528,11 +1538,24 @@ namespace SMS.Api.Data
         {
             modelBuilder.Entity<Admission>(entity =>
             {
+                entity.ToTable("admissions");
+                entity.HasKey(x => x.AdmissionId);
+
                 entity.HasOne<ClassGrade>()
                     .WithMany()
                     .HasForeignKey(x => x.ClassId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
+        }
+
+        private static void ConfigureExaminationNew(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewExamination>(entity => { entity.ToTable("NewExaminations"); entity.HasKey(e => e.ExamId); });
+            modelBuilder.Entity<NewExamSubjectConfig>(entity => { entity.ToTable("NewExamSubjectConfigs"); entity.HasKey(c => c.ConfigId); });
+            modelBuilder.Entity<NewExamTimetableSlot>(entity => { entity.ToTable("NewExamTimetableSlots"); entity.HasKey(t => t.SlotId); });
+            modelBuilder.Entity<NewStudentMarksEntry>(entity => { entity.ToTable("NewStudentMarksEntries"); entity.HasKey(m => m.EntryId); });
+            modelBuilder.Entity<NewStudentExamResult>(entity => { entity.ToTable("NewStudentExamResults"); entity.HasKey(r => r.ResultId); });
+            modelBuilder.Entity<NewGradingScaleRule>(entity => { entity.ToTable("NewGradingScaleRules"); entity.HasKey(g => g.RuleId); });
         }
     }
 }
