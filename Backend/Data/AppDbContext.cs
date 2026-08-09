@@ -119,6 +119,12 @@ namespace SMS.Api.Data
         public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
         public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
 
+        // =====================================================
+        // Inventory Management Module
+        // =====================================================
+
+        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
+
 
         // =====================================================
         // Timetable Module
