@@ -168,7 +168,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
       <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
-            <FileText className="w-6 h-6 text-brand-600 dark:text-brand-400 shrink-0" /> Transfer Certificate Processing
+            <FileText className="w-6 h-6 text-brand-600 dark:text-brand-400 shrink-0" /> Transfer Certificate Management
           </h2>
         </div>
 
@@ -187,7 +187,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
-          <UserCheck className="w-4 h-4" /> Issue TC Workflow ({eligibleActiveStudents.length})
+          <UserCheck className="w-4 h-4" /> Issue TC ({eligibleActiveStudents.length})
         </button>
 
         <button

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Award, Search, AlertCircle, Edit, Calendar, BookOpen } from 'lucide-react';
+import { Award, Search, Edit3, AlertCircle, CheckCircle, ArrowRight, X, Lock } from 'lucide-react';
 import { MarksEntryTable } from './components/MarksEntryTable';
 import { MarksEntrySummary } from './components/MarksEntrySummary';
-import { CoScholasticAssessment } from './components/CoScholasticAssessment';
-import { AttendanceSummary } from './components/AttendanceSummary';
 import { ExamSetup, Student, GradeConfig, SubjectItem } from '../../../types';
 import { Panel } from './components/SharedUI';
 import { useMarksEntry, RosterMarkRowState } from './hooks/useMarksEntry';
@@ -16,6 +14,8 @@ interface MarksEntryProps {
   students: Student[];
   gradeRules: GradeConfig[];
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
+  onGotoSetup?: () => void;
+  onProceedToResults?: () => void;
 }
 
 export const MarksEntry: React.FC<MarksEntryProps> = ({
@@ -24,22 +24,22 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   subjects,
   students,
   gradeRules,
-  addToast
+  addToast,
+  onGotoSetup,
+  onProceedToResults
 }) => {
   const { isUserAdmin, allowedClasses, getAllowedSections, getAllowedSubjects, loadRosterMarks, saveRosterMarksDraft, submitRosterMarks } = useMarksEntry();
   const { studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment, saveMarks, examMarks } = useData();
 
-  // dropdown states
-  const [selectedClass, setSelectedClass] = useState(allowedClasses[0] || 'Class 10');
-  const [selectedSection, setSelectedSection] = useState('A');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  // dropdown states - starts clean with prompts
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
 
   // active state
   const [marksState, setMarksState] = useState<Record<string, RosterMarkRowState>>({});
-  
-  // single student selection state for co-scholastic & attendance edit overlays
-  const [focusedStudentId, setFocusedStudentId] = useState<string | null>(null);
 
   const subjectConfig = useMemo(() => {
     if (!exam || !selectedSubject) return { maxMarks: 100, passMarks: 35 };
@@ -65,63 +65,91 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
 
   const isMarksLocked = currentMarksStatus === 'Locked';
 
-  // Sync allowed selections on mount or exam swap
-  useEffect(() => {
-    if (allowedClasses.length > 0) {
-      const cls = allowedClasses[0];
-      setSelectedClass(cls);
-      
-      const sections = getAllowedSections(cls);
-      if (sections.length > 0) {
-        const sec = sections[0];
-        setSelectedSection(sec);
-        
-        const subjs = getAllowedSubjects(cls, sec);
-        if (subjs.length > 0) {
-          setSelectedSubject(subjs[0]);
-        }
-      }
-    }
-  }, [exam]);
-
   // Handle dropdown swaps
   const handleClassChange = (cls: string) => {
     setSelectedClass(cls);
-    const sections = getAllowedSections(cls);
-    if (sections.length > 0) {
-      setSelectedSection(sections[0]);
-      const subjs = getAllowedSubjects(cls, sections[0]);
-      if (subjs.length > 0) {
-        setSelectedSubject(subjs[0]);
-      } else {
-        setSelectedSubject('');
-      }
-    } else {
-      setSelectedSection('');
-      setSelectedSubject('');
-    }
+    setSelectedSection('');
+    setSelectedSubject('');
   };
 
   const handleSectionChange = (sec: string) => {
     setSelectedSection(sec);
-    const subjs = getAllowedSubjects(selectedClass, sec);
-    if (subjs.length > 0) {
-      setSelectedSubject(subjs[0]);
-    } else {
-      setSelectedSubject('');
-    }
+    setSelectedSubject('');
   };
 
+  // Only classes applicable to the active examination
+  const examApplicableClasses = useMemo(() => {
+    if (!exam) return Array.from(new Set((allowedClasses || []).filter(Boolean)));
+    const app = exam.applicableClasses || [];
+    if (app.length > 0) {
+      return Array.from(new Set(allowedClasses.filter(c => app.includes(c))));
+    }
+    return Array.from(new Set((allowedClasses || []).filter(Boolean)));
+  }, [exam, allowedClasses]);
+
+  // Only display subjects configured / held for this specific examination with their subject codes
+  const examSubjects = useMemo(() => {
+    if (!exam) return [];
+    
+    // 1. Get subjects active in this exam setup
+    const activeExamSubjectNames = Object.keys(exam.marksConfig?.subjectWiseConfig || {});
+    
+    // If active in exam setup, use them. Otherwise fallback to allowed class subjects
+    const targetNames = activeExamSubjectNames.length > 0 
+      ? activeExamSubjectNames 
+      : (selectedClass && selectedSection ? getAllowedSubjects(selectedClass, selectedSection) : []);
+
+    return targetNames.map(name => {
+      // Find code from subjects list or generate clean code
+      const matched = subjects.find(
+        s => s.name.toLowerCase() === name.toLowerCase() || s.code?.toLowerCase() === name.toLowerCase()
+      );
+      const code = matched?.code || `${name.substring(0, 3).toUpperCase()}-101`;
+      return {
+        name,
+        code,
+        label: `${name} (${code})`
+      };
+    });
+  }, [exam, selectedClass, selectedSection, subjects, getAllowedSubjects]);
+
   const activeClassStudents = useMemo(() => {
+    if (!selectedClass || !selectedSection) return [];
     return students.filter(s => s.className === selectedClass && s.section === selectedSection);
   }, [students, selectedClass, selectedSection]);
+
+  const filteredGradeRules = useMemo(() => {
+    const allRules = gradeRules || [];
+    
+    // 1. Try selected gradeSchemeName
+    if (exam?.gradeSchemeName) {
+      const matched = allRules.filter(r => r.schemeName === exam.gradeSchemeName);
+      if (matched.length > 0) return matched;
+    }
+    
+    // 2. Try examType name
+    if (exam?.examType) {
+      const typeStr = exam.examType;
+      const matched = allRules.filter(r => 
+        r.schemeName === typeStr || 
+        r.examType === typeStr ||
+        (r.schemeName && r.schemeName.toLowerCase().includes(typeStr.toLowerCase()))
+      );
+      if (matched.length > 0) return matched;
+    }
+    
+    // 3. Fallback to Default Scholastic
+    const defaultScholastic = allRules.filter(r => r.schemeName === 'Default Scholastic');
+    if (defaultScholastic.length > 0) return defaultScholastic;
+    
+    return allRules;
+  }, [gradeRules, exam]);
 
   // Load roster marks from context / draft
   useEffect(() => {
     if (exam && selectedClass && selectedSection && selectedSubject) {
       const initial = loadRosterMarks(exam.id, selectedClass, selectedSection, selectedSubject, activeClassStudents);
       setMarksState(initial);
-      setFocusedStudentId(null);
     }
   }, [exam, selectedClass, selectedSection, selectedSubject, activeClassStudents]);
 
@@ -147,6 +175,13 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   const handleSaveDraft = () => {
     if (!exam || !selectedClass || !selectedSection || !selectedSubject) return;
     saveRosterMarksDraft(exam.id, selectedClass, selectedSection, selectedSubject, marksState);
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'In Progress' };
+      });
+      return next;
+    });
     addToast('success', 'Draft Saved', 'Marks entry draft has been saved locally.');
   };
 
@@ -166,7 +201,14 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
     }
 
     submitRosterMarks(exam.id, selectedClass, selectedSection, selectedSubject, marksState, maxMarks, passMarks);
-    addToast('success', 'Marks Transmitted', 'Successfully submitted marks roster to Admin verification workflow.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Submitted' };
+      });
+      return next;
+    });
+    addToast('success', 'Marks Submitted', 'Successfully submitted student marks for verification.');
   };
 
   const handleVerifyMarks = () => {
@@ -190,7 +232,15 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       };
     });
     saveMarks(formattedList);
-    addToast('success', 'Marks Verified', 'Roster marks have been verified.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Verified' };
+      });
+      return next;
+    });
+    setShowVerifyModal(true);
+    addToast('success', 'Marks Verified', `Student marks for ${selectedSubject} have been verified.`);
   };
 
   const handleLockMarks = () => {
@@ -214,7 +264,15 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       };
     });
     saveMarks(formattedList);
-    addToast('success', 'Marks Locked', 'Roster marks have been locked. Teachers can no longer make edits.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Locked' };
+      });
+      return next;
+    });
+    setShowVerifyModal(false);
+    addToast('success', 'Marks Locked', 'Student marks have been locked. Further edits are disabled.');
   };
 
   const handleUnlockMarks = () => {
@@ -238,92 +296,79 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       };
     });
     saveMarks(formattedList);
-    addToast('info', 'Marks Unlocked', 'Roster marks have been unlocked for correction.');
+    setMarksState(prev => {
+      const next: Record<string, RosterMarkRowState> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        next[k] = { ...v, status: 'Submitted' };
+      });
+      return next;
+    });
+    addToast('info', 'Marks Unlocked', 'Student marks have been unlocked for correction.');
   };
 
   // Stats calculators
   const totalStudents = activeClassStudents.length;
   const presentCount = Object.values(marksState).filter(m => m.attendance === 'Present').length;
   const absentCount = Object.values(marksState).filter(m => m.attendance === 'Absent').length;
+  const passCount = Object.values(marksState).filter(m => m.attendance === 'Present' && (Number(m.marks) || 0) >= passMarks).length;
+  const failCount = presentCount - passCount;
+  const passPercentage = presentCount > 0 ? Math.round((passCount / presentCount) * 100) : 0;
   const totalScores = Object.values(marksState)
     .filter(m => m.attendance === 'Present')
     .map(m => Number(m.marks) || 0);
   const averageMarks = totalScores.length > 0 ? totalScores.reduce((a, b) => a + b, 0) / totalScores.length : 0;
 
-  // Single student focus configurations
-  const focusedStudent = activeClassStudents.find(s => s.id === focusedStudentId);
-  const focusedStudentAttendance = (studentAttendance as any[]).find((a: any) => a.studentId === focusedStudentId) || { workingDays: 220, presentDays: 200 };
-  const focusedStudentCoScholastic = (coScholasticAssessments as any[]).find((c: any) => c.studentId === focusedStudentId) || {
-    discipline: 'A',
-    sports: 'A',
-    artAndCraft: 'B+',
-    generalConduct: 'A'
-  };
 
-  const handleSaveAttendance = (attendanceUpdates: any) => {
-    if (!focusedStudentId) return;
-    saveStudentAttendance({
-      studentId: focusedStudentId,
-      studentName: `${focusedStudent?.firstName} ${focusedStudent?.lastName}`,
-      className: selectedClass,
-      section: selectedSection,
-      ...attendanceUpdates
-    } as any);
-    addToast('success', 'Attendance Recorded', 'Attendance statistics saved for this report card.');
-  };
-
-  const handleSaveCoScholastics = (updates: any) => {
-    if (!focusedStudentId) return;
-    if (saveCoScholasticAssessment) {
-      saveCoScholasticAssessment({
-        studentId: focusedStudentId,
-        studentName: `${focusedStudent?.firstName} ${focusedStudent?.lastName}`,
-        className: selectedClass,
-        section: selectedSection,
-        ...updates
-      } as any);
-      addToast('success', 'Grades Recorded', 'Co-scholastic evaluation criteria updated successfully.');
-    }
-  };
 
   return (
     <div className="space-y-4 text-left">
       <Panel
-        title="Student Marks Entry Portal"
-        description="Select class, section, and subject to input student attendance and assessment marks."
+        title="Student Marks Entry"
       >
-        {(!exam?.id || !selectedSubject) && (
-          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Select an active exam and assigned subject to begin marks entry.</span>
+        {!exam?.id ? (
+          <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center justify-between gap-3 flex-wrap shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>Please select an examination template first under "Exam Configuration" to input student marks.</span>
+            </div>
+            {onGotoSetup && (
+              <button
+                type="button"
+                onClick={onGotoSetup}
+                className="px-3 py-1 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs uppercase tracking-wider transition cursor-pointer shadow-xs"
+              >
+                Go to Exam Configuration
+              </button>
+            )}
           </div>
-        )}
-
-        {exam?.id && selectedSubject && (
-          <div className="space-y-5">
-            {/* Entry Filter Selection Cards */}
-            <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-sm flex flex-wrap items-end justify-between gap-4">
+        ) : (
+          <div className="space-y-4">
+            {/* Entry Filter Selection Card */}
+            <div className="p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-xs flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Class Selection</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class / Grade *</label>
                   <select
                     value={selectedClass}
                     onChange={e => handleClassChange(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px]"
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[150px] h-[34px] shadow-xs"
                   >
-                    {allowedClasses.map(cls => (
+                    <option value="">-- Select Class --</option>
+                    {examApplicableClasses.map(cls => (
                       <option key={cls} value={cls}>{cls}</option>
                     ))}
                   </select>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Section</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section *</label>
                   <select
                     value={selectedSection}
                     onChange={e => handleSectionChange(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[100px] h-[34px]"
+                    disabled={!selectedClass}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px] shadow-xs disabled:opacity-50"
                   >
+                    <option value="">-- Select Section --</option>
                     {getAllowedSections(selectedClass).map(sec => (
                       <option key={sec} value={sec}>Section {sec}</option>
                     ))}
@@ -331,121 +376,168 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Assigned Subject</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Exam Subject *</label>
                   <select
                     value={selectedSubject}
                     onChange={e => setSelectedSubject(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[160px] h-[34px]"
+                    disabled={!selectedSection}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[210px] h-[34px] shadow-xs disabled:opacity-50"
                   >
-                    {getAllowedSubjects(selectedClass, selectedSection).map(sub => (
-                      <option key={sub} value={sub}>{sub}</option>
+                    <option value="">-- Select Exam Subject --</option>
+                    {examSubjects.map(sub => (
+                      <option key={sub.name} value={sub.name}>{sub.label}</option>
                     ))}
                   </select>
                 </div>
               </div>
 
               {/* Roster Search Bar */}
-              <div className="relative w-64">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by Roll No or Student Name..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold outline-none focus:border-sky-500 transition h-[34px]"
-                />
-              </div>
+              {selectedClass && selectedSection && selectedSubject && (
+                <div className="relative w-64">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Roll No or Student Name..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-semibold outline-none focus:border-sky-500 transition h-[34px]"
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Stats Summary Widgets */}
-            <MarksEntrySummary
-              total={totalStudents}
-              present={presentCount}
-              absent={absentCount}
-              avgMarks={averageMarks}
-              onSaveDraft={handleSaveDraft}
-              onSubmit={handleSubmitMarks}
-              isLocked={isMarksLocked}
-              maxMarks={maxMarks}
-              isUserAdmin={isUserAdmin}
-              marksStatus={currentMarksStatus}
-              onVerify={handleVerifyMarks}
-              onLock={handleLockMarks}
-              onUnlock={handleUnlockMarks}
-            />
+            {(!selectedClass || !selectedSection || !selectedSubject) && (
+              <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
+                <Edit3 className="w-8 h-8 text-sky-500 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Select Class, Section & Subject
+                </h4>
+              </div>
+            )}
 
-            {/* Roster Table */}
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2 space-y-4">
-                <MarksEntryTable
-                  students={activeClassStudents}
-                  marksState={marksState}
-                  gradeRules={gradeRules}
-                  searchQuery={searchQuery}
+            {selectedClass && selectedSection && selectedSubject && (
+              <div className="space-y-5 mt-5">
+                {/* Stats Summary Widgets */}
+                <MarksEntrySummary
+                  total={totalStudents}
+                  present={presentCount}
+                  absent={absentCount}
+                  avgMarks={averageMarks}
+                  onSaveDraft={handleSaveDraft}
+                  onSubmit={handleSubmitMarks}
                   isLocked={isMarksLocked}
-                  onUpdateRow={handleUpdateRow}
                   maxMarks={maxMarks}
+                  isUserAdmin={isUserAdmin}
+                  marksStatus={currentMarksStatus}
+                  onVerify={handleVerifyMarks}
+                  onLock={handleLockMarks}
+                  onUnlock={handleUnlockMarks}
                 />
-                
-                {/* Auxiliary instructions */}
-                <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50 dark:border-slate-850 dark:bg-slate-900/30 text-[11px] text-slate-500 font-medium">
-                  <p>💡 Tip: Click on any student row to open report card sidebars to configure non-academic evaluation grades and attendance summaries.</p>
+
+                {/* Roster Table */}
+                <div className="w-full">
+                  <MarksEntryTable
+                    students={activeClassStudents}
+                    marksState={marksState}
+                    gradeRules={filteredGradeRules}
+                    searchQuery={searchQuery}
+                    isLocked={isMarksLocked}
+                    onUpdateRow={handleUpdateRow}
+                    maxMarks={maxMarks}
+                  />
                 </div>
               </div>
-
-              {/* Auxiliary Side Panels: Co-Scholastic & Attendance */}
-              <div className="space-y-4">
-                {/* Select student roster grid list */}
-                <div className="p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-sm space-y-3">
-                  <h5 className="text-[11px] font-black uppercase tracking-wider text-slate-400">Select Student to Evaluate</h5>
-                  <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-850">
-                    {activeClassStudents.map(s => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => setFocusedStudentId(s.id)}
-                        className={`w-full text-left py-2 px-3 text-xs font-bold rounded-lg transition flex items-center justify-between ${
-                          focusedStudentId === s.id
-                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 shadow-sm'
-                            : 'text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <span>{s.firstName} {s.lastName}</span>
-                        <span className="font-mono text-[10px] text-slate-400">Roll: {s.rollNo || 'N/A'}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {focusedStudent && (
-                  <>
-                    <AttendanceSummary
-                      studentId={focusedStudent.id}
-                      studentName={`${focusedStudent.firstName} ${focusedStudent.lastName}`}
-                      workingDays={focusedStudentAttendance.workingDays}
-                      presentDays={focusedStudentAttendance.presentDays}
-                      onChange={handleSaveAttendance}
-                      onSave={() => addToast('success', 'Success', 'Attendance saved successfully')}
-                    />
-
-                    <CoScholasticAssessment
-                      studentId={focusedStudent.id}
-                      studentName={`${focusedStudent.firstName} ${focusedStudent.lastName}`}
-                      discipline={focusedStudentCoScholastic.discipline}
-                      sports={focusedStudentCoScholastic.sports}
-                      artAndCraft={focusedStudentCoScholastic.artAndCraft}
-                      generalConduct={focusedStudentCoScholastic.generalConduct}
-                      onChange={handleSaveCoScholastics}
-                      onSave={() => addToast('success', 'Success', 'Co-scholastic assessment saved')}
-                    />
-                  </>
-                )}
-              </div>
-            </div>
-
+            )}
           </div>
         )}
       </Panel>
+
+      {/* Verification Summary Alert Modal */}
+      {showVerifyModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200 text-left relative">
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setShowVerifyModal(false)}
+              className="absolute right-4 top-4 p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-900/60 shrink-0">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white leading-tight">
+                  Marks Verified Successfully!
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {selectedClass} - Section {selectedSection} • {selectedSubject}
+                </p>
+              </div>
+            </div>
+
+            {/* Summary Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200/80 dark:border-slate-800 text-center">
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Total</span>
+                <span className="text-sm font-black text-slate-900 dark:text-white">{totalStudents}</span>
+              </div>
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-emerald-600 block tracking-wider">Present</span>
+                <span className="text-sm font-black text-emerald-600">{presentCount}</span>
+              </div>
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-rose-600 block tracking-wider">Absent</span>
+                <span className="text-sm font-black text-rose-600">{absentCount}</span>
+              </div>
+              <div className="p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                <span className="text-[9px] font-black uppercase text-sky-600 block tracking-wider">Pass Rate</span>
+                <span className="text-sm font-black text-sky-600">{passPercentage}%</span>
+              </div>
+            </div>
+
+            {/* Status & Guidance Card */}
+            <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200 text-xs font-semibold space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Status: VERIFIED & READY</span>
+              </div>
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                The student marks have been successfully verified. You can now proceed to <strong>Results & Reports</strong> to compute class merit ranks and generate report cards.
+              </p>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+              {onProceedToResults ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVerifyModal(false);
+                    onProceedToResults();
+                  }}
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-sm shadow-sky-600/30 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <span>Proceed to Results & Ranking</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowVerifyModal(false)}
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition cursor-pointer"
+                >
+                  Done
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

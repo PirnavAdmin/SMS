@@ -23,34 +23,40 @@ export function useMarksEntry() {
   // Filter options based on logged-in teacher assignments
   const allowedClasses = useMemo(() => {
     if (isUserAdmin) {
-      return academicClasses.map(c => c.name);
+      return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
     }
     // Filter classes assigned to this teacher
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(
       ta => ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
     );
-    return Array.from(new Set(assigned.map(ta => ta.className)));
+    return Array.from(new Set(assigned.map(ta => ta.className).filter(Boolean)));
   }, [academicClasses, teacherAssignments, user, isUserAdmin]);
 
   const getAllowedSections = (className: string) => {
     if (!className) return [];
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
-      return clsObj?.sections || [];
+      if (!clsObj || !clsObj.sections || clsObj.sections.length === 0) return ['A'];
+      const raw = clsObj.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+      return Array.from(new Set(raw.filter(Boolean)));
     }
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(
       ta => ta.className === className && ta.teacherName?.toLowerCase() === teacherName.toLowerCase()
     );
-    return Array.from(new Set(assigned.map(ta => ta.section)));
+    const result = Array.from(new Set(assigned.map(ta => ta.section).filter(Boolean)));
+    return result.length > 0 ? result : ['A'];
   };
 
   const getAllowedSubjects = (className: string, section: string) => {
     if (!className || !section) return [];
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
-      return clsObj?.subjects || [];
+      if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
+        return clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.name || s.code || ''));
+      }
+      return [];
     }
     const teacherName = user?.name || '';
     const assigned = teacherAssignments.filter(
@@ -94,7 +100,7 @@ export function useMarksEntry() {
         } else {
           rosterMarks[student.id] = {
             attendance: 'Present',
-            marks: '0',
+            marks: '',
             remarks: '',
             status: 'Not Started'
           };

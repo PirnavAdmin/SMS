@@ -1,182 +1,169 @@
-import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, Settings, Calendar, Award, CheckSquare, Edit3, ClipboardList, Plus, Trash } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  Settings, 
+  Calendar, 
+  Award, 
+  CheckSquare, 
+  Edit3,
+  Trash2
+} from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { useExaminations } from './hooks/useExaminations';
 
 // Subcomponents
-import { ExamDashboard } from './ExamDashboard';
 import { ExamSetup } from './ExamSetup';
 import { ExamSchedule } from './ExamSchedule';
 import { MarksEntry } from './MarksEntry';
-import { ResultsManagement } from './ResultsManagement';
-import { ReportCards } from './ReportCards';
+import { ResultsAndReports } from './ResultsAndReports';
 import { GradingConfiguration } from './GradingConfiguration';
 
 interface ExaminationViewProps {
   initialTab?: string;
 }
 
-export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = 'dashboard' }) => {
-  const { academicClasses, subjects, staff, students, gradeConfigurations, examSchedules, examMarks } = useData();
+export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = 'setup' }) => {
+  const { academicClasses, subjects, staff, students, gradeConfigurations } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
   
   // Custom examinations hook
   const { exams, handleAddExam, handleUpdateExam, handleDeleteExam } = useExaminations();
 
-  // Selected state
+  // Selected state: Starts empty with clear prompt
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const classOptions = academicClasses.map(c => c.name);
-
-  // Default selected exam is empty ('') to show the '-- Choose Exam --' option on initial load
+  const classOptions = useMemo(() => {
+    return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
+  }, [academicClasses]);
 
   const activeExam = exams.find(e => e.id === selectedExamId) || null;
 
   const handleCreateNewExam = () => {
     const id = handleAddExam({
-      name: 'New Examination ' + (exams.length + 1),
-      academicYear: selectedAcademicYear,
-      branch: selectedBranch,
-      className: classOptions[0] || 'Class 10',
-      applicableClasses: [classOptions[0] || 'Class 10'],
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-      status: 'Scheduled',
+      name: '',
+      examType: '',
+      term: '',
+      academicYear: selectedAcademicYear || '',
+      branch: selectedBranch || '',
+      className: '',
+      applicableClasses: [],
+      startDate: '',
+      endDate: '',
+      status: 'Draft',
       publishStatus: 'Draft',
       marksConfig: {
         maxMarks: 100,
         passMarks: 35,
         subjectWiseConfig: {}
-      }
+      } as any
     } as any);
     setSelectedExamId(id);
     setActiveTab('setup');
-    addToast('success', 'Exam Created', 'Created a new examination template. Please update details.');
+    addToast('info', 'New Examination Template', 'Created a new examination template. Please specify the name, assessment type, and target classes.');
   };
 
   const handleDeleteActiveExam = () => {
     if (!selectedExamId) return;
-    if (confirm('Are you sure you want to delete the selected examination? All associated schedules will be deleted.')) {
-      handleDeleteExam(selectedExamId);
-      setSelectedExamId(exams[0]?.id || '');
-      addToast('info', 'Exam Removed', 'Successfully deleted the examination setup.');
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteActiveExam = () => {
+    handleDeleteExam(selectedExamId);
+    setSelectedExamId('');
+    setShowDeleteConfirm(false);
+    addToast('info', 'Examination Removed', 'Successfully deleted the examination setup.');
   };
 
   const handleSaveSetup = (updatedFields: any, showToast = true) => {
-    if (!selectedExamId) return;
-    handleUpdateExam(selectedExamId, updatedFields);
-    if (showToast) {
-      addToast('success', 'Setup Saved', 'Updated general examination setup parameters.');
+    if (!selectedExamId && !activeExam) return;
+    const targetId = selectedExamId || activeExam?.id;
+    if (targetId) {
+      handleUpdateExam(targetId, updatedFields);
+      if (showToast) {
+        addToast('success', 'Assessment Setup Saved', 'Updated general examination parameters.');
+      }
     }
   };
 
-  // Navigations between steps
-  const handleNavigateNextFromSetup = () => setActiveTab('schedule');
-  const handleNavigateNextFromSchedule = () => setActiveTab('evaluation');
-  const handleNavigateToReportCards = () => setActiveTab('report-cards');
+  // 5 Clear, streamlined tabs with school terminology
+  const tabs = [
+    { id: 'setup', label: 'Exam Configuration', icon: Settings },
+    { id: 'schedule', label: 'Exam Schedule', icon: Calendar },
+    { id: 'evaluation', label: 'Marks Entry', icon: Edit3 },
+    { id: 'results-reports', label: 'Results & Reports', icon: Award },
+    { id: 'grading', label: 'Grading Scale', icon: CheckSquare }
+  ];
+
+  const examApplicableClasses = useMemo(() => {
+    if (!activeExam) return classOptions;
+    const app = activeExam.applicableClasses || [];
+    const validApp = app.filter(Boolean);
+    if (validApp.length > 0) {
+      return Array.from(new Set(validApp));
+    }
+    if (activeExam.className) {
+      return [activeExam.className];
+    }
+    return classOptions;
+  }, [activeExam, classOptions]);
 
   return (
-    <div className="space-y-6">
-      {/* Top Header Selector Panel */}
-      <div className="p-4 rounded-3xl border border-slate-200/80 bg-white dark:bg-slate-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print text-left">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Selected Exam</label>
-            <select
-              value={selectedExamId}
-              onChange={e => setSelectedExamId(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[200px] h-[34px]"
-            >
-              <option value="">-- Choose Exam --</option>
-              {exams.map(e => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
-          </div>
+    <div className="space-y-4 text-left w-full">
+      {/* 1. Sleek Top Header Card */}
+      <div className="py-3.5 px-5 sm:py-4 sm:px-6 rounded-2xl border border-sky-400 bg-white dark:bg-slate-900 shadow-xs flex items-center justify-between gap-3 no-print">
+        <div className="flex items-center gap-2.5">
+          <Award className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
+          <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+            Examinations
+          </h1>
+        </div>
+      </div>
 
-          <div className="flex items-end gap-1.5 pt-4">
-            <button
-              onClick={handleCreateNewExam}
-              className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-[11px] shadow-sm flex items-center gap-1.5 transition h-[34px]"
-            >
-              <Plus className="w-3.5 h-3.5" /> New Exam
-            </button>
 
-            {selectedExamId && (
+      {/* 2. Streamlined 5-Tab Navigation Container */}
+      <div className="p-1.5 bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-2xl shadow-xs w-full no-print">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1.5 w-full">
+          {tabs.map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
               <button
-                onClick={handleDeleteActiveExam}
-                className="p-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/20 transition h-[34px] flex items-center justify-center"
-                title="Delete Examination Template"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer text-center ${
+                  isActive
+                    ? 'bg-sky-600 text-white shadow-sm shadow-sky-600/30'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/80'
+                }`}
               >
-                <Trash className="w-4 h-4" />
+                <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                <span className="whitespace-nowrap">{tab.label}</span>
               </button>
-            )}
-          </div>
-        </div>
-
-        <div className="text-right text-xs font-semibold text-slate-500 space-y-0.5">
-          <div>Branch Campus: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedBranch}</span></div>
-          <div>Academic Year: <span className="font-bold text-slate-800 dark:text-slate-200">{selectedAcademicYear}</span></div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Sidebar / Tabs list */}
-      <div className="flex p-1 bg-slate-100 dark:bg-slate-800/40 rounded-2xl w-max overflow-x-auto max-w-full no-print">
-        {[
-          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'setup', label: 'Exams', icon: Settings },
-          { id: 'schedule', label: 'Schedule', icon: Calendar },
-          { id: 'evaluation', label: 'Marks Entry', icon: Edit3 },
-          { id: 'results', label: 'Results', icon: Award },
-          { id: 'report-cards', label: 'Report Cards', icon: ClipboardList },
-          { id: 'grading', label: 'Grading', icon: CheckSquare }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 ${
-                isActive
-                  ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-750 dark:hover:text-slate-300'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Routed Screens */}
-      <div>
-        {activeTab === 'dashboard' && (
-          <ExamDashboard
-            exams={exams}
-            schedules={examSchedules}
-            marks={examMarks}
-            students={students}
-            onNavigate={setActiveTab}
-            onCreateNewExam={handleCreateNewExam}
-          />
-        )}
-
+      {/* 3. Routed Module Body Views */}
+      <div className="w-full">
         {activeTab === 'setup' && (
           <ExamSetup
             exam={activeExam}
+            exams={exams}
+            selectedExamId={selectedExamId}
+            onSelectExam={setSelectedExamId}
+            onCreateNewExam={handleCreateNewExam}
+            onDeleteExam={handleDeleteActiveExam}
             classOptions={classOptions}
             subjects={subjects}
             selectedAcademicYear={selectedAcademicYear}
             selectedBranch={selectedBranch}
             onSaveSetup={handleSaveSetup}
-            onNavigateNext={handleNavigateNextFromSetup}
+            onNavigateNext={() => setActiveTab('schedule')}
             addToast={addToast}
           />
         )}
@@ -184,49 +171,40 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         {activeTab === 'schedule' && (
           <ExamSchedule
             exam={activeExam}
-            classOptions={classOptions}
+            classOptions={examApplicableClasses}
             subjects={subjects}
             staff={staff}
             selectedAcademicYear={selectedAcademicYear}
             selectedBranch={selectedBranch}
             addToast={addToast}
-            onNavigateNext={handleNavigateNextFromSchedule}
+            onNavigateNext={() => setActiveTab('evaluation')}
+            onGotoSetup={() => setActiveTab('setup')}
           />
         )}
 
         {activeTab === 'evaluation' && (
           <MarksEntry
             exam={activeExam}
-            classOptions={classOptions}
+            classOptions={examApplicableClasses}
             subjects={subjects}
             students={students}
             gradeRules={gradeConfigurations}
             addToast={addToast}
+            onGotoSetup={() => setActiveTab('setup')}
+            onProceedToResults={() => setActiveTab('results-reports')}
           />
         )}
 
-        {activeTab === 'results' && (
-          <ResultsManagement
+        {activeTab === 'results-reports' && (
+          <ResultsAndReports
             exam={activeExam}
-            classOptions={classOptions}
+            classOptions={examApplicableClasses}
             subjects={subjects}
             students={students}
             selectedAcademicYear={selectedAcademicYear}
             selectedBranch={selectedBranch}
             addToast={addToast}
-            onNavigateToReportCards={handleNavigateToReportCards}
-          />
-        )}
-
-        {activeTab === 'report-cards' && (
-          <ReportCards
-            exam={activeExam}
-            classOptions={classOptions}
-            subjects={subjects}
-            students={students}
-            selectedAcademicYear={selectedAcademicYear}
-            selectedBranch={selectedBranch}
-            addToast={addToast}
+            onGotoSetup={() => setActiveTab('setup')}
           />
         )}
 
@@ -234,6 +212,40 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
           <GradingConfiguration addToast={addToast} />
         )}
       </div>
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-300">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200 text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-100 dark:border-rose-900/60 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase text-slate-900 dark:text-white">Delete Examination?</h3>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300 font-semibold leading-relaxed">
+              Are you sure you want to delete <strong className="text-slate-900 dark:text-white">"{activeExam?.name || 'Untitled Exam'}"</strong>? All associated timetables, schedules, and entered student marks will be permanently removed.
+            </p>
+            <div className="flex justify-end items-center gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteActiveExam}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-black transition shadow-sm shadow-rose-600/20 cursor-pointer"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

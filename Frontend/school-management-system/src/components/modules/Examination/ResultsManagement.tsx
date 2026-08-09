@@ -17,6 +17,7 @@ interface ResultsManagementProps {
   selectedBranch: string;
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
   onNavigateToReportCards: () => void;
+  onGotoSetup?: () => void;
 }
 
 export const ResultsManagement: React.FC<ResultsManagementProps> = ({
@@ -27,15 +28,25 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
   selectedAcademicYear,
   selectedBranch,
   addToast,
-  onNavigateToReportCards
+  onNavigateToReportCards,
+  onGotoSetup
 }) => {
   const { processedResults, updateResultStatus, getResultsForExamClass, calculateClassResults, saveProcessedResults } = useResults();
-  const { examMarks } = useData();
+  const { examMarks, academicClasses } = useData();
 
-  const [selectedClass, setSelectedClass] = useState(classOptions[0] || 'Class 10');
-  const [selectedSection, setSelectedSection] = useState('A');
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
   const [isCalculated, setIsCalculated] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+
+  // Dynamic sections from academicClasses
+  const availableSections = useMemo(() => {
+    if (!selectedClass) return [];
+    const matched = academicClasses.find(c => c.name === selectedClass);
+    if (!matched || !matched.sections || matched.sections.length === 0) return ['A'];
+    const raw = matched.sections.map((s: any) => typeof s === 'string' ? s : (s.name || s.sectionName || 'A'));
+    return Array.from(new Set(raw.filter(Boolean)));
+  }, [academicClasses, selectedClass]);
 
   // Detailed Modal Viewer State
   const [selectedResultRow, setSelectedResultRow] = useState<ProcessedResult | null>(null);
@@ -165,32 +176,44 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     <div className="space-y-4 text-left">
       <Panel
         title="Results Verification & Publishing"
-        description="Verify overall student performance, approve result summaries, lock evaluations, and publish report cards."
+        //description="Verify overall student performance, approve result summaries, lock evaluations, and publish report cards."
         action={
           <div className="flex items-center gap-2">
             {isCalculated && (
               <button
                 onClick={onNavigateToReportCards}
-                className="px-4 py-2 rounded-xl bg-indigo-605 hover:bg-indigo-505 text-white font-black text-xs shadow-sm transition"
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-sm transition cursor-pointer"
               >
                 Bulk Print Report Cards
               </button>
             )}
 
             <button
-              disabled={!exam || validationIssues.length > 0 || isCalculated}
+              disabled={!exam || validationIssues.length > 0 || (isCalculated && (currentResultStatus === 'Locked' || currentResultStatus === 'Approved' || currentResultStatus === 'Published'))}
               onClick={handleCalculate}
-              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition disabled:opacity-60"
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm flex items-center gap-1.5 transition disabled:opacity-60 cursor-pointer"
             >
-              <Calculator className="w-4 h-4" /> Calculate Results
+              <Calculator className="w-4 h-4" />
+              {isCalculated ? 'Recalculate Results' : 'Calculate Results'}
             </button>
           </div>
         }
       >
         {!exam?.id && (
-          <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>Select an active exam to review results calculations.</span>
+          <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-955/30 border border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Please select an examination template first to review results calculations.</span>
+            </div>
+            {onGotoSetup && (
+              <button
+                type="button"
+                onClick={onGotoSetup}
+                className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] uppercase tracking-wider transition cursor-pointer"
+              >
+                Go to Exam Configuration
+              </button>
+            )}
           </div>
         )}
 
@@ -200,12 +223,16 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
             <div className="p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-sm flex flex-wrap items-end justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Class Filter</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class / Grade *</label>
                   <select
                     value={selectedClass}
-                    onChange={e => setSelectedClass(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px]"
+                    onChange={e => {
+                      setSelectedClass(e.target.value);
+                      setSelectedSection('');
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[150px] h-[34px] shadow-xs"
                   >
+                    <option value="">-- Select Class --</option>
                     {classOptions.map(cls => (
                       <option key={cls} value={cls}>{cls}</option>
                     ))}
@@ -213,13 +240,15 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400 block">Section</label>
+                  <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Section *</label>
                   <select
                     value={selectedSection}
                     onChange={e => setSelectedSection(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-905 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[100px] h-[34px]"
+                    disabled={!selectedClass}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer min-w-[140px] h-[34px] shadow-xs disabled:opacity-50"
                   >
-                    {['A', 'B', 'C', 'D'].map(sec => (
+                    <option value="">-- Select Section --</option>
+                    {availableSections.map(sec => (
                       <option key={sec} value={sec}>Section {sec}</option>
                     ))}
                   </select>
@@ -227,7 +256,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
               </div>
 
               {/* Status workflow quick buttons */}
-              {isCalculated && (
+              {selectedClass && selectedSection && isCalculated && (
                 <div className="flex items-center gap-2">
                   <span className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase border ${getStatusBadgeColor(currentResultStatus)}`}>
                     Status: {currentResultStatus}
@@ -236,7 +265,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                   {currentResultStatus === 'Approved' && (
                     <button
                       onClick={handlePublish}
-                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm transition flex items-center gap-1"
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-sm transition flex items-center gap-1 cursor-pointer"
                     >
                       <Send className="w-3.5 h-3.5" /> Publish Release
                     </button>
@@ -244,15 +273,19 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
 
                   <button
                     onClick={handleLockToggle}
-                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-55 text-slate-700 font-extrabold text-xs transition flex items-center gap-1 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition shadow-xs flex items-center gap-1 cursor-pointer ${
+                      currentResultStatus === 'Locked'
+                        ? 'border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300'
+                        : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300'
+                    }`}
                   >
                     {currentResultStatus === 'Locked' ? (
                       <>
-                        <LockOpen className="w-3.5 h-3.5 text-slate-400" /> Unlock Results
+                        <LockOpen className="w-3.5 h-3.5" /> Unlock
                       </>
                     ) : (
                       <>
-                        <Lock className="w-3.5 h-3.5 text-slate-400" /> Lock Results
+                        <Lock className="w-3.5 h-3.5" /> Lock Results
                       </>
                     )}
                   </button>
@@ -260,72 +293,83 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
               )}
             </div>
 
-            {/* Results KPI Summary widget */}
-            {isCalculated && (
-              <ResultSummary
-                total={totalCount}
-                passCount={passCount}
-                failCount={failCount}
-                publishedCount={publishedCount}
-                avgPercent={averagePercentage}
-              />
-            )}
-
-            {/* Verification checklist card */}
-            <ResultVerification
-              issues={validationIssues}
-              isVerified={isVerified}
-              onVerify={handleVerify}
-              onApprove={handleApprove}
-              status={currentResultStatus}
-            />
-
-            {/* Calculated Grid */}
-            {isCalculated && (
-              <div className="overflow-x-auto rounded-3xl border border-slate-200/80 dark:border-slate-800">
-                <table className="min-w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-100 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
-                      <th className={tableHeaderClass}>Rank</th>
-                      <th className={tableHeaderClass}>Roll No.</th>
-                      <th className={tableHeaderClass}>Student Name</th>
-                      <th className={tableHeaderClass}>Percentage</th>
-                      <th className={tableHeaderClass}>Overall Grade</th>
-                      <th className={tableHeaderClass}>GPA</th>
-                      <th className={tableHeaderClass}>Result</th>
-                      <th className={tableHeaderClass}>Verification</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                    {visibleResults.map(r => (
-                      <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40">
-                        <td className="px-4 py-3 font-mono font-black text-amber-600 text-sm">#{r.rank}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-slate-500">{r.rollNo || 'N/A'}</td>
-                        <td className="px-4 py-3 font-extrabold text-slate-900 dark:text-white">{r.studentName}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">{r.percentage.toFixed(1)}%</td>
-                        <td className="px-4 py-3 font-black text-indigo-600 dark:text-indigo-400">{r.finalGrade}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{r.gpa}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                            r.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                          }`}>
-                            {r.passStatus}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedResultRow(r)}
-                            className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-805 dark:hover:bg-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 transition"
-                          >
-                            <Eye className="w-3 h-3" /> View Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {!selectedClass || !selectedSection ? (
+              <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
+                <Award className="w-8 h-8 text-sky-500 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                  Select Class & Section to Process Results
+                </h4>
               </div>
+            ) : (
+              <>
+                {/* Results KPI Summary widget */}
+                {isCalculated && (
+                  <ResultSummary
+                    total={totalCount}
+                    passCount={passCount}
+                    failCount={failCount}
+                    publishedCount={publishedCount}
+                    avgPercent={averagePercentage}
+                  />
+                )}
+
+                {/* Verification checklist card */}
+                <ResultVerification
+                  issues={validationIssues}
+                  isVerified={isVerified}
+                  onVerify={handleVerify}
+                  onApprove={handleApprove}
+                  status={currentResultStatus}
+                />
+
+                {/* Calculated Grid */}
+                {isCalculated && (
+                  <div className="overflow-x-auto rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm">
+                    <table className="min-w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
+                          <th className={tableHeaderClass}>Rank</th>
+                          <th className={tableHeaderClass}>Roll No.</th>
+                          <th className={tableHeaderClass}>Student Name</th>
+                          <th className={tableHeaderClass}>Percentage</th>
+                          <th className={tableHeaderClass}>Overall Grade</th>
+                          <th className={tableHeaderClass}>GPA</th>
+                          <th className={tableHeaderClass}>Result</th>
+                          <th className={tableHeaderClass}>Verification</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                        {visibleResults.map(r => (
+                          <tr key={r.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40">
+                            <td className="px-4 py-3 font-mono font-black text-amber-600 text-sm">#{r.rank}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-500">{r.rollNo || 'N/A'}</td>
+                            <td className="px-4 py-3 font-extrabold text-slate-900 dark:text-white">{r.studentName}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">{r.percentage.toFixed(1)}%</td>
+                            <td className="px-4 py-3 font-black text-indigo-600 dark:text-indigo-400">{r.finalGrade}</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{r.gpa}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                r.passStatus === 'Pass' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {r.passStatus}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedResultRow(r)}
+                                className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-805 dark:hover:bg-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 transition"
+                              >
+                                <Eye className="w-3 h-3" /> View Details
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -342,9 +386,6 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
           onClose={() => setSelectedResultRow(null)}
           onPrintCard={() => window.print()}
           onDownloadPdf={() => addToast('info', 'Download PDF', 'Generating PDF report card sheet...')}
-          onPublishResult={handlePublish}
-          onLockResult={handleLockToggle}
-          statusChipClass={getStatusBadgeColor}
         />
       )}
     </div>

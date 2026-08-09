@@ -6,8 +6,18 @@ import { UniformSizeView } from './UniformSizeView';
 import { UniformSupplierView } from './UniformSupplierView';
 import { UniformInventoryView } from './UniformInventoryView';
 
-export const UniformMastersView: React.FC = () => {
-  const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory'>('items');
+interface UniformMastersViewProps {
+  initialSubTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory';
+}
+
+export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialSubTab = 'items' }) => {
+  const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory'>(initialSubTab);
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
 
   const subTabs = [
     { id: 'items', label: 'Uniform Type', icon: Shirt },

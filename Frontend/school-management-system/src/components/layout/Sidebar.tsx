@@ -48,13 +48,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }
   }
 
-  const [financeExpanded, setFinanceExpanded] = useState(true);
-  const [hostelExpanded, setHostelExpanded] = useState(true);
-  const [transportExpanded, setTransportExpanded] = useState(true);
-  const [uniformExpanded, setUniformExpanded] = useState(true);
-  const [staffExpanded, setStaffExpanded] = useState(true);
-  const [academicsExpanded, setAcademicsExpanded] = useState(true);
-
   const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees' || activeModule.startsWith('parent-fee-');
   const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel' || activeModule.startsWith('parent-hostel-');
   const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule.startsWith('parent-bus-') || activeModule.startsWith('parent-transport-');
@@ -62,7 +55,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule.startsWith('parent-teacher-');
   const isAcademicsActive = activeModule.startsWith('academic-') || activeModule === 'academics' || activeModule === 'subjects' || activeModule === 'timetable';
 
-  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>('other');
+  const [financeExpanded, setFinanceExpanded] = useState(isFinanceActive);
+  const [hostelExpanded, setHostelExpanded] = useState(isHostelActive);
+  const [transportExpanded, setTransportExpanded] = useState(isTransportActive);
+  const [uniformExpanded, setUniformExpanded] = useState(isUniformActive);
+  const [staffExpanded, setStaffExpanded] = useState(isStaffActive);
+  const [academicsExpanded, setAcademicsExpanded] = useState(isAcademicsActive);
+
+  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>(
+    isFinanceActive ? 'finance' : isHostelActive ? 'hostel' : isTransportActive ? 'transport' : isUniformActive ? 'uniform' : isStaffActive ? 'staff' : isAcademicsActive ? 'academics' : 'other'
+  );
 
   React.useEffect(() => {
     if (isFinanceActive && lastActiveGroup !== 'finance') {
@@ -114,6 +116,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       setStaffExpanded(false);
       setLastActiveGroup('academics');
     } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isStaffActive && !isAcademicsActive) {
+      setFinanceExpanded(false);
+      setHostelExpanded(false);
+      setTransportExpanded(false);
+      setUniformExpanded(false);
+      setStaffExpanded(false);
+      setAcademicsExpanded(false);
       setLastActiveGroup('other');
     }
   }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isStaffActive, isAcademicsActive, lastActiveGroup]);
@@ -151,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const staffSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
     { id: 'staff-directory', label: 'Staff Directory', icon: Users },
-    { id: 'staff-attendance', label: 'Attendance Register', icon: CalendarCheck },
+    { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
     { id: 'staff-leave', label: 'Leave Management', icon: FileText },
     { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
   ];
@@ -180,6 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'admissions', label: 'Admissions', icon: GraduationCap, badge: pendingAdmissions ? String(pendingAdmissions) : undefined },
         { id: 'students', label: 'Student Directory', icon: UserCheck },
+        { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
         { id: 'student-promotion', label: 'Student Promotion', icon: TrendingUp },
         { id: 'transfer-certificates', label: 'Transfer Certificates', icon: FileText },
         { id: 'alumni', label: 'Alumni', icon: Award },
@@ -190,7 +199,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'academics', label: 'Class Management', icon: Presentation },
         { id: 'subjects', label: 'Subject Management', icon: BookOpen },
-        { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
         { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Timetable' : 'Time Table', icon: Clock },
         { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
         { id: 'homework', label: 'Homework', icon: FileText },
@@ -679,6 +687,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setHostelExpanded(false);
                       setTransportExpanded(false);
                       setUniformExpanded(false);
+                      setAcademicsExpanded(false);
                     }}
                     title={collapsed ? item.label : undefined}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${

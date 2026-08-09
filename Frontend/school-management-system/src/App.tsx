@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -62,20 +62,40 @@ const MainLayout: React.FC = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [classWorkspaceTab, setClassWorkspaceTab] = useState<'overview' | 'sections' | 'subjects' | 'teachers' | 'students' | 'timetable' | 'settings' | 'future'>('sections');
+  const [classWorkspaceTab, setClassWorkspaceTab] = useState<'overview' | 'sections' | 'subjects' | 'teachers' | 'students' | 'timetable' | 'settings' | 'future'>('overview');
   const [autoOpenClassModal, setAutoOpenClassModal] = useState(false);
 
   const userRole = user?.role?.toLowerCase() || '';
 
+  const prevAuthenticated = useRef(isAuthenticated);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setActiveModule('dashboard');
+      if (prevAuthenticated.current) {
+        setShowLogin(true);
+      }
     }
+    prevAuthenticated.current = isAuthenticated;
   }, [isAuthenticated]);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    if (activeModule === 'dashboard' || activeModule === 'academic-class' || activeModule === 'academic-dashboard') {
+      setClassWorkspaceTab('overview');
+      if (activeModule === 'dashboard' || activeModule === 'academic-dashboard' || activeModule === 'academic-class') {
+        setSelectedClassId('');
+      }
+    }
   }, [activeModule]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [selectedClassId]);
 
   if (!isAuthenticated) {
     if (showLogin) {

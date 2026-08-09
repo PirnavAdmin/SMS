@@ -54,6 +54,194 @@ interface ClassManagementWorkspaceProps {
   setAutoOpenClassModal?: (open: boolean) => void;
 }
 
+interface TeacherSearchDropdownProps {
+  value?: string;
+  onChange: (teacherId: string) => void;
+  teachers: any[];
+  placeholder?: string;
+  alignRight?: boolean;
+  className?: string;
+}
+
+const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
+  value,
+  onChange,
+  teachers,
+  placeholder = 'Unassigned',
+  alignRight = false,
+  className = ''
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedTeacher = useMemo(() => {
+    return teachers.find(t => t.id === value || (t.name || `${t.firstName} ${t.lastName}`) === value);
+  }, [teachers, value]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const filteredTeachers = useMemo(() => {
+    if (!search.trim()) return teachers;
+    const q = search.toLowerCase().trim();
+    return teachers.filter(t => {
+      const name = (t.name || `${t.firstName} ${t.lastName}`).toLowerCase();
+      const empCode = (t.empId || t.id || '').toLowerCase();
+      const desig = (t.designation || '').toLowerCase();
+      const dept = (t.department || '').toLowerCase();
+      const primSub = (t.primarySubject || '').toLowerCase();
+      return name.includes(q) || empCode.includes(q) || desig.includes(q) || dept.includes(q) || primSub.includes(q);
+    });
+  }, [teachers, search]);
+
+  const selectedFullName = selectedTeacher ? (selectedTeacher.name || `${selectedTeacher.firstName} ${selectedTeacher.lastName}`) : '';
+  const selectedEmpCode = selectedTeacher ? (selectedTeacher.empId || selectedTeacher.id) : '';
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      {/* Trigger Button */}
+      <button
+        type="button"
+        onClick={() => {
+          setIsOpen(prev => !prev);
+          setSearch('');
+        }}
+        className={`w-full flex items-center justify-between gap-2 px-3 py-2 bg-white dark:bg-slate-800 border rounded-xl text-left transition-all cursor-pointer ${
+          isOpen 
+            ? 'border-sky-500 ring-2 ring-sky-500/20 shadow-xs' 
+            : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          {selectedTeacher ? (
+            <>
+              <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+                {selectedFullName}
+              </span>
+              {selectedEmpCode && (
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-600 shrink-0">
+                  {selectedEmpCode}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
+              {placeholder}
+            </span>
+          )}
+        </div>
+        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-sky-600' : ''}`} />
+      </button>
+
+      {/* Popover Dropdown */}
+      {isOpen && (
+        <div className="absolute top-full left-0 w-full mt-1.5 z-50 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-2 space-y-1.5 animate-in fade-in zoom-in-95 duration-150">
+          {/* Search Box */}
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search teacher or EMP code..."
+              className="w-full pl-8 pr-7 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* List of Teachers (5 visible at a time with scroll) */}
+          <div className="max-h-52 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+            {/* Unassigned Option */}
+            <button
+              type="button"
+              onClick={() => {
+                onChange('');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-bold text-left transition-all ${
+                !selectedTeacher 
+                  ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 font-black' 
+                  : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span>Unassigned</span>
+              {!selectedTeacher && <Check className="w-3.5 h-3.5 text-sky-600" />}
+            </button>
+
+            {filteredTeachers.map(t => {
+              const fullName = t.name || `${t.firstName} ${t.lastName}`;
+              const empCode = t.empId || t.id;
+              const isSelected = selectedTeacher?.id === t.id;
+              const desig = t.designation || 'Teacher';
+              const dept = t.department || '';
+
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    onChange(t.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-start justify-between gap-2 p-2 rounded-xl text-left transition-all cursor-pointer ${
+                    isSelected 
+                      ? 'bg-sky-50 dark:bg-sky-950/50 text-sky-900 dark:text-sky-100 font-bold border border-sky-200 dark:border-sky-800' 
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-200'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black text-slate-900 dark:text-white truncate">
+                        {fullName}
+                      </span>
+                      {empCode && (
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                          {empCode}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium truncate mt-0.5">
+                      {desig} {dept ? `• ${dept}` : ''}
+                    </p>
+                  </div>
+                  {isSelected && <Check className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />}
+                </button>
+              );
+            })}
+
+            {filteredTeachers.length === 0 && (
+              <div className="py-4 text-center text-xs text-slate-400 font-bold">
+                No teaching staff found.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> = ({
   initialTab,
   onTabChange,
@@ -121,6 +309,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<AcademicClass | null>(null);
   const [openedFromDashboard, setOpenedFromDashboard] = useState(false);
+  const [classFormErrors, setClassFormErrors] = useState<string[]>([]);
 
   // Section Setup controllers
   const [isSectionModalOpen, setIsSectionModalOpen] = useState(false);
@@ -149,10 +338,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     displayOrder: ''
   });
 
-  const [sectionForm, setSectionForm] = useState({
+  const [sectionForm, setSectionForm] = useState<{
+    name: string;
+    capacity: string | number;
+    status: 'Active' | 'Inactive' | 'Archived';
+    remarks: string;
+  }>({
     name: 'A',
-    capacity: 40,
-    status: 'Active' as 'Active' | 'Inactive' | 'Archived',
+    capacity: '',
+    status: 'Active',
     remarks: ''
   });
 
@@ -177,10 +371,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     prevClassesLength.current = academicClasses.length;
   }, [academicClasses]);
 
+  // Scroll to top on class selection or tab switch
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [selectedClassId]);
+
   // General Filtered Lists local variables
   const activeClassStudents = useMemo(() => {
     if (!activeClass) return [];
-    return students.filter(s => s.className === activeClass.name);
+    return students.filter(s => s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name));
   }, [students, activeClass]);
 
   const activeSectionStudents = useMemo(() => {
@@ -193,14 +394,59 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     return activeClassStudents.filter(s => !s.section);
   }, [activeClassStudents]);
 
-  // Teachers (Staff list with Designation or role containing Teacher)
+  // Teachers (Filtered strictly to Teaching Staff only)
   const teachersList = useMemo(() => {
-    return staff.filter(s => 
-      s.role === 'Teacher' || 
-      (s as any).designation?.toLowerCase().includes('teacher') || 
-      (s as any).department?.toLowerCase().includes('academic') ||
-      true
-    );
+    return staff.filter(s => {
+      const fullName = (s.name || `${s.firstName || ''} ${s.lastName || ''}`).trim();
+      if (!fullName || fullName.toLowerCase().includes('string string')) return false;
+
+      const cat = ((s as any).employeeCategory || (s as any).staffType || '').toLowerCase();
+      const roleStr = (s.role || '').toLowerCase();
+      const desigStr = (s.designation || '').toLowerCase();
+      const deptStr = (s.department || '').toLowerCase();
+
+      // Exclude non-teaching designations
+      if (
+        desigStr.includes('hr') || 
+        desigStr.includes('driver') || 
+        desigStr.includes('conductor') || 
+        desigStr.includes('accountant') || 
+        desigStr.includes('receptionist') || 
+        desigStr.includes('clerk') || 
+        desigStr.includes('peon') || 
+        desigStr.includes('security') || 
+        desigStr.includes('sweeper') ||
+        desigStr.includes('attendant')
+      ) {
+        return false;
+      }
+
+      if (cat === 'staff' && !desigStr.includes('teacher') && !desigStr.includes('faculty') && !desigStr.includes('lecturer')) {
+        return false;
+      }
+
+      return (
+        cat === 'teacher' ||
+        roleStr === 'teacher' || 
+        desigStr.includes('teacher') || 
+        desigStr.includes('faculty') || 
+        desigStr.includes('lecturer') || 
+        desigStr.includes('professor') ||
+        desigStr.includes('hod') ||
+        desigStr.includes('pgt') ||
+        desigStr.includes('tgt') ||
+        desigStr.includes('prt') ||
+        desigStr.includes('instructor') ||
+        deptStr.includes('academic') ||
+        deptStr.includes('science') ||
+        deptStr.includes('mathematics') ||
+        deptStr.includes('english') ||
+        deptStr.includes('languages') ||
+        deptStr.includes('social') ||
+        deptStr.includes('commerce') ||
+        deptStr.includes('computer')
+      );
+    });
   }, [staff]);
 
   // Helper function to identify if a teacher teaches a specific subject
@@ -221,10 +467,14 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     return allTeacherSubjects.some(s => s.includes(target) || target.includes(s));
   };
 
+  // Subject list search
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+
   // Student list search & filter parameters
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [studentFilterGender, setStudentFilterGender] = useState('');
   const [selectedStudentsForAllocation, setSelectedStudentsForAllocation] = useState<string[]>([]);
+  const [bulkTargetSection, setBulkTargetSection] = useState<string>('');
 
   const filteredUnassignedStudents = useMemo(() => {
     return unassignedStudentsInClass.filter(s => {
@@ -444,6 +694,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     });
     setCustomClassName('');
     setIsClassDropdownOpen(false);
+    setClassFormErrors([]);
     setIsClassModalOpen(true);
   };
 
@@ -479,6 +730,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     });
     setCustomClassName(isPredefined ? '' : c.name);
     setIsClassDropdownOpen(false);
+    setClassFormErrors([]);
     setIsClassModalOpen(true);
   };
 
@@ -493,34 +745,41 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
-    const isDuplicate = academicClasses.some(c => 
-      isNameEquivalent(c.name, finalName) && 
-      ((c as any).campus === campus || (c as any).branch === campus) &&
-      (c as any).academicYear === academicYear
-    );
+    const isDuplicate = academicClasses.some(c => {
+      const cCampus = (c as any).campus || (c as any).branch || 'Main Campus';
+      const cYear = (c as any).academicYear || '2026-2027';
+      return isNameEquivalent(c.name, finalName) && 
+             cCampus.toLowerCase() === campus.toLowerCase() &&
+             cYear === academicYear;
+    });
 
     if (isDuplicate) {
+      setClassFormErrors(['This class setup already exists in the selected campus and academic year.']);
       addToast('warning', 'Duplicate Entry', 'This class setup already exists in the selected campus and academic year.');
       return;
     }
 
-    const campusConflict = academicClasses.some(c => 
-      isNameEquivalent(c.name, finalName) && 
-      ((c as any).campus === campus || (c as any).branch === campus)
-    );
+    const campusConflict = academicClasses.some(c => {
+      const cCampus = (c as any).campus || (c as any).branch || 'Main Campus';
+      return isNameEquivalent(c.name, finalName) && 
+             cCampus.toLowerCase() === campus.toLowerCase();
+    });
 
     if (campusConflict) {
+      setClassFormErrors(['This class already exists in the selected campus.']);
       addToast('warning', 'Campus Conflict', 'This class already exists in the selected campus.');
       return;
     }
 
-    const ayObj = academicYears.find(ay => ay.academicYear === academicYear && ay.status === 'Active');
+    const ayObj = academicYears.find(ay => ay.academicYear === academicYear);
     if (!ayObj) {
-      addToast('warning', 'Academic Year Inactive', 'Please select an active academic year session.');
+      setClassFormErrors(['Please select a valid academic year session.']);
+      addToast('warning', 'Academic Year Invalid', 'Please select a valid academic year session.');
       return;
     }
 
     setIsSubmitting(true);
+    setClassFormErrors([]);
 
     // Simulate API request submission
     setTimeout(() => {
@@ -553,13 +812,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       setFilterStatus('');
       setSearchClassName('');
 
-      newlyCreatedClassRef.current = {
-        name: cleanName,
-        campus,
-        academicYear
-      };
-
       addAcademicClass(newClassData as any);
+      addToast('success', 'Class created successfully', `Class ${cleanName} has been added to the dashboard.`);
       setIsClassModalOpen(false);
       setIsSubmitting(false);
 
@@ -661,10 +915,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     const nextLetter = ALPHABET.find(l => !activeClass.sections.includes(l)) || 'A';
     setSectionForm({
       name: nextLetter,
-      capacity: 40,
+      capacity: '',
       status: 'Active',
       remarks: ''
-    } as any);
+    });
     setIsSectionModalOpen(true);
   };
 
@@ -674,22 +928,24 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setEditingSectionName(secName);
     setSectionForm({
       name: secName,
-      capacity: detail.capacity ?? 40,
+      capacity: detail.capacity !== undefined ? detail.capacity : '',
       status: detail.status || 'Active',
       remarks: detail.remarks || ''
-    } as any);
+    });
     setIsSectionModalOpen(true);
   };
 
   const handleSaveSection = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeClass) return;
-    const { name, capacity, status, remarks } = sectionForm as any;
+    const { name, status, remarks } = sectionForm;
+    const capacityNum = Number(sectionForm.capacity);
 
-    if (capacity <= 0 || capacity > 60) {
-      addToast('warning', 'Invalid Capacity', 'Section seat capacity must be between 1 and 60.');
+    if (!sectionForm.capacity || isNaN(capacityNum) || capacityNum <= 0) {
+      addToast('warning', 'Invalid Capacity', 'Please enter a valid seat capacity.');
       return;
     }
+    const capacity = capacityNum;
 
     const currentSections = [...activeClass.sections];
     const details = { ...((activeClass as any).sectionDetails || {}) };
@@ -1030,7 +1286,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // -------------------------------------------------------------
   const handleToggleSubjectMapping = (subjectName: string) => {
     if (!activeClass) return;
-    const currentMapped = activeClass.subjects ? [...activeClass.subjects] : [];
+    const validGlobalNames = subjects.map(s => s.name);
+    const currentMapped = (activeClass.subjects || []).filter(s => validGlobalNames.includes(s));
     
     let updated: string[];
     if (currentMapped.includes(subjectName)) {
@@ -1040,46 +1297,19 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         addToast('warning', 'Mapping Locked', `Cannot remove subject ${subjectName} because subject teachers are assigned in sections.`);
         return;
       }
-      verifySafetyLock(() => {
-        const subObj = subjects.find(s => s.name === subjectName);
-        const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
+      updated = currentMapped.filter(s => s !== subjectName);
+      updateAcademicClass(activeClass.id, { subjects: updated } as any);
+      addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
 
-        removeSubjectApi(activeClass.id, numericSubId)
-          .then(res => {
-            if (res && res.success) {
-              updated = currentMapped.filter(s => s !== subjectName);
-              updateAcademicClass(activeClass.id, { subjects: updated } as any);
-              addToast('success', 'Subjects mapping updated');
-            } else {
-              addToast('error', 'Error', res?.message || 'Failed to remove subject mapping.');
-            }
-          })
-          .catch(err => {
-            console.error(err);
-            // offline fallback
-            updated = currentMapped.filter(s => s !== subjectName);
-            updateAcademicClass(activeClass.id, { subjects: updated } as any);
-            addToast('success', 'Subjects mapping updated (offline)');
-          });
-      });
+      const subObj = subjects.find(s => s.name === subjectName);
+      const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
+      removeSubjectApi(activeClass.id, numericSubId).catch(() => {});
     } else {
-      mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 })
-        .then(res => {
-          if (res && res.success) {
-            updated = [...currentMapped, subjectName];
-            updateAcademicClass(activeClass.id, { subjects: updated } as any);
-            addToast('success', 'Subjects mapping updated');
-          } else {
-            addToast('error', 'Error', res?.message || 'Failed to map subject.');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          // offline fallback
-          updated = [...currentMapped, subjectName];
-          updateAcademicClass(activeClass.id, { subjects: updated } as any);
-          addToast('success', 'Subjects mapping updated (offline)');
-        });
+      updated = [...currentMapped, subjectName];
+      updateAcademicClass(activeClass.id, { subjects: updated } as any);
+      addToast('success', 'Subject Mapped', `${subjectName} mapped to ${activeClass.name}`);
+
+      mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 }).catch(() => {});
     }
   };
 
@@ -1096,140 +1326,86 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   };
 
   // -------------------------------------------------------------
-  // TEACHER ASSIGNMENTS HANDLERS (CLASS & SUBJECT TEACHER)
+  // TEACHER ASSIGNMENT HANDLERS
   // -------------------------------------------------------------
   const handleAssignClassTeacher = (teacherId: string) => {
     if (!activeClass || !activeWorkspaceSection) return;
     const details = (activeClass as any).sectionTeachers || {};
-    const t = teachersList.find(s => s.id === teacherId);
-    
-    verifySafetyLock(() => {
-      const teacherFullName = t ? (t.name || `${t.firstName} ${t.lastName}`) : '';
+
+    if (!teacherId) {
       const updatedTeachers = {
         ...details,
-        [activeWorkspaceSection]: teacherFullName
+        [activeWorkspaceSection]: ''
       };
+      updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+      addToast('info', 'Class Teacher Unassigned', `Class Teacher for Section ${activeWorkspaceSection} is now unassigned.`);
+      return;
+    }
 
-      assignTeacherApi(activeClass.id, activeWorkspaceSection, {
-        teacher_id: teacherId,
-        role: "Class Teacher"
-      })
-        .then(res => {
-          if (res && res.success) {
-            updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
-            addToast('success', 'Class Teacher Mapped', `Assigned ${teacherFullName || 'Unassigned'} as Class Teacher.`);
-          } else {
-            addToast('error', 'Error', res?.message || 'Failed to assign class teacher.');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          // offline fallback
-          updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
-          addToast('success', 'Class Teacher Mapped', `Assigned ${teacherFullName || 'Unassigned'} as Class Teacher (offline).`);
-        });
-
-      // Auto-assign subject if class teacher is assigned and has a teaching subject
-      if (t) {
-        // Collect all potential teaching subjects for this teacher (including department and designation)
-        const teacherSubjects = [
-          t.primarySubject,
-          t.secondarySubject,
-          t.department,
-          t.designation,
-          ...(t.assignedSubjects || [])
-        ].filter(Boolean) as string[];
-
-        // Find all subjects offered by the class that have a substring match with teacher subjects
-        const targetSubjects = (activeClass.subjects || []).filter(subName => 
-          teacherSubjects.some(tSub => 
-            subName.toLowerCase().includes(tSub.toLowerCase()) || 
-            tSub.toLowerCase().includes(subName.toLowerCase())
-          )
-        );
-
-        targetSubjects.forEach(targetSubject => {
-          // Check if mapping already exists
-          const exist = teacherAssignments.find(ta => 
-            ta.className === activeClass.name && 
-            ta.section === activeWorkspaceSection && 
-            ta.subject === targetSubject
-          );
-
-          if (exist) {
-            updateTeacherAssignment(exist.id, { 
-              teacherId: t.id, 
-              teacherName: teacherFullName
-            });
-          } else {
-            addTeacherAssignment({
-              academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-              branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
-              className: activeClass.name,
-              section: activeWorkspaceSection,
-              subject: targetSubject,
-              teacherId: t.id,
-              teacherName: teacherFullName,
-              status: 'Active'
-            });
-          }
-        });
-
-        if (targetSubjects.length > 0) {
-          addToast('success', 'Auto-assigned Subject(s)', `Automatically mapped ${teacherFullName} to teach: ${targetSubjects.join(', ')} in Section ${activeWorkspaceSection}.`);
-        }
-      }
-    });
-  };
-
-  const handleAssignSubjectTeacher = (subjectName: string, teacherId: string) => {
-    if (!activeClass || !activeWorkspaceSection) return;
     const t = teachersList.find(s => s.id === teacherId);
     if (!t) return;
+    const teacherFullName = t.name || `${t.firstName} ${t.lastName}`;
 
-    // Check if assignment exists
-    const exist = teacherAssignments.find(ta => 
-      ta.className === activeClass.name && 
-      ta.section === activeWorkspaceSection && 
-      ta.subject === subjectName
-    );
+    // Verify if teacher is already assigned as Class Teacher in any other class or section
+    let assignedConflict: { className: string; section: string } | null = null;
+    academicClasses.forEach(cls => {
+      const secTeachers = (cls as any).sectionTeachers || {};
+      Object.entries(secTeachers).forEach(([sec, tVal]) => {
+        if (tVal && typeof tVal === 'string' && tVal.trim() !== '') {
+          if (cls.id !== activeClass.id || sec !== activeWorkspaceSection) {
+            if (tVal.trim().toLowerCase() === teacherFullName.trim().toLowerCase() || tVal === t.id) {
+              assignedConflict = { className: cls.name, section: sec };
+            }
+          }
+        }
+      });
+    });
+
+    if (assignedConflict) {
+      addToast('warning', 'Already Assigned', `${teacherFullName} is already assigned as Class Teacher for ${(assignedConflict as any).className} Section ${(assignedConflict as any).section}.`);
+      return;
+    }
+    const updatedTeachers = {
+      ...details,
+      [activeWorkspaceSection]: teacherFullName
+    };
+
+    updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
 
     assignTeacherApi(activeClass.id, activeWorkspaceSection, {
       teacher_id: teacherId,
-      role: "Subject Teacher",
-      subject_name: subjectName
-    })
-      .then(res => {
-        if (res && res.success) {
-          if (exist) {
-            updateTeacherAssignment(exist.id, { 
-              teacherId: t.id, 
-              teacherName: t.name || `${t.firstName} ${t.lastName}`
-            });
-          } else {
-            addTeacherAssignment({
-              academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
-              branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
-              className: activeClass.name,
-              section: activeWorkspaceSection,
-              subject: subjectName,
-              teacherId: t.id,
-              teacherName: t.name || `${t.firstName} ${t.lastName}`,
-              status: 'Active'
-            });
-          }
-          addToast('success', 'Subject Teacher Mapped', `Mapped ${t.name || `${t.firstName} ${t.lastName}`} to ${subjectName} in Section ${activeWorkspaceSection}`);
-        } else {
-          addToast('error', 'Error', res?.message || 'Failed to assign subject teacher.');
-        }
-      })
-      .catch(err => {
-        console.error(err);
-        // offline fallback
+      role: "Class Teacher"
+    }).catch(() => {});
+
+    // Auto-assign subject if class teacher is assigned and has a teaching subject
+    const autoAssignedSubjects: string[] = [];
+    if (t) {
+      const teacherSubjects = [
+        t.primarySubject,
+        t.secondarySubject,
+        t.department,
+        t.designation,
+        ...(t.assignedSubjects || [])
+      ].filter(Boolean) as string[];
+
+      const targetSubjects = (activeClass.subjects || []).filter(subName => 
+        teacherSubjects.some(tSub => 
+          subName.toLowerCase().includes(tSub.toLowerCase()) || 
+          tSub.toLowerCase().includes(subName.toLowerCase())
+        )
+      );
+
+      targetSubjects.forEach(targetSubject => {
+        const exist = teacherAssignments.find(ta => 
+          ta.className === activeClass.name && 
+          ta.section === activeWorkspaceSection && 
+          ta.subject === targetSubject
+        );
+
         if (exist) {
           updateTeacherAssignment(exist.id, { 
             teacherId: t.id, 
-            teacherName: t.name || `${t.firstName} ${t.lastName}`
+            teacherName: teacherFullName
           });
         } else {
           addTeacherAssignment({
@@ -1237,14 +1413,59 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
             branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
             className: activeClass.name,
             section: activeWorkspaceSection,
-            subject: subjectName,
+            subject: targetSubject,
             teacherId: t.id,
-            teacherName: t.name || `${t.firstName} ${t.lastName}`,
+            teacherName: teacherFullName,
             status: 'Active'
           });
         }
-        addToast('success', 'Subject Teacher Mapped', `Mapped ${t.name || `${t.firstName} ${t.lastName}`} to ${subjectName} in Section ${activeWorkspaceSection} (offline)`);
+        autoAssignedSubjects.push(targetSubject);
       });
+    }
+
+    const subjectsMsg = autoAssignedSubjects.length > 0
+      ? ` and auto-assigned to teach: ${autoAssignedSubjects.join(', ')}`
+      : '';
+
+    addToast('success', 'Class Teacher Assigned', `Assigned ${teacherFullName} as Class Teacher for Section ${activeWorkspaceSection}${subjectsMsg}.`);
+  };
+
+  const handleAssignSubjectTeacher = (subjectName: string, teacherId: string) => {
+    if (!activeClass || !activeWorkspaceSection) return;
+    const t = teachersList.find(s => s.id === teacherId);
+    if (!t) return;
+    const teacherFullName = t.name || `${t.firstName} ${t.lastName}`;
+
+    const exist = teacherAssignments.find(ta => 
+      ta.className === activeClass.name && 
+      ta.section === activeWorkspaceSection && 
+      ta.subject === subjectName
+    );
+
+    if (exist) {
+      updateTeacherAssignment(exist.id, { 
+        teacherId: t.id, 
+        teacherName: teacherFullName
+      });
+    } else {
+      addTeacherAssignment({
+        academicYear: (activeClass as any).academicYear || selectedAcademicYear || '2026-2027',
+        branch: (activeClass as any).branch || selectedBranch || 'Main Campus',
+        className: activeClass.name,
+        section: activeWorkspaceSection,
+        subject: subjectName,
+        teacherId: t.id,
+        teacherName: teacherFullName,
+        status: 'Active'
+      });
+    }
+    addToast('success', 'Subject Teacher Mapped', `Mapped ${teacherFullName} to ${subjectName} in Section ${activeWorkspaceSection}`);
+
+    assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+      teacher_id: teacherId,
+      role: "Subject Teacher",
+      subject_name: subjectName
+    }).catch(() => {});
   };
 
   const handleRemoveSubjectTeacher = (subjectName: string) => {
@@ -1491,7 +1712,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               {/* Cockpit header */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setSelectedClassId('')}
+                  onClick={() => {
+                    setSelectedClassId('');
+                    setClassWorkspaceTab('overview');
+                    window.scrollTo({ top: 0, behavior: 'instant' });
+                    document.documentElement.scrollTop = 0;
+                    document.body.scrollTop = 0;
+                  }}
                   className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shadow-sm cursor-pointer shrink-0"
                   title="Back to Directory"
                 >
@@ -1500,7 +1727,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 <div>
                   <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <School className="w-6 h-6 text-sky-600 dark:text-sky-400" />
-                    <span>{activeClass.name} Workspace</span>
+                    <span>{activeClass.name} Configuration</span>
                   </h2>
                 </div>
               </div>
@@ -1508,11 +1735,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               {/* Workspace tab navigation bar */}
               <div className="glass-card p-1.5 rounded-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 {[
-                  { id: 'overview', label: 'Overview', icon: BarChart2, count: undefined },
-                  { id: 'sections', label: 'Sections', icon: Layers, count: activeClass.sections?.length || 0 },
-                  { id: 'subjects', label: 'Subjects', icon: BookOpen, count: activeClass.subjects?.length || 0 },
-                  { id: 'teachers', label: 'Teachers', icon: Users, count: Object.keys(activeClass.sectionTeachers || {}).length },
-                  { id: 'students', label: 'Students', icon: UserPlus, count: activeClassStudents.length }
+                  { id: 'overview', label: 'Overview', icon: BarChart2 },
+                  { id: 'sections', label: 'Sections', icon: Layers },
+                  { id: 'subjects', label: 'Subjects', icon: BookOpen },
+                  { id: 'teachers', label: 'Teachers', icon: Users },
+                  { id: 'students', label: 'Students', icon: UserPlus }
                 ].map(tab => {
                   const Icon = tab.icon;
                   const isSelected = classWorkspaceTab === tab.id;
@@ -1528,13 +1755,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     >
                       <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-sky-500'}`} />
                       <span>{tab.label}</span>
-                      {tab.count !== undefined && (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                          isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
-                        }`}>
-                          {tab.count}
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -1544,146 +1764,134 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               <div className="min-h-[450px]">
                 {classWorkspaceTab === 'overview' && (
                   <div className="space-y-6 animate-in fade-in text-left">
-                    {/* Six small KPI cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
-                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Students</span>
-                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{activeClassStudents.length}</span>
+                    {/* KPI cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 items-stretch">
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Students</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{activeClassStudents.length}</span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
-                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Sections</span>
-                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{activeClass.sections.length}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Sections</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{activeClass.sections.length}</span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
-                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Teachers</span>
-                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Teachers</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
                           {new Set(teacherAssignments.filter(ta => ta.className === activeClass.name).map(ta => ta.teacherName)).size || 0}
                         </span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
-                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Subjects</span>
-                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{(activeClass.subjects || []).length}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Subjects</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{(activeClass.subjects || []).length}</span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
-                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Capacity</span>
-                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Capacity</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
                           {sectionKPIs?.totalCapacity ?? 40}
                         </span>
                       </div>
-                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-xl shadow-xs">
-                        <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Health Score</span>
-                        <span className="text-xl font-black text-slate-700 dark:text-slate-200">{activeClassProgress?.score}%</span>
-                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-bold">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch font-bold">
                       {/* Class Teacher detail */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4">
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Class Teacher</h4>
-                        <div className="space-y-2">
-                          {activeClass.sections.map(sec => {
-                            const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
-                            return (
-                              <div key={sec} className="flex justify-between items-center text-xs p-2 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                                <span>Section {sec}:</span>
-                                <span className={classTeacher === 'Not Assigned' ? 'text-rose-500' : 'text-slate-900 dark:text-white'}>{classTeacher}</span>
-                              </div>
-                            );
-                          })}
-                          {activeClass.sections.length === 0 && (
-                            <p className="text-slate-400 italic text-xs text-center py-2">No sections configured.</p>
-                          )}
+                      <div className="lg:col-span-3 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Class Teacher</h4>
+                          <div className="space-y-2">
+                            {activeClass.sections.map(sec => {
+                              const classTeacher = ((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned';
+                              return (
+                                <div key={sec} className="flex justify-between items-center text-xs p-2.5 bg-slate-50/90 dark:bg-slate-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                                  <span className="font-bold text-slate-900 dark:text-white">Section {sec}:</span>
+                                  <span className={classTeacher === 'Not Assigned' ? 'text-rose-500 font-semibold' : 'text-slate-500 dark:text-slate-400 font-medium'}>{classTeacher}</span>
+                                </div>
+                              );
+                            })}
+                            {activeClass.sections.length === 0 && (
+                              <p className="text-slate-400 italic text-xs text-center py-2">No sections configured.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Quick Actions Panel */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4">
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Quick Actions</h4>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <button onClick={() => setClassWorkspaceTab('sections')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Add Section</button>
-                          <button onClick={() => setClassWorkspaceTab('subjects')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Assign Subject</button>
-                          <button onClick={() => setClassWorkspaceTab('teachers')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Assign Teacher</button>
-                          <button onClick={() => setClassWorkspaceTab('students')} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-brand-400/60 dark:border-brand-800 text-slate-850 rounded-xl text-center font-bold">Allocate Students</button>
+                      {/* Quick Actions Panel - Modern Enterprise Design with expanded width & clean single-line actions */}
+                      <div className="lg:col-span-5 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Quick Actions</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <button 
+                              onClick={() => setClassWorkspaceTab('sections')} 
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="p-1.5 rounded-lg bg-brand-100/70 dark:bg-brand-900/40 text-brand-700 dark:text-brand-300 shrink-0">
+                                  <Layers className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Add Section</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                            </button>
+
+                            <button 
+                              onClick={() => setClassWorkspaceTab('subjects')} 
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="p-1.5 rounded-lg bg-blue-100/70 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 shrink-0">
+                                  <BookOpen className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Assign Subject</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                            </button>
+
+                            <button 
+                              onClick={() => setClassWorkspaceTab('teachers')} 
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="p-1.5 rounded-lg bg-emerald-100/70 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 shrink-0">
+                                  <UserCheck className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Assign Teacher</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                            </button>
+
+                            <button 
+                              onClick={() => setClassWorkspaceTab('students')} 
+                              className="group px-3.5 py-3 rounded-xl bg-slate-50/80 hover:bg-brand-50/60 dark:bg-slate-800/60 dark:hover:bg-brand-950/30 border border-slate-200/70 hover:border-brand-400 dark:border-slate-700/60 dark:hover:border-brand-500 transition-all flex items-center justify-between text-left cursor-pointer hover:shadow-2xs active:scale-[0.98]"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="p-1.5 rounded-lg bg-purple-100/70 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shrink-0">
+                                  <UserPlus className="w-4 h-4" />
+                                </div>
+                                <span className="text-xs font-bold text-slate-900 dark:text-white whitespace-nowrap">Allocate Students</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-1.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
 
                       {/* Configuration Checklist status */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4">
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Setup checklist</h4>
-                        <div className="space-y-1.5 text-xs">
-                          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
-                            <span>Sections created:</span>
-                            <span className={activeClass.sections.length > 0 ? 'text-emerald-500' : 'text-rose-500'}>{activeClass.sections.length > 0 ? '✔ Yes' : '✖ No'}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
-                            <span>Subjects mapped:</span>
-                            <span className={(activeClass.subjects || []).length > 0 ? 'text-emerald-500' : 'text-rose-500'}>{(activeClass.subjects || []).length > 0 ? '✔ Yes' : '✖ No'}</span>
-                          </div>
-                          <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
-                            <span>Class Teachers:</span>
-                            <span className={activeClassProgress?.hasAllClassTeachers ? 'text-emerald-500' : 'text-rose-500'}>{activeClassProgress?.hasAllClassTeachers ? '✔ Assigned' : '✖ Missing'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section listing cards */}
-                    <div className="space-y-4">
-                      <h4 className="font-extrabold text-slate-850 dark:text-white text-xs uppercase tracking-wider text-slate-400">Sections</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        {activeClass.sections.map(sec => {
-                          const detail = ((activeClass as any).sectionDetails || {})[sec] || {};
-                          const cap = detail.capacity ?? 40;
-                          const assigned = students.filter(s => s.className === activeClass.name && s.section === sec).length;
-
-                          return (
-                            <div key={sec} className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-3 font-bold text-xs text-left">
-                              <div className="flex items-center justify-between border-b pb-2">
-                                <span className="text-sm font-black text-slate-900 dark:text-white">Section {sec}</span>
-                                <span className="text-slate-400">{assigned} / {cap} Students</span>
-                              </div>
-                              <div className="flex justify-between text-slate-455">
-                                <span>Class Teacher:</span>
-                                <span className="text-slate-900 dark:text-white">{((activeClass as any).sectionTeachers || {})[sec] || 'Not Assigned'}</span>
-                              </div>
-                              <div className="flex justify-between gap-2 pt-2 border-t text-[11px]">
-                                <button onClick={() => handleOpenEditSection(sec)} className="text-sky-655 hover:underline">Edit</button>
-                                <button onClick={() => triggerDeleteSectionCheck(sec)} className="text-rose-500 hover:underline">Delete</button>
-                              </div>
+                      <div className="lg:col-span-4 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-black text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-3">Setup Checklist</h4>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800">
+                              <span className="font-bold text-slate-900 dark:text-white">Sections created:</span>
+                              <span className={activeClass.sections.length > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}>{activeClass.sections.length > 0 ? '✔ Yes' : '✖ No'}</span>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Subjects and Mapped Teachers summaries */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-bold text-xs">
-                      {/* Subjects list */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-3">
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Mapped Subjects</h4>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(activeClass.subjects || []).map(sub => (
-                            <span key={sub} className="px-2.5 py-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl">{sub}</span>
-                          ))}
-                          {(activeClass.subjects || []).length === 0 && (
-                            <p className="text-slate-400 italic py-2">No subjects mapped to this class.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Teachers Assignments summaries */}
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-3 text-left">
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-slate-400">Teacher Mappings</h4>
-                        <div className="divide-y divide-slate-100 dark:divide-slate-808 space-y-1.5">
-                          {teacherAssignments.filter(ta => ta.className === activeClass.name && ta.section === activeWorkspaceSection).map((ta, idx) => (
-                            <div key={idx} className="flex justify-between py-1">
-                              <span className="text-slate-400">{ta.subject}:</span>
-                              <span>{ta.teacherName}</span>
+                            <div className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800">
+                              <span className="font-bold text-slate-900 dark:text-white">Subjects mapped:</span>
+                              <span className={(activeClass.subjects || []).length > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}>{(activeClass.subjects || []).length > 0 ? '✔ Yes' : '✖ No'}</span>
                             </div>
-                          ))}
-                          {teacherAssignments.filter(ta => ta.className === activeClass.name && ta.section === activeWorkspaceSection).length === 0 && (
-                            <p className="text-slate-455 italic text-center py-2">No subject instructors mapped for Section {activeWorkspaceSection}.</p>
-                          )}
+                            <div className="flex justify-between items-center p-2.5 rounded-xl bg-slate-50/90 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800">
+                              <span className="font-bold text-slate-900 dark:text-white">Class Teachers:</span>
+                              <span className={activeClassProgress?.hasAllClassTeachers ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-rose-500 font-semibold'}>{activeClassProgress?.hasAllClassTeachers ? '✔ Assigned' : '✖ Missing'}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1694,38 +1902,30 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {classWorkspaceTab === 'sections' && (
                   <div className="space-y-6 animate-in fade-in">
                     {/* Dashboard KPIs */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Total Sections</span>
-                        <span className="text-lg font-black text-slate-850 dark:text-white">{sectionKPIs?.totalSections ?? 0}</span>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all text-left">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Total Sections</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{sectionKPIs?.totalSections ?? 0}</span>
                       </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Active Sections</span>
-                        <span className="text-lg font-black text-emerald-600">{sectionKPIs?.activeSections ?? 0}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all text-left">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Active Sections</span>
+                        <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight">{sectionKPIs?.activeSections ?? 0}</span>
                       </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Inactive Sections</span>
-                        <span className="text-lg font-black text-rose-600">{sectionKPIs?.inactiveSections ?? 0}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all text-left">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Total Capacity</span>
+                        <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{sectionKPIs?.totalCapacity ?? 0}</span>
                       </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Total Capacity</span>
-                        <span className="text-lg font-black text-slate-850 dark:text-white">{sectionKPIs?.totalCapacity ?? 0}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all text-left">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Occupied Seats</span>
+                        <span className="text-lg font-extrabold text-sky-600 dark:text-sky-400 tracking-tight">{sectionKPIs?.occupiedSeats ?? 0}</span>
                       </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Occupied Seats</span>
-                        <span className="text-lg font-black text-sky-600">{sectionKPIs?.occupiedSeats ?? 0}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all text-left">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Remaining Seats</span>
+                        <span className="text-lg font-extrabold text-amber-500 dark:text-amber-400 tracking-tight">{sectionKPIs?.remainingSeats ?? 0}</span>
                       </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Remaining Seats</span>
-                        <span className="text-lg font-black text-amber-505">{sectionKPIs?.remainingSeats ?? 0}</span>
-                      </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Avg Occupancy</span>
-                        <span className="text-lg font-black text-sky-600">{sectionKPIs?.averageOccupancy ?? 0}%</span>
-                      </div>
-                      <div className="p-3 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-2xl">
-                        <span className="text-[10px] text-slate-400 block uppercase font-mono font-bold">Waiting list</span>
-                        <span className="text-lg font-black text-purple-650">{sectionKPIs?.studentsWaiting ?? 0}</span>
+                      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 transition-all text-left">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block mb-1">Avg Occupancy</span>
+                        <span className="text-lg font-extrabold text-sky-600 dark:text-sky-400 tracking-tight">{sectionKPIs?.averageOccupancy ?? 0}%</span>
                       </div>
                     </div>
 
@@ -1801,16 +2001,16 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         return (
                           <div 
                             key={sec} 
-                            className={`p-5 rounded-3xl border text-left flex flex-col justify-between space-y-4 relative transition-all ${
+                            className={`p-5 rounded-2xl border text-left flex flex-col justify-between space-y-4 relative transition-all ${
                               status === 'Archived' 
-                                ? 'opacity-60 bg-slate-50/50 dark:bg-slate-905/30 border-slate-200 dark:border-slate-850'
+                                ? 'opacity-60 bg-slate-50/50 dark:bg-slate-905/30 border-brand-400 dark:border-brand-800'
                                 : isSelected 
-                                  ? 'border-sky-505 bg-sky-50/20 dark:bg-sky-955/10 shadow-md border-sky-500'
-                                  : 'border-slate-200 dark:border-slate-808 bg-white dark:bg-slate-900 hover:border-sky-500 hover:shadow'
+                                  ? 'border-brand-500 bg-sky-50/20 dark:bg-sky-955/10 shadow-md'
+                                  : 'border-brand-400 dark:border-brand-800 bg-white dark:bg-slate-900 hover:border-brand-500 hover:shadow'
                             }`}
                           >
                             {/* Selection checkbox */}
-                            <div className="flex items-center justify-between border-b border-slate-101 dark:border-slate-808 pb-3">
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                               <div className="flex items-center gap-2">
                                 <input
                                   type="checkbox"
@@ -1851,81 +2051,34 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                             </div>
 
                             {/* Quick actions controls */}
-                            <div className="flex justify-between items-center pt-2 border-t border-slate-101 dark:border-slate-808 text-xs font-bold">
-                              <div className="flex gap-2">
-                                {status !== 'Archived' ? (
-                                  <>
-                                    <button onClick={() => handleOpenEditSection(sec)} className="text-sky-600 hover:underline">Edit Setup</button>
-                                    <button onClick={() => handleArchiveSection(sec)} className="text-slate-400 hover:text-amber-600 hover:underline">Archive</button>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="text-[10px] text-slate-400 uppercase">Read Only</span>
-                                    <button onClick={() => handleRestoreSection(sec)} className="text-emerald-600 hover:underline">Restore Active</button>
-                                  </>
-                                )}
-                              </div>
-                              {status !== 'Archived' && (
-                                <button onClick={() => triggerDeleteSectionCheck(sec)} className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors">
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                            <div className="flex justify-end items-center gap-1.5 text-xs font-bold pt-1">
+                              {status !== 'Archived' ? (
+                                <>
+                                  <button 
+                                    onClick={() => handleOpenEditSection(sec)} 
+                                    className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-400 hover:text-sky-600 transition-colors"
+                                    title="Edit Section Setup"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button 
+                                    onClick={() => triggerDeleteSectionCheck(sec)} 
+                                    className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
+                                    title="Delete Section"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-slate-400 uppercase">Read Only</span>
+                                  <button onClick={() => handleRestoreSection(sec)} className="text-emerald-600 hover:underline">Restore Active</button>
+                                </div>
                               )}
                             </div>
                           </div>
                         );
                       })}
-                    </div>
-
-                    {/* Checklist & Save workflow redirect section */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-200 dark:border-slate-808 items-start">
-                      {/* Checklist */}
-                      <div className="md:col-span-2 p-5 bg-white dark:bg-slate-905 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
-                        <div>
-                          <h5 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4.5 h-4.5 text-sky-505" /> Sections Configuration Checklist
-                          </h5>
-                          <p className="text-xs text-slate-500">Every grade level requires active sections for timetabling and student registers.</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs leading-normal">
-                          {sectionChecklist.map(check => (
-                            <div 
-                              key={check.id} 
-                              className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
-                                check.passed 
-                                  ? 'bg-emerald-50/20 dark:bg-emerald-950/10 border-emerald-100 dark:border-emerald-900 text-slate-700 dark:text-slate-300' 
-                                  : check.isWarning
-                                    ? 'bg-amber-50/20 dark:bg-amber-955/10 border-amber-100 dark:border-amber-900 text-amber-700'
-                                    : 'bg-slate-55 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-400'
-                              }`}
-                            >
-                              <span className="font-bold">{check.id}. {check.name}</span>
-                              {check.passed ? (
-                                <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500 shrink-0" />
-                              ) : check.isWarning ? (
-                                <AlertCircle className="w-4.5 h-4.5 text-amber-500 shrink-0" />
-                              ) : (
-                                <AlertCircle className="w-4.5 h-4.5 text-slate-400 shrink-0" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Completion card */}
-                      <div className="p-5 bg-sky-50/20 dark:bg-sky-955/10 border border-sky-100 dark:border-sky-900 rounded-3xl space-y-4">
-                        <h5 className="text-xs font-black uppercase text-sky-600 tracking-wider">Save & Continue</h5>
-                        <p className="text-xs text-slate-505 leading-relaxed font-bold">
-                          Validates section letters, rooms, and floor configs. Upon successful save, we will proceed immediately to the Subjects Mapping tab.
-                        </p>
-                        <button
-                          onClick={handleSaveAndContinue}
-                          disabled={!isSectionsSetupValid}
-                          className="w-full py-3 bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-xs rounded-xl shadow disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          Save & Continue to Subjects
-                        </button>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -1934,393 +2087,658 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {classWorkspaceTab === 'subjects' && (() => {
                   const mappedSubjectsList = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
                   const mappedCount = mappedSubjectsList.length;
-                  const totalWeeklyPeriods = mappedSubjectsList.reduce((acc, sub) => acc + (sub.weeklyPeriodCount || 4), 0);
+                  const filteredSubjects = subjects.filter(sub => {
+                    const q = subjectSearchQuery.toLowerCase();
+                    return sub.name.toLowerCase().includes(q) ||
+                           (sub.code || sub.subjectId || '').toLowerCase().includes(q) ||
+                           (sub.department || '').toLowerCase().includes(q);
+                  });
 
                   return (
-                    <div className="space-y-6 animate-in fade-in">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+                    <div className="p-6 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-6 text-left animate-in fade-in">
+                      {/* Header bar inside container */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
                         <div>
-                          <h4 className="font-black text-slate-900 dark:text-white">Class Subject Mapping</h4>
-                          <p className="text-xs text-slate-500">
-                            Map which global course subjects are applicable to {activeClass.name}.{' '}
-                            <button
-                              onClick={() => onTabChange?.('subjects')}
-                              className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
-                            >
-                              Configure Global Subjects &rarr;
-                            </button>
-                          </p>
+                          <h4 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                            <BookOpen className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                            <span>Subject Allocation</span>
+                          </h4>
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5">
+                          <div className="relative">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                              type="text"
+                              placeholder="Search subjects..."
+                              value={subjectSearchQuery}
+                              onChange={e => setSubjectSearchQuery(e.target.value)}
+                              className="w-full sm:w-56 pl-9 pr-8 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50 shadow-xs"
+                            />
+                            {subjectSearchQuery && (
+                              <button
+                                onClick={() => setSubjectSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800 shrink-0">
+                            {mappedCount} Subjects Allocated
+                          </span>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="md:col-span-2 space-y-4">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {subjects.map(sub => {
-                              const isMapped = (activeClass.subjects || []).includes(sub.name);
-                              return (
-                                <div 
-                                  key={sub.id} 
-                                  onClick={() => handleToggleSubjectMapping(sub.name)}
-                                  className={`p-4 rounded-3xl border text-left cursor-pointer transition-all flex items-center justify-between font-bold ${
-                                    isMapped 
-                                      ? 'border-sky-500 bg-sky-50/30 dark:bg-sky-950/20' 
-                                      : 'border-slate-200 dark:border-slate-800 hover:border-slate-350 bg-white dark:bg-slate-900'
-                                  }`}
-                                >
-                                  <div>
-                                    <p className="text-xs text-slate-900 dark:text-white">{sub.name}</p>
-                                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">{sub.code || sub.subjectId} ({sub.weeklyPeriodCount || 4} periods/week)</p>
-                                  </div>
-                                  <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                                    isMapped ? 'bg-sky-600 border-sky-600 text-white' : 'border-slate-300'
-                                  }`}>
-                                    {isMapped && <Check className="w-3 h-3" />}
+                      {/* Subject Cards Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {filteredSubjects.length === 0 ? (
+                          <div className="col-span-full py-8 text-center text-slate-400 font-bold text-xs">
+                            No subjects match your search.
+                          </div>
+                        ) : (
+                          filteredSubjects.map(sub => {
+                          const isMapped = (activeClass.subjects || []).includes(sub.name);
+                          const subCode = sub.code || sub.subjectId;
+                          const deptName = sub.department || 'General Academics';
+
+                          return (
+                            <div 
+                              key={sub.id} 
+                              onClick={() => handleToggleSubjectMapping(sub.name)}
+                              className={`p-4 rounded-2xl border text-left cursor-pointer transition-all duration-200 flex flex-col justify-between space-y-3 relative group ${
+                                isMapped 
+                                  ? 'border-brand-500 bg-sky-50/40 dark:bg-sky-950/20 shadow-xs hover:border-brand-600' 
+                                  : 'border-brand-400 dark:border-brand-800 hover:border-brand-500 bg-white dark:bg-slate-900'
+                              }`}
+                            >
+                              {/* Top row: Subject name + label/badge next to it + check icon */}
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                                      {sub.name}
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                                      {subCode}
+                                    </span>
                                   </div>
                                 </div>
-                              );
-                            })}
-                          </div>
-                        </div>
+                                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-all ${
+                                  isMapped ? 'bg-sky-600 border-sky-600 text-white shadow-xs' : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+                                }`}>
+                                  {isMapped && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                              </div>
 
-                        {/* Refaced Subject Mapping Guidelines Card */}
-                        <div className="p-5 bg-slate-50 dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4 text-xs font-bold leading-normal h-fit">
-                          <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-                            <div className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 shrink-0">
-                              <BookOpen className="w-4 h-4" />
+                              {/* Bottom row: Department name in small size */}
+                              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[10px] font-bold">
+                                <span className="text-slate-400 dark:text-slate-400 font-medium truncate block" title={deptName}>
+                                  {deptName}
+                                </span>
+                              </div>
                             </div>
-                            <div>
-                              <h5 className="font-extrabold text-slate-900 dark:text-white text-xs">Subject Mapping</h5>
-                              <p className="text-[10px] text-slate-400 font-medium">Curriculum rules for {activeClass.name}</p>
-                            </div>
-                          </div>
-
-                          {/* Guidelines */}
-                          <div className="space-y-2 text-left">
-                            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-300">Class Subject Guidelines:</p>
-                            <ul className="space-y-2 text-slate-500 dark:text-slate-400 font-medium text-[11px]">
-                              <li className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 mt-1.5 shrink-0" />
-                                <span><strong>Instant Mapping:</strong> Toggling a subject card immediately updates the class curriculum profile.</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                                <span><strong>Teacher Workload:</strong> Mapped subjects automatically appear under the <em>Teachers</em> tab for instructor assignment.</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
-                                <span><strong>Period Slots:</strong> Weekly period constraints guide timetable slot calculations.</span>
-                              </li>
-                            </ul>
-                          </div>
-                        </div>
+                          );
+                        }))}
                       </div>
                     </div>
                   );
                 })()}
 
                 {/* COCKPIT TAB: TEACHERS ASSIGNMENT */}
-                {classWorkspaceTab === 'teachers' && (
-                  <div className="space-y-6 animate-in fade-in">
-                    {/* Section Selector inside teachers */}
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-808 pb-3">
-                      <div>
-                        <h4 className="font-black text-slate-900 dark:text-white">Class Teacher & Subject Teacher Mappings</h4>
-                        <p className="text-xs text-slate-505">
-                          Select class section to configure instructor workload allocations.{' '}
-                          <button
-                            onClick={() => onTabChange?.('staff')}
-                            className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
-                          >
-                            Manage Staff Directory &rarr;
-                          </button>
-                        </p>
-                      </div>
-                      <div className="flex gap-1.5 p-1 bg-slate-100 dark:bg-slate-955 rounded-2xl border border-slate-200/50">
-                        {activeClass.sections.map(sec => (
-                          <button
-                            key={sec}
-                            onClick={() => setActiveWorkspaceSection(sec)}
-                            className={`px-3 py-1.5 rounded-xl font-black text-[11px] transition-all ${
-                              activeWorkspaceSection === sec 
-                                ? 'bg-white dark:bg-slate-800 text-sky-600 shadow-sm' 
-                                : 'text-slate-455 hover:text-slate-900'
-                            }`}
-                          >
-                            Section {sec}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Class Teacher Allocation */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4 text-left">
-                        <h5 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase text-sky-655 tracking-wider">Class Teacher</h5>
-                        <div className="space-y-2">
-                          <label className="block text-xs text-slate-400 font-bold">Class Teacher Selection</label>
-                          <select
-                            value={teachersList.find(t => (t.name || `${t.firstName} ${t.lastName}`) === ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection])?.id || ''}
-                            onChange={e => handleAssignClassTeacher(e.target.value)}
-                            className="w-full p-2.5 bg-slate-50 dark:bg-slate-888 border border-slate-200 dark:border-slate-700 rounded-xl outline-none font-bold text-xs"
-                          >
-                            <option value="">Unassigned</option>
-                            {teachersList.map(t => {
-                               const fullName = t.name || `${t.firstName} ${t.lastName}`;
-                               const empId = t.empId || t.id;
-                               const desig = t.designation || 'Teacher';
-                               return (
-                                 <option key={t.id} value={t.id}>
-                                   {fullName} ({empId}) - {desig}
-                                 </option>
-                               );
-                             })}
-                          </select>
-                        </div>
-
-                        {/* Designation & Subject */}
-                        {(() => {
-                          const selectedTeacherName = ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection];
-                          const selectedTeacher = teachersList.find(t => (t.name || `${t.firstName} ${t.lastName}`) === selectedTeacherName);
-                          if (!selectedTeacher) return null;
-                          const subjectsStr = [
-                            selectedTeacher.primarySubject,
-                            selectedTeacher.secondarySubject,
-                            ...(selectedTeacher.assignedSubjects || [])
-                          ].filter(Boolean);
-                          
-                          if (subjectsStr.length === 0) {
-                            const offeredSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Computer Science', 'Economics', 'Accountancy', 'Business Studies'];
-                            const extracted = offeredSubjects.filter(sub => 
-                              (selectedTeacher.designation || '').toLowerCase().includes(sub.toLowerCase()) ||
-                              (selectedTeacher.department || '').toLowerCase().includes(sub.toLowerCase())
-                            );
-                            if (extracted.length > 0) {
-                              subjectsStr.push(...extracted);
-                            }
-                          }
-                          const uniqueSubjects = Array.from(new Set(subjectsStr)).join(', ');
-                          return (
-                            <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-808 rounded-2xl space-y-1.5 text-xs font-bold text-slate-655 dark:text-slate-350">
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Designation:</span>
-                                <span className="text-slate-900 dark:text-white">{selectedTeacher.designation || 'Teacher'}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-slate-400">Subject:</span>
-                                <span className="text-slate-900 dark:text-white truncate max-w-[150px]">{uniqueSubjects || 'General'}</span>
-                              </div>
-                            </div>
+                {classWorkspaceTab === 'teachers' && (() => {
+                  // Real-time map of all teachers already assigned as Class Teacher elsewhere
+                  const assignedClassTeacherInfo = new Map<string, { className: string; section: string }>();
+                  academicClasses.forEach(cls => {
+                    const secTeachers = (cls as any).sectionTeachers || {};
+                    Object.entries(secTeachers).forEach(([sec, tVal]) => {
+                      if (tVal && typeof tVal === 'string' && tVal.trim() !== '' && tVal !== 'Unassigned') {
+                        const isCurrent = (cls.id === activeClass.id && sec === activeWorkspaceSection);
+                        if (!isCurrent) {
+                          const tValClean = tVal.trim().toLowerCase();
+                          assignedClassTeacherInfo.set(tValClean, { className: cls.name, section: sec });
+                          const matchedT = teachersList.find(t => 
+                            (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase() === tValClean || 
+                            t.id === tVal
                           );
-                        })()}
+                          if (matchedT) {
+                            assignedClassTeacherInfo.set(matchedT.id.toLowerCase(), { className: cls.name, section: sec });
+                            assignedClassTeacherInfo.set((matchedT.name || `${matchedT.firstName} ${matchedT.lastName}`).trim().toLowerCase(), { className: cls.name, section: sec });
+                          }
+                        }
+                      }
+                    });
+                  });
 
-                        <div className="p-3 bg-slate-50 dark:bg-slate-955 border border-slate-200 rounded-2xl text-[10px] text-slate-400 font-medium">
-                          Only one active Class Teacher can be allocated per section.
+                  // Available teachers for Class Teacher selection in the active section
+                  const availableClassTeachers = teachersList.filter(t => {
+                    const tName = (t.name || `${t.firstName} ${t.lastName}`).trim().toLowerCase();
+                    return !assignedClassTeacherInfo.has(t.id.toLowerCase()) && !assignedClassTeacherInfo.has(tName);
+                  });
+
+                  const currentSectionClassTeacherName = ((activeClass as any).sectionTeachers || {})[activeWorkspaceSection];
+                  const selectedClassTeacher = teachersList.find(t => (t.name || `${t.firstName} ${t.lastName}`) === currentSectionClassTeacherName);
+                  const mappedSubjectsForClass = subjects.filter(sub => (activeClass.subjects || []).includes(sub.name));
+
+                  return (
+                    <div className="space-y-6 animate-in fade-in">
+                      {/* Single Unified Container */}
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-4 text-left">
+                        {/* Header bar inside container */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                          <div>
+                            <h4 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                              <UserCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                              <span>Teacher-Subject Allocation</span>
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                            {activeClass.sections.map(sec => (
+                              <button
+                                key={sec}
+                                onClick={() => setActiveWorkspaceSection(sec)}
+                                className={`px-3 py-1.5 rounded-xl font-black text-[11px] transition-all cursor-pointer ${
+                                  activeWorkspaceSection === sec 
+                                    ? 'bg-sky-600 text-white shadow-xs' 
+                                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                }`}
+                              >
+                                Section {sec}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
 
-                      {/* Subject Teachers Grid */}
-                      <div className="md:col-span-2 p-5 bg-white dark:bg-slate-905 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4">
-                        <h5 className="font-extrabold text-slate-905 dark:text-white text-xs uppercase text-indigo-650 tracking-wider">Subject Teachers Mapping</h5>
-                        
-                        <div className="divide-y divide-slate-100 dark:divide-slate-808 space-y-2.5">
-                          {(activeClass.subjects || []).map(subName => {
-                            const mapping = teacherAssignments.find(ta => 
-                              ta.className === activeClass.name && 
-                              ta.section === activeWorkspaceSection && 
-                              ta.subject === subName
-                            );
-                            return (
-                              <div key={subName} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 text-xs">
-                                  <div>
-                                    <p className="font-extrabold text-slate-900 dark:text-white">{subName}</p>
+                        {/* Content Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                          {/* Left Column: Class Teacher */}
+                          <div className="p-5 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl space-y-4 text-left">
+                            <h5 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-sky-600 dark:text-sky-400">Class Teacher</h5>
+                            <div className="space-y-2">
+                              <label className="block text-xs text-slate-500 font-bold">Class Teacher Selection</label>
+                              <TeacherSearchDropdown
+                                value={selectedClassTeacher?.id || ''}
+                                onChange={handleAssignClassTeacher}
+                                teachers={availableClassTeachers}
+                                placeholder="Select Class Teacher..."
+                              />
+                            </div>
+
+                            {/* Designation & Subject */}
+                            {selectedClassTeacher && (() => {
+                              const subjectsStr = [
+                                selectedClassTeacher.primarySubject,
+                                selectedClassTeacher.secondarySubject,
+                                ...(selectedClassTeacher.assignedSubjects || [])
+                              ].filter(Boolean);
+                              
+                              if (subjectsStr.length === 0) {
+                                const offeredSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'Science', 'English', 'History', 'Geography', 'Social Studies', 'Computer Science', 'Economics', 'Accountancy', 'Business Studies'];
+                                const extracted = offeredSubjects.filter(sub => 
+                                  (selectedClassTeacher.designation || '').toLowerCase().includes(sub.toLowerCase()) ||
+                                  (selectedClassTeacher.department || '').toLowerCase().includes(sub.toLowerCase())
+                                );
+                                if (extracted.length > 0) {
+                                  subjectsStr.push(...extracted);
+                                }
+                              }
+                              const uniqueSubjects = Array.from(new Set(subjectsStr)).join(', ');
+                              return (
+                                <div className="p-3.5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl space-y-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-slate-400 shrink-0">Designation:</span>
+                                    <span className="text-slate-900 dark:text-white font-extrabold text-right">
+                                      {selectedClassTeacher.designation || 'Teacher'}
+                                    </span>
                                   </div>
-                                  
-                                  <div className="flex items-center gap-2">
-                                    {(() => {
-                                      const qualifiedTeachers = teachersList.filter(t => isTeacherForSubject(t, subName));
-                                      const displayTeachers = qualifiedTeachers.length > 0 ? qualifiedTeachers : teachersList;
-                                      return (
-                                        <select
-                                          value={mapping?.teacherId || ''}
-                                          onChange={e => handleAssignSubjectTeacher(subName, e.target.value)}
-                                          className="p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 rounded-lg font-bold text-[11px] max-w-[220px]"
-                                        >
-                                          <option value="">Unassigned</option>
-                                          {displayTeachers.map(t => {
-                                            const fullName = t.name || `${t.firstName} ${t.lastName}`;
-                                            const empId = t.empId || t.id;
-                                            const desig = t.designation || 'Teacher';
-                                            return (
-                                              <option key={t.id} value={t.id}>
-                                                {fullName} ({empId}) - {desig}
-                                              </option>
-                                            );
-                                          })}
-                                        </select>
-                                      );
-                                    })()}
-                                    {mapping && (
-                                      <button 
-                                        type="button"
-                                        onClick={() => handleRemoveSubjectTeacher(subName)}
-                                        className="p-1 text-slate-400 hover:text-rose-605"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    )}
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-slate-400 shrink-0">Subject:</span>
+                                    <span className="text-slate-900 dark:text-white font-extrabold text-right truncate max-w-[160px]">
+                                      {uniqueSubjects || 'General'}
+                                    </span>
                                   </div>
                                 </div>
-                            );
-                          })}
-                          {(activeClass.subjects || []).length === 0 && (
-                            <p className="text-slate-400 py-6 text-center">Please map subjects to this class setup before allocating instructors.</p>
-                          )}
+                              );
+                            })()}
+
+                            <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl text-[10px] text-slate-500 font-medium">
+                              Only one active Class Teacher can be allocated per section. Teachers assigned in other classes or sections are automatically excluded.
+                            </div>
+                          </div>
+
+                          {/* Right Column: Subject Teacher Allocation */}
+                          <div className="lg:col-span-2 p-5 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 rounded-2xl space-y-4 text-left">
+                            <h5 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-sky-600 dark:text-sky-400">Subject Teacher Allocation</h5>
+                            
+                            <div className="divide-y divide-slate-200/60 dark:divide-slate-800 space-y-2.5">
+                              {mappedSubjectsForClass.length === 0 ? (
+                                <div className="text-center py-8 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900/60 shadow-xs">
+                                  <div className="w-10 h-10 mx-auto mb-3 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-xs animate-pulse">
+                                    <BookOpen className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400" />
+                                  </div>
+                                  <p className="text-xs font-black text-slate-800 dark:text-white">No subjects mapped to this class</p>
+                                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
+                                    Please configure the academic subjects first by navigating to the <button onClick={() => setClassWorkspaceTab('subjects')} className="text-sky-600 dark:text-sky-400 underline font-black hover:text-sky-500 transition-colors">Subjects tab</button> page.
+                                  </p>
+                                </div>
+                              ) : (
+                                mappedSubjectsForClass.map(sub => {
+                                  const subName = sub.name;
+                                  const subCode = sub.code || sub.subjectId;
+                                  const deptName = sub.department || 'General Academics';
+                                  const mapping = teacherAssignments.find(ta => 
+                                    ta.className === activeClass.name && 
+                                    ta.section === activeWorkspaceSection && 
+                                    ta.subject === subName
+                                  );
+
+                                  const qualifiedTeachers = teachersList.filter(t => isTeacherForSubject(t, subName));
+                                  const displayTeachers = qualifiedTeachers.length > 0 ? qualifiedTeachers : teachersList;
+
+                                  return (
+                                    <div key={sub.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2.5 text-xs">
+                                      <div>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <p className="font-extrabold text-slate-900 dark:text-white">{subName}</p>
+                                          {subCode && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                                              {subCode}
+                                            </span>
+                                          )}
+                                        </div>
+                                        {deptName && (
+                                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">{deptName}</p>
+                                        )}
+                                      </div>
+                                        
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-52 sm:w-60">
+                                          <TeacherSearchDropdown
+                                            value={mapping?.teacherId || ''}
+                                            onChange={teacherId => handleAssignSubjectTeacher(subName, teacherId)}
+                                            teachers={displayTeachers}
+                                            placeholder="Select Subject Teacher..."
+                                          />
+                                        </div>
+                                        {mapping && (
+                                          <button 
+                                            type="button"
+                                            onClick={() => handleRemoveSubjectTeacher(subName)}
+                                            className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors shrink-0"
+                                            title="Unassign Teacher"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Section Staffing & Overview Table */}
+                      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <h5 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider text-sky-600 dark:text-sky-400">
+                            {activeClass.name} - Section Staff Info
+                          </h5>
+                          <span className="text-[11px] text-slate-400 font-bold">
+                            {activeClass.sections.length} Sections Configured
+                          </span>
+                        </div>
+
+                        <div className="overflow-x-auto border border-slate-200/80 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 text-xs">
+                          <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50 dark:bg-slate-900/60 uppercase text-[10px] text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-800">
+                              <tr>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Section</th>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Class Teacher</th>
+                                <th className="py-3.5 px-4 text-center whitespace-nowrap">Subject Coverage</th>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Assigned Subject Teachers</th>
+                                <th className="py-3.5 px-4 text-right whitespace-nowrap">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-bold">
+                              {activeClass.sections.map(sec => {
+                                const classTeacherName = ((activeClass as any).sectionTeachers || {})[sec];
+                                const isCTAssigned = Boolean(classTeacherName && classTeacherName !== 'Unassigned');
+                                
+                                const secSubjectAssignments = mappedSubjectsForClass.map(sub => {
+                                  const ta = teacherAssignments.find(t => 
+                                    t.className === activeClass.name && 
+                                    t.section === sec && 
+                                    t.subject === sub.name
+                                  );
+                                  return {
+                                    subject: sub.name,
+                                    code: sub.code || sub.subjectId,
+                                    teacherName: ta?.teacherName
+                                  };
+                                });
+
+                                const assignedCount = secSubjectAssignments.filter(s => Boolean(s.teacherName)).length;
+                                const totalCount = mappedSubjectsForClass.length;
+                                const isAllSubjectsAssigned = totalCount > 0 && assignedCount === totalCount;
+                                const isFullyStaffed = isCTAssigned && isAllSubjectsAssigned;
+
+                                const isSelected = activeWorkspaceSection === sec;
+
+                                return (
+                                  <tr 
+                                    key={sec} 
+                                    onClick={() => setActiveWorkspaceSection(sec)}
+                                    className={`cursor-pointer transition-colors ${
+                                      isSelected 
+                                        ? 'bg-sky-50/60 dark:bg-sky-950/20' 
+                                        : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/40'
+                                    }`}
+                                  >
+                                    <td className="py-3.5 px-4 text-slate-900 dark:text-white font-black whitespace-nowrap align-middle">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${isSelected ? 'bg-sky-500 ring-2 ring-sky-300 dark:ring-sky-700' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                                        <span className="text-xs">Section {sec}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-3.5 px-4 whitespace-nowrap align-middle">
+                                      {isCTAssigned ? (
+                                        <span className="font-extrabold text-slate-900 dark:text-white text-xs">
+                                          {classTeacherName}
+                                        </span>
+                                      ) : (
+                                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 inline-block">
+                                          Unassigned
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-3.5 px-4 text-center whitespace-nowrap align-middle">
+                                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-mono font-black border inline-block ${
+                                        isAllSubjectsAssigned 
+                                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800' 
+                                          : assignedCount > 0 
+                                            ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-400 border-sky-200/60 dark:border-sky-800' 
+                                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                                      }`}>
+                                        {assignedCount} / {totalCount} Subjects
+                                      </span>
+                                    </td>
+                                    <td className="py-3.5 px-4 align-middle">
+                                      <div className="flex flex-wrap gap-1.5 max-w-xl">
+                                        {secSubjectAssignments.filter(s => Boolean(s.teacherName)).length === 0 ? (
+                                          <span className="text-[11px] text-slate-400 font-normal italic">None allocated</span>
+                                        ) : (
+                                          secSubjectAssignments.filter(s => Boolean(s.teacherName)).map(s => (
+                                            <span 
+                                              key={s.subject} 
+                                              className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700 shadow-2xs whitespace-nowrap"
+                                            >
+                                              {s.code || s.subject}: <span className="text-slate-900 dark:text-white font-extrabold">{s.teacherName}</span>
+                                            </span>
+                                          ))
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td className="py-3.5 px-4 text-right whitespace-nowrap align-middle">
+                                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black border inline-block whitespace-nowrap ${
+                                        isFullyStaffed
+                                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800'
+                                          : 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border-amber-200/60 dark:border-amber-800'
+                                      }`}>
+                                        {isFullyStaffed ? 'Fully Staffed' : 'Pending Allocation'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       </div>
                     </div>
+                  );
+                })()}
 
-                    {/* Teacher Workload summaries grid */}
-                    <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl space-y-4">
-                      <h5 className="font-extrabold text-slate-850 dark:text-white text-xs uppercase tracking-wider text-slate-400">Instructor Workload Summaries</h5>
-                      <div className="overflow-x-auto border rounded-2xl bg-white dark:bg-slate-950 text-xs">
-                        <table className="w-full text-left">
-                          <thead className="bg-slate-50 uppercase text-[9px] text-slate-400 font-mono">
-                            <tr>
-                              <th className="p-3">Instructor</th>
-                              <th className="p-3">Assigned Courses</th>
-                              <th className="p-3">Assigned Classes</th>
-                              <th className="p-3 text-center">Weekly Load (Periods)</th>
-                              <th className="p-3 text-right">Allocation Status</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-808 font-bold">
-                            {Object.keys(activeTeachersWorkload).map(tName => {
-                              const wl = activeTeachersWorkload[tName];
-                              let status = 'Available';
-                              let color = 'text-emerald-500';
-                              if (wl.periods > 32) {
-                                status = 'Overloaded';
-                                color = 'text-rose-500';
-                              } else if (wl.periods >= 20) {
-                                status = 'Fully Mapped';
-                                color = 'text-sky-600';
-                              }
+                {/* COCKPIT TAB: STUDENT SECTION ALLOCATOR */}
+                {classWorkspaceTab === 'students' && (() => {
+                  const displayedStudents = activeClassStudents.filter(s => {
+                    const nameStr = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+                    const idStr = (s.id || '').toLowerCase();
+                    const q = studentSearchQuery.toLowerCase().trim();
+                    return !q || nameStr.includes(q) || idStr.includes(q);
+                  });
 
-                              return (
-                                <tr key={tName} className="hover:bg-slate-50/50">
-                                  <td className="p-3 text-slate-905 dark:text-white">{tName}</td>
-                                  <td className="p-3">{wl.subjects.join(', ')}</td>
-                                  <td className="p-3 font-mono">{wl.classes.join(', ')}</td>
-                                  <td className="p-3 text-center font-mono">{wl.periods}</td>
-                                  <td className={`p-3 text-right ${color}`}>{status}</td>
-                                </tr>
-                              );
-                            })}
-                            {Object.keys(activeTeachersWorkload).length === 0 && (
-                              <tr><td colSpan={5} className="p-6 text-center text-slate-400 italic">No assigned instructor workload.</td></tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  const isAllSelected = displayedStudents.length > 0 && selectedStudentsForAllocation.length === displayedStudents.length;
 
-                 {/* COCKPIT TAB: STUDENT SECTION ALLOCATOR */}
-                {classWorkspaceTab === 'students' && (
-                  <div className="space-y-6 animate-in fade-in">
-                    {/* Section and Capacity settings */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-202 dark:border-slate-808 pb-3">
-                      <div>
-                        <h4 className="font-black text-slate-900 dark:text-white">Student Section Assignment</h4>
-                        <p className="text-xs text-slate-550">
-                          Total Class strength: <strong>{activeClassStudents.length} Students</strong>.{' '}
-                          <button
-                            onClick={() => onTabChange?.('student-directory')}
-                            className="text-sky-600 hover:underline inline-flex items-center gap-0.5 font-bold"
-                          >
-                            Open Student Directory &rarr;
-                          </button>
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={handleAutoAllocate}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-202 text-slate-705 font-extrabold text-[11px] rounded-xl border flex items-center gap-1"
-                        >
-                          <ArrowRightLeft className="w-3.5 h-3.5" /> Auto-Allocate Students
-                        </button>
-                      </div>
-                    </div>
+                  const handleToggleAll = () => {
+                    if (isAllSelected) {
+                      setSelectedStudentsForAllocation([]);
+                    } else {
+                      setSelectedStudentsForAllocation(displayedStudents.map(s => s.id));
+                    }
+                  };
 
-                    <div className="flex justify-between items-center gap-3 bg-slate-55 dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-808 text-xs font-bold">
-                      <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        <input
-                          type="text"
-                          placeholder="Search student name or ID..."
-                          value={studentSearchQuery}
-                          onChange={e => setStudentSearchQuery(e.target.value)}
-                          className="pl-8 pr-3 py-1.5 bg-white dark:bg-slate-805 border border-slate-200 rounded-xl outline-none text-xs w-48"
-                        />
-                      </div>
-                    </div>
+                  const handleToggleStudent = (id: string) => {
+                    setSelectedStudentsForAllocation(prev => 
+                      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+                    );
+                  };
 
-                    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:bg-slate-950">
-                      <table className="w-full text-xs text-left font-bold">
-                        <thead className="bg-slate-55 uppercase text-[9px] text-slate-400 font-mono">
-                          <tr>
-                            <th className="p-3">Admission No</th>
-                            <th className="p-3">Student Name</th>
-                            <th className="p-3">Section</th>
-                            <th className="p-3 text-right">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-808">
-                          {activeClassStudents
-                            .filter(s => {
-                              const nameStr = `${s.firstName} ${s.lastName}`.toLowerCase();
-                              return !studentSearchQuery || nameStr.includes(studentSearchQuery.toLowerCase()) || s.id.includes(studentSearchQuery);
-                            })
-                            .map(stud => (
-                              <tr key={stud.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/50">
-                                <td className="p-3 font-mono text-slate-400">{stud.id || 'REG-1001'}</td>
-                                <td className="p-3 text-slate-900 dark:text-white">{stud.firstName} {stud.lastName}</td>
-                                <td className="p-3">
-                                  {stud.section ? (
-                                    <Badge variant="success">Section {stud.section}</Badge>
-                                  ) : (
-                                    <Badge variant="warning">Unassigned</Badge>
-                                  )}
-                                </td>
-                                <td className="p-3 text-right">
-                                  <select
-                                    value={stud.section || ''}
-                                    onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
-                                    className="p-1.5 bg-slate-50 dark:bg-slate-800 border rounded-lg text-[11px]"
-                                  >
-                                    <option value="">Unassigned</option>
-                                    {activeClass.sections.map(sec => (
-                                      <option key={sec} value={sec}>Section {sec}</option>
-                                    ))}
-                                  </select>
-                                </td>
+                  const handleBulkAssign = async () => {
+                    if (selectedStudentsForAllocation.length === 0) {
+                      addToast('warning', 'Selection Required', 'Please select at least one student.');
+                      return;
+                    }
+                    if (!bulkTargetSection) {
+                      addToast('warning', 'Target Section Required', 'Please choose a target section.');
+                      return;
+                    }
+
+                    const secVal = bulkTargetSection === 'Unassigned' ? '' : bulkTargetSection;
+
+                    // Check section capacity if assigning to a specific section
+                    if (secVal) {
+                      const details = (activeClass as any).sectionDetails?.[secVal] || {};
+                      const cap = details.capacity ? Number(details.capacity) : 40;
+                      const currentCount = students.filter(s => 
+                        (s.className === activeClass.name || isNameEquivalent(s.className || '', activeClass.name)) && 
+                        s.section === secVal &&
+                        !selectedStudentsForAllocation.includes(s.id)
+                      ).length;
+
+                      if (cap > 0 && currentCount + selectedStudentsForAllocation.length > cap) {
+                        addToast('warning', 'Section Capacity Exceeded', `Section ${secVal} capacity is ${cap} (${currentCount} already assigned).`);
+                        return;
+                      }
+                    }
+
+                    // Update students in state and sync with API
+                    selectedStudentsForAllocation.forEach(sId => {
+                      updateStudent(sId, { section: secVal });
+                      if (secVal) {
+                        allocateStudentApi(sId, { section_letter: secVal }).catch(() => {});
+                      }
+                    });
+
+                    addToast('success', 'Bulk Allocation Completed', `Assigned ${selectedStudentsForAllocation.length} student(s) to ${secVal ? `Section ${secVal}` : 'Unassigned'}.`);
+                    setSelectedStudentsForAllocation([]);
+                    setBulkTargetSection('');
+                  };
+
+                  return (
+                    <div className="space-y-6 animate-in fade-in">
+                      {/* Unified Container */}
+                      <div className="p-6 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs space-y-6 text-left">
+                        {/* Header bar inside container */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
+                          <div>
+                            <h4 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
+                              <UserPlus className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                              <span>Student Section Assignment</span>
+                            </h4>
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleAutoAllocate}
+                              className="px-3.5 py-1.5 bg-sky-50 dark:bg-sky-950/50 hover:bg-sky-100 dark:hover:bg-sky-900 text-sky-700 dark:text-sky-300 font-extrabold text-xs rounded-xl border border-sky-200/80 dark:border-sky-800 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                            >
+                              <ArrowRightLeft className="w-3.5 h-3.5" /> Auto-Allocate Students
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Controls Bar: Search & Counts */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="relative w-full sm:w-72">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              type="text"
+                              placeholder="Search student name or ID..."
+                              value={studentSearchQuery}
+                              onChange={e => setStudentSearchQuery(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 bg-slate-50/70 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none text-xs font-bold text-slate-900 dark:text-white focus:border-sky-500 focus:bg-white dark:focus:bg-slate-900 transition-all"
+                            />
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold text-slate-400">
+                              {activeClassStudents.length} Students Total
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Bulk Action Toolbar when students are selected */}
+                        {selectedStudentsForAllocation.length > 0 && (
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 rounded-2xl animate-in fade-in zoom-in-95">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-sky-600 text-white">
+                                {selectedStudentsForAllocation.length} Selected
+                              </span>
+                              <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                Bulk Section Allocation:
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <select
+                                value={bulkTargetSection}
+                                onChange={e => setBulkTargetSection(e.target.value)}
+                                className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/30"
+                              >
+                                <option value="">Choose Section...</option>
+                                {activeClass.sections.map(sec => (
+                                  <option key={sec} value={sec}>Section {sec}</option>
+                                ))}
+                                <option value="Unassigned">Unassigned</option>
+                              </select>
+
+                              <button
+                                type="button"
+                                onClick={handleBulkAssign}
+                                disabled={!bulkTargetSection}
+                                className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1 shadow-2xs ${
+                                  bulkTargetSection
+                                    ? 'bg-sky-600 hover:bg-sky-700 text-white'
+                                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                                }`}
+                              >
+                                <Check className="w-3.5 h-3.5" /> Assign to Section
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setSelectedStudentsForAllocation([])}
+                                className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors"
+                              >
+                                Deselect All
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Students Table */}
+                        <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-950 text-xs">
+                          <table className="w-full text-left font-bold border-collapse">
+                            <thead className="bg-slate-50 dark:bg-slate-900/60 uppercase text-[10px] text-slate-500 dark:text-slate-400 font-bold border-b border-slate-200/80 dark:border-slate-800">
+                              <tr>
+                                <th className="py-3 px-3 w-10 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isAllSelected}
+                                    onChange={handleToggleAll}
+                                    className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
+                                  />
+                                </th>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Admission No</th>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Student Name</th>
+                                <th className="py-3.5 px-4 whitespace-nowrap">Current Section</th>
+                                <th className="py-3.5 px-4 text-right whitespace-nowrap">Assign Section</th>
                               </tr>
-                            ))}
-                          {activeClassStudents.length === 0 && (
-                            <tr>
-                              <td colSpan={4} className="p-8 text-center text-slate-400 italic">
-                                No students admitted to this class.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
+                              {displayedStudents.map(stud => {
+                                const isSelected = selectedStudentsForAllocation.includes(stud.id);
+
+                                return (
+                                  <tr 
+                                    key={stud.id} 
+                                    className={`transition-colors ${
+                                      isSelected 
+                                        ? 'bg-sky-50/70 dark:bg-sky-950/30' 
+                                        : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'
+                                    }`}
+                                  >
+                                    <td className="py-3 px-3 text-center align-middle">
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={() => handleToggleStudent(stud.id)}
+                                        className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer accent-sky-600"
+                                      />
+                                    </td>
+                                    <td className="py-3 px-4 font-mono text-slate-400 whitespace-nowrap align-middle">{stud.id || 'REG-1001'}</td>
+                                    <td className="py-3 px-4 text-slate-900 dark:text-white font-extrabold whitespace-nowrap align-middle">{stud.firstName} {stud.lastName}</td>
+                                    <td className="py-3 px-4 whitespace-nowrap align-middle">
+                                      {stud.section && activeClass.sections.includes(stud.section) ? (
+                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800">
+                                          Section {stud.section}
+                                        </span>
+                                      ) : (
+                                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800">
+                                          Unassigned
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="py-3 px-4 text-right whitespace-nowrap align-middle">
+                                      <select
+                                        value={activeClass.sections.includes(stud.section || '') ? (stud.section || '') : ''}
+                                        onChange={e => handleChangeStudentSection(stud.id, e.target.value)}
+                                        className="p-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+                                      >
+                                        <option value="">Unassigned</option>
+                                        {activeClass.sections.map(sec => (
+                                          <option key={sec} value={sec}>Section {sec}</option>
+                                        ))}
+                                      </select>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {displayedStudents.length === 0 && (
+                                <tr>
+                                  <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                                    No students found for this class.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
 
               </div>
@@ -2340,14 +2758,57 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 </div>
               </div>
 
-              {/* Dashboard summary KPIs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-                <StatCard title="Total Classes" value={classKPIs.total} icon={Presentation} color="sky" />
-                <StatCard title="Active Classes" value={classKPIs.active} icon={CheckCircle2} color="emerald" />
-                <StatCard title="Archived Classes" value={classKPIs.archived} icon={Archive} color="rose" />
-                <StatCard title="Total Capacity" value={classKPIs.totalCapacity} icon={Layers} color="indigo" />
-                <StatCard title="Occupied Seats" value={classKPIs.occupiedSeats} icon={Users} color="purple" />
-                <StatCard title="Remaining Seats" value={classKPIs.remainingSeats} icon={ShieldCheck} color="amber" />
+              {/* Dashboard summary KPIs - 5 cards with left-side icon, reduced size, and hover animation */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                <div className="group p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50 group-hover:scale-110 transition-transform duration-300 shrink-0">
+                    <Presentation className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Total Classes</span>
+                    <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.total}</span>
+                  </div>
+                </div>
+
+                <div className="group p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50 group-hover:scale-110 transition-transform duration-300 shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Active Classes</span>
+                    <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.active}</span>
+                  </div>
+                </div>
+
+                <div className="group p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50 group-hover:scale-110 transition-transform duration-300 shrink-0">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Total Capacity</span>
+                    <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.totalCapacity}</span>
+                  </div>
+                </div>
+
+                <div className="group p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/50 group-hover:scale-110 transition-transform duration-300 shrink-0">
+                    <Users className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Occupied Seats</span>
+                    <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.occupiedSeats}</span>
+                  </div>
+                </div>
+
+                <div className="group p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 rounded-2xl shadow-xs hover:border-brand-500 hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50 group-hover:scale-110 transition-transform duration-300 shrink-0">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">Remaining Seats</span>
+                    <span className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">{classKPIs.remainingSeats}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Search & Filter settings panel container */}
@@ -2377,8 +2838,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         <option value="">All Statuses</option>
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
-                        <option value="Archived">Archived</option>
-                        <option value="Draft">Draft</option>
                       </select>
                       <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
@@ -2387,7 +2846,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     onClick={handleOpenAddClass}
                     className="px-4 py-2.5 bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" /> Add Class Grade
+                    <Plus className="w-4 h-4" /> Add Class
                   </button>
                 </div>
               </div>
@@ -2419,9 +2878,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       onClick={() => {
                         if (status !== 'Archived') {
                           setSelectedClassId(cl.id);
-                          if (!['sections', 'subjects', 'teachers', 'students', 'overview'].includes(classWorkspaceTab)) {
-                            setClassWorkspaceTab('sections');
-                          }
+                          setClassWorkspaceTab('overview');
+                          window.scrollTo({ top: 0, behavior: 'instant' });
+                          document.documentElement.scrollTop = 0;
+                          document.body.scrollTop = 0;
                         }
                       }}
                       className={`p-5 rounded-2xl border shadow-sm transition-all duration-300 space-y-4 hover:-translate-y-1 hover:shadow-md relative text-left bg-white dark:bg-slate-900 ${
@@ -2435,7 +2895,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           <span className="text-base font-black text-slate-855 dark:text-white">
                             {cl.name}
                           </span>
-                          <span className="text-[9px] bg-slate-100 dark:bg-slate-808 text-slate-505 px-2 py-0.5 rounded ml-2 font-mono">{(cl as any).displayOrder !== undefined ? `Order: ${(cl as any).displayOrder}` : cl.id}</span>
                         </div>
                         <Badge variant={status === 'Active' ? 'success' : status === 'Archived' ? 'danger' : 'warning'}>
                           {status}
@@ -2460,42 +2919,30 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-101 dark:border-slate-808">
-                        <div className="flex items-center gap-3 text-xs font-bold">
-                          {status !== 'Archived' ? (
-                            <>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleOpenEditClass(cl); }} 
-                                className="text-[11px] text-slate-500 hover:text-sky-600 font-bold hover:underline"
-                              >
-                                Edit
-                              </button>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleArchiveClass(cl); }} 
-                                className="text-[11px] text-slate-500 hover:text-amber-600 font-bold hover:underline"
-                              >
-                                Archive
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-[10px] text-slate-400 font-extrabold">READ ONLY</span>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleRestoreClass(cl); }} 
-                                className="text-[11px] text-emerald-600 font-bold hover:underline"
-                              >
-                                Restore Active
-                              </button>
-                            </>
-                          )}
-                        </div>
-                        {status !== 'Archived' && (
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        {status !== 'Archived' ? (
+                          <>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleOpenEditClass(cl); }} 
+                              className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-400 hover:text-sky-600 transition-colors"
+                              title="Edit Class"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); triggerDeleteCheck(cl); }} 
+                              className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
+                              title="Delete Class Setup"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
                           <button 
-                            onClick={(e) => { e.stopPropagation(); triggerDeleteCheck(cl); }} 
-                            className="p-1 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 transition-colors"
-                            title="Delete Class Setup"
+                            onClick={(e) => { e.stopPropagation(); handleRestoreClass(cl); }} 
+                            className="text-[11px] text-emerald-600 font-bold hover:underline"
                           >
-                            <Trash2 className="w-4.5 h-4.5" />
+                            Restore Active
                           </button>
                         )}
                       </div>
@@ -2563,12 +3010,18 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           <div className="bg-white dark:bg-slate-900 border border-slate-222 dark:border-slate-808 rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl text-left">
             <div className="flex items-center justify-between pb-3">
               <h3 className="text-base font-black text-slate-900 dark:text-white">
-                {editingClass ? 'Edit Class Parameters' : 'Add Class Grade'}
+                {editingClass ? 'Edit Class' : 'Add Class'}
               </h3>
-              <button onClick={handleCloseClassModal} className="p-1 text-slate-405 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
-              </button>
             </div>
+
+            {classFormErrors.length > 0 && (
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs space-y-1 font-bold flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 mt-0.5" />
+                <div className="space-y-0.5">
+                  {classFormErrors.map((err, i) => <p key={i}>{err}</p>)}
+                </div>
+              </div>
+            )}
             
             <form onSubmit={editingClass ? handleUpdateClass : handleSaveClass} className="space-y-4 text-xs font-bold">
               {!editingClass ? (
@@ -2705,7 +3158,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                       {editingClass ? 'Saving...' : 'Creating...'}
                     </>
                   ) : (
-                    editingClass ? 'Save Setup' : 'Create Class'
+                    editingClass ? 'Save' : 'Create'
                   )}
                 </button>
               </div>
@@ -2720,9 +3173,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           <div className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-808 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-105 pb-2">
               <h3 className="font-extrabold text-slate-905 dark:text-white">Bulk Configure Sections</h3>
-              <button onClick={() => setShowBulkAddModal(false)} className="p-1 text-slate-400 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
             </div>
             <div>
               <label className="block text-slate-700 dark:text-slate-300 mb-1">Section names list (Comma Separated)</label>
@@ -2747,7 +3197,6 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           <div className="bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-105 font-bold">
             <div className="flex items-center justify-between border-b border-slate-101 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingSectionName ? 'Configure Section Details' : 'Add Section'}</h3>
-              <button onClick={() => setIsSectionModalOpen(false)} className="p-1 text-slate-400 hover:text-white"><X className="w-5 h-5" /></button>
             </div>
             
             <form onSubmit={handleSaveSection} className="space-y-4 text-xs font-bold">
@@ -2766,16 +3215,19 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
               </div>
  
               <div>
-                <label className="block text-slate-705 mb-1">Seat Capacity (1-60)</label>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Seat Capacity</label>
                 <input
-                  type="number"
-                  min={1}
-                  max={60}
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="Enter seat capacity"
                   value={sectionForm.capacity}
-                  onChange={e => setSectionForm({ ...sectionForm, capacity: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 outline-none"
+                  onChange={e => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setSectionForm({ ...sectionForm, capacity: val });
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs text-slate-900 dark:text-white focus:border-sky-500"
                 />
-                {editingSectionName && sectionForm.capacity < students.filter(s => s.className === activeClass?.name && s.section === editingSectionName).length && (
+                {editingSectionName && Number(sectionForm.capacity) > 0 && Number(sectionForm.capacity) < students.filter(s => s.className === activeClass?.name && s.section === editingSectionName).length && (
                   <span className="text-[10px] text-rose-500 mt-1 block">Capacity cannot be less than assigned students.</span>
                 )}
               </div>
@@ -2796,7 +3248,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
               <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-808">
                 <button type="button" onClick={() => setIsSectionModalOpen(false)} className="px-4 py-2 text-slate-655 bg-slate-100 rounded-xl hover:bg-slate-200">Cancel</button>
-                <button type="submit" className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-505 rounded-xl shadow-md">Save Details</button>
+                <button type="submit" className="px-5 py-2 text-white bg-sky-600 hover:bg-sky-505 rounded-xl shadow-md">Save</button>
               </div>
             </form>
           </div>

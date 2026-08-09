@@ -88,7 +88,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
               <tr>
                 <th className="py-3 px-4">Category Name</th>
                 <th className="py-3 px-4">Description</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -101,9 +101,11 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                   <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{c.name}</td>
                     <td className="py-3 px-4 text-slate-500">{c.description || 'N/A'}</td>
-                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
-                      <button onClick={() => handleOpenEdit(c)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeletingCategory(c)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => handleOpenEdit(c)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeletingCategory(c)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))
