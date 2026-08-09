@@ -127,6 +127,10 @@ builder.Services.AddScoped<ITransportService, TransportService>();
 builder.Services.AddScoped<IHostelRepository, HostelRepository>();
 builder.Services.AddScoped<IHostelService, HostelService>();
 
+// Uniform Management Module
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IUniformRepository, SMS.Api.Repositories.Implementations.UniformRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.IUniformService, SMS.Api.Services.Implementations.UniformService>();
+
 // Class Timetable Module
 builder.Services.AddScoped<ITimetableRepository, TimetableRepository>();
 builder.Services.AddScoped<ITimetableService, TimetableService>();

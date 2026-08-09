@@ -108,6 +108,16 @@ namespace SMS.Api.Data
         public DbSet<StudentBedAllocation> StudentBedAllocations { get; set; } = null!;
         public DbSet<HostelAttendance> HostelAttendances { get; set; } = null!;
 
+        // =====================================================
+        // Uniform Management Module
+        // =====================================================
+
+        public DbSet<UniformType> UniformTypes { get; set; } = null!;
+        public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
+        public DbSet<UniformSize> UniformSizes { get; set; } = null!;
+        public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
+        public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
+
 
         // =====================================================
         // Timetable Module
