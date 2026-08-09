@@ -34,5 +34,13 @@ public class HostelWarden
     [MaxLength(150)]
     public string? EmailAddress { get; set; }
 
+    [MaxLength(100)]
+    public string? BlockName { get; set; }
+
+    [MaxLength(50)]
+    public string? FloorLevel { get; set; }
+
+    public DateTime? EffectiveDate { get; set; }
+
     public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
 }
