@@ -116,10 +116,16 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
     s => s.className === selectedClass && s.section === selectedSection
   );
 
+  // Reset isEditing mode when switching class or section
+  useEffect(() => {
+    setIsEditing(false);
+  }, [selectedClass, selectedSection]);
+
   // Initialize schedule rows if none exist for active class & section
   useEffect(() => {
     if (exam && selectedClass && selectedSection && visibleSchedules.length === 0) {
-      const activeSubjects = Object.keys(exam.marksConfig?.subjectWiseConfig || {});
+      const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass] || exam.marksConfig?.subjectWiseConfig || {};
+      const activeSubjects = Object.keys(classConfig);
       
       activeSubjects.forEach(subjectName => {
         const alreadyExists = examSchedules.some(
@@ -130,7 +136,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
         );
         if (alreadyExists) return;
 
-        const itemConfig = exam.marksConfig?.subjectWiseConfig?.[subjectName] || { maxMarks: 100, passMarks: 35 };
+        const itemConfig = classConfig[subjectName] || { maxMarks: 100, passMarks: 35 };
         addExamSchedule({
           examId: exam.id,
           className: selectedClass,
@@ -266,7 +272,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
             <ExamConflictAlert issues={conflictWarnings} />
 
             {/* Target Selectors with Clean Initial Option */}
-            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/60 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-sky-400 dark:border-sky-500 bg-slate-50/50 dark:bg-slate-950/60 shadow-xs">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="space-y-1">
                   <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 block">Class *</label>

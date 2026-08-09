@@ -57,14 +57,40 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   // Sync state if selected exam changes
   useEffect(() => {
     if (exam) {
+      const appClasses = exam.applicableClasses || (exam.className ? [exam.className] : []);
+      const existingClassWise = (exam.marksConfig as any)?.classWiseConfig || {};
+      const existingSubjectWise = exam.marksConfig?.subjectWiseConfig || {};
+
+      const initialClassWise: Record<string, Record<string, { maxMarks: number; passMarks: number }>> = {};
+      appClasses.forEach(cls => {
+        if (existingClassWise[cls]) {
+          initialClassWise[cls] = { ...existingClassWise[cls] };
+        } else {
+          // Inherit default subjects from class definition
+          const matchedClass = academicClasses.find(c => c.name === cls);
+          const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+            ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || ''))
+            : Object.keys(existingSubjectWise);
+
+          const subMap: Record<string, { maxMarks: number; passMarks: number }> = {};
+          classSubs.forEach(s => {
+            if (s) {
+              subMap[s] = existingSubjectWise[s] || { maxMarks: 100, passMarks: 35 };
+            }
+          });
+          initialClassWise[cls] = subMap;
+        }
+      });
+
       setFormData({
         ...exam,
-        applicableClasses: exam.applicableClasses || (exam.className ? [exam.className] : []),
-        marksConfig: exam.marksConfig || {
-          maxMarks: 100,
-          passMarks: 35,
-          subjectWiseConfig: {}
-        }
+        applicableClasses: appClasses,
+        marksConfig: {
+          maxMarks: exam.marksConfig?.maxMarks || 100,
+          passMarks: exam.marksConfig?.passMarks || 35,
+          subjectWiseConfig: exam.marksConfig?.subjectWiseConfig || {},
+          classWiseConfig: initialClassWise
+        } as any
       });
     } else {
       setFormData({
@@ -78,50 +104,169 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         marksConfig: {
           maxMarks: 100,
           passMarks: 35,
-          subjectWiseConfig: {}
+          subjectWiseConfig: {},
+          classWiseConfig: {}
         } as any
       });
     }
-  }, [exam]);
+  }, [exam, academicClasses]);
 
   const handleUpdateForm = (updates: any) => {
     setFormData(prev => {
       const next = { ...prev, ...updates };
+
+      // When applicableClasses change, synchronize classWiseConfig keys
+      if (updates.applicableClasses) {
+        const nextClasses: string[] = updates.applicableClasses;
+        const currentClassWise = { ...((prev.marksConfig as any)?.classWiseConfig || {}) };
+        const updatedClassWise: Record<string, Record<string, { maxMarks: number; passMarks: number }>> = {};
+
+        nextClasses.forEach(cls => {
+          if (currentClassWise[cls]) {
+            updatedClassWise[cls] = currentClassWise[cls];
+          } else {
+            const matchedClass = academicClasses.find(c => c.name === cls);
+            const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+              ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || ''))
+              : [];
+
+            const subMap: Record<string, { maxMarks: number; passMarks: number }> = {};
+            classSubs.forEach(s => {
+              if (s) subMap[s] = { maxMarks: 100, passMarks: 35 };
+            });
+            updatedClassWise[cls] = subMap;
+          }
+        });
+
+        const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+        Object.values(updatedClassWise).forEach(cw => {
+          Object.entries(cw).forEach(([sub, conf]) => {
+            aggregatedSubjectWise[sub] = conf;
+          });
+        });
+
+        next.marksConfig = {
+          ...(prev.marksConfig || { maxMarks: 100, passMarks: 35 }),
+          classWiseConfig: updatedClassWise,
+          subjectWiseConfig: aggregatedSubjectWise
+        };
+      }
+
       return next;
     });
   };
 
-  const handleUpdateSubjectConfig = (subjectName: string, maxMarks: number, passMarks: number) => {
-    const config = formData.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
-    const subjectWise = { ...(config.subjectWiseConfig || {}) };
-    subjectWise[subjectName] = { maxMarks, passMarks };
-    
-    setFormData(prev => ({
-      ...prev,
-      marksConfig: {
-        ...config,
-        subjectWiseConfig: subjectWise
-      }
-    }));
+  const handleUpdateSubjectConfig = (className: string, subjectName: string, maxMarks: number, passMarks: number) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      const currentClassSubjects = { ...(classWise[className] || {}) };
+
+      currentClassSubjects[subjectName] = { maxMarks, passMarks };
+      classWise[className] = currentClassSubjects;
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
   };
 
-  const handleToggleSubject = (subjectName: string) => {
-    const config = formData.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
-    const subjectWise = { ...(config.subjectWiseConfig || {}) };
-    
-    if (subjectWise[subjectName]) {
-      delete subjectWise[subjectName];
-    } else {
-      subjectWise[subjectName] = { maxMarks: config.maxMarks || 100, passMarks: config.passMarks || 35 };
-    }
+  const handleToggleSubject = (className: string, subjectName: string) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      const currentClassSubjects = { ...(classWise[className] || {}) };
 
-    setFormData(prev => ({
-      ...prev,
-      marksConfig: {
-        ...config,
-        subjectWiseConfig: subjectWise
+      if (currentClassSubjects[subjectName]) {
+        delete currentClassSubjects[subjectName];
+      } else {
+        currentClassSubjects[subjectName] = { maxMarks: config.maxMarks || 100, passMarks: config.passMarks || 35 };
       }
-    }));
+
+      classWise[className] = currentClassSubjects;
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
+  };
+
+  const handleSelectAllForClass = (className: string, subjectsList: string[]) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      const currentClassSubjects: Record<string, { maxMarks: number; passMarks: number }> = {};
+
+      subjectsList.forEach(s => {
+        currentClassSubjects[s] = classWise[className]?.[s] || { maxMarks: config.maxMarks || 100, passMarks: config.passMarks || 35 };
+      });
+
+      classWise[className] = currentClassSubjects;
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
+  };
+
+  const handleClearAllForClass = (className: string) => {
+    setFormData(prev => {
+      const config = prev.marksConfig || { maxMarks: 100, passMarks: 35, subjectWiseConfig: {} };
+      const classWise = { ...((config as any).classWiseConfig || {}) };
+      classWise[className] = {};
+
+      const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+      Object.values(classWise).forEach((cw: any) => {
+        Object.entries(cw).forEach(([sub, conf]) => {
+          aggregatedSubjectWise[sub] = conf as any;
+        });
+      });
+
+      return {
+        ...prev,
+        marksConfig: {
+          ...config,
+          subjectWiseConfig: aggregatedSubjectWise,
+          classWiseConfig: classWise
+        } as any
+      };
+    });
   };
 
   const handleSaveGeneral = () => {
@@ -141,36 +286,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     onSaveSetup(formData);
     onNavigateNext();
   };
-
-  const activeSubjects = Object.keys(formData.marksConfig?.subjectWiseConfig || {});
-  const maxMarksMap: Record<string, number> = {};
-  const passMarksMap: Record<string, number> = {};
-  activeSubjects.forEach(s => {
-    const item = formData.marksConfig?.subjectWiseConfig?.[s] || { maxMarks: 100, passMarks: 35 };
-    maxMarksMap[s] = item.maxMarks;
-    passMarksMap[s] = item.passMarks;
-  });
-
-  const classSubjects = useMemo(() => {
-    const appClasses = formData.applicableClasses || [];
-    if (appClasses.length === 0) {
-      return [];
-    }
-    const uniqueSubjects = new Set<string>();
-    appClasses.forEach(className => {
-      const matchedClass = academicClasses.find(c => c.name === className);
-      if (matchedClass && matchedClass.subjects) {
-        matchedClass.subjects.forEach(sub => {
-          const name = typeof sub === 'string' ? sub : (sub as any).name;
-          if (name) uniqueSubjects.add(name);
-        });
-      }
-    });
-    if (uniqueSubjects.size === 0) {
-      return subjects.map(s => s.name);
-    }
-    return Array.from(uniqueSubjects);
-  }, [formData.applicableClasses, academicClasses, subjects]);
 
   return (
     <div className="space-y-4 text-left">
@@ -266,6 +381,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
               selectedBranch={selectedBranch}
               onChange={handleUpdateForm}
             />
+
             <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
@@ -301,13 +417,12 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           ) : (
             <div className="space-y-4">
               <ExamSubjectConfiguration
-                subjects={classSubjects}
                 applicableClasses={formData.applicableClasses || []}
-                activeSubjects={activeSubjects}
-                maxMarksMap={maxMarksMap}
-                passMarksMap={passMarksMap}
+                classWiseConfig={(formData.marksConfig as any)?.classWiseConfig || {}}
                 onToggleSubject={handleToggleSubject}
                 onUpdateMarks={handleUpdateSubjectConfig}
+                onSelectAllForClass={handleSelectAllForClass}
+                onClearAllForClass={handleClearAllForClass}
               />
               <div className="flex justify-end items-center gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button

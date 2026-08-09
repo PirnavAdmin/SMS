@@ -29,7 +29,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   onProceedToResults
 }) => {
   const { isUserAdmin, allowedClasses, getAllowedSections, getAllowedSubjects, loadRosterMarks, saveRosterMarksDraft, submitRosterMarks } = useMarksEntry();
-  const { studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment, saveMarks, examMarks } = useData();
+  const { studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment, saveMarks, examMarks, academicClasses } = useData();
 
   // dropdown states - starts clean with prompts
   const [selectedClass, setSelectedClass] = useState<string>('');
@@ -43,11 +43,15 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
 
   const subjectConfig = useMemo(() => {
     if (!exam || !selectedSubject) return { maxMarks: 100, passMarks: 35 };
+    const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass];
+    if (classConfig && classConfig[selectedSubject]) {
+      return classConfig[selectedSubject];
+    }
     return exam.marksConfig?.subjectWiseConfig?.[selectedSubject] || {
       maxMarks: exam.marksConfig?.maxMarks || 100,
       passMarks: exam.marksConfig?.passMarks || 35
     };
-  }, [exam, selectedSubject]);
+  }, [exam, selectedClass, selectedSubject]);
 
   const maxMarks = Number(subjectConfig.maxMarks) || 100;
   const passMarks = Number(subjectConfig.passMarks) || 35;
@@ -87,20 +91,33 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
     return Array.from(new Set((allowedClasses || []).filter(Boolean)));
   }, [exam, allowedClasses]);
 
-  // Only display subjects configured / held for this specific examination with their subject codes
+  // Only display subjects configured / held for this specific class in the examination
   const examSubjects = useMemo(() => {
-    if (!exam) return [];
+    if (!exam || !selectedClass) return [];
     
-    // 1. Get subjects active in this exam setup
-    const activeExamSubjectNames = Object.keys(exam.marksConfig?.subjectWiseConfig || {});
-    
-    // If active in exam setup, use them. Otherwise fallback to allowed class subjects
-    const targetNames = activeExamSubjectNames.length > 0 
-      ? activeExamSubjectNames 
-      : (selectedClass && selectedSection ? getAllowedSubjects(selectedClass, selectedSection) : []);
+    let targetNames: string[] = [];
+
+    // 1. Check if specific subjects are configured for this class in exam setup
+    const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass];
+    if (classConfig && Object.keys(classConfig).length > 0) {
+      targetNames = Object.keys(classConfig);
+    } else {
+      // 2. Fallback to subjects defined for this specific class in Academic Setup
+      const matchedClass = academicClasses.find(c => c.name === selectedClass);
+      if (matchedClass && matchedClass.subjects && matchedClass.subjects.length > 0) {
+        targetNames = matchedClass.subjects
+          .map((sub: any) => (typeof sub === 'string' ? sub : (sub.name || '')))
+          .filter(Boolean);
+      }
+      
+      // 3. Fallback to allowed subjects from RBAC or exam global setup if matching class
+      if (targetNames.length === 0) {
+        const allowed = selectedSection ? getAllowedSubjects(selectedClass, selectedSection) : [];
+        targetNames = allowed.length > 0 ? allowed : Object.keys(exam.marksConfig?.subjectWiseConfig || {});
+      }
+    }
 
     return targetNames.map(name => {
-      // Find code from subjects list or generate clean code
       const matched = subjects.find(
         s => s.name.toLowerCase() === name.toLowerCase() || s.code?.toLowerCase() === name.toLowerCase()
       );
@@ -111,7 +128,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
         label: `${name} (${code})`
       };
     });
-  }, [exam, selectedClass, selectedSection, subjects, getAllowedSubjects]);
+  }, [exam, selectedClass, selectedSection, subjects, academicClasses, getAllowedSubjects]);
 
   const activeClassStudents = useMemo(() => {
     if (!selectedClass || !selectedSection) return [];
