@@ -1476,6 +1476,49 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => { localStorage.setItem('edu_db_student_uniform_issues', JSON.stringify(studentUniformIssues)); }, [studentUniformIssues]);
   useEffect(() => { localStorage.setItem('edu_db_finance_uniform_configs', JSON.stringify(financeUniformConfigs)); }, [financeUniformConfigs]);
 
+  // Auto-sync uniform inventory items with uniforms list
+  useEffect(() => {
+    if (!uniforms || uniforms.length === 0) return;
+    setUniformInventory(prevInv => {
+      let changed = false;
+      const updated = [...prevInv];
+      uniforms.forEach(u => {
+        const invIndex = updated.findIndex(inv => inv.itemId === u.id || inv.itemName.toLowerCase() === u.category.toLowerCase());
+        if (invIndex === -1) {
+          changed = true;
+          const stockVal = u.availableStock !== undefined ? Number(u.availableStock) : 50;
+          updated.push({
+            id: 'UINV-' + Math.floor(100 + Math.random() * 900),
+            itemId: u.id,
+            itemName: u.category,
+            category: u.category,
+            size: u.size || 'M',
+            openingStock: stockVal,
+            currentStock: stockVal,
+            minimumStock: 10,
+            reorderLevel: 15,
+            status: stockVal === 0 ? 'Out of Stock' : (stockVal <= 10 ? 'Low Stock' : 'In Stock'),
+            branch: (u as any).branch || 'Main Campus'
+          } as any);
+        } else {
+          // If availableStock on uniform item is higher than 0 and inventory had 0 or missing
+          const existing = updated[invIndex];
+          if (u.availableStock !== undefined && u.availableStock > 0 && existing.currentStock === 0 && existing.openingStock === 0) {
+            changed = true;
+            const stockVal = Number(u.availableStock);
+            updated[invIndex] = {
+              ...existing,
+              openingStock: stockVal,
+              currentStock: stockVal,
+              status: stockVal === 0 ? 'Out of Stock' : (stockVal <= 10 ? 'Low Stock' : 'In Stock')
+            };
+          }
+        }
+      });
+      return changed ? updated : prevInv;
+    });
+  }, [uniforms]);
+
   // Transport ERP Effects
   useEffect(() => { localStorage.setItem('edu_db_route_masters', JSON.stringify(routeMasters)); }, [routeMasters]);
   useEffect(() => { localStorage.setItem('edu_db_pickup_points', JSON.stringify(pickupPoints)); }, [pickupPoints]);
@@ -2862,14 +2905,50 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const id = 'UNI-' + Math.floor(100 + Math.random() * 900);
     const newItem: UniformItem = { ...itemData, id };
     setUniforms(prev => [...prev, newItem]);
+
+    // Automatically sync with uniformInventory so Dashboard Available Stock updates immediately
+    const stockVal = Number(itemData.availableStock) || 0;
+    const invId = 'UINV-' + Math.floor(100 + Math.random() * 900);
+    const newInvItem: UniformInventoryItem = {
+      id: invId,
+      itemId: id,
+      itemName: itemData.category || 'Uniform Item',
+      category: itemData.category || 'Uniform',
+      size: itemData.size || 'M',
+      openingStock: stockVal,
+      currentStock: stockVal,
+      minimumStock: 10,
+      reorderLevel: 15,
+      status: stockVal === 0 ? 'Out of Stock' : (stockVal <= 10 ? 'Low Stock' : 'In Stock'),
+      branch: (itemData as any).branch || selectedBranch || 'Main Campus'
+    } as any;
+    setUniformInventory(prev => [...prev, newInvItem]);
   };
 
   const updateUniform = (id: string, updates: Partial<UniformItem>) => {
     setUniforms(prev => prev.map(u => u.id === id ? { ...u, ...updates } : u));
+
+    // Sync matching inventory item if availableStock, category or size changes
+    setUniformInventory(prev => prev.map(inv => {
+      if (inv.itemId === id || inv.itemName === updates.category) {
+        const newStock = updates.availableStock !== undefined ? Number(updates.availableStock) : inv.currentStock;
+        const newStatus = newStock === 0 ? 'Out of Stock' : (newStock <= inv.minimumStock ? 'Low Stock' : 'In Stock');
+        return {
+          ...inv,
+          itemName: updates.category || inv.itemName,
+          category: updates.category || inv.category,
+          size: updates.size || inv.size,
+          currentStock: newStock,
+          status: newStatus
+        };
+      }
+      return inv;
+    }));
   };
 
   const deleteUniform = (id: string) => {
     setUniforms(prev => prev.filter(u => u.id !== id));
+    setUniformInventory(prev => prev.filter(inv => inv.itemId !== id));
   };
 
   // Custom Roles CRUD
@@ -5006,9 +5085,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addUniformInventory = (iData: Omit<UniformInventoryItem, 'id'>) => {
     const id = 'UINV-' + Math.floor(10 + Math.random() * 90);
     setUniformInventory(prev => [...prev, { ...iData, id, branch: (iData as any).branch || selectedBranch || 'Main Campus' } as any]);
+    setUniforms(prev => prev.map(u => u.id === iData.itemId || u.category === iData.itemName ? { ...u, availableStock: iData.currentStock } : u));
   };
   const updateUniformInventory = (id: string, updates: Partial<UniformInventoryItem>) => {
-    setUniformInventory(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+    setUniformInventory(prev => prev.map(i => {
+      if (i.id === id) {
+        const updated = { ...i, ...updates };
+        if (updates.currentStock !== undefined) {
+          setUniforms(prevU => prevU.map(u => u.id === i.itemId || u.category === i.itemName ? { ...u, availableStock: updates.currentStock! } : u));
+        }
+        return updated;
+      }
+      return i;
+    }));
   };
   const deleteUniformInventory = (id: string) => {
     setUniformInventory(prev => prev.filter(i => i.id !== id));
@@ -5021,13 +5110,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Reduce stock if issued
     if (issueData.status === 'Issued' || issueData.status === 'Replaced') {
+      const issueItemName = issueData.itemName.toLowerCase();
       setUniformInventory(prev => prev.map(item => {
-        if (item.itemId === issueData.itemId || item.itemName === issueData.itemName) {
+        if (item.itemId === issueData.itemId || item.itemName.toLowerCase() === issueItemName) {
           const newStock = Math.max(0, item.currentStock - issueData.quantity);
           const newStatus = newStock === 0 ? 'Out of Stock' : (newStock <= item.minimumStock ? 'Low Stock' : 'In Stock');
           return { ...item, currentStock: newStock, status: newStatus };
         }
         return item;
+      }));
+      setUniforms(prev => prev.map(u => {
+        if (u.id === issueData.itemId || u.category.toLowerCase() === issueItemName) {
+          const currentAvail = u.availableStock !== undefined ? u.availableStock : 0;
+          return { ...u, availableStock: Math.max(0, currentAvail - issueData.quantity) };
+        }
+        return u;
       }));
     }
   };
@@ -5035,13 +5132,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setStudentUniformIssues(prev => prev.map(issue => {
       if (issue.id === id) {
         if (updates.status === 'Returned' && issue.status !== 'Returned') {
+          const issueItemName = issue.itemName.toLowerCase();
           setUniformInventory(prevInv => prevInv.map(item => {
-            if (item.itemId === issue.itemId || item.itemName === issue.itemName) {
+            if (item.itemId === issue.itemId || item.itemName.toLowerCase() === issueItemName) {
               const newStock = item.currentStock + issue.quantity;
               const newStatus = newStock === 0 ? 'Out of Stock' : (newStock <= item.minimumStock ? 'Low Stock' : 'In Stock');
               return { ...item, currentStock: newStock, status: newStatus };
             }
             return item;
+          }));
+          setUniforms(prev => prev.map(u => {
+            if (u.id === issue.itemId || u.category.toLowerCase() === issueItemName) {
+              return { ...u, availableStock: (u.availableStock || 0) + issue.quantity };
+            }
+            return u;
           }));
         }
         return { ...issue, ...updates };
@@ -5681,7 +5785,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Check academic year
       let ayMatch = true;
       if (selectedAcademicYear && selectedAcademicYear !== 'All' && anyItem.academicYear && anyItem.academicYear !== 'All') {
-        ayMatch = anyItem.academicYear === selectedAcademicYear;
+        const selClean = selectedAcademicYear.replace(/[^0-9]/g, '');
+        const itemClean = String(anyItem.academicYear).replace(/[^0-9]/g, '');
+        if (selClean && itemClean) {
+          const selStart = selClean.slice(0, 4);
+          const itemStart = itemClean.slice(0, 4);
+          ayMatch = selClean === itemClean || selStart === itemStart || anyItem.academicYear === selectedAcademicYear;
+        } else {
+          ayMatch = anyItem.academicYear === selectedAcademicYear;
+        }
       }
 
       return branchMatch && ayMatch;

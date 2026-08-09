@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { DatePickerInput } from './SharedUI';
-import { Search, Edit, Check, Upload, Eye, CheckCircle2, ChevronDown } from 'lucide-react';
-import { ExamSchedule } from '../../../../types';
+import { Search, ChevronDown, User, X, CheckCircle2 } from 'lucide-react';
+import { ExamSchedule, SubjectItem } from '../../../../types';
 
 export interface InvigilatorOption {
   id: string;
@@ -15,20 +15,19 @@ interface ExamScheduleTableProps {
   isEditing: boolean;
   teacherOptions: InvigilatorOption[];
   onUpdateRow: (id: string, updates: Partial<ExamSchedule>) => void;
-  onApplyToAllSections: (row: any) => void;
   onUploadPaper: (id: string, subject: string) => void;
   onPreviewPaper: (subject: string, fileName: string, fileUrl: string) => void;
-  subjects: any[];
+  subjects: SubjectItem[];
 }
 
-// Searchable Invigilator Select
-function SearchableInvigilatorSelect({
-  value,
+// Multi-Invigilator Searchable Selector with Clean Employee & Code
+function MultiInvigilatorSelect({
+  selectedNames = [],
   onChange,
   teacherOptions
 }: {
-  value: string;
-  onChange: (val: string) => void;
+  selectedNames: string[];
+  onChange: (names: string[]) => void;
   teacherOptions: InvigilatorOption[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,72 +48,109 @@ function SearchableInvigilatorSelect({
     const q = (search || '').toLowerCase();
     return (teacherOptions || []).filter(t => {
       if (!t) return false;
-      const formatted = (t.formatted || '').toLowerCase();
       const empId = (t.empId || '').toLowerCase();
       const name = (t.name || '').toLowerCase();
-      return formatted.includes(q) || empId.includes(q) || name.includes(q);
+      return empId.includes(q) || name.includes(q);
     });
   }, [teacherOptions, search]);
 
-  const formatInvigilatorName = (val: string) => {
-    const matched = teacherOptions.find(t => t.formatted === val || t.name === val);
-    return matched ? matched.formatted : val;
+  const toggleTeacher = (teacher: InvigilatorOption) => {
+    const nameKey = teacher.name;
+    if (selectedNames.includes(nameKey)) {
+      onChange(selectedNames.filter(n => n !== nameKey));
+    } else {
+      onChange([...selectedNames, nameKey]);
+    }
+  };
+
+  const removeTeacher = (nameToRemove: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(selectedNames.filter(n => n !== nameToRemove));
   };
 
   return (
-    <div ref={wrapperRef} className="relative w-44">
-      <button
-        type="button"
+    <div ref={wrapperRef} className="relative min-w-[160px] max-w-[240px]">
+      <div
         onClick={() => setIsOpen(prev => !prev)}
-        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[11px] font-semibold text-slate-900 dark:text-white outline-none text-left flex items-center justify-between shadow-sm"
+        className="w-full p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-900 dark:text-white outline-none text-left flex flex-wrap items-center gap-1 min-h-[32px] cursor-pointer shadow-xs hover:border-sky-400 transition"
       >
-        <span className="truncate">{value ? formatInvigilatorName(value) : 'Select Staff'}</span>
-        <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-1" />
-      </button>
+        {selectedNames.length === 0 ? (
+          <span className="text-slate-400 text-xs px-1">— Assign Staff —</span>
+        ) : (
+          selectedNames.map(name => (
+            <span
+              key={name}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/70 text-sky-800 dark:text-sky-200 text-xs font-extrabold border border-sky-200/80 dark:border-sky-800 shadow-xs"
+            >
+              <span>{name}</span>
+              <X
+                className="w-3 h-3 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer shrink-0 ml-0.5"
+                onClick={(e) => removeTeacher(name, e)}
+              />
+            </span>
+          ))
+        )}
+        <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-auto mr-0.5" />
+      </div>
 
       {isOpen && (
-        <div className="absolute z-30 bottom-full mb-1 left-0 right-0 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-1 max-h-48 overflow-y-auto min-w-[200px]">
+        <div className="absolute z-50 top-full mt-1 right-0 p-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl space-y-1.5 max-h-56 overflow-y-auto w-[250px] sm:w-[270px]">
           <div className="relative">
-            <Search className="w-3 h-3 absolute left-2 top-2 text-slate-400" />
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               autoFocus
-              placeholder="Search..."
+              placeholder="Search employee or code..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-6 pr-2 py-1 rounded bg-slate-50 dark:bg-slate-800 text-[10px] outline-none border border-slate-100"
+              className="w-full pl-8 pr-2.5 py-1 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-semibold outline-none border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-sky-500 h-[30px]"
             />
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 pt-1 text-left">
-            <button
-              type="button"
-              onClick={() => {
-                onChange('TBA');
-                setIsOpen(false);
-              }}
-              className="w-full text-left px-2 py-1 text-[10px] font-bold text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 rounded"
-            >
-              — Unassigned (TBA) —
-            </button>
+          <div className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-1 pt-0.5">
+            Faculty List ({filtered.length})
+          </div>
 
-            {filtered.map(t => (
-              <button
-                type="button"
-                key={t.id}
-                onClick={() => {
-                  onChange(t.formatted || t.name || 'TBA');
-                  setIsOpen(false);
-                }}
-                className={`w-full text-left px-2 py-1 text-[10px] font-bold rounded ${
-                  value === t.formatted || value === t.name
-                    ? 'bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
-                    : 'text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800'
-                }`}
-              >
-                {t.formatted || t.name}
-              </button>
-            ))}
+          <div className="divide-y divide-slate-100 dark:divide-slate-800 text-left">
+            {filtered.map(t => {
+              const isSelected = selectedNames.includes(t.name);
+              return (
+                <button
+                  type="button"
+                  key={t.id}
+                  onClick={() => toggleTeacher(t)}
+                  className={`w-full text-left px-2 py-1.5 rounded-xl transition flex items-center justify-between gap-2 cursor-pointer ${
+                    isSelected
+                      ? 'bg-sky-50 text-sky-800 dark:bg-sky-950/80 dark:text-sky-200'
+                      : 'hover:bg-slate-50 dark:hover:bg-slate-800/80 text-slate-800 dark:text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-black text-[10px] flex items-center justify-center shrink-0">
+                      {t.name.charAt(0)}
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-xs font-black text-slate-900 dark:text-white leading-tight">
+                        {t.name}
+                      </span>
+                      {t.empId && (
+                        <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                          ({t.empId})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {isSelected ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                  ) : (
+                    <span className="text-[9px] font-bold text-slate-400 shrink-0">+ Assign</span>
+                  )}
+                </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="py-3 text-center text-xs text-slate-400 font-medium">No matching staff found.</div>
+            )}
           </div>
         </div>
       )}
@@ -127,145 +163,165 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
   isEditing,
   teacherOptions,
   onUpdateRow,
-  onApplyToAllSections,
-  onUploadPaper,
-  onPreviewPaper,
   subjects
 }) => {
-  const tableHeaderClass = "px-3 py-2 text-slate-500 font-bold uppercase tracking-wider text-[10px] border-b dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/50";
+  const tableHeaderClass = "px-3.5 py-3 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] border-b border-r border-sky-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 tracking-wider whitespace-nowrap last:border-r-0";
+  const tdClass = "px-3.5 py-3 border-r border-slate-100 dark:border-slate-800 last:border-r-0";
 
   const calculateDurationLabel = (start: string, end: string) => {
-    if (!start || !end) return '—';
-    const [sH, sM] = start.split(':').map(Number);
-    const [eH, eM] = end.split(':').map(Number);
-    const totalMinutes = (eH * 60 + eM) - (sH * 60 + sM);
-    if (totalMinutes <= 0) return 'Invalid Time';
-    const hrs = Math.floor(totalMinutes / 60);
-    const mins = totalMinutes % 60;
-    return `${hrs > 0 ? `${hrs}h ` : ''}${mins > 0 ? `${mins}m` : ''}`.trim() || '0m';
-  };
-
-  const formatSubject = (subjectName: string) => {
-    const match = subjects.find(s => s.name === subjectName || s.id === subjectName);
-    return match ? `${match.code || ''} - ${match.name}` : subjectName;
-  };
-
-  const formatInvigilator = (nameVal: string) => {
-    const matched = teacherOptions.find(t => t.name === nameVal || t.formatted === nameVal);
-    return matched ? matched.formatted : nameVal || 'TBA';
+    if (!start || !end) return '3h';
+    try {
+      const [sh, sm] = start.split(':').map(Number);
+      const [eh, em] = end.split(':').map(Number);
+      let diff = (eh * 60 + em) - (sh * 60 + sm);
+      if (diff < 0) diff += 24 * 60;
+      const hours = Math.floor(diff / 60);
+      const mins = diff % 60;
+      return `${hours}h${mins > 0 ? ` ${mins}m` : ''}`;
+    } catch {
+      return '3h';
+    }
   };
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200/80 dark:border-slate-800">
-      <table className="min-w-full text-left text-xs border-collapse">
+    <div className="overflow-x-auto rounded-3xl border border-sky-400/80 dark:border-sky-500 shadow-sm min-h-[350px]">
+      <table className="w-full text-left text-xs border-collapse">
         <thead>
           <tr>
-            <th className={tableHeaderClass}>Subject</th>
-            <th className={tableHeaderClass}>Exam Date</th>
-            <th className={tableHeaderClass}>Start Time</th>
-            <th className={tableHeaderClass}>End Time</th>
-            <th className={tableHeaderClass}>Duration</th>
-            <th className={tableHeaderClass}>Actions</th>
+            <th className={`${tableHeaderClass} w-44 text-left`}>Subject</th>
+            <th className={`${tableHeaderClass} w-32 text-center`}>Exam Date</th>
+            <th className={`${tableHeaderClass} w-40 text-center`}>Time Slot</th>
+            <th className={`${tableHeaderClass} w-16 text-center`}>Duration</th>
+            <th className={`${tableHeaderClass} w-24 text-center`}>Room / Hall</th>
+            <th className={`${tableHeaderClass} w-56 text-left`}>Invigilator Faculty</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-          {scheduleRows.map((row, idx) => (
-            <tr key={row.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/50">
-              {/* Subject */}
-              <td className="px-3 py-3 font-extrabold text-slate-900 dark:text-white">
-                {formatSubject(row.subject)}
-              </td>
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+          {scheduleRows.map((row) => {
+            const rawNames = row.invigilatorNames && row.invigilatorNames.length > 0
+              ? row.invigilatorNames
+              : (row.invigilatorName && row.invigilatorName !== 'TBA' ? [row.invigilatorName] : []);
 
-              {/* Date */}
-              <td className="px-3 py-3">
-                {isEditing ? (
-                  <DatePickerInput
-                    value={row.date}
-                    onChange={(val: string) => onUpdateRow(row.id, { date: val })}
-                    className="w-32 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none"
-                  />
-                ) : (
-                  <span className="font-mono font-bold text-slate-700 dark:text-slate-350">{row.date}</span>
-                )}
-              </td>
+            const matchSub = (subjects || []).find(
+              s => s.name.toLowerCase() === row.subject.toLowerCase() ||
+                   s.code?.toLowerCase() === row.subject.toLowerCase() ||
+                   s.id === row.subject
+            );
+            const subCode = matchSub?.code || `${row.subject.substring(0, 3).toUpperCase()}-101`;
 
-              {/* Start Time */}
-              <td className="px-3 py-3">
-                {isEditing ? (
-                  <input
-                    type="time"
-                    value={row.startTime}
-                    onChange={e => onUpdateRow(row.id, { startTime: e.target.value })}
-                    className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold outline-none w-20"
-                  />
-                ) : (
-                  <span className="font-mono font-bold text-slate-700 dark:text-slate-350">{row.startTime}</span>
-                )}
-              </td>
+            return (
+              <tr key={row.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40 transition">
+                {/* Subject Name with Code Below */}
+                <td className={`${tdClass} whitespace-nowrap text-left`}>
+                  <div className="flex flex-col">
+                    <span className="font-black text-slate-900 dark:text-white text-xs leading-tight">
+                      {row.subject}
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400 font-bold mt-0.5">
+                      {subCode}{row.maxMarks ? ` • ${row.maxMarks}M` : ''}
+                    </span>
+                  </div>
+                </td>
 
-              {/* End Time */}
-              <td className="px-3 py-3">
-                {isEditing ? (
-                  <input
-                    type="time"
-                    value={row.endTime}
-                    onChange={e => onUpdateRow(row.id, { endTime: e.target.value })}
-                    className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold outline-none w-20"
-                  />
-                ) : (
-                  <span className="font-mono font-bold text-slate-700 dark:text-slate-350">{row.endTime}</span>
-                )}
-              </td>
-
-              {/* Duration */}
-              <td className="px-3 py-3 font-mono text-slate-500 font-bold">
-                {calculateDurationLabel(row.startTime, row.endTime)}
-              </td>
-
-
-
-              {/* Actions */}
-              <td className="px-3 py-3">
-                <div className="flex items-center gap-2">
-                  {/* Upload */}
-                  <button
-                    type="button"
-                    onClick={() => onUploadPaper(row.id, row.subject)}
-                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    title="Upload Question Paper"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Preview Paper */}
-                  {row.questionPaperUrl && (
-                    <button
-                      type="button"
-                      onClick={() => onPreviewPaper(row.subject, row.questionPaperName || '', row.questionPaperUrl)}
-                      className="p-1.5 rounded-lg bg-sky-600 text-white"
-                      title="View Question Paper"
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                    </button>
+                {/* Exam Date */}
+                <td className={`${tdClass} whitespace-nowrap text-center`}>
+                  {isEditing ? (
+                    <DatePickerInput
+                      value={row.date || ''}
+                      onChange={(val: string) => onUpdateRow(row.id, { date: val })}
+                      className="w-28 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none"
+                    />
+                  ) : (
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{row.date || '—'}</span>
                   )}
+                </td>
 
-                  {/* Apply to All Sections */}
-                  {isEditing && (
-                    <button
-                      type="button"
-                      onClick={() => onApplyToAllSections(row)}
-                      className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 transition"
-                      title="Apply this schedule to all sections of this Class"
-                    >
-                      Apply All Sections
-                    </button>
+                {/* Time Slot */}
+                <td className={`${tdClass} whitespace-nowrap text-center`}>
+                  {isEditing ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <input
+                        type="time"
+                        value={row.startTime || '09:00'}
+                        onChange={e => onUpdateRow(row.id, { startTime: e.target.value })}
+                        className="px-1.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-semibold outline-none w-16"
+                      />
+                      <span className="text-slate-400 font-bold">-</span>
+                      <input
+                        type="time"
+                        value={row.endTime || '12:00'}
+                        onChange={e => onUpdateRow(row.id, { endTime: e.target.value })}
+                        className="px-1.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-mono font-semibold outline-none w-16"
+                      />
+                    </div>
+                  ) : (
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{row.startTime} - {row.endTime}</span>
                   )}
-                </div>
-              </td>
-            </tr>
-          ))}
+                </td>
+
+                {/* Duration */}
+                <td className={`${tdClass} font-mono text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap text-center`}>
+                  {calculateDurationLabel(row.startTime, row.endTime)}
+                </td>
+
+                {/* Room / Hall */}
+                <td className={`${tdClass} whitespace-nowrap text-center`}>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      placeholder="e.g. 101"
+                      value={row.room === 'TBA' ? '' : (row.room || '')}
+                      onChange={e => onUpdateRow(row.id, { room: e.target.value || 'TBA' })}
+                      className="w-20 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold outline-none text-center"
+                    />
+                  ) : (
+                    <span className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-bold ${
+                      row.room && row.room !== 'TBA'
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
+                        : 'text-slate-400 italic'
+                    }`}>
+                      {row.room || 'TBA'}
+                    </span>
+                  )}
+                </td>
+
+                {/* Multi-Invigilator Staff */}
+                <td className={`${tdClass} text-left`}>
+                  {isEditing ? (
+                    <MultiInvigilatorSelect
+                      selectedNames={rawNames}
+                      onChange={(names: string[]) => {
+                        onUpdateRow(row.id, {
+                          invigilatorNames: names,
+                          invigilatorName: names.length > 0 ? names.join(', ') : 'TBA'
+                        });
+                      }}
+                      teacherOptions={teacherOptions}
+                    />
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-1">
+                      {rawNames.length === 0 ? (
+                        <span className="text-slate-400 italic text-xs">Unassigned</span>
+                      ) : (
+                        rawNames.map((name: string) => (
+                          <span
+                            key={name}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold text-xs border border-sky-200/60 dark:border-sky-900/60"
+                          >
+                            <User className="w-3 h-3 text-sky-500 shrink-0" />
+                            <span>{name}</span>
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 };
+export default ExamScheduleTable;

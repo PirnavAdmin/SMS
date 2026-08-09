@@ -20,7 +20,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
     waist: '',
     height: '',
     ageGroup: '',
-    gender: 'Unisex'
+    gender: '' as any
   });
 
   const filtered = uniformSizes.filter(s =>
@@ -30,7 +30,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
 
   const handleOpenAdd = () => {
     setEditingSize(null);
-    setForm({ sizeName: '', chest: '', waist: '', height: '', ageGroup: '', gender: 'Unisex' });
+    setForm({ sizeName: '', chest: '', waist: '', height: '', ageGroup: '', gender: '' as any });
     setIsModalOpen(true);
   };
 
@@ -66,13 +66,13 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Size Spec
+          <Plus className="w-4 h-4" /> Add Size
         </button>
       </div>
 
       {tabs}
 
-<div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
+      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
         <div className="relative flex-1">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
@@ -96,7 +96,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                 <th className="py-3 px-4">Height Target</th>
                 <th className="py-3 px-4">Age Bracket</th>
                 <th className="py-3 px-4">Gender</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -113,9 +113,11 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                     <td className="py-3 px-4 font-mono">{s.height || 'N/A'}</td>
                     <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{s.ageGroup || 'N/A'}</td>
                     <td className="py-3 px-4">{s.gender}</td>
-                    <td className="py-3 px-4 text-right flex items-center justify-end gap-1.5">
-                      <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => setDeletingSize(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => handleOpenEdit(s)} className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeletingSize(s)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -128,7 +130,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
           <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Size Specification</h3>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Save Size</h3>
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -143,12 +145,13 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender Target *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Gender *</label>
                   <select
                     value={form.gender}
                     onChange={e => setForm({ ...form, gender: e.target.value as any })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
                   >
+                    <option value="">Select Gender *</option>
                     <option value="Unisex">Unisex</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -204,7 +207,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Specs</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save</button>
               </div>
             </form>
           </div>

@@ -8,7 +8,7 @@ import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
-  const { uniforms, addUniform, updateUniform, deleteUniform } = useData();
+  const { uniforms, addUniform, updateUniform, deleteUniform, uniformSizes } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -19,11 +19,11 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const [deletingUniform, setDeletingUniform] = useState<UniformItem | null>(null);
 
   const [formData, setFormData] = useState<Partial<UniformItem>>({
-    gender: 'Unisex',
-    size: 'M',
-    className: 'Class 1',
-    price: 0,
-    availableStock: 0
+    gender: '' as any,
+    size: '',
+    className: '',
+    price: undefined,
+    availableStock: undefined
   });
 
   const filtered = uniforms.filter(u => {
@@ -37,7 +37,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
   const handleOpenAdd = () => {
     setEditingUniform(null);
-    setFormData({ gender: 'Unisex', size: 'M', className: 'Class 1', price: 0, availableStock: 0 });
+    setFormData({ gender: '' as any, size: '', className: '', price: undefined, availableStock: undefined });
     setIsFormOpen(true);
   };
 
@@ -51,11 +51,19 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     e.preventDefault();
     if (!formData.category) return;
 
+    const payload = {
+      ...formData,
+      gender: formData.gender || 'Unisex',
+      className: formData.className || 'All Wings',
+      price: formData.price ? Number(formData.price) : 0,
+      availableStock: formData.availableStock ? Number(formData.availableStock) : 0
+    };
+
     if (editingUniform) {
-      updateUniform(editingUniform.id, formData);
+      updateUniform(editingUniform.id, payload);
       addToast('success', 'Uniform Item Updated', `Updated ${formData.category}`);
     } else {
-      addUniform(formData as Omit<UniformItem, 'id'>);
+      addUniform(payload as Omit<UniformItem, 'id'>);
       addToast('success', 'Uniform Item Added', `Added ${formData.category}`);
     }
     setIsFormOpen(false);
@@ -100,7 +108,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
             onChange={e => setFilterGender(e.target.value)}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           >
-            <option value="All">All Genders</option>
+            <option value="All">Select Gender (All)</option>
             <option value="Unisex">Unisex</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
@@ -125,7 +133,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
             </div>
 
             <div className="space-y-1 text-xs">
-              <div className="flex justify-between"><span className="text-slate-400">Target Class:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.className}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400">School Wing:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.className || 'All Wings'}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Color Spec:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.color}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Unit Price:</span><span className="font-extrabold text-emerald-600">{formatCurrency(u.price)}</span></div>
               <div className="flex justify-between"><span className="text-slate-400">Stock Available:</span><span className="font-bold text-slate-900 dark:text-white">{u.availableStock} Units</span></div>
@@ -164,44 +172,74 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                 <div>
                   <label className="block font-semibold mb-1">Gender</label>
                   <select value={formData.gender} onChange={e => setFormData({ ...formData, gender: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="">Select Gender</option>
+                    <option value="">Select Gender *</option>
                     <option value="Unisex">Unisex</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Target Class</label>
-                  <select value={formData.className} onChange={e => setFormData({ ...formData, className: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="">Select Class</option>
-                    <option value="Class 9">Class 9</option>
-                    <option value="Class 10">Class 10</option>
-                    <option value="Class 11">Class 11</option>
-                    <option value="Class 12">Class 12</option>
-                    <option value="All Classes">All Classes</option>
+                  <label className="block font-semibold mb-1">School Wing / Level</label>
+                  <select value={formData.className || ''} onChange={e => setFormData({ ...formData, className: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold">
+                    <option value="">Select School Wing / Level *</option>
+                    <option value="All Wings">All Wings (Universal)</option>
+                    <option value="Pre-Primary">Pre-Primary (Playgroup - UKG)</option>
+                    <option value="Primary Wing">Primary Wing (Class I - V)</option>
+                    <option value="Middle Wing">Middle Wing (Class VI - VIII)</option>
+                    <option value="Senior Wing">Senior Wing (Class IX - XII)</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Size</label>
-                  <input type="text" placeholder="S, M, L, XL" value={formData.size} onChange={e => setFormData({ ...formData, size: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                  <label className="block font-semibold mb-1">Size *</label>
+                  <select
+                    value={formData.size || ''}
+                    onChange={e => setFormData({ ...formData, size: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
+                  >
+                    <option value="">Select Size *</option>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                    <option value="XXL">XXL</option>
+                    <option value="28">28</option>
+                    <option value="30">30</option>
+                    <option value="32">32</option>
+                    <option value="34">34</option>
+                    <option value="36">36</option>
+                    <option value="38">38</option>
+                    <option value="40">40</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Color</label>
-                  <input type="text" placeholder="Navy Blue" value={formData.color} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                  <input type="text" placeholder="Navy Blue" value={formData.color || ''} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Unit Price (₹)</label>
-                  <input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                  <input
+                    type="number"
+                    placeholder="e.g. 350"
+                    value={formData.price ?? ''}
+                    onChange={e => setFormData({ ...formData, price: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  />
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Available Stock</label>
-                  <input type="number" value={formData.availableStock} onChange={e => setFormData({ ...formData, availableStock: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+                  <input
+                    type="number"
+                    placeholder="e.g. 50"
+                    value={formData.availableStock ?? ''}
+                    onChange={e => setFormData({ ...formData, availableStock: e.target.value === '' ? undefined : Number(e.target.value) })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                  />
                 </div>
               </div>
 

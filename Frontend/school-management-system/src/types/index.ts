@@ -499,7 +499,7 @@ export interface ExamSetup {
   
   // Enterprise & Unified Fields
   branch?: string;
-  examType?: 'Unit Test' | 'Quarterly' | 'Half-Yearly' | 'Annual' | 'Practical' | 'Custom';
+  examType?: string;
   applicableClasses?: string[];
   sections?: string[];
   description?: string;
@@ -1539,6 +1539,7 @@ export interface UniformInventoryItem {
   minimumStock: number;
   reorderLevel: number;
   status: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  lastUpdated?: string;
 }
 
 export interface StudentUniformIssue {
@@ -1849,6 +1850,8 @@ export interface ExamSchedule {
   room: string;
   invigilatorId: string;
   invigilatorName: string;
+  invigilatorIds?: string[];
+  invigilatorNames?: string[];
 }
 
 export interface GradeConfig {
@@ -1856,6 +1859,8 @@ export interface GradeConfig {
   academicYear?: string;
   branch?: string;
   schemeName?: string;
+  examType?: string;
+  gradingType?: 'Percentage' | 'Marks';
   grade?: string;
   gradeName: string;
   minPercent: number;

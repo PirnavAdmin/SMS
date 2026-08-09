@@ -2846,7 +2846,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                     onClick={handleOpenAddClass}
                     className="px-4 py-2.5 bg-sky-600 hover:bg-sky-505 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" /> Add Class Grade
+                    <Plus className="w-4 h-4" /> Add Class
                   </button>
                 </div>
               </div>
