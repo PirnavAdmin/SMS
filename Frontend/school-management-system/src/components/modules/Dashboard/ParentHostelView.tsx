@@ -70,7 +70,7 @@ export const ParentHostelView: React.FC = () => {
         </div>
       )}
       
-      {currentWard.studentType === 'Day Scholar' ? (
+      {currentWard.studentType === 'Day Scholar' || currentWard.studentType === 'Non-Residential' ? (
         <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-center max-w-2xl mx-auto mt-10">
           <Home className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Non-Residential</h3>

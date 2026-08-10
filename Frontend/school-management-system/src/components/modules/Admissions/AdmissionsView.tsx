@@ -555,7 +555,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       });
     });
 
-    if (stType === 'Day Scholar') {
+    if (stType === 'Day Scholar' || stType === 'Non-Residential') {
       if (formData.transportRequired) {
         const rObj = routeMasters.find(r => r.id === formData.routeId || r.routeName === formData.busRoute);
         const pObj = pickupPoints.find(p => p.id === formData.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === formData.pickupPoint));
@@ -1905,7 +1905,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 {/* Logistics */}
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    {selectedAppForView.studentType === 'Hosteller' ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
+                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
                     Transport & Accommodation
                   </h4>
                   <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
@@ -1922,14 +1922,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                     </div>
                     
-                    {selectedAppForView.studentType === 'Day Scholar' && selectedAppForView.transportRequired && (
+                    {(selectedAppForView.studentType === 'Day Scholar' || selectedAppForView.studentType === 'Non-Residential') && selectedAppForView.transportRequired && (
                       <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Transport Details</p>
                         <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {selectedAppForView.pickupPoint || 'Pending allocation'}</p>
                       </div>
                     )}
                     
-                    {selectedAppForView.studentType === 'Hosteller' && (
+                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') && (
                       <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Hostel Allocation</p>
                         <p className="text-sm text-slate-600 dark:text-slate-400">{selectedAppForView.hostelBlock ? `${selectedAppForView.hostelBlock} - Room ${selectedAppForView.hostelRoom}` : 'Pending allocation'}</p>

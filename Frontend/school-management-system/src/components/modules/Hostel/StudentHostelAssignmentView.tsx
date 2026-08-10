@@ -20,7 +20,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hostellerStudents = students.filter(s => s.studentType === 'Hosteller');
+  const hostellerStudents = students.filter(s => s.studentType === 'Hosteller' || s.studentType === 'Residential');
   const displayHostellers = hostellerStudents;
 
   const [selectedStudentId, setSelectedStudentId] = useState('');

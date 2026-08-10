@@ -128,7 +128,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const isHosteller = student.studentType === 'Hosteller';
+  const isHosteller = student.studentType === 'Hosteller' || student.studentType === 'Residential';
 
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
