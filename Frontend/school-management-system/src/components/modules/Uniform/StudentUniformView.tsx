@@ -171,7 +171,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       if (isAddPurchase) {
         if (addFinanceTransaction) {
           addFinanceTransaction({
-            transactionId: `TXN-UNI-${Date.now().toString().slice(-6)}`,
+            referenceNumber: `TXN-UNI-${Date.now().toString().slice(-6)}`,
             date: new Date().toISOString().split('T')[0],
             type: 'Income',
             category: 'Uniform',
@@ -183,7 +183,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             status: 'Completed',
             branch: studentObj.branch || 'Main Campus',
             academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
-            createdByName: 'Uniform Store Administrator'
+            createdBy: 'Uniform Store Administrator'
           });
         }
         addToast('success', 'Sale Invoiced & Paid', `Generated Invoice for additional purchase (${qty}x ${itemObj.category}). Reflected in Finance Ledger.`);

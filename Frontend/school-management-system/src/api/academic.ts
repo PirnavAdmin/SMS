@@ -190,7 +190,7 @@ export const assignTeacherApi = async (
   });
 };
 
-export const fetchTeacherAssignmentsApi = async () => {
+export const fetchClassTeacherAssignmentsApi = async () => {
   return apiClient('/api/classes/teacher-assignments', { method: 'GET' });
 };
 
@@ -352,3 +352,27 @@ export const updateDesignationApi = async (id: number | string, payload: {
 export const deleteDesignationApi = async (id: number | string) => {
   return apiClient(`/api/designations/${id}`, { method: 'DELETE' });
 };
+
+// ============================
+// ACADEMIC SUBJECTS & PERIODS
+// ============================
+
+export const fetchAcademicSubjectsApi = async () => {
+  return apiClient('/api/academics/subjects', { method: 'GET' });
+};
+
+export const fetchAcademicPeriodsApi = async () => {
+  return apiClient('/api/academics/periods', { method: 'GET' });
+};
+
+export const fetchTimetableForClassSectionApi = async (
+  classId: string | number,
+  sectionName: string,
+  academicYear: string
+) => {
+  return apiClient(
+    `/api/academics/timetable?classId=${classId}&section=${encodeURIComponent(sectionName)}&academicYear=${encodeURIComponent(academicYear)}`,
+    { method: 'GET' }
+  );
+};
+
