@@ -79,6 +79,20 @@ namespace SMS.Api.Data
         public DbSet<NewExamination> NewExaminations { get; set; } = null!;
         public DbSet<NewExamSubjectConfig> NewExamSubjectConfigs { get; set; } = null!;
         public DbSet<NewExamTimetableSlot> NewExamTimetableSlots { get; set; } = null!;
+        public DbSet<NewStudentExamResult> NewStudentExamResults { get; set; } = null!;
+        public DbSet<NewGradingScaleRule> NewGradingScaleRules { get; set; } = null!;
+        public DbSet<NewStudentMarksEntry> NewStudentMarksEntries { get; set; } = null!;
+
+        // Uniform Module
+        public DbSet<UniformType> UniformTypes { get; set; } = null!;
+        public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
+        public DbSet<UniformSize> UniformSizes { get; set; } = null!;
+        public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
+        public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
+
+        // Inventory & Attendants
+        public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;
+        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
 
         // =====================================================
         // Transport Module
@@ -170,6 +184,9 @@ namespace SMS.Api.Data
             ConfigureNewExamination(modelBuilder);
             ConfigureNewExamSubjectConfig(modelBuilder);
             ConfigureNewExamTimetableSlot(modelBuilder);
+            ConfigureNewGradingScaleRule(modelBuilder);
+            ConfigureNewStudentExamResult(modelBuilder);
+            ConfigureNewStudentMarksEntry(modelBuilder);
         }
 
         private static void ConfigureTeacherAttendanceCorrection(ModelBuilder modelBuilder)
@@ -498,42 +515,21 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("id")
+                    .HasColumnName("ClassId")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
-                    .HasColumnName("name")
-                    .IsRequired()
+                    .HasColumnName("ClassName")
                     .HasMaxLength(100);
 
-                entity.Property(x => x.CampusLocation)
-                    .HasColumnName("campus_location")
-                    .IsRequired()
-                    .HasMaxLength(150);
-
-                entity.Property(x => x.AcademicYear)
-                    .HasColumnName("academic_year")
-                    .IsRequired()
-                    .HasMaxLength(50);
-
-                entity.Property(x => x.DisplayOrder)
-                    .HasColumnName("display_order");
-
-                entity.Property(x => x.Status)
-                    .HasColumnName("status")
-                    .IsRequired()
-                    .HasMaxLength(20)
-                    .HasDefaultValue("Active");
-
-                entity.Property(x => x.Remarks)
-                    .HasColumnName("remarks");
-
-                entity.Property(x => x.CreatedAt)
-                    .HasColumnName("created_at")
-                    .IsRequired();
-
-                entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("updated_at");
+                // These properties don't exist in the DB 'classes' table — ignore them
+                entity.Ignore(x => x.CampusLocation);
+                entity.Ignore(x => x.AcademicYear);
+                entity.Ignore(x => x.DisplayOrder);
+                entity.Ignore(x => x.Status);
+                entity.Ignore(x => x.Remarks);
+                entity.Ignore(x => x.CreatedAt);
+                entity.Ignore(x => x.UpdatedAt);
             });
         }
 
@@ -1056,7 +1052,6 @@ namespace SMS.Api.Data
             modelBuilder.Entity<LeaveTypeConfig>().ToTable("leave_type_configs");
             modelBuilder.Entity<LeaveApplication>().ToTable("leave_applications");
             modelBuilder.Entity<HolidayCalendar>().ToTable("holiday_calendars");
-            modelBuilder.Entity<ClassGrade>().ToTable("classes");
             modelBuilder.Entity<Homework>().ToTable("homeworks");
             modelBuilder.Entity<HomeworkSubmission>().ToTable("homework_submissions");
             modelBuilder.Entity<Circular>().ToTable("circulars");
@@ -1559,6 +1554,147 @@ namespace SMS.Api.Data
 
                 entity.Property(x => x.CreatedAt)
                     .HasColumnName("created_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+        }
+
+        private static void ConfigureNewGradingScaleRule(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewGradingScaleRule>(entity =>
+            {
+                entity.ToTable("new_grading_scale_rules");
+                entity.HasKey(x => x.RuleId);
+
+                entity.Property(x => x.RuleId)
+                    .HasColumnName("rule_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ExamType)
+                    .HasColumnName("exam_type")
+                    .HasMaxLength(100)
+                    .HasDefaultValue("All");
+
+                entity.Property(x => x.Grade)
+                    .HasColumnName("grade")
+                    .HasMaxLength(10);
+
+                entity.Property(x => x.MinMarks)
+                    .HasColumnName("min_marks")
+                    .HasPrecision(10, 2);
+
+                entity.Property(x => x.MaxMarks)
+                    .HasColumnName("max_marks")
+                    .HasPrecision(10, 2);
+
+                entity.Property(x => x.Gpa)
+                    .HasColumnName("gpa")
+                    .HasPrecision(4, 2);
+
+                entity.Property(x => x.PassFail)
+                    .HasColumnName("pass_fail")
+                    .HasMaxLength(10)
+                    .HasDefaultValue("PASS");
+
+                entity.Property(x => x.Remarks)
+                    .HasColumnName("remarks")
+                    .HasMaxLength(200);
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("updated_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+        }
+
+        private static void ConfigureNewStudentExamResult(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewStudentExamResult>(entity =>
+            {
+                entity.ToTable("new_student_exam_results");
+                entity.HasKey(x => x.ResultId);
+
+                entity.Property(x => x.ResultId)
+                    .HasColumnName("result_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ExamId).HasColumnName("exam_id");
+                entity.Property(x => x.StudentId).HasColumnName("student_id");
+                entity.Property(x => x.ClassName).HasColumnName("class_name").HasMaxLength(100);
+                entity.Property(x => x.SectionName).HasColumnName("section_name").HasMaxLength(100);
+                entity.Property(x => x.RollNo).HasColumnName("roll_no").HasMaxLength(50);
+                entity.Property(x => x.AdmissionNo).HasColumnName("admission_no").HasMaxLength(50);
+                entity.Property(x => x.StudentName).HasColumnName("student_name").HasMaxLength(200);
+
+                entity.Property(x => x.TotalMarksObtained)
+                    .HasColumnName("total_marks_obtained")
+                    .HasPrecision(10, 2);
+
+                entity.Property(x => x.TotalMaxMarks)
+                    .HasColumnName("total_max_marks")
+                    .HasPrecision(10, 2);
+
+                entity.Property(x => x.Percentage)
+                    .HasColumnName("percentage")
+                    .HasPrecision(6, 2);
+
+                entity.Property(x => x.Grade).HasColumnName("grade").HasMaxLength(10);
+                entity.Property(x => x.Rank).HasColumnName("rank");
+                entity.Property(x => x.ResultStatus).HasColumnName("result_status").HasMaxLength(20);
+
+                entity.Property(x => x.CalculatedAt)
+                    .HasColumnName("calculated_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+        }
+
+        private static void ConfigureNewStudentMarksEntry(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewStudentMarksEntry>(entity =>
+            {
+                entity.ToTable("new_student_marks_entries");
+                entity.HasKey(x => x.EntryId);
+
+                entity.Property(x => x.EntryId)
+                    .HasColumnName("entry_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ExamId).HasColumnName("exam_id");
+                entity.Property(x => x.SubjectCode).HasColumnName("subject_code").HasMaxLength(50);
+                entity.Property(x => x.SubjectName).HasColumnName("subject_name").HasMaxLength(150);
+                entity.Property(x => x.ClassName).HasColumnName("class_name").HasMaxLength(100);
+                entity.Property(x => x.SectionName).HasColumnName("section_name").HasMaxLength(100);
+                entity.Property(x => x.RollNo).HasColumnName("roll_no").HasMaxLength(50);
+                entity.Property(x => x.AdmissionNo).HasColumnName("admission_no").HasMaxLength(50);
+                entity.Property(x => x.StudentName).HasColumnName("student_name").HasMaxLength(200);
+
+                entity.Property(x => x.AttendanceStatus)
+                    .HasColumnName("attendance_status")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Present");
+
+                entity.Property(x => x.MarksObtained)
+                    .HasColumnName("marks_obtained")
+                    .HasPrecision(10, 2);
+
+                entity.Property(x => x.MaxMarks)
+                    .HasColumnName("max_marks")
+                    .HasPrecision(10, 2);
+
+                entity.Property(x => x.Grade).HasColumnName("grade").HasMaxLength(10);
+
+                entity.Property(x => x.EvaluatorRemarks)
+                    .HasColumnName("evaluator_remarks")
+                    .HasMaxLength(300);
+
+                entity.Property(x => x.Status)
+                    .HasColumnName("status")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Draft");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("updated_at")
                     .HasColumnType("datetime")
                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
             });

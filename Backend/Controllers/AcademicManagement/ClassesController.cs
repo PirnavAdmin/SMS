@@ -176,7 +176,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             var academicYear = Request.Headers["X-Academic-Year-Id"].ToString();
             if (string.IsNullOrEmpty(academicYear)) academicYear = "2026-2027";
 
-            var normalizedInput = NormalizeClassName(dto.Name ?? dto.ClassName);
+            var normalizedInput = NormalizeClassName(dto.Name ?? dto.ClassName ?? "");
             var existingClasses = await _context.Classes
                 .Where(c => (c.CampusLocation == campus || string.IsNullOrEmpty(c.CampusLocation)) && 
                             (c.AcademicYear == academicYear || string.IsNullOrEmpty(c.AcademicYear)))
@@ -505,7 +505,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             var subject = await _context.Subjects
-                .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == dto.SubjectName.ToLower());
+                .FirstOrDefaultAsync(s => (s.SubjectName ?? "").ToLower() == (dto.SubjectName ?? "").ToLower());
 
             if (subject == null)
             {
@@ -610,7 +610,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             if (!string.IsNullOrEmpty(dto.SubjectName))
             {
                 var subject = await _context.Subjects
-                    .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == dto.SubjectName.ToLower());
+                    .FirstOrDefaultAsync(s => (s.SubjectName ?? "").ToLower() == (dto.SubjectName ?? "").ToLower());
                 if (subject != null)
                 {
                     subjectId = subject.SubjectId;
@@ -745,7 +745,7 @@ namespace SMS.Api.Controllers.AcademicManagement
 
             if (!string.IsNullOrEmpty(section))
             {
-                query = query.Where(s => s.SectionLetter.ToLower() == section.ToLower());
+                query = query.Where(s => (s.SectionLetter ?? "").ToLower() == section.ToLower());
             }
 
             var students = await query.ToListAsync();
@@ -769,8 +769,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                     Section = s.SectionLetter ?? "",
                     FatherName = s.FatherName ?? "",
                     FatherPhone = s.FatherMobile ?? "",
-                    // BUG-035 FIX: Do not fabricate email from phone; use actual email if stored
-                    Email = s.Email ?? "",
+                    Email = "",
                     Status = s.Status == "Enrolled" || s.Status == "Active" ? "Active" : "Inactive",
                     // BUG-036 FIX: Do not use hardcoded fee/attendance values; return 0 until real data is wired
                     TotalFee = 0,
@@ -835,7 +834,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             var currentCount = await _context.Admissions
-                .CountAsync(s => s.ClassId == student.ClassId && s.SectionLetter.ToLower() == dto.SectionLetter.ToLower() && !s.IsDeleted);
+                .CountAsync(s => s.ClassId == student.ClassId && (s.SectionLetter ?? "").ToLower() == (dto.SectionLetter ?? "").ToLower() && !s.IsDeleted);
 
             if (currentCount >= section.Capacity)
             {
@@ -884,7 +883,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             foreach (var sec in sections)
             {
                 var count = await _context.Admissions
-                    .CountAsync(s => s.ClassId == id && s.SectionLetter.ToLower() == sec.SectionName.ToLower() && !s.IsDeleted);
+                    .CountAsync(s => s.ClassId == id && (s.SectionLetter ?? "").ToLower() == (sec.SectionName ?? "").ToLower() && !s.IsDeleted);
                 sectionStudentsCounts[sec.SectionName] = count;
             }
 

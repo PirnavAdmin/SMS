@@ -426,7 +426,7 @@ public class SchoolRepository : ISchoolRepository
                 AcademicYearId = s.AcademicYearId,
                 AcademicYearName = s.AcademicYear.AcademicYearName,
                 ClassId = s.ClassId,
-                ClassName = s.ClassGrade.ClassName,
+                ClassName = s.ClassGrade.ClassName ?? "",
                 SectionId = s.SectionId,
                 SectionName = s.ClassSection.SectionName,
                 Status = s.Status,
@@ -469,7 +469,7 @@ public class SchoolRepository : ISchoolRepository
                 AcademicYearId = s.AcademicYearId,
                 AcademicYearName = s.AcademicYear.AcademicYearName,
                 ClassId = s.ClassId,
-                ClassName = s.ClassGrade.ClassName,
+                ClassName = s.ClassGrade.ClassName ?? "",
                 SectionId = s.SectionId,
                 SectionName = s.ClassSection.SectionName,
                 Status = s.Status,
@@ -550,14 +550,14 @@ public class SchoolRepository : ISchoolRepository
     {
         var query = _context.Classes.AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(c => c.ClassName.Contains(search.Trim()));
+            query = query.Where(c => (c.ClassName ?? "").Contains(search.Trim()));
 
         return await query
             .OrderBy(c => c.ClassName)
             .Select(c => new StudentDropdownDto
             {
                 Id = c.ClassId,
-                Name = c.ClassName
+                Name = c.ClassName ?? ""
             })
             .ToListAsync();
     }
