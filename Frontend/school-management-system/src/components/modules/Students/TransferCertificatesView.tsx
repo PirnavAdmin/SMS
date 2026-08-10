@@ -16,7 +16,7 @@ interface TransferCertificatesViewProps {
 }
 
 export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> = ({ onNavigate }) => {
-  const { students, academicClasses } = useData();
+  const { students, academicClasses, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
@@ -307,8 +307,10 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
                 ) : (
                   (paginatedDataset as Student[]).map(st => {
                     const existingTc = getExistingTcForStudent(st.id);
-                    const dueFee = st.dueFee || 0;
-                    const isPassed = st.gpa >= 2.0;
+                    const summary = getStudentFeeOutstandingSummary(st.id);
+                    const dueFee = summary.totalOutstanding;
+                    const studentResultText = (st as any).finalResult || (st as any).result || (st.gpa ? (st.gpa >= 2.0 ? `PASS (${st.gpa})` : 'FAIL') : 'PASSED');
+                    const isPassed = !studentResultText.toUpperCase().includes('FAIL');
 
                     return (
                       <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -342,7 +344,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
                           <span className={`px-2.5 py-0.5 rounded-md font-black text-[10px] ${
                             isPassed ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                           }`}>
-                            {isPassed ? 'PASS (' + st.gpa + ')' : 'FAIL'}
+                            {studentResultText}
                           </span>
                         </td>
 
@@ -350,12 +352,19 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
                         <td className="py-3 px-4">
                           {dueFee === 0 ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 font-bold text-[10px]">
-                              <ShieldCheck className="w-3 h-3" /> Cleared
+                              <ShieldCheck className="w-3 h-3 text-emerald-500" /> ✓ Fee Cleared
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 font-bold text-[10px]">
-                              <AlertTriangle className="w-3 h-3" /> Dues: ₹{dueFee.toLocaleString()}
-                            </span>
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400 font-bold text-[10px]">
+                                <AlertTriangle className="w-3 h-3 text-rose-500" /> ❌ Pending: ₹{dueFee.toLocaleString()}
+                              </span>
+                              {summary.previousYearsDue > 0 && (
+                                <p className="text-[9px] font-bold text-amber-600 dark:text-amber-400 pl-1">
+                                  (Curr: ₹{summary.currentYearDue.toLocaleString()} | Prev: ₹{summary.previousYearsDue.toLocaleString()})
+                                </p>
+                              )}
+                            </div>
                           )}
                         </td>
 

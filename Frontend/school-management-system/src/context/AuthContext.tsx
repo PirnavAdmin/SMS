@@ -44,7 +44,7 @@ const getDefaultAcademicYear = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('auth_user');
-    return saved ? JSON.parse(saved) : null;
+    return saved ? JSON.parse(saved) : defaultAdminUser;
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || null;
+    return localStorage.getItem('auth_token') || 'mock-jwt-admin-token';
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -90,7 +90,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
 
       // Check for mock credentials first
-      if (emailOrPhone === 'teacher@pirnavschools.com' && password === 'Teacher@123') {
+      if (emailOrPhone === 'admin@pirnavschools.com' && password === 'Admin@123') {
+        mappedRole = 'Admin';
+        userName = 'Admin';
+      } else if (emailOrPhone === 'teacher@pirnavschools.com' && password === 'Teacher@123') {
         mappedRole = 'Teacher';
         userName = 'Teacher';
       } else if (emailOrPhone === 'student@pirnavschools.com' && password === 'Student@123') {

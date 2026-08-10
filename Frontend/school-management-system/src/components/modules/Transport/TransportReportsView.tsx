@@ -18,6 +18,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { formatCurrency } from '../../../utils/currency';
 import { ExportButton } from '../../common/ExportButton';
+import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
 import { TransportScrollableTabs } from './TransportScrollableTabs';
 
 type TransportReportTabId =
@@ -298,23 +299,17 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         <div className="flex flex-wrap items-center gap-2 justify-end">
           <button
             onClick={resetFilters}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
             <RefreshCw className="w-4 h-4 text-sky-600" /> Refresh
           </button>
-          <button
-            onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
-          >
-            <Printer className="w-4 h-4 text-sky-600" /> Print
-          </button>
-          <button
-            onClick={handlePdfExport}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
-          >
-            <FileText className="w-4 h-4 text-rose-600" /> Export PDF
-          </button>
-          <ExportButton data={filteredRows} filename={selectedReportLabel.toLowerCase().replace(/\s+/g, '_')} />
+          <PrintDropdownMenu
+            title={`Transport Report - ${selectedReportLabel}`}
+            data={filteredRows}
+            filename={selectedReportLabel.toLowerCase().replace(/\s+/g, '_')}
+            onPrint={handlePrint}
+            onPdf={handlePdfExport}
+          />
         </div>
       </div>
 

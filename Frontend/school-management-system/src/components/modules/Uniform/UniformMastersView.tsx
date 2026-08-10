@@ -8,9 +8,10 @@ import { UniformInventoryView } from './UniformInventoryView';
 
 interface UniformMastersViewProps {
   initialSubTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory';
+  initialStatusFilter?: string;
 }
 
-export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialSubTab = 'items' }) => {
+export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialSubTab = 'items', initialStatusFilter }) => {
   const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory'>(initialSubTab);
 
   React.useEffect(() => {
@@ -61,7 +62,7 @@ export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialS
       case 'suppliers':
         return <UniformSupplierView tabs={tabsNode} />;
       case 'inventory':
-        return <UniformInventoryView tabs={tabsNode} />;
+        return <UniformInventoryView initialStatusFilter={initialStatusFilter} tabs={tabsNode} />;
       default:
         return <UniformView tabs={tabsNode} />;
     }

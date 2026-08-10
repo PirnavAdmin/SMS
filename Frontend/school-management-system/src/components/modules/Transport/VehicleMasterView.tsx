@@ -173,7 +173,7 @@ export const VehicleMasterView: React.FC = () => {
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Add Vehicle
+            <Plus className="w-4 h-4" /> Add
           </button>
           <ExportButton data={vehicleMasters} filename="vehicle_masters" />
         </div>
@@ -340,7 +340,7 @@ export const VehicleMasterView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save Vehicle</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save</button>
               </div>
             </form>
           </div>

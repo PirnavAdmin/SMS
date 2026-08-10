@@ -397,18 +397,18 @@ export const TransactionsMasterLedgerView: React.FC = () => {
         <div className="space-y-4">
           
           {/* Filter Bar */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
               
-              {/* Search */}
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+              {/* Search (Spans 2 columns for wide input view) */}
+              <div className="relative sm:col-span-2 lg:col-span-2">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
                   placeholder="Search Txn ID, Description, Ref No..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
 
@@ -417,7 +417,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <select
                   value={typeFilter}
                   onChange={e => setTypeFilter(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Transaction Types</option>
                   <option value="Income">Income (+)</option>
@@ -430,7 +430,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <select
                   value={sourceModuleFilter}
                   onChange={e => setSourceModuleFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All School Sections</option>
                   <option value="Student Fee Collection">Student Fee Collection</option>
@@ -449,7 +449,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <select
                   value={categoryFilter}
                   onChange={e => setCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Categories</option>
                   {financialCategories.map(c => (
@@ -457,15 +457,13 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   ))}
                 </select>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1 border-t border-slate-100 dark:border-slate-800">
               {/* Payment Mode */}
               <div>
                 <select
                   value={paymentModeFilter}
                   onChange={e => setPaymentModeFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Payment Modes</option>
                   <option value="Cash">Cash</option>
@@ -482,7 +480,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Completed">Completed</option>
@@ -497,7 +495,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="date-desc">Sort: Date (Newest First)</option>
                   <option value="date-asc">Sort: Date (Oldest First)</option>
@@ -505,6 +503,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
                   <option value="amount-asc">Sort: Amount (Low to High)</option>
                 </select>
               </div>
+
             </div>
           </div>
 

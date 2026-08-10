@@ -1,6 +1,6 @@
 /**
- * Validates a Date of Birth string in exact DD/MM/YYYY format.
- * - Must strictly match DD/MM/YYYY pattern.
+ * Validates a Date of Birth string in exact DD-MM-YYYY format.
+ * - Must match DD-MM-YYYY or DD/MM/YYYY pattern.
  * - Year must be exactly 4 digits.
  * - Must be a valid calendar date (checking leap years and month lengths).
  */
@@ -9,16 +9,31 @@ export function validateDOB(dateStr: string): { isValid: boolean; error?: string
     return { isValid: false, error: 'Date of birth is required.' };
   }
 
-  const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-  const match = dateStr.trim().match(regex);
-
-  if (!match) {
-    return { isValid: false, error: 'Must use DD/MM/YYYY format (e.g., 15/08/2012 with a 4-digit year).' };
+  const clean = dateStr.trim();
+  const parts = clean.split(/[-/]/);
+  if (parts.length !== 3) {
+    return { isValid: false, error: 'Must use DD-MM-YYYY format (e.g., 15-08-2012 with a 4-digit year).' };
   }
 
-  const day = parseInt(match[1], 10);
-  const month = parseInt(match[2], 10);
-  const year = parseInt(match[3], 10);
+  let day = 0, month = 0, year = 0;
+
+  if (parts[0].length === 4) {
+    // YYYY-MM-DD format
+    year = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10);
+    day = parseInt(parts[2], 10);
+  } else if (parts[2].length === 4) {
+    // DD-MM-YYYY or DD/MM/YYYY format
+    day = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10);
+    year = parseInt(parts[2], 10);
+  } else {
+    return { isValid: false, error: 'Must use DD-MM-YYYY format (e.g., 15-08-2012 with a 4-digit year).' };
+  }
+
+  if (isNaN(day) || isNaN(month) || isNaN(year)) {
+    return { isValid: false, error: 'Must use DD-MM-YYYY format (e.g., 15-08-2012 with a 4-digit year).' };
+  }
 
   if (month < 1 || month > 12) {
     return { isValid: false, error: 'Invalid month. Month must be between 01 and 12.' };
@@ -72,5 +87,35 @@ export function formatToISO(ddmmyyyy: string): string {
     return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
   }
   return ddmmyyyy;
+}
+
+/**
+ * Converts any date string (YYYY-MM-DD or DD-MM-YYYY) to standard DD-MM-YYYY format
+ */
+export function formatDateDDMMYYYY(dateStr?: string | null): string {
+  if (!dateStr || typeof dateStr !== 'string') return 'N/A';
+  const clean = dateStr.trim();
+  if (!clean) return 'N/A';
+  
+  const parts = clean.split(/[-/]/);
+  if (parts.length !== 3) return clean;
+
+  let day = '', month = '', year = '';
+
+  if (parts[0].length === 4) {
+    // YYYY-MM-DD format -> convert to DD-MM-YYYY
+    year = parts[0];
+    month = parts[1].padStart(2, '0');
+    day = parts[2].padStart(2, '0');
+    return `${day}-${month}-${year}`;
+  } else if (parts[2].length === 4) {
+    // Already DD-MM-YYYY format
+    day = parts[0].padStart(2, '0');
+    month = parts[1].padStart(2, '0');
+    year = parts[2];
+    return `${day}-${month}-${year}`;
+  }
+
+  return clean;
 }
 
