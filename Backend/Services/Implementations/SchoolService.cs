@@ -423,6 +423,10 @@ public class SchoolService : ISchoolService
 		await _schoolRepository.AddClassGradeAsync(newClass);
 		await _schoolRepository.SaveChangesAsync();
 
+		// BUG-002 FIX: Resolve default active department for auto-created subjects
+		var defaultDept = await _context.Departments.FirstOrDefaultAsync(d => d.Status == "Active");
+		int safeDeptId = defaultDept?.DepartmentId ?? 1;
+
 		// Handle Subjects mapping
 		var subjectIds = new List<int>();
 		if (dto.Subjects != null && dto.Subjects.Any())
@@ -432,12 +436,13 @@ public class SchoolService : ISchoolService
 				var sub = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
 				if (sub == null)
 				{
-					// Dynamically create the subject if not found
+					// Dynamically create the subject if not found with safe DepartmentId
 					sub = new Subject
 					{
 						SubjectName = subName,
 						SubjectCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)) + "101",
-						CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length))
+						CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)),
+						DepartmentId = safeDeptId
 					};
 					await _context.Subjects.AddAsync(sub);
 					await _context.SaveChangesAsync();
@@ -509,7 +514,8 @@ public class SchoolService : ISchoolService
 					SectionLetter = secDto.SectionName,
 					TeacherId = secDto.ClassTeacherEmpId.Value,
 					Role = "Class Teacher",
-					Status = "Active"
+					Status = "Active",
+					SubjectId = subjectIds.FirstOrDefault()
 				});
 			}
 		}
@@ -526,6 +532,10 @@ public class SchoolService : ISchoolService
 		cls.ClassName = !string.IsNullOrEmpty(dto.Name) ? dto.Name : dto.ClassName;
 
 		cls.SubjectMappings.Clear();
+		
+		var defaultDept = await _context.Departments.FirstOrDefaultAsync(d => d.Status == "Active");
+		int safeDeptId = defaultDept?.DepartmentId ?? 1;
+
 		// Handle Subjects mapping
 		var subjectIds = new List<int>();
 		if (dto.Subjects != null && dto.Subjects.Any())
@@ -535,12 +545,12 @@ public class SchoolService : ISchoolService
 				var sub = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
 				if (sub == null)
 				{
-					// Dynamically create the subject if not found
 					sub = new Subject
 					{
 						SubjectName = subName,
 						SubjectCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)) + "101",
-						CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length))
+						CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)),
+						DepartmentId = safeDeptId
 					};
 					await _context.Subjects.AddAsync(sub);
 					await _context.SaveChangesAsync();
@@ -562,8 +572,8 @@ public class SchoolService : ISchoolService
 			});
 		}
 
-		cls.Sections.Clear();
-		// Handle Sections and Teachers mapping
+		// BUG-003 FIX: Do NOT clear all existing sections (causes cascading delete on timetable/students).
+		// Merge sections instead.
 		var sectionsList = new List<SectionAssignmentDto>();
 		if (dto.SectionNames != null && dto.SectionNames.Any())
 		{
@@ -596,6 +606,20 @@ public class SchoolService : ISchoolService
 			sectionsList.AddRange(dto.Sections);
 		}
 
+		// Update or add sections safely
+		var existingSectionNames = cls.Sections.Select(s => s.SectionName.ToLower()).ToHashSet();
+		foreach (var secDto in sectionsList)
+		{
+			if (!existingSectionNames.Contains(secDto.SectionName.ToLower()))
+			{
+				cls.Sections.Add(new ClassSection
+				{
+					ClassId = cls.ClassId,
+					SectionName = secDto.SectionName
+				});
+			}
+		}
+
 		// Remove existing Class Teacher assignments for this class
 		var existingClassTeachers = _context.TeacherAssignments
 			.Where(a => a.ClassId == cls.ClassId && a.Role == "Class Teacher")
@@ -604,13 +628,6 @@ public class SchoolService : ISchoolService
 
 		foreach (var secDto in sectionsList)
 		{
-			var section = new ClassSection
-			{
-				ClassId = cls.ClassId,
-				SectionName = secDto.SectionName
-			};
-			cls.Sections.Add(section);
-
 			if (secDto.ClassTeacherEmpId.HasValue)
 			{
 				_context.TeacherAssignments.Add(new TeacherAssignment
@@ -619,7 +636,8 @@ public class SchoolService : ISchoolService
 					SectionLetter = secDto.SectionName,
 					TeacherId = secDto.ClassTeacherEmpId.Value,
 					Role = "Class Teacher",
-					Status = "Active"
+					Status = "Active",
+					SubjectId = subjectIds.FirstOrDefault()
 				});
 			}
 		}

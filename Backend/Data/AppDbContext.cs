@@ -587,7 +587,8 @@ namespace SMS.Api.Data
                 entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(50).HasDefaultValue("Active");
 
                 entity.HasIndex(x => new { x.ClassId, x.SectionLetter, x.Role })
-                    .HasDatabaseName("ux_teacher_assignments_class_sec_role");
+                    .HasDatabaseName("ux_teacher_assignments_class_sec_role")
+                    .IsUnique();
 
                 entity.HasOne(x => x.ClassGrade)
                     .WithMany(c => c.TeacherAssignments)

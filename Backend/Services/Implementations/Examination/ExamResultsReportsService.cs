@@ -147,6 +147,65 @@ public class ExamResultsReportsService : IExamResultsReportsService
         return await _repository.UpdateExamResultAsync(entity);
     }
 
+    public async Task<List<StudentReportCardRowDto>> GetReportCardsAsync(string className, string sectionName, string? resultStatus, string? rankOrder, string? search)
+    {
+        var list = await _repository.GetExamResultsAsync(className, sectionName);
+        if (!string.IsNullOrWhiteSpace(resultStatus) && !resultStatus.Equals("All", StringComparison.OrdinalIgnoreCase))
+        {
+            list = list.Where(r => r.ResultStatus.Equals(resultStatus, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            list = list.Where(r => r.StudentName.Contains(search, StringComparison.OrdinalIgnoreCase) || r.RollNo.Contains(search)).ToList();
+        }
+        if (rankOrder?.Equals("Descending", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            list = list.OrderByDescending(r => r.Rank).ToList();
+        }
+        else
+        {
+            list = list.OrderBy(r => r.Rank).ToList();
+        }
+
+        return list.Select(r => new StudentReportCardRowDto
+        {
+            ResultId = r.ResultId,
+            StudentId = r.StudentId,
+            RollNo = r.RollNo,
+            StudentName = r.StudentName,
+            AdmissionNo = r.AdmissionNo,
+            TotalMarksObtained = r.TotalMarksObtained,
+            TotalMaxMarks = r.TotalMaxMarks,
+            Percentage = r.Percentage,
+            Grade = r.Grade,
+            Rank = r.Rank,
+            ResultStatus = r.ResultStatus
+        }).ToList();
+    }
+
+    public async Task<ReportCardPrintDetailDto?> GetReportCardPrintDetailAsync(int studentId, string className, string sectionName)
+    {
+        var results = await _repository.GetExamResultsAsync(className, sectionName);
+        var studentRes = results.FirstOrDefault(r => r.StudentId == studentId);
+        if (studentRes == null) return null;
+
+        return new ReportCardPrintDetailDto
+        {
+            StudentId = studentRes.StudentId,
+            StudentName = studentRes.StudentName,
+            RollNo = studentRes.RollNo,
+            AdmissionNo = studentRes.AdmissionNo,
+            ClassName = className,
+            SectionName = sectionName,
+            TotalMarksObtained = studentRes.TotalMarksObtained,
+            TotalMaxMarks = studentRes.TotalMaxMarks,
+            Percentage = studentRes.Percentage,
+            Grade = studentRes.Grade,
+            Rank = studentRes.Rank,
+            ResultStatus = studentRes.ResultStatus
+        };
+    }
+
     private static CalculateResultsResponseDto MapResponseDto(List<NewStudentExamResult> list)
     {
         int passCount = list.Count(r => r.ResultStatus.Equals("Pass", StringComparison.OrdinalIgnoreCase));

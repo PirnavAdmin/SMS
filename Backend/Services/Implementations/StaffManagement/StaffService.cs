@@ -85,7 +85,8 @@ public class StaffService : IStaffService
     {
         string subjectName = !string.IsNullOrWhiteSpace(s.PrimarySubject) ? s.PrimarySubject : (!string.IsNullOrWhiteSpace(s.Department) ? s.Department : "General");
         string subjectCode = ExtractSubjectCode(subjectName, s.Specialization);
-        bool isClassTeacher = s.Designation != null && s.Designation.ToLower().Contains("class teacher");
+        // BUG-016 FIX: use the dedicated IsClassTeacherEligible flag, not a Designation string guess
+        bool isClassTeacher = s.IsClassTeacherEligible == true;
 
         return new TeacherDto
         {
@@ -107,15 +108,25 @@ public class StaffService : IStaffService
 
     private static string ExtractSubjectCode(string subject, string? specialization)
     {
+        // BUG-015 FIX: derive a reasonable code from the actual subject name rather than
+        // only handling a hard-coded list that gives every non-listed subject "SUB-100".
         var subLower = subject.ToLower();
         if (subLower.Contains("math")) return "MAT-101";
         if (subLower.Contains("physic")) return "PHY-102";
         if (subLower.Contains("english")) return "ENG-103";
         if (subLower.Contains("chem")) return "CHE-104";
-        if (subLower.Contains("computer") || subLower.Contains("cs")) return "CS-105";
-        if (subLower.Contains("physical") || subLower.Contains("sports") || subLower.Contains("pe")) return "PE-106";
+        if (subLower.Contains("computer") || subLower.Contains(" cs")) return "CS-105";
+        if (subLower.Contains("physical ed") || subLower.Contains("sports") || subLower == "pe") return "PE-106";
+        if (subLower.Contains("bio")) return "BIO-107";
+        if (subLower.Contains("history")) return "HIS-108";
+        if (subLower.Contains("geograph")) return "GEO-109";
+        if (subLower.Contains("econom")) return "ECO-110";
+        if (subLower.Contains("hindi")) return "HIN-111";
+        if (subLower.Contains("social")) return "SST-112";
 
-        return "SUB-100";
+        // Generic fallback: first 3 uppercase letters of subject name + sequential code
+        var prefix = new string(subject.Where(char.IsLetter).Take(3).ToArray()).ToUpper();
+        return string.IsNullOrEmpty(prefix) ? "GEN-100" : $"{prefix}-100";
     }
 
     public async Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto)

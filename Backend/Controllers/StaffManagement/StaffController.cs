@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 [ApiController]
 [Route("api/staff")]
-[Authorize(Roles = "SuperAdmin,Admin,Principal")]
+[Authorize]
 [Tags("Faculty & Staff Management")]
 public class StaffController : ControllerBase
 {
@@ -21,30 +21,37 @@ public class StaffController : ControllerBase
     }
 
     [HttpGet("next-emp-id")]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
     public async Task<IActionResult> GetNextEmployeeId() =>
         Ok(new { success = true, data = new { nextEmployeeId = await _staffService.GetNextEmployeeIdAsync() } });
 
     [HttpGet]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
     public async Task<IActionResult> GetAllStaff([FromQuery] string? search, [FromQuery] string? department) =>
         Ok(new { success = true, data = await _staffService.GetAllStaffAsync(search, department) });
 
     [HttpGet("{id:int}")]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
     public async Task<IActionResult> GetStaffById(int id) =>
         Ok(new { success = true, data = await _staffService.GetStaffByIdAsync(id) });
 
     [HttpGet("teachers/dropdown")]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
     public async Task<IActionResult> GetTeachersDropdown([FromQuery] string? search) =>
         Ok(new { success = true, data = await _staffService.GetTeachersForDropdownAsync(search) });
 
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
     public async Task<IActionResult> CreateStaff([FromBody] StaffCreateDto dto) =>
         Ok(new { success = true, message = "Staff member created successfully.", data = await _staffService.CreateStaffAsync(dto) });
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
     public async Task<IActionResult> UpdateStaff(int id, [FromBody] StaffCreateDto dto) =>
         Ok(new { success = true, message = "Staff member updated successfully.", data = await _staffService.UpdateStaffAsync(id, dto) });
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
     public async Task<IActionResult> DeleteStaff(int id)
     {
         try
