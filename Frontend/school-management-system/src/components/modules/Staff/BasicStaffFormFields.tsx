@@ -1098,6 +1098,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
         {activeStep === 5 ? (
           <button
+            key="submit-staff-btn"
             type="submit"
             disabled={isSubmitting}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs disabled:opacity-40"
@@ -1110,6 +1111,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
           </button>
         ) : (
           <button
+            key="next-staff-btn"
             type="button"
             onClick={() => setActiveStep(prev => Math.min(5, prev + 1))}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
