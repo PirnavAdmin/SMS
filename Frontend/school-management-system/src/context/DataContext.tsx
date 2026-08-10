@@ -216,7 +216,6 @@ import {
   createStaffApi,
   updateStaffApi,
   deleteStaffApi,
-  fetchTeacherAssignmentsApi,
 } from "../api/staff";
 import {
   fetchLeaveTypesApi,
@@ -4890,36 +4889,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [teacherAssignments]);
 
-  // Load teacher assignments from backend on mount (source of truth)
-  useEffect(() => {
-    const loadTeacherAssignments = async () => {
-      try {
-        const res: any = await fetchTeacherAssignmentsApi();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: TeacherAssignment[] = res.data.map((ta: any) => ({
-            id: ta.id,
-            classId: ta.classId,
-            className: ta.className,
-            section: ta.section,
-            teacherId: ta.teacherId,
-            teacherName: ta.teacherName,
-            subject: ta.subject,
-            subjectId: ta.subjectId,
-            role: ta.role,
-            status: ta.status,
-          }));
-          setTeacherAssignments(mapped);
-        }
-      } catch (err) {
-        // Fallback to localStorage if API unavailable
-        try {
-          const saved = localStorage.getItem("edu_db_teacher_assignments");
-          if (saved) setTeacherAssignments(JSON.parse(saved));
-        } catch {}
-      }
-    };
-    loadTeacherAssignments();
-  }, []);
+
 
   const addPeriodSetting = (data: Omit<PeriodSetting, "id">) => {
     // Check duplicate

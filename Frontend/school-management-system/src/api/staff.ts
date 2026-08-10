@@ -38,18 +38,3 @@ export const updateStaffStatusApi = async (id: number | string, payload: any) =>
     body: JSON.stringify(payload)
   });
 };
-
-// ============================
-// TEACHER ASSIGNMENTS API
-// ============================
-
-export const fetchTeacherAssignmentsApi = async () => {
-  return apiClient('/api/teacher-assignments', { method: 'GET' });
-};
-
-export const createTeacherAssignmentApi = async (payload: any) => {
-  return apiClient('/api/teacher-assignments', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  });
-};
