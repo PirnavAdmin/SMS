@@ -187,6 +187,8 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return BadRequest(new { success = false, message = "A duplicate class name already exists for this campus and academic year." });
             }
 
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             var classGrade = new ClassGrade
             {
                 ClassName = dto.Name ?? dto.ClassName,
@@ -300,6 +302,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             await _context.SaveChangesAsync();
+await transaction.CommitAsync();
             await LogAuditActionAsync("Create Class", $"Created class grade '{classGrade.ClassName}' with {sectionLetters.Count} sections.");
 
             return Ok(new { success = true, id = $"CL-{classGrade.ClassId}", message = "Class created successfully." });

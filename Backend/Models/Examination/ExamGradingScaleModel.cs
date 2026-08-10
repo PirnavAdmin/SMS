@@ -1,9 +1,11 @@
 namespace SMS.Api.Models.Examination;
 
 using System;
+using System.ComponentModel.DataAnnotations;
 
 public class NewGradingScaleRule
 {
+    [Key]
     public int RuleId { get; set; }
     public string ExamType { get; set; } = "All";
     public string Grade { get; set; } = "A+";

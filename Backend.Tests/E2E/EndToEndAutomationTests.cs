@@ -344,92 +344,64 @@ namespace Backend.Tests.E2E
         }
 
         [Fact]
-        public async Task E2E_09_Examination_And_Invigilation_Panel_Workflow()
+        public async Task E2E_09_Examination_New_Workflow()
         {
             var context = await GetInMemoryDbContextAsync();
 
-            var schedule = new ExamSchedule
+            var exam = new NewExamination
             {
-                ExamId = 101,
-                ExamTitle = "Final Term Board Examination 2026",
-                ClassName = "Class 12",
+                ExamId = 1,
+                ExamName = "Mid-Term Examination 2026",
+                AssessmentType = "Scholastic",
+                AcademicTerm = "Term 1",
+                StartDate = new DateTime(2026, 09, 10),
+                EndDate = new DateTime(2026, 09, 20),
+                ApplicableClasses = "Class 10,Class 11",
+                Status = "Draft"
+            };
+
+            var subjectConfig = new NewExamSubjectConfig
+            {
+                ConfigId = 1,
+                ExamId = 1,
+                ClassName = "Class 10",
+                SubjectCode = "MTH-101",
+                SubjectName = "Mathematics",
+                IsActive = true,
+                MaxMarks = 100m,
+                PassMarks = 35m
+            };
+
+            var slot = new NewExamTimetableSlot
+            {
+                SlotId = 1,
+                ExamId = 1,
+                ClassName = "Class 10",
                 SectionName = "Section A",
-                SubjectName = "Advanced Calculus",
-                ExamDate = new DateTime(2026, 11, 15),
-                StartTime = "09:00 AM",
-                EndTime = "12:00 PM",
-                MaxMarks = 100,
-                PassMarks = 35
+                SubjectCode = "MTH-101",
+                SubjectName = "Mathematics",
+                TotalMarks = 100,
+                ExamDate = new DateTime(2026, 09, 12),
+                TimeSlot = "09:00 - 12:00",
+                Duration = "3h",
+                RoomHall = "Room 101",
+                InvigilatorFaculty = "Dr. Eleanor Vance"
             };
-            schedule.InvigilatorAssignments.Add(new ExamInvigilatorAssignment
-            {
-                SectionName = "Section A",
-                StaffId = 5,
-                StaffName = "Dr. Eleanor Vance",
-                EmployeeId = "EMP005"
-            });
-            await context.ExamSchedules.AddAsync(schedule);
 
-            var paper = new QuestionPaper
-            {
-                ExamId = 101,
-                ExamTitle = schedule.ExamTitle,
-                ClassName = "Class 12",
-                SectionName = "All Sections",
-                SubjectName = "Advanced Calculus",
-                PaperTitle = "Calculus Final Paper 2026",
-                PaperCode = "MATH-12-FINAL",
-                ExamDate = DateTime.UtcNow,
-                Duration = "3 Hours",
-                MaxMarks = 100,
-                DocumentFileName = "calculus_final_2026.pdf",
-                DocumentSize = "2.4 MB",
-                UploadedBy = "Exam Controller",
-                PublishStatus = "PUBLISHED"
-            };
-            await context.QuestionPapers.AddAsync(paper);
-
-            var mark = new ExamMark
-            {
-                ExamId = 101,
-                ClassName = "Class 12",
-                SectionName = "A",
-                StudentId = 10,
-                RollNo = "1201",
-                StudentName = "Michael Faraday",
-                SubjectName = "Advanced Calculus",
-                MaxMarks = 100,
-                MarksObtained = 94,
-                GradePreview = "A+",
-                Remarks = "Outstanding performance",
-                IsLocked = true
-            };
-            await context.ExamMarks.AddAsync(mark);
-
-            var result = new ExamResult
-            {
-                ExamId = 101,
-                ExamTitle = schedule.ExamTitle,
-                ClassName = "Class 12",
-                SectionName = "A",
-                StudentId = 10,
-                RollNo = "1201",
-                StudentName = "Michael Faraday",
-                MarksObtained = 94,
-                TotalMaxMarks = 100,
-                Percentage = 94.0m,
-                GPA = 4.0m,
-                FinalGrade = "A+",
-                PassStatus = "Pass",
-                ResultStatus = "PROCESSED"
-            };
-            await context.ExamResults.AddAsync(result);
+            await context.NewExaminations.AddAsync(exam);
+            await context.NewExamSubjectConfigs.AddAsync(subjectConfig);
+            await context.NewExamTimetableSlots.AddAsync(slot);
             await context.SaveChangesAsync();
 
-            var savedResult = await context.ExamResults.FirstOrDefaultAsync(r => r.StudentId == 10);
-            Assert.NotNull(savedResult);
-            Assert.Equal("A+", savedResult.FinalGrade);
-            Assert.Equal("Pass", savedResult.PassStatus);
+            var savedExam = await context.NewExaminations.Include(e => e.SubjectConfigs).FirstOrDefaultAsync(e => e.ExamId == 1);
+            Assert.NotNull(savedExam);
+            Assert.Equal("Mid-Term Examination 2026", savedExam.ExamName);
+            Assert.Single(savedExam.SubjectConfigs);
+
+            var savedSlot = await context.NewExamTimetableSlots.FirstOrDefaultAsync(s => s.SlotId == 1);
+            Assert.NotNull(savedSlot);
+            Assert.Equal("Room 101", savedSlot.RoomHall);
+            Assert.Equal("Dr. Eleanor Vance", savedSlot.InvigilatorFaculty);
         }
     }
 }

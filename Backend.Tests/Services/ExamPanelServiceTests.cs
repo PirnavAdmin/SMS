@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
-using SMS.Api.Models;
+using SMS.Api.Models.Examination;
 using Xunit;
 
 namespace Backend.Tests.Services
@@ -19,37 +19,36 @@ namespace Backend.Tests.Services
         }
 
         [Fact]
-        public async Task Examination_ScheduleExamWithInvigilator_SavesSectionInvigilation()
+        public async Task Examination_ScheduleNewExamTimetableSlot_SavesSuccessfully()
         {
             var context = GetInMemoryDbContext();
-            var schedule = new ExamSchedule
+            var slot = new NewExamTimetableSlot
             {
-                ExamId = 1,
-                ExamTitle = "Mid-Term Examination 2026",
+                SlotId = 1,
+                ExamId = 10,
                 ClassName = "Class 10",
                 SectionName = "Section A",
+                SubjectCode = "MTH-101",
                 SubjectName = "Mathematics",
+                TotalMarks = 100,
                 ExamDate = new DateTime(2026, 09, 10),
-                StartTime = "09:00",
-                EndTime = "12:00"
+                TimeSlot = "09:00 - 12:00",
+                Duration = "3h",
+                RoomHall = "Room 101",
+                InvigilatorFaculty = "Rajesh Pirnav"
             };
 
-            schedule.InvigilatorAssignments.Add(new ExamInvigilatorAssignment
-            {
-                SectionName = "Section A",
-                StaffId = 3,
-                StaffName = "Rajesh Pirnav",
-                EmployeeId = "EMP003"
-            });
-
-            await context.ExamSchedules.AddAsync(schedule);
+            await context.NewExamTimetableSlots.AddAsync(slot);
             await context.SaveChangesAsync();
 
-            var saved = await context.ExamSchedules.Include(s => s.InvigilatorAssignments).FirstAsync();
-            Assert.Single(saved.InvigilatorAssignments);
-            var invig = System.Linq.Enumerable.First(saved.InvigilatorAssignments);
-            Assert.Equal("Rajesh Pirnav", invig.StaffName);
-            Assert.Equal("EMP003", invig.EmployeeId);
+            var saved = await context.NewExamTimetableSlots.FirstAsync();
+            Assert.Equal(1, saved.SlotId);
+            Assert.Equal(10, saved.ExamId);
+            Assert.Equal("Class 10", saved.ClassName);
+            Assert.Equal("Section A", saved.SectionName);
+            Assert.Equal("Mathematics", saved.SubjectName);
+            Assert.Equal("Room 101", saved.RoomHall);
+            Assert.Equal("Rajesh Pirnav", saved.InvigilatorFaculty);
         }
     }
 }
