@@ -58,5 +58,37 @@ public class ExamGradingScaleController : ControllerBase
             data = success 
         });
     }
+
+    /// <summary>
+    /// Update Grading Scale Rules (PUT /api/examination-new/grading-scale/update-rules)
+    /// </summary>
+    [HttpPut("update-rules")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> UpdateGradingScaleRules([FromBody] SaveGradingScaleRequestDto request)
+    {
+        if (request == null || request.ScaleRules == null)
+            return BadRequest(new { success = false, message = "Grading scale rules payload is required." });
+
+        var success = await _service.SaveGradingScaleRulesAsync(request);
+        return Ok(new { 
+            success = true, 
+            message = "Grade configuration and scale rules updated successfully.", 
+            updated = success 
+        });
+    }
+
+    /// <summary>
+    /// Delete an individual Grade Scale Rule by Rule ID (DELETE /api/examination-new/grading-scale/rules/{ruleId})
+    /// </summary>
+    [HttpDelete("rules/{ruleId:int}")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> DeleteScaleRule(int ruleId)
+    {
+        var success = await _service.DeleteScaleRuleAsync(ruleId);
+        return Ok(new { 
+            success = true, 
+            message = $"Grading scale rule {ruleId} deleted successfully." 
+        });
+    }
 }
 

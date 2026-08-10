@@ -46,10 +46,34 @@ namespace SMS.Api.Repositories.Implementations
 
             int totalCount = await query.CountAsync();
 
-            List<TransportRouteDto> items = await query
+            List<TransportRoute> rawRoutes = await query
                 .Skip((filter.PageNumber - 1) * filter.PageSize)
                 .Take(filter.PageSize)
-                .Select(x => new TransportRouteDto
+                .ToListAsync();
+
+            List<long> routeIds = rawRoutes.Select(r => r.RouteId).ToList();
+
+            Dictionary<long, int> pickupCounts = await _context.PickupPoints
+                .AsNoTracking()
+                .Where(p => routeIds.Contains(p.RouteId) && !p.IsDeleted)
+                .GroupBy(p => p.RouteId)
+                .ToDictionaryAsync(g => g.Key, g => g.Count());
+
+            List<TransportVehicleAssignment> assignments = await _context.TransportVehicleAssignments
+                .AsNoTracking()
+                .Include(a => a.Vehicle)
+                .Include(a => a.Driver)
+                .Where(a => routeIds.Contains(a.RouteId) && !a.IsDeleted && a.Status)
+                .ToListAsync();
+
+            List<TransportRouteDto> items = rawRoutes.Select(x =>
+            {
+                var assignment = assignments.FirstOrDefault(a => a.RouteId == x.RouteId);
+                var pickupCount = pickupCounts.TryGetValue(x.RouteId, out int count) ? count : 0;
+                var assignedBus = assignment?.Vehicle?.VehicleNumber ?? x.Vehicle?.VehicleNumber ?? "Unassigned";
+                var assignedDriver = assignment?.Driver?.DriverName ?? "Unassigned";
+
+                return new TransportRouteDto
                 {
                     RouteId = x.RouteId,
                     RouteCode = x.RouteCode,
@@ -58,15 +82,17 @@ namespace SMS.Api.Repositories.Implementations
                     EndLocation = x.EndLocation ?? string.Empty,
                     DistanceKm = x.DistanceKm,
                     EstimatedDurationMinutes = x.EstimatedDurationMinutes,
-                    EstimatedDurationText =
-                        FormatDuration(x.EstimatedDurationMinutes),
+                    EstimatedDurationText = FormatDuration(x.EstimatedDurationMinutes),
                     Description = x.Description,
+                    TotalPickupPoints = pickupCount,
+                    AssignedBus = assignedBus,
+                    AssignedDriver = assignedDriver,
                     Status = x.Status ? "Active" : "Inactive",
                     StatusText = x.Status ? "Active" : "Inactive",
                     CreatedAt = x.CreatedAt,
                     UpdatedAt = x.UpdatedAt
-                })
-                .ToListAsync();
+                };
+            }).ToList();
 
             return new PagedResult<TransportRouteDto>
             {
@@ -79,29 +105,45 @@ namespace SMS.Api.Repositories.Implementations
 
         public async Task<TransportRouteDto?> GetByIdAsync(long routeId)
         {
-            return await _context.TransportRoutes
+            var x = await _context.TransportRoutes
                 .AsNoTracking()
-                .Where(x =>
-                    x.RouteId == routeId &&
-                    !x.IsDeleted)
-                .Select(x => new TransportRouteDto
-                {
-                    RouteId = x.RouteId,
-                    RouteCode = x.RouteCode,
-                    RouteName = x.RouteName,
-                    StartLocation = x.StartLocation ?? string.Empty,
-                    EndLocation = x.EndLocation ?? string.Empty,
-                    DistanceKm = x.DistanceKm,
-                    EstimatedDurationMinutes = x.EstimatedDurationMinutes,
-                    EstimatedDurationText =
-                        FormatDuration(x.EstimatedDurationMinutes),
-                    Description = x.Description,
-                    Status = x.Status ? "Active" : "Inactive",
-                    StatusText = x.Status ? "Active" : "Inactive",
-                    CreatedAt = x.CreatedAt,
-                    UpdatedAt = x.UpdatedAt
-                })
-                .FirstOrDefaultAsync();
+                .Include(r => r.Vehicle)
+                .FirstOrDefaultAsync(r => r.RouteId == routeId && !r.IsDeleted);
+
+            if (x == null) return null;
+
+            var pickupCount = await _context.PickupPoints
+                .AsNoTracking()
+                .CountAsync(p => p.RouteId == routeId && !p.IsDeleted);
+
+            var assignment = await _context.TransportVehicleAssignments
+                .AsNoTracking()
+                .Include(a => a.Vehicle)
+                .Include(a => a.Driver)
+                .FirstOrDefaultAsync(a => a.RouteId == routeId && !a.IsDeleted && a.Status);
+
+            var assignedBus = assignment?.Vehicle?.VehicleNumber ?? x.Vehicle?.VehicleNumber ?? "Unassigned";
+            var assignedDriver = assignment?.Driver?.DriverName ?? "Unassigned";
+
+            return new TransportRouteDto
+            {
+                RouteId = x.RouteId,
+                RouteCode = x.RouteCode,
+                RouteName = x.RouteName,
+                StartLocation = x.StartLocation ?? string.Empty,
+                EndLocation = x.EndLocation ?? string.Empty,
+                DistanceKm = x.DistanceKm,
+                EstimatedDurationMinutes = x.EstimatedDurationMinutes,
+                EstimatedDurationText = FormatDuration(x.EstimatedDurationMinutes),
+                Description = x.Description,
+                TotalPickupPoints = pickupCount,
+                AssignedBus = assignedBus,
+                AssignedDriver = assignedDriver,
+                Status = x.Status ? "Active" : "Inactive",
+                StatusText = x.Status ? "Active" : "Inactive",
+                CreatedAt = x.CreatedAt,
+                UpdatedAt = x.UpdatedAt
+            };
         }
 
         public async Task<long> CreateAsync(

@@ -62,6 +62,25 @@ public class ExamNewController : ControllerBase
     }
 
     /// <summary>
+    /// Update existing Exam Details by Exam ID (PUT /api/examination-new/exams/{id})
+    /// </summary>
+    [HttpPut("exams/{id:int}")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> UpdateExamDetails(int id, [FromBody] SaveExamDetailsRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.ExamName))
+            return BadRequest(new { success = false, message = "Examination Name is required." });
+
+        request.ExamId = id;
+        var result = await _service.SaveExamDetailsAsync(request);
+        return Ok(new { 
+            success = true, 
+            message = $"Examination {id} updated successfully.", 
+            data = result 
+        });
+    }
+
+    /// <summary>
     /// Step 2: Get Subjects and Marks configuration for an Exam (Screen 2: Subjects & Marks Tab)
     /// </summary>
     [HttpGet("subjects/{examId:int}")]
@@ -89,6 +108,39 @@ public class ExamNewController : ControllerBase
             message = "Subjects & Marks saved successfully. Exam scheduled.", 
             redirectTo = "ExamSchedule",
             scheduled = success 
+        });
+    }
+
+    /// <summary>
+    /// Update Subjects & Marks configuration for an Exam (PUT /api/examination-new/subjects/{examId})
+    /// </summary>
+    [HttpPut("subjects/{examId:int}")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> UpdateSubjects(int examId, [FromBody] SaveSubjectsAndMarksRequestDto request)
+    {
+        if (request == null)
+            return BadRequest(new { success = false, message = "Invalid request payload." });
+
+        request.ExamId = examId;
+        var success = await _service.SaveSubjectsAndProceedAsync(request);
+        return Ok(new { 
+            success = true, 
+            message = $"Subjects & Marks for examination {examId} updated successfully.", 
+            updated = success 
+        });
+    }
+
+    /// <summary>
+    /// Delete Exam Configuration (Clicking the red trash icon button 🗑️)
+    /// </summary>
+    [HttpDelete("exams/{id:int}")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> DeleteExam(int id)
+    {
+        var success = await _service.DeleteExamAsync(id);
+        return Ok(new { 
+            success = true, 
+            message = $"Examination {id} deleted successfully." 
         });
     }
 }

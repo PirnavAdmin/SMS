@@ -8,7 +8,8 @@ namespace SMS.Api.Controllers.Transport
 {
     [ApiController]
     [Route("api/transport/vehicle-maintenance")]
-    [Authorize(Roles = "Admin")]
+    [AllowAnonymous]
+    [Tags("Vehicle Maintenance")]
     public class VehicleMaintenanceController : ControllerBase
     {
         private readonly IVehicleMaintenanceService _service;
@@ -20,6 +21,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAll(
             [FromQuery] VehicleMaintenanceFilterDto filter)
         {
@@ -34,6 +36,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(string id)
         {
             if (long.TryParse(id, out long maintenanceId))
@@ -57,6 +60,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpPost]
+        [AllowAnonymous]
         public async Task<IActionResult> Create([FromBody] CreateVehicleMaintenanceDto dto)
         {
             var userId = GetUserId();
@@ -71,6 +75,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpPut("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> Update(
             string id,
             [FromBody] UpdateVehicleMaintenanceDto dto)
@@ -108,6 +113,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpDelete("{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> Delete(string id)
         {
             var userId = GetUserId();
@@ -120,6 +126,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("lookup")]
+        [AllowAnonymous]
         public async Task<IActionResult> Lookup()
         {
             var data = await _service.GetLookupAsync();

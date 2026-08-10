@@ -11,5 +11,6 @@ public interface IExamNewService
     Task<ExamDetailsResponseDto> SaveExamDetailsAsync(SaveExamDetailsRequestDto request);
     Task<SubjectConfigPageResponseDto?> GetSubjectsForExamAsync(int examId, string? className);
     Task<bool> SaveSubjectsAndProceedAsync(SaveSubjectsAndMarksRequestDto request);
+    Task<bool> DeleteExamAsync(int examId);
 }
 

@@ -17,9 +17,13 @@ public class ExamGradingScaleService : IExamGradingScaleService
         _repository = repository;
     }
 
-    public Task<GradingScaleOptionsDto> GetGradingScaleOptionsAsync()
+    public async Task<GradingScaleOptionsDto> GetGradingScaleOptionsAsync()
     {
-        return Task.FromResult(new GradingScaleOptionsDto());
+        return new GradingScaleOptionsDto
+        {
+            ExamTypes = new List<string> { "All", "Summative Assessment (SA)", "Formative Assessment (FA)", "Unit Test" },
+            PassFailOptions = new List<string> { "PASS", "FAIL" }
+        };
     }
 
     public async Task<GradingScaleResponseDto> GetGradingScaleRulesAsync(string? examType)
@@ -27,32 +31,28 @@ public class ExamGradingScaleService : IExamGradingScaleService
         string targetType = string.IsNullOrWhiteSpace(examType) ? "All" : examType;
         var rules = await _repository.GetScaleRulesAsync(targetType);
 
-        var ruleDtos = rules.Select(r => new GradingScaleRuleItemDto
-        {
-            RuleId = r.RuleId,
-            Grade = r.Grade,
-            MinMarks = r.MinMarks,
-            MaxMarks = r.MaxMarks,
-            Gpa = r.Gpa,
-            PassFail = r.PassFail,
-            Remarks = r.Remarks
-        }).OrderByDescending(r => r.MinMarks).ToList();
-
         return new GradingScaleResponseDto
         {
             ExamType = targetType,
-            ScaleRules = ruleDtos
+            ScaleRules = rules.Select(r => new GradingScaleRuleItemDto
+            {
+                RuleId = r.RuleId,
+                Grade = r.Grade,
+                MinMarks = r.MinMarks,
+                MaxMarks = r.MaxMarks,
+                Gpa = r.Gpa,
+                PassFail = r.PassFail,
+                Remarks = r.Remarks
+            }).ToList()
         };
     }
 
     public async Task<bool> SaveGradingScaleRulesAsync(SaveGradingScaleRequestDto request)
     {
-        string targetType = string.IsNullOrWhiteSpace(request.ExamType) ? "All" : request.ExamType;
-
         var entities = request.ScaleRules.Select(r => new NewGradingScaleRule
         {
             RuleId = r.RuleId,
-            ExamType = targetType,
+            ExamType = request.ExamType,
             Grade = r.Grade,
             MinMarks = r.MinMarks,
             MaxMarks = r.MaxMarks,
@@ -61,7 +61,12 @@ public class ExamGradingScaleService : IExamGradingScaleService
             Remarks = r.Remarks
         }).ToList();
 
-        return await _repository.SaveScaleRulesAsync(targetType, entities);
+        return await _repository.SaveScaleRulesAsync(request.ExamType, entities);
+    }
+
+    public async Task<bool> DeleteScaleRuleAsync(int ruleId)
+    {
+        return await _repository.DeleteScaleRuleAsync(ruleId);
     }
 }
 

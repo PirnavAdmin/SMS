@@ -555,8 +555,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       });
     });
 
-    if (stType === 'Day Scholar') {
-      if (formData.transportRequired) {
+    if (stType === 'Day Scholar' || stType === 'Non-Residential') {
+      const isTransportSelected = formData.transportRequired && formData.busRoute && formData.pickupPoint;
+      if (isTransportSelected) {
         const rObj = routeMasters.find(r => r.id === formData.routeId || r.routeName === formData.busRoute);
         const pObj = pickupPoints.find(p => p.id === formData.pickupPointId || (rObj && p.routeId === rObj.id && p.pickupName === formData.pickupPoint));
         const ftc = financeTransportConfigs.find(
@@ -565,7 +566,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
         const trpFee = ftc ? ftc.feeAmount : 5500;
         items.push({
-          name: `Transport Fee (${rObj?.routeName || formData.busRoute || 'Selected Route'})`,
+          name: `Transport Fee (${rObj?.routeName || formData.busRoute})`,
           amount: trpFee,
           isApplicable: true
         });
@@ -574,7 +575,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           name: 'Transport Fee',
           amount: 0,
           isApplicable: false,
-          remarks: 'Transport Not Opted'
+          remarks: formData.transportRequired ? 'Pickup Point Not Selected' : 'Transport Not Opted'
         });
       }
 
@@ -585,25 +586,41 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         remarks: 'Not Applicable for Day Scholars'
       });
     } else {
-      const hObj = hostelMasters.find(h => h.id === formData.hostelBlock || h.hostelName === formData.hostelBlock) || hostelMasters[0];
-      const fhc = financeHostelConfigs.find(
-        c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active'
-      ) || financeHostelConfigs[0];
+      const isHostelSelected = formData.hostelBlock && formData.hostelRoom && formData.hostelBed;
+      if (isHostelSelected) {
+        const hObj = hostelMasters.find(h => h.id === formData.hostelBlock || h.hostelName === formData.hostelBlock || h.id.toString() === formData.hostelBlock?.toString()) || hostelMasters[0];
+        const fhc = financeHostelConfigs.find(
+          c => (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) && c.status === 'Active'
+        ) || financeHostelConfigs[0];
 
-      const hstFee = fhc ? fhc.hostelFee : 40000;
-      const secDep = fhc ? fhc.securityDeposit : 5000;
+        const hstFee = fhc ? fhc.hostelFee : 40000;
+        const secDep = fhc ? fhc.securityDeposit : 5000;
 
-      items.push({
-        name: `Hostel Fee (${hObj?.hostelName || 'Hostel Accommodation'})`,
-        amount: hstFee,
-        isApplicable: true
-      });
+        items.push({
+          name: `Hostel Fee (${hObj?.hostelName || 'Hostel Accommodation'})`,
+          amount: hstFee,
+          isApplicable: true
+        });
 
-      if (secDep > 0) {
+        if (secDep > 0) {
+          items.push({
+            name: 'Security Deposit',
+            amount: secDep,
+            isApplicable: true
+          });
+        }
+      } else {
+        items.push({
+          name: 'Hostel Fee',
+          amount: 0,
+          isApplicable: false,
+          remarks: 'Hostel Bed Not Allocated'
+        });
         items.push({
           name: 'Security Deposit',
-          amount: secDep,
-          isApplicable: true
+          amount: 0,
+          isApplicable: false,
+          remarks: 'Hostel Bed Not Allocated'
         });
       }
 
@@ -1234,12 +1251,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             value={formData.busRoute}
                             onChange={e => {
                               const rName = e.target.value;
-                              const rObj = routeMasters.find(r => r.routeName === rName);
-                              const rStops = pickupPoints.filter(p => p.routeId === rObj?.id || p.routeName === rName);
                               setFormData({
                                 ...formData,
                                 busRoute: rName,
-                                pickupPoint: rStops[0]?.pickupName || ''
+                                pickupPoint: ''
                               });
                             }}
                             className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
@@ -1285,28 +1300,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <select
                           value={formData.hostelBlock}
                           onChange={e => {
-                            const blockRooms = dynamicHostelRooms.filter(r => r.hostelId === Number(e.target.value));
-                            const firstRoom = blockRooms[0];
-                            let firstAvailBed = '';
-                            if (firstRoom) {
-                              const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === firstRoom.roomTypeId);
-                              const rCap = rtObj ? rtObj.bedCapacity : (firstRoom.bedCapacity || 2);
-                              for (let i = 1; i <= rCap; i++) {
-                                const bedName = `BED-${i}`;
-                                const isTaken = dynamicAllocations.some(
-                                  a => a.roomId === firstRoom.roomId && a.bedNumber === bedName && a.status === 'Active'
-                                );
-                                if (!isTaken) {
-                                  firstAvailBed = bedName;
-                                  break;
-                                }
-                              }
-                            }
                             setFormData({
                               ...formData,
                               hostelBlock: e.target.value,
-                              hostelRoom: firstRoom ? firstRoom.roomId.toString() : '',
-                              hostelBed: firstAvailBed
+                              hostelRoom: '',
+                              hostelBed: ''
                             });
                           }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
@@ -1323,27 +1321,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <select
                           value={formData.hostelRoom}
                           onChange={e => {
-                            const selectedRoomId = Number(e.target.value);
-                            const selectedRoomObj = dynamicHostelRooms.find(r => r.roomId === selectedRoomId);
-                            let firstAvailBed = '';
-                            if (selectedRoomObj) {
-                              const rtObj = dynamicRoomTypes.find(rt => rt.roomTypeId === selectedRoomObj.roomTypeId);
-                              const rCap = rtObj ? rtObj.bedCapacity : (selectedRoomObj.bedCapacity || 2);
-                              for (let i = 1; i <= rCap; i++) {
-                                const bedName = `BED-${i}`;
-                                const isTaken = dynamicAllocations.some(
-                                  a => a.roomId === selectedRoomId && a.bedNumber === bedName && a.status === 'Active'
-                                );
-                                if (!isTaken) {
-                                  firstAvailBed = bedName;
-                                  break;
-                                }
-                              }
-                            }
                             setFormData({
                               ...formData,
-                              hostelRoom: selectedRoomId.toString(),
-                              hostelBed: firstAvailBed
+                              hostelRoom: e.target.value,
+                              hostelBed: ''
                             });
                           }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
@@ -1905,7 +1886,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 {/* Logistics */}
                 <div className="space-y-4">
                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    {selectedAppForView.studentType === 'Hosteller' ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
+                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
                     Transport & Accommodation
                   </h4>
                   <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
@@ -1922,14 +1903,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                     </div>
                     
-                    {selectedAppForView.studentType === 'Day Scholar' && selectedAppForView.transportRequired && (
+                    {(selectedAppForView.studentType === 'Day Scholar' || selectedAppForView.studentType === 'Non-Residential') && selectedAppForView.transportRequired && (
                       <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Transport Details</p>
                         <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {selectedAppForView.pickupPoint || 'Pending allocation'}</p>
                       </div>
                     )}
                     
-                    {selectedAppForView.studentType === 'Hosteller' && (
+                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') && (
                       <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
                         <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Hostel Allocation</p>
                         <p className="text-sm text-slate-600 dark:text-slate-400">{selectedAppForView.hostelBlock ? `${selectedAppForView.hostelBlock} - Room ${selectedAppForView.hostelRoom}` : 'Pending allocation'}</p>
@@ -2001,15 +1982,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             : `Are you sure you want to reject application #${confirmingApp?.app.applicationNo}?`
         }
         confirmLabel={confirmingApp?.status === 'Enrolled' ? 'Enroll Student' : 'Reject Application'}
-        onConfirm={() => {
+        onConfirm={async () => {
           if (confirmingApp) {
-            updateAdmissionStatus(confirmingApp.app.id, confirmingApp.status);
+            const studentId = await updateAdmissionStatus(confirmingApp.app.id, confirmingApp.status);
             if (confirmingApp.status === 'Enrolled') {
-              const matchedSt = students.find(s => s.admissionNo === confirmingApp.app.applicationNo || s.phone === confirmingApp.app.phone);
-              if (matchedSt) {
-                setFeeSummaryStudentId(matchedSt.id);
+              if (studentId) {
+                setFeeSummaryStudentId(studentId);
               } else {
-                setFeeSummaryStudentId(students[0]?.id || 'STU-001');
+                const matchedSt = students.find(s => s.admissionNo === confirmingApp.app.applicationNo || s.phone === confirmingApp.app.phone);
+                if (matchedSt) {
+                  setFeeSummaryStudentId(matchedSt.id);
+                } else {
+                  setFeeSummaryStudentId(students[0]?.id || 'STU-001');
+                }
               }
             }
             addToast(

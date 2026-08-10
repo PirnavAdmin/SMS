@@ -14,6 +14,16 @@ namespace SMS.Api.Models
 
         public long DriverId { get; set; }
 
+        public long? AttendantId { get; set; }
+
+        public string? BranchName { get; set; }
+
+        public string? AcademicYear { get; set; }
+
+        public string? MorningTripTime { get; set; }
+
+        public string? EveningTripTime { get; set; }
+
         [System.ComponentModel.DataAnnotations.Schema.NotMapped]
         public DateTime AssignmentDate
         {
@@ -57,5 +67,7 @@ namespace SMS.Api.Models
         public TransportVehicle Vehicle { get; set; } = null!;
 
         public TransportDriver Driver { get; set; } = null!;
+
+        public TransportAttendant? Attendant { get; set; }
     }
 }

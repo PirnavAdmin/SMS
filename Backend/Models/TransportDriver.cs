@@ -34,6 +34,7 @@ public class TransportDriver
     }
 
     public string? AlternateMobileNumber { get; set; }
+    public string? Email { get; set; }
     public string? Address { get; set; }
     public string? BloodGroup { get; set; }
     public string? EmergencyContactName { get; set; }

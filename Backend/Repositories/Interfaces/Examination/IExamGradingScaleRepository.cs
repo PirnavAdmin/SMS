@@ -8,5 +8,6 @@ public interface IExamGradingScaleRepository
 {
     Task<List<NewGradingScaleRule>> GetScaleRulesAsync(string examType);
     Task<bool> SaveScaleRulesAsync(string examType, List<NewGradingScaleRule> rules);
+    Task<bool> DeleteScaleRuleAsync(int ruleId);
 }
 

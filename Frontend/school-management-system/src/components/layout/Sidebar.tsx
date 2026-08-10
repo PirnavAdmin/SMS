@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )
     );
     if (parentWards.length > 0) {
-       isHosteller = parentWards.some(w => w.studentType === 'Hosteller');
+       isHosteller = parentWards.some(w => w.studentType === 'Hosteller' || w.studentType === 'Residential');
        usesTransport = parentWards.some(w => w.transportRequired || w.busRoute || w.transportType || w.routeId);
     }
   }

@@ -116,6 +116,10 @@ namespace SMS.Api.Repositories.Implementations
                 VehicleName = !string.IsNullOrWhiteSpace(dto.VehicleName) ? dto.VehicleName.Trim() : "School Bus",
                 VehicleType = !string.IsNullOrWhiteSpace(dto.VehicleType) ? dto.VehicleType.Trim() : "Bus",
                 Capacity = dto.Capacity > 0 ? dto.Capacity : 40,
+                IsAC = dto.IsAC,
+                ChassisNumber = dto.ChassisNumber?.Trim(),
+                EngineNumber = dto.EngineNumber?.Trim(),
+                GpsDeviceId = dto.GpsDeviceId?.Trim(),
                 Manufacturer = dto.Manufacturer?.Trim() ?? string.Empty,
                 Model = dto.Model?.Trim() ?? string.Empty,
                 InsuranceNumber = dto.InsuranceNumber?.Trim() ?? string.Empty,
@@ -151,6 +155,10 @@ namespace SMS.Api.Repositories.Implementations
             if (!string.IsNullOrWhiteSpace(dto.VehicleName)) entity.VehicleName = dto.VehicleName.Trim();
             if (!string.IsNullOrWhiteSpace(dto.VehicleType)) entity.VehicleType = dto.VehicleType.Trim();
             if (dto.Capacity > 0) entity.Capacity = dto.Capacity;
+            entity.IsAC = dto.IsAC;
+            if (dto.ChassisNumber != null) entity.ChassisNumber = dto.ChassisNumber.Trim();
+            if (dto.EngineNumber != null) entity.EngineNumber = dto.EngineNumber.Trim();
+            if (dto.GpsDeviceId != null) entity.GpsDeviceId = dto.GpsDeviceId.Trim();
             entity.Manufacturer = dto.Manufacturer?.Trim() ?? string.Empty;
             entity.Model = dto.Model?.Trim() ?? string.Empty;
             entity.InsuranceNumber = dto.InsuranceNumber?.Trim() ?? string.Empty;

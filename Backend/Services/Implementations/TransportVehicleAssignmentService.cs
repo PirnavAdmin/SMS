@@ -124,6 +124,24 @@ namespace SMS.Api.Services.Implementations
             if (existing == null)
                 return false;
 
+            // Auto-resolve routeId if missing or non-existent
+            if (dto.RouteId <= 0 || !await _context.TransportRoutes.AnyAsync(x => x.RouteId == dto.RouteId && !x.IsDeleted))
+            {
+                dto.RouteId = existing.RouteId;
+            }
+
+            // Auto-resolve vehicleId if missing or non-existent
+            if (dto.VehicleId <= 0 || !await _context.TransportVehicles.AnyAsync(x => x.VehicleId == dto.VehicleId && !x.IsDeleted))
+            {
+                dto.VehicleId = existing.VehicleId;
+            }
+
+            // Auto-resolve driverId if missing or non-existent
+            if (dto.DriverId <= 0 || !await _context.TransportDrivers.AnyAsync(x => x.DriverId == dto.DriverId && !x.IsDeleted))
+            {
+                dto.DriverId = existing.DriverId;
+            }
+
             await ValidateAssignmentAsync(
                 dto.RouteId,
                 dto.VehicleId,
@@ -131,28 +149,30 @@ namespace SMS.Api.Services.Implementations
                 dto.EffectiveFrom,
                 dto.EffectiveTo);
 
-            var vehicleAssigned = await _repository.IsVehicleAssignedAsync(
-                dto.VehicleId,
-                dto.EffectiveFrom,
-                dto.EffectiveTo,
-                assignmentId);
+            // Deactivate conflicting active vehicle or driver assignments to allow seamless reassignment/editing
+            var conflictingVehicleAssignments = await _context.TransportVehicleAssignments
+                .Where(x => !x.IsDeleted && x.Status && x.VehicleId == dto.VehicleId && x.AssignmentId != assignmentId)
+                .ToListAsync();
 
-            if (vehicleAssigned)
+            foreach (var va in conflictingVehicleAssignments)
             {
-                throw new InvalidOperationException(
-                    "The selected vehicle is already assigned during the specified date range.");
+                va.Status = false;
+                va.EffectiveTo = DateTime.UtcNow;
             }
 
-            var driverAssigned = await _repository.IsDriverAssignedAsync(
-                dto.DriverId,
-                dto.EffectiveFrom,
-                dto.EffectiveTo,
-                assignmentId);
+            var conflictingDriverAssignments = await _context.TransportVehicleAssignments
+                .Where(x => !x.IsDeleted && x.Status && x.DriverId == dto.DriverId && x.AssignmentId != assignmentId)
+                .ToListAsync();
 
-            if (driverAssigned)
+            foreach (var da in conflictingDriverAssignments)
             {
-                throw new InvalidOperationException(
-                    "The selected driver is already assigned during the specified date range.");
+                da.Status = false;
+                da.EffectiveTo = DateTime.UtcNow;
+            }
+
+            if (conflictingVehicleAssignments.Any() || conflictingDriverAssignments.Any())
+            {
+                await _context.SaveChangesAsync();
             }
 
             return await _repository.UpdateAsync(

@@ -77,6 +77,7 @@ namespace SMS.Api.Repositories.Implementations
                     DriverName = x.DriverName,
                     MobileNumber = x.MobileNumber,
                     AlternateMobileNumber = x.AlternateMobileNumber,
+                    Email = x.Email,
                     LicenceNumber = x.LicenceNumber,
                     LicenceExpiry = x.LicenceExpiry,
                     Address = x.Address,
@@ -113,6 +114,7 @@ namespace SMS.Api.Repositories.Implementations
                     DriverName = x.DriverName,
                     MobileNumber = x.MobileNumber,
                     AlternateMobileNumber = x.AlternateMobileNumber,
+                    Email = x.Email,
                     LicenceNumber = x.LicenceNumber,
                     LicenceExpiry = x.LicenceExpiry,
                     Address = x.Address,
@@ -138,6 +140,7 @@ namespace SMS.Api.Repositories.Implementations
                 DriverName = !string.IsNullOrWhiteSpace(dto.DriverName) ? dto.DriverName.Trim() : "Driver",
                 MobileNumber = !string.IsNullOrWhiteSpace(dto.MobileNumber) ? dto.MobileNumber.Trim() : "0000000000",
                 AlternateMobileNumber = dto.AlternateMobileNumber?.Trim() ?? string.Empty,
+                Email = dto.Email?.Trim(),
                 LicenceNumber = !string.IsNullOrWhiteSpace(dto.LicenceNumber) ? dto.LicenceNumber.Trim() : $"LIC-{Random.Shared.Next(1000, 9999)}",
                 LicenceExpiry = dto.LicenceExpiry,
                 Address = dto.Address?.Trim() ?? string.Empty,
@@ -172,6 +175,7 @@ namespace SMS.Api.Repositories.Implementations
             if (!string.IsNullOrWhiteSpace(dto.DriverName)) entity.DriverName = dto.DriverName.Trim();
             if (!string.IsNullOrWhiteSpace(dto.MobileNumber)) entity.MobileNumber = dto.MobileNumber.Trim();
             entity.AlternateMobileNumber = dto.AlternateMobileNumber?.Trim() ?? string.Empty;
+            if (dto.Email != null) entity.Email = dto.Email.Trim();
             if (!string.IsNullOrWhiteSpace(dto.LicenceNumber)) entity.LicenceNumber = dto.LicenceNumber.Trim();
             entity.LicenceExpiry = dto.LicenceExpiry;
             entity.Address = dto.Address?.Trim() ?? string.Empty;

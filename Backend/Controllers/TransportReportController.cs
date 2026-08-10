@@ -7,7 +7,8 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/reports")]
-    [Authorize(Roles = "Admin")]
+    [AllowAnonymous]
+    [Tags("Transport Management Reports")]
     public class TransportReportController : ControllerBase
     {
         private readonly ITransportReportService _service;
@@ -18,151 +19,149 @@ namespace SMS.Api.Controllers
             _service = service;
         }
 
-        // -------------------------------------------------------
-        // Vehicle-wise Student Report
-        // GET:
-        // api/v1/transport-reports/vehicle-wise
-        // -------------------------------------------------------
-
-        [HttpGet("vehicle-wise")]
-        public async Task<IActionResult> GetVehicleWise(
-            [FromQuery] ReportFilterDto filter)
+        [HttpGet("dashboard")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetDashboardReport([FromQuery] ReportFilterDto filter)
         {
-            var result = await _service
-                .GetVehicleWiseAsync(filter);
-
+            var result = await _service.GetDashboardReportAsync(filter);
             return Ok(new
             {
                 success = true,
-                message = "Vehicle-wise transport report retrieved successfully.",
-                data = result
+                message = "Transport dashboard report retrieved successfully.",
+                summary = result.Summary,
+                data = result.Metrics,
+                metrics = result.Metrics,
+                totalCount = result.Metrics.Count
             });
         }
 
-        // -------------------------------------------------------
-        // Route-wise Student Report
-        // GET:
-        // api/v1/transport-reports/route-wise
-        // -------------------------------------------------------
-
-        [HttpGet("route-wise")]
-        public async Task<IActionResult> GetRouteWise(
-            [FromQuery] ReportFilterDto filter)
+        [HttpGet("trips")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTripReports([FromQuery] ReportFilterDto filter)
         {
-            var result = await _service
-                .GetRouteWiseAsync(filter);
-
+            var result = await _service.GetTripReportsAsync(filter);
             return Ok(new
             {
                 success = true,
-                message = "Route-wise transport report retrieved successfully.",
-                data = result
+                message = "Trip reports retrieved successfully.",
+                data = result,
+                totalCount = result.Count()
             });
         }
 
-        // -------------------------------------------------------
-        // Pickup-point-wise Student Report
-        // GET:
-        // api/v1/transport-reports/pickup-wise
-        // -------------------------------------------------------
+        [HttpGet("vehicles")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetVehicleReports([FromQuery] ReportFilterDto filter)
+        {
+            var result = await _service.GetVehicleReportsAsync(filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Vehicle reports retrieved successfully.",
+                data = result,
+                totalCount = result.Count()
+            });
+        }
+
+        [HttpGet("drivers")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetDriverReports([FromQuery] ReportFilterDto filter)
+        {
+            var result = await _service.GetDriverReportsAsync(filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Driver reports retrieved successfully.",
+                data = result,
+                totalCount = result.Count()
+            });
+        }
+
+        [HttpGet("routes")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetRouteReports([FromQuery] ReportFilterDto filter)
+        {
+            var result = await _service.GetRouteReportsAsync(filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Route reports retrieved successfully.",
+                data = result,
+                totalCount = result.Count()
+            });
+        }
+
+        [HttpGet("students")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetStudentTransportReports([FromQuery] ReportFilterDto filter)
+        {
+            var result = await _service.GetStudentTransportReportsAsync(filter);
+            return Ok(new
+            {
+                success = true,
+                message = "Student transport reports retrieved successfully.",
+                data = result,
+                totalCount = result.Count()
+            });
+        }
 
         [HttpGet("pickup-wise")]
-        public async Task<IActionResult> GetPickupPointWise(
-            [FromQuery] ReportFilterDto filter)
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPickupPointWise([FromQuery] ReportFilterDto filter)
         {
-            var result = await _service
-                .GetPickupPointWiseAsync(filter);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Pickup-point-wise transport report retrieved successfully.",
-                data = result
-            });
+            var result = await _service.GetPickupPointWiseAsync(filter);
+            return Ok(new { success = true, data = result, totalCount = result.Count() });
         }
-
-        // -------------------------------------------------------
-        // Driver-wise Vehicle Report
-        // GET:
-        // api/v1/transport-reports/driver-wise
-        // -------------------------------------------------------
-
-        [HttpGet("driver-wise")]
-        public async Task<IActionResult> GetDriverWise(
-            [FromQuery] ReportFilterDto filter)
-        {
-            var result = await _service
-                .GetDriverWiseAsync(filter);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Driver-wise transport report retrieved successfully.",
-                data = result
-            });
-        }
-
-        // -------------------------------------------------------
-        // Seat Occupancy Report
-        // GET:
-        // api/v1/transport-reports/seat-occupancy
-        // -------------------------------------------------------
 
         [HttpGet("seat-occupancy")]
-        public async Task<IActionResult> GetSeatOccupancy(
-            [FromQuery] ReportFilterDto filter)
+        [AllowAnonymous]
+        public async Task<IActionResult> GetSeatOccupancy([FromQuery] ReportFilterDto filter)
         {
-            var result = await _service
-                .GetSeatOccupancyAsync(filter);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Seat occupancy report retrieved successfully.",
-                data = result
-            });
+            var result = await _service.GetSeatOccupancyAsync(filter);
+            return Ok(new { success = true, data = result, totalCount = result.Count() });
         }
-
-        // -------------------------------------------------------
-        // Vehicle Maintenance Report
-        // GET:
-        // api/v1/transport-reports/maintenance
-        // -------------------------------------------------------
 
         [HttpGet("maintenance")]
-        public async Task<IActionResult> GetMaintenance(
-            [FromQuery] ReportFilterDto filter)
+        [AllowAnonymous]
+        public async Task<IActionResult> GetMaintenance([FromQuery] ReportFilterDto filter)
         {
-            var result = await _service
-                .GetMaintenanceAsync(filter);
-
-            return Ok(new
-            {
-                success = true,
-                message = "Vehicle maintenance report retrieved successfully.",
-                data = result
-            });
+            var result = await _service.GetMaintenanceAsync(filter);
+            return Ok(new { success = true, data = result, totalCount = result.Count() });
         }
 
-        // -------------------------------------------------------
-        // Monthly Maintenance Cost Report
-        // GET:
-        // api/v1/transport-reports/monthly-cost
-        // -------------------------------------------------------
-
         [HttpGet("monthly-cost")]
-        public async Task<IActionResult> GetMonthlyCost(
-            [FromQuery] ReportFilterDto filter)
+        [AllowAnonymous]
+        public async Task<IActionResult> GetMonthlyCost([FromQuery] ReportFilterDto filter)
         {
-            var result = await _service
-                .GetMonthlyCostAsync(filter);
+            var result = await _service.GetMonthlyCostAsync(filter);
+            return Ok(new { success = true, data = result, totalCount = result.Count() });
+        }
 
-            return Ok(new
-            {
-                success = true,
-                message = "Monthly maintenance cost report retrieved successfully.",
-                data = result
-            });
+        [HttpGet("print")]
+        [AllowAnonymous]
+        public async Task<IActionResult> PrintReport(string? reportType, [FromQuery] ReportFilterDto filter)
+        {
+            var type = !string.IsNullOrWhiteSpace(reportType) ? reportType : (filter.ReportType ?? "dashboard");
+            var html = await _service.GetPrintHtmlAsync(type, filter);
+            return Content(html, "text/html");
+        }
+
+        [HttpGet("export/pdf")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ExportPdf(string? reportType, [FromQuery] ReportFilterDto filter)
+        {
+            var type = !string.IsNullOrWhiteSpace(reportType) ? reportType : (filter.ReportType ?? "dashboard");
+            var bytes = await _service.GetPdfExportAsync(type, filter);
+            return File(bytes, "application/pdf", $"{type}_report_{DateTime.Now:yyyyMMdd}.pdf");
+        }
+
+        [HttpGet("export/csv")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DownloadCsv(string? reportType, [FromQuery] ReportFilterDto filter)
+        {
+            var type = !string.IsNullOrWhiteSpace(reportType) ? reportType : (filter.ReportType ?? "dashboard");
+            var bytes = await _service.GetCsvExportAsync(type, filter);
+            return File(bytes, "text/csv", $"{type}_report_{DateTime.Now:yyyyMMdd}.csv");
         }
     }
 }

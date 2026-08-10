@@ -1,48 +1,152 @@
-namespace SMS.Api.Dtos;
-
-using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using SMS.Api.Common;
 
-public class BedAllocationDto
+namespace SMS.Api.Dtos
 {
-    public int AllocationId { get; set; }
-    public int StudentId { get; set; }
-    public string StudentName { get; set; } = string.Empty;
-    public string AdmissionNo { get; set; } = string.Empty;
-    public string ClassName { get; set; } = string.Empty;
-    public int HostelId { get; set; }
-    public string HostelName { get; set; } = string.Empty;
-    public int RoomId { get; set; }
-    public string RoomNumber { get; set; } = string.Empty;
-    public string FloorLevel { get; set; } = string.Empty;
-    public string BedNumber { get; set; } = string.Empty;
-    public DateTime JoiningDate { get; set; }
-    public string Status { get; set; } = "Active";
-    public string CurfewStatus { get; set; } = "Present";
-    public DateTime CreatedAt { get; set; }
-}
-
-public class CreateBedAllocationDto
-{
-    public int StudentId { get; set; }
-    public string? StudentName { get; set; }
-    public string? AdmissionNo { get; set; }
-
-    public int HostelId { get; set; }
-    public string? HostelName { get; set; }
-
-    public int RoomId { get; set; }
-    public string? RoomNumber { get; set; }
-
-    public string? BedNumber { get; set; }
-
-    [JsonPropertyName("allocatedBedId")]
-    public string? AllocatedBedId
+    public class BedAllocationDto
     {
-        get => BedNumber;
-        set => BedNumber = value;
+        [JsonPropertyName("allocationId")]
+        public int AllocationId { get; set; }
+
+        [JsonPropertyName("id")]
+        public int Id => AllocationId;
+
+        [JsonPropertyName("studentId")]
+        public int StudentId { get; set; }
+
+        [JsonPropertyName("studentName")]
+        public string StudentName { get; set; } = string.Empty;
+
+        [JsonPropertyName("student")]
+        public string Student => StudentName;
+
+        [JsonPropertyName("admissionNo")]
+        public string AdmissionNo { get; set; } = string.Empty;
+
+        [JsonPropertyName("admNo")]
+        public string AdmNo => AdmissionNo;
+
+        [JsonPropertyName("registrationNo")]
+        public string RegistrationNo => AdmissionNo;
+
+        [JsonPropertyName("className")]
+        public string ClassName { get; set; } = string.Empty;
+
+        [JsonPropertyName("hostelId")]
+        public int HostelId { get; set; }
+
+        [JsonPropertyName("hostelName")]
+        public string HostelName { get; set; } = string.Empty;
+
+        [JsonPropertyName("hostelFacility")]
+        public string HostelFacility => !string.IsNullOrWhiteSpace(HostelName) ? HostelName : "N/A";
+
+        [JsonPropertyName("roomId")]
+        public int RoomId { get; set; }
+
+        [JsonPropertyName("roomNumber")]
+        public string RoomNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("floorLevel")]
+        public string FloorLevel { get; set; } = string.Empty;
+
+        [JsonPropertyName("bedNumber")]
+        public string BedNumber { get; set; } = string.Empty;
+
+        [JsonPropertyName("roomAndBed")]
+        public string RoomAndBed => (RoomId > 0 || !string.IsNullOrWhiteSpace(RoomNumber))
+            ? $"Room #{RoomNumber} ({BedNumber})"
+            : "Room #N/A (N/A)";
+
+        [JsonPropertyName("joiningDate")]
+        public DateTime JoiningDate { get; set; }
+
+        [JsonPropertyName("joiningDateString")]
+        public string JoiningDateString => JoiningDate.ToString("yyyy-MM-ddTHH:mm:ss.ffffff");
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "Active";
+
+        [JsonPropertyName("curfewStatus")]
+        public string CurfewStatus { get; set; } = "Present";
+
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
     }
 
-    public DateTime JoiningDate { get; set; } = DateTime.UtcNow;
+    public class CreateBedAllocationDto
+    {
+        [JsonPropertyName("studentId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public int StudentId { get; set; }
+
+        [JsonPropertyName("selectHostellerStudent")]
+        public string? SelectHostellerStudentAlias
+        {
+            get => StudentId > 0 ? StudentId.ToString() : AdmissionNo;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    if (int.TryParse(value, out int parsedId)) StudentId = parsedId;
+                    else AdmissionNo = value;
+                }
+            }
+        }
+
+        [JsonPropertyName("studentName")]
+        public string? StudentName { get; set; }
+
+        [JsonPropertyName("admissionNo")]
+        public string? AdmissionNo { get; set; }
+
+        [JsonPropertyName("admNo")]
+        public string? AdmNoAlias
+        {
+            get => AdmissionNo;
+            set { if (!string.IsNullOrWhiteSpace(value)) AdmissionNo = value; }
+        }
+
+        [JsonPropertyName("hostelId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public int HostelId { get; set; }
+
+        [JsonPropertyName("selectHostelFacility")]
+        public string? SelectHostelFacilityAlias
+        {
+            get => HostelId.ToString();
+            set { if (int.TryParse(value, out int val)) HostelId = val; }
+        }
+
+        [JsonPropertyName("hostelName")]
+        public string? HostelName { get; set; }
+
+        [JsonPropertyName("roomId")]
+        [JsonConverter(typeof(FlexibleLongConverter))]
+        public int RoomId { get; set; }
+
+        [JsonPropertyName("selectRoom")]
+        public string? SelectRoomAlias
+        {
+            get => RoomId.ToString();
+            set { if (int.TryParse(value, out int val)) RoomId = val; }
+        }
+
+        [JsonPropertyName("roomNumber")]
+        public string? RoomNumber { get; set; }
+
+        [JsonPropertyName("bedNumber")]
+        public string? BedNumber { get; set; }
+
+        [JsonPropertyName("allocatedBedId")]
+        public string? AllocatedBedId
+        {
+            get => BedNumber;
+            set => BedNumber = value;
+        }
+
+        [JsonPropertyName("joiningDate")]
+        public DateTime JoiningDate { get; set; } = DateTime.UtcNow;
+    }
 }

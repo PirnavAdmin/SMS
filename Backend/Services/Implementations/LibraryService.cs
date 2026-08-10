@@ -26,7 +26,11 @@ public class LibraryService : ILibraryService
         return new LibraryDropdownOptionsDto
         {
             AcademicYears = new List<string> { "2027-28", "2026-27", "2025-26" },
-            AvailableBooks = inventory
+            AvailableBooks = inventory.Select(b => new LibraryBookDropdownOptionDto
+            {
+                BookId = b.BookId,
+                DisplayText = $"{b.Title} ({b.AvailableCopies} available)"
+            }).ToList()
         };
     }
 
@@ -113,7 +117,8 @@ public class LibraryService : ILibraryService
                     BorrowerRole = "Student",
                     IssueDate = "2026-07-05",
                     DueDate = "2026-07-19",
-                    Fine = 2,
+                    Fine = "₹2",
+                    FineAmount = 2,
                     Status = "Overdue"
                 }
             };
@@ -141,7 +146,8 @@ public class LibraryService : ILibraryService
             BorrowerRole = r.BorrowerRole,
             IssueDate = r.IssueDate.ToString("yyyy-MM-dd"),
             DueDate = r.DueDate.ToString("yyyy-MM-dd"),
-            Fine = r.FineAmount,
+            FineAmount = r.FineAmount,
+            Fine = $"₹{r.FineAmount:N0}",
             Status = r.Status
         }).ToList();
     }
@@ -176,7 +182,8 @@ public class LibraryService : ILibraryService
 
     public async Task<IssuedBookRecordDto> IssueBookAsync(IssueBookRequestDto dto)
     {
-        var book = await _context.LibraryBooks.FindAsync(dto.BookId);
+        int bId = dto.BookId ?? 1;
+        var book = await _context.LibraryBooks.FindAsync(bId);
         string bookTitle = book?.Title ?? "Fundamentals of Physics";
 
         if (book != null && book.AvailableCopies > 0)
@@ -189,7 +196,7 @@ public class LibraryService : ILibraryService
 
         var issueRecord = new LibraryIssueRecord
         {
-            BookId = dto.BookId,
+            BookId = bId,
             BookTitle = bookTitle,
             BorrowerName = dto.BorrowerName,
             BorrowerRole = dto.BorrowerRole ?? "Student",
@@ -213,7 +220,8 @@ public class LibraryService : ILibraryService
             BorrowerRole = issueRecord.BorrowerRole,
             IssueDate = issueRecord.IssueDate.ToString("yyyy-MM-dd"),
             DueDate = issueRecord.DueDate.ToString("yyyy-MM-dd"),
-            Fine = 0,
+            FineAmount = 0,
+            Fine = "₹0",
             Status = "Issued"
         };
     }

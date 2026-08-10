@@ -68,6 +68,11 @@ builder.Services.AddScoped<ITransportDriverRepository,TransportDriverRepository>
 
 builder.Services.AddScoped<ITransportDriverService,TransportDriverService>();
 
+// Transport Attendant
+builder.Services.AddScoped<ITransportAttendantRepository,TransportAttendantRepository>();
+
+builder.Services.AddScoped<ITransportAttendantService,TransportAttendantService>();
+
 // Vehicle Assignment
 builder.Services.AddScoped<ITransportVehicleAssignmentRepository,TransportVehicleAssignmentRepository>();
 
@@ -123,6 +128,10 @@ builder.Services.AddScoped<ITransportService, TransportService>();
 // Hostel ERP Module
 builder.Services.AddScoped<IHostelRepository, HostelRepository>();
 builder.Services.AddScoped<IHostelService, HostelService>();
+
+// Uniform Management Module
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IUniformRepository, SMS.Api.Repositories.Implementations.UniformRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.IUniformService, SMS.Api.Services.Implementations.UniformService>();
 
 // Class Timetable Module
 builder.Services.AddScoped<ITimetableRepository, TimetableRepository>();
@@ -1026,10 +1035,10 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
-        try { context.Database.ExecuteSqlRaw("ALTER TABLE `student_bed_allocations` MODIFY COLUMN `StudentId` int NULL;"); } catch { }
+        EnsureColumnExists("student_bed_allocations", "StudentId", "int NULL");
         EnsureColumnExists("student_transport_assignments", "AdmissionNo", "varchar(50) NOT NULL DEFAULT ''");
-        try { context.Database.ExecuteSqlRaw("ALTER TABLE `student_transport_assignments` MODIFY COLUMN `StudentId` bigint NULL;"); } catch { }
-        try { context.Database.ExecuteSqlRaw("ALTER TABLE `transport_routes` MODIFY COLUMN `Description` varchar(500) NULL;"); } catch { }
+        EnsureColumnExists("student_transport_assignments", "StudentId", "bigint NULL");
+        EnsureColumnExists("transport_routes", "Description", "varchar(500) NULL");
 
         EnsureColumnExists("users", "SchoolId", "int NULL");
 
@@ -1076,7 +1085,7 @@ using (var scope = app.Services.CreateScope())
 
         try
         {
-            try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` MODIFY COLUMN `UserId` int NULL;"); } catch { }
+            EnsureColumnExists("otp_verifications", "UserId", "int NULL");
             EnsureColumnExists("otp_verifications", "AdminId", "int NULL");
             
             bool constraintExists = false;

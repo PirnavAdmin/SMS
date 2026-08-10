@@ -13,17 +13,32 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("driverName")]
         public string DriverName { get; set; } = string.Empty;
 
+        [JsonPropertyName("driverFullName")]
+        public string DriverFullName => DriverName;
+
+        [JsonPropertyName("fullName")]
+        public string FullName => DriverName;
+
         [JsonPropertyName("mobileNumber")]
         public string MobileNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("phone")]
+        public string Phone => MobileNumber;
+
         [JsonPropertyName("alternateMobileNumber")]
         public string? AlternateMobileNumber { get; set; }
+
+        [JsonPropertyName("email")]
+        public string? Email { get; set; }
 
         [JsonPropertyName("licenceNumber")]
         public string LicenceNumber { get; set; } = string.Empty;
 
         [JsonPropertyName("licenseNumber")]
         public string LicenseNumber => LicenceNumber;
+
+        [JsonPropertyName("commercialLicenseNo")]
+        public string CommercialLicenseNo => LicenceNumber;
 
         [JsonPropertyName("licenceExpiry")]
         public DateTime? LicenceExpiry { get; set; }

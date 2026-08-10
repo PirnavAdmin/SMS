@@ -24,6 +24,13 @@ namespace SMS.Api.Dtos.Transport.Vehicle
             set => _registrationNumber = value ?? string.Empty;
         }
 
+        [JsonPropertyName("regNumber")]
+        public string? RegNumber
+        {
+            get => RegistrationNumber;
+            set { if (!string.IsNullOrWhiteSpace(value)) RegistrationNumber = value; }
+        }
+
         [JsonPropertyName("vehicleName")]
         public string VehicleName
         {
@@ -37,8 +44,31 @@ namespace SMS.Api.Dtos.Transport.Vehicle
         [JsonPropertyName("capacity")]
         public int Capacity { get; set; } = 40;
 
+        [JsonPropertyName("seatingCapacity")]
+        public int? SeatingCapacity
+        {
+            get => Capacity;
+            set { if (value.HasValue && value.Value > 0) Capacity = value.Value; }
+        }
+
         [JsonPropertyName("isAC")]
         public bool IsAC { get; set; } = true;
+
+        [JsonPropertyName("acSpecification")]
+        public string? AcSpecification
+        {
+            get => IsAC ? "AC" : "Non-AC";
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    if (string.Equals(value, "Non-AC", StringComparison.OrdinalIgnoreCase) || string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+                        IsAC = false;
+                    else
+                        IsAC = true;
+                }
+            }
+        }
 
         [JsonPropertyName("chassisNumber")]
         public string? ChassisNumber { get; set; }

@@ -83,5 +83,40 @@ public class ExamMarksEntryController : ControllerBase
             data = success 
         });
     }
+
+    /// <summary>
+    /// Update Student Marks entry (PUT /api/examination-new/marks-entry/update-marks)
+    /// </summary>
+    [HttpPut("update-marks")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> UpdateMarks([FromBody] SaveMarksSheetRequestDto request)
+    {
+        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName) || string.IsNullOrWhiteSpace(request.SubjectCode))
+            return BadRequest(new { success = false, message = "Class, Section, and Subject Code are required." });
+
+        var success = await _service.SaveMarksSheetAsync(request);
+        return Ok(new { 
+            success = true, 
+            message = "Student marks updated successfully.", 
+            updated = success 
+        });
+    }
+
+    /// <summary>
+    /// Clear Marks Entry sheet for a Class, Section, and Subject (DELETE /api/examination-new/marks-entry/clear-marks)
+    /// </summary>
+    [HttpDelete("clear-marks")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> ClearMarksEntries(
+        [FromQuery] string className,
+        [FromQuery] string sectionName,
+        [FromQuery] string subjectCode)
+    {
+        var success = await _service.ClearMarksEntriesAsync(className, sectionName, subjectCode);
+        return Ok(new { 
+            success = true, 
+            message = $"Marks entries for {className} - {sectionName} ({subjectCode}) cleared successfully." 
+        });
+    }
 }
 

@@ -366,12 +366,12 @@ export const MeetingsView: React.FC = () => {
           details: `ADM-${s.admissionNo || s.id} • Class ${studentTargetClass}-${studentTargetSection}`, email: s.guardianEmail, phone: s.fatherPhone
         }));
       } else if (studentGroupType === 'Hostel Students') {
-        studentList = activeStudents.filter(s => s.studentType === 'Hosteller').map(s => ({
+        studentList = activeStudents.filter(s => s.studentType === 'Hosteller' || s.studentType === 'Residential').map(s => ({
           id: s.id, name: `${s.firstName} ${s.lastName}`, type: 'Student',
           details: `ADM-${s.admissionNo || s.id} • Hosteller (${s.hostelRoom || 'Block A'})`, email: s.guardianEmail, phone: s.fatherPhone
         }));
       } else if (studentGroupType === 'Day Scholars') {
-        studentList = activeStudents.filter(s => s.studentType === 'Day Scholar' || !s.studentType).map(s => ({
+        studentList = activeStudents.filter(s => s.studentType === 'Day Scholar' || s.studentType === 'Non-Residential' || !s.studentType).map(s => ({
           id: s.id, name: `${s.firstName} ${s.lastName}`, type: 'Student',
           details: `ADM-${s.admissionNo || s.id} • Day Scholar`, email: s.guardianEmail, phone: s.fatherPhone
         }));

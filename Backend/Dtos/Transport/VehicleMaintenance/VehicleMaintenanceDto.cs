@@ -16,6 +16,9 @@ namespace SMS.Api.Dtos.Transport.VehicleMaintenance
         [JsonPropertyName("vehicleNumber")]
         public string VehicleNumber { get; set; } = string.Empty;
 
+        [JsonPropertyName("busNumber")]
+        public string BusNumber => VehicleNumber;
+
         [JsonPropertyName("serviceType")]
         public string ServiceType { get; set; } = string.Empty;
 
@@ -39,6 +42,9 @@ namespace SMS.Api.Dtos.Transport.VehicleMaintenance
 
         [JsonPropertyName("status")]
         public string Status => StatusBool ? "Completed" : "Scheduled";
+
+        [JsonPropertyName("statusText")]
+        public string StatusText => Status;
 
         [JsonPropertyName("statusBool")]
         public bool StatusBool { get; set; }

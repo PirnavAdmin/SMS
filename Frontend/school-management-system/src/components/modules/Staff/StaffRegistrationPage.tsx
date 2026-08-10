@@ -115,7 +115,8 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!validate()) {
       addToast('warning', 'Please complete required fields', 'Check missing or invalid entries.');
       return;
