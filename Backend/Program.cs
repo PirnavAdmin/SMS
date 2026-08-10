@@ -977,6 +977,22 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("student_transport_assignments", "StudentId", "bigint NULL");
         EnsureColumnExists("transport_routes", "Description", "varchar(500) NULL");
 
+        // Homework table: ClassRoom column missing from MySQL but present in EF Core model
+        EnsureColumnExists("homeworks", "ClassRoom", "varchar(150) NOT NULL DEFAULT 'Class 10-A'");
+        EnsureColumnExists("homeworks", "ClassName", "varchar(150) NOT NULL DEFAULT 'Class 10-A'");
+        EnsureColumnExists("homeworks", "SubjectName", "varchar(150) NOT NULL DEFAULT 'Mathematics'");
+        EnsureColumnExists("homeworks", "Title", "varchar(255) NOT NULL DEFAULT 'Homework'");
+        EnsureColumnExists("homeworks", "Topic", "varchar(255) NULL");
+        EnsureColumnExists("homeworks", "Description", "longtext NULL");
+        EnsureColumnExists("homeworks", "DueDate", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        EnsureColumnExists("homeworks", "PublishedTo", "varchar(100) NOT NULL DEFAULT 'Entire Class'");
+        EnsureColumnExists("homeworks", "Status", "varchar(50) NOT NULL DEFAULT 'PUBLISHED'");
+        EnsureColumnExists("homeworks", "AttachmentFileName", "varchar(255) NULL");
+        EnsureColumnExists("homeworks", "AttachmentUrl", "varchar(500) NULL");
+        EnsureColumnExists("homeworks", "TeacherName", "varchar(150) NOT NULL DEFAULT 'Teacher'");
+        EnsureColumnExists("homeworks", "SubmissionsCount", "int NOT NULL DEFAULT 0");
+        EnsureColumnExists("homeworks", "CreatedAt", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+
         EnsureColumnExists("users", "SchoolId", "int NULL");
 
         var staffTables = new[] { "staff" };
