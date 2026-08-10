@@ -28,7 +28,8 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
-        "DefaultConnection is missing in appsettings.json.");
+        "Connection string 'DefaultConnection' not found.");
+
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(

@@ -106,25 +106,11 @@ namespace SMS.Api.Data
 
         public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
 
-        public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;
-
         public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
 
         public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
 
         public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
-
-        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
-
-        public DbSet<NewGradingScaleRule> NewGradingScaleRules { get; set; } = null!;
-        public DbSet<NewStudentExamResult> NewStudentExamResults { get; set; } = null!;
-        public DbSet<NewStudentMarksEntry> NewStudentMarksEntries { get; set; } = null!;
-
-        public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
-        public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
-        public DbSet<UniformSize> UniformSizes { get; set; } = null!;
-        public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
-        public DbSet<UniformType> UniformTypes { get; set; } = null!;
 
         // =====================================================
         // Hostel ERP Module
@@ -529,7 +515,7 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("ClassId")
+                    .HasColumnName("id")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
@@ -550,19 +536,19 @@ namespace SMS.Api.Data
                     .HasColumnName("DisplayOrder");
 
                 entity.Property(x => x.Status)
-                    .HasColumnName("Status")
+                    .HasColumnName("status")
                     .HasMaxLength(20)
                     .HasDefaultValue("Active");
 
                 entity.Property(x => x.Remarks)
-                    .HasColumnName("Remarks");
+                    .HasColumnName("remarks");
 
                 entity.Property(x => x.CreatedAt)
                     .HasColumnName("CreatedAt")
                     .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                 entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("UpdatedAt");
+                    .HasColumnName("updated_at");
             });
         }
 

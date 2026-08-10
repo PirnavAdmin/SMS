@@ -72,6 +72,7 @@ namespace SMS.Api.Models
 
         public TransportDriver Driver { get; set; } = null!;
 
+        [NotMapped]
         public TransportAttendant? Attendant { get; set; }
     }
 }
