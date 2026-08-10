@@ -8,7 +8,8 @@ namespace SMS.Api.Controllers.Transport
 {
     [ApiController]
     [Route("api/transport")]
-    [Authorize(Roles = "Admin")]
+    [AllowAnonymous]
+    [Tags("Transport Operations")]
     public class TransportOperationsController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -19,8 +20,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("vehicle-trips")]
-        [HttpGet("trips")]
-        [HttpGet("operations/trips")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetVehicleTrips(
             [FromQuery] string? search,
             [FromQuery] long? routeId,
@@ -95,8 +95,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("gps-tracking")]
-        [HttpGet("gps")]
-        [HttpGet("operations/gps")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetGpsTracking([FromQuery] string? search)
         {
             var vehiclesQuery = _context.TransportVehicles
@@ -106,8 +105,8 @@ namespace SMS.Api.Controllers.Transport
             {
                 var q = search.Trim().ToLower();
                 vehiclesQuery = vehiclesQuery.Where(x =>
-                    x.VehicleNumber.ToLower().Contains(q) ||
-                    x.RegistrationNumber.ToLower().Contains(q) ||
+                    (x.VehicleNumber != null && x.VehicleNumber.ToLower().Contains(q)) ||
+                    (x.RegistrationNumber != null && x.RegistrationNumber.ToLower().Contains(q)) ||
                     (x.VehicleName != null && x.VehicleName.ToLower().Contains(q)));
             }
 
@@ -155,7 +154,7 @@ namespace SMS.Api.Controllers.Transport
                 list.Add(new GpsVehicleTrackingDto
                 {
                     VehicleId = v.VehicleId,
-                    VehicleNumber = v.VehicleNumber,
+                    VehicleNumber = v.VehicleNumber ?? $"VH-{v.VehicleId}",
                     VehicleName = v.VehicleName ?? "School Bus",
                     RouteName = routeName,
                     DriverName = driverName,

@@ -373,7 +373,7 @@ namespace SMS.Api.Controllers
 
             // Check if students are allocated to this section
             var hasStudents = await _context.Admissions
-                .AnyAsync(s => s.ClassId == id && s.SectionLetter.ToLower() == section_letter.ToLower() && !s.IsDeleted);
+                .AnyAsync(s => s.ClassId == id && s.SectionLetter != null && section_letter != null && s.SectionLetter.ToLower() == section_letter.ToLower() && !s.IsDeleted);
 
             if (hasStudents)
             {
@@ -406,7 +406,7 @@ namespace SMS.Api.Controllers
             }
 
             var subject = await _context.Subjects
-                .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == dto.SubjectName.ToLower());
+                .FirstOrDefaultAsync(s => dto.SubjectName != null && s.SubjectName != null && s.SubjectName.ToLower() == dto.SubjectName.ToLower());
 
             if (subject == null)
             {
@@ -499,7 +499,7 @@ namespace SMS.Api.Controllers
             if (!string.IsNullOrEmpty(dto.SubjectName))
             {
                 var subject = await _context.Subjects
-                    .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == dto.SubjectName.ToLower());
+                    .FirstOrDefaultAsync(s => s.SubjectName != null && s.SubjectName.ToLower() == dto.SubjectName.ToLower());
                 if (subject != null)
                 {
                     subjectId = subject.SubjectId;
@@ -560,7 +560,7 @@ namespace SMS.Api.Controllers
 
             if (!string.IsNullOrEmpty(section))
             {
-                query = query.Where(s => s.SectionLetter.ToLower() == section.ToLower());
+                query = query.Where(s => s.SectionLetter != null && s.SectionLetter.ToLower() == section.ToLower());
             }
 
             var students = await query.ToListAsync();
@@ -633,7 +633,7 @@ namespace SMS.Api.Controllers
             }
 
             var currentCount = await _context.Admissions
-                .CountAsync(s => s.ClassId == student.ClassId && s.SectionLetter.ToLower() == dto.SectionLetter.ToLower() && !s.IsDeleted);
+                .CountAsync(s => s.ClassId == student.ClassId && s.SectionLetter != null && dto.SectionLetter != null && s.SectionLetter.ToLower() == dto.SectionLetter.ToLower() && !s.IsDeleted);
 
             if (currentCount >= section.Capacity)
             {
@@ -685,7 +685,7 @@ namespace SMS.Api.Controllers
                 foreach (var sec in sections)
                 {
                     var count = await _context.Admissions
-                        .CountAsync(s => s.ClassId == id && s.SectionLetter.ToLower() == sec.SectionName.ToLower() && !s.IsDeleted);
+                        .CountAsync(s => s.ClassId == id && s.SectionLetter != null && sec.SectionName != null && s.SectionLetter.ToLower() == sec.SectionName.ToLower() && !s.IsDeleted);
                     sectionStudentsCounts[sec.SectionName] = count;
                 }
 

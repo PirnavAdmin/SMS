@@ -511,8 +511,8 @@ namespace SMS.Api.Repositories.Implementations
             {
                 var q = filter.Search.Trim().ToLower();
                 vehiclesQuery = vehiclesQuery.Where(x =>
-                    x.VehicleNumber.ToLower().Contains(q) ||
-                    x.RegistrationNumber.ToLower().Contains(q) ||
+                    (x.VehicleNumber != null && x.VehicleNumber.ToLower().Contains(q)) ||
+                    (x.RegistrationNumber != null && x.RegistrationNumber.ToLower().Contains(q)) ||
                     (x.VehicleType != null && x.VehicleType.ToLower().Contains(q)));
             }
 
@@ -531,8 +531,8 @@ namespace SMS.Api.Repositories.Implementations
                 var assignment = activeAssignments.FirstOrDefault(a => a.VehicleId == v.VehicleId);
                 return new VehicleReportDto
                 {
-                    VehicleNumber = v.VehicleNumber,
-                    RegistrationNo = v.RegistrationNumber,
+                    VehicleNumber = v.VehicleNumber ?? $"VH-{v.VehicleId}",
+                    RegistrationNo = v.RegistrationNumber ?? $"REG-{v.VehicleId}",
                     VehicleType = !string.IsNullOrWhiteSpace(v.VehicleType) ? v.VehicleType : "Bus",
                     AcStatus = v.IsAC ? "AC" : "Non-AC",
                     Capacity = v.Capacity > 0 ? v.Capacity : 40,

@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[AllowAnonymous]
 [Tags("Inventory Management")]
 public class InventoryController : ControllerBase
 {

@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/homework")]
-[Authorize]
+[AllowAnonymous]
 [Tags("Homework & Assignments")]
 public class HomeworkController : ControllerBase
 {
