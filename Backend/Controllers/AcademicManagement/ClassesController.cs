@@ -31,6 +31,37 @@ namespace SMS.Api.Controllers.AcademicManagement
         // CATEGORY A: CLASS & SECTIONS CRUD
         // =========================================================
 
+        // --- GET ALL TEACHER ASSIGNMENTS (for frontend persistence on reload) ---
+
+        [HttpGet("teacher-assignments")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
+        public async Task<IActionResult> GetAllTeacherAssignments()
+        {
+            var assignments = await _context.TeacherAssignments
+                .AsNoTracking()
+                .Include(ta => ta.Teacher)
+                .Include(ta => ta.Subject)
+                .Include(ta => ta.ClassGrade)
+                .Where(ta => ta.Status == "Active")
+                .ToListAsync();
+
+            var result = assignments.Select(ta => new
+            {
+                id = $"TA-{ta.Id}",
+                classId = $"CL-{ta.ClassId}",
+                className = ta.ClassGrade?.ClassName ?? "",
+                section = ta.SectionLetter,
+                teacherId = ta.TeacherId.ToString(),
+                teacherName = ta.Teacher != null ? $"{ta.Teacher.FirstName} {ta.Teacher.LastName}".Trim() : "",
+                subject = ta.Subject?.SubjectName ?? "",
+                subjectId = ta.SubjectId,
+                role = ta.Role,
+                status = ta.Status
+            });
+
+            return Ok(new { success = true, data = result });
+        }
+
         [HttpGet]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> GetClasses()
@@ -412,11 +443,17 @@ namespace SMS.Api.Controllers.AcademicManagement
 
                 _context.ClassSections.Remove(section);
 
-                // Also clean up any teacher assignments for this section
+                // Clean up teacher_assignments for this section
                 var assignments = await _context.TeacherAssignments
                     .Where(a => a.ClassId == id && a.SectionLetter.ToLower() == section_letter.ToLower())
                     .ToListAsync();
                 _context.TeacherAssignments.RemoveRange(assignments);
+
+                // Also clean up teacher_subject_assignments for this section (cross-module cleanup)
+                var tsaAssignments = await _context.TeacherSubjectAssignments
+                    .Where(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId)
+                    .ToListAsync();
+                _context.TeacherSubjectAssignments.RemoveRange(tsaAssignments);
 
                 await _context.SaveChangesAsync();
                 await LogAuditActionAsync("Delete Section", $"Deleted section '{section_letter}' from class ID {id}.");
@@ -564,6 +601,42 @@ namespace SMS.Api.Controllers.AcademicManagement
                     _context.TeacherAssignments.Remove(existingClassTeacher);
                 }
             }
+            else if (dto.Role == "Subject Teacher")
+            {
+                // Prevent duplicate Subject Teacher for same class/section/subject
+                var existingSubjectTeacher = await _context.TeacherAssignments
+                    .FirstOrDefaultAsync(a => a.ClassId == id && a.SectionLetter.ToLower() == section_letter.ToLower() && a.SubjectId == subjectId && a.Role == "Subject Teacher");
+
+                if (existingSubjectTeacher != null)
+                {
+                    _context.TeacherAssignments.Remove(existingSubjectTeacher);
+                }
+
+                // Also sync to teacher_subject_assignments (used by Timetable & Attendance modules)
+                var section = await _context.ClassSections
+                    .FirstOrDefaultAsync(s => s.ClassId == id && s.SectionName.ToLower() == section_letter.ToLower());
+
+                if (section != null && subjectId > 0)
+                {
+                    var existingTsa = await _context.TeacherSubjectAssignments
+                        .FirstOrDefaultAsync(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId && tsa.SubjectId == subjectId);
+
+                    if (existingTsa != null)
+                    {
+                        existingTsa.StaffId = staff.StaffId;
+                    }
+                    else
+                    {
+                        await _context.TeacherSubjectAssignments.AddAsync(new TeacherSubjectAssignment
+                        {
+                            ClassId = id,
+                            SectionId = section.SectionId,
+                            SubjectId = subjectId,
+                            StaffId = staff.StaffId
+                        });
+                    }
+                }
+            }
 
             var assignment = new TeacherAssignment
             {
@@ -580,6 +653,33 @@ namespace SMS.Api.Controllers.AcademicManagement
 
             await LogAuditActionAsync("Assign Teacher", $"Assigned teacher '{staff.FirstName} {staff.LastName}' as {dto.Role} to section '{section_letter}' in class ID {id}.");
             return Ok(new { success = true, message = "Teacher assigned successfully." });
+        }
+
+        [HttpDelete("{id:int}/sections/{section_letter}/subjects/{subject_id:int}/unassign-teacher")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> UnassignTeacher(int id, string section_letter, int subject_id)
+        {
+            // Remove from teacher_assignments
+            var assignments = await _context.TeacherAssignments
+                .Where(a => a.ClassId == id && a.SectionLetter.ToLower() == section_letter.ToLower() && a.SubjectId == subject_id)
+                .ToListAsync();
+            _context.TeacherAssignments.RemoveRange(assignments);
+
+            // Also remove from teacher_subject_assignments
+            var section = await _context.ClassSections
+                .FirstOrDefaultAsync(s => s.ClassId == id && s.SectionName.ToLower() == section_letter.ToLower());
+
+            if (section != null)
+            {
+                var tsaRecords = await _context.TeacherSubjectAssignments
+                    .Where(tsa => tsa.ClassId == id && tsa.SectionId == section.SectionId && tsa.SubjectId == subject_id)
+                    .ToListAsync();
+                _context.TeacherSubjectAssignments.RemoveRange(tsaRecords);
+            }
+
+            await _context.SaveChangesAsync();
+            await LogAuditActionAsync("Unassign Teacher", $"Unassigned teacher from subject ID {subject_id} in class ID {id}, section '{section_letter}'.");
+            return Ok(new { success = true, message = "Teacher unassigned successfully." });
         }
 
         // --- STUDENTS SUB-ROUTES ---

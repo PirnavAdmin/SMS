@@ -1245,21 +1245,6 @@ export const SubjectsView: React.FC = () => {
               setDeletingSubject(null);
               return;
             }
-
-            const assignedTeacher = teacherAssignments?.find(ta => ta.subject === deletingSubject.name);
-            if (assignedTeacher) {
-              addToast('warning', 'Subject Assigned', `Cannot delete subject because it is assigned to teacher ${assignedTeacher.teacherName}.`);
-              setDeletingSubject(null);
-              return;
-            }
-
-            const assignedTimetable = timetable?.find(t => t.subject === deletingSubject.name);
-            if (assignedTimetable) {
-              addToast('warning', 'Subject Assigned', `Cannot delete subject because it is allocated in the timetable for ${assignedTimetable.className}.`);
-              setDeletingSubject(null);
-              return;
-            }
-
             try {
               const res = await deleteSubjectApi(deletingSubject.id as any);
               if (res && res.success) {

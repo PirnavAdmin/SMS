@@ -2359,13 +2359,25 @@ namespace Backend.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("StaffId"));
 
+                    b.Property<string>("AadhaarNumber")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("AcademicYear")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("AccountHolderName")
                         .HasColumnType("longtext");
 
                     b.Property<string>("AccountNumber")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("AlternateMobile")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("BankName")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("BloodGroup")
                         .HasColumnType("longtext");
 
                     b.Property<string>("BranchName")
@@ -2373,6 +2385,9 @@ namespace Backend.Migrations
 
                     b.Property<int>("CasualLeaveBalance")
                         .HasColumnType("int");
+
+                    b.Property<string>("City")
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("datetime(6)");
@@ -2395,6 +2410,9 @@ namespace Backend.Migrations
                     b.Property<string>("EmployeeId")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("EmploymentType")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FirstName")
                         .HasColumnType("longtext");
 
@@ -2410,10 +2428,16 @@ namespace Backend.Migrations
                     b.Property<bool?>("IsActive")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool?>("IsClassTeacherEligible")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<DateTime?>("JoiningDate")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("LastName")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("MiddleName")
                         .HasColumnType("longtext");
 
                     b.Property<decimal?>("MonthlySalary")
@@ -2422,13 +2446,28 @@ namespace Backend.Migrations
                     b.Property<decimal?>("NetSalary")
                         .HasColumnType("decimal(65,30)");
 
+                    b.Property<string>("PanNumber")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PermanentAddress")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Phone")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PinCode")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("PresentAddress")
                         .HasColumnType("longtext");
 
                     b.Property<string>("PrimarySubject")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Qualification")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ReportingManager")
                         .HasColumnType("longtext");
 
                     b.Property<string>("ResidentialAddress")
@@ -2447,6 +2486,9 @@ namespace Backend.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Specialization")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("State")
                         .HasColumnType("longtext");
 
                     b.Property<string>("SystemRole")
@@ -2539,6 +2581,88 @@ namespace Backend.Migrations
                     b.HasIndex("StaffId");
 
                     b.ToTable("staff_documents", (string)null);
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.StaffExperience", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DesignationHeld")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<DateTime?>("FromDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("PreviousOrganization")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("ReasonForLeaving")
+                        .HasMaxLength(300)
+                        .HasColumnType("varchar(300)");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ToDate")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("TotalExperience")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("staff_experiences", (string)null);
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.StaffQualification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoardUniversity")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("InstitutionCollege")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)");
+
+                    b.Property<string>("PassingYear")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.Property<string>("PercentageCgpa")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("QualificationDegree")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<string>("SpecializationSubject")
+                        .HasMaxLength(150)
+                        .HasColumnType("varchar(150)");
+
+                    b.Property<int>("StaffId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StaffId");
+
+                    b.ToTable("staff_qualifications", (string)null);
                 });
 
             modelBuilder.Entity("SMS.Api.Models.Student", b =>
@@ -3964,6 +4088,28 @@ namespace Backend.Migrations
                     b.Navigation("Staff");
                 });
 
+            modelBuilder.Entity("SMS.Api.Models.StaffExperience", b =>
+                {
+                    b.HasOne("SMS.Api.Models.Staff", "Staff")
+                        .WithMany("ExperienceRecords")
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
+                });
+
+            modelBuilder.Entity("SMS.Api.Models.StaffQualification", b =>
+                {
+                    b.HasOne("SMS.Api.Models.Staff", "Staff")
+                        .WithMany("Qualifications")
+                        .HasForeignKey("StaffId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Staff");
+                });
+
             modelBuilder.Entity("SMS.Api.Models.Student", b =>
                 {
                     b.HasOne("SMS.Api.Models.AcademicClass", null)
@@ -4391,7 +4537,11 @@ namespace Backend.Migrations
 
                     b.Navigation("Documents");
 
+                    b.Navigation("ExperienceRecords");
+
                     b.Navigation("LeaveApplications");
+
+                    b.Navigation("Qualifications");
 
                     b.Navigation("SectionsTaught");
                 });

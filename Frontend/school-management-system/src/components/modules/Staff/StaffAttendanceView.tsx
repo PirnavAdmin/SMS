@@ -1487,7 +1487,7 @@ export const StaffAttendanceView: React.FC = () => {
   };
 
   // Save Attendance Handler
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = async () => {
     if (!canMarkAttendance) {
       addToast(
         "error",
@@ -1529,12 +1529,14 @@ export const StaffAttendanceView: React.FC = () => {
       remarks: remarksMap[s.id] || "",
     }));
 
-    markAttendance(recordsToSave);
-    addToast(
-      "success",
-      "Attendance Saved Successfully",
-      `Saved daily attendance logs for ${recordsToSave.length} ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff members on ${attendanceDate}.`,
-    );
+    const success = await markAttendance(recordsToSave);
+    if (success) {
+      addToast(
+        "success",
+        "Attendance Saved Successfully",
+        `Saved daily attendance logs for ${recordsToSave.length} ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff members on ${attendanceDate}.`,
+      );
+    }
   };
 
   // Check if existing attendance entries exist for date

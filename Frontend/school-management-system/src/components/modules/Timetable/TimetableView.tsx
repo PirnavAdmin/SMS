@@ -10,15 +10,20 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { 
+  fetchPeriodsApi, savePeriodApi, deletePeriodApi,
+  fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
+  publishTimetableApi, copyTimetableApi
+} from '../../../api/academic';
 
 type TimetableTab = 'period-settings' | 'class-timetable' | 'teacher-timetable';
 
 export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
   const {
-    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,
+    timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable, loadTimetableForClassSection,
     periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
-    staff, academicClasses, subjects, holidays
+    staff, academicClasses, rawClasses, subjects, holidays
   } = useData();
   const { user, role, selectedBranch, setSelectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -254,7 +259,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     if (selectedClass && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
     }
-  }, [sectionOptions, selectedSection, selectedClass]);  useEffect(() => {
+  }, [sectionOptions, selectedSection, selectedClass]);
+
+  useEffect(() => {
+    if (selectedClass && selectedSection) {
+      const clsObj = academicClasses.find(c => c.name === selectedClass);
+      if (clsObj) {
+        loadTimetableForClassSection(clsObj.id, selectedSection, academicYear);
+      }
+    }
+  }, [selectedClass, selectedSection, academicYear, academicClasses]);
+
+  useEffect(() => {
     if (isBulkAssignModalOpen) {
       const remaining: string[] = [];
       academicClasses.forEach(c => {
@@ -1725,23 +1741,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
                 let displaySlots = teacherSlots;
                 
-                // Add demo data if empty
-                if (displaySlots.length === 0 && selectedTeacherName) {
-                  if (day === 'Monday') {
-                    displaySlots = [
-                      { id: 'demo1', subject: 'Mathematics', className: 'Class 10', section: 'A', timeSlot: '09:00 AM - 09:45 AM', teacherName: selectedTeacherName, day: 'Monday', roomNo: '101' }
-                    ];
-                  } else if (day === 'Tuesday') {
-                    displaySlots = [
-                      { id: 'demo2', subject: 'Mathematics', className: 'Class 9', section: 'B', timeSlot: '10:00 AM - 10:45 AM', teacherName: selectedTeacherName, day: 'Tuesday', roomNo: '101' }
-                    ];
-                  } else if (day === 'Wednesday') {
-                     displaySlots = [
-                      { id: 'demo3', subject: 'Physics', className: 'Class 11', section: 'A', timeSlot: '11:00 AM - 11:45 AM', teacherName: selectedTeacherName, day: 'Wednesday', roomNo: '101' },
-                      { id: 'demo4', subject: 'Lab', className: 'Class 11', section: 'A', timeSlot: '11:45 AM - 12:30 PM', teacherName: selectedTeacherName, day: 'Wednesday', roomNo: '101' }
-                    ];
-                  }
-                }
+                // Real slots from database/state only
 
                 return (
                   <div key={day} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
@@ -1753,7 +1753,6 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                     ) : (
                       displaySlots.map(st => (
                         <div key={st.id} className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 relative overflow-hidden">
-                          {st.id.startsWith('demo') && <div className="absolute top-0 right-0 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[8px] font-bold rounded-bl-lg">DEMO</div>}
                           <p className="font-bold text-xs text-slate-900 dark:text-white">{st.subject}</p>
                           <p className="text-[10px] text-brand-600 font-bold">{st.className}-{st.section}</p>
                           <p className="text-[10px] font-mono text-slate-400">{st.timeSlot}</p>

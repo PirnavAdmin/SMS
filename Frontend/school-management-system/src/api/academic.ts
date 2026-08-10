@@ -190,6 +190,23 @@ export const assignTeacherApi = async (
   });
 };
 
+export const fetchTeacherAssignmentsApi = async () => {
+  return apiClient('/api/classes/teacher-assignments', { method: 'GET' });
+};
+
+export const unassignTeacherApi = async (
+  classId: number | string,
+  sectionLetter: string,
+  subjectId: number | string
+) => {
+  const numericId = typeof classId === 'string' && classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+  return apiClient(`/api/classes/${numericId}/sections/${sectionLetter}/subjects/${subjectId}/unassign-teacher`, {
+    method: 'DELETE'
+  });
+};
+
+
+
 // ============================
 // STUDENT ALLOCATION
 // ============================

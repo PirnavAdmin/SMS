@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '../utils/currency';
 import {
   Student, Staff, StaffDocument, BankDetails, AdmissionApplication, FeeStructure, FeePayment,
@@ -52,8 +52,33 @@ import {
   fetchClassesApi, 
   createClassApi, 
   updateClassApi, 
-  deleteClassApi 
+  deleteClassApi,
+  fetchSubjectsApi,
+  createSubjectApi,
+  updateSubjectApi,
+  deleteSubjectApi,
+  mapSubjectApi,
+  removeSubjectApi,
+  fetchPeriodsApi,
+  savePeriodApi,
+  deletePeriodApi,
+  fetchTimetableGridApi,
+  saveTimetableSlotApi,
+  deleteTimetableSlotApi,
+  publishTimetableApi,
+  copyTimetableApi,
+  fetchDesignationsApi,
+  createDesignationApi,
+  updateDesignationApi,
+  deleteDesignationApi,
+  fetchDepartmentsApi,
+  createDepartmentApi,
+  updateDepartmentApi,
+  deleteDepartmentApi,
+  fetchTeacherAssignmentsApi,
+  unassignTeacherApi
 } from '../api/academic';
+
 
 export interface AcademicClass {
   id: string;
@@ -161,6 +186,7 @@ interface DataContextType {
   updateAdmissionStatus: (id: string, status: AdmissionApplication['status']) => void;
 
   academicClasses: AcademicClass[];
+  rawClasses: any[];
   addAcademicClass: (cls: Omit<AcademicClass, 'id'>) => void;
   updateAcademicClass: (id: string, updates: Partial<AcademicClass>) => void;
   deleteAcademicClass: (id: string) => void;
@@ -371,7 +397,7 @@ interface DataContextType {
   checkVehicleCapacity: (vehicleId: string) => CapacityCheckResult;
 
   attendance: DailyAttendance[];
-  markAttendance: (records: DailyAttendance[]) => void;
+  markAttendance: (records: DailyAttendance[]) => Promise<boolean>;
   fetchDailyAttendance?: (date: string, department?: string) => Promise<void>;
   fetchMonthlyAttendance?: (month: number, year: number, department?: string) => Promise<void>;
 
@@ -425,6 +451,7 @@ interface DataContextType {
   updateTimetableSlot: (id: string, updates: Partial<TimetableSlot>) => void;
   deleteTimetableSlot: (id: string) => void;
   publishClassTimetable: (className: string, section: string, academicYear?: string, branch?: string) => void;
+  loadTimetableForClassSection: (classId: string, sectionName: string, academicYear: string) => Promise<void>;
 
   periodSettings: PeriodSetting[];
   addPeriodSetting: (data: Omit<PeriodSetting, 'id'>) => void;
@@ -1163,6 +1190,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [staff, setStaff] = useState<Staff[]>(() => getStored('staff', initialStaff));
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => getStored('admissions', initialAdmissions));
+  const [rawClasses, setRawClasses] = useState<any[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(() => {
     const stored = getStored('academic_classes', initialClasses);
     const ids = stored.map((c: any) => c.id);
@@ -1185,7 +1213,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return stored;
   });
-  const [subjects, setSubjects] = useState<SubjectItem[]>(() => getStored('subjects', initialSubjects));
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [buses, setBuses] = useState<Bus[]>(() => getStored('buses', initialBuses));
   const [hostelBlocks, setHostelBlocks] = useState<HostelBlock[]>(() => getStored('hostel_blocks', initialHostelBlocks));
   const [hostelBeds, setHostelBeds] = useState<HostelBed[]>(() => getStored('hostel_beds', initialHostelBeds));
@@ -1199,18 +1227,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return stored.length === 0 ? initialExamSetups : stored;
   });
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() => getStored('exam_marks', initialExamMarks));
-
+ 
   const [examSchedules, setExamSchedules] = useState<ExamSchedule[]>(() => getStored('exam_schedules', defaultExamSchedules));
   const [questionPapers, setQuestionPapers] = useState<QuestionPaper[]>(() => getStored('question_papers', initialQuestionPapers));
   const [meetings, setMeetings] = useState<SchoolMeeting[]>(() => getStored('school_meetings', initialMeetings));
-  const [departments, setDepartments] = useState<Department[]>(() => getStored('departments', initialDepartments));
-  const [designations, setDesignations] = useState<DesignationMaster[]>(() => getStored('designations', initialDesignations));
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [designations, setDesignations] = useState<DesignationMaster[]>([]);
   const [gradeConfigurations, setGradeConfigurations] = useState<GradeConfig[]>(() => getStored('grade_configurations', defaultGradeConfigurations));
   const [processedResults, setProcessedResults] = useState<ProcessedResult[]>(() => getStored('processed_results', []));
   const [studentAttendance, setStudentAttendance] = useState<any[]>(() => getStored('student_attendance', []));
   const [coScholasticAssessments, setCoScholasticAssessments] = useState<any[]>(() => getStored('co_scholastic_assessments', []));
-
-  const [timetable, setTimetable] = useState<TimetableSlot[]>(() => getStored('timetable', initialTimetable));
+ 
+  const [timetable, setTimetable] = useState<TimetableSlot[]>([]);
   const [homework, setHomework] = useState<Homework[]>(() => getStored('homework', initialHomework));
   const [books, setBooks] = useState<BookItem[]>(() => getStored('books', initialBooks));
   const [bookIssues, setBookIssues] = useState<BookIssue[]>(() => getStored('book_issues', initialBookIssues));
@@ -1623,13 +1651,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Handle array response or object wrapper response
         const classList = Array.isArray(data) ? data : (data.success && Array.isArray(data.data) ? data.data : null);
         if (classList) {
+          setRawClasses(classList);
           const mapped: AcademicClass[] = classList.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-            sections: c.sections || [],
+            id: c.classId?.toString() || c.id?.toString(),
+            name: c.className || c.name,
+            sections: c.sections?.map((s: any) => s.sectionName || s) || [],
             sectionTeachers: c.sectionTeachers || {},
             teacher: c.teacher || 'Unassigned',
-            subjects: c.subjects || []
+            subjects: c.curriculumSubjects?.map((cs: any) => cs.subjectName || cs.name) || c.subjects || []
           }));
           setAcademicClasses(mapped);
         }
@@ -1646,6 +1675,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (Array.isArray(dataArray)) {
         const mappedData = dataArray.map((item: any) => ({
           id: item.subjectId?.toString() || item.id?.toString() || Math.random().toString(),
+          subjectId: item.subjectId?.toString() || item.id?.toString() || '',
           name: item.subjectName || '',
           code: item.courseCode || '',
           department: item.departmentName || '',
@@ -1656,6 +1686,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.warn('Error fetching subjects', err);
     }
+  };
+
+  const fetchPeriods = async () => {
+    try {
+      const data = await fetchPeriodsApi();
+      const dataArray = Array.isArray(data) ? data : (data?.data || []);
+      if (Array.isArray(dataArray)) {
+        const mappedData: PeriodSetting[] = dataArray.map((item: any) => ({
+          id: item.periodId?.toString() || item.id?.toString() || Math.random().toString(),
+          academicYear: item.academicYear || '',
+          branch: item.branch || '',
+          periodName: item.periodName || '',
+          startTime: item.startTime || '',
+          endTime: item.endTime || '',
+          periodType: item.periodType || 'Teaching Period',
+          sequence: item.displayOrder || 1,
+          status: 'Active' as const
+        }));
+        setPeriodSettings(mappedData);
+      }
+    } catch (err: any) {
+      console.warn('Error fetching periods', err);
+    }
+  };
 
   const fetchAdmissions = async () => {
     try {
@@ -1713,6 +1767,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchDepartments = async () => {
+    try {
+      const response = await fetchDepartmentsApi();
+      if (response && response.success && response.data) {
+        const mapped: Department[] = response.data.map((item: any) => ({
+          id: item.departmentId.toString(),
+          departmentName: item.departmentName,
+          departmentCode: item.departmentCode || '',
+          description: item.description || '',
+          status: item.status || 'Active'
+        }));
+        setDepartments(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch departments', err);
+    }
+  };
+
+  const fetchDesignations = async () => {
+    try {
+      const response = await fetchDesignationsApi();
+      if (response && response.success && response.data) {
+        const mapped: DesignationMaster[] = response.data.map((item: any) => ({
+          id: item.id.toString(),
+          designationName: item.designationName,
+          employeeCategory: item.employeeCategory || 'Both',
+          status: item.status || 'Active'
+        }));
+        setDesignations(mapped);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch designations', err);
+    }
+  };
+
   const fetchStaff = async () => {
     try {
       const response = await apiClient('/api/staff', { method: 'GET' });
@@ -1725,20 +1814,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             empId: item.employeeId,
             employeeCategory: isTeaching ? 'Teacher' : 'Staff',
             firstName: item.firstName,
+            middleName: item.middleName || '',
             lastName: item.lastName,
             email: item.email || '',
             phone: item.phone || '',
+            alternateMobile: item.alternateMobile || '',
             gender: item.gender || 'Male',
             dob: item.dateOfBirth ? item.dateOfBirth.split('T')[0] : '',
+            bloodGroup: item.bloodGroup || '',
             joiningDate: item.joiningDate ? item.joiningDate.split('T')[0] : '',
             qualification: item.qualification || '',
-            experienceYears: 0,
+            experienceYears: item.experienceYears || 0,
             salary: item.monthlySalary || 0,
             designation: item.designation || '',
             department: item.department || '',
             role: item.systemRole || (isTeaching ? 'Teacher' : 'Staff'),
-            profileStatus: 'Completed',
+            profileStatus: item.profileStatus || 'Completed',
             status: item.isActive ? 'Active' : 'Inactive',
+            aadhaarNumber: item.aadhaarNumber || '',
+            panNumber: item.panNumber || '',
+            presentAddress: item.presentAddress || '',
+            permanentAddress: item.permanentAddress || '',
+            city: item.city || '',
+            state: item.state || '',
+            pinCode: item.pinCode || '',
+            employmentType: item.employmentType || 'Full-Time',
+            reportingManager: item.reportingManager || '',
+            academicYear: item.academicYear || '',
+            isClassTeacherEligible: item.isClassTeacherEligible || false,
+            address: item.presentAddress || item.residentialAddress || '',
             bankDetails: {
               accountHolderName: item.accountHolderName || '',
               accountNumber: item.accountNumber || '',
@@ -1746,7 +1850,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
               branch: item.branchName || '',
               ifscCode: item.ifscCode || '',
               upiId: item.upiId || ''
-            }
+            },
+            qualifications: (item.qualifications || []).map((q: any) => ({
+              id: q.id.toString(),
+              qualification: q.qualificationDegree || '',
+              specialization: q.specializationSubject || '',
+              institution: q.institutionCollege || '',
+              boardUniversity: q.boardUniversity || '',
+              passingYear: q.passingYear || '',
+              percentageCgpa: q.percentageCgpa || ''
+            })),
+            experienceRecords: (item.experienceRecords || []).map((e: any) => ({
+              id: e.id.toString(),
+              previousOrganization: e.previousOrganization || '',
+              designation: e.designationHeld || '',
+              fromDate: e.fromDate ? e.fromDate.split('T')[0] : '',
+              toDate: e.toDate ? e.toDate.split('T')[0] : '',
+              totalExperience: e.totalExperience || '',
+              reasonForLeaving: e.reasonForLeaving || ''
+            })),
+            documents: (item.documents || []).map((d: any) => ({
+              id: d.staffDocumentId.toString(),
+              fileName: d.documentType,
+              docType: d.documentType,
+              fileUrl: d.fileUrl || '',
+              uploadedAt: d.uploadedAt ? d.uploadedAt.split('T')[0] : ''
+            }))
           };
         });
         setStaff(mappedStaff);
@@ -1760,6 +1889,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (isAuthenticated) {
       fetchAcademicClasses();
       fetchSubjects();
+      fetchPeriods();
+      fetchDepartments();
+      fetchDesignations();
     }
     const allowedAdmissionsRoles = ['Super Admin', 'Admin', 'Principal', 'Receptionist'];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
@@ -1955,26 +2087,95 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         employeeId: staffData.empId,
         employeeCategory: staffData.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
         firstName: staffData.firstName,
+        middleName: staffData.middleName || '',
         lastName: staffData.lastName,
         email: staffData.email,
         phone: staffData.phone,
+        alternateMobile: staffData.alternateMobile || '',
         gender: staffData.gender || 'Male',
+        dateOfBirth: staffData.dob,
+        bloodGroup: staffData.bloodGroup || '',
+        residentialAddress: staffData.address || '',
+        aadhaarNumber: staffData.aadhaarNumber || '',
+        panNumber: staffData.panNumber || '',
+        presentAddress: staffData.presentAddress || '',
+        permanentAddress: staffData.permanentAddress || '',
+        city: staffData.city || '',
+        state: staffData.state || '',
+        pinCode: staffData.pinCode || '',
         designation: staffData.designation,
         department: staffData.department,
         systemRole: staffData.role,
         joiningDate: staffData.joiningDate,
         qualification: staffData.qualification || '',
+        employmentType: staffData.employmentType || 'Full-Time',
+        reportingManager: staffData.reportingManager || '',
+        academicYear: staffData.academicYear || '',
+        isClassTeacherEligible: staffData.isClassTeacherEligible || false,
+        primarySubject: staffData.primarySubject || '',
+        specialization: staffData.specialization || '',
         monthlySalary: staffData.salary || 0,
         accountHolderName: staffData.bankDetails?.accountHolderName || '',
         accountNumber: staffData.bankDetails?.accountNumber || '',
         bankName: staffData.bankDetails?.bankName || '',
         branchName: staffData.bankDetails?.branch || '',
         ifscCode: staffData.bankDetails?.ifscCode || '',
-        upiId: staffData.bankDetails?.upiId || ''
+        upiId: staffData.bankDetails?.upiId || '',
+        qualifications: (staffData.qualifications || []).map((q: any) => ({
+          qualificationDegree: q.qualification || q.highestQualification || '',
+          specializationSubject: q.specialization || '',
+          institutionCollege: q.institution || q.university || '',
+          boardUniversity: q.boardUniversity || q.university || '',
+          passingYear: q.passingYear || q.year || '',
+          percentageCgpa: q.percentageCgpa || q.percentage || ''
+        })),
+        experienceRecords: (staffData.experienceRecords || []).map((e: any) => ({
+          previousOrganization: e.previousOrganization || e.organization || e.previousSchool || '',
+          designationHeld: e.designation || '',
+          fromDate: e.fromDate || e.joiningDate || '',
+          toDate: e.toDate || e.relievingDate || '',
+          totalExperience: e.totalExperience || '0 Years 0 Months',
+          reasonForLeaving: e.reasonForLeaving || ''
+        })),
+        documents: (staffData.documents || []).map((d: any) => ({
+          documentType: d.docType || d.type || '',
+          fileUrl: d.fileUrl || '',
+          isRequired: d.isRequired ?? true,
+          status: d.status || 'Attached',
+          uploadedAt: d.uploadedAt || new Date().toISOString()
+        }))
       })
     }).then(response => {
       if (response && response.success && response.data) {
-        setStaff(prev => prev.map(s => s.empId === newStaff.empId ? { ...s, id: response.data.staffId.toString() } : s));
+        setStaff(prev => prev.map(s => s.empId === newStaff.empId ? {
+          ...s,
+          id: response.data.staffId.toString(),
+          qualifications: response.data.qualifications ? response.data.qualifications.map((q: any) => ({
+            id: q.id.toString(),
+            qualification: q.qualificationDegree || '',
+            specialization: q.specializationSubject || '',
+            institution: q.institutionCollege || '',
+            boardUniversity: q.boardUniversity || '',
+            passingYear: q.passingYear || '',
+            percentageCgpa: q.percentageCgpa || ''
+          })) : s.qualifications,
+          experienceRecords: response.data.experienceRecords ? response.data.experienceRecords.map((e: any) => ({
+            id: e.id.toString(),
+            previousOrganization: e.previousOrganization || '',
+            designation: e.designationHeld || '',
+            fromDate: e.fromDate ? e.fromDate.split('T')[0] : '',
+            toDate: e.toDate ? e.toDate.split('T')[0] : '',
+            totalExperience: e.totalExperience || '',
+            reasonForLeaving: e.reasonForLeaving || ''
+          })) : s.experienceRecords,
+          documents: response.data.documents ? response.data.documents.map((d: any) => ({
+            id: d.staffDocumentId.toString(),
+            fileName: d.documentType,
+            docType: d.documentType,
+            fileUrl: d.fileUrl || '',
+            uploadedAt: d.uploadedAt ? d.uploadedAt.split('T')[0] : ''
+          })) : s.documents
+        } : s));
       }
     }).catch(err => {
       console.error('Failed to create staff in backend', err);
@@ -1997,23 +2198,95 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             employeeId: fullStaff.empId,
             employeeCategory: fullStaff.employeeCategory === 'Teacher' ? 'Teaching Staff' : 'Non-Teaching Staff',
             firstName: fullStaff.firstName,
+            middleName: fullStaff.middleName || '',
             lastName: fullStaff.lastName,
             email: fullStaff.email,
             phone: fullStaff.phone,
+            alternateMobile: fullStaff.alternateMobile || '',
             gender: fullStaff.gender || 'Male',
+            dateOfBirth: fullStaff.dob,
+            bloodGroup: fullStaff.bloodGroup || '',
+            residentialAddress: fullStaff.address || '',
+            aadhaarNumber: fullStaff.aadhaarNumber || '',
+            panNumber: fullStaff.panNumber || '',
+            presentAddress: fullStaff.presentAddress || '',
+            permanentAddress: fullStaff.permanentAddress || '',
+            city: fullStaff.city || '',
+            state: fullStaff.state || '',
+            pinCode: fullStaff.pinCode || '',
             designation: fullStaff.designation,
             department: fullStaff.department,
             systemRole: fullStaff.role,
             joiningDate: fullStaff.joiningDate,
             qualification: fullStaff.qualification || '',
+            employmentType: fullStaff.employmentType || 'Full-Time',
+            reportingManager: fullStaff.reportingManager || '',
+            academicYear: fullStaff.academicYear || '',
+            isClassTeacherEligible: fullStaff.isClassTeacherEligible || false,
+            primarySubject: fullStaff.primarySubject || '',
+            specialization: fullStaff.specialization || '',
             monthlySalary: fullStaff.salary || 0,
             accountHolderName: fullStaff.bankDetails?.accountHolderName || '',
             accountNumber: fullStaff.bankDetails?.accountNumber || '',
             bankName: fullStaff.bankDetails?.bankName || '',
             branchName: fullStaff.bankDetails?.branch || '',
             ifscCode: fullStaff.bankDetails?.ifscCode || '',
-            upiId: fullStaff.bankDetails?.upiId || ''
+            upiId: fullStaff.bankDetails?.upiId || '',
+            qualifications: (fullStaff.qualifications || []).map((q: any) => ({
+              qualificationDegree: q.qualification || q.highestQualification || '',
+              specializationSubject: q.specialization || '',
+              institutionCollege: q.institution || q.university || '',
+              boardUniversity: q.boardUniversity || q.university || '',
+              passingYear: q.passingYear || q.year || '',
+              percentageCgpa: q.percentageCgpa || q.percentage || ''
+            })),
+            experienceRecords: (fullStaff.experienceRecords || []).map((e: any) => ({
+              previousOrganization: e.previousOrganization || e.organization || e.previousSchool || '',
+              designationHeld: e.designation || '',
+              fromDate: e.fromDate || e.joiningDate || '',
+              toDate: e.toDate || e.relievingDate || '',
+              totalExperience: e.totalExperience || '0 Years 0 Months',
+              reasonForLeaving: e.reasonForLeaving || ''
+            })),
+            documents: (fullStaff.documents || []).map((d: any) => ({
+              documentType: d.docType || d.type || '',
+              fileUrl: d.fileUrl || '',
+              isRequired: d.isRequired ?? true,
+              status: d.status || 'Attached',
+              uploadedAt: d.uploadedAt || new Date().toISOString()
+            }))
           })
+        }).then(response => {
+          if (response && response.success && response.data) {
+            setStaff(prev => prev.map(s => s.id === id ? {
+              ...s,
+              qualifications: response.data.qualifications ? response.data.qualifications.map((q: any) => ({
+                id: q.id.toString(),
+                qualification: q.qualificationDegree || '',
+                specialization: q.specializationSubject || '',
+                institution: q.institutionCollege || '',
+                boardUniversity: q.boardUniversity || '',
+                passingYear: q.passingYear || '',
+                percentageCgpa: q.percentageCgpa || ''
+              })) : s.qualifications,
+              experienceRecords: response.data.experienceRecords ? response.data.experienceRecords.map((e: any) => ({
+                id: e.id.toString(),
+                previousOrganization: e.previousOrganization || '',
+                designation: e.designationHeld || '',
+                fromDate: e.fromDate ? e.fromDate.split('T')[0] : '',
+                toDate: e.toDate ? e.toDate.split('T')[0] : '',
+                totalExperience: e.totalExperience || '',
+                reasonForLeaving: e.reasonForLeaving || ''
+              })) : s.experienceRecords,
+              documents: response.data.documents ? response.data.documents.map((d: any) => ({
+                id: d.staffDocumentId.toString(),
+                fileName: d.documentType,
+                docType: d.documentType,
+                fileUrl: d.fileUrl || '',
+                uploadedAt: d.uploadedAt ? d.uploadedAt.split('T')[0] : ''
+              })) : s.documents
+            } : s));
+          }
         }).catch(err => {
           console.error('Failed to update staff in backend', err);
         });
@@ -2787,14 +3060,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setHostelBeds(prev => prev.filter(b => b.id !== id));
   };
 
-  const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>(defaultPeriodSettings);
-  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>(() =>
-    getStored('teacher_assignments', defaultTeacherAssignments)
-  );
+  const [periodSettings, setPeriodSettings] = useState<PeriodSetting[]>([]);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
 
+  // Persist teacher assignments to localStorage for offline resilience
   useEffect(() => {
     localStorage.setItem('edu_db_teacher_assignments', JSON.stringify(teacherAssignments));
   }, [teacherAssignments]);
+
+  // Load teacher assignments from backend on mount (source of truth)
+  useEffect(() => {
+    const loadTeacherAssignments = async () => {
+      try {
+        const res = await fetchTeacherAssignmentsApi();
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: TeacherAssignment[] = res.data.map((ta: any) => ({
+            id: ta.id,
+            classId: ta.classId,
+            className: ta.className,
+            section: ta.section,
+            teacherId: ta.teacherId,
+            teacherName: ta.teacherName,
+            subject: ta.subject,
+            subjectId: ta.subjectId,
+            role: ta.role,
+            status: ta.status
+          }));
+          setTeacherAssignments(mapped);
+        }
+      } catch (err) {
+        // Fallback to localStorage if API unavailable
+        try {
+          const saved = localStorage.getItem('edu_db_teacher_assignments');
+          if (saved) setTeacherAssignments(JSON.parse(saved));
+        } catch {}
+      }
+    };
+    loadTeacherAssignments();
+  }, []);
 
   const addPeriodSetting = (data: Omit<PeriodSetting, 'id'>) => {
     // Check duplicate
@@ -2913,11 +3216,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTeacherAssignments(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
-  const deleteTeacherAssignment = (id: string) => {
+  const deleteTeacherAssignment = async (id: string) => {
+    // Find the assignment before removing from local state
+    const ta = teacherAssignments.find(t => t.id === id);
     setTeacherAssignments(prev => prev.filter(t => t.id !== id));
+
+    // Propagate deletion to backend if we have enough info
+    if (ta && ta.classId && ta.section && ta.subjectId) {
+      try {
+        await unassignTeacherApi(ta.classId, ta.section, ta.subjectId);
+      } catch (err) {
+        console.warn('Failed to propagate teacher unassignment to backend:', err);
+      }
+    }
   };
 
-  const publishClassTimetable = (className: string, section: string, academicYear?: string, branch?: string) => {
+  const publishClassTimetable = async (className: string, section: string, academicYear?: string, branch?: string) => {
     setTimetable(prev => prev.map(t => {
       if (t.className === className && t.section === section) {
         return { ...t, status: 'Published' };
@@ -2925,6 +3239,65 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return t;
     }));
     logActivity('Published Timetable', `Published timetable for ${className}-${section}`);
+
+    try {
+      const clsObj = rawClasses.find(c => c.className === className || c.name === className);
+      const sectionObj = clsObj?.sections?.find((s: any) => s.sectionName === section);
+      if (clsObj && sectionObj) {
+        await publishTimetableApi({
+          classId: clsObj.classId || clsObj.id,
+          sectionId: sectionObj.sectionId,
+          academicYear: academicYear || '2026-2027',
+          status: 'Published'
+        });
+        await loadTimetableForClassSection(clsObj.classId?.toString() || clsObj.id?.toString(), section, academicYear || '2026-2027');
+      }
+    } catch (err) {
+      console.error('Error publishing timetable', err);
+    }
+  };
+
+  const loadTimetableForClassSection = async (classId: string, sectionName: string, academicYear: string) => {
+    try {
+      const numericClassId = classId.startsWith('CL-') ? classId.replace('CL-', '') : classId;
+      const targetClassObj = rawClasses.find(c => c.classId?.toString() === numericClassId || c.id?.toString() === numericClassId);
+      const sectionObj = targetClassObj?.sections?.find((s: any) => s.sectionName === sectionName);
+      const numericSectionId = sectionObj?.sectionId;
+      
+      if (!numericClassId || !numericSectionId) {
+        console.warn('Could not resolve classId or sectionId for timetable grid request.');
+        return;
+      }
+      
+      const res = await fetchTimetableGridApi(numericClassId, numericSectionId, academicYear);
+      if (res && res.success && res.data) {
+        const slots = res.data.slots || [];
+        const mappedSlots = slots.map((s: any) => ({
+          id: s.slotId ? `TT-${s.slotId}` : Math.random().toString(),
+          day: s.dayOfWeek,
+          timeSlot: `${s.startTime} - ${s.endTime}`,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          className: res.data.className,
+          section: res.data.sectionName,
+          subject: s.subjectName,
+          subjectId: s.subjectId?.toString(),
+          teacherName: s.teacherName,
+          teacherId: s.teacherId?.toString(),
+          roomNo: s.roomNo || '',
+          academicYear: res.data.academicYear,
+          branch: res.data.branchName,
+          status: res.data.status
+        }));
+        
+        setTimetable(prev => {
+          const filtered = prev.filter(t => t.className !== res.data.className || t.section !== res.data.sectionName);
+          return [...filtered, ...mappedSlots];
+        });
+      }
+    } catch (err: any) {
+      console.warn('Error loading timetable grid', err);
+    }
   };
   const addUniform = (itemData: Omit<UniformItem, 'id'>) => {
     const id = 'UNI-' + Math.floor(100 + Math.random() * 900);
@@ -4594,7 +4967,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return updatedLedger;
   };
 
-  const fetchDailyAttendance = async (date: string, department?: string) => {
+  const fetchDailyAttendance = useCallback(async (date: string, department?: string) => {
     try {
       const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
       const response = await apiClient(`/api/staff/attendance?date=${date}${deptParam}`, { method: 'GET' });
@@ -4621,9 +4994,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('Error fetching staff attendance:', err);
     }
-  };
+  }, []);
 
-  const fetchMonthlyAttendance = async (month: number, year: number, department?: string) => {
+  const fetchMonthlyAttendance = useCallback(async (month: number, year: number, department?: string) => {
     try {
       const deptParam = department && department !== 'All' ? `&department=${encodeURIComponent(department)}` : '';
       const response = await apiClient(`/api/staff/attendance/monthly?month=${month}&year=${year}${deptParam}`, { method: 'GET' });
@@ -4650,9 +5023,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('Error fetching monthly staff attendance:', err);
     }
-  };
+  }, []);
 
-  const markAttendance = async (records: DailyAttendance[]) => {
+  const markAttendance = async (records: DailyAttendance[]): Promise<boolean> => {
     setAttendance(prev => {
       const filterDates = records.map(r => `${r.entityId}_${r.date}`);
       const updated = prev.filter(r => !filterDates.includes(`${r.entityId}_${r.date}`));
@@ -4662,7 +5035,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const date = records[0]?.date;
-      if (!date) return;
+      if (!date) return false;
 
       const payload = {
         date: date,
@@ -4682,9 +5055,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         method: 'POST',
         body: JSON.stringify(payload)
       });
+      return true;
     } catch (err: any) {
       console.error('Error saving staff attendance to server:', err);
       addToast('error', 'API Error', 'Failed to save staff attendance to database.');
+      return false;
     }
   };
 
@@ -4981,18 +5356,96 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     logActivity(`Applied ${type}`, `Updated mark ID ${markId} to score ${newMarks}`);
   };
 
-  const addTimetableSlot = (slotData: Omit<TimetableSlot, 'id'>) => {
+  const addTimetableSlot = async (slotData: Omit<TimetableSlot, 'id'>) => {
     const id = 'TT-' + Math.floor(100 + Math.random() * 900);
     const newSlot: TimetableSlot = { ...slotData, id, branch: (slotData as any).branch || selectedBranch || 'Main Campus' } as any;
     setTimetable(prev => [...prev, newSlot]);
+
+    try {
+      const clsObj = rawClasses.find(c => c.className === slotData.className || c.name === slotData.className);
+      const sectionObj = clsObj?.sections?.find((s: any) => s.sectionName === slotData.section);
+      const subObj = subjects.find(s => s.name === slotData.subject);
+      const teacherObj = staff.find(s => `${s.firstName} ${s.lastName}`.trim() === slotData.teacherName?.trim());
+
+      const times = slotData.timeSlot.split('-');
+      const startTime = times[0]?.trim() || '08:30 AM';
+      const endTime = times[1]?.trim() || '09:15 AM';
+
+      if (clsObj && sectionObj && subObj) {
+        await saveTimetableSlotApi({
+          classId: clsObj.classId || clsObj.id,
+          sectionId: sectionObj.sectionId,
+          academicYear: slotData.academicYear || '2026-2027',
+          branchName: slotData.branch || 'Main Campus',
+          dayOfWeek: slotData.day,
+          startTime,
+          endTime,
+          subjectId: subObj.id,
+          teacherId: teacherObj?.id || 1,
+          roomNo: slotData.roomNo || ''
+        });
+        await loadTimetableForClassSection(clsObj.classId?.toString() || clsObj.id?.toString(), slotData.section, slotData.academicYear || '2026-2027');
+      }
+    } catch (err) {
+      console.error('Error adding timetable slot', err);
+    }
   };
 
-  const updateTimetableSlot = (id: string, updates: Partial<TimetableSlot>) => {
+  const updateTimetableSlot = async (id: string, updates: Partial<TimetableSlot>) => {
     setTimetable(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+
+    try {
+      const existing = timetable.find(t => t.id === id);
+      const merged = { ...existing, ...updates } as TimetableSlot;
+      
+      const clsObj = rawClasses.find(c => c.className === merged.className || c.name === merged.className);
+      const sectionObj = clsObj?.sections?.find((s: any) => s.sectionName === merged.section);
+      const subObj = subjects.find(s => s.name === merged.subject);
+      const teacherObj = staff.find(s => `${s.firstName} ${s.lastName}`.trim() === merged.teacherName?.trim());
+
+      const times = merged.timeSlot.split('-');
+      const startTime = times[0]?.trim() || '08:30 AM';
+      const endTime = times[1]?.trim() || '09:15 AM';
+
+      if (clsObj && sectionObj && subObj) {
+        await saveTimetableSlotApi({
+          classId: clsObj.classId || clsObj.id,
+          sectionId: sectionObj.sectionId,
+          academicYear: merged.academicYear || '2026-2027',
+          branchName: merged.branch || 'Main Campus',
+          dayOfWeek: merged.day,
+          startTime,
+          endTime,
+          subjectId: subObj.id,
+          teacherId: teacherObj?.id || 1,
+          roomNo: merged.roomNo || ''
+        });
+        await loadTimetableForClassSection(clsObj.classId?.toString() || clsObj.id?.toString(), merged.section, merged.academicYear || '2026-2027');
+      }
+    } catch (err) {
+      console.error('Error updating timetable slot', err);
+    }
   };
 
-  const deleteTimetableSlot = (id: string) => {
+  const deleteTimetableSlot = async (id: string) => {
+    const existing = timetable.find(t => t.id === id);
     setTimetable(prev => prev.filter(t => t.id !== id));
+
+    try {
+      if (existing) {
+        if (id.startsWith('TT-')) {
+          const slotId = id.replace('TT-', '');
+          await deleteTimetableSlotApi(slotId);
+        }
+        
+        const clsObj = rawClasses.find(c => c.className === existing.className || c.name === existing.className);
+        if (clsObj) {
+          await loadTimetableForClassSection(clsObj.classId?.toString() || clsObj.id?.toString(), existing.section, existing.academicYear || '2026-2027');
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting timetable slot', err);
+    }
   };
 
   const addHomework = (hwData: Omit<Homework, 'id'>) => {
@@ -5895,7 +6348,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         alumniRecords: filterByBranch(alumniRecords), addAlumniRecord, updateAlumniStatus,
         staff: filteredStaff, addStaff, updateStaff, deleteStaff, addStaffDocument, deleteStaffDocument, updateBankDetails,
         admissions: filteredAdmissions, addAdmission, updateAdmission, deleteAdmission, updateAdmissionStatus,
-        academicClasses: filteredClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
+        academicClasses: filteredClasses, rawClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
         subjects: filteredSubjects, addSubject, updateSubject, deleteSubject,
         buses, addBus, updateBus, deleteBus,
         hostelBlocks, addHostelBlock, updateHostelBlock, deleteHostelBlock,
@@ -5946,7 +6399,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         gradeConfigurations, saveGradeConfiguration,
         processedResults, saveProcessedResults, updateResultStatus, applyGraceOrRevaluation,
         studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment,
-        timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable,
+        timetable: filteredTimetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable, loadTimetableForClassSection,
         periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
         teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
         homework: filteredHomework, addHomework, updateHomework, deleteHomework,

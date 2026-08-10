@@ -1284,7 +1284,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // -------------------------------------------------------------
   // SUBJECT MASTER & MAPPING HANDLERS
   // -------------------------------------------------------------
-  const handleToggleSubjectMapping = (subjectName: string) => {
+  const handleToggleSubjectMapping = async (subjectName: string) => {
     if (!activeClass) return;
     const validGlobalNames = subjects.map(s => s.name);
     const currentMapped = (activeClass.subjects || []).filter(s => validGlobalNames.includes(s));
@@ -1297,19 +1297,35 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         addToast('warning', 'Mapping Locked', `Cannot remove subject ${subjectName} because subject teachers are assigned in sections.`);
         return;
       }
-      updated = currentMapped.filter(s => s !== subjectName);
-      updateAcademicClass(activeClass.id, { subjects: updated } as any);
-      addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
-
+      
       const subObj = subjects.find(s => s.name === subjectName);
       const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
-      removeSubjectApi(activeClass.id, numericSubId).catch(() => {});
+      
+      try {
+        const res = await removeSubjectApi(activeClass.id, numericSubId);
+        if (res && res.success) {
+          updated = currentMapped.filter(s => s !== subjectName);
+          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
+        } else {
+          addToast('error', 'Mapping Failed', res?.message || 'Could not unmap subject.');
+        }
+      } catch (err: any) {
+        addToast('error', 'Mapping Failed', 'Could not unmap subject due to server error.');
+      }
     } else {
-      updated = [...currentMapped, subjectName];
-      updateAcademicClass(activeClass.id, { subjects: updated } as any);
-      addToast('success', 'Subject Mapped', `${subjectName} mapped to ${activeClass.name}`);
-
-      mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 }).catch(() => {});
+      try {
+        const res = await mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 });
+        if (res && res.success) {
+          updated = [...currentMapped, subjectName];
+          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          addToast('success', 'Subject Mapped', `${subjectName} mapped to ${activeClass.name}`);
+        } else {
+          addToast('error', 'Mapping Failed', res?.message || 'Could not map subject.');
+        }
+      } catch (err: any) {
+        addToast('error', 'Mapping Failed', 'Could not map subject due to server error.');
+      }
     }
   };
 

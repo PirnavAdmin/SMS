@@ -2,7 +2,7 @@ namespace SMS.Api.Controllers;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SMS.Api.Services.Interfaces;
+using SMS.Api.Services.Interfaces.StaffManagement;
 using System.Threading.Tasks;
 
 [ApiController]
@@ -11,11 +11,11 @@ using System.Threading.Tasks;
 [Tags("Faculty & Staff Management")]
 public class TeachersController : ControllerBase
 {
-    private readonly ISchoolService _schoolService;
+    private readonly IStaffService _staffService;
 
-    public TeachersController(ISchoolService schoolService)
+    public TeachersController(IStaffService staffService)
     {
-        _schoolService = schoolService;
+        _staffService = staffService;
     }
 
     /// <summary>
@@ -24,7 +24,7 @@ public class TeachersController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAllTeachers([FromQuery] string? search, [FromQuery] string? subject)
     {
-        var teachers = await _schoolService.GetAllTeachersAsync(search, subject);
+        var teachers = await _staffService.GetAllTeachersAsync(search, subject);
         return Ok(new { success = true, data = teachers });
     }
 
@@ -34,7 +34,7 @@ public class TeachersController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetTeacherById(int id)
     {
-        var teacher = await _schoolService.GetTeacherByIdAsync(id);
+        var teacher = await _staffService.GetTeacherByIdAsync(id);
         if (teacher == null)
             return NotFound(new { success = false, message = "Teacher not found" });
 

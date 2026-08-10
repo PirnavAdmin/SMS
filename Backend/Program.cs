@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -10,11 +11,13 @@ using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Implementations;
 using SMS.Api.Services.Interfaces;
+using SMS.Api.Services.Interfaces.StaffManagement;
+using SMS.Api.Services.Implementations.StaffManagement;
 using SMS.Api.Repositories.Implementations;
-using SMS.Api.Repositories.Interfaces.ExaminationNew;
-using SMS.Api.Repositories.Implementations.ExaminationNew;
-using SMS.Api.Services.Interfaces.ExaminationNew;
-using SMS.Api.Services.Implementations.ExaminationNew;
+using SMS.Api.Repositories.Interfaces.Examination;
+using SMS.Api.Repositories.Implementations.Examination;
+using SMS.Api.Services.Interfaces.Examination;
+using SMS.Api.Services.Implementations.Examination;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +33,8 @@ var connectionString =
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
         connectionString,
-        new MySqlServerVersion(new Version(8, 0, 30))));
+        new MySqlServerVersion(new Version(8, 0, 30)),
+        mysqlOptions => mysqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // =========================================================
 // 2. DEPENDENCY INJECTION
@@ -110,10 +114,7 @@ builder.Services.AddScoped<ITeacherStudentAttendanceService,TeacherStudentAttend
 builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
 
 builder.Services.AddScoped<ISchoolService, SchoolService>();
-
-builder.Services.AddScoped<IExamMasterRepository, ExamMasterRepository>();
-
-builder.Services.AddScoped<IExamMasterService, ExamMasterService>();
+builder.Services.AddScoped<IStaffService, StaffService>();
 
 // Transport Management
 builder.Services.AddScoped<ITransportRepository, TransportRepository>();
@@ -246,6 +247,11 @@ app.UseMiddleware<ExceptionMiddleware>();
 // Enable Swagger UI unconditionally
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseHttpsRedirection();
 
@@ -912,6 +918,62 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`AdminId`, `RoleId`),
                 CONSTRAINT `fk_admin_roles_admin` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE,
                 CONSTRAINT `fk_admin_roles_role` FOREIGN KEY (`RoleId`) REFERENCES `roles` (`RoleId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `staff_documents` (
+                `StaffDocumentId` int NOT NULL AUTO_INCREMENT,
+                `StaffId` int NOT NULL,
+                `DocumentType` varchar(100) NOT NULL,
+                `FileUrl` varchar(500) NULL,
+                `IsRequired` tinyint(1) NOT NULL DEFAULT 1,
+                `Status` varchar(50) NOT NULL DEFAULT 'Missing',
+                `UploadedAt` datetime NULL,
+                PRIMARY KEY (`StaffDocumentId`),
+                CONSTRAINT `fk_staff_documents_staff` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `new_examinations` (
+                `exam_id` int NOT NULL AUTO_INCREMENT,
+                `exam_name` varchar(200) NOT NULL,
+                `assessment_type` varchar(100) NULL,
+                `academic_term` varchar(100) NULL,
+                `start_date` date NULL,
+                `end_date` date NULL,
+                `applicable_classes` varchar(500) NULL,
+                `status` varchar(30) NOT NULL DEFAULT 'Draft',
+                `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`exam_id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `new_exam_subject_configs` (
+                `config_id` int NOT NULL AUTO_INCREMENT,
+                `exam_id` int NOT NULL,
+                `class_name` varchar(100) NULL,
+                `subject_code` varchar(50) NULL,
+                `subject_name` varchar(150) NULL,
+                `is_active` tinyint(1) NOT NULL DEFAULT 1,
+                `max_marks` decimal(10,2) NOT NULL DEFAULT 100.00,
+                `pass_marks` decimal(10,2) NOT NULL DEFAULT 35.00,
+                PRIMARY KEY (`config_id`),
+                CONSTRAINT `fk_new_exam_subject_configs_exam` FOREIGN KEY (`exam_id`) REFERENCES `new_examinations` (`exam_id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `new_exam_timetable_slots` (
+                `slot_id` int NOT NULL AUTO_INCREMENT,
+                `exam_id` int NOT NULL,
+                `class_name` varchar(100) NULL,
+                `section_name` varchar(100) NULL,
+                `subject_code` varchar(50) NULL,
+                `subject_name` varchar(150) NULL,
+                `total_marks` int NOT NULL DEFAULT 100,
+                `exam_date` date NULL,
+                `time_slot` varchar(100) NULL,
+                `duration` varchar(50) NULL,
+                `room_hall` varchar(100) NULL,
+                `invigilator_faculty` varchar(150) NULL,
+                `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`slot_id`),
+                CONSTRAINT `fk_new_exam_timetable_slots_exam` FOREIGN KEY (`exam_id`) REFERENCES `new_examinations` (`exam_id`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -1288,63 +1350,6 @@ using (var scope = app.Services.CreateScope())
         }
 
         await context.SaveChangesAsync();
-
-        // =================================================
-        // SEED STAFF
-        // =================================================
-
-        if (!await context.Staff.AnyAsync())
-        {
-            var sampleStaff = new List<Staff>
-            {
-                new()
-                {
-                    EmployeeId = "EMP101",
-                    FirstName = "Dr. Robert",
-                    LastName = "Vance",
-                    Email =
-                        "robert.vance@pirnavschools.com",
-                    Phone = "9876543210",
-                    Designation =
-                        "Senior Physics Teacher",
-                    Department = "Science",
-                    MonthlySalary = 65000,
-                    IsActive = true
-                },
-                new()
-                {
-                    EmployeeId = "EMP102",
-                    FirstName = "Sarah",
-                    LastName = "Jenkins",
-                    Email =
-                        "sarah.jenkins@pirnavschools.com",
-                    Phone = "9876543211",
-                    Designation =
-                        "Math Department Lead",
-                    Department = "Mathematics",
-                    MonthlySalary = 70000,
-                    IsActive = true
-                },
-                new()
-                {
-                    EmployeeId = "EMP103",
-                    FirstName = "David",
-                    LastName = "Miller",
-                    Email =
-                        "david.miller@pirnavschools.com",
-                    Phone = "9876543212",
-                    Designation = "English Faculty",
-                    Department = "Humanities",
-                    MonthlySalary = 58000,
-                    IsActive = true
-                }
-            };
-
-            await context.Staff.AddRangeAsync(
-                sampleStaff);
-
-            await context.SaveChangesAsync();
-        }
 
         // =================================================
         // SEED DEPARTMENTS
@@ -1786,6 +1791,96 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+
+        // =================================================
+        // SYNC: ADMISSIONS → STUDENTS (startup heal)
+        // Ensures the `students` table is populated from the `admissions`
+        // table so that attendance, hostel, and library modules work correctly.
+        // Runs in its own try-catch so a missing table never crashes seeding.
+        // =================================================
+        try
+        {
+            // Verify prerequisite tables exist before querying them
+            var conn = context.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open)
+                await conn.OpenAsync();
+
+            bool tablesReady = false;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    SELECT COUNT(*) FROM information_schema.tables
+                    WHERE table_schema = DATABASE()
+                    AND table_name IN ('academic_years', 'branches', 'students', 'admissions', 'class_sections')";
+                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+                tablesReady = count >= 5;
+            }
+
+            if (tablesReady)
+            {
+                var defaultBranch = await context.Branches.FirstOrDefaultAsync();
+                var defaultAcademicYear = await context.AcademicYears.FirstOrDefaultAsync();
+
+                if (defaultBranch != null && defaultAcademicYear != null)
+                {
+                    var activeAdmissions = await context.Admissions
+                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
+                        .ToListAsync();
+
+                    foreach (var admission in activeAdmissions)
+                    {
+                        if (admission.ClassId == null || string.IsNullOrEmpty(admission.SectionLetter))
+                            continue;
+
+                        var sectionObj = await context.ClassSections
+                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                        if (sectionObj == null) continue;
+
+                        var existing = await context.Students
+                            .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
+
+                        if (existing != null)
+                        {
+                            existing.SectionId = sectionObj.SectionId;
+                            existing.RollNumber = admission.RollNo ?? existing.RollNumber;
+                            existing.Status = "Active";
+                        }
+                        else
+                        {
+                            var student = new Student
+                            {
+                                AdmissionNumber = admission.ApplicationNo ?? $"ADM-{admission.AdmissionId}",
+                                RollNumber = admission.RollNo ?? $"R-{admission.AdmissionId}",
+                                StudentName = admission.StudentName,
+                                DateOfBirth = admission.Dob,
+                                Gender = admission.Gender,
+                                FatherName = admission.FatherName,
+                                FatherMobile = admission.FatherMobile,
+                                BranchId = defaultBranch.BranchId,
+                                AcademicYearId = defaultAcademicYear.AcademicYearId,
+                                ClassId = admission.ClassId.Value,
+                                SectionId = sectionObj.SectionId,
+                                Status = "Active",
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            await context.Students.AddAsync(student);
+                        }
+                    }
+
+                    await context.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                logger.LogWarning("Admissions→Students sync skipped: one or more required tables do not exist yet. Will sync on next startup after migrations.");
+            }
+        }
+        catch (Exception syncEx)
+        {
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning(syncEx, "Admissions→Students startup sync failed. This is non-fatal — sync will retry on next startup.");
+        }
 
         // =================================================
         // SEED PERIOD SETTINGS

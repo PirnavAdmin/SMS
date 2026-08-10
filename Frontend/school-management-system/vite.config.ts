@@ -9,12 +9,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://backspace-prowler-bleach.ngrok-free.dev',
+        target: 'http://localhost:5151',
         changeOrigin: true,
-        secure: false,
-        headers: {
-          'ngrok-skip-browser-warning': 'true'
-        }
+        secure: false
       }
     }
   }

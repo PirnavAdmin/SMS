@@ -23,7 +23,11 @@ public class SchoolRepository : ISchoolRepository
     // --- STAFF ---
     public async Task<List<Staff>> GetAllStaffAsync(string? search, string? department)
     {
-        var query = _context.Staff.AsNoTracking().AsQueryable();
+        var query = _context.Staff.AsNoTracking()
+            .Include(s => s.Documents)
+            .Include(s => s.Qualifications)
+            .Include(s => s.ExperienceRecords)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
             query = query.Where(s => s.Department != null && s.Department.ToLower() == department.ToLower());
@@ -34,7 +38,12 @@ public class SchoolRepository : ISchoolRepository
         return await query.ToListAsync();
     }
 
-    public async Task<Staff?> GetStaffByIdAsync(int id) => await _context.Staff.FindAsync(id);
+    public async Task<Staff?> GetStaffByIdAsync(int id) => 
+        await _context.Staff
+            .Include(s => s.Documents)
+            .Include(s => s.Qualifications)
+            .Include(s => s.ExperienceRecords)
+            .FirstOrDefaultAsync(s => s.StaffId == id);
 
     public async Task<List<Staff>> GetTeachersForDropdownAsync(string? search)
     {

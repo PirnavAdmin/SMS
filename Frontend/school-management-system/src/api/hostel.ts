@@ -101,12 +101,12 @@ export interface DashboardMetrics {
 }
 
 // 1. Hostel Blocks Master API
-export const getHostelBlocks = async (search?: string, type?: string): Promise<HostelBlock[]> => {
+export const getHostelBlocks = async (search?: string, type?: string, signal?: AbortSignal): Promise<HostelBlock[]> => {
   const params = new URLSearchParams();
   if (search) params.append('search', search);
   if (type) params.append('type', type);
   const query = params.toString();
-  return hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`);
+  return hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
 };
 
 export const createHostelBlock = async (data: Partial<HostelBlock>) => {
@@ -241,6 +241,6 @@ export const saveNightAttendance = async (data: { date: string; hostelId: number
 };
 
 // 7. Executive Dashboard Metrics API
-export const getHostelDashboardMetrics = async (): Promise<DashboardMetrics> => {
-  return hostelApiClient('/api/hostels/dashboard');
+export const getHostelDashboardMetrics = async (signal?: AbortSignal): Promise<DashboardMetrics> => {
+  return hostelApiClient('/api/hostels/dashboard', { signal });
 };
