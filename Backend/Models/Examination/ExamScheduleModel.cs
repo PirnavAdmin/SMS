@@ -1,9 +1,11 @@
 namespace SMS.Api.Models.Examination;
 
 using System;
+using System.ComponentModel.DataAnnotations;
 
 public class NewExamTimetableSlot
 {
+    [Key]
     public int SlotId { get; set; }
     public int ExamId { get; set; }
     public string ClassName { get; set; } = string.Empty;

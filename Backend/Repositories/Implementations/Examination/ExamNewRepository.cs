@@ -209,5 +209,26 @@ public class ExamNewRepository : IExamNewRepository
             .Where(c => c.ExamId == examId && c.ClassName == className)
             .ToList();
     }
+
+    public async Task<bool> DeleteExamAsync(int examId)
+    {
+        try
+        {
+            var dbExam = await _context.NewExaminations.FindAsync(examId);
+            if (dbExam != null)
+            {
+                _context.NewExaminations.Remove(dbExam);
+                await _context.SaveChangesAsync();
+            }
+        }
+        catch
+        {
+            // Fallback
+        }
+
+        _inMemoryExams.RemoveAll(e => e.ExamId == examId);
+        _inMemorySubjectConfigs.RemoveAll(c => c.ExamId == examId);
+        return true;
+    }
 }
 

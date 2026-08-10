@@ -2,9 +2,11 @@ namespace SMS.Api.Models.Examination;
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 public class NewExamination
 {
+    [Key]
     public int ExamId { get; set; }
     public string ExamName { get; set; } = string.Empty;
     public string AssessmentType { get; set; } = string.Empty;
@@ -20,6 +22,7 @@ public class NewExamination
 
 public class NewExamSubjectConfig
 {
+    [Key]
     public int ConfigId { get; set; }
     public int ExamId { get; set; }
     public string ClassName { get; set; } = string.Empty;

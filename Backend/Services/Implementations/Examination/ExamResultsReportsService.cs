@@ -59,27 +59,45 @@ public class ExamResultsReportsService : IExamResultsReportsService
         return MapResponseDto(ordered);
     }
 
-    public async Task<CalculateResultsResponseDto> GetReportCardsListAsync(string className, string sectionName, string? search, string? statusFilter)
+    public async Task<List<StudentReportCardRowDto>> GetReportCardsAsync(string className, string sectionName, string? resultStatus, string? rankOrder, string? search)
     {
         var results = await _repository.GetExamResultsAsync(className, sectionName);
-
         var query = results.AsEnumerable();
         if (!string.IsNullOrWhiteSpace(search))
         {
             query = query.Where(r => r.RollNo.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                                     r.StudentName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                                     r.AdmissionNo.Contains(search, StringComparison.OrdinalIgnoreCase));
+                                      r.StudentName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                                      r.AdmissionNo.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
-
-        if (!string.IsNullOrWhiteSpace(statusFilter) && !statusFilter.Equals("All", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(resultStatus) && !resultStatus.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(r => r.ResultStatus.Equals(statusFilter, StringComparison.OrdinalIgnoreCase));
+            query = query.Where(r => r.ResultStatus.Equals(resultStatus, StringComparison.OrdinalIgnoreCase));
         }
-
-        return MapResponseDto(query.ToList());
+        if (!string.IsNullOrWhiteSpace(rankOrder) && rankOrder.Equals("Ascending", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.OrderBy(r => r.Rank);
+        }
+        else
+        {
+            query = query.OrderByDescending(r => r.Rank);
+        }
+        return query.Select(r => new StudentReportCardRowDto
+        {
+            ResultId = r.ResultId,
+            StudentId = r.StudentId,
+            RollNo = r.RollNo,
+            StudentName = r.StudentName,
+            AdmissionNo = r.AdmissionNo,
+            TotalMarksObtained = r.TotalMarksObtained,
+            TotalMaxMarks = r.TotalMaxMarks,
+            Percentage = r.Percentage,
+            Grade = r.Grade,
+            Rank = r.Rank,
+            ResultStatus = r.ResultStatus
+        }).ToList();
     }
 
-    public async Task<ReportCardPrintDetailDto?> GetPrintableReportCardAsync(int studentId, string? className, string? sectionName)
+    public async Task<ReportCardPrintDetailDto?> GetReportCardPrintDetailAsync(int studentId, string className, string sectionName)
     {
         string cName = string.IsNullOrWhiteSpace(className) ? "Class 1" : className;
         string sName = string.IsNullOrWhiteSpace(sectionName) ? "Section A" : sectionName;
@@ -119,6 +137,17 @@ public class ExamResultsReportsService : IExamResultsReportsService
             SubjectScores = sampleSubjects
         };
     }
+
+    public async Task<List<StudentReportCardRowDto>> GetReportCardsListAsync(string className, string sectionName, string? search, string? statusFilter)
+    {
+        return await GetReportCardsAsync(className, sectionName, statusFilter, "Descending", search);
+    }
+
+    public async Task<ReportCardPrintDetailDto?> GetPrintableReportCardAsync(int studentId, string? className, string? sectionName)
+    {
+        return await GetReportCardPrintDetailAsync(studentId, className ?? "Class 1", sectionName ?? "Section A");
+    }
+
 
     public async Task<bool> ClearExamResultsAsync(string className, string sectionName)
     {

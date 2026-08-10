@@ -79,6 +79,9 @@ namespace SMS.Api.Data
         public DbSet<NewExamination> NewExaminations { get; set; } = null!;
         public DbSet<NewExamSubjectConfig> NewExamSubjectConfigs { get; set; } = null!;
         public DbSet<NewExamTimetableSlot> NewExamTimetableSlots { get; set; } = null!;
+        public DbSet<NewGradingScaleRule> NewGradingScaleRules { get; set; } = null!;
+        public DbSet<NewStudentMarksEntry> NewStudentMarksEntries { get; set; } = null!;
+        public DbSet<NewStudentExamResult> NewStudentExamResults { get; set; } = null!;
 
         // =====================================================
         // Transport Module
@@ -97,6 +100,19 @@ namespace SMS.Api.Data
         public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
 
         public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
+
+        public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;
+
+        // =====================================================
+        // Uniform & Inventory Module
+        // =====================================================
+
+        public DbSet<UniformType> UniformTypes { get; set; } = null!;
+        public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
+        public DbSet<UniformSize> UniformSizes { get; set; } = null!;
+        public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
+        public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
+        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
 
         // =====================================================
         // Hostel ERP Module
@@ -1358,6 +1374,11 @@ namespace SMS.Api.Data
                     .WithMany(x => x.AttendanceRecords)
                     .HasForeignKey(x => x.AttendanceSessionId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Student)
+                    .WithMany()
+                    .HasForeignKey(x => x.StudentId)
+                    .IsRequired(false);
             });
         }
 
