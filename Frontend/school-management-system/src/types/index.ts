@@ -1185,6 +1185,7 @@ export interface FinanceTransaction {
     | 'Library'
     | 'Inventory'
     | 'Vendor Management'
+    | 'Uniform'
     | 'Manual'
     | 'Accounts';
   referenceNumber: string;
