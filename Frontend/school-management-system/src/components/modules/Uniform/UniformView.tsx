@@ -6,6 +6,7 @@ import { useToast } from '../../../context/ToastContext';
 import { UniformItem } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 
 export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniforms, addUniform, updateUniform, deleteUniform, uniformSizes } = useData();
@@ -13,6 +14,8 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
   const [query, setQuery] = useState('');
   const [filterGender, setFilterGender] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUniform, setEditingUniform] = useState<UniformItem | null>(null);
@@ -35,15 +38,26 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     return matchesQuery && matchesGender;
   });
 
+  const paginatedItems = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const [customMeasurement, setCustomMeasurement] = useState({
+    chest: '',
+    waist: '',
+    length: '',
+    shoulder: ''
+  });
+
   const handleOpenAdd = () => {
     setEditingUniform(null);
     setFormData({ gender: '' as any, size: '', className: '', price: undefined, availableStock: undefined });
+    setCustomMeasurement({ chest: '', waist: '', length: '', shoulder: '' });
     setIsFormOpen(true);
   };
 
   const handleOpenEdit = (u: UniformItem) => {
     setEditingUniform(u);
     setFormData(u);
+    setCustomMeasurement({ chest: '', waist: '', length: '', shoulder: '' });
     setIsFormOpen(true);
   };
 
@@ -51,8 +65,20 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
     e.preventDefault();
     if (!formData.category) return;
 
+    let finalSize = formData.size || 'M';
+    if (formData.size === 'Others' || formData.size === 'Other') {
+      const parts = [];
+      if (customMeasurement.chest) parts.push(`Chest: ${customMeasurement.chest}"`);
+      if (customMeasurement.waist) parts.push(`Waist: ${customMeasurement.waist}"`);
+      if (customMeasurement.length) parts.push(`Length: ${customMeasurement.length}"`);
+      if (customMeasurement.shoulder) parts.push(`Shoulder: ${customMeasurement.shoulder}"`);
+      
+      finalSize = parts.length > 0 ? `Custom Tailored (${parts.join(', ')})` : 'Custom Tailored';
+    }
+
     const payload = {
       ...formData,
+      size: finalSize,
       gender: formData.gender || 'Unisex',
       className: formData.className || 'All Wings',
       price: formData.price ? Number(formData.price) : 0,
@@ -82,7 +108,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Add Uniform Type
+          <Plus className="w-4 h-4" /> Add Uniform
         </button>
       </div>
 
@@ -106,9 +132,10 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
           <select
             value={filterGender}
             onChange={e => setFilterGender(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-semibold cursor-pointer"
           >
-            <option value="All">Select Gender (All)</option>
+            <option value="All">Select Gender</option>
+            <option value="All">Select All</option>
             <option value="Unisex">Unisex</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
@@ -118,35 +145,48 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
       {/* Uniform Inventory Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {filtered.map(u => (
-          <div key={u.id} className="glass-card p-5 rounded-3xl space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-              <div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950">{u.gender} • Size {u.size}</span>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">{u.category}</h3>
-              </div>
-
-              <div className="flex items-center gap-1">
-                <button onClick={() => handleOpenEdit(u)} className="p-1 rounded hover:bg-slate-100 text-brand-600"><Edit className="w-3.5 h-3.5" /></button>
-                <button onClick={() => setDeletingUniform(u)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
-              </div>
-            </div>
-
-            <div className="space-y-1 text-xs">
-              <div className="flex justify-between"><span className="text-slate-400">School Wing:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.className || 'All Wings'}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Color Spec:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.color}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Unit Price:</span><span className="font-extrabold text-emerald-600">{formatCurrency(u.price)}</span></div>
-              <div className="flex justify-between"><span className="text-slate-400">Stock Available:</span><span className="font-bold text-slate-900 dark:text-white">{u.availableStock} Units</span></div>
-            </div>
+        {filtered.length === 0 ? (
+          <div className="col-span-full py-12 text-center text-slate-400 dark:text-slate-500 font-bold glass-card rounded-3xl border border-slate-200 dark:border-slate-800">
+            No uniform configuration items found matching the selected filter.
           </div>
-        ))}
+        ) : (
+          paginatedItems.map(u => (
+            <div key={u.id} className="glass-card p-5 rounded-3xl space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                <div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950">{u.gender} • Size {u.size}</span>
+                  <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">{u.category}</h3>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button onClick={() => handleOpenEdit(u)} className="p-1 rounded hover:bg-slate-100 text-brand-600"><Edit className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => setDeletingUniform(u)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between"><span className="text-slate-400">School Wing:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.className || 'All Wings'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Color Spec:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.color}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Unit Price:</span><span className="font-extrabold text-emerald-600">{formatCurrency(u.price)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400">Stock Available:</span><span className="font-bold text-slate-900 dark:text-white">{u.availableStock} Units</span></div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
 
       {/* Add / Edit Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg max-h-[85vh] flex flex-col w-full p-5 sm:p-6 shadow-2xl space-y-4 my-auto overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {editingUniform ? 'Edit Uniform Item' : 'Add Uniform Configuration'}
               </h3>
@@ -155,7 +195,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-3 text-xs overflow-y-auto pr-1 flex-1">
               <div>
                 <label className="block font-semibold mb-1">Uniform Category / Item Name *</label>
                 <input
@@ -193,7 +233,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Size *</label>
+                  <label className="block font-semibold mb-1">Size Specification *</label>
                   <select
                     value={formData.size || ''}
                     onChange={e => setFormData({ ...formData, size: e.target.value })}
@@ -212,6 +252,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                     <option value="36">36</option>
                     <option value="38">38</option>
                     <option value="40">40</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
                 <div>
@@ -219,6 +260,75 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                   <input type="text" placeholder="Navy Blue" value={formData.color || ''} onChange={e => setFormData({ ...formData, color: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
                 </div>
               </div>
+
+              {/* Custom Tailored Body Measurements Form */}
+              {(formData.size === 'Others' || formData.size === 'Other') && (
+                <div className="p-3.5 bg-sky-50/90 dark:bg-sky-950/50 rounded-2xl border border-sky-200 dark:border-sky-800 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-sky-200/70 dark:border-sky-800/70 pb-2">
+                    <label className="block font-extrabold text-[11px] text-sky-900 dark:text-sky-200 uppercase tracking-wider">
+                      Custom Tailored Body Measurements
+                    </label>
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-sky-600 text-white shadow-xs">
+                      Custom Tailored
+                    </span>
+                  </div>
+
+                  {/* Measurement grid: Chest, Waist, Length, Shoulder */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Chest / Bust (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 38"
+                        value={customMeasurement.chest}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, chest: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Waist (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 32"
+                        value={customMeasurement.waist}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, waist: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Length / Height (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 28"
+                        value={customMeasurement.length}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, length: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Shoulder Width (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 16"
+                        value={customMeasurement.shoulder}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, shoulder: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -246,7 +356,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
                 <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">
-                  {editingUniform ? 'Save Changes' : 'Add Item'}
+                  Save
                 </button>
               </div>
             </form>

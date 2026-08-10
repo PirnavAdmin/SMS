@@ -926,10 +926,14 @@ export const initialHostelBeds: HostelBed[] = [
 ];
 
 export const initialUniforms: UniformItem[] = [
-  { id: "UNI-01", category: "Summer Polo Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 35, availableStock: 120 },
-  { id: "UNI-02", category: "Winter Blazer", gender: "Male", className: "Class 10", size: "L", color: "Dark Charcoal", price: 85, availableStock: 45 },
-  { id: "UNI-03", category: "Summer blazer", gender: "Female", className: "Class 10", size: "S", color: "Emerald Green", price: 65, availableStock: 50 },
-  { id: "UNI-04", category: "Summer Sweater", gender: "Unisex", className: "Class 10", size: "M", color: "Sky Blue", price: 40, availableStock: 50 }
+  { id: "UNI-01", category: "Summer Polo Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 35, availableStock: 107 },
+  { id: "UNI-02", category: "Winter Blazer", gender: "Male", className: "Class 10", size: "L", color: "Dark Charcoal", price: 85, availableStock: 43 },
+  { id: "UNI-03", category: "Summer blazer", gender: "Female", className: "Class 10", size: "M", color: "Emerald Green", price: 65, availableStock: 40 },
+  { id: "UNI-04", category: "Summer Sweater", gender: "Unisex", className: "Class 10", size: "M", color: "Sky Blue", price: 40, availableStock: 50 },
+  { id: "UNI-05", category: "Summer Polo Shirt", gender: "Unisex", className: "Class 10", size: "L", color: "Navy Blue", price: 35, availableStock: 40 },
+  { id: "UNI-06", category: "Autumn Blazer", gender: "Unisex", className: "Class 10", size: "M", color: "Rust Brown", price: 75, availableStock: 0 },
+  { id: "UNI-07", category: "Sapphron sweater", gender: "Unisex", className: "Class 10", size: "M", color: "Saffron Yellow", price: 45, availableStock: 50 },
+  { id: "UNI-08", category: "Track Pants", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 40, availableStock: 5 }
 ];
 
 export const initialBooks: BookItem[] = [
@@ -1750,10 +1754,14 @@ export const initialUniformSuppliers: UniformSupplier[] = [
 ];
 
 export const initialUniformInventory: UniformInventoryItem[] = [
-  { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'M', openingStock: 200, currentStock: 120, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
-  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Winter Blazer', category: 'Blazer', size: 'L', openingStock: 50, currentStock: 45, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-03', itemId: 'UNI-03', itemName: 'Summer blazer', category: 'Blazer', size: 'S', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-04', itemId: 'UNI-04', itemName: 'Summer Sweater', category: 'Sweater', size: 'M', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' }
+  { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'M', openingStock: 120, currentStock: 107, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
+  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Winter Blazer', category: 'Blazer', size: 'L', openingStock: 50, currentStock: 43, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-03', itemId: 'UNI-03', itemName: 'Summer blazer', category: 'Blazer', size: 'M', openingStock: 50, currentStock: 40, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-04', itemId: 'UNI-04', itemName: 'Summer Sweater', category: 'Sweater', size: 'M', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-05', itemId: 'UNI-05', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'L', openingStock: 50, currentStock: 40, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-06', itemId: 'UNI-06', itemName: 'Autumn Blazer', category: 'Blazer', size: 'M', openingStock: 50, currentStock: 0, minimumStock: 10, reorderLevel: 15, status: 'Out of Stock' },
+  { id: 'UINV-07', itemId: 'UNI-07', itemName: 'Sapphron sweater', category: 'Sweater', size: 'M', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-08', itemId: 'UNI-08', itemName: 'Track Pants', category: 'Pants', size: 'M', openingStock: 50, currentStock: 5, minimumStock: 10, reorderLevel: 15, status: 'Low Stock' }
 ];
 
 export const initialStudentUniformIssues: StudentUniformIssue[] = [

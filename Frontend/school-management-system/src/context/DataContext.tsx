@@ -1217,7 +1217,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [buses, setBuses] = useState<Bus[]>(() => getStored('buses', initialBuses));
   const [hostelBlocks, setHostelBlocks] = useState<HostelBlock[]>(() => getStored('hostel_blocks', initialHostelBlocks));
   const [hostelBeds, setHostelBeds] = useState<HostelBed[]>(() => getStored('hostel_beds', initialHostelBeds));
-  const [uniforms, setUniforms] = useState<UniformItem[]>(() => getStored('uniforms', initialUniforms));
+  const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
+    const stored = getStored('uniforms', initialUniforms);
+    const version = localStorage.getItem('edu_db_uniforms_v8');
+    if (!version || stored.length < initialUniforms.length) {
+      localStorage.setItem('edu_db_uniforms_v8', 'true');
+      localStorage.setItem('edu_db_uniforms', JSON.stringify(initialUniforms));
+      return initialUniforms;
+    }
+    return stored;
+  });
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() => getStored('custom_roles', initialCustomRoles));
   const [feeStructures, setFeeStructures] = useState<FeeStructure[]>(() => getStored('fee_structures', initialFeeStructures));
   const [feePayments, setFeePayments] = useState<FeePayment[]>(() => getStored('fee_payments', initialFeePayments));
@@ -1279,7 +1288,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(() => getStored('uniform_categories', initialUniformCategories));
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => getStored('uniform_sizes', initialUniformSizes));
   const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(() => getStored('uniform_suppliers', initialUniformSuppliers));
-  const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>(() => getStored('uniform_inventory', initialUniformInventory));
+  const [uniformInventory, setUniformInventory] = useState<UniformInventoryItem[]>(() => {
+    const stored = getStored('uniform_inventory', initialUniformInventory);
+    const version = localStorage.getItem('edu_db_uniform_inventory_v8');
+    if (!version || stored.length < initialUniformInventory.length) {
+      localStorage.setItem('edu_db_uniform_inventory_v8', 'true');
+      localStorage.setItem('edu_db_uniform_inventory', JSON.stringify(initialUniformInventory));
+      return initialUniformInventory;
+    }
+    return stored;
+  });
   const [studentUniformIssues, setStudentUniformIssues] = useState<StudentUniformIssue[]>(() => getStored('student_uniform_issues', initialStudentUniformIssues));
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<FinanceUniformConfig[]>(() => getStored('finance_uniform_configs', initialFinanceUniformConfigs));
 
@@ -1518,7 +1536,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let changed = false;
       const updated = [...prevInv];
       uniforms.forEach(u => {
-        const invIndex = updated.findIndex(inv => inv.itemId === u.id || inv.itemName.toLowerCase() === u.category.toLowerCase());
+        const invIndex = updated.findIndex(inv => inv.itemId === u.id || (inv.itemName.toLowerCase() === u.category.toLowerCase() && inv.size === u.size));
         if (invIndex === -1) {
           changed = true;
           const stockVal = u.availableStock !== undefined ? Number(u.availableStock) : 50;
@@ -1536,13 +1554,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             branch: (u as any).branch || 'Main Campus'
           } as any);
         } else {
-          // If availableStock on uniform item is higher than 0 and inventory had 0 or missing
           const existing = updated[invIndex];
+          if (existing.size !== u.size && u.size && existing.itemId === u.id) {
+            changed = true;
+            updated[invIndex] = { ...existing, size: u.size };
+          }
           if (u.availableStock !== undefined && u.availableStock > 0 && existing.currentStock === 0 && existing.openingStock === 0) {
             changed = true;
             const stockVal = Number(u.availableStock);
             updated[invIndex] = {
-              ...existing,
+              ...updated[invIndex],
               openingStock: stockVal,
               currentStock: stockVal,
               status: stockVal === 0 ? 'Out of Stock' : (stockVal <= 10 ? 'Low Stock' : 'In Stock')

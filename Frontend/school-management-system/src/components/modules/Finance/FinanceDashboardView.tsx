@@ -1,10 +1,17 @@
 import React from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { IndianRupee, AlertCircle, CheckCircle, Bus, Home, Gift, AlertTriangle, TrendingUp, PieChart, BarChart2 } from 'lucide-react';
+import { IndianRupee, AlertCircle, CheckCircle, Bus, Home, Gift, AlertTriangle, TrendingUp, PieChart, BarChart2, Shirt } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 
 export const FinanceDashboardView: React.FC = () => {
-  const { students, feePayments, studentTransports, studentHostels, studentScholarships, feeHeads, academicClasses } = useData();
+  const { students, feePayments, studentTransports, studentHostels, studentScholarships, feeHeads, academicClasses, studentUniformIssues = [], uniforms = [] } = useData();
+
+  const uniformCollection = studentUniformIssues
+    .filter(x => x.status === 'Issued')
+    .reduce((sum, issue) => {
+      const uItem = uniforms.find(u => u.id === issue.itemId || u.category.toLowerCase() === issue.itemName.toLowerCase());
+      return sum + (uItem ? uItem.price * issue.quantity : 0);
+    }, 0);
 
   const totalCollected = feePayments.reduce((acc, p) => acc + p.amountPaid, 0);
   const totalPending = students.reduce((acc, s) => acc + s.dueFee, 0);
@@ -25,7 +32,7 @@ export const FinanceDashboardView: React.FC = () => {
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
           <TrendingUp className="w-6 h-6 text-sky-500" /> Finance Dashboard
         </h2>
-        </div>
+      </div>
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -67,7 +74,7 @@ export const FinanceDashboardView: React.FC = () => {
       </div>
 
       {/* Secondary Service KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
           <div>
             <p className="text-[11px] font-bold text-slate-500 uppercase">Transport Revenue</p>
@@ -82,6 +89,14 @@ export const FinanceDashboardView: React.FC = () => {
             <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(hostelCollection)}</h4>
           </div>
           <div className="p-2.5 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400"><Home className="w-5 h-5" /></div>
+        </div>
+
+        <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-500 uppercase">Uniform Revenue</p>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{formatCurrency(uniformCollection)}</h4>
+          </div>
+          <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400"><Shirt className="w-5 h-5" /></div>
         </div>
 
         <div className="glass-card p-4 rounded-2xl flex items-center justify-between">

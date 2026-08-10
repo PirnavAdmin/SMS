@@ -4,12 +4,15 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformCategory } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 
 export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformCategories, addUniformCategory, updateUniformCategory, deleteUniformCategory } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<UniformCategory | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<UniformCategory | null>(null);
@@ -23,6 +26,8 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     c.name.toLowerCase().includes(query.toLowerCase()) ||
     (c.description && c.description.toLowerCase().includes(query.toLowerCase()))
   );
+
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleOpenAdd = () => {
     setEditingCategory(null);
@@ -62,7 +67,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
           onClick={handleOpenAdd}
           className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
         >
-          <Plus className="w-4 h-4" /> Add Category
+          <Plus className="w-4 h-4" /> Add Uniform
         </button>
       </div>
 
@@ -97,7 +102,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                   <td colSpan={3} className="py-8 text-center text-slate-400">No categories found. Click "Add Category" to create new catalog headings.</td>
                 </tr>
               ) : (
-                filtered.map(c => (
+                paginated.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{c.name}</td>
                     <td className="py-3 px-4 text-slate-500">{c.description || 'N/A'}</td>
@@ -114,6 +119,13 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
           </table>
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
@@ -142,7 +154,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save Category</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save</button>
               </div>
             </form>
           </div>
