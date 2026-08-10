@@ -176,10 +176,10 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
                 <td colSpan={6} className="p-6 text-center text-slate-400 italic">No subject marks recorded for this examination.</td>
               </tr>
             ) : (
-              res.subjectMarks.map(sub => {
+              res.subjectMarks.map((sub, index) => {
                 const isAbsent = sub.obtainedMarks === 'AB';
                 return (
-                  <tr key={sub.subject} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50">
+                  <tr key={`${sub.subject}-${index}`} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50">
                     <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-bold">{sub.subject}</td>
                     <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-center font-mono">{sub.maxMarks}</td>
                     <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-center font-mono">{sub.passMarks}</td>

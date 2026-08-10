@@ -164,7 +164,11 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
             return (
               <div key={cls} className="space-y-4">
                 {visibleSectionsForClass.map((sec: string) => {
-                  const rowsToRender = scheduleRows.filter(r => r.className === cls && r.section === sec);
+                  const rowsToRender = scheduleRows.filter(r => {
+                    const rSec = (r.section || '').replace('Section ', '').trim().toUpperCase();
+                    const sSec = (sec || '').replace('Section ', '').trim().toUpperCase();
+                    return r.className === cls && rSec === sSec;
+                  });
 
                   return (
                     <div key={`${cls}-${sec}`} className="rounded-3xl border border-slate-200/80 bg-white dark:bg-slate-900 p-5 space-y-4 shadow-sm">

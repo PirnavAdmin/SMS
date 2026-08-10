@@ -6,9 +6,13 @@ import { ExamTimetablePreview } from './components/ExamTimetablePreview';
 import { ExamSetup, ExamSchedule as ExamScheduleType, SubjectItem, Staff } from '../../../types';
 import { InvigilatorOption } from './components/ExamScheduleTable';
 import { Panel } from './components/SharedUI';
-import { useExamSchedule } from './hooks/useExamSchedule';
 import { useData } from '../../../context/DataContext';
 import { checkRoomCollision, checkInvigilatorCollision } from './utils/examValidation';
+import {
+  fetchScheduleTimetableApi as fetchExamScheduleTimetableApi,
+  saveScheduleTimetableApi as saveExamScheduleTimetableApi,
+  fetchSchedulePreviewApi as fetchExamSchedulePreviewApi
+} from '../../../api/examination';
 
 interface ExamScheduleProps {
   exam: ExamSetup | null;
@@ -27,16 +31,19 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
   classOptions,
   subjects,
   staff,
+  selectedAcademicYear,
+  selectedBranch,
   addToast,
   onNavigateNext,
   onGotoSetup
 }) => {
   const { academicClasses } = useData();
-  const { examSchedules, addExamSchedule, updateExamSchedule, deleteExamSchedule, getSchedulesForExam, handleApplyToAllSections } = useExamSchedule();
   
-  // Initial state: starts empty with selection prompt
   const [selectedClass, setSelectedClass] = useState<string>('');
   const [selectedSection, setSelectedSection] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [timetable, setTimetable] = useState<any[]>([]);
+  const [previewTimetable, setPreviewTimetable] = useState<any[]>([]);
 
   const allowedClasses = useMemo(() => {
     if (!exam) return Array.from(new Set(classOptions.filter(Boolean)));
@@ -45,7 +52,6 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
     return Array.from(new Set(classOptions.filter(c => app.includes(c))));
   }, [exam, classOptions]);
 
-  // Dynamic sections from academicClasses
   const availableSections = useMemo(() => {
     if (!selectedClass) return [];
     const matched = academicClasses.find(c => c.name === selectedClass);
@@ -57,11 +63,9 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
   const [isEditing, setIsEditing] = useState(false);
   const [scheduleMode, setScheduleMode] = useState<'build' | 'preview'>('build');
 
-  // Preview Filters
   const [auditClassFilter, setAuditClassFilter] = useState('All');
   const [auditSectionFilter, setAuditSectionFilter] = useState('All');
 
-  // Dynamic Teacher & Staff mapping for invigilation
   const teacherOptions: InvigilatorOption[] = useMemo(() => {
     return staff
       .filter(s => !s.status || s.status === 'Active')
@@ -73,138 +77,265 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
       }));
   }, [staff]);
 
-  const activeSchedules = getSchedulesForExam(exam?.id || '');
+  // Load timetable on class/section change
+  const loadTimetable = async () => {
+    if (!exam?.id || !selectedClass || !selectedSection) return;
+    setLoading(true);
+    try {
+      const res = await fetchExamScheduleTimetableApi(selectedClass, selectedSection, exam.id);
+      if (res && res.success) {
+        const fetched = (res.data?.timetable || []).map((item: any, index: number) => {
+          let startTime = '09:00';
+          let endTime = '12:00';
+          if (item.timeSlot && item.timeSlot.includes('-')) {
+            const parts = item.timeSlot.split('-');
+            startTime = parts[0]?.trim() || '09:00';
+            endTime = parts[1]?.trim() || '12:00';
+          }
+          return {
+            id: item.slotId ? `item_${item.slotId}` : `item_${index}`,
+            slotId: item.slotId,
+            examId: exam.id,
+            className: selectedClass,
+            section: selectedSection,
+            subject: item.subjectName || '',
+            subjectCode: item.subjectCode || '',
+            date: item.examDate || '',
+            startTime,
+            endTime,
+            duration: item.duration || '3h',
+            room: item.roomHall || 'TBA',
+            invigilatorName: item.invigilatorFaculty || 'TBA',
+            invigilatorNames: item.invigilatorFaculty && item.invigilatorFaculty !== 'Unassigned' ? [item.invigilatorFaculty] : [],
+            maxMarks: item.totalMarks || 100,
+            passMarks: 35
+          };
+        });
 
-  // Cleanup duplicate schedules & stale schedules from non-applicable classes
-  useEffect(() => {
-    if (examSchedules.length > 0) {
-      const seen = new Set<string>();
-      const toDelete: string[] = [];
-      const appClasses = exam?.applicableClasses || [];
+        // Merge with any configured class subjects not yet scheduled
+        const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass] || exam.marksConfig?.subjectWiseConfig || {};
+        const activeSubjects = Object.keys(classConfig);
 
-      examSchedules.forEach(s => {
-        // 1. Delete if belonging to active exam but class is no longer applicable
-        if (exam && s.examId === exam.id && appClasses.length > 0 && !appClasses.includes(s.className)) {
-          toDelete.push(s.id);
-          return;
-        }
+        const merged = [...fetched];
+        activeSubjects.forEach(subjectName => {
+          const exists = fetched.some((s: any) => s.subject === subjectName);
+          if (!exists) {
+            const itemConfig = classConfig[subjectName] || { maxMarks: 100, passMarks: 35 };
+            merged.push({
+              id: `temp_${Date.now()}_${Math.random()}`,
+              examId: exam.id,
+              className: selectedClass,
+              section: selectedSection,
+              subject: subjectName,
+              date: exam.startDate || new Date().toISOString().split('T')[0],
+              startTime: '09:00',
+              endTime: '12:00',
+              duration: '3h',
+              room: 'TBA',
+              invigilatorName: 'TBA',
+              invigilatorNames: [],
+              maxMarks: itemConfig.maxMarks,
+              passMarks: itemConfig.passMarks
+            });
+          }
+        });
 
-        // 2. Delete duplicates
-        const key = `${s.examId}_${s.className}_${s.section}_${s.subject}`;
-        if (seen.has(key)) {
-          toDelete.push(s.id);
-        } else {
-          seen.add(key);
-        }
-      });
-
-      if (toDelete.length > 0) {
-        toDelete.forEach(id => deleteExamSchedule(id));
+        setTimetable(merged);
+      } else {
+        throw new Error(res?.message || 'Failed to retrieve timetable data.');
       }
+    } catch (err: any) {
+      addToast('error', 'Error Loading Timetable', err.message || 'Could not fetch class timetable.');
+    } finally {
+      setLoading(false);
     }
-  }, [examSchedules.length, exam, deleteExamSchedule]);
+  };
 
-  // Schedules strictly belonging to applicable classes for this active examination
-  const applicableExamSchedules = useMemo(() => {
-    if (!exam) return [];
-    const app = exam.applicableClasses || [];
-    return activeSchedules.filter(s => app.length === 0 || app.includes(s.className));
-  }, [exam, activeSchedules]);
-
-  // Filter schedules for current Class and Section
-  const visibleSchedules = applicableExamSchedules.filter(
-    s => s.className === selectedClass && s.section === selectedSection
-  );
-
-  // Reset isEditing mode when switching class or section
   useEffect(() => {
+    if (selectedClass && selectedSection) {
+      loadTimetable();
+    }
     setIsEditing(false);
   }, [selectedClass, selectedSection]);
 
-  // Initialize schedule rows if none exist for active class & section
-  useEffect(() => {
-    if (exam && selectedClass && selectedSection && visibleSchedules.length === 0) {
-      const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass] || exam.marksConfig?.subjectWiseConfig || {};
-      const activeSubjects = Object.keys(classConfig);
-      
-      activeSubjects.forEach(subjectName => {
-        const alreadyExists = examSchedules.some(
-          s => s.examId === exam.id &&
-               s.className === selectedClass &&
-               s.section === selectedSection &&
-               s.subject === subjectName
-        );
-        if (alreadyExists) return;
-
-        const itemConfig = classConfig[subjectName] || { maxMarks: 100, passMarks: 35 };
-        addExamSchedule({
-          examId: exam.id,
-          className: selectedClass,
-          section: selectedSection,
-          subject: subjectName,
-          date: exam.startDate || new Date().toISOString().split('T')[0],
-          startTime: '09:00',
-          endTime: '12:00',
-          duration: '3h',
-          room: 'TBA',
-          invigilatorName: 'TBA',
-          invigilatorNames: [],
-          maxMarks: itemConfig.maxMarks,
-          passMarks: itemConfig.passMarks
-        } as any);
-      });
-    }
-  }, [exam, selectedClass, selectedSection, examSchedules, addExamSchedule, visibleSchedules.length]);
-
-  const handleUpdateRow = (id: string, updates: Partial<ExamScheduleType>) => {
-    const existing = examSchedules.find(s => s.id === id);
-    if (!existing) return;
-
-    const merged = { ...existing, ...updates };
-
-    if (updates.room && updates.room !== 'TBA') {
-      const roomCheck = checkRoomCollision(merged.room, merged.date, merged.startTime, merged.endTime, applicableExamSchedules, id);
-      if (roomCheck.hasConflict) {
-        addToast('warning', 'Room Collision Warning', roomCheck.message || '');
+  // Load preview data
+  const loadPreview = async () => {
+    setLoading(true);
+    try {
+      const year = selectedAcademicYear || '2026-27';
+      const res = await fetchExamSchedulePreviewApi(year, auditClassFilter, auditSectionFilter, exam?.id);
+      if (res && res.success && res.data?.sectionSchedules) {
+        const mapped: any[] = [];
+        res.data.sectionSchedules.forEach((card: any) => {
+          if (card.timetable && card.timetable.length > 0) {
+            card.timetable.forEach((item: any, idx: number) => {
+              let startTime = '09:00';
+              let endTime = '12:00';
+              if (item.timeSlot && item.timeSlot.includes('-')) {
+                const parts = item.timeSlot.split('-');
+                startTime = parts[0]?.trim() || '09:00';
+                endTime = parts[1]?.trim() || '12:00';
+              }
+              mapped.push({
+                id: `preview_${card.className}_${card.sectionName}_${idx}`,
+                examId: exam?.id || 1,
+                className: card.className,
+                section: card.sectionName,
+                subject: item.subjectName,
+                subjectCode: item.subjectCode,
+                date: item.examDate,
+                startTime,
+                endTime,
+                duration: item.duration,
+                room: item.roomHall,
+                invigilatorName: item.invigilatorFaculty
+              });
+            });
+          }
+        });
+        setPreviewTimetable(mapped);
+      } else {
+        throw new Error(res?.message || 'Failed to retrieve preview data.');
       }
+    } catch (err: any) {
+      addToast('error', 'Preview Load Failed', err.message || 'Could not load timetable preview.');
+    } finally {
+      setLoading(false);
     }
-
-    if (updates.invigilatorName && updates.invigilatorName !== 'TBA') {
-      const invCheck = checkInvigilatorCollision(merged.invigilatorName, merged.date, merged.startTime, merged.endTime, applicableExamSchedules, id);
-      if (invCheck.hasConflict) {
-        addToast('warning', 'Invigilator Collision Warning', invCheck.message || '');
-      }
-    }
-
-    updateExamSchedule(id, updates);
   };
 
-  const handleApplyToAllSectionsWrapper = (row: any) => {
-    handleApplyToAllSections(exam?.id || '', selectedClass, row.subject, {
-      date: row.date,
-      startTime: row.startTime,
-      endTime: row.endTime,
-      duration: row.duration,
-      room: row.room,
-      invigilatorName: row.invigilatorName,
-      invigilatorNames: row.invigilatorNames,
-      maxMarks: row.maxMarks,
-      passMarks: row.passMarks
-    } as any);
-    addToast('success', 'Timetable Synced', `Applied ${row.subject} schedule to all sections of ${selectedClass}.`);
+  useEffect(() => {
+    if (scheduleMode === 'preview') {
+      loadPreview();
+    }
+  }, [scheduleMode, exam?.id, auditClassFilter, auditSectionFilter]);
+
+  const handleSaveTimetable = async (updatedList?: any[]) => {
+    if (!exam?.id || !selectedClass || !selectedSection) return;
+    const listToSave = updatedList || timetable;
+    setLoading(true);
+    try {
+      const payload = {
+        examId: Number(exam.id),
+        className: selectedClass,
+        sectionName: selectedSection,
+        timetable: listToSave.map((row, index) => ({
+          slotId: row.slotId || (index + 1),
+          subjectCode: row.subjectCode || `${row.subject.substring(0, 3).toUpperCase()}-101`,
+          subjectName: row.subject,
+          totalMarks: row.maxMarks || 100,
+          examDate: row.date || '',
+          timeSlot: `${row.startTime || '09:00'} - ${row.endTime || '12:00'}`,
+          duration: row.duration || '3h',
+          roomHall: row.room || 'TBA',
+          invigilatorFaculty: (row.invigilatorNames && row.invigilatorNames.length > 0) ? row.invigilatorNames[0] : (row.invigilatorName || 'Unassigned')
+        }))
+      };
+      const response = await saveExamScheduleTimetableApi(payload);
+      if (response && response.success) {
+        addToast('success', 'Timetable Saved', 'Timetable configuration saved successfully.');
+      } else {
+        throw new Error(response?.message || 'Failed to save timetable.');
+      }
+    } catch (err: any) {
+      addToast('error', 'Error Saving Schedule', err.message || 'Server error.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateRow = (id: string, updates: Partial<ExamScheduleType>) => {
+    const list = timetable.map(row => {
+      if (row.id === id) {
+        const merged = { ...row, ...updates };
+        if (updates.room && updates.room !== 'TBA') {
+          const roomCheck = checkRoomCollision(merged.room, merged.date, merged.startTime, merged.endTime, timetable, id);
+          if (roomCheck.hasConflict) {
+            addToast('warning', 'Room Collision Warning', roomCheck.message || '');
+          }
+        }
+
+        if (updates.invigilatorName && updates.invigilatorName !== 'TBA') {
+          const invCheck = checkInvigilatorCollision(merged.invigilatorName, merged.date, merged.startTime, merged.endTime, timetable, id);
+          if (invCheck.hasConflict) {
+            addToast('warning', 'Invigilator Collision Warning', invCheck.message || '');
+          }
+        }
+        return merged;
+      }
+      return row;
+    });
+
+    setTimetable(list);
+  };
+
+  const handleApplyToAllSectionsWrapper = async (row: any) => {
+    if (!exam?.id || !selectedClass) return;
+    setLoading(true);
+    try {
+      const classObj = academicClasses.find(c => c.name === selectedClass);
+      const sections = classObj?.sections || ['A'];
+
+      const saves = sections.map(async (sec) => {
+        const res = await fetchExamScheduleTimetableApi(selectedClass, sec);
+        let list = [];
+        if (res && res.success && res.data?.timetable) {
+          list = res.data.timetable;
+        }
+
+        const subIndex = list.findIndex((s: any) => s.subjectName === row.subject);
+        const updatedRow = {
+          subjectCode: row.subjectCode || `${row.subject.substring(0, 3).toUpperCase()}-101`,
+          subjectName: row.subject,
+          examDate: row.date || '',
+          startTime: row.startTime,
+          endTime: row.endTime,
+          duration: row.duration,
+          room: row.room,
+          invigilatorName: row.invigilatorName,
+          invigilatorNames: row.invigilatorNames || [row.invigilatorName].filter(Boolean)
+        };
+
+        if (subIndex > -1) {
+          list[subIndex] = updatedRow;
+        } else {
+          list.push(updatedRow);
+        }
+
+        const payload = {
+          examId: Number(exam.id),
+          className: selectedClass,
+          sectionName: sec,
+          timetable: list
+        };
+        return saveExamScheduleTimetableApi(payload);
+      });
+
+      await Promise.all(saves);
+      addToast('success', 'Timetable Synced', `Applied ${row.subject} schedule to all sections of ${selectedClass}.`);
+      loadTimetable();
+    } catch (err: any) {
+      addToast('error', 'Apply to All Failed', err.message || 'Failed to sync sections.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleEdit = async () => {
+    if (isEditing) {
+      await handleSaveTimetable();
+    }
+    setIsEditing(prev => !prev);
   };
 
   // Conflict warnings for the selected class & section
   const conflictWarnings = useMemo(() => {
-    if (!selectedClass || !selectedSection) return [];
-    const currentRows = applicableExamSchedules.filter(s => s.className === selectedClass && s.section === selectedSection);
-    
     const issues: { type: 'room' | 'invigilator' | 'date'; message: string }[] = [];
     const seen = new Set<string>();
 
-    currentRows.forEach(s => {
+    timetable.forEach(s => {
       if (s.room && s.room !== 'TBA') {
-        const roomCheck = checkRoomCollision(s.room, s.date, s.startTime, s.endTime, applicableExamSchedules, s.id);
+        const roomCheck = checkRoomCollision(s.room, s.date, s.startTime, s.endTime, timetable, s.id);
         if (roomCheck.hasConflict && roomCheck.message && !seen.has(roomCheck.message)) {
           seen.add(roomCheck.message);
           issues.push({ type: 'room', message: roomCheck.message });
@@ -212,7 +343,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
       }
 
       if (s.invigilatorName && s.invigilatorName !== 'TBA') {
-        const invCheck = checkInvigilatorCollision(s.invigilatorName, s.date, s.startTime, s.endTime, applicableExamSchedules, s.id);
+        const invCheck = checkInvigilatorCollision(s.invigilatorName, s.date, s.startTime, s.endTime, timetable, s.id);
         if (invCheck.hasConflict && invCheck.message && !seen.has(invCheck.message)) {
           seen.add(invCheck.message);
           issues.push({ type: 'invigilator', message: invCheck.message });
@@ -221,7 +352,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
     });
 
     return issues;
-  }, [selectedClass, selectedSection, applicableExamSchedules]);
+  }, [timetable]);
 
   return (
     <div className="space-y-4 text-left">
@@ -311,7 +442,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setIsEditing(prev => !prev)}
+                    onClick={handleToggleEdit}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition shadow-xs cursor-pointer ${
                       isEditing
                         ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
@@ -332,7 +463,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                   Select Class & Section to Schedule
                 </h4>
               </div>
-            ) : visibleSchedules.length === 0 ? (
+            ) : timetable.length === 0 ? (
               <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
                 <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto" />
                 <h4 className="text-sm font-extrabold uppercase text-slate-800 dark:text-slate-200">No subjects configured for scheduling</h4>
@@ -341,41 +472,56 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
                 </p>
               </div>
             ) : (
-              <ExamScheduleTable
-                scheduleRows={visibleSchedules}
-                isEditing={isEditing}
-                teacherOptions={teacherOptions}
-                onUpdateRow={handleUpdateRow}
-                onUploadPaper={() => {}}
-                onPreviewPaper={() => {}}
-                subjects={subjects}
-              />
+              <div className="relative">
+                {loading && (
+                  <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-40 rounded-3xl">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
+                  </div>
+                )}
+                <ExamScheduleTable
+                  scheduleRows={timetable}
+                  isEditing={isEditing}
+                  teacherOptions={teacherOptions}
+                  onUpdateRow={handleUpdateRow}
+                  onUploadPaper={() => {}}
+                  onPreviewPaper={() => {}}
+                  subjects={subjects}
+                  onApplyToAll={handleApplyToAllSectionsWrapper}
+                />
+              </div>
             )}
           </div>
         ) : (
           exam?.id && (
-            <ExamTimetablePreview
-              scheduleRows={activeSchedules}
-              classOptions={allowedClasses}
-              subjects={subjects}
-              staff={staff}
-              auditClassFilter={auditClassFilter}
-              auditSectionFilter={auditSectionFilter}
-              setAuditClassFilter={setAuditClassFilter}
-              setAuditSectionFilter={setAuditSectionFilter}
-              onPrintTimetable={(cls, sec) => {
-                setAuditClassFilter(cls);
-                setAuditSectionFilter(sec);
-                window.scrollTo(0, 0);
-                setTimeout(() => window.print(), 200);
-              }}
-              onPrintAll={() => {
-                setAuditClassFilter('All');
-                setAuditSectionFilter('All');
-                window.scrollTo(0, 0);
-                setTimeout(() => window.print(), 200);
-              }}
-            />
+            <div className="relative">
+              {loading && (
+                <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-40 rounded-3xl">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
+                </div>
+              )}
+              <ExamTimetablePreview
+                scheduleRows={previewTimetable}
+                classOptions={allowedClasses}
+                subjects={subjects}
+                staff={staff}
+                auditClassFilter={auditClassFilter}
+                auditSectionFilter={auditSectionFilter}
+                setAuditClassFilter={setAuditClassFilter}
+                setAuditSectionFilter={setAuditSectionFilter}
+                onPrintTimetable={(cls, sec) => {
+                  setAuditClassFilter(cls);
+                  setAuditSectionFilter(sec);
+                  window.scrollTo(0, 0);
+                  setTimeout(() => window.print(), 200);
+                }}
+                onPrintAll={() => {
+                  setAuditClassFilter('All');
+                  setAuditSectionFilter('All');
+                  window.scrollTo(0, 0);
+                  setTimeout(() => window.print(), 200);
+                }}
+              />
+            </div>
           )
         )}
       </Panel>

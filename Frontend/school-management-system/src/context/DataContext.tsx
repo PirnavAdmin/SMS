@@ -1829,7 +1829,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (response && response.success && response.data) {
         const mappedStaff: Staff[] = response.data.map((item: any) => {
           const cat = (item.employeeCategory || '').toLowerCase();
-          const isTeaching = cat.includes('teaching') || cat.includes('teacher') || cat.includes('faculty') || cat.includes('professor');
+          const isTeaching = (cat.includes('teaching') && !cat.includes('non')) || cat.includes('teacher') || cat.includes('faculty') || cat.includes('professor');
           return {
             id: item.staffId.toString(),
             empId: item.employeeId,
