@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { IndianRupee, Search, Receipt, CheckCircle, AlertCircle, Calculator, History, ArrowRight, Printer } from 'lucide-react';
+import { IndianRupee, Search, Receipt, CheckCircle, AlertCircle, Calculator, History, ArrowRight, Printer, X } from 'lucide-react';
 import { Student, FeePayment, StudentFeeLedger } from '../../../types';
 import { useData, StudentCalculationResult } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -18,6 +18,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
     addFeePayment, 
     financeSettings, 
     getStudentFeeLedger,
+    getStudentFeeOutstandingSummary,
     scholarships,
     discounts,
     applyScholarshipToStudent,
@@ -37,7 +38,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
   const [amountPaying, setAmountPaying] = useState<number | string>(0);
   const [paymentMode, setPaymentMode] = useState<FeePayment['paymentMode'] | ''>('');
   const [transactionId, setTransactionId] = useState('');
+  const [chequeNo, setChequeNo] = useState('');
+  const [chequeDate, setChequeDate] = useState('');
+  const [bankName, setBankName] = useState('');
   const [remarks, setRemarks] = useState('');
+
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false);
+
+  const handlePaymentModeChange = (mode: FeePayment['paymentMode'] | '') => {
+    setPaymentMode(mode);
+    if (mode === 'Cash') {
+      setTransactionId('');
+      setChequeNo('');
+      setChequeDate('');
+      setBankName('');
+    } else if (mode === 'Online' || mode === 'Card') {
+      setChequeNo('');
+      setChequeDate('');
+      setBankName('');
+    } else if (mode === 'Cheque') {
+      setTransactionId('');
+    }
+  };
 
   const filteredStudents = students.filter(s =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,20 +67,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
   );
 
   const updateCalculation = (
-    studentId: string, 
+    studentId: string,
     freshCalcResult = calculateStudentPayableFee(studentId),
     ledgerOverride?: StudentFeeLedger
   ) => {
     let calc = freshCalcResult;
     const ledger = ledgerOverride || getStudentFeeLedger(studentId);
     if (ledger && calc) {
-      const gross = ledger.grossAmount || ledger.totalOriginalAmount;
       const scholarshipAmt = ledger.scholarshipAmount || 0;
       const discountAmt = ledger.discountAmount || 0;
-      const prevDue = ledger.previousDue || 0;
-      const fineAmt = calc.fineAmount || 0;
-      const totalPayable = Math.max(0, gross - scholarshipAmt - discountAmt + fineAmt + prevDue);
-      const dueBalance = Math.max(0, totalPayable - ledger.paidAmount);
 
       calc = {
         ...calc,
@@ -69,19 +86,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
         discountId: ledger.discountId,
         discountName: ledger.discountName,
         discountDescription: ledger.discountDescription,
-        discountDeduction: discountAmt,
-        totalPayable,
-        dueBalance
+        discountDeduction: discountAmt
       };
     }
     setCalcResult(calc);
-    if (calc) {
-      const items = ledger ? ledger.feeItems : [];
-      const activeItems = items.filter((fh: any) => fh.isApplicable);
-      const gross = activeItems.reduce((sum: number, item: any) => sum + item.originalAmount, 0);
-      const netPayable = Math.max(0, gross - calc.scholarshipDeduction - calc.discountDeduction + calc.fineAmount + calc.previousDue);
-      const remaining = Math.max(0, netPayable - calc.paidAmount);
-      setAmountPaying(remaining);
+    if (calc && studentId) {
+      setAmountPaying(0);
     }
   };
 
@@ -151,12 +161,26 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       return;
     }
 
-    const ledger = getStudentFeeLedger(selectedStudent.id);
-    const items = ledger ? ledger.feeItems : [];
-    const activeItems = items.filter(fh => fh.isApplicable);
-    const gross = activeItems.reduce((sum, item) => sum + item.originalAmount, 0);
-    const netPayable = Math.max(0, gross - calcResult.scholarshipDeduction - calcResult.discountDeduction + calcResult.fineAmount + calcResult.previousDue);
-    const remainingDue = Math.max(0, netPayable - calcResult.paidAmount);
+    if (!paymentMode || paymentMode.trim() === '') {
+      addToast('warning', 'Payment Mode Required', 'Please select a Payment Mode (Cash, Online / UPI, Card, Cheque) before issuing receipt.');
+      return;
+    }
+
+    const summary = getStudentFeeOutstandingSummary(selectedStudent.id);
+    if (numericAmount > summary.totalOutstanding) {
+      addToast('warning', 'Overpayment Exceeded', `Payment amount cannot exceed the outstanding balance of ${formatCurrency(summary.totalOutstanding)}.`);
+      return;
+    }
+
+    setShowPaymentConfirmModal(true);
+  };
+
+  const executeProcessPayment = () => {
+    if (!selectedStudent || !calcResult) return;
+    setShowPaymentConfirmModal(false);
+
+    const numericAmount = typeof amountPaying === 'number' ? amountPaying : Number(amountPaying) || 0;
+    const summary = getStudentFeeOutstandingSummary(selectedStudent.id);
 
     const payment = addFeePayment({
       studentId: selectedStudent.id,
@@ -165,10 +189,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       amountPaid: numericAmount,
       discount: calcResult.scholarshipDeduction + calcResult.discountDeduction,
       fine: calcResult.fineAmount,
-      paymentMode: (paymentMode || 'Online') as FeePayment['paymentMode'],
-      transactionId: paymentMode !== 'Cash' ? transactionId : undefined,
+      paymentMode: paymentMode as FeePayment['paymentMode'],
+      transactionId: paymentMode === 'Cheque' ? chequeNo : (paymentMode !== 'Cash' ? transactionId : undefined),
+      chequeNo: paymentMode === 'Cheque' ? chequeNo : undefined,
+      chequeDate: paymentMode === 'Cheque' ? chequeDate : undefined,
+      bankName: paymentMode === 'Cheque' ? bankName : undefined,
       paymentDate: new Date().toISOString().split('T')[0],
-      status: numericAmount >= remainingDue ? 'Paid' : 'Partial',
+      status: numericAmount >= summary.totalOutstanding ? 'Paid' : 'Partial',
       remarks,
       scholarshipId: calcResult.scholarshipId,
       scholarshipName: calcResult.scholarshipName,
@@ -178,41 +205,65 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
       discountName: calcResult.discountName,
       discountDescription: calcResult.discountDescription,
       discountAmount: calcResult.discountDeduction,
-      grossAmount: gross,
-      previousDue: calcResult.previousDue
+      grossAmount: calcResult.baseFee + calcResult.transportFee + calcResult.hostelFee,
+      previousDue: summary.previousYearsDue
     });
 
-    addToast('success', 'Payment Processed', `Issued receipt ${payment.receiptNo} for ${formatCurrency(Number(amountPaying))}`);
+    addToast('success', 'Payment Processed', `Issued official receipt ${payment.receiptNo} for ${formatCurrency(numericAmount)}`);
     onPrintReceipt(payment);
 
-    // Refresh calculation engine with instant state override
-    const newPaidTotal = (calcResult.paidAmount || 0) + numericAmount;
-    const baseCalc = calculateStudentPayableFee(selectedStudent.id);
-    const freshResult = baseCalc ? {
-      ...baseCalc,
-      paidAmount: newPaidTotal
-    } : undefined;
-
-    const currentLedger = getStudentFeeLedger(selectedStudent.id);
-    const updatedLedger = currentLedger ? {
-      ...currentLedger,
-      paidAmount: newPaidTotal,
-      dueBalance: Math.max(0, (currentLedger.totalPayable || 0) - newPaidTotal)
-    } : undefined;
-
-    updateCalculation(selectedStudent.id, freshResult, updatedLedger);
+    // Refresh calculation engine with fresh state
+    const updatedStudent = students.find(s => s.id === selectedStudent.id) || selectedStudent;
+    setSelectedStudent({ ...updatedStudent });
+    updateCalculation(selectedStudent.id);
 
     // Reset inputs
     setPaymentMode('');
     setTransactionId('');
+    setChequeNo('');
+    setChequeDate('');
+    setBankName('');
     setRemarks('');
   };
   const ledger = selectedStudent ? getStudentFeeLedger(selectedStudent.id) : null;
   const items = ledger ? ledger.feeItems : [];
   const activeItems = items.filter(fh => fh.isApplicable);
-  const grossAmount = activeItems.reduce((sum, item) => sum + item.originalAmount, 0);
-  const netPayable = calcResult ? Math.max(0, grossAmount - calcResult.scholarshipDeduction - calcResult.discountDeduction + calcResult.fineAmount + calcResult.previousDue) : 0;
-  const remainingDue = calcResult ? Math.max(0, netPayable - calcResult.paidAmount) : 0;
+  const grossAmount = activeItems.length > 0 ? activeItems.reduce((sum, item) => sum + item.originalAmount, 0) : (calcResult?.baseFee || 0);
+  const netPayable = calcResult ? calcResult.totalPayable : 0;
+  const summary = selectedStudent ? getStudentFeeOutstandingSummary(selectedStudent.id) : null;
+  const remainingDue = summary ? summary.totalOutstanding : (calcResult ? calcResult.dueBalance : 0);
+
+  const numericAmount = typeof amountPaying === 'number' ? amountPaying : Number(amountPaying) || 0;
+  const totalOutstanding = summary ? summary.totalOutstanding : 0;
+
+  const isAmountValid = numericAmount > 0 && numericAmount <= totalOutstanding;
+  const isModeSelected = Boolean(paymentMode);
+
+  let isModeFieldsValid = false;
+  let validationMessage = '';
+
+  if (!isAmountValid) {
+    if (numericAmount <= 0) {
+      validationMessage = 'Amount to Collect must be greater than ₹0';
+    } else {
+      validationMessage = `Amount cannot exceed Total Outstanding (${formatCurrency(totalOutstanding)})`;
+    }
+  } else if (!isModeSelected) {
+    validationMessage = 'Please select a Payment Mode';
+  } else if (paymentMode === 'Cash') {
+    isModeFieldsValid = true;
+  } else if (paymentMode === 'Online') {
+    isModeFieldsValid = transactionId.trim().length > 0;
+    if (!isModeFieldsValid) validationMessage = 'Transaction Ref / UTR No is required for Online / UPI';
+  } else if (paymentMode === 'Card') {
+    isModeFieldsValid = transactionId.trim().length > 0;
+    if (!isModeFieldsValid) validationMessage = 'Transaction / Reference No is required for Card payment';
+  } else if (paymentMode === 'Cheque') {
+    isModeFieldsValid = chequeNo.trim().length > 0 && chequeDate.trim().length > 0 && bankName.trim().length > 0;
+    if (!isModeFieldsValid) validationMessage = 'Cheque No, Cheque Date, and Bank Name are required for Cheque payment';
+  }
+
+  const isFormValid = isAmountValid && isModeSelected && isModeFieldsValid;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -323,22 +374,68 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                     <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Applied Fee Types</p>
                     {(() => {
                       const ledger = getStudentFeeLedger(calcResult.student.id);
-                      const items = ledger ? ledger.feeItems : [];
+                      const items = ledger ? [...ledger.feeItems] : [];
+
+                      // Ensure Transport Fee is in the list if student has transport fee assigned
+                      if (calcResult.transportFee > 0 && !items.some(i => i.category === 'Transport Fee' && i.isApplicable)) {
+                        items.push({
+                          headId: 'FH-TRP-ADD',
+                          headName: 'Transport Fee',
+                          category: 'Transport Fee',
+                          originalAmount: calcResult.transportFee,
+                          scholarshipDeduction: 0,
+                          discountDeduction: 0,
+                          fineAmount: 0,
+                          finalAmount: calcResult.transportFee,
+                          isApplicable: true,
+                          status: 'Pending'
+                        });
+                      }
+
+                      // Ensure Hostel Fee is in the list if student has hostel fee assigned
+                      if (calcResult.hostelFee > 0 && !items.some(i => i.category === 'Hostel Fee' && i.isApplicable)) {
+                        items.push({
+                          headId: 'FH-HST-ADD',
+                          headName: 'Hostel Fee',
+                          category: 'Hostel Fee',
+                          originalAmount: calcResult.hostelFee,
+                          scholarshipDeduction: 0,
+                          discountDeduction: 0,
+                          fineAmount: 0,
+                          finalAmount: calcResult.hostelFee,
+                          isApplicable: true,
+                          status: 'Pending'
+                        });
+                      }
+
                       const activeItems = items.filter(fh => fh.isApplicable);
+                      const totalGrossFee = activeItems.reduce((sum, item) => sum + item.originalAmount, 0);
+
                       if (activeItems.length === 0) {
                         return <p className="text-[11px] text-slate-400 italic">No active fee types assigned.</p>;
                       }
-                      return activeItems.map((fh, idx) => (
-                        <div key={idx} className="flex justify-between py-0.5 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
-                          <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 font-bold">
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
-                            {fh.headName}
-                          </span>
-                          <span className="font-black text-slate-900 dark:text-white">
-                            {formatCurrency(fh.originalAmount)}
-                          </span>
+
+                      return (
+                        <div className="space-y-1">
+                          {activeItems.map((fh, idx) => (
+                            <div key={idx} className="flex justify-between py-0.5 border-b border-slate-100 dark:border-slate-800/60 last:border-0">
+                              <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 font-bold">
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                                {fh.headName}
+                              </span>
+                              <span className="font-black text-slate-900 dark:text-white">
+                                {formatCurrency(fh.originalAmount)}
+                              </span>
+                            </div>
+                          ))}
+
+                          {/* TOTAL GROSS AMOUNT ROW */}
+                          <div className="flex justify-between items-center py-1.5 px-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/80 font-black text-slate-900 dark:text-white text-xs mt-2 border border-slate-200/60 dark:border-slate-700/60">
+                            <span className="uppercase tracking-wider text-[11px] text-slate-600 dark:text-slate-300">Total Gross Amount</span>
+                            <span className="text-sm font-black text-sky-600 dark:text-sky-400 font-mono">{formatCurrency(totalGrossFee)}</span>
+                          </div>
                         </div>
-                      ));
+                      );
                     })()}
                   </div>
 
@@ -487,50 +584,89 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                   <hr className="border-slate-200 dark:border-slate-700 border-dashed" />
 
                   {/* Calculations breakdown list */}
-                  <div className="space-y-1 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl">
-                    <div className="flex justify-between font-bold text-slate-600 dark:text-slate-400">
-                      <span>Gross Amount:</span>
-                      <span className="text-slate-900 dark:text-white font-extrabold">{formatCurrency(grossAmount)}</span>
-                    </div>
-                    {calcResult.scholarshipDeduction > 0 && (
-                      <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
-                        <span>Scholarship:</span>
-                        <span>-{formatCurrency(calcResult.scholarshipDeduction)}</span>
-                      </div>
-                    )}
-                    {calcResult.discountDeduction > 0 && (
-                      <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
-                        <span>Discount:</span>
-                        <span>-{formatCurrency(calcResult.discountDeduction)}</span>
-                      </div>
-                    )}
-                    {calcResult.fineAmount > 0 && (
-                      <div className="flex justify-between font-bold text-rose-500">
-                        <span>Late Payment Fine ({calcResult.fineDetails?.daysOverdue} days overdue):</span>
-                        <span>+{formatCurrency(calcResult.fineAmount)}</span>
-                      </div>
-                    )}
-                    {calcResult.previousDue > 0 && (
-                      <div className="flex justify-between font-bold text-rose-600">
-                        <span>Previous Unpaid Outstanding Due:</span>
-                        <span>+{formatCurrency(calcResult.previousDue)}</span>
-                      </div>
-                    )}
-                    {calcResult.paidAmount > 0 && (
-                      <div className="flex justify-between font-bold text-slate-500 border-t border-slate-200 dark:border-slate-700 pt-1 mt-1">
-                        <span>Total Paid Till Date:</span>
-                        <span>{formatCurrency(calcResult.paidAmount)}</span>
-                      </div>
-                    )}
-                  </div>
+                  {(() => {
+                    const summary = getStudentFeeOutstandingSummary(calcResult.student.id);
+                    const currentGrossFee = calcResult.baseFee + calcResult.transportFee + calcResult.hostelFee;
+                    const currentPayable = Math.max(0, currentGrossFee - calcResult.scholarshipDeduction - calcResult.discountDeduction + calcResult.fineAmount);
+                    const currentDue = summary.currentYearDue;
+                    const previousDue = summary.previousYearsDue;
+                    const olderDues = summary.olderDues || 0;
+                    const totalOutstanding = summary.totalOutstanding;
+                    const currentPaid = Math.max(0, currentPayable - currentDue);
 
-                  <hr className="border-slate-200 dark:border-slate-700 border-dashed" />
+                    return (
+                      <div className="space-y-3">
+                        {/* 1. CURRENT ACADEMIC YEAR BLOCK */}
+                        <div className="space-y-1.5 bg-slate-50 dark:bg-slate-800/40 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                          <p className="text-[10px] uppercase font-black text-slate-400 tracking-wider mb-1">Current Academic Year</p>
+                          <div className="flex justify-between font-bold text-slate-700 dark:text-slate-300">
+                            <span>Total Gross Amount:</span>
+                            <span className="text-slate-900 dark:text-white font-black font-mono">{formatCurrency(currentGrossFee)}</span>
+                          </div>
+                          {calcResult.scholarshipDeduction > 0 && (
+                            <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                              <span>Scholarship:</span>
+                              <span>-{formatCurrency(calcResult.scholarshipDeduction)}</span>
+                            </div>
+                          )}
+                          {calcResult.discountDeduction > 0 && (
+                            <div className="flex justify-between font-bold text-emerald-600 dark:text-emerald-400">
+                              <span>Discount:</span>
+                              <span>-{formatCurrency(calcResult.discountDeduction)}</span>
+                            </div>
+                          )}
+                          {calcResult.fineAmount > 0 && (
+                            <div className="flex justify-between font-bold text-rose-500">
+                              <span>Fine ({calcResult.fineDetails?.daysOverdue}d overdue):</span>
+                              <span>+{formatCurrency(calcResult.fineAmount)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between font-extrabold text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-700 pt-1.5 mt-1">
+                            <span>Current Year Payable:</span>
+                            <span className="font-mono">{formatCurrency(currentPayable)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-slate-500">
+                            <span>Paid Till Date:</span>
+                            <span>{formatCurrency(currentPaid)}</span>
+                          </div>
+                          <div className="flex justify-between font-black text-sky-600 dark:text-sky-400 border-t border-slate-200/60 dark:border-slate-700/60 pt-1.5">
+                            <span>Current Year Due:</span>
+                            <span className="font-mono">{formatCurrency(currentDue)}</span>
+                          </div>
+                        </div>
 
-                  {/* Total Net Payable Row */}
-                  <div className="flex justify-between items-center py-0.5 font-black text-slate-900 dark:text-white text-sm">
-                    <span className="uppercase tracking-wider">Total Payable</span>
-                    <span className="text-base text-sky-600 dark:text-sky-400">{formatCurrency(netPayable)}</span>
-                  </div>
+                        {/* 2. CARRY-FORWARD DUES BLOCK (If previous dues exist) */}
+                        {previousDue > 0 && (
+                          <div className="space-y-1 bg-amber-50/80 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200/60 dark:border-amber-900/60 text-xs">
+                            <p className="text-[10px] uppercase font-black text-amber-600 dark:text-amber-400 tracking-wider">Carry-Forward Dues</p>
+                            <div className="flex justify-between font-bold text-amber-800 dark:text-amber-300">
+                              <span>Previous Academic Years:</span>
+                              <span className="font-mono font-black">+{formatCurrency(previousDue)}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3. TOTAL CONSOLIDATED OUTSTANDING BLOCK */}
+                        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-brand-600 via-sky-600 to-sky-700 text-white shadow-md space-y-2 border border-sky-500/30">
+                          <p className="text-[10px] uppercase font-extrabold text-sky-100 tracking-wider">Total Outstanding</p>
+                          <div className="flex justify-between items-center text-xs font-semibold text-white/90">
+                            <span>Current Year Due:</span>
+                            <span className="font-mono font-bold text-white">{formatCurrency(currentDue)}</span>
+                          </div>
+                          {previousDue > 0 && (
+                            <div className="flex justify-between items-center text-xs font-semibold text-amber-200">
+                              <span>Previous Years Due:</span>
+                              <span className="font-mono font-bold text-amber-200">+{formatCurrency(previousDue)}</span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center border-t border-white/20 pt-2 mt-1 font-black text-sm text-white">
+                            <span className="uppercase tracking-wider text-xs font-bold">Total Outstanding</span>
+                            <span className="text-2xl font-black font-mono text-white">{formatCurrency(totalOutstanding)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -555,39 +691,45 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                       <div>
                         <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Amount to Collect (₹) *</label>
                         <input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
                           required
-                          min="1"
                           placeholder="0"
-                          value={amountPaying === 0 || amountPaying === '0' ? '' : amountPaying}
+                          value={amountPaying === '' ? '' : amountPaying}
+                          onKeyDown={e => {
+                            if (['e', 'E', '+', '-', '.', ','].includes(e.key)) {
+                              e.preventDefault();
+                            }
+                          }}
                           onFocus={() => {
                             if (amountPaying === 0 || amountPaying === '0') {
                               setAmountPaying('');
                             }
                           }}
                           onChange={e => {
-                            const val = e.target.value;
-                            if (val === '') {
+                            const raw = e.target.value.replace(/\D/g, '');
+                            if (raw === '') {
                               setAmountPaying('');
                               return;
                             }
-                            const cleaned = val.replace(/^0+(?=\d)/, '');
-                            setAmountPaying(cleaned === '' ? '' : Number(cleaned));
+                            const cleaned = raw.replace(/^0+(?=\d)/, '');
+                            setAmountPaying(cleaned === '' ? 0 : Number(cleaned));
                           }}
                           onBlur={() => {
                             if (amountPaying === '' || amountPaying === null || amountPaying === undefined) {
                               setAmountPaying(0);
                             }
                           }}
-                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-extrabold text-emerald-600 text-sm"
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-extrabold text-emerald-600 dark:text-emerald-400 text-sm outline-none"
                         />
                       </div>
                       <div>
-                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Mode</label>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Mode *</label>
                         <select
                           value={paymentMode}
-                          onChange={e => setPaymentMode(e.target.value as any)}
-                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white cursor-pointer"
+                          onChange={e => handlePaymentModeChange(e.target.value as any)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
                         >
                           <option value="">Select Payment Mode</option>
                           <option value="Online">Online / UPI</option>
@@ -598,35 +740,143 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                       </div>
                     </div>
 
-                    {paymentMode !== 'Cash' && (
+                    {/* Dynamic Mode-Specific Fields */}
+                    {paymentMode === 'Online' && (
                       <div>
-                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / UTR No</label>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction Ref / UTR No *</label>
                         <input
                           type="text"
+                          required
                           placeholder="Enter transaction reference or UTR number..."
                           value={transactionId}
                           onChange={e => setTransactionId(e.target.value)}
-                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono outline-none"
                         />
                       </div>
                     )}
 
+                    {paymentMode === 'Card' && (
+                      <div>
+                        <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Transaction / Reference No *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Enter card approval code or reference number..."
+                          value={transactionId}
+                          onChange={e => setTransactionId(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono outline-none"
+                        />
+                      </div>
+                    )}
+
+                    {paymentMode === 'Cheque' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Cheque No *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. 000124"
+                            value={chequeNo}
+                            onChange={e => setChequeNo(e.target.value)}
+                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Cheque Date *</label>
+                          <input
+                            type="date"
+                            required
+                            value={chequeDate}
+                            onChange={e => setChequeDate(e.target.value)}
+                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Bank Name *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="e.g. HDFC / SBI"
+                            value={bankName}
+                            onChange={e => setBankName(e.target.value)}
+                            className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PAYMENT ALLOCATION PREVIEW TABLE */}
+                    {numericAmount > 0 && selectedStudent && summary && (() => {
+                      let rem = numericAmount;
+                      const items = [...summary.yearWiseOutstanding].sort((a, b) => a.academicYear.localeCompare(b.academicYear));
+                      const preview = items.map(item => {
+                        const alloc = Math.min(item.due, rem);
+                        rem -= alloc;
+                        return { ...item, allocation: alloc, remaining: Math.max(0, item.due - alloc) };
+                      });
+
+                      return (
+                        <div className="p-3 bg-sky-50/60 dark:bg-sky-950/40 rounded-xl border border-sky-200/80 dark:border-sky-800/80 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-extrabold uppercase text-sky-900 dark:text-sky-200 tracking-wider">
+                              Payment Allocation Preview (FIFO - Oldest Dues First)
+                            </p>
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                              Allocating: {formatCurrency(numericAmount)}
+                            </span>
+                          </div>
+                          <table className="w-full text-left text-[11px]">
+                            <thead>
+                              <tr className="text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                                <th className="pb-1 font-bold">Academic Year</th>
+                                <th className="pb-1 font-bold">Outstanding</th>
+                                <th className="pb-1 font-bold">Allocation</th>
+                                <th className="pb-1 font-bold text-right">Remaining</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                              {preview.map(row => (
+                                <tr key={row.academicYear}>
+                                  <td className="py-1 font-bold text-slate-800 dark:text-slate-200">{row.academicYear}</td>
+                                  <td className="py-1 text-slate-600 dark:text-slate-400">{formatCurrency(row.due)}</td>
+                                  <td className="py-1 font-extrabold text-emerald-600 dark:text-emerald-400">+{formatCurrency(row.allocation)}</td>
+                                  <td className="py-1 font-bold text-right text-slate-700 dark:text-slate-300">{formatCurrency(row.remaining)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
+
                     <div>
-                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Remarks</label>
+                      <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Payment Remarks (Optional)</label>
                       <input
                         type="text"
                         placeholder="Enter payment remarks..."
                         value={remarks}
                         onChange={e => setRemarks(e.target.value)}
-                        className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                        className="w-full px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none"
                       />
                     </div>
 
+                    {!isFormValid && validationMessage && (
+                      <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 p-2 rounded-xl border border-amber-200/60 dark:border-amber-900/60 flex items-center gap-1.5">
+                        ⚠️ {validationMessage}
+                      </p>
+                    )}
+
                     <button
                       type="submit"
-                      className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                      disabled={!isFormValid}
+                      className={`w-full py-2.5 rounded-xl font-black text-xs shadow-md flex items-center justify-center gap-2 transition-all ${
+                        isFormValid
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20 cursor-pointer'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed opacity-75'
+                      }`}
                     >
-                      <Receipt className="w-4 h-4" /> Issue Official Receipt & Record Payment
+                      <IndianRupee className="w-4 h-4" /> Issue Official Receipt & Record Payment
                     </button>
                   </form>
                 )}
@@ -637,7 +887,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
                 <div className="glass-card p-3.5 rounded-2xl space-y-2.5">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-1.5">
                     <h4 className="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                      <Receipt className="w-4 h-4 text-sky-500" /> Recorded Payment Receipts ({feePayments.filter(p => p.studentId === selectedStudent.id).length})
+                      <IndianRupee className="w-4 h-4 text-sky-500" /> Recorded Payment Receipts ({feePayments.filter(p => p.studentId === selectedStudent.id).length})
                     </h4>
                   </div>
 
@@ -684,6 +934,141 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({ onPrintRec
           )}
         </div>
       </div>
+      {/* PAYMENT CONFIRMATION MODAL */}
+      {showPaymentConfirmModal && selectedStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-600 dark:text-emerald-400">
+                  <IndianRupee className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">Confirm Official Receipt & Fee Payment</h3>
+                  <p className="text-[11px] text-slate-500">Verify details before recording payment</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPaymentConfirmModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Student & Payment Details Summary */}
+            <div className="space-y-2 text-xs bg-slate-50 dark:bg-slate-800/40 p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+              <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                <span className="text-slate-500 font-medium">Student Name:</span>
+                <span className="font-extrabold text-slate-900 dark:text-white">{selectedStudent.firstName} {selectedStudent.lastName} ({selectedStudent.admissionNo})</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                <span className="text-slate-500 font-medium">Class & Section:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{selectedStudent.className}-{selectedStudent.section}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                <span className="text-slate-500 font-medium">Payment Mode / Type:</span>
+                <span className="font-extrabold text-brand-600 dark:text-brand-400 uppercase tracking-wider">{paymentMode}</span>
+              </div>
+              {paymentMode !== 'Cheque' && transactionId && (
+                <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                  <span className="text-slate-500 font-medium">Transaction / UTR Ref:</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{transactionId}</span>
+                </div>
+              )}
+              {paymentMode === 'Cheque' && (
+                <>
+                  {chequeNo && (
+                    <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                      <span className="text-slate-500 font-medium">Cheque No:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{chequeNo}</span>
+                    </div>
+                  )}
+                  {chequeDate && (
+                    <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                      <span className="text-slate-500 font-medium">Cheque Date:</span>
+                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{chequeDate}</span>
+                    </div>
+                  )}
+                  {bankName && (
+                    <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                      <span className="text-slate-500 font-medium">Bank Name:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{bankName}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              {remarks && (
+                <div className="flex justify-between border-b border-slate-200/60 dark:border-slate-700/60 pb-1.5">
+                  <span className="text-slate-500 font-medium">Payment Remarks:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300 italic">{remarks}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-1.5 font-black text-slate-900 dark:text-white text-sm">
+                <span>Amount to Collect:</span>
+                <span className="text-lg text-emerald-600 dark:text-emerald-400 font-mono font-black">{formatCurrency(Number(amountPaying))}</span>
+              </div>
+            </div>
+
+            {/* FIFO Allocation Preview */}
+            {(() => {
+              const summary = getStudentFeeOutstandingSummary(selectedStudent.id);
+              let rem = Number(amountPaying);
+              const items = [...summary.yearWiseOutstanding].sort((a, b) => a.academicYear.localeCompare(b.academicYear));
+              const preview = items.map(item => {
+                const alloc = Math.min(item.due, rem);
+                rem -= alloc;
+                return { ...item, allocation: alloc, remaining: Math.max(0, item.due - alloc) };
+              });
+
+              return (
+                <div className="p-3 bg-sky-50/60 dark:bg-sky-950/40 rounded-xl border border-sky-200/80 dark:border-sky-800/80 space-y-1.5 text-xs">
+                  <p className="text-[10px] font-extrabold uppercase text-sky-900 dark:text-sky-200 tracking-wider">
+                    FIFO Payment Allocation Breakdown
+                  </p>
+                  <table className="w-full text-left text-[11px]">
+                    <thead>
+                      <tr className="text-slate-400 border-b border-slate-200 dark:border-slate-700">
+                        <th className="pb-1 font-bold">Academic Year</th>
+                        <th className="pb-1 font-bold">Allocation</th>
+                        <th className="pb-1 font-bold text-right">Remaining Due</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {preview.map(row => (
+                        <tr key={row.academicYear}>
+                          <td className="py-1 font-bold text-slate-800 dark:text-slate-200">{row.academicYear}</td>
+                          <td className="py-1 font-extrabold text-emerald-600 dark:text-emerald-400">+{formatCurrency(row.allocation)}</td>
+                          <td className="py-1 font-bold text-right text-slate-700 dark:text-slate-300">{formatCurrency(row.remaining)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
+            {/* Modal Action Controls */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPaymentConfirmModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={executeProcessPayment}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Receipt className="w-4 h-4" /> Confirm & Record Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

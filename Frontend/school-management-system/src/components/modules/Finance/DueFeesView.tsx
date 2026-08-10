@@ -9,7 +9,7 @@ interface DueFeesViewProps {
 }
 
 export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee }) => {
-  const { students, calculateStudentPayableFee, academicClasses } = useData();
+  const { students, getStudentFeeOutstandingSummary, academicClasses } = useData();
 
   const [query, setQuery] = useState('');
   const [selectedClass, setSelectedClass] = useState('All');
@@ -20,20 +20,19 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
   const isFilterSelected = selectedClass !== 'All' || selectedSection !== 'All' || query.trim() !== '';
 
   const studentsWithDues = !isFilterSelected ? [] : students.map(st => {
-    const calc = calculateStudentPayableFee(st.id);
+    const summary = getStudentFeeOutstandingSummary(st.id);
     return {
       student: st,
-      calc
+      summary
     };
   }).filter(item => {
-    const due = item.calc ? item.calc.dueBalance : item.student.dueFee;
     const matchesQuery = `${item.student.firstName} ${item.student.lastName}`.toLowerCase().includes(query.toLowerCase()) || item.student.admissionNo.toLowerCase().includes(query.toLowerCase());
     const matchesClass = selectedClass === 'All' || item.student.className === selectedClass;
     const matchesSection = selectedSection === 'All' || item.student.section === selectedSection;
-    return due > 0 && matchesQuery && matchesClass && matchesSection;
+    return item.summary.totalOutstanding > 0 && matchesQuery && matchesClass && matchesSection;
   });
 
-  const totalOutstanding = isFilterSelected ? studentsWithDues.reduce((acc, item) => acc + (item.calc ? item.calc.dueBalance : item.student.dueFee), 0) : 0;
+  const totalOutstanding = isFilterSelected ? studentsWithDues.reduce((acc, item) => acc + item.summary.totalOutstanding, 0) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -42,7 +41,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
       {isFilterSelected && (
         <div className="glass-card p-5 rounded-2xl flex items-center justify-between border-l-4 border-l-rose-500">
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase">Total Outstanding Dues</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase">Total Consolidated Outstanding Dues</p>
             <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">{formatCurrency(totalOutstanding)}</h3>
           </div>
           <div className="p-3 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400">
@@ -85,7 +84,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
         </div>
       </div>
 
-      {/* Dues Table or Filter Required Message */}
+      {/* Dues Table */}
       {!isFilterSelected ? (
         <div className="glass-card p-12 rounded-2xl border border-slate-200/80 dark:border-slate-800 text-center space-y-3 bg-white dark:bg-slate-900 shadow-xs">
           <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200/60 dark:border-sky-800/60">
@@ -107,42 +106,38 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
                   <th className="py-3.5 px-4">Student Name</th>
                   <th className="py-3.5 px-4">Adm No</th>
                   <th className="py-3.5 px-4">Class</th>
-                  <th className="py-3.5 px-4">Transport Due</th>
-                  <th className="py-3.5 px-4">Hostel Due</th>
-                  <th className="py-3.5 px-4">Fine Due</th>
-                  <th className="py-3.5 px-4">Total Net Due</th>
+                  <th className="py-3.5 px-4">Current Year Due</th>
+                  <th className="py-3.5 px-4">Previous Years Due</th>
+                  <th className="py-3.5 px-4">Total Outstanding</th>
                   <th className="py-3.5 px-4 text-right">Collect</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
                 {studentsWithDues.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400 text-xs font-semibold">
+                    <td colSpan={7} className="py-8 text-center text-slate-400 text-xs font-semibold">
                       No students with outstanding dues match the selected filter criteria.
                     </td>
                   </tr>
                 ) : (
-                  studentsWithDues.map(({ student: st, calc }) => (
+                  studentsWithDues.map(({ student: st, summary }) => (
                     <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{st.firstName} {st.lastName}</td>
                       <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
                       <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{st.className}-{st.section}</td>
                       <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                        {formatCurrency(calc?.transportFee || 0)}
+                        {formatCurrency(summary.currentYearDue)}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                        {formatCurrency(calc?.hostelFee || 0)}
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-rose-500">
-                        {formatCurrency(calc?.fineAmount || 0)}
+                      <td className="py-3 px-4 font-semibold text-amber-600 dark:text-amber-400">
+                        {formatCurrency(summary.previousYearsDue)}
                       </td>
                       <td className="py-3 px-4 font-black text-rose-600 dark:text-rose-400">
-                        {formatCurrency(calc ? calc.dueBalance : st.dueFee)}
+                        {formatCurrency(summary.totalOutstanding)}
                       </td>
                       <td className="py-3 px-4 text-right">
                         <button
                           onClick={() => onCollectStudentFee(st)}
-                          className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto"
+                          className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto cursor-pointer"
                         >
                           <IndianRupee className="w-3.5 h-3.5" /> Collect
                         </button>

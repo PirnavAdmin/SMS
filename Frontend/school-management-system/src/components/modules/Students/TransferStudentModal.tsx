@@ -5,7 +5,9 @@ import {
 } from 'lucide-react';
 import { Student, TcRecord, CertificateTemplateConfig } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { PrintableCertificateContainer } from '../Certificates/PrintableCertificateContainer';
 
 interface TransferStudentModalProps {
   student: Student | null;
@@ -22,15 +24,20 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const { schoolProfile, transferStudent, logActivity, updateStudent } = useData();
+  const { schoolProfile, transferStudent, logActivity, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
+  const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+  const activeAY = selectedAcademicYear || '2025-2026';
 
   const schoolName = schoolProfile?.name || "St. Xavier's International School";
   const schoolAddress = schoolProfile?.address || "Knowledge City, Main Campus, New York 10001";
   const schoolLogo = schoolProfile?.logoUrl;
 
-  // Load Certificate Template Configuration from Settings
+  // Load Certificate Template Configuration from Settings or existing TcRecord snapshot
   const tcTemplateConfig = useMemo(() => {
+    if (existingTcRecord?.templateSnapshot) {
+      return existingTcRecord.templateSnapshot;
+    }
     try {
       const savedTemplates = localStorage.getItem('edu_db_certificate_templates');
       if (savedTemplates) {
@@ -42,16 +49,21 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
       console.error('Failed to load TC template config from localStorage', e);
     }
     return {
+      id: 'TPL-TC',
+      certificateType: 'Transfer Certificate',
       title: 'OFFICIAL TRANSFER CERTIFICATE',
       subTitle: 'CBSE Affiliation No: 883012 • School Code: 40192',
+      headerStyle: 'Classic Double Border' as const,
       themeColor: '#1e3a8a',
-      showLogo: false,
+      showLogo: true,
       showSeal: true,
       signatory1: 'Class Teacher Signature',
       signatory2: 'Verified By (Accounts)',
       signatory3: 'Principal Signature & Seal',
+      customPreamble: 'Certified that the student details listed below are verified from original school admission registers.',
+      footerDisclaimer: 'Official Transfer Certificate issued in accordance with Education Code Rules.'
     };
-  }, []);
+  }, [existingTcRecord]);
 
   const [activeTab, setActiveTab] = useState<'verification' | 'details' | 'preview'>('verification');
 
@@ -77,7 +89,8 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
   if (!isOpen || !student) return null;
 
   // Clearances Check
-  const dueFee = student.dueFee || 0;
+  const summary = student ? getStudentFeeOutstandingSummary(student.id) : null;
+  const dueFee = summary ? summary.totalOutstanding : (student?.dueFee || 0);
   const isFeeCleared = dueFee === 0;
   const isClearancePassed = isFeeCleared || overrideClearance;
 
@@ -131,6 +144,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
       return;
     }
 
+    const studentResult = (student as any).finalResult || (student as any).result || (student.gpa && student.gpa >= 2.0 ? 'PASSED (Promoted)' : 'PASSED');
     const tcRecord: TcRecord = {
       id: existingTcRecord ? existingTcRecord.id : `TCR-${Date.now()}`,
       tcNo: tcNumber,
@@ -138,7 +152,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
       studentId: student.id,
       studentName: `${student.firstName} ${student.lastName}`,
       admissionNo: student.admissionNo,
-      admissionDate: student.joiningDate || '2022-06-10',
+      admissionDate: student.joiningDate || (student as any).admissionDate || 'N/A',
       fatherName: student.fatherName || 'N/A',
       motherName: student.motherName || 'N/A',
       dob: student.dob,
@@ -146,16 +160,17 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
       className: student.className,
       section: student.section,
       rollNo: student.rollNo,
-      academicYear: '2026-2027',
+      academicYear: activeAY,
       branch: student.branch || 'Main Campus',
       leavingDate,
       reason,
       destinationSchool: '',
-      result: student.gpa >= 2.0 ? 'PASS' : 'FAIL',
+      result: studentResult,
       conduct,
       remarks,
       issuedBy: 'Principal / Administrator',
       status: existingTcRecord ? 'Reissued' : 'Issued',
+      templateSnapshot: tcTemplateConfig,
       clearanceSummary: {
         feeCleared: isFeeCleared,
         dueFee,
@@ -515,10 +530,33 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
                   <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 space-y-3">
                     <div className="flex items-start gap-2.5 text-xs text-rose-800 dark:text-rose-300 font-semibold">
                       <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                      <p>
-                        <strong>Outstanding dues found: ₹{dueFee.toLocaleString()}.</strong> School policy requires all tuition and facility dues to be cleared before TC issuance.
-                      </p>
+                      <div>
+                        <p>
+                          <strong>Outstanding dues found: ₹{dueFee.toLocaleString()}.</strong> School policy requires all tuition and facility dues to be cleared before TC issuance.
+                        </p>
+                        {summary && (
+                          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300 mt-0.5">
+                            Current Year Due: ₹{summary.currentYearDue.toLocaleString()} | Previous Academic Years Due: ₹{summary.previousYearsDue.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
                     </div>
+
+                    {summary && summary.yearWiseOutstanding.length > 0 && (
+                      <div className="bg-white/80 dark:bg-slate-900/80 p-2.5 rounded-xl border border-rose-200 dark:border-rose-900/40 text-[11px] space-y-1">
+                        <p className="font-extrabold text-slate-900 dark:text-white uppercase tracking-wider text-[10px]">Annual Outstanding Dues Breakdown:</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {summary.yearWiseOutstanding.map(yr => (
+                            <div key={yr.academicYear} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800 p-1.5 rounded-lg border">
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{yr.academicYear}</span>
+                              <span className={`font-black ${yr.due > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                                {yr.due > 0 ? `₹${yr.due.toLocaleString()}` : '✓ Paid'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="pt-2 border-t border-rose-200/60 dark:border-rose-900/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                       <label className="flex items-center gap-2 cursor-pointer font-extrabold text-slate-900 dark:text-white">
@@ -657,82 +695,31 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
           {/* TAB 3: OFFICIAL CERTIFICATE PREVIEW */}
           {activeTab === 'preview' && (
             <div className="space-y-6 animate-in fade-in">
-              <div
-                className="bg-white text-slate-900 p-8 rounded-2xl border-4 shadow-xl space-y-6 relative overflow-hidden font-serif"
-                style={{ borderColor: tcTemplateConfig.themeColor || '#1e3a8a' }}
-              >
-                {/* Watermark */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
-                  <Building2 className="w-96 h-96 text-slate-900" />
-                </div>
-
-                {/* Header */}
-                <div
-                  className="text-center border-b-2 pb-4 space-y-1"
-                  style={{ borderColor: tcTemplateConfig.themeColor || '#1e3a8a' }}
-                >
-                  <div className="text-center">
-                    <h2 className="text-2xl font-black tracking-wider uppercase font-sans">{schoolName}</h2>
-                  </div>
-                  <p className="text-xs font-sans text-slate-600 font-bold">{schoolAddress} • {tcTemplateConfig.subTitle}</p>
-                  <div className="pt-2">
-                    <span
-                      className="px-6 py-1 rounded-full text-white text-xs font-bold tracking-widest uppercase font-sans inline-block"
-                      style={{ backgroundColor: tcTemplateConfig.themeColor || '#1e3a8a' }}
-                    >
-                      {tcTemplateConfig.title || 'OFFICIAL TRANSFER CERTIFICATE'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Serial Details Bar */}
-                <div className="flex flex-wrap items-center justify-between text-xs font-sans font-bold text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                  <span>TC Serial No: <strong className="font-mono text-slate-900">{tcNumber}</strong></span>
-                  <span>Issue Date: <strong className="text-slate-900">{todayStr}</strong></span>
-                  <span>Admission No: <strong className="font-mono text-slate-900">{student.admissionNo}</strong></span>
-                </div>
-
-                {/* Main Details Table */}
-                <table className="w-full text-xs border-collapse">
-                  <tbody className="divide-y divide-slate-200 font-sans">
-                    <tr><td className="py-2.5 font-bold text-slate-600 w-1/2">1. Name of Student:</td><td className="py-2.5 font-black text-slate-900 uppercase">{student.firstName} {student.lastName}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">2. Father's / Guardian's Name:</td><td className="py-2.5 font-bold text-slate-900">{student.fatherName || 'N/A'}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">3. Mother's Name:</td><td className="py-2.5 font-bold text-slate-900">{student.motherName || 'N/A'}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">4. Nationality & Category:</td><td className="py-2.5 font-bold text-slate-900">Indian • {student.category || 'General'}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">5. Date of Birth (in figures & words):</td><td className="py-2.5 font-bold text-slate-900">{student.dob} ({convertDateToWords(student.dob)})</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">6. Class & Section Last Studied:</td><td className="py-2.5 font-bold text-slate-900">{student.className} - {student.section} (Roll No: {student.rollNo})</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">7. Date of First Admission in School:</td><td className="py-2.5 font-bold text-slate-900">{student.joiningDate || '2022-06-10'}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">8. School / Board Annual Exam Result:</td><td className="py-2.5 font-bold text-slate-900">{student.gpa >= 2.0 ? 'PASS (Promoted to Higher Class)' : 'FAIL'}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">9. Date of Leaving School:</td><td className="py-2.5 font-bold text-slate-900">{leavingDate}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">10. Reason for Leaving School:</td><td className="py-2.5 font-bold text-slate-900">{reason}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">11. General Conduct:</td><td className="py-2.5 font-bold text-slate-900">{conduct}</td></tr>
-                    <tr><td className="py-2.5 font-bold text-slate-600">12. Additional Remarks:</td><td className="py-2.5 font-medium text-slate-800">{remarks}</td></tr>
-                  </tbody>
-                </table>
-
-                {/* Footer Signatures */}
-                <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-6 font-sans text-xs border-t border-slate-300">
-                  <div className="text-center">
-                    <div className="h-10"></div>
-                    <p className="font-bold text-slate-800 border-t border-slate-400 pt-1 px-4">{tcTemplateConfig.signatory1 || 'Class Teacher Signature'}</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="h-10"></div>
-                    <p className="font-bold text-slate-800 border-t border-slate-400 pt-1 px-4">{tcTemplateConfig.signatory2 || 'Verified By'}</p>
-                  </div>
-                  <div className="text-center">
-                    {tcTemplateConfig.showSeal && (
-                      <div
-                        className="w-20 h-20 rounded-full border-2 border-dashed mx-auto flex items-center justify-center text-[10px] font-black rotate-12 mb-1"
-                        style={{ borderColor: tcTemplateConfig.themeColor || '#1e3a8a', color: tcTemplateConfig.themeColor || '#1e3a8a' }}
-                      >
-                        OFFICIAL SEAL
-                      </div>
-                    )}
-                    <p className="font-bold text-slate-900 border-t border-slate-400 pt-1 px-6">{tcTemplateConfig.signatory3 || 'Principal Signature & Stamp'}</p>
-                  </div>
-                </div>
-              </div>
+              <PrintableCertificateContainer
+                template={tcTemplateConfig}
+                schoolProfile={schoolProfile}
+                academicYear={activeAY}
+                studentName={`${student.firstName} ${student.lastName}`}
+                admissionNo={student.admissionNo}
+                admissionDate={student.joiningDate || (student as any).admissionDate || 'N/A'}
+                fatherName={student.fatherName || 'N/A'}
+                motherName={student.motherName || 'N/A'}
+                dob={student.dob}
+                dobInWords={convertDateToWords(student.dob)}
+                gender={student.gender}
+                className={student.className}
+                section={student.section}
+                rollNo={student.rollNo}
+                leavingDate={leavingDate}
+                reason={reason}
+                conduct={conduct}
+                remarks={remarks}
+                result={(student as any).finalResult || (student as any).result || (student.gpa >= 2.0 ? 'PASSED (Promoted)' : 'PASSED')}
+                feeClearanceStatus={isFeeCleared ? 'CLEARED' : (overrideClearance ? 'OVERRIDDEN (PENDING)' : 'PENDING')}
+                tcNo={tcNumber}
+                issueDate={todayStr}
+                isDraftPreview={!existingTcRecord}
+              />
             </div>
           )}
         </div>

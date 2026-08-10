@@ -318,12 +318,12 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD/MM/YYYY) *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Birth (DD-MM-YYYY) *</label>
                 <input
                   type="text"
                   required
-                  placeholder="15/08/2012"
-                  value={formData.dob}
+                  placeholder="15-08-2012"
+                  value={formData.dob ? formatToDDMMYYYY(formData.dob, '-') : ''}
                   onChange={handleDOBChange}
                   className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
                     dobError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'
