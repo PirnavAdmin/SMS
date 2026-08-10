@@ -106,4 +106,38 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
             return true;
         }
     }
+
+    public async Task<bool> UpdateExamResultAsync(NewStudentExamResult result)
+    {
+        var existingMem = _inMemoryResults.FirstOrDefault(r => r.ResultId == result.ResultId || (r.StudentId == result.StudentId && r.ClassName == result.ClassName && r.SectionName == result.SectionName));
+        if (existingMem != null)
+        {
+            existingMem.TotalMarksObtained = result.TotalMarksObtained;
+            existingMem.TotalMaxMarks = result.TotalMaxMarks;
+            existingMem.Percentage = result.Percentage;
+            existingMem.Grade = result.Grade;
+            existingMem.Rank = result.Rank;
+            existingMem.ResultStatus = result.ResultStatus;
+        }
+
+        try
+        {
+            var dbResult = await _context.NewStudentExamResults.FirstOrDefaultAsync(r => r.ResultId == result.ResultId || (r.StudentId == result.StudentId && r.ClassName == result.ClassName && r.SectionName == result.SectionName));
+            if (dbResult != null)
+            {
+                dbResult.TotalMarksObtained = result.TotalMarksObtained;
+                dbResult.TotalMaxMarks = result.TotalMaxMarks;
+                dbResult.Percentage = result.Percentage;
+                dbResult.Grade = result.Grade;
+                dbResult.Rank = result.Rank;
+                dbResult.ResultStatus = result.ResultStatus;
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

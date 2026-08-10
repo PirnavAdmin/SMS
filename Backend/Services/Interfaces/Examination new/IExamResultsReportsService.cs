@@ -10,4 +10,5 @@ public interface IExamResultsReportsService
     Task<CalculateResultsResponseDto> GetReportCardsListAsync(string className, string sectionName, string? search, string? statusFilter);
     Task<ReportCardPrintDetailDto?> GetPrintableReportCardAsync(int studentId, string? className, string? sectionName);
     Task<bool> ClearExamResultsAsync(string className, string sectionName);
+    Task<bool> UpdateExamResultAsync(StudentReportCardRowDto request, string className, string sectionName);
 }

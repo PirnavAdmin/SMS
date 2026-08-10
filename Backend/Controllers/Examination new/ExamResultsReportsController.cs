@@ -49,6 +49,27 @@ public class ExamResultsReportsController : ControllerBase
     }
 
     /// <summary>
+    /// Update calculated result details for a student (PUT /api/examination-new/results-reports/update-results)
+    /// </summary>
+    [HttpPut("update-results")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> UpdateResult(
+        [FromBody] StudentReportCardRowDto request,
+        [FromQuery] string className = "Class 1",
+        [FromQuery] string sectionName = "Section A")
+    {
+        if (request == null)
+            return BadRequest(new { success = false, message = "Result row payload is required." });
+
+        var success = await _service.UpdateExamResultAsync(request, className, sectionName);
+        return Ok(new { 
+            success = true, 
+            message = "Student result record updated successfully.", 
+            updated = success 
+        });
+    }
+
+    /// <summary>
     /// Sub-tab 2: Get Student Report Cards List (Report Cards tab - Screenshot 3 & 4)
     /// </summary>
     [HttpGet("report-cards")]

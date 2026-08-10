@@ -125,6 +125,28 @@ public class ExamResultsReportsService : IExamResultsReportsService
         return await _repository.ClearExamResultsAsync(className, sectionName);
     }
 
+    public async Task<bool> UpdateExamResultAsync(StudentReportCardRowDto request, string className, string sectionName)
+    {
+        var entity = new NewStudentExamResult
+        {
+            ResultId = request.ResultId,
+            StudentId = request.StudentId,
+            RollNo = request.RollNo,
+            StudentName = request.StudentName,
+            AdmissionNo = request.AdmissionNo,
+            ClassName = className,
+            SectionName = sectionName,
+            TotalMarksObtained = request.TotalMarksObtained,
+            TotalMaxMarks = request.TotalMaxMarks,
+            Percentage = request.Percentage,
+            Grade = request.Grade,
+            Rank = request.Rank,
+            ResultStatus = request.ResultStatus
+        };
+
+        return await _repository.UpdateExamResultAsync(entity);
+    }
+
     private static CalculateResultsResponseDto MapResponseDto(List<NewStudentExamResult> list)
     {
         int passCount = list.Count(r => r.ResultStatus.Equals("Pass", StringComparison.OrdinalIgnoreCase));
