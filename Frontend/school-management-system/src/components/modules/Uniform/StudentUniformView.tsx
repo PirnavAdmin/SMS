@@ -25,6 +25,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     academicClasses,
     financeSettings,
     uniformSizes = [],
+    uniformCategories = [],
     addFinanceTransaction
   } = useData();
 
@@ -171,12 +172,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       if (isAddPurchase) {
         if (addFinanceTransaction) {
           addFinanceTransaction({
-            referenceNumber: `TXN-UNI-${Date.now().toString().slice(-6)}`,
             date: new Date().toISOString().split('T')[0],
             type: 'Income',
             category: 'Uniform',
             sourceModule: 'Uniform',
-            description: `Uniform Store Direct Sale - ${qty}x ${itemObj.category} (${studentObj.firstName} ${studentObj.lastName})`,
+            referenceNumber: `TXN-UNI-${Date.now().toString().slice(-6)}`,
+            description: `Uniform Store Extra Sale - ${qty}x ${itemObj.category} (${studentObj.firstName} ${studentObj.lastName})`,
             amount: (itemObj.price || 0) * qty,
             paymentMode: 'Cash',
             account: 'Main Bank Account',
@@ -186,9 +187,9 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
             createdBy: 'Uniform Store Administrator'
           });
         }
-        addToast('success', 'Sale Invoiced & Paid', `Generated Invoice for additional purchase (${qty}x ${itemObj.category}). Reflected in Finance Ledger.`);
+        addToast('success', 'Extra Purchase Invoiced', `Generated Income invoice for ${qty}x ${itemObj.category} (₹${(itemObj.price || 0) * qty}). Reflected in Finance Ledger.`);
       } else {
-        addToast('success', 'Uniform Item Issued', `Assigned ${qty}x ${itemObj.category} to ${studentObj.firstName}. Stock reduced by ${qty}.`);
+        addToast('success', 'Uniform Kit Issued', `Assigned ${qty}x ${itemObj.category} to ${studentObj.firstName}. Covered under standard ₹3,000 Admission Fee structure.`);
       }
     } else if (modalType === 'Replace' && selectedIssue) {
       updateStudentUniformIssue(selectedIssue.id, {
@@ -288,7 +289,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                   <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.studentName}</td>
                     <td className="py-3 px-4 font-mono">{i.admissionNo}</td>
-                    <td className="py-3 px-4">{i.className} - {i.section}</td>
+                    <td className="py-3 px-4">{i.className.includes('-') ? i.className : (i.section ? `${i.className} - ${i.section}` : i.className)}</td>
                     <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{i.itemName}</td>
                     <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{i.size}</td>
                     <td className="py-3 px-4 text-right">{i.quantity}</td>
@@ -343,11 +344,20 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     <select
                       value={form.type}
                       onChange={e => setForm({ ...form, type: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-bold"
                     >
                       <option value="Issue">Baseline Distribution (Admission Kit)</option>
                       <option value="Additional Purchase">Additional Purchase (Direct Billing)</option>
                     </select>
+                    {form.type === 'Additional Purchase' ? (
+                      <p className="mt-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                        💳 Extra Item Purchase: Generates an Income transaction in Finance Ledger under 'Uniform' category.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        📦 Baseline Admission Kit: Covered under the ₹3,000 Admission Fee structure (No extra charge in Finance).
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -367,27 +377,69 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
               )}
 
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Clothing Item *</label>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Select Item / Package (With Full Specifications) *</label>
                 <select
                   disabled={modalType === 'Replace'}
                   value={form.itemId}
                   onChange={e => {
-                    const ui = uniforms.find(x => x.id === e.target.value);
-                    setForm({ ...form, itemId: e.target.value, size: ui?.size || '' });
+                    const selectedId = e.target.value;
+                    const ui = uniforms.find(x => x.id === selectedId);
+                    const isPackage = ui ? ui.category.includes('Package') : true;
+                    setForm({
+                      ...form,
+                      itemId: selectedId,
+                      type: isPackage ? 'Issue' : 'Additional Purchase'
+                    });
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer disabled:opacity-60"
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 cursor-pointer disabled:opacity-60 text-xs font-bold text-slate-900 dark:text-white shadow-xs focus:ring-2 focus:ring-sky-500"
                 >
-                  <option value="">Select Clothing Item *</option>
-                  {uniforms.map(u => {
-                    const invItem = uniformInventory.find(x => x.itemId === u.id || x.itemName.toLowerCase() === u.category.toLowerCase());
-                    const avail = invItem ? invItem.currentStock : (u.availableStock !== undefined ? u.availableStock : 0);
-                    return (
+                  <option value="">-- Select Package or Item --</option>
+                  <optgroup label="📦 Standard Admission Kit Packages (₹3,000 Fee Covered)">
+                    {uniforms.filter(u => u.category.includes('Package')).map(u => (
                       <option key={u.id} value={u.id}>
-                        {u.category} (Size {u.size} • Stock: {avail} units)
+                        {u.category}
                       </option>
-                    );
-                  })}
+                    ))}
+                  </optgroup>
+                  <optgroup label="👔 Individual Items & Extra Accessories">
+                    {uniforms.filter(u => !u.category.includes('Package')).map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.category}
+                      </option>
+                    ))}
+                  </optgroup>
                 </select>
+
+                {(() => {
+                  const selUniform = uniforms.find(u => u.id === form.itemId);
+                  const catName = selUniform ? selUniform.category : '';
+                  if (!catName) return null;
+                  const lower = catName.toLowerCase();
+                  const matchedCat = (uniformCategories || []).find(c => {
+                    const cLower = c.name.toLowerCase();
+                    if (lower === cLower || lower.includes(cLower) || cLower.includes(lower)) return true;
+                    if (lower.includes('boys') && cLower.includes('boys')) return true;
+                    if (lower.includes('girls') && cLower.includes('girls')) return true;
+                    if (lower.includes('shirt') && cLower.includes('shirt')) return true;
+                    if (lower.includes('trousers') && (cLower.includes('pant') || cLower.includes('trouser'))) return true;
+                    if (lower.includes('skirt') && cLower.includes('skirt')) return true;
+                    if (lower.includes('blazer') && cLower.includes('blazer')) return true;
+                    if (lower.includes('sweater') && cLower.includes('sweater')) return true;
+                    if (lower.includes('sports') && (cLower.includes('sports') || cLower.includes('tracksuit'))) return true;
+                    return false;
+                  });
+                  if (!matchedCat || !matchedCat.description) return null;
+                  return (
+                    <div className="mt-2.5 p-3.5 rounded-2xl bg-sky-50/90 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 space-y-1 animate-in fade-in">
+                      <span className="text-[11px] font-extrabold text-sky-900 dark:text-sky-200 block">
+                        📦 Package Specification (Configured in Category Master Data):
+                      </span>
+                      <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {matchedCat.description}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

@@ -2273,10 +2273,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
     const stored = getStored("uniforms", initialUniforms);
-    const version = localStorage.getItem("edu_db_uniforms_v8");
-    if (!version || stored.length < initialUniforms.length) {
-      localStorage.setItem("edu_db_uniforms_v8", "true");
+    const version = localStorage.getItem("edu_db_uniforms_v20");
+    if (!version || stored.length < initialUniforms.length || stored.some(u => u.category.includes('School ') || u.category === 'Blazer' || u.category === 'Extra Shirt')) {
+      localStorage.setItem("edu_db_uniforms_v20", "true");
       localStorage.setItem("edu_db_uniforms", JSON.stringify(initialUniforms));
+      localStorage.setItem("uniforms", JSON.stringify(initialUniforms));
       return initialUniforms;
     }
     return stored;
@@ -2408,7 +2409,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
-    () => getStored("uniform_categories", initialUniformCategories),
+    () => {
+      const stored = getStored("uniform_categories", initialUniformCategories);
+      const version = localStorage.getItem("edu_db_uniform_categories_v37");
+      if (!version || stored.length < initialUniformCategories.length) {
+        localStorage.setItem("edu_db_uniform_categories_v37", "true");
+        localStorage.setItem("uniform_categories", JSON.stringify(initialUniformCategories));
+        return initialUniformCategories;
+      }
+      return stored;
+    }
   );
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() =>
     getStored("uniform_sizes", initialUniformSizes),
@@ -2420,11 +2430,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     UniformInventoryItem[]
   >(() => {
     const stored = getStored("uniform_inventory", initialUniformInventory);
-    const version = localStorage.getItem("edu_db_uniform_inventory_v8");
-    if (!version || stored.length < initialUniformInventory.length) {
-      localStorage.setItem("edu_db_uniform_inventory_v8", "true");
+    const version = localStorage.getItem("edu_db_uniform_inventory_v35");
+    if (!version || stored.length < initialUniformInventory.length || stored.some(i => i.itemName.includes('School ') || i.itemName === 'Blazer' || i.itemName === 'Polo Shirt (Summer)')) {
+      localStorage.setItem("edu_db_uniform_inventory_v35", "true");
       localStorage.setItem(
         "edu_db_uniform_inventory",
+        JSON.stringify(initialUniformInventory),
+      );
+      localStorage.setItem(
+        "uniform_inventory",
         JSON.stringify(initialUniformInventory),
       );
       return initialUniformInventory;
@@ -2433,7 +2447,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
-  >(() => getStored("student_uniform_issues", initialStudentUniformIssues));
+  >(() => {
+    const stored = getStored("student_uniform_issues", initialStudentUniformIssues);
+    const version = localStorage.getItem("edu_db_student_uniform_issues_v35");
+    const hasInvalidFormat = stored.some((i: any) =>
+      i.itemName?.includes("Summer blazer") ||
+      i.itemName?.includes("Autumn Blazer") ||
+      i.itemName?.includes("Summer Sweater") ||
+      i.itemName?.includes("Polo Shirt") ||
+      i.className?.includes("- A - A") ||
+      i.className?.includes(" - A - ") ||
+      i.quantity > 5
+    );
+    if (!version || hasInvalidFormat || stored.length < initialStudentUniformIssues.length) {
+      localStorage.setItem("edu_db_student_uniform_issues_v35", "true");
+      localStorage.setItem(
+        "student_uniform_issues",
+        JSON.stringify(initialStudentUniformIssues),
+      );
+      return initialStudentUniformIssues;
+    }
+    const cleaned = stored.map((i: any) => {
+      if (i.className && (i.className.includes(" - A - A") || i.className.includes(" - B - B"))) {
+        return { ...i, className: i.className.replace(/\s*-\s*[A-Z]\s*-\s*[A-Z]$/, ' - A') };
+      }
+      return i;
+    });
+    return cleaned;
+  });
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
     FinanceUniformConfig[]
   >(() => getStored("finance_uniform_configs", initialFinanceUniformConfigs));
