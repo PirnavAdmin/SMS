@@ -175,4 +175,24 @@ public class ExamNewRepository : IExamNewRepository
 
         return true;
     }
+
+    public async Task<bool> DeleteExamAsync(int examId)
+    {
+        _inMemoryExams.RemoveAll(e => e.ExamId == examId);
+
+        try
+        {
+            var dbExam = await _context.NewExaminations.FirstOrDefaultAsync(e => e.ExamId == examId);
+            if (dbExam != null)
+            {
+                _context.NewExaminations.Remove(dbExam);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

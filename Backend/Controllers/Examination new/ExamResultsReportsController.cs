@@ -20,7 +20,7 @@ public class ExamResultsReportsController : ControllerBase
     }
 
     /// <summary>
-    /// Get dropdown choices for Results & Reports (Classes, Sections, Result Statuses, Rank Orders)
+    /// Get dropdown options for Results & Reports (Classes, Sections, Exams, Status Filters)
     /// </summary>
     [HttpGet("options")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
@@ -31,47 +31,64 @@ public class ExamResultsReportsController : ControllerBase
     }
 
     /// <summary>
-    /// Trigger Results Calculation for a Class & Section (Sub-Tab 1: Results & Ranking - Screenshots 1 & 2)
+    /// Sub-tab 1: Calculate Results for a Class, Section & Exam (Clicking "Calculate Results" button - Screenshot 1 & 2)
     /// </summary>
     [HttpPost("calculate")]
     [Authorize(Roles = "Admin,Teacher")]
     public async Task<IActionResult> CalculateResults([FromBody] CalculateResultsRequestDto request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
-            return BadRequest(new { success = false, message = "Class and Section are required to process results." });
+            return BadRequest(new { success = false, message = "Class and Section are required." });
 
         var result = await _service.CalculateResultsAsync(request);
-        return Ok(new { success = true, data = result });
+        return Ok(new { 
+            success = true, 
+            message = "Results calculated, ranks assigned, and grades verified successfully.", 
+            data = result 
+        });
     }
 
     /// <summary>
-    /// Get Student Report Cards list (Sub-Tab 2: Report Cards & Print - Screenshots 3, 4 & 5)
+    /// Sub-tab 2: Get Student Report Cards List (Report Cards tab - Screenshot 3 & 4)
     /// </summary>
     [HttpGet("report-cards")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
-    public async Task<IActionResult> GetReportCards(
+    public async Task<IActionResult> GetReportCardsList(
         [FromQuery] string className = "Class 1",
         [FromQuery] string sectionName = "Section A",
-        [FromQuery] string? resultStatus = "All",
-        [FromQuery] string? rankOrder = "Ascending",
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] string? statusFilter = "All")
     {
-        var result = await _service.GetReportCardsAsync(className, sectionName, resultStatus, rankOrder, search);
+        var result = await _service.GetReportCardsListAsync(className, sectionName, search, statusFilter);
         return Ok(new { success = true, data = result });
     }
 
     /// <summary>
-    /// Get detailed printable report card for a student (Clicking "Print Report Card" / Download PDF)
+    /// Get Printable Individual Report Card by Student ID (Clicking "View / Print Card" - Screenshot 5)
     /// </summary>
     [HttpGet("print-card/{studentId:int}")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
-    public async Task<IActionResult> GetReportCardPrintDetail(
+    public async Task<IActionResult> GetPrintableReportCard(
         int studentId,
-        [FromQuery] string className = "Class 1",
-        [FromQuery] string sectionName = "Section A")
+        [FromQuery] string? className = "Class 1",
+        [FromQuery] string? sectionName = "Section A")
     {
-        var result = await _service.GetReportCardPrintDetailAsync(studentId, className, sectionName);
+        var result = await _service.GetPrintableReportCardAsync(studentId, className, sectionName);
         if (result == null) return NotFound(new { success = false, message = "Report card not found for the specified student." });
         return Ok(new { success = true, data = result });
+    }
+
+    /// <summary>
+    /// Clear calculated results for a Class & Section (DELETE /api/examination-new/results-reports/clear-results)
+    /// </summary>
+    [HttpDelete("clear-results")]
+    [Authorize(Roles = "Admin,Teacher")]
+    public async Task<IActionResult> ClearResults([FromQuery] string className, [FromQuery] string sectionName)
+    {
+        var success = await _service.ClearExamResultsAsync(className, sectionName);
+        return Ok(new { 
+            success = true, 
+            message = $"Calculated results for {className} - {sectionName} cleared successfully." 
+        });
     }
 }

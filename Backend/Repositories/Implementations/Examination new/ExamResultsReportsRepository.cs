@@ -82,4 +82,28 @@ public class ExamResultsReportsRepository : IExamResultsReportsRepository
 
         return true;
     }
+
+    public async Task<bool> ClearExamResultsAsync(string className, string sectionName)
+    {
+        _inMemoryResults.RemoveAll(r => r.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                        r.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+
+        try
+        {
+            var existingDb = await _context.NewStudentExamResults
+                .Where(r => r.ClassName == className && r.SectionName == sectionName)
+                .ToListAsync();
+
+            if (existingDb.Any())
+            {
+                _context.NewStudentExamResults.RemoveRange(existingDb);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

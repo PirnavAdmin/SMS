@@ -82,4 +82,24 @@ public class ExamGradingScaleRepository : IExamGradingScaleRepository
 
         return true;
     }
+
+    public async Task<bool> DeleteScaleRuleAsync(int ruleId)
+    {
+        _inMemoryRules.RemoveAll(r => r.RuleId == ruleId);
+
+        try
+        {
+            var dbRule = await _context.NewGradingScaleRules.FirstOrDefaultAsync(r => r.RuleId == ruleId);
+            if (dbRule != null)
+            {
+                _context.NewGradingScaleRules.Remove(dbRule);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

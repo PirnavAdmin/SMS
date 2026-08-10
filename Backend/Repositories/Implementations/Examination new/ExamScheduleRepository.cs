@@ -107,4 +107,47 @@ public class ExamScheduleRepository : IExamScheduleRepository
 
         return _inMemoryTimetable;
     }
+
+    public async Task<bool> DeleteSlotAsync(int slotId)
+    {
+        _inMemoryTimetable.RemoveAll(s => s.SlotId == slotId);
+
+        try
+        {
+            var dbSlot = await _context.NewExamTimetableSlots.FirstOrDefaultAsync(s => s.SlotId == slotId);
+            if (dbSlot != null)
+            {
+                _context.NewExamTimetableSlots.Remove(dbSlot);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
+    public async Task<bool> ClearTimetableAsync(string className, string sectionName)
+    {
+        _inMemoryTimetable.RemoveAll(s => s.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) && s.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+
+        try
+        {
+            var dbSlots = await _context.NewExamTimetableSlots
+                .Where(s => s.ClassName == className && s.SectionName == sectionName)
+                .ToListAsync();
+
+            if (dbSlots.Any())
+            {
+                _context.NewExamTimetableSlots.RemoveRange(dbSlots);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }

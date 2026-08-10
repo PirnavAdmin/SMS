@@ -18,51 +18,59 @@ public class ExamScheduleService : IExamScheduleService
         _repository = repository;
     }
 
-    public Task<ScheduleOptionsDto> GetScheduleOptionsAsync()
+    public async Task<ScheduleOptionsDto> GetScheduleOptionsAsync()
     {
-        return Task.FromResult(new ScheduleOptionsDto());
+        return new ScheduleOptionsDto
+        {
+            Classes = new List<string> { "Class 1", "Class 2", "Class 8", "Class 9", "Class 10", "Class 11", "Class 12" },
+            Sections = new List<string> { "Section A", "Section B", "Section C" },
+            Rooms = new List<string> { "TBA", "Room 101", "Room 102", "Auditorium Hall", "Science Lab" },
+            Invigilators = new List<string> { "Unassigned", "Sarah Jenkins", "Robert Davis", "Emily Watson", "Michael Brown" }
+        };
     }
 
     public async Task<ClassSectionScheduleResponseDto> GetTimetableForClassSectionAsync(string className, string sectionName)
     {
         var slots = await _repository.GetTimetableSlotsAsync(className, sectionName);
 
-        var dtoList = slots.Select(s => new TimetableSlotItemDto
-        {
-            SlotId = s.SlotId,
-            SubjectCode = s.SubjectCode,
-            SubjectName = s.SubjectName,
-            TotalMarks = s.TotalMarks,
-            ExamDate = s.ExamDate.ToString("yyyy-MM-dd"),
-            TimeSlot = s.TimeSlot,
-            Duration = s.Duration,
-            RoomHall = s.RoomHall,
-            InvigilatorFaculty = s.InvigilatorFaculty
-        }).ToList();
-
         return new ClassSectionScheduleResponseDto
         {
             ClassName = className,
             SectionName = sectionName,
-            Timetable = dtoList
+            Timetable = slots.Select(s => new TimetableSlotItemDto
+            {
+                SlotId = s.SlotId,
+                SubjectCode = s.SubjectCode,
+                SubjectName = s.SubjectName,
+                TotalMarks = s.TotalMarks,
+                ExamDate = s.ExamDate.ToString("yyyy-MM-dd"),
+                TimeSlot = s.TimeSlot,
+                Duration = s.Duration,
+                RoomHall = s.RoomHall,
+                InvigilatorFaculty = s.InvigilatorFaculty
+            }).ToList()
         };
     }
 
     public async Task<bool> SaveTimetableAsync(SaveTimetableRequestDto request)
     {
-        var slots = request.Timetable.Select(t => new NewExamTimetableSlot
+        var slots = request.Timetable.Select(s =>
         {
-            ExamId = request.ExamId,
-            ClassName = request.ClassName,
-            SectionName = request.SectionName,
-            SubjectCode = t.SubjectCode,
-            SubjectName = t.SubjectName,
-            TotalMarks = t.TotalMarks > 0 ? t.TotalMarks : 100,
-            ExamDate = DateTime.TryParse(t.ExamDate, out var d) ? d : DateTime.UtcNow,
-            TimeSlot = string.IsNullOrWhiteSpace(t.TimeSlot) ? "09:00 - 12:00" : t.TimeSlot,
-            Duration = string.IsNullOrWhiteSpace(t.Duration) ? "3h" : t.Duration,
-            RoomHall = string.IsNullOrWhiteSpace(t.RoomHall) ? "TBA" : t.RoomHall,
-            InvigilatorFaculty = string.IsNullOrWhiteSpace(t.InvigilatorFaculty) ? "Unassigned" : t.InvigilatorFaculty
+            DateTime.TryParse(s.ExamDate, out var parsedDate);
+            return new NewExamTimetableSlot
+            {
+                SlotId = s.SlotId,
+                ClassName = request.ClassName,
+                SectionName = request.SectionName,
+                SubjectCode = s.SubjectCode,
+                SubjectName = s.SubjectName,
+                TotalMarks = s.TotalMarks,
+                ExamDate = parsedDate != DateTime.MinValue ? parsedDate : DateTime.UtcNow,
+                TimeSlot = s.TimeSlot,
+                Duration = s.Duration,
+                RoomHall = s.RoomHall,
+                InvigilatorFaculty = s.InvigilatorFaculty
+            };
         }).ToList();
 
         return await _repository.SaveTimetableSlotsAsync(request.ClassName, request.SectionName, slots);
@@ -72,34 +80,23 @@ public class ExamScheduleService : IExamScheduleService
     {
         var allSlots = await _repository.GetAllTimetableSlotsAsync();
 
-        var sections = new List<(string Class, string Section)>
+        var query = allSlots.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            ("Class 1", "Section A"),
-            ("Class 1", "Section B"),
-            ("Class 1", "Section C")
-        };
-
-        if (!string.IsNullOrWhiteSpace(className) && !className.Equals("All", StringComparison.OrdinalIgnoreCase) && !className.Contains("All"))
-        {
-            sections = sections.Where(s => s.Class.Equals(className, StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(s => s.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase));
         }
 
-        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("All", StringComparison.OrdinalIgnoreCase) && !sectionName.Contains("All"))
+        if (!string.IsNullOrWhiteSpace(sectionName) && !sectionName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            sections = sections.Where(s => s.Section.Equals(sectionName, StringComparison.OrdinalIgnoreCase)).ToList();
+            query = query.Where(s => s.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase));
         }
 
-        var cards = new List<SectionSchedulePreviewCardDto>();
-
-        foreach (var sec in sections)
-        {
-            var secSlots = allSlots.Where(s => s.ClassName.Equals(sec.Class, StringComparison.OrdinalIgnoreCase) && s.SectionName.Equals(sec.Section, StringComparison.OrdinalIgnoreCase)).ToList();
-
-            cards.Add(new SectionSchedulePreviewCardDto
+        var cards = query.GroupBy(s => new { s.ClassName, s.SectionName })
+            .Select(g => new SectionSchedulePreviewCardDto
             {
-                ClassName = sec.Class,
-                SectionName = sec.Section,
-                Timetable = secSlots.Select(s => new TimetableSlotItemDto
+                ClassName = g.Key.ClassName,
+                SectionName = g.Key.SectionName,
+                Timetable = g.Select(s => new TimetableSlotItemDto
                 {
                     SlotId = s.SlotId,
                     SubjectCode = s.SubjectCode,
@@ -111,14 +108,23 @@ public class ExamScheduleService : IExamScheduleService
                     RoomHall = s.RoomHall,
                     InvigilatorFaculty = s.InvigilatorFaculty
                 }).ToList()
-            });
-        }
+            }).ToList();
 
         return new SchedulePreviewResponseDto
         {
             AcademicYear = academicYear ?? "2026-27",
-            FilterView = "View: All Examination Classes — All Sections",
+            FilterView = $"View: {className ?? "All"} — {sectionName ?? "All"}",
             SectionSchedules = cards
         };
+    }
+
+    public async Task<bool> DeleteSlotAsync(int slotId)
+    {
+        return await _repository.DeleteSlotAsync(slotId);
+    }
+
+    public async Task<bool> ClearTimetableAsync(string className, string sectionName)
+    {
+        return await _repository.ClearTimetableAsync(className, sectionName);
     }
 }

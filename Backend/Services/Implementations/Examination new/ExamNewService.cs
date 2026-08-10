@@ -128,4 +128,9 @@ public class ExamNewService : IExamNewService
 
         return await _repository.SaveSubjectConfigsAsync(request.ExamId, request.ClassName, configs, request.ProceedToSchedule);
     }
+
+    public async Task<bool> DeleteExamAsync(int examId)
+    {
+        return await _repository.DeleteExamAsync(examId);
+    }
 }

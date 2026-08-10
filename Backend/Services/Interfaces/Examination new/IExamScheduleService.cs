@@ -9,4 +9,6 @@ public interface IExamScheduleService
     Task<ClassSectionScheduleResponseDto> GetTimetableForClassSectionAsync(string className, string sectionName);
     Task<bool> SaveTimetableAsync(SaveTimetableRequestDto request);
     Task<SchedulePreviewResponseDto> GetSchedulePreviewAsync(string? academicYear, string? className, string? sectionName);
+    Task<bool> DeleteSlotAsync(int slotId);
+    Task<bool> ClearTimetableAsync(string className, string sectionName);
 }

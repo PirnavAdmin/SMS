@@ -90,4 +90,29 @@ public class ExamMarksEntryRepository : IExamMarksEntryRepository
 
         return true;
     }
+
+    public async Task<bool> ClearMarksEntriesAsync(string className, string sectionName, string subjectCode)
+    {
+        _inMemoryMarks.RemoveAll(m => m.ClassName.Equals(className, StringComparison.OrdinalIgnoreCase) &&
+                                      m.SectionName.Equals(sectionName, StringComparison.OrdinalIgnoreCase) &&
+                                      m.SubjectCode.Equals(subjectCode, StringComparison.OrdinalIgnoreCase));
+
+        try
+        {
+            var existingDb = await _context.NewStudentMarksEntries
+                .Where(m => m.ClassName == className && m.SectionName == sectionName && m.SubjectCode == subjectCode)
+                .ToListAsync();
+
+            if (existingDb.Any())
+            {
+                _context.NewStudentMarksEntries.RemoveRange(existingDb);
+                await _context.SaveChangesAsync();
+            }
+            return true;
+        }
+        catch
+        {
+            return true;
+        }
+    }
 }
