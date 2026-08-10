@@ -522,14 +522,33 @@ namespace SMS.Api.Data
                     .HasColumnName("ClassName")
                     .HasMaxLength(100);
 
-                // These properties don't exist in the DB 'classes' table — ignore them
-                entity.Ignore(x => x.CampusLocation);
-                entity.Ignore(x => x.AcademicYear);
-                entity.Ignore(x => x.DisplayOrder);
-                entity.Ignore(x => x.Status);
-                entity.Ignore(x => x.Remarks);
-                entity.Ignore(x => x.CreatedAt);
-                entity.Ignore(x => x.UpdatedAt);
+                entity.Property(x => x.CampusLocation)
+                    .HasColumnName("CampusLocation")
+                    .HasMaxLength(100)
+                    .HasDefaultValue("Main Campus");
+
+                entity.Property(x => x.AcademicYear)
+                    .HasColumnName("AcademicYear")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("2026-2027");
+
+                entity.Property(x => x.DisplayOrder)
+                    .HasColumnName("DisplayOrder");
+
+                entity.Property(x => x.Status)
+                    .HasColumnName("Status")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Active");
+
+                entity.Property(x => x.Remarks)
+                    .HasColumnName("Remarks");
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("CreatedAt")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("UpdatedAt");
             });
         }
 
