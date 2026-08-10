@@ -158,7 +158,7 @@ interface DataContextType {
   addAdmission: (app: Omit<AdmissionApplication, 'id' | 'applicationNo'>) => void;
   updateAdmission: (id: string, updates: Partial<AdmissionApplication>) => void;
   deleteAdmission: (id: string) => void;
-  updateAdmissionStatus: (id: string, status: AdmissionApplication['status']) => void;
+  updateAdmissionStatus: (id: string, status: AdmissionApplication['status']) => Promise<string | null>;
 
   academicClasses: AcademicClass[];
   addAcademicClass: (cls: Omit<AcademicClass, 'id'>) => void;
@@ -327,7 +327,7 @@ interface DataContextType {
 
   // STUDENT PERMANENT FEE LEDGER ENGINE
   studentFeeLedgers: StudentFeeLedger[];
-  generateStudentFeeLedger: (studentId: string) => StudentFeeLedger;
+  generateStudentFeeLedger: (studentId: string, optStudent?: Student) => StudentFeeLedger;
   recalculateStudentFeeLedger: (studentId: string) => StudentFeeLedger;
   getStudentFeeLedger: (studentId: string) => StudentFeeLedger | null;
 
@@ -2401,9 +2401,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']) => {
+  const updateAdmissionStatus = async (id: string, status: AdmissionApplication['status']): Promise<string | null> => {
     const app = admissions.find(a => a.id === id);
-    if (!app) return;
+    if (!app) return null;
 
     const registrationNo = (app as any).registrationNo || app.applicationNo;
 
@@ -2411,6 +2411,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const json = await updateAdmissionStatusApi(registrationNo, status);
 
       if (json && json.success !== false) {
+        let enrolledStudentId: string | null = null;
         if (status === 'Enrolled' && app) {
           const addressParts = [
             app.addressHouseNo ? `H.No ${app.addressHouseNo}` : '',
@@ -2523,6 +2524,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             gpa: 4.0
           });
 
+          enrolledStudentId = newStudent.id;
+
           // Create Student Fee Assignment based on selected fee types
           const sfaId = 'SFA-' + Math.floor(100 + Math.random() * 900);
           const assignment: StudentFeeAssignment = {
@@ -2604,17 +2607,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           // Automatically generate Student Fee Ledger for newly enrolled student
-          setTimeout(() => generateStudentFeeLedger(newStudent.id), 50);
+          setTimeout(() => generateStudentFeeLedger(newStudent.id, newStudent), 50);
         }
 
-          // Update state to match API success
-          setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
-          logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
-          try {
-            await fetchAdmissions();
-          } catch (fetchErr) {
-            console.error("Failed to refresh admissions list", fetchErr);
-          }
+        // Update state to match API success
+        setAdmissions(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+        logActivity('Updated Application Status', `Changed application ID ${id} to ${status}`);
+        try {
+          await fetchAdmissions();
+        } catch (fetchErr) {
+          console.error("Failed to refresh admissions list", fetchErr);
+        }
+        return enrolledStudentId;
       } else {
         addToast('error', 'Update Failed', json?.message || `Failed to update status to ${status}`);
       }
@@ -2622,6 +2626,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error updating admission status', err);
       addToast('error', 'Network Error', err.message || 'Failed to update application status.');
     }
+    return null;
   };
 
 
@@ -3561,8 +3566,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // PERMANENT STUDENT FEE LEDGER GENERATOR & RECALCULATOR
   // ==========================================
 
-  const generateStudentFeeLedger = (studentId: string): StudentFeeLedger => {
-    const student = students.find(s => s.id === studentId);
+  const generateStudentFeeLedger = (studentId: string, optStudent?: Student): StudentFeeLedger => {
+    const student = students.find(s => s.id === studentId) || optStudent;
     const stType: 'Day Scholar' | 'Hosteller' = (student?.studentType === 'Hosteller' || student?.studentType === 'Residential') ? 'Hosteller' : 'Day Scholar';
     const clsName = student?.className || 'Class 10';
     const secName = student?.section || 'A';
