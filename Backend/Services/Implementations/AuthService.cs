@@ -90,7 +90,7 @@ namespace SMS.Api.Services.Implementations
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.EmailOrPhone))
             {
-                dto = new LoginRequestDto { EmailOrPhone = "admin@pirnav.com", Password = "password" };
+                dto = new LoginRequestDto("admin@pirnav.com", "password");
             }
 
             var identifier = dto.EmailOrPhone.Trim();
