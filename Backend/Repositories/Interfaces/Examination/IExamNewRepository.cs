@@ -11,5 +11,6 @@ public interface IExamNewRepository
     Task<NewExamination> SaveExamDetailsAsync(NewExamination exam);
     Task<bool> SaveSubjectConfigsAsync(int examId, string className, List<NewExamSubjectConfig> configs, bool markAsScheduled);
     Task<List<NewExamSubjectConfig>> GetSubjectConfigsAsync(int examId, string className);
+    Task<bool> DeleteExamAsync(int examId);
 }
 

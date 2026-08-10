@@ -113,51 +113,7 @@ public class ExamScheduleController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// Update Timetable slots for a Class & Section (PUT /api/examination-new/schedule/timetable)
-    /// </summary>
-    [HttpPut("timetable")]
-    [Authorize(Roles = "Admin,Teacher")]
-    public async Task<IActionResult> UpdateTimetable([FromBody] SaveTimetableRequestDto request)
-    {
-        if (request == null || string.IsNullOrWhiteSpace(request.ClassName) || string.IsNullOrWhiteSpace(request.SectionName))
-            return BadRequest(new { success = false, message = "Class and Section are required." });
 
-        var success = await _service.SaveTimetableAsync(request);
-        return Ok(new { 
-            success = true, 
-            message = "Examination Timetable & Invigilation updated successfully.", 
-            updated = success 
-        });
-    }
-
-    /// <summary>
-    /// Delete an individual Timetable Slot by Slot ID (DELETE /api/examination-new/schedule/slot/{slotId})
-    /// </summary>
-    [HttpDelete("slot/{slotId:int}")]
-    [Authorize(Roles = "Admin,Teacher")]
-    public async Task<IActionResult> DeleteSlot(int slotId)
-    {
-        var success = await _service.DeleteSlotAsync(slotId);
-        return Ok(new { 
-            success = true, 
-            message = $"Timetable slot {slotId} deleted successfully." 
-        });
-    }
-
-    /// <summary>
-    /// Clear entire Timetable for a Class & Section (DELETE /api/examination-new/schedule/clear-timetable)
-    /// </summary>
-    [HttpDelete("clear-timetable")]
-    [Authorize(Roles = "Admin,Teacher")]
-    public async Task<IActionResult> ClearTimetable([FromQuery] string className, [FromQuery] string sectionName)
-    {
-        var success = await _service.ClearTimetableAsync(className, sectionName);
-        return Ok(new { 
-            success = true, 
-            message = $"Timetable for {className} - {sectionName} cleared successfully." 
-        });
-    }
 
     /// <summary>
     /// Get Schedule Preview across All Classes & Sections (Timetable Preview Mode - Screenshots 3, 4 & 5)

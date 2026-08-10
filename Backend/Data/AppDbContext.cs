@@ -92,11 +92,25 @@ namespace SMS.Api.Data
 
         public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
 
+        public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;
+
         public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
 
         public DbSet<StudentTransportAssignment> StudentTransportAssignments { get; set; } = null!;
 
         public DbSet<VehicleMaintenance> VehicleMaintenances { get; set; } = null!;
+
+        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
+
+        public DbSet<NewGradingScaleRule> NewGradingScaleRules { get; set; } = null!;
+        public DbSet<NewStudentExamResult> NewStudentExamResults { get; set; } = null!;
+        public DbSet<NewStudentMarksEntry> NewStudentMarksEntries { get; set; } = null!;
+
+        public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
+        public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
+        public DbSet<UniformSize> UniformSizes { get; set; } = null!;
+        public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
+        public DbSet<UniformType> UniformTypes { get; set; } = null!;
 
         // =====================================================
         // Hostel ERP Module

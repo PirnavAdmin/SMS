@@ -2,8 +2,11 @@ namespace SMS.Api.Models.Examination;
 
 using System;
 
+using System.ComponentModel.DataAnnotations;
+
 public class NewStudentMarksEntry
 {
+    [Key]
     public int EntryId { get; set; }
     public int ExamId { get; set; } = 1;
     public string ClassName { get; set; } = string.Empty;
