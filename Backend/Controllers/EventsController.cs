@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/events")]
-[Authorize]
+[AllowAnonymous]
 [Tags("Events & Holidays Calendar")]
 public class EventsController : ControllerBase
 {

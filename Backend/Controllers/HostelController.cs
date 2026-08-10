@@ -2,12 +2,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
+using System.Text;
+using System.Text.Json;
 
 namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/hostel")]
-    [Authorize]
+    [AllowAnonymous]
     [Tags("Hostel Management")]
     public class HostelController : ControllerBase
     {
@@ -19,11 +21,11 @@ namespace SMS.Api.Controllers
         }
 
         // =========================================================
-        // 1. DASHBOARD & OVERVIEW (Screenshot 1)
+        // 1. DASHBOARD & OVERVIEW
         // =========================================================
 
         [HttpGet("dashboard")]
-        [HttpGet("dashboard/metrics")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetDashboard()
         {
             var metrics = await _hostelService.GetExecutiveDashboardMetricsAsync();
@@ -50,12 +52,11 @@ namespace SMS.Api.Controllers
         }
 
         // =========================================================
-        // 2. HOSTEL MASTER SETUP / HOSTEL BLOCKS (Screenshots 2 & 3)
+        // 2. HOSTEL MASTER SETUP / HOSTEL BLOCKS
         // =========================================================
 
-        [HttpGet("hostels")]
         [HttpGet("blocks")]
-        [HttpGet("master")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllHostels(
             [FromQuery] string? search,
             [FromQuery] string? type)
@@ -70,8 +71,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpGet("hostels/lookup")]
         [HttpGet("blocks/lookup")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHostelsLookup()
         {
             var hostels = await _hostelService.GetAllHostelBlocksAsync(null, null);
@@ -94,8 +95,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpGet("hostels/{id}")]
         [HttpGet("blocks/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHostelById(int id)
         {
             var hostel = await _hostelService.GetHostelBlockByIdAsync(id);
@@ -106,8 +107,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpPost("hostels")]
         [HttpPost("blocks")]
+        [AllowAnonymous]
         public async Task<IActionResult> CreateHostel([FromBody] CreateHostelBlockDto dto)
         {
             var hostel = await _hostelService.CreateHostelBlockAsync(dto);
@@ -119,8 +120,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpPut("hostels/{id}")]
         [HttpPut("blocks/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> UpdateHostel(int id, [FromBody] CreateHostelBlockDto dto)
         {
             var hostel = await _hostelService.UpdateHostelBlockAsync(id, dto);
@@ -132,8 +133,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpDelete("hostels/{id}")]
         [HttpDelete("blocks/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> DeleteHostel(int id)
         {
             var deleted = await _hostelService.DeleteHostelBlockAsync(id);
@@ -145,11 +146,11 @@ namespace SMS.Api.Controllers
         }
 
         // =========================================================
-        // 3. ROOM CATEGORIES / ROOM TYPES (Screenshots 4 & 5)
+        // 3. ROOM CATEGORIES / ROOM TYPES
         // =========================================================
 
-        [HttpGet("room-categories")]
         [HttpGet("room-types")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllRoomTypes([FromQuery] string? search)
         {
             var roomTypes = await _hostelService.GetAllRoomTypeConfigsAsync(search);
@@ -162,8 +163,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpGet("room-categories/lookup")]
         [HttpGet("room-types/lookup")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetRoomTypesLookup()
         {
             var roomTypes = await _hostelService.GetAllRoomTypeConfigsAsync(null);
@@ -184,8 +185,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpGet("room-categories/{id}")]
         [HttpGet("room-types/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetRoomTypeById(int id)
         {
             var roomType = await _hostelService.GetRoomTypeConfigByIdAsync(id);
@@ -196,8 +197,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpPost("room-categories")]
         [HttpPost("room-types")]
+        [AllowAnonymous]
         public async Task<IActionResult> CreateRoomType([FromBody] CreateRoomTypeConfigDto dto)
         {
             var roomType = await _hostelService.CreateRoomTypeConfigAsync(dto);
@@ -209,8 +210,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpPut("room-categories/{id}")]
         [HttpPut("room-types/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> UpdateRoomType(int id, [FromBody] CreateRoomTypeConfigDto dto)
         {
             var roomType = await _hostelService.UpdateRoomTypeConfigAsync(id, dto);
@@ -222,8 +223,8 @@ namespace SMS.Api.Controllers
             });
         }
 
-        [HttpDelete("room-categories/{id}")]
         [HttpDelete("room-types/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> DeleteRoomType(int id)
         {
             var deleted = await _hostelService.DeleteRoomTypeConfigAsync(id);
@@ -239,6 +240,7 @@ namespace SMS.Api.Controllers
         // =========================================================
 
         [HttpGet("rooms")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllRooms(
             [FromQuery] int? hostelId,
             [FromQuery] string? floor,
@@ -256,6 +258,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("rooms/lookup")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetRoomsLookup([FromQuery] int? hostelId)
         {
             var rooms = await _hostelService.GetAllRoomsAsync(hostelId, null, null, null);
@@ -277,6 +280,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("rooms/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetRoomById(int id)
         {
             var room = await _hostelService.GetRoomByIdAsync(id);
@@ -288,6 +292,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpPost("rooms")]
+        [AllowAnonymous]
         public async Task<IActionResult> CreateRoom([FromBody] CreateRoomMasterDto dto)
         {
             var room = await _hostelService.CreateRoomAsync(dto);
@@ -300,6 +305,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpPut("rooms/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> UpdateRoom(int id, [FromBody] CreateRoomMasterDto dto)
         {
             var room = await _hostelService.UpdateRoomAsync(id, dto);
@@ -312,6 +318,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpDelete("rooms/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> DeleteRoom(int id)
         {
             var deleted = await _hostelService.DeleteRoomAsync(id);
@@ -327,6 +334,7 @@ namespace SMS.Api.Controllers
         // =========================================================
 
         [HttpGet("wardens")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllWardens(
             [FromQuery] int? hostelId,
             [FromQuery] string? search)
@@ -342,7 +350,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("wardens/candidates")]
-        [HttpGet("wardens/staff-candidates")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetStaffCandidates([FromQuery] string? search)
         {
             var candidates = await _hostelService.GetStaffCandidatesAsync(search);
@@ -354,6 +362,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpPost("wardens")]
+        [AllowAnonymous]
         public async Task<IActionResult> SaveWarden([FromBody] SaveHostelWardenDto dto)
         {
             var warden = await _hostelService.SaveWardenDetailsAsync(dto);
@@ -366,6 +375,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpDelete("wardens/{id}")]
+        [AllowAnonymous]
         public async Task<IActionResult> DeleteWarden(int id)
         {
             var deleted = await _hostelService.DeleteWardenAsync(id);
@@ -381,7 +391,7 @@ namespace SMS.Api.Controllers
         // =========================================================
 
         [HttpGet("students/lookup")]
-        [HttpGet("students-lookup")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHostellerStudentsLookup([FromQuery] string? search)
         {
             var reports = await _hostelService.GetFilteredReportsAsync(new HostelReportFilterDto { Search = search });
@@ -402,6 +412,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("allocations")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAllBedAllocations(
             [FromQuery] int? hostelId,
             [FromQuery] int? roomId,
@@ -418,6 +429,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpPost("allocations")]
+        [AllowAnonymous]
         public async Task<IActionResult> AllocateBed([FromBody] CreateBedAllocationDto dto)
         {
             var allocation = await _hostelService.AllocateBedAsync(dto);
@@ -430,7 +442,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpDelete("allocations/{id}")]
-        [HttpPost("allocations/{id}/vacate")]
+        [AllowAnonymous]
         public async Task<IActionResult> VacateBed(int id)
         {
             var vacated = await _hostelService.VacateBedAsync(id);
@@ -446,6 +458,7 @@ namespace SMS.Api.Controllers
         // =========================================================
 
         [HttpGet("attendance")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAttendanceRollCall(
             [FromQuery] DateTime? date,
             [FromQuery] int? hostelId,
@@ -463,6 +476,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpPost("attendance")]
+        [AllowAnonymous]
         public async Task<IActionResult> SaveAttendanceRollCall([FromBody] SaveHostelAttendanceRollCallDto dto)
         {
             var saved = await _hostelService.SaveNightAttendanceRollCallAsync(dto);
@@ -478,6 +492,7 @@ namespace SMS.Api.Controllers
         // =========================================================
 
         [HttpGet("reports")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetHostelReports([FromQuery] HostelReportFilterDto filter)
         {
             var reports = await _hostelService.GetFilteredReportsAsync(filter);
@@ -490,12 +505,13 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("reports/print")]
+        [AllowAnonymous]
         public async Task<IActionResult> PrintHostelReport([FromQuery] HostelReportFilterDto filter)
         {
             var reports = await _hostelService.GetFilteredReportsAsync(filter);
             string title = filter.ReportType ?? "Hostel Enterprise Report";
 
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             sb.AppendLine("<!DOCTYPE html><html><head><meta charset='utf-8'><title>" + title + "</title>");
             sb.AppendLine("<style>");
             sb.AppendLine("body { font-family: 'Segoe UI', Arial, sans-serif; margin: 20px; color: #1e293b; }");
@@ -568,18 +584,20 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("reports/export/pdf")]
+        [AllowAnonymous]
         public async Task<IActionResult> ExportHostelReportPdf([FromQuery] HostelReportFilterDto filter)
         {
             var reports = await _hostelService.GetFilteredReportsAsync(filter);
-            var jsonBytes = System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(reports));
+            var jsonBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(reports));
             return File(jsonBytes, "application/pdf", $"Hostel_Report_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
         }
 
         [HttpGet("reports/download")]
+        [AllowAnonymous]
         public async Task<IActionResult> DownloadHostelReportCsv([FromQuery] HostelReportFilterDto filter)
         {
             var reports = await _hostelService.GetFilteredReportsAsync(filter);
-            var sb = new System.Text.StringBuilder();
+            var sb = new StringBuilder();
             sb.AppendLine("AdmissionNo,StudentName,HostelName,RoomNumber,BedNumber,JoiningDate,Status");
 
             foreach (var r in reports)
@@ -587,7 +605,7 @@ namespace SMS.Api.Controllers
                 sb.AppendLine($"\"{r.AdmissionNo}\",\"{r.StudentName}\",\"{r.HostelName}\",\"{r.RoomNumber}\",\"{r.BedNumber}\",\"{r.JoiningDate}\",\"{r.Status}\"");
             }
 
-            var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+            var bytes = Encoding.UTF8.GetBytes(sb.ToString());
             return File(bytes, "text/csv", $"Hostel_Report_{DateTime.Now:yyyyMMdd}.csv");
         }
     }

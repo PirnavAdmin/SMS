@@ -482,7 +482,7 @@ namespace SMS.Api.Services.Implementations
         {
             UniformTypeId = u.UniformTypeId,
             ItemName = u.ItemName ?? "",
-            CategoryName = u.CategoryName ?? (u.ItemName.Contains("Shirt") ? "Shirt" : "Blazer"),
+            CategoryName = u.CategoryName ?? ((u.ItemName != null && u.ItemName.Contains("Shirt")) ? "Shirt" : "Blazer"),
             Gender = u.Gender ?? "Unisex",
             SchoolWing = u.SchoolWing ?? "",
             Size = u.Size ?? "M",
