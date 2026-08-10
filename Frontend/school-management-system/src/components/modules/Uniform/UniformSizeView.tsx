@@ -4,12 +4,15 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformSize } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 
 export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformSizes, addUniformSize, updateUniformSize, deleteUniformSize } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSize, setEditingSize] = useState<UniformSize | null>(null);
   const [deletingSize, setDeletingSize] = useState<UniformSize | null>(null);
@@ -27,6 +30,8 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
     s.sizeName.toLowerCase().includes(query.toLowerCase()) ||
     (s.ageGroup && s.ageGroup.toLowerCase().includes(query.toLowerCase()))
   );
+
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleOpenAdd = () => {
     setEditingSize(null);
@@ -105,7 +110,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                   <td colSpan={7} className="py-8 text-center text-slate-400">No size specifications configured.</td>
                 </tr>
               ) : (
-                filtered.map(s => (
+                paginated.map(s => (
                   <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{s.sizeName}</td>
                     <td className="py-3 px-4 font-mono">{s.chest || 'N/A'}</td>
@@ -126,6 +131,13 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
           </table>
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">

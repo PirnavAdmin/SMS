@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { UniformDashboardView } from './UniformDashboardView';
 import { UniformMastersView } from './UniformMastersView';
 import { StudentUniformView } from './StudentUniformView';
@@ -10,25 +10,47 @@ interface UniformContainerViewProps {
 }
 
 export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
-  const normalizedTab = initialTab.startsWith('uniform-') ? initialTab.replace('uniform-', '') : initialTab;
-  const [activeTab, setActiveTab] = useState(normalizedTab);
+  const normalizeTab = (tab: string) => tab.startsWith('uniform-') ? tab.replace('uniform-', '') : tab;
+
+  const [activeTab, setActiveTab] = useState(normalizeTab(initialTab));
   const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory' | undefined>();
   const [reportTypeFilter, setReportTypeFilter] = useState<string | undefined>();
+  const [statusFilterParam, setStatusFilterParam] = useState<string | undefined>();
+
+  // Track whether the last navigation came from internal handleNavigate
+  // so we can ignore the resulting initialTab prop change in the useEffect
+  const isInternalNavRef = useRef(false);
 
   useEffect(() => {
-    const cleanTab = initialTab.startsWith('uniform-') ? initialTab.replace('uniform-', '') : initialTab;
+    // If the tab change was triggered internally (by handleNavigate), skip this effect
+    if (isInternalNavRef.current) {
+      isInternalNavRef.current = false;
+      return;
+    }
+    // This is a genuine EXTERNAL navigation (sidebar click) — reset to clean state
+    const cleanTab = normalizeTab(initialTab);
     setActiveTab(cleanTab);
+    setActiveSubTab(undefined);      // Reset subTab so sidebar always opens 'items'
+    setStatusFilterParam(undefined); // Reset any status filter
+    setReportTypeFilter(undefined);
   }, [initialTab]);
 
-  const handleNavigate = (tab: string, subTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory', reportType?: string) => {
-    const cleanTab = tab.startsWith('uniform-') ? tab.replace('uniform-', '') : tab;
+  const handleNavigate = (
+    tab: string,
+    subTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory',
+    reportType?: string,
+    statusFilter?: string
+  ) => {
+    const cleanTab = normalizeTab(tab);
+
+    // Mark as internal so the useEffect ignores the resulting initialTab change
+    isInternalNavRef.current = true;
+
     setActiveTab(cleanTab);
-    if (subTab) {
-      setActiveSubTab(subTab);
-    }
-    if (reportType) {
-      setReportTypeFilter(reportType);
-    }
+    setActiveSubTab(subTab);
+    setStatusFilterParam(statusFilter);
+    if (reportType) setReportTypeFilter(reportType);
+
     if (onTabChange) {
       onTabChange(`uniform-${cleanTab}`);
     }
@@ -44,16 +66,28 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
       case 'categories':
       case 'sizes':
       case 'suppliers':
-      case 'inventory':
+      case 'inventory': {
+        const resolvedSubTab = activeSubTab ||
+          (['items', 'categories', 'sizes', 'suppliers', 'inventory'].includes(activeTab)
+            ? activeTab as any
+            : 'items');
         return (
-          <UniformMastersView 
-            initialSubTab={activeSubTab || (['items', 'categories', 'sizes', 'suppliers', 'inventory'].includes(activeTab) ? activeTab as any : 'items')} 
+          <UniformMastersView
+            key={`masters-${resolvedSubTab}-${statusFilterParam || 'all'}`}
+            initialSubTab={resolvedSubTab}
+            initialStatusFilter={statusFilterParam}
           />
         );
+      }
       case 'student-uniform':
       case 'student':
       case 'issues':
-        return <StudentUniformView />;
+        return (
+          <StudentUniformView
+            key={`student-${statusFilterParam || 'all'}`}
+            initialStatusFilter={statusFilterParam}
+          />
+        );
       case 'reports':
         return <UniformReportsView initialReportType={reportTypeFilter} />;
       default:

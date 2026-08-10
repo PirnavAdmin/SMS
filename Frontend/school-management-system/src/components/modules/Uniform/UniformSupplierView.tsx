@@ -5,12 +5,15 @@ import { useToast } from '../../../context/ToastContext';
 import { UniformSupplier } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 
 export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
   const { uniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<UniformSupplier | null>(null);
   const [deletingSupplier, setDeletingSupplier] = useState<UniformSupplier | null>(null);
@@ -30,6 +33,8 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     s.contactPerson.toLowerCase().includes(query.toLowerCase()) ||
     (s.gstNumber && s.gstNumber.toLowerCase().includes(query.toLowerCase()))
   );
+
+  const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const handleOpenAdd = () => {
     setEditingSupplier(null);
@@ -108,7 +113,7 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
                   <td colSpan={7} className="py-8 text-center text-slate-400">No active suppliers found. Click "Add Supplier".</td>
                 </tr>
               ) : (
-                filtered.map(s => (
+                paginated.map(s => (
                   <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{s.supplierName}</td>
                     <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{s.contactPerson}</td>
@@ -131,6 +136,13 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
           </table>
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filtered.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">

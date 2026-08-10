@@ -10,7 +10,7 @@ public class StudentAttendance
 
     public int AttendanceSessionId { get; set; }
 
-    public int StudentId { get; set; }
+    public int? StudentId { get; set; }
 
     [Required]
     [MaxLength(20)]

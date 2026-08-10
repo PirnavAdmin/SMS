@@ -1,6 +1,7 @@
 namespace SMS.Api.Models.Examination;
 
 using System;
+using System.ComponentModel.DataAnnotations;
 
 using System.ComponentModel.DataAnnotations;
 

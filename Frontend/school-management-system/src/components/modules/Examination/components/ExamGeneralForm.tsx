@@ -13,6 +13,8 @@ interface ExamGeneralFormProps {
   selectedAcademicYear: string;
   selectedBranch: string;
   onChange: (updates: any) => void;
+  assessmentTypesOptions?: string[];
+  termCyclesOptions?: string[];
 }
 
 export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
@@ -23,30 +25,36 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
   endDate,
   applicableClasses,
   classOptions,
-  onChange
+  onChange,
+  assessmentTypesOptions,
+  termCyclesOptions
 }) => {
   const inputClass = "w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-white focus:border-sky-500 font-bold text-xs h-[38px] transition";
   const selectClass = "w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 outline-none text-slate-900 dark:text-white focus:border-sky-500 font-bold text-xs h-[38px] transition cursor-pointer";
 
-  const assessmentTypes = [
-    'Unit Test',
-    'Periodic Assessment (PT)',
-    'Formative Assessment (FA)',
-    'Summative Assessment (SA)',
-    'Mid-Term Examination',
-    'Half-Yearly Examination',
-    'Pre-Board Examination',
-    'Annual / Final Examination',
-    'Practical & Laboratory Assessment',
-    'Internal / Continuous Evaluation'
-  ];
+  const assessmentTypes = assessmentTypesOptions && assessmentTypesOptions.length > 0
+    ? assessmentTypesOptions.filter(t => t !== "Other / Custom...")
+    : [
+        'Unit Test',
+        'Periodic Assessment (PT)',
+        'Formative Assessment (FA)',
+        'Summative Assessment (SA)',
+        'Mid-Term Examination',
+        'Half-Yearly Examination',
+        'Pre-Board Examination',
+        'Annual / Final Examination',
+        'Practical & Laboratory Assessment',
+        'Internal / Continuous Evaluation'
+      ];
 
-  const termCycles = [
-    'Mid Term 1',
-    'Mid Term 2',
-    'Half Yearly',
-    'Annual / Final'
-  ];
+  const termCycles = termCyclesOptions && termCyclesOptions.length > 0
+    ? termCyclesOptions.filter(t => t !== "Other / Custom...")
+    : [
+        'Mid Term 1',
+        'Mid Term 2',
+        'Half Yearly',
+        'Annual / Final'
+      ];
 
   const [isCustomType, setIsCustomType] = useState(() => {
     if (!examType) return false;

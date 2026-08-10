@@ -18,6 +18,7 @@ interface ExamScheduleTableProps {
   onUploadPaper: (id: string, subject: string) => void;
   onPreviewPaper: (subject: string, fileName: string, fileUrl: string) => void;
   subjects: SubjectItem[];
+  onApplyToAll?: (row: any) => void;
 }
 
 // Multi-Invigilator Searchable Selector with Clean Employee & Code
@@ -163,7 +164,8 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
   isEditing,
   teacherOptions,
   onUpdateRow,
-  subjects
+  subjects,
+  onApplyToAll
 }) => {
   const tableHeaderClass = "px-3.5 py-3 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] border-b border-r border-sky-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 tracking-wider whitespace-nowrap last:border-r-0";
   const tdClass = "px-3.5 py-3 border-r border-slate-100 dark:border-slate-800 last:border-r-0";
@@ -194,6 +196,7 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
             <th className={`${tableHeaderClass} min-w-[90px] text-center`}>Duration</th>
             <th className={`${tableHeaderClass} min-w-[110px] text-center`}>Room / Hall</th>
             <th className={`${tableHeaderClass} min-w-[200px] text-left`}>Invigilator Faculty</th>
+            {isEditing && <th className={`${tableHeaderClass} min-w-[120px] text-center`}>Actions</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -321,6 +324,18 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
                     </div>
                   )}
                 </td>
+                {isEditing && (
+                  <td className={`${tdClass} whitespace-nowrap text-center`}>
+                    <button
+                      type="button"
+                      onClick={() => onApplyToAll?.(row)}
+                      className="px-2 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950 text-slate-700 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 font-black text-[10px] transition cursor-pointer"
+                      title="Sync this row's scheduling details to all other sections of this class"
+                    >
+                      Sync Sections
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

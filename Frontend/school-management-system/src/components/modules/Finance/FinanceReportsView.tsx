@@ -43,7 +43,7 @@ const REPORTS_BY_CATEGORY: Record<ReportCategory, string[]> = {
 };
 
 export const FinanceReportsView: React.FC = () => {
-  const { feePayments, students, studentTransports, studentHostels, studentScholarships } = useData();
+  const { feePayments, students, studentTransports, studentHostels, studentScholarships, getStudentFeeOutstandingSummary } = useData();
 
   const [selectedCategory, setSelectedCategory] = useState<ReportCategory>('Collection Reports');
   const [selectedReport, setSelectedReport] = useState<string>('Daily Collection');
@@ -106,7 +106,7 @@ export const FinanceReportsView: React.FC = () => {
   const thisMonthStr = new Date().toISOString().substring(0, 7); // YYYY-MM
   const monthlyCollection = feePayments.filter(p => p.paymentDate && p.paymentDate.startsWith(thisMonthStr)).reduce((sum, p) => sum + p.amountPaid, 0);
 
-  const pendingFees = students.reduce((sum, s) => sum + (s.dueFee || 0), 0);
+  const pendingFees = students.reduce((sum, s) => sum + getStudentFeeOutstandingSummary(s.id).totalOutstanding, 0);
   const distinctPaidStudents = new Set(feePayments.map(p => p.studentId)).size;
   const totalScholarshipsAmount = studentScholarships.reduce((sum, s) => sum + (s.discountType === 'Percentage' ? 3750 : s.discountValue), 0);
   const totalDiscountsAmount = feePayments.reduce((sum, p) => sum + (p.discount || 0), 0);
@@ -143,10 +143,12 @@ export const FinanceReportsView: React.FC = () => {
         }));
         break;
       case 'Pending Fees':
-        result = students.filter(s => s.dueFee > 0).map(s => ({
+        result = students.map(s => ({ s, summary: getStudentFeeOutstandingSummary(s.id) })).filter(item => item.summary.totalOutstanding > 0).map(({ s, summary }) => ({
           studentName: `${s.firstName} ${s.lastName}`,
           classSection: `${s.className}-${s.section}`,
-          dueFee: s.dueFee
+          currentYearDue: summary.currentYearDue,
+          previousYearsDue: summary.previousYearsDue,
+          totalOutstanding: summary.totalOutstanding
         }));
         break;
       default:

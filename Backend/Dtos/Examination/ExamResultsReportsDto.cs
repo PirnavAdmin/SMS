@@ -36,9 +36,12 @@ public class ReportCardPrintDetailDto
     public string ClassName { get; set; } = string.Empty;
     public string SectionName { get; set; } = string.Empty;
     public string AcademicYear { get; set; } = "2026-27";
+    public decimal TotalMarksObtained { get; set; }
+    public decimal TotalMaxMarks { get; set; } = 600;
     public int Rank { get; set; }
     public decimal Percentage { get; set; }
     public string Grade { get; set; } = "A+";
+    public string ResultStatus { get; set; } = "Pass";
     public string OverallResult { get; set; } = "Pass";
     public List<SubjectMarksConfigItemDto> SubjectScores { get; set; } = new List<SubjectMarksConfigItemDto>();
 }

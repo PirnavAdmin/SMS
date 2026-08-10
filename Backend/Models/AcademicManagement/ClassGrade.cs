@@ -25,6 +25,7 @@ public class ClassGrade
 
 	public System.DateTime? UpdatedAt { get; set; }
 
+
 	// Navigation properties
 	public ICollection<ClassSection> Sections { get; set; } = new List<ClassSection>();
 	public ICollection<ClassSubjectMapping> SubjectMappings { get; set; } = new List<ClassSubjectMapping>();

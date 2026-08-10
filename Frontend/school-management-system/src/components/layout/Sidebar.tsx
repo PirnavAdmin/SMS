@@ -1,16 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
-  LayoutDashboard, Users, UserCheck, GraduationCap, IndianRupee,
-  CalendarCheck, BookOpen, Clock, Award, FileText, Library,
-  Bus, Home, Package, Megaphone, Calendar, BarChart3, ShieldCheck,
-  Settings, ChevronRight, School, Shirt, Layers, Tag, UserPlus,
-  Gift, Percent, AlertTriangle, Route, Bed, Receipt, RotateCcw,
-  FileSpreadsheet, SlidersHorizontal, ChevronDown, Building2, Presentation,
-  Link2, TrendingUp
-} from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useData } from '../../context/DataContext';
-import { hasModuleAccess } from '../../utils/rbac';
+  LayoutDashboard,
+  Users,
+  UserCheck,
+  GraduationCap,
+  IndianRupee,
+  CalendarCheck,
+  BookOpen,
+  Clock,
+  Award,
+  FileText,
+  Library,
+  Bus,
+  Home,
+  Package,
+  Megaphone,
+  Calendar,
+  BarChart3,
+  ShieldCheck,
+  Settings,
+  ChevronRight,
+  School,
+  Shirt,
+  Layers,
+  Tag,
+  UserPlus,
+  Gift,
+  Percent,
+  AlertTriangle,
+  Route,
+  Bed,
+  Receipt,
+  RotateCcw,
+  FileSpreadsheet,
+  SlidersHorizontal,
+  ChevronDown,
+  Building2,
+  Presentation,
+  Link2,
+  TrendingUp,
+} from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useData } from "../../context/DataContext";
+import { hasModuleAccess } from "../../utils/rbac";
 
 interface SidebarProps {
   activeModule: string;
@@ -23,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeModule,
   setActiveModule,
   collapsed,
-  setCollapsed
+  setCollapsed,
 }) => {
   const { role, user } = useAuth();
   const { schoolProfile, admissions, students } = useData();
@@ -31,29 +63,55 @@ export const Sidebar: React.FC<SidebarProps> = ({
   let isHosteller = false;
   let usesTransport = false;
 
-  if (role.toLowerCase() !== 'student' && role.toLowerCase() !== 'parent') {
+  if (role.toLowerCase() !== "student" && role.toLowerCase() !== "parent") {
     isHosteller = true;
     usesTransport = true;
   } else {
-    const parentWards = students.filter(s => 
-      s.status === 'Active' && 
-      (
-        role === 'Student' ? s.id === user?.id : 
-        (s.guardianEmail === user?.email || s.guardianPhone === user?.email || s.contactEmail === user?.email || s.contactPhone === user?.email)
-      )
+    const parentWards = students.filter(
+      (s) =>
+        s.status === "Active" &&
+        (role === "Student"
+          ? s.id === user?.id
+          : s.guardianEmail === user?.email ||
+            s.guardianPhone === user?.email ||
+            s.contactEmail === user?.email ||
+            s.contactPhone === user?.email),
     );
     if (parentWards.length > 0) {
-       isHosteller = parentWards.some(w => w.studentType === 'Hosteller' || w.studentType === 'Residential');
-       usesTransport = parentWards.some(w => w.transportRequired || w.busRoute || w.transportType || w.routeId);
+      isHosteller = parentWards.some(
+        (w) => w.studentType === "Hosteller" || w.studentType === "Residential",
+      );
+      usesTransport = parentWards.some(
+        (w) =>
+          w.transportRequired || w.busRoute || w.transportType || w.routeId,
+      );
     }
   }
 
-  const isFinanceActive = activeModule.startsWith('finance-') || activeModule === 'fees' || activeModule.startsWith('parent-fee-');
-  const isHostelActive = activeModule.startsWith('hostel-') || activeModule === 'hostel' || activeModule.startsWith('parent-hostel-');
-  const isTransportActive = activeModule.startsWith('transport-') || activeModule === 'transport' || activeModule.startsWith('parent-bus-') || activeModule.startsWith('parent-transport-');
-  const isUniformActive = activeModule.startsWith('uniform-') || activeModule === 'uniforms';
-  const isStaffActive = activeModule.startsWith('staff-') || activeModule === 'staff' || activeModule.startsWith('parent-teacher-');
-  const isAcademicsActive = activeModule.startsWith('academic-') || activeModule === 'academics' || activeModule === 'subjects' || activeModule === 'timetable';
+  const isFinanceActive =
+    activeModule.startsWith("finance-") ||
+    activeModule === "fees" ||
+    activeModule.startsWith("parent-fee-");
+  const isHostelActive =
+    activeModule.startsWith("hostel-") ||
+    activeModule === "hostel" ||
+    activeModule.startsWith("parent-hostel-");
+  const isTransportActive =
+    activeModule.startsWith("transport-") ||
+    activeModule === "transport" ||
+    activeModule.startsWith("parent-bus-") ||
+    activeModule.startsWith("parent-transport-");
+  const isUniformActive =
+    activeModule.startsWith("uniform-") || activeModule === "uniforms";
+  const isStaffActive =
+    activeModule.startsWith("staff-") ||
+    activeModule === "staff" ||
+    activeModule.startsWith("parent-teacher-");
+  const isAcademicsActive =
+    activeModule.startsWith("academic-") ||
+    activeModule === "academics" ||
+    activeModule === "subjects" ||
+    activeModule === "timetable";
 
   const [financeExpanded, setFinanceExpanded] = useState(isFinanceActive);
   const [hostelExpanded, setHostelExpanded] = useState(isHostelActive);
@@ -62,195 +120,380 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [staffExpanded, setStaffExpanded] = useState(isStaffActive);
   const [academicsExpanded, setAcademicsExpanded] = useState(isAcademicsActive);
 
-  const [lastActiveGroup, setLastActiveGroup] = useState<'finance' | 'hostel' | 'transport' | 'uniform' | 'staff' | 'academics' | 'other'>(
-    isFinanceActive ? 'finance' : isHostelActive ? 'hostel' : isTransportActive ? 'transport' : isUniformActive ? 'uniform' : isStaffActive ? 'staff' : isAcademicsActive ? 'academics' : 'other'
+  const [lastActiveGroup, setLastActiveGroup] = useState<
+    | "finance"
+    | "hostel"
+    | "transport"
+    | "uniform"
+    | "staff"
+    | "academics"
+    | "other"
+  >(
+    isFinanceActive
+      ? "finance"
+      : isHostelActive
+        ? "hostel"
+        : isTransportActive
+          ? "transport"
+          : isUniformActive
+            ? "uniform"
+            : isStaffActive
+              ? "staff"
+              : isAcademicsActive
+                ? "academics"
+                : "other",
   );
 
   React.useEffect(() => {
-    if (isFinanceActive && lastActiveGroup !== 'finance') {
+    if (isFinanceActive && lastActiveGroup !== "finance") {
       setFinanceExpanded(true);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup('finance');
-    } else if (isHostelActive && lastActiveGroup !== 'hostel') {
+      setLastActiveGroup("finance");
+    } else if (isHostelActive && lastActiveGroup !== "hostel") {
       setHostelExpanded(true);
       setFinanceExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup('hostel');
-    } else if (isTransportActive && lastActiveGroup !== 'transport') {
+      setLastActiveGroup("hostel");
+    } else if (isTransportActive && lastActiveGroup !== "transport") {
       setTransportExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup('transport');
-    } else if (isUniformActive && lastActiveGroup !== 'uniform') {
+      setLastActiveGroup("transport");
+    } else if (isUniformActive && lastActiveGroup !== "uniform") {
       setUniformExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup('uniform');
-    } else if (isStaffActive && lastActiveGroup !== 'staff') {
+      setLastActiveGroup("uniform");
+    } else if (isStaffActive && lastActiveGroup !== "staff") {
       setStaffExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup('staff');
-    } else if (isAcademicsActive && lastActiveGroup !== 'academics') {
+      setLastActiveGroup("staff");
+    } else if (isAcademicsActive && lastActiveGroup !== "academics") {
       setAcademicsExpanded(true);
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
-      setLastActiveGroup('academics');
-    } else if (!isFinanceActive && !isHostelActive && !isTransportActive && !isUniformActive && !isStaffActive && !isAcademicsActive) {
+      setLastActiveGroup("academics");
+    } else if (
+      !isFinanceActive &&
+      !isHostelActive &&
+      !isTransportActive &&
+      !isUniformActive &&
+      !isStaffActive &&
+      !isAcademicsActive
+    ) {
       setFinanceExpanded(false);
       setHostelExpanded(false);
       setTransportExpanded(false);
       setUniformExpanded(false);
       setStaffExpanded(false);
       setAcademicsExpanded(false);
-      setLastActiveGroup('other');
+      setLastActiveGroup("other");
     }
-  }, [activeModule, isFinanceActive, isHostelActive, isTransportActive, isUniformActive, isStaffActive, isAcademicsActive, lastActiveGroup]);
+  }, [
+    activeModule,
+    isFinanceActive,
+    isHostelActive,
+    isTransportActive,
+    isUniformActive,
+    isStaffActive,
+    isAcademicsActive,
+    lastActiveGroup,
+  ]);
 
-  const pendingAdmissions = admissions.filter(a => a.status === 'Pending').length;
+  const pendingAdmissions = admissions.filter(
+    (a) => a.status === "Pending",
+  ).length;
 
-  const financeSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'finance-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'finance-fee-collection', label: 'Fee Collection', icon: IndianRupee },
-    { id: 'finance-masters', label: 'Finance Setup', icon: SlidersHorizontal },
-    { id: 'finance-transactions', label: 'Transactions (Master Ledger)', icon: FileSpreadsheet },
-    { id: 'finance-reports', label: 'Finance Reports', icon: FileSpreadsheet },
-  ];
+  const financeSubItems =
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+      ? []
+      : [
+          {
+            id: "finance-dashboard",
+            label: "Dashboard",
+            icon: LayoutDashboard,
+          },
+          {
+            id: "finance-fee-collection",
+            label: "Fee Collection",
+            icon: IndianRupee,
+          },
+          {
+            id: "finance-masters",
+            label: "Finance Setup",
+            icon: SlidersHorizontal,
+          },
+          {
+            id: "finance-transactions",
+            label: "Transactions (Master Ledger)",
+            icon: FileSpreadsheet,
+          },
+          {
+            id: "finance-reports",
+            label: "Finance Reports",
+            icon: FileSpreadsheet,
+          },
+        ];
 
-  const hostelSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'hostel-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'hostel-masters', label: 'Hostel Master Setup', icon: Building2 },
-    { id: 'hostel-student-hostel', label: 'Room Allocation', icon: UserPlus },
-    { id: 'hostel-reports', label: 'Hostel Reports', icon: FileSpreadsheet },
-  ];
+  const hostelSubItems =
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+      ? []
+      : [
+          { id: "hostel-dashboard", label: "Dashboard", icon: LayoutDashboard },
+          {
+            id: "hostel-masters",
+            label: "Hostel Master Setup",
+            icon: Building2,
+          },
+          {
+            id: "hostel-student-hostel",
+            label: "Room Allocation",
+            icon: UserPlus,
+          },
+          {
+            id: "hostel-reports",
+            label: "Hostel Reports",
+            icon: FileSpreadsheet,
+          },
+        ];
 
-  const transportSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'transport-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'transport-setup', label: 'Route & Vehicle Setup', icon: Route },
-    { id: 'transport-operations', label: 'Transport Operations', icon: Layers },
-    { id: 'transport-reports', label: 'Reports', icon: FileSpreadsheet },
-  ];
+  const transportSubItems =
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+      ? []
+      : [
+          {
+            id: "transport-dashboard",
+            label: "Dashboard",
+            icon: LayoutDashboard,
+          },
+          {
+            id: "transport-setup",
+            label: "Route & Vehicle Setup",
+            icon: Route,
+          },
+          {
+            id: "transport-operations",
+            label: "Transport Operations",
+            icon: Layers,
+          },
+          { id: "transport-reports", label: "Reports", icon: FileSpreadsheet },
+        ];
 
   const uniformSubItems = [
-    { id: 'uniform-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'uniform-masters', label: 'Uniform Configuration', icon: Shirt },
-    { id: 'uniform-student-uniform', label: 'Student Uniform Distribution', icon: UserPlus },
-    { id: 'uniform-reports', label: 'Uniform Reports', icon: FileSpreadsheet },
+    { id: "uniform-dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "uniform-masters", label: "Uniform Configuration", icon: Shirt },
+    {
+      id: "uniform-student-uniform",
+      label: "Student Uniform Distribution",
+      icon: UserPlus,
+    },
+    { id: "uniform-reports", label: "Uniform Reports", icon: FileSpreadsheet },
   ];
 
-  const staffSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'staff-directory', label: 'Staff Directory', icon: Users },
-    { id: 'staff-attendance', label: 'Staff Attendance', icon: CalendarCheck },
-    { id: 'staff-leave', label: 'Leave Management', icon: FileText },
-    { id: 'staff-payroll', label: 'Payroll', icon: IndianRupee },
-  ];
+  const staffSubItems =
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+      ? []
+      : [
+          { id: "staff-directory", label: "Staff Directory", icon: Users },
+          {
+            id: "staff-attendance",
+            label: "Staff Attendance",
+            icon: CalendarCheck,
+          },
+          { id: "staff-leave", label: "Leave Management", icon: FileText },
+          { id: "staff-payroll", label: "Payroll", icon: IndianRupee },
+        ];
 
-  const academicSubItems = (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? [] : [
-    { id: 'academic-dashboard', label: 'Dashboard', icon: School },
-    { id: 'academic-class', label: 'Class Management', icon: Presentation },
-    { id: 'subjects', label: 'Subject Management', icon: BookOpen },
-    { id: 'timetable', label: 'Time Table', icon: Clock },
-  ];
+  const academicSubItems =
+    role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+      ? []
+      : [
+          { id: "academic-dashboard", label: "Dashboard", icon: School },
+          {
+            id: "academic-class",
+            label: "Class Management",
+            icon: Presentation,
+          },
+          { id: "subjects", label: "Subject Management", icon: BookOpen },
+          { id: "timetable", label: "Time Table", icon: Clock },
+        ];
 
-  const transportSetupModules = ['transport-setup', 'transport-masters', 'transport-route-management', 'transport-pickup-points', 'transport-vehicle-management', 'transport-driver-management', 'transport-bus-attendants', 'transport-routes', 'transport-pickups', 'transport-vehicles', 'transport-drivers', 'transport-attendants'];
-  const transportOperationsModules = ['transport-operations', 'transport-vehicle-assignment', 'transport-trip-scheduling', 'transport-student-transport-assignment', 'transport-gps-tracking', 'transport-maintenance', 'transport-trips', 'transport-student-assignment', 'transport-assignment', 'transport-vehicle-trips', 'transport-gps', 'transport-vehicle-maintenance'];
-  const transportReportModules = ['transport-reports', 'transport-dashboard-report', 'transport-trip-reports', 'transport-vehicle-reports', 'transport-driver-reports', 'transport-route-reports', 'transport-student-transport-reports', 'transport-maintenance-reports'];
+  const transportSetupModules = [
+    "transport-setup",
+    "transport-masters",
+    "transport-route-management",
+    "transport-pickup-points",
+    "transport-vehicle-management",
+    "transport-driver-management",
+    "transport-bus-attendants",
+    "transport-routes",
+    "transport-pickups",
+    "transport-vehicles",
+    "transport-drivers",
+    "transport-attendants",
+  ];
+  const transportOperationsModules = [
+    "transport-operations",
+    "transport-vehicle-assignment",
+    "transport-trip-scheduling",
+    "transport-student-transport-assignment",
+    "transport-gps-tracking",
+    "transport-maintenance",
+    "transport-trips",
+    "transport-student-assignment",
+    "transport-assignment",
+    "transport-vehicle-trips",
+    "transport-gps",
+    "transport-vehicle-maintenance",
+  ];
+  const transportReportModules = [
+    "transport-reports",
+    "transport-dashboard-report",
+    "transport-trip-reports",
+    "transport-vehicle-reports",
+    "transport-driver-reports",
+    "transport-route-reports",
+    "transport-student-transport-reports",
+    "transport-maintenance-reports",
+  ];
 
   const menuGroups = [
     {
-      title: 'Core Operations',
+      title: "Core Operations",
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'staff', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff', icon: Users },
-      ]
+        { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+        {
+          id: "staff",
+          label:
+            role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+              ? "Teachers"
+              : "Faculty & Staff",
+          icon: Users,
+        },
+      ],
     },
     {
-      title: 'Student Management',
+      title: "Student Management",
       items: [
-        { id: 'admissions', label: 'Admissions', icon: GraduationCap },
-        { id: 'students', label: 'Student Directory', icon: UserCheck },
-        { id: 'attendance', label: 'Student Attendance', icon: CalendarCheck },
-        { id: 'student-promotion', label: 'Student Promotion', icon: TrendingUp },
-        { id: 'transfer-certificates', label: 'Transfer Certificates', icon: FileText },
-        { id: 'alumni', label: 'Alumni', icon: Award },
-      ]
+        { id: "admissions", label: "Admissions", icon: GraduationCap },
+        { id: "students", label: "Student Directory", icon: UserCheck },
+        { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
+        {
+          id: "student-promotion",
+          label: "Student Promotion",
+          icon: TrendingUp,
+        },
+        {
+          id: "transfer-certificates",
+          label: "Transfer Certificates",
+          icon: FileText,
+        },
+        { id: "alumni", label: "Alumni", icon: Award },
+      ],
     },
     {
-      title: 'Academics',
+      title: "Academics",
       items: [
-        { id: 'academics', label: 'Class Management', icon: Presentation },
-        { id: 'subjects', label: 'Subject Management', icon: BookOpen },
-        { id: 'timetable', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Timetable' : 'Time Table', icon: Clock },
-        { id: 'examination', label: (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Report Cards' : 'Examinations', icon: Award },
-        { id: 'homework', label: 'Homework', icon: FileText },
-      ]
+        { id: "academics", label: "Class Management", icon: Presentation },
+        { id: "subjects", label: "Subject Management", icon: BookOpen },
+        {
+          id: "timetable",
+          label:
+            role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+              ? "Timetable"
+              : "Time Table",
+          icon: Clock,
+        },
+        {
+          id: "examination",
+          label:
+            role.toLowerCase() === "parent" || role.toLowerCase() === "student"
+              ? "Report Cards"
+              : "Examinations",
+          icon: Award,
+        },
+        { id: "homework", label: "Homework", icon: FileText },
+      ],
     },
     {
-      title: 'Finance & Logistics',
+      title: "Finance & Logistics",
       isFinanceSection: true,
       items: [
-        { id: 'library', label: 'Library', icon: Library },
-        { id: 'inventory', label: 'Inventory', icon: Package },
-      ]
+        { id: "library", label: "Library", icon: Library },
+        { id: "inventory", label: "Inventory", icon: Package },
+      ],
     },
     {
-      title: 'School Administration',
+      title: "School Administration",
       items: [
-        { id: 'communication', label: 'Communication Hub', icon: Megaphone },
-        { id: 'events', label: 'Events & Holidays', icon: Calendar },
-        { id: 'training', label: 'Faculty Training', icon: GraduationCap },
-        { id: 'reports', label: 'School Reports', icon: BarChart3 },
-        { id: 'users', label: 'Roles', icon: ShieldCheck },
-        { id: 'settings', label: 'Settings', icon: Settings },
-      ]
-    }
-  ].map(group => ({
-    ...group,
-    items: group.items.filter(item => hasModuleAccess(role, item.id))
-  })).filter(group => group.items.length > 0 || group.isFinanceSection);
+        { id: "communication", label: "Communication Hub", icon: Megaphone },
+        { id: "events", label: "Events & Holidays", icon: Calendar },
+        { id: "training", label: "Faculty Training", icon: GraduationCap },
+        { id: "reports", label: "School Reports", icon: BarChart3 },
+        // { id: 'users', label: 'Roles', icon: ShieldCheck },
+        { id: "settings", label: "Settings", icon: Settings },
+      ],
+    },
+  ]
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => hasModuleAccess(role, item.id)),
+    }))
+    .filter((group) => group.items.length > 0 || group.isFinanceSection);
 
   // Handled above
 
   return (
     <aside
       className={`fixed top-0 left-0 bottom-0 z-40 bg-brand-50 dark:bg-brand-950 border-r border-slate-200/80 dark:border-slate-800 flex flex-col transition-all duration-300 ${
-        collapsed ? 'w-20' : 'w-64'
+        collapsed ? "w-20" : "w-64"
       }`}
     >
       {/* Brand Header */}
-      <div className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800`}>
+      <div
+        className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800`}
+      >
         {collapsed ? (
-          <div className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
-               onClick={() => setCollapsed(false)}>
-             <span className="text-[8px] font-black italic tracking-wider text-sky-700 dark:text-sky-500">PIRNAV</span>
+          <div
+            className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+            onClick={() => setCollapsed(false)}
+          >
+            <span className="text-[8px] font-black italic tracking-wider text-sky-700 dark:text-sky-500">
+              PIRNAV
+            </span>
           </div>
         ) : (
           <div className="flex items-center w-52 select-none cursor-pointer px-4 py-1.5 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50">
             <div className="flex flex-col items-center w-full">
               <div className="flex items-center gap-1.5">
                 <GraduationCap className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                <span className="text-xl font-black italic tracking-wider text-sky-700 dark:text-sky-500 leading-none">PIRNAV</span>
+                <span className="text-xl font-black italic tracking-wider text-sky-700 dark:text-sky-500 leading-none">
+                  PIRNAV
+                </span>
               </div>
-              <span className="text-[9px] font-bold tracking-widest text-sky-600/80 dark:text-sky-400/80 uppercase mt-0.5 whitespace-nowrap">Schools</span>
+              <span className="text-[9px] font-bold tracking-widest text-sky-600/80 dark:text-sky-400/80 uppercase mt-0.5 whitespace-nowrap">
+                Schools
+              </span>
             </div>
           </div>
         )}
@@ -259,14 +502,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Nav Menu */}
       <div className="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar">
         {menuGroups.map((group, idx) => {
-          const visibleItems = group.items.filter((item: any) => !item.roles || item.roles.includes(role || ''));
-
-          const hasCustomModules = group.isFinanceSection && (
-            hasModuleAccess(role, 'fees') || 
-            hasModuleAccess(role, 'hostel') || 
-            hasModuleAccess(role, 'transport') || 
-            hasModuleAccess(role, 'uniforms')
+          const visibleItems = group.items.filter(
+            (item: any) => !item.roles || item.roles.includes(role || ""),
           );
+
+          const hasCustomModules =
+            group.isFinanceSection &&
+            (hasModuleAccess(role, "fees") ||
+              hasModuleAccess(role, "hostel") ||
+              hasModuleAccess(role, "transport") ||
+              hasModuleAccess(role, "uniforms"));
 
           if (visibleItems.length === 0 && !hasCustomModules) return null;
 
@@ -280,13 +525,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {group.isFinanceSection && (
                 <>
-                  {hasModuleAccess(role, 'fees') && (
-                  <div className="space-y-1">
-                    <button
-                      onClick={() => {
-                        if (collapsed) {
-                          setCollapsed(false);
-                        }
+                  {hasModuleAccess(role, "fees") && (
+                    <div className="space-y-1">
+                      <button
+                        onClick={() => {
+                          if (collapsed) {
+                            setCollapsed(false);
+                          }
                           const newExpanded = !financeExpanded;
                           setFinanceExpanded(newExpanded);
                           if (newExpanded) {
@@ -295,62 +540,104 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setTransportExpanded(false);
                             setUniformExpanded(false);
                           }
-                        if (!isFinanceActive) {
-                          setActiveModule((role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'parent-fee-dues' : 'finance-dashboard');
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isFinanceActive ? (financeExpanded && financeSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <IndianRupee className={`w-4 h-4 shrink-0 ${isFinanceActive ? (financeExpanded && financeSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-sky-500'}`} />
-                        {!collapsed && <span className="font-bold">
-                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Fee Details' : 'Finance & Fees'}
-                          </span>}
-                      </div>
-                      {!collapsed && financeSubItems.length > 0 && (
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${financeExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
+                          if (!isFinanceActive) {
+                            setActiveModule(
+                              role.toLowerCase() === "parent" ||
+                                role.toLowerCase() === "student"
+                                ? "parent-fee-dues"
+                                : "finance-dashboard",
+                            );
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isFinanceActive
+                            ? financeExpanded &&
+                              financeSubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <IndianRupee
+                            className={`w-4 h-4 shrink-0 ${isFinanceActive ? (financeExpanded && financeSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-sky-500"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              {role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                                ? "Fee Details"
+                                : "Finance & Fees"}
+                            </span>
+                          )}
+                        </div>
+                        {!collapsed && financeSubItems.length > 0 && (
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${financeExpanded ? "rotate-180" : ""}`}
+                          />
+                        )}
+                      </button>
 
-                    {!collapsed && financeExpanded && (
-                      <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
-                        {financeSubItems.map(sub => {
-                          const SubIcon = sub.icon;
-                          const isSubActive = 
-                            activeModule === sub.id || 
-                            (sub.id === 'finance-dashboard' && activeModule === 'fees') ||
-                            (sub.id === 'finance-masters' && ['finance-fee-heads', 'finance-fee-structure', 'finance-student-fee-assignment', 'finance-scholarships', 'finance-discounts', 'finance-fine-rules', 'finance-transport-config', 'finance-student-transport', 'finance-hostel-config', 'finance-student-hostel', 'finance-refund-management', 'finance-settings'].includes(activeModule)) ||
-                            (sub.id === 'finance-fee-collection' && ['finance-fee-collection', 'finance-fee-receipts', 'finance-due-fees', 'fees'].includes(activeModule));
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => setActiveModule(sub.id)}
-                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                isSubActive
-                                  ? 'bg-sky-600 text-white font-bold'
-                                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
-                              }`}
-                            >
-                              <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                              <span className="truncate">{sub.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                      {!collapsed && financeExpanded && (
+                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                          {financeSubItems.map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive =
+                              activeModule === sub.id ||
+                              (sub.id === "finance-dashboard" &&
+                                activeModule === "fees") ||
+                              (sub.id === "finance-masters" &&
+                                [
+                                  "finance-fee-heads",
+                                  "finance-fee-structure",
+                                  "finance-student-fee-assignment",
+                                  "finance-scholarships",
+                                  "finance-discounts",
+                                  "finance-fine-rules",
+                                  "finance-transport-config",
+                                  "finance-student-transport",
+                                  "finance-hostel-config",
+                                  "finance-student-hostel",
+                                  "finance-refund-management",
+                                  "finance-settings",
+                                ].includes(activeModule)) ||
+                              (sub.id === "finance-fee-collection" &&
+                                [
+                                  "finance-fee-collection",
+                                  "finance-fee-receipts",
+                                  "finance-due-fees",
+                                  "fees",
+                                ].includes(activeModule));
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                }`}
+                              >
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                  {hasModuleAccess(role, 'hostel') && (
-                  <div className="space-y-1 pt-1">
-                    <button
-                      onClick={() => {
-                        if (collapsed) {
-                          setCollapsed(false);
-                        }
+                  {hasModuleAccess(role, "hostel") && (
+                    <div className="space-y-1 pt-1">
+                      <button
+                        onClick={() => {
+                          if (collapsed) {
+                            setCollapsed(false);
+                          }
                           const newExpanded = !hostelExpanded;
                           setHostelExpanded(newExpanded);
                           if (newExpanded) {
@@ -359,62 +646,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setTransportExpanded(false);
                             setUniformExpanded(false);
                           }
-                        if (!isHostelActive) {
-                          setActiveModule((role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'parent-hostel-details' : 'hostel-dashboard');
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isHostelActive ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <Home className={`w-4 h-4 shrink-0 ${isHostelActive ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-indigo-500'}`} />
-                        {!collapsed && <span className="font-bold">
-                            {(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Hostel' : 'Hostel Management'}
-                          </span>}
-                      </div>
-                      {!collapsed && hostelSubItems.length > 0 && (
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${hostelExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
+                          if (!isHostelActive) {
+                            setActiveModule(
+                              role.toLowerCase() === "parent" ||
+                                role.toLowerCase() === "student"
+                                ? "parent-hostel-details"
+                                : "hostel-dashboard",
+                            );
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isHostelActive
+                            ? hostelExpanded &&
+                              hostelSubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <Home
+                            className={`w-4 h-4 shrink-0 ${isHostelActive ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-indigo-500"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              {role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                                ? "Hostel"
+                                : "Hostel Management"}
+                            </span>
+                          )}
+                        </div>
+                        {!collapsed && hostelSubItems.length > 0 && (
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${hostelExpanded ? "rotate-180" : ""}`}
+                          />
+                        )}
+                      </button>
 
-                    {!collapsed && hostelExpanded && (
-                      <div className="pl-3 border-l-2 border-indigo-200 dark:border-indigo-900 ml-3 space-y-0.5 my-1">
-                        {hostelSubItems.map(sub => {
-                          const SubIcon = sub.icon;
-                          const isSubActive = 
-                            activeModule === sub.id || 
-                            (sub.id === 'hostel-dashboard' && activeModule === 'hostel') ||
-                            (sub.id === 'hostel-masters' && ['hostel-master', 'hostel-room-type', 'hostel-room-master'].includes(activeModule)) ||
-                            (sub.id === 'hostel-student-hostel' && ['hostel-student-hostel', 'hostel-student-assignment', 'hostel-attendance'].includes(activeModule));
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => setActiveModule(sub.id)}
-                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                isSubActive
-                                  ? 'bg-sky-600 text-white font-bold'
-                                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
-                              }`}
-                            >
-                              <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                              <span className="truncate">{sub.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                      {!collapsed && hostelExpanded && (
+                        <div className="pl-3 border-l-2 border-indigo-200 dark:border-indigo-900 ml-3 space-y-0.5 my-1">
+                          {hostelSubItems.map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive =
+                              activeModule === sub.id ||
+                              (sub.id === "hostel-dashboard" &&
+                                activeModule === "hostel") ||
+                              (sub.id === "hostel-masters" &&
+                                [
+                                  "hostel-master",
+                                  "hostel-room-type",
+                                  "hostel-room-master",
+                                ].includes(activeModule)) ||
+                              (sub.id === "hostel-student-hostel" &&
+                                [
+                                  "hostel-student-hostel",
+                                  "hostel-student-assignment",
+                                  "hostel-attendance",
+                                ].includes(activeModule));
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                }`}
+                              >
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                  {hasModuleAccess(role, 'transport') && (
-                  <div className="space-y-1 pt-1">
-                    <button
-                      onClick={() => {
-                        if (collapsed) {
-                          setCollapsed(false);
-                        }
+                  {hasModuleAccess(role, "transport") && (
+                    <div className="space-y-1 pt-1">
+                      <button
+                        onClick={() => {
+                          if (collapsed) {
+                            setCollapsed(false);
+                          }
                           const newExpanded = !transportExpanded;
                           setTransportExpanded(newExpanded);
                           if (newExpanded) {
@@ -423,64 +742,100 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setHostelExpanded(false);
                             setUniformExpanded(false);
                           }
-                        if (!isTransportActive) {
-                          if (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') {
-                            setActiveModule('parent-bus-info');
-                          } else {
-                            setActiveModule('transport-dashboard');
+                          if (!isTransportActive) {
+                            if (
+                              role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                            ) {
+                              setActiveModule("parent-bus-info");
+                            } else {
+                              setActiveModule("transport-dashboard");
+                            }
                           }
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isTransportActive ? (transportExpanded && transportSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <Bus className={`w-4 h-4 shrink-0 ${isTransportActive ? (transportExpanded && transportSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-slate-400'}`} />
-                        {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Transport' : 'Transport Management'}</span>}
-                      </div>
-                      {!collapsed && transportSubItems.length > 0 && (
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${transportExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isTransportActive
+                            ? transportExpanded &&
+                              transportSubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <Bus
+                            className={`w-4 h-4 shrink-0 ${isTransportActive ? (transportExpanded && transportSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-slate-400"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              {role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                                ? "Transport"
+                                : "Transport Management"}
+                            </span>
+                          )}
+                        </div>
+                        {!collapsed && transportSubItems.length > 0 && (
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${transportExpanded ? "rotate-180" : ""}`}
+                          />
+                        )}
+                      </button>
 
-                    {!collapsed && transportExpanded && (
-                      <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
-                        {transportSubItems.map(sub => {
-                          const SubIcon = sub.icon;
-                          const isSubActive =
-                            (sub.id === 'transport-dashboard' && ['transport-dashboard', 'transport'].includes(activeModule)) ||
-                            (sub.id === 'transport-setup' && (activeModule === 'transport-setup' || transportSetupModules.includes(activeModule))) ||
-                            (sub.id === 'transport-operations' && (activeModule === 'transport-operations' || transportOperationsModules.includes(activeModule))) ||
-                            (sub.id === 'transport-reports' && (activeModule === 'transport-reports' || transportReportModules.includes(activeModule)));
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => setActiveModule(sub.id)}
-                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                isSubActive
-                                  ? 'bg-sky-600 text-white font-bold'
-                                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
-                              }`}
-                            >
-                              <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                              <span className="truncate">{sub.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                      {!collapsed && transportExpanded && (
+                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                          {transportSubItems.map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive =
+                              (sub.id === "transport-dashboard" &&
+                                ["transport-dashboard", "transport"].includes(
+                                  activeModule,
+                                )) ||
+                              (sub.id === "transport-setup" &&
+                                (activeModule === "transport-setup" ||
+                                  transportSetupModules.includes(
+                                    activeModule,
+                                  ))) ||
+                              (sub.id === "transport-operations" &&
+                                (activeModule === "transport-operations" ||
+                                  transportOperationsModules.includes(
+                                    activeModule,
+                                  ))) ||
+                              (sub.id === "transport-reports" &&
+                                (activeModule === "transport-reports" ||
+                                  transportReportModules.includes(
+                                    activeModule,
+                                  )));
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                }`}
+                              >
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
 
-                  {hasModuleAccess(role, 'uniforms') && (
-                  <div className="space-y-1 pt-1">
-                    <button
-                      onClick={() => {
-                        if (collapsed) {
-                          setCollapsed(false);
-                        }
+                  {hasModuleAccess(role, "uniforms") && (
+                    <div className="space-y-1 pt-1">
+                      <button
+                        onClick={() => {
+                          if (collapsed) {
+                            setCollapsed(false);
+                          }
                           const newExpanded = !uniformExpanded;
                           setUniformExpanded(newExpanded);
                           if (newExpanded) {
@@ -489,61 +844,98 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setHostelExpanded(false);
                             setTransportExpanded(false);
                           }
-                        if (!isUniformActive) {
-                          setActiveModule('uniform-dashboard');
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                        isUniformActive ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate">
-                        <Shirt className={`w-4 h-4 shrink-0 ${isUniformActive ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-slate-400'}`} />
-                        {!collapsed && <span className="font-bold">Uniform Management</span>}
-                      </div>
-                      {!collapsed && (
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${uniformExpanded ? 'rotate-180' : ''}`} />
-                      )}
-                    </button>
+                          if (!isUniformActive) {
+                            setActiveModule("uniform-dashboard");
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
+                          isUniformActive
+                            ? uniformExpanded &&
+                              uniformSubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 truncate">
+                          <Shirt
+                            className={`w-4 h-4 shrink-0 ${isUniformActive ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-slate-400"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              Uniform Management
+                            </span>
+                          )}
+                        </div>
+                        {!collapsed && (
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${uniformExpanded ? "rotate-180" : ""}`}
+                          />
+                        )}
+                      </button>
 
-                    {!collapsed && uniformExpanded && (
-                      <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
-                        {uniformSubItems.map(sub => {
-                          const SubIcon = sub.icon;
-                          const isSubActive =
-                            activeModule === sub.id ||
-                            (sub.id === 'uniform-dashboard' && activeModule === 'uniforms') ||
-                            (sub.id === 'uniform-masters' && ['uniform-master', 'uniform-categories', 'uniform-sizes', 'uniform-suppliers', 'uniform-inventory'].includes(activeModule)) ||
-                            (sub.id === 'uniform-student-uniform' && ['uniform-student-uniform', 'uniform-issues'].includes(activeModule));
-                          return (
-                            <button
-                              key={sub.id}
-                              onClick={() => setActiveModule(sub.id)}
-                              className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                                isSubActive
-                                  ? 'bg-sky-600 text-white font-bold'
-                                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
-                              }`}
-                            >
-                              <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
-                              <span className="truncate">{sub.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                      {!collapsed && uniformExpanded && (
+                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                          {uniformSubItems.map((sub) => {
+                            const SubIcon = sub.icon;
+                            const isSubActive =
+                              activeModule === sub.id ||
+                              (sub.id === "uniform-dashboard" &&
+                                activeModule === "uniforms") ||
+                              (sub.id === "uniform-masters" &&
+                                [
+                                  "uniform-master",
+                                  "uniform-categories",
+                                  "uniform-sizes",
+                                  "uniform-suppliers",
+                                  "uniform-inventory",
+                                ].includes(activeModule)) ||
+                              (sub.id === "uniform-student-uniform" &&
+                                [
+                                  "uniform-student-uniform",
+                                  "uniform-issues",
+                                ].includes(activeModule));
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => setActiveModule(sub.id)}
+                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
+                                  isSubActive
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                }`}
+                              >
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
+                                <span className="truncate">{sub.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </>
               )}
 
-              {visibleItems.map(item => {
-                if ((item.id === 'subjects' || item.id === 'timetable') && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'principal')) {
+              {visibleItems.map((item) => {
+                if (
+                  (item.id === "subjects" || item.id === "timetable") &&
+                  (role.toLowerCase() === "admin" ||
+                    role.toLowerCase() === "super admin" ||
+                    role.toLowerCase() === "principal")
+                ) {
                   return null;
                 }
 
-                if (item.id === 'academics' && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'principal')) {
+                if (
+                  item.id === "academics" &&
+                  (role.toLowerCase() === "admin" ||
+                    role.toLowerCase() === "super admin" ||
+                    role.toLowerCase() === "principal")
+                ) {
                   return (
                     <div key={item.id} className="space-y-1">
                       <button
@@ -561,41 +953,57 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setStaffExpanded(false);
                           }
                           if (!isAcademicsActive) {
-                            setActiveModule('academic-dashboard');
+                            setActiveModule("academic-dashboard");
                           }
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                          isAcademicsActive ? (academicsExpanded && academicSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                          isAcademicsActive
+                            ? academicsExpanded &&
+                              academicSubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
-                          <Presentation className={`w-4 h-4 shrink-0 ${isAcademicsActive ? (academicsExpanded && academicSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-sky-500'}`} />
-                          {!collapsed && <span className="font-bold">Academic Management</span>}
+                          <Presentation
+                            className={`w-4 h-4 shrink-0 ${isAcademicsActive ? (academicsExpanded && academicSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-sky-500"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              Academic Management
+                            </span>
+                          )}
                         </div>
                         {!collapsed && academicSubItems.length > 0 && (
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${academicsExpanded ? 'rotate-180' : ''}`} />
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${academicsExpanded ? "rotate-180" : ""}`}
+                          />
                         )}
                       </button>
 
                       {!collapsed && academicsExpanded && (
                         <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
-                          {academicSubItems.map(sub => {
+                          {academicSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === 'academic-class' && activeModule === 'academics');
+                              (sub.id === "academic-class" &&
+                                activeModule === "academics");
                             return (
                               <button
                                 key={sub.id}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
-                                    ? 'bg-sky-600 text-white font-bold'
-                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
                                 }`}
                               >
-                                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
                                 <span className="truncate">{sub.label}</span>
                               </button>
                             );
@@ -606,7 +1014,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   );
                 }
 
-                if (item.id === 'staff' && hasModuleAccess(role, 'staff')) {
+                if (item.id === "staff" && hasModuleAccess(role, "staff")) {
                   return (
                     <div key={item.id} className="space-y-1">
                       <button
@@ -623,47 +1031,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setUniformExpanded(false);
                           }
                           if (!isStaffActive) {
-                            if (role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') {
-                              setActiveModule('parent-teacher-info');
+                            if (
+                              role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                            ) {
+                              setActiveModule("parent-teacher-info");
                             } else {
-                              setActiveModule('staff-teachers');
+                              setActiveModule("staff-teachers");
                             }
                           }
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
-                          isStaffActive ? (staffExpanded && staffSubItems.length > 0 && !collapsed) ? 'text-sky-700 dark:text-sky-400 font-bold' : 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                            : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                          isStaffActive
+                            ? staffExpanded &&
+                              staffSubItems.length > 0 &&
+                              !collapsed
+                              ? "text-sky-700 dark:text-sky-400 font-bold"
+                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
-                          <Users className={`w-4 h-4 shrink-0 ${isStaffActive ? (staffExpanded && staffSubItems.length > 0 && !collapsed ? 'text-sky-600 dark:text-sky-400' : 'text-white') : 'text-sky-500'}`} />
-                          {!collapsed && <span className="font-bold">{(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? 'Teachers' : 'Faculty & Staff'}</span>}
+                          <Users
+                            className={`w-4 h-4 shrink-0 ${isStaffActive ? (staffExpanded && staffSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-sky-500"}`}
+                          />
+                          {!collapsed && (
+                            <span className="font-bold">
+                              {role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                                ? "Teachers"
+                                : "Faculty & Staff"}
+                            </span>
+                          )}
                         </div>
                         {!collapsed && staffSubItems.length > 0 && (
-                          <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? 'rotate-180' : ''}`} />
+                          <ChevronDown
+                            className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? "rotate-180" : ""}`}
+                          />
                         )}
                       </button>
 
                       {!collapsed && staffExpanded && (
                         <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
-                          {staffSubItems.map(sub => {
+                          {staffSubItems.map((sub) => {
                             const SubIcon = sub.icon;
-                            const isPayroll = sub.id === 'staff-payroll';
+                            const isPayroll = sub.id === "staff-payroll";
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === 'staff-directory' && ['staff-add', 'staff-teachers', 'staff'].includes(activeModule)) ||
-                              (isPayroll && (activeModule === 'staff-payroll' || activeModule.startsWith('staff-payroll-')));
+                              (sub.id === "staff-directory" &&
+                                [
+                                  "staff-add",
+                                  "staff-teachers",
+                                  "staff",
+                                ].includes(activeModule)) ||
+                              (isPayroll &&
+                                (activeModule === "staff-payroll" ||
+                                  activeModule.startsWith("staff-payroll-")));
                             return (
                               <button
                                 key={sub.id}
                                 onClick={() => setActiveModule(sub.id)}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
                                   isSubActive
-                                    ? 'bg-sky-600 text-white font-bold'
-                                    : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200'
+                                    ? "bg-sky-600 text-white font-bold"
+                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
                                 }`}
                               >
-                                <SubIcon className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? 'text-white' : 'text-slate-400'}`} />
+                                <SubIcon
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                />
                                 <span className="truncate">{sub.label}</span>
                               </button>
                             );
@@ -675,7 +1111,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 }
 
                 const Icon = item.icon;
-                const isActive = activeModule === item.id || (item.id === 'admissions' && activeModule === 'admissions-add');
+                const isActive =
+                  activeModule === item.id ||
+                  (item.id === "admissions" &&
+                    activeModule === "admissions-add");
 
                 return (
                   <button
@@ -692,19 +1131,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     title={collapsed ? item.label : undefined}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-xs transition-all ${
                       isActive
-                        ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold'
-                        : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
+                        ? "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white"
                     }`}
                   >
                     <div className="flex items-center gap-3 truncate">
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
+                      <Icon
+                        className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"}`}
+                      />
+                      {!collapsed && (
+                        <span className="truncate">{item.label}</span>
+                      )}
                     </div>
 
                     {!collapsed && (item as any).badge && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                      }`}>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300"
+                        }`}
+                      >
                         {(item as any).badge}
                       </span>
                     )}

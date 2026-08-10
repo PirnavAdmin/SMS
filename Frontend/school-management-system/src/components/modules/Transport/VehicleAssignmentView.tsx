@@ -405,7 +405,7 @@ export const VehicleAssignmentView: React.FC = () => {
             onClick={openCreateModal}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Create Assignment
+            <Plus className="w-4 h-4" /> Add
           </button>
           <ExportButton data={filteredAssignments} filename="vehicle_assignments" />
         </div>
@@ -749,9 +749,7 @@ export const VehicleAssignmentView: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20"
                 >
-                  {modalMode === 'create' && 'Create Assignment'}
-                  {modalMode === 'edit' && 'Update Assignment'}
-                  {modalMode === 'reassign' && 'Reassign Vehicle'}
+                  Save
                 </button>
               </div>
             </form>

@@ -6,8 +6,13 @@ import { useToast } from '../../../context/ToastContext';
 import { StudentUniformIssue } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
+import { Pagination } from '../../common/Pagination';
 
-export const StudentUniformView: React.FC = () => {
+interface StudentUniformViewProps {
+  initialStatusFilter?: string;
+}
+
+export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialStatusFilter }) => {
   const { selectedAcademicYear } = useAuth();
   const {
     students,
@@ -19,7 +24,8 @@ export const StudentUniformView: React.FC = () => {
     deleteStudentUniformIssue,
     academicClasses,
     financeSettings,
-    uniformSizes = []
+    uniformSizes = [],
+    addFinanceTransaction
   } = useData();
 
   const { addToast } = useToast();
@@ -27,21 +33,49 @@ export const StudentUniformView: React.FC = () => {
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
+  const [filterStatus, setFilterStatus] = useState(initialStatusFilter || 'All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  React.useEffect(() => {
+    if (initialStatusFilter) {
+      setFilterStatus(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'Issue' | 'Replace' | 'Return'>('Issue');
   const [selectedIssue, setSelectedIssue] = useState<StudentUniformIssue | null>(null);
+  const [customMeasurement, setCustomMeasurement] = useState({
+    chest: '',
+    waist: '',
+    length: '',
+    shoulder: ''
+  });
 
   // Form states
   const [form, setForm] = useState({
     studentId: '',
     itemId: '',
     quantity: 1,
-    size: 'M',
+    size: '',
     type: 'Issue' as 'Issue' | 'Additional Purchase',
     notes: ''
   });
+
+  const getResolvedSize = () => {
+    if (form.size !== 'Others' && form.size !== 'Other') return form.size;
+    const parts = [];
+    if (customMeasurement.chest) parts.push(`Chest: ${customMeasurement.chest}"`);
+    if (customMeasurement.waist) parts.push(`Waist: ${customMeasurement.waist}"`);
+    if (customMeasurement.length) parts.push(`Length: ${customMeasurement.length}"`);
+    if (customMeasurement.shoulder) parts.push(`Shoulder: ${customMeasurement.shoulder}"`);
+    
+    if (parts.length > 0) {
+      return `Custom Tailored (${parts.join(', ')})`;
+    }
+    return 'Custom Tailored';
+  };
 
   const filteredIssues = studentUniformIssues.filter(i => {
     const matchQuery = i.studentName.toLowerCase().includes(query.toLowerCase()) ||
@@ -53,17 +87,19 @@ export const StudentUniformView: React.FC = () => {
     return matchQuery && matchClass && matchSection && matchStatus;
   });
 
+  const paginatedIssues = filteredIssues.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   const handleOpenIssue = () => {
     setSelectedIssue(null);
     setForm({
       studentId: '',
       itemId: '',
       quantity: 1,
-      size: 'S',
+      size: '',
       type: 'Issue',
       notes: ''
     });
-    setModalType('Issue');
+    setCustomMeasurement({ chest: '', waist: '', length: '', shoulder: '' });
     setIsModalOpen(true);
   };
 
@@ -75,18 +111,19 @@ export const StudentUniformView: React.FC = () => {
       quantity: issue.quantity,
       size: issue.size,
       type: 'Issue',
-      notes: 'Size Replacement'
+      notes: issue.notes || ''
     });
-    setModalType('Replace');
+    setCustomMeasurement({ chest: '', waist: '', length: '', shoulder: '' });
     setIsModalOpen(true);
   };
 
   const handleReturn = (issue: StudentUniformIssue) => {
     updateStudentUniformIssue(issue.id, {
       status: 'Returned',
-      returnDate: new Date().toISOString().split('T')[0]
+      returnDate: new Date().toISOString().split('T')[0],
+      notes: 'Returned by student'
     });
-    addToast('success', 'Uniform Returned', `${issue.studentName} returned 1x ${issue.itemName}. Stock replenished.`);
+    addToast('info', 'Uniform Returned', `Recorded item return for ${issue.itemName} (${issue.studentName}).`);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
@@ -102,6 +139,7 @@ export const StudentUniformView: React.FC = () => {
     if (!studentObj || !itemObj) return;
 
     const qty = Number(form.quantity) || 1;
+    const finalSize = getResolvedSize();
 
     // Check inventory stock
     const inv = uniformInventory.find(x => x.itemId === form.itemId || x.itemName.toLowerCase() === itemObj.category.toLowerCase());
@@ -122,7 +160,7 @@ export const StudentUniformView: React.FC = () => {
         section: studentObj.section || 'A',
         itemId: form.itemId,
         itemName: itemObj.category,
-        size: form.size,
+        size: finalSize,
         quantity: qty,
         issueDate: new Date().toISOString().split('T')[0],
         status: 'Issued',
@@ -131,18 +169,35 @@ export const StudentUniformView: React.FC = () => {
       });
 
       if (isAddPurchase) {
-        addToast('success', 'Sale Invoiced & Paid', `Generated Invoice for additional purchase (${qty}x ${itemObj.category}). Stock reduced by ${qty}.`);
+        if (addFinanceTransaction) {
+          addFinanceTransaction({
+            transactionId: `TXN-UNI-${Date.now().toString().slice(-6)}`,
+            date: new Date().toISOString().split('T')[0],
+            type: 'Income',
+            category: 'Uniform',
+            sourceModule: 'Uniform',
+            description: `Uniform Store Direct Sale - ${qty}x ${itemObj.category} (${studentObj.firstName} ${studentObj.lastName})`,
+            amount: (itemObj.price || 0) * qty,
+            paymentMode: 'Cash',
+            account: 'Main Bank Account',
+            status: 'Completed',
+            branch: studentObj.branch || 'Main Campus',
+            academicYear: selectedAcademicYear || financeSettings.academicYear || '2026-2027',
+            createdByName: 'Uniform Store Administrator'
+          });
+        }
+        addToast('success', 'Sale Invoiced & Paid', `Generated Invoice for additional purchase (${qty}x ${itemObj.category}). Reflected in Finance Ledger.`);
       } else {
         addToast('success', 'Uniform Item Issued', `Assigned ${qty}x ${itemObj.category} to ${studentObj.firstName}. Stock reduced by ${qty}.`);
       }
     } else if (modalType === 'Replace' && selectedIssue) {
       updateStudentUniformIssue(selectedIssue.id, {
         status: 'Replaced',
-        size: form.size,
+        size: finalSize,
         replacementDate: new Date().toISOString().split('T')[0],
-        notes: 'Replaced with size ' + form.size
+        notes: 'Replaced with size ' + finalSize
       });
-      addToast('success', 'Size Replaced', `Successfully completed item exchange to size ${form.size}.`);
+      addToast('success', 'Size Replaced', `Successfully completed item exchange to size ${finalSize}.`);
     }
 
     setIsModalOpen(false);
@@ -165,13 +220,13 @@ export const StudentUniformView: React.FC = () => {
           onClick={handleOpenIssue}
           className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all self-start sm:self-auto"
         >
-          <Plus className="w-4 h-4" /> Issue Uniform / Purchase
+          <Plus className="w-4 h-4" /> Add Uniform
         </button>
       </div>
 
       {/* Filters Bar */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-4 gap-3 shadow-sm">
-        <div className="relative col-span-1 sm:col-span-2">
+      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+        <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
           <input
             type="text"
@@ -182,25 +237,28 @@ export const StudentUniformView: React.FC = () => {
           />
         </div>
 
-        <select
-          value={filterClass}
-          onChange={e => setFilterClass(e.target.value)}
-          className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
-        >
-          <option value="All">Select Class (All)</option>
-          {academicClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-        </select>
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-start sm:justify-end">
+          <select
+            value={filterClass}
+            onChange={e => setFilterClass(e.target.value)}
+            className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer w-full sm:w-44"
+          >
+            <option value="All">Select Class</option>
+            <option value="All">All Classes</option>
+            {academicClasses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
 
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
-        >
-          <option value="All">Select Status (All)</option>
-          <option value="Issued">Issued</option>
-          <option value="Returned">Returned</option>
-          <option value="Replaced">Replaced</option>
-        </select>
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer w-full sm:w-44"
+          >
+            <option value="All">Select Status</option>
+            <option value="Issued">Issued</option>
+            <option value="Returned">Returned</option>
+            <option value="Replaced">Replaced</option>
+          </select>
+        </div>
       </div>
 
       {/* Results Table */}
@@ -226,7 +284,7 @@ export const StudentUniformView: React.FC = () => {
                   <td colSpan={9} className="py-8 text-center text-slate-400">No student uniform transactions logged.</td>
                 </tr>
               ) : (
-                filteredIssues.map(i => (
+                paginatedIssues.map(i => (
                   <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.studentName}</td>
                     <td className="py-3 px-4 font-mono">{i.admissionNo}</td>
@@ -256,11 +314,18 @@ export const StudentUniformView: React.FC = () => {
         </div>
       </div>
 
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filteredIssues.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
+
       {/* Modal dialog form */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in">
-          <div className="glass-card w-full max-w-md p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="glass-card w-full max-w-lg max-h-[85vh] flex flex-col p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl space-y-4 my-auto overflow-hidden">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                 <UserPlus className="w-5 h-5 text-sky-500" />
                 {modalType === 'Issue' ? 'Issue Uniform or Record Sale' : 'Replace Size'}
@@ -270,7 +335,7 @@ export const StudentUniformView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="space-y-4 text-xs overflow-y-auto pr-1 flex-1">
               {modalType === 'Issue' && (
                 <>
                   <div>
@@ -308,7 +373,7 @@ export const StudentUniformView: React.FC = () => {
                   value={form.itemId}
                   onChange={e => {
                     const ui = uniforms.find(x => x.id === e.target.value);
-                    setForm({ ...form, itemId: e.target.value, size: ui?.size || 'M' });
+                    setForm({ ...form, itemId: e.target.value, size: ui?.size || '' });
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer disabled:opacity-60"
                 >
@@ -327,12 +392,16 @@ export const StudentUniformView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Spec *</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Size Specification *</label>
                   <select
                     value={form.size || ''}
-                    onChange={e => setForm({ ...form, size: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setForm({ ...form, size: val });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
                   >
+                    <option value="">Select Size *</option>
                     <option value="S">S (Small)</option>
                     <option value="M">M (Medium)</option>
                     <option value="L">L (Large)</option>
@@ -345,8 +414,9 @@ export const StudentUniformView: React.FC = () => {
                     <option value="36">36</option>
                     <option value="38">38</option>
                     <option value="40">40</option>
+                    <option value="Others">Others</option>
                     {(uniformSizes || []).map(s => (
-                      !['S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '40'].includes(s.sizeName) && (
+                      !['S', 'M', 'L', 'XL', 'XXL', '28', '30', '32', '34', '36', '38', '40', 'Others', 'Other'].includes(s.sizeName) && (
                         <option key={s.id} value={s.sizeName}>{s.sizeName}</option>
                       )
                     ))}
@@ -369,6 +439,75 @@ export const StudentUniformView: React.FC = () => {
                   />
                 </div>
               </div>
+
+              {/* Custom Tailored Body Measurements Form */}
+              {(form.size === 'Others' || form.size === 'Other') && (
+                <div className="p-3.5 bg-sky-50/90 dark:bg-sky-950/50 rounded-2xl border border-sky-200 dark:border-sky-800 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-sky-200/70 dark:border-sky-800/70 pb-2">
+                    <label className="block font-extrabold text-[11px] text-sky-900 dark:text-sky-200 uppercase tracking-wider">
+                      Custom Tailored Body Measurements
+                    </label>
+                    <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-sky-600 text-white shadow-xs">
+                      Custom Tailored
+                    </span>
+                  </div>
+
+                  {/* Measurement grid: Chest, Waist, Length, Shoulder */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Chest / Bust (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 38"
+                        value={customMeasurement.chest}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, chest: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Waist (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 32"
+                        value={customMeasurement.waist}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, waist: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Length / Height (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 28"
+                        value={customMeasurement.length}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, length: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Shoulder Width (in)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 16"
+                        value={customMeasurement.shoulder}
+                        onChange={e => setCustomMeasurement({ ...customMeasurement, shoulder: e.target.value })}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none font-semibold focus:ring-2 focus:ring-sky-500/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Live stock & bill summary box */}
               {selectedUniformObj && (
@@ -401,7 +540,7 @@ export const StudentUniformView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Confirm</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-all">Save</button>
               </div>
             </form>
           </div>

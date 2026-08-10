@@ -117,7 +117,16 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       }
     }
 
-    return targetNames.map(name => {
+    // Deduplicate targetNames case-insensitively
+    const seen = new Set<string>();
+    const uniqueTargetNames = targetNames.filter(name => {
+      const lower = name.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
+
+    return uniqueTargetNames.map(name => {
       const matched = subjects.find(
         s => s.name.toLowerCase() === name.toLowerCase() || s.code?.toLowerCase() === name.toLowerCase()
       );

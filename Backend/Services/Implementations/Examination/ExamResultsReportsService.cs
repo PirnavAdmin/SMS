@@ -59,7 +59,7 @@ public class ExamResultsReportsService : IExamResultsReportsService
         return MapResponseDto(ordered);
     }
 
-    public async Task<CalculateResultsResponseDto> GetReportCardsListAsync(string className, string sectionName, string? search, string? statusFilter)
+    public async Task<List<StudentReportCardRowDto>> GetReportCardsListAsync(string className, string sectionName, string? search, string? statusFilter)
     {
         var results = await _repository.GetExamResultsAsync(className, sectionName);
 
@@ -76,7 +76,20 @@ public class ExamResultsReportsService : IExamResultsReportsService
             query = query.Where(r => r.ResultStatus.Equals(statusFilter, StringComparison.OrdinalIgnoreCase));
         }
 
-        return MapResponseDto(query.ToList());
+        return query.Select(r => new StudentReportCardRowDto
+        {
+            ResultId = r.ResultId,
+            StudentId = r.StudentId,
+            RollNo = r.RollNo,
+            StudentName = r.StudentName,
+            AdmissionNo = r.AdmissionNo,
+            TotalMarksObtained = r.TotalMarksObtained,
+            TotalMaxMarks = r.TotalMaxMarks,
+            Percentage = r.Percentage,
+            Grade = r.Grade,
+            Rank = r.Rank,
+            ResultStatus = r.ResultStatus
+        }).ToList();
     }
 
     public async Task<ReportCardPrintDetailDto?> GetPrintableReportCardAsync(int studentId, string? className, string? sectionName)
@@ -111,10 +124,13 @@ public class ExamResultsReportsService : IExamResultsReportsService
             AdmissionNo = studentResult.AdmissionNo,
             ClassName = studentResult.ClassName,
             SectionName = studentResult.SectionName,
+            TotalMarksObtained = studentResult.TotalMarksObtained,
+            TotalMaxMarks = studentResult.TotalMaxMarks,
             AcademicYear = "2026-27",
             Rank = studentResult.Rank,
             Percentage = studentResult.Percentage,
             Grade = studentResult.Grade,
+            ResultStatus = studentResult.ResultStatus,
             OverallResult = studentResult.ResultStatus,
             SubjectScores = sampleSubjects
         };

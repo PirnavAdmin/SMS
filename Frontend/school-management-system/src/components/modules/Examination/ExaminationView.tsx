@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Settings, 
   Calendar, 
@@ -10,7 +10,12 @@ import {
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { useExaminations } from './hooks/useExaminations';
+import { 
+  fetchExamOptionsApi, 
+  fetchExamByIdApi, 
+  saveExamDetailsApi,
+  fetchExamSubjectsApi
+} from '../../../api/examination';
 
 // Subcomponents
 import { ExamSetup } from './ExamSetup';
@@ -28,42 +33,158 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
   
-  // Custom examinations hook
-  const { exams, handleAddExam, handleUpdateExam, handleDeleteExam } = useExaminations();
+  // Dynamic API state
+  const [options, setOptions] = useState<any>(null);
+  const [exams, setExams] = useState<any[]>([]);
+  const [activeExam, setActiveExam] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
   // Selected state: Starts empty with clear prompt
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  const loadOptions = async (showProgress = true) => {
+    if (showProgress) setLoading(true);
+    try {
+      const response = await fetchExamOptionsApi();
+      if (response && response.success && response.data) {
+        setOptions(response.data);
+        const mapped = (response.data.existingExams || []).map((e: any) => ({
+          id: e.examId.toString(),
+          name: e.examName,
+          status: e.status || 'Draft',
+          displayText: e.displayText,
+          academicYear: selectedAcademicYear || '',
+          startDate: '',
+          endDate: '',
+          applicableClasses: []
+        }));
+        setExams(mapped);
+      } else {
+        addToast('error', 'Error Loading Options', response?.message || 'Failed to fetch examination options.');
+      }
+    } catch (err: any) {
+      addToast('error', 'API Connection Error', err.message || 'Could not connect to the examination API server.');
+    } finally {
+      if (showProgress) setLoading(false);
+    }
+  };
+
+  const loadExamDetails = async (id: string) => {
+    if (!id) {
+      setActiveExam(null);
+      return;
+    }
+    setLoadingDetails(true);
+    try {
+      const response = await fetchExamByIdApi(id);
+      if (response && response.success && response.data) {
+        const d = response.data;
+        const appClasses = d.applicableClasses || [];
+        
+        // Fetch in parallel for all applicable classes to build classWiseConfig
+        const classWise: Record<string, Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }>> = {};
+        const subjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
+        
+        const fetches = appClasses.map(async (cls: string) => {
+          try {
+            const res = await fetchExamSubjectsApi(id, cls);
+            if (res && res.success && res.data?.subjects) {
+              const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
+              res.data.subjects.forEach((s: any) => {
+                if (s.isActive) {
+                  const conf = { 
+                    maxMarks: s.maxMarks || 100, 
+                    passMarks: s.passMarks || 35,
+                    subjectCode: s.subjectCode,
+                    isActive: true
+                  };
+                  subMap[s.subjectName] = conf;
+                  subjectWise[s.subjectName] = conf;
+                }
+              });
+              classWise[cls] = subMap;
+            }
+          } catch (e) {
+            console.error(`Failed to load subjects for class ${cls}`, e);
+          }
+        });
+
+        await Promise.all(fetches);
+
+        setActiveExam({
+          id: d.examId.toString(),
+          name: d.examName,
+          examType: d.assessmentType,
+          term: d.academicTerm,
+          startDate: d.startDate,
+          endDate: d.endDate,
+          applicableClasses: appClasses,
+          status: d.status || 'Scheduled',
+          publishStatus: d.publishStatus || 'Draft',
+          marksConfig: {
+            maxMarks: 100,
+            passMarks: 35,
+            classWiseConfig: classWise,
+            subjectWiseConfig: subjectWise
+          }
+        });
+      } else {
+        addToast('error', 'Error Loading Exam Details', response?.message || 'Failed to fetch exam properties.');
+      }
+    } catch (err: any) {
+      addToast('error', 'API Error', err.message || 'Failed to load exam details.');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOptions();
+  }, []);
+
+  useEffect(() => {
+    if (selectedExamId) {
+      loadExamDetails(selectedExamId);
+    } else {
+      setActiveExam(null);
+    }
+  }, [selectedExamId]);
+
   const classOptions = useMemo(() => {
+    if (options?.availableClasses && options.availableClasses.length > 0) {
+      return options.availableClasses;
+    }
     return Array.from(new Set((academicClasses || []).map(c => c.name).filter(Boolean)));
-  }, [academicClasses]);
+  }, [options, academicClasses]);
 
-  const activeExam = exams.find(e => e.id === selectedExamId) || null;
-
-  const handleCreateNewExam = () => {
-    const id = handleAddExam({
-      name: '',
-      examType: '',
-      term: '',
-      academicYear: selectedAcademicYear || '',
-      branch: selectedBranch || '',
-      className: '',
-      applicableClasses: [],
-      startDate: '',
-      endDate: '',
-      status: 'Draft',
-      publishStatus: 'Draft',
-      marksConfig: {
-        maxMarks: 100,
-        passMarks: 35,
-        subjectWiseConfig: {}
-      } as any
-    } as any);
-    setSelectedExamId(id);
-    setActiveTab('setup');
-    addToast('info', 'New Examination Template', 'Created a new examination template. Please specify the name, assessment type, and target classes.');
+  const handleCreateNewExam = async () => {
+    setLoading(true);
+    try {
+      const payload = {
+        examName: 'New Examination',
+        assessmentType: options?.assessmentTypes?.[0] || 'Unit Test',
+        academicTerm: options?.academicTerms?.[0] || 'Mid Term 1',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        applicableClasses: []
+      };
+      const response = await saveExamDetailsApi(payload);
+      if (response && response.success && response.data) {
+        addToast('success', 'Exam Setup Initialized', 'Created a new examination template.');
+        await loadOptions(false);
+        setSelectedExamId(response.data.examId.toString());
+        setActiveTab('setup');
+      } else {
+        addToast('error', 'Creation Failed', response?.message || 'Failed to initialize new exam template.');
+      }
+    } catch (err: any) {
+      addToast('error', 'API Error', err.message || 'Failed to create new exam.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDeleteActiveExam = () => {
@@ -72,20 +193,41 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   };
 
   const confirmDeleteActiveExam = () => {
-    handleDeleteExam(selectedExamId);
+    // Since there is no backend DELETE endpoint, remove locally from list
+    setExams(prev => prev.filter(e => e.id !== selectedExamId));
     setSelectedExamId('');
     setShowDeleteConfirm(false);
-    addToast('info', 'Examination Removed', 'Successfully deleted the examination setup.');
+    addToast('info', 'Examination Removed', 'Successfully removed the examination setup.');
   };
 
-  const handleSaveSetup = (updatedFields: any, showToast = true) => {
-    if (!selectedExamId && !activeExam) return;
-    const targetId = selectedExamId || activeExam?.id;
-    if (targetId) {
-      handleUpdateExam(targetId, updatedFields);
-      if (showToast) {
-        addToast('success', 'Assessment Setup Saved', 'Updated general examination parameters.');
+  const handleSaveSetup = async (updatedFields: any, showToast = true) => {
+    try {
+      const payload = {
+        examId: selectedExamId ? Number(selectedExamId) : undefined,
+        examName: updatedFields.name || updatedFields.examName || activeExam?.name || 'Untitled Exam',
+        assessmentType: updatedFields.examType || updatedFields.assessmentType || activeExam?.examType || 'Unit Test',
+        academicTerm: updatedFields.term || updatedFields.academicTerm || activeExam?.term || 'Mid Term 1',
+        startDate: updatedFields.startDate || activeExam?.startDate || new Date().toISOString().split('T')[0],
+        endDate: updatedFields.endDate || activeExam?.endDate || new Date().toISOString().split('T')[0],
+        applicableClasses: updatedFields.applicableClasses || activeExam?.applicableClasses || []
+      };
+      
+      const response = await saveExamDetailsApi(payload);
+      if (response && response.success) {
+        if (showToast) {
+          addToast('success', 'Details Saved', response.message || 'Exam configuration saved successfully.');
+        }
+        await loadOptions(false);
+        if (response.data?.examId) {
+          const newId = response.data.examId.toString();
+          setSelectedExamId(newId);
+          await loadExamDetails(newId);
+        }
+      } else {
+        addToast('error', 'Save Failed', response?.message || 'Failed to save exam details.');
       }
+    } catch (err: any) {
+      addToast('error', 'API Error', err.message || 'Failed to save exam configuration.');
     }
   };
 
@@ -104,9 +246,6 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
     const validApp = app.filter(Boolean);
     if (validApp.length > 0) {
       return Array.from(new Set(validApp));
-    }
-    if (activeExam.className) {
-      return [activeExam.className];
     }
     return classOptions;
   }, [activeExam, classOptions]);
@@ -163,8 +302,14 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             selectedAcademicYear={selectedAcademicYear}
             selectedBranch={selectedBranch}
             onSaveSetup={handleSaveSetup}
-            onNavigateNext={() => setActiveTab('schedule')}
+            onNavigateNext={async () => {
+              if (selectedExamId) {
+                await loadExamDetails(selectedExamId);
+              }
+              setActiveTab('schedule');
+            }}
             addToast={addToast}
+            options={options}
           />
         )}
 

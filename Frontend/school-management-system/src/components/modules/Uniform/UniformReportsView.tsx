@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import { PrintDropdownMenu } from '../../common/PrintDropdownMenu';
+import { Pagination } from '../../common/Pagination';
 import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw, BarChart2, CheckCircle2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -87,7 +89,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
   // Instant real-time filtering (Only active filtered records are calculated)
   const filteredInventory = uniformInventory.filter(inv => {
-    if (reportType === 'Low Stock' && inv.currentStock > inv.minimumStock) return false;
+    if (reportType === 'Low Stock' && (inv.currentStock === 0 || inv.currentStock > inv.minimumStock)) return false;
     if (searchQuery.trim() !== '') {
       const q = searchQuery.toLowerCase();
       return inv.itemName.toLowerCase().includes(q) || inv.category.toLowerCase().includes(q) || inv.size.toLowerCase().includes(q);
@@ -122,6 +124,13 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     : ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType)
     ? filteredStudentIssues.length
     : filteredSuppliers.length;
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const paginatedInventory = filteredInventory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedStudentIssues = filteredStudentIssues.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // Download ONLY the active filtered records
   const handleDownload = () => {
@@ -162,13 +171,50 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     addToast('success', 'Download Complete', `Successfully downloaded ${recordCount} filtered record(s).`);
   };
 
+  const reportExportData = React.useMemo(() => {
+    if (['Current Stock', 'Low Stock'].includes(reportType)) {
+      return filteredInventory.map(i => ({
+        'Item Name': i.itemName,
+        'Category': i.category,
+        'Size': i.size,
+        'Opening Stock': i.openingStock,
+        'Current Stock': i.currentStock,
+        'Min Stock': i.minimumStock,
+        'Reorder Level': i.reorderLevel,
+        'Status': i.status
+      }));
+    } else if (['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType)) {
+      return filteredStudentIssues.map(i => ({
+        'Student Name': i.studentName,
+        'Admission No': i.admissionNo,
+        'Class': i.className,
+        'Uniform Item': i.itemName,
+        'Size': i.size,
+        'Quantity': i.quantity,
+        'Issue Date': i.issueDate,
+        'Status': i.status,
+        'Remarks': i.notes || ''
+      }));
+    } else {
+      return filteredSuppliers.map(s => ({
+        'Supplier Name': s.supplierName,
+        'Contact Person': s.contactPerson,
+        'Mobile': s.mobile,
+        'Email': s.email || '',
+        'GSTIN': s.gstNumber || '',
+        'Address': s.address,
+        'Status': s.status
+      }));
+    }
+  }, [reportType, filteredInventory, filteredStudentIssues, filteredSuppliers]);
+
   return (
     <div id="printable-content" className="space-y-6 animate-in fade-in">
       {/* Official Printable Document Header (Only visible in Print preview) */}
       <div className="hidden print:block pb-4 mb-4 border-b-2 border-slate-900 text-slate-900">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-black uppercase tracking-tight">Official Uniform Report & Inventory Audit</h1>
+            <h1 className="text-xl font-black uppercase tracking-tight">Uniform Report & Inventory Audit</h1>
             <p className="text-xs font-bold text-slate-700 mt-0.5">
               Report Category: <span className="underline font-black">{reportType}</span> | Academic Session: 2026-2027
             </p>
@@ -190,53 +236,20 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.print()}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer"
-          >
-            <Printer className="w-4 h-4" /> Print
-          </button>
-          <button
-            onClick={handleDownload}
-            className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-sky-500/20 hover:shadow-sky-500/30 transition-all cursor-pointer"
-          >
-            <Download className="w-4 h-4" /> Download Filtered Report
-          </button>
+          <PrintDropdownMenu
+            title={`Uniform Report - ${reportType}`}
+            data={reportExportData}
+            filename={`Uniform_${reportType.replace(/\s+/g, '_')}`}
+          />
         </div>
       </div>
 
       {/* Side-by-Side Filter Bar */}
-      <div className="glass-card p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4 print:hidden">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full items-end">
+      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3 print:hidden">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 w-full">
           
-          {/* Select Report Type */}
-          <div>
-            <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Select Report Type *</label>
-            <select
-              value={reportType}
-              onChange={e => setReportType(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20 transition-all"
-            >
-              <optgroup label="Inventory Reports">
-                <option value="Current Stock">Current Stock Registry</option>
-                <option value="Low Stock">Low Stock Alerts</option>
-              </optgroup>
-              <optgroup label="Student Reports">
-                <option value="Uniform Issue Report">Uniform Issue Report</option>
-                <option value="Student Uniform History">Student Uniform History</option>
-                <option value="Replacement Report">Replacement Exchange Report</option>
-              </optgroup>
-              <optgroup label="Supplier Reports">
-                <option value="Supplier Purchase Report">Supplier Directory</option>
-              </optgroup>
-              <optgroup label="Sales Reports">
-                <option value="Additional Uniform Sales">Additional Uniform Sales</option>
-              </optgroup>
-            </select>
-          </div>
-
-          {/* Side-by-side Search Box */}
-          <div>
+          {/* Search Box on the far LEFT - Dynamic width based on visible fields */}
+          <div className={`w-full transition-all duration-200 ${(!showClass && !showSupplier) ? 'flex-1 max-w-md sm:max-w-lg md:max-w-xl' : 'w-full sm:w-64 md:w-72 lg:w-80'}`}>
             <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Search Details</label>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
@@ -245,44 +258,75 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                 placeholder="Search student, item, admission no..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 transition-all"
+                className="w-full pl-10 pr-3 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 transition-all font-medium"
               />
             </div>
           </div>
 
-          {/* Dynamic Class Filter side-by-side */}
-          {showClass && (
-            <div>
-              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Target Class</label>
+          {/* Filter Controls Grouped on the far RIGHT */}
+          <div className="flex flex-wrap items-end gap-3 w-full sm:w-auto justify-start sm:justify-end">
+            
+            {/* Select Report Type */}
+            <div className="w-full sm:w-60 md:w-64">
+              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Select Report Type *</label>
               <select
-                value={filterClass}
-                onChange={e => setFilterClass(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                value={reportType}
+                onChange={e => setReportType(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20 transition-all"
               >
-                <option value="All">Select Class (All)</option>
-                {academicClasses.map(c => (
-                  <option key={c.name} value={c.name}>{c.name}</option>
-                ))}
+                <optgroup label="Inventory Reports">
+                  <option value="Current Stock">Current Stock Registry</option>
+                  <option value="Low Stock">Low Stock Alerts</option>
+                </optgroup>
+                <optgroup label="Student Reports">
+                  <option value="Uniform Issue Report">Uniform Issue Report</option>
+                  <option value="Student Uniform History">Student Uniform History</option>
+                  <option value="Replacement Report">Replacement Exchange Report</option>
+                </optgroup>
+                <optgroup label="Supplier Reports">
+                  <option value="Supplier Purchase Report">Supplier Directory</option>
+                </optgroup>
+                <optgroup label="Sales Reports">
+                  <option value="Additional Uniform Sales">Additional Uniform Sales</option>
+                </optgroup>
               </select>
             </div>
-          )}
 
-          {/* Dynamic Supplier Filter side-by-side */}
-          {showSupplier && (
-            <div>
-              <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Supplier Partner</label>
-              <select
-                value={filterSupplier}
-                onChange={e => setFilterSupplier(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
-              >
-                <option value="All">Select Supplier (All)</option>
-                {uniformSuppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.supplierName}</option>
-                ))}
-              </select>
-            </div>
-          )}
+            {/* Dynamic Class Filter */}
+            {showClass && (
+              <div className="w-full sm:w-48">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Target Class</label>
+                <select
+                  value={filterClass}
+                  onChange={e => setFilterClass(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                >
+                  <option value="All">Select Class</option>
+                  <option value="All">All Classes</option>
+                  {academicClasses.map(c => (
+                    <option key={c.name} value={c.name}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Dynamic Supplier Filter */}
+            {showSupplier && (
+              <div className="w-full sm:w-48">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Supplier Partner</label>
+                <select
+                  value={filterSupplier}
+                  onChange={e => setFilterSupplier(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                >
+                  <option value="All">Select Supplier (All)</option>
+                  {uniformSuppliers.map(s => (
+                    <option key={s.id} value={s.id}>{s.supplierName}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Premium Styled Date Range Filter Pill Bar */}
@@ -442,7 +486,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     </tr>
                   )
                 ) : (
-                  filteredInventory.map(i => (
+                  paginatedInventory.map(i => (
                     <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.itemName}</td>
                       <td className="py-3 px-4 text-slate-500">{i.category}</td>
@@ -466,7 +510,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     <td colSpan={9} className="py-8 text-center text-slate-400">No student transactions match active filters.</td>
                   </tr>
                 ) : (
-                  filteredStudentIssues.map(i => (
+                  paginatedStudentIssues.map(i => (
                     <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.studentName}</td>
                       <td className="py-3 px-4 font-mono">{i.admissionNo}</td>
@@ -492,7 +536,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     <td colSpan={7} className="py-8 text-center text-slate-400">No supplier partners match active filters.</td>
                   </tr>
                 ) : (
-                  filteredSuppliers.map(s => (
+                  paginatedSuppliers.map(s => (
                     <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{s.supplierName}</td>
                       <td className="py-3 px-4 font-semibold">{s.contactPerson}</td>
@@ -511,6 +555,13 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
           </table>
         </div>
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={recordCount}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
     </div>
   );
 };

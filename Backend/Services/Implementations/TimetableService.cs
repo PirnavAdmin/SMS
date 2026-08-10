@@ -249,12 +249,27 @@ public class TimetableService : ITimetableService
             var assignedStaff = await _timetableRepository.GetAssignedTeacherForSubjectAsync(dto.ClassId, dto.SectionId, dto.SubjectId);
             if (assignedStaff == null)
             {
-                // Fallback to first active teacher in department
-                assignedStaff = await _context.Staff
-                    .Where(s => s.IsActive == true && s.Department != null && s.Department.ToLower() == subject.DepartmentId.ToString())
-                    .FirstOrDefaultAsync()
-                    ?? await _context.Staff.FirstOrDefaultAsync(s => s.IsActive == true)
-                    ?? throw new BadRequestException($"No assigned teacher found for subject '{subject.SubjectName}'. Please assign a teacher to this class subject.");
+                // BUG-017 FIX: load subject with its Department so we can compare by name, not int ID
+                var subjectWithDept = await _context.Subjects
+                    .Include(s => s.Department)
+                    .FirstOrDefaultAsync(s => s.SubjectId == dto.SubjectId);
+
+                if (subjectWithDept?.Department != null)
+                {
+                    var deptName = subjectWithDept.Department.DepartmentName.ToLower();
+                    assignedStaff = await _context.Staff
+                        .Where(s => s.IsActive == true && s.Department != null &&
+                                    s.Department.ToLower() == deptName)
+                        .FirstOrDefaultAsync();
+                }
+
+                // Final fallback: any active staff — only if no dept match found
+                if (assignedStaff == null)
+                {
+                    throw new BadRequestException(
+                        $"No assigned teacher found for subject '{subject.SubjectName}'. " +
+                        "Please assign a teacher to this class subject before saving a timetable slot.");
+                }
             }
             teacherId = assignedStaff.StaffId;
         }
@@ -470,18 +485,11 @@ public class TimetableService : ITimetableService
                     RoomNo = s.RoomNo
                 }).ToList();
 
-            // Provide default schedule if no custom slots configured for the day
+            // BUG-005 FIX: Return empty list instead of hardcoded fake schedule data
+            // Previously showed dummy names like "Jonathan Miller", "Robert Chen" in production
             if (!daySlots.Any())
             {
-                daySlots = new List<TimetableSlotDto>
-                {
-                    new TimetableSlotDto { SlotId = 1, PeriodName = "Period 1", DayOfWeek = day, StartTime = "08:30 AM", EndTime = "09:15 AM", SubjectId = 1, SubjectName = "Mathematics", SubjectCode = "mat-101", TeacherName = "Jonathan Miller" },
-                    new TimetableSlotDto { SlotId = 2, PeriodName = "Period 2", DayOfWeek = day, StartTime = "09:15 AM", EndTime = "10:00 AM", SubjectId = 2, SubjectName = "Physics", SubjectCode = "phy-102", TeacherName = "Robert Chen" },
-                    new TimetableSlotDto { SlotId = 3, PeriodName = "Period 3", DayOfWeek = day, StartTime = "10:15 AM", EndTime = "11:00 AM", SubjectId = 3, SubjectName = "English Literature", SubjectCode = "eng-103", TeacherName = "Sarah Jenkins" },
-                    new TimetableSlotDto { SlotId = 4, PeriodName = "Period 4", DayOfWeek = day, StartTime = "11:00 AM", EndTime = "11:45 AM", SubjectId = 4, SubjectName = "Chemistry", SubjectCode = "che-104", TeacherName = "Michael Chang" },
-                    new TimetableSlotDto { SlotId = 5, PeriodName = "Period 5", DayOfWeek = day, StartTime = "12:30 PM", EndTime = "01:15 PM", SubjectId = 5, SubjectName = "Computer Science", SubjectCode = "cs-105", TeacherName = "Anita Patel" },
-                    new TimetableSlotDto { SlotId = 6, PeriodName = "Period 6", DayOfWeek = day, StartTime = "01:15 PM", EndTime = "02:00 PM", SubjectId = 6, SubjectName = "Physical Education", SubjectCode = "pe-106", TeacherName = "David Miller" },
-                };
+                daySlots = new List<TimetableSlotDto>(); // No slots configured — return empty, not fake data
             }
 
             daySchedules.Add(new DayScheduleDto

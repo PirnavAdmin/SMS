@@ -1,3 +1,5 @@
+using System.Linq;
+
 namespace SMS.Api.Repositories.Implementations;
 
 using Microsoft.EntityFrameworkCore;
@@ -88,7 +90,7 @@ public class TeacherStudentAttendanceRepository
             select new AttendanceDropdownDto
             {
                 Id = classGrade.ClassId,
-                Name = classGrade.ClassName
+                Name = classGrade.ClassName ?? ""
             })
             .Distinct()
             .OrderBy(x => x.Name)
@@ -212,12 +214,14 @@ public class TeacherStudentAttendanceRepository
             })
             .ToListAsync();
 
+
+
         Dictionary<int, StudentAttendance> existing = session == null
             ? new Dictionary<int, StudentAttendance>()
             : await _context.StudentAttendances
                 .AsNoTracking()
-                .Where(x => x.AttendanceSessionId == session.AttendanceSessionId)
-                .ToDictionaryAsync(x => x.StudentId);
+                .Where(x => x.AttendanceSessionId == session.AttendanceSessionId && x.StudentId.HasValue)
+                .ToDictionaryAsync(x => x.StudentId!.Value);
 
         string branchName = await _context.Branches
             .Where(x => x.BranchId == query.BranchId)
@@ -229,7 +233,7 @@ public class TeacherStudentAttendanceRepository
             .SingleAsync();
         string className = await _context.Classes
             .Where(x => x.ClassId == query.ClassId)
-            .Select(x => x.ClassName)
+            .Select(x => x.ClassName ?? "")
             .SingleAsync();
         string sectionName = await _context.ClassSections
             .Where(x => x.SectionId == query.SectionId && x.ClassId == query.ClassId)
@@ -351,9 +355,8 @@ public class TeacherStudentAttendanceRepository
         }
 
         Dictionary<int, StudentAttendance> existing = await _context.StudentAttendances
-            .Where(x => x.AttendanceSessionId == session.AttendanceSessionId
-                        && requestedStudentIds.Contains(x.StudentId))
-            .ToDictionaryAsync(x => x.StudentId);
+            .Where(x => x.AttendanceSessionId == session.AttendanceSessionId && requestedStudentIds.Contains(x.StudentId ?? -1))
+            .ToDictionaryAsync(x => x.StudentId ?? -1);
 
         int inserted = 0;
         int updated = 0;

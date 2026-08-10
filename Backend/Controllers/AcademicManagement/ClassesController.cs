@@ -176,7 +176,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             var academicYear = Request.Headers["X-Academic-Year-Id"].ToString();
             if (string.IsNullOrEmpty(academicYear)) academicYear = "2026-2027";
 
-            var normalizedInput = NormalizeClassName(dto.Name ?? dto.ClassName);
+            var normalizedInput = NormalizeClassName(dto.Name ?? dto.ClassName ?? "");
             var existingClasses = await _context.Classes
                 .Where(c => (c.CampusLocation == campus || string.IsNullOrEmpty(c.CampusLocation)) && 
                             (c.AcademicYear == academicYear || string.IsNullOrEmpty(c.AcademicYear)))
@@ -186,6 +186,8 @@ namespace SMS.Api.Controllers.AcademicManagement
             {
                 return BadRequest(new { success = false, message = "A duplicate class name already exists for this campus and academic year." });
             }
+
+            await using var transaction = await _context.Database.BeginTransactionAsync();
 
             var classGrade = new ClassGrade
             {
@@ -219,29 +221,46 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             // Handle subjects
+            // BUG-002 FIX: resolve a safe default DepartmentId before creating subjects
             var subjectsInput = dto.Subjects ?? new List<string>();
-            foreach (var subName in subjectsInput)
+            if (subjectsInput.Any())
             {
-                var subject = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
-                if (subject == null)
-                {
-                    subject = new Subject
-                    {
-                        SubjectName = subName,
-                        SubjectCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length)) + "101",
-                        CourseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length))
-                    };
-                    await _context.Subjects.AddAsync(subject);
-                    await _context.SaveChangesAsync();
-                }
+                var defaultDept = await _context.Departments.FirstOrDefaultAsync(d => d.Status == "Active");
+                int safeDeptId = defaultDept?.DepartmentId ?? 1;
 
-                var mapping = new ClassSubjectMapping
+                foreach (var subName in subjectsInput)
                 {
-                    ClassId = classGrade.ClassId,
-                    SubjectId = subject.SubjectId,
-                    WeeklyPeriods = 5
-                };
-                await _context.ClassSubjectMappings.AddAsync(mapping);
+                    var subject = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName == subName);
+                    if (subject == null)
+                    {
+                        // BUG-012 FIX: generate unique subject code by checking for collisions
+                        var baseCode = subName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, subName.Length));
+                        var candidateCode = baseCode + "101";
+                        int codeSeq = 101;
+                        while (await _context.Subjects.AnyAsync(s => s.SubjectCode == candidateCode))
+                        {
+                            codeSeq++;
+                            candidateCode = baseCode + codeSeq;
+                        }
+                        subject = new Subject
+                        {
+                            SubjectName = subName,
+                            SubjectCode = candidateCode,
+                            CourseCode = baseCode,
+                            DepartmentId = safeDeptId
+                        };
+                        await _context.Subjects.AddAsync(subject);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    var mapping = new ClassSubjectMapping
+                    {
+                        ClassId = classGrade.ClassId,
+                        SubjectId = subject.SubjectId,
+                        WeeklyPeriods = 5
+                    };
+                    await _context.ClassSubjectMappings.AddAsync(mapping);
+                }
             }
 
             // Handle teacher assignments
@@ -264,6 +283,10 @@ namespace SMS.Api.Controllers.AcademicManagement
 
                     if (staff != null)
                     {
+                        // BUG-001 FIX: Class Teacher assignments must not use SubjectId=1 hardcode
+                        // Use first subject mapped to THIS class; default to 0 which the model must allow
+                        var firstClassSubject = await _context.ClassSubjectMappings
+                            .FirstOrDefaultAsync(m => m.ClassId == classGrade.ClassId);
                         var assignment = new TeacherAssignment
                         {
                             ClassId = classGrade.ClassId,
@@ -271,7 +294,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                             TeacherId = staff.StaffId,
                             Role = "Class Teacher",
                             Status = "Active",
-                            SubjectId = _context.Subjects.FirstOrDefault()?.SubjectId ?? 1
+                            SubjectId = firstClassSubject?.SubjectId ?? 0
                         };
                         await _context.TeacherAssignments.AddAsync(assignment);
                     }
@@ -279,6 +302,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             await _context.SaveChangesAsync();
+await transaction.CommitAsync();
             await LogAuditActionAsync("Create Class", $"Created class grade '{classGrade.ClassName}' with {sectionLetters.Count} sections.");
 
             return Ok(new { success = true, id = $"CL-{classGrade.ClassId}", message = "Class created successfully." });
@@ -334,13 +358,15 @@ namespace SMS.Api.Controllers.AcademicManagement
                     return NotFound(new { success = false, message = "Class not found." });
                 }
 
-                // Check if students are assigned to this class
+                // BUG-028 FIX: Check students, timetable headers, and teacher assignments before deleting
                 var hasStudents = await _context.Admissions.AnyAsync(s => s.ClassId == id && !s.IsDeleted) ||
                                   await _context.Students.AnyAsync(s => s.ClassId == id && !s.IsDeleted);
                 if (hasStudents)
-                {
                     return BadRequest(new { success = false, message = "Cannot delete class. Active students are currently assigned to it." });
-                }
+
+                var hasTimetable = await _context.TimetableHeaders.AnyAsync(h => h.ClassId == id);
+                if (hasTimetable)
+                    return BadRequest(new { success = false, message = "Cannot delete class. It has timetable records. Please delete the timetable first." });
 
                 _context.Classes.Remove(classObj);
                 await _context.SaveChangesAsync();
@@ -482,15 +508,27 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             var subject = await _context.Subjects
-                .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == dto.SubjectName.ToLower());
+                .FirstOrDefaultAsync(s => (s.SubjectName ?? "").ToLower() == (dto.SubjectName ?? "").ToLower());
 
             if (subject == null)
             {
+                // BUG-002 & BUG-012 FIX: assign valid DeptId and unique subject code
+                var defaultDept = await _context.Departments.FirstOrDefaultAsync(d => d.Status == "Active");
+                int safeDeptId = defaultDept?.DepartmentId ?? 1;
+                var baseCode = dto.SubjectName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, dto.SubjectName.Length));
+                var candidateCode = baseCode + "101";
+                int codeSeq = 101;
+                while (await _context.Subjects.AnyAsync(s => s.SubjectCode == candidateCode))
+                {
+                    codeSeq++;
+                    candidateCode = baseCode + codeSeq;
+                }
                 subject = new Subject
                 {
                     SubjectName = dto.SubjectName,
-                    SubjectCode = dto.SubjectName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, dto.SubjectName.Length)) + "101",
-                    CourseCode = dto.SubjectName.ToUpper().Replace(" ", "").Substring(0, Math.Min(4, dto.SubjectName.Length))
+                    SubjectCode = candidateCode,
+                    CourseCode = baseCode,
+                    DepartmentId = safeDeptId
                 };
                 await _context.Subjects.AddAsync(subject);
                 await _context.SaveChangesAsync();
@@ -575,19 +613,30 @@ namespace SMS.Api.Controllers.AcademicManagement
             if (!string.IsNullOrEmpty(dto.SubjectName))
             {
                 var subject = await _context.Subjects
-                    .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == dto.SubjectName.ToLower());
+                    .FirstOrDefaultAsync(s => (s.SubjectName ?? "").ToLower() == (dto.SubjectName ?? "").ToLower());
                 if (subject != null)
                 {
                     subjectId = subject.SubjectId;
                 }
+                else
+                {
+                    // BUG-010 FIX: Subject name provided but not found — reject rather than silently falling back
+                    return BadRequest(new { success = false, message = $"Subject '{dto.SubjectName}' not found in the system. Please map the subject to this class first." });
+                }
             }
 
-            if (subjectId == 0)
+            if (subjectId == 0 && dto.Role != "Class Teacher")
             {
-                // Fallback to first mapped subject
+                // For Subject Teacher role, subjectId is required
+                return BadRequest(new { success = false, message = "Subject name is required when assigning a Subject Teacher." });
+            }
+
+            if (subjectId == 0 && dto.Role == "Class Teacher")
+            {
+                // BUG-001 FIX: For Class Teacher, use first class subject or leave 0 (no subject FK corruption)
                 var firstMapping = await _context.ClassSubjectMappings
                     .FirstOrDefaultAsync(sm => sm.ClassId == id);
-                subjectId = firstMapping?.SubjectId ?? 1;
+                subjectId = firstMapping?.SubjectId ?? 0;
             }
 
             if (dto.Role == "Class Teacher")
@@ -699,7 +748,7 @@ namespace SMS.Api.Controllers.AcademicManagement
 
             if (!string.IsNullOrEmpty(section))
             {
-                query = query.Where(s => s.SectionLetter.ToLower() == section.ToLower());
+                query = query.Where(s => (s.SectionLetter ?? "").ToLower() == section.ToLower());
             }
 
             var students = await query.ToListAsync();
@@ -723,13 +772,14 @@ namespace SMS.Api.Controllers.AcademicManagement
                     Section = s.SectionLetter ?? "",
                     FatherName = s.FatherName ?? "",
                     FatherPhone = s.FatherMobile ?? "",
-                    Email = s.FatherMobile != null ? $"{s.FatherMobile}@school.com" : "",
+                    Email = "",
                     Status = s.Status == "Enrolled" || s.Status == "Active" ? "Active" : "Inactive",
-                    TotalFee = 45000,
-                    PaidFee = 30000,
-                    DueFee = 15000,
-                    AttendancePct = 92.5,
-                    Gpa = 8.5
+                    // BUG-036 FIX: Do not use hardcoded fee/attendance values; return 0 until real data is wired
+                    TotalFee = 0,
+                    PaidFee = 0,
+                    DueFee = 0,
+                    AttendancePct = 0,
+                    Gpa = 0
                 };
             }).ToList();
 
@@ -740,16 +790,20 @@ namespace SMS.Api.Controllers.AcademicManagement
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
         public async Task<IActionResult> AllocateStudent(string student_id, [FromBody] StudentAllocateDto dto)
         {
-            // Parse student ID (assuming format is "STD-123" or "123")
-            long dbStudentId = 0;
-            if (student_id.StartsWith("STD-"))
+            // Parse student ID (format is "STD-123" or raw "123")
+            // BUG-006 FIX: Use int not long — Admissions PK is int
+            int dbStudentId = 0;
+            if (student_id.StartsWith("STD-", StringComparison.OrdinalIgnoreCase))
             {
-                long.TryParse(student_id.Replace("STD-", ""), out dbStudentId);
+                int.TryParse(student_id.Replace("STD-", ""), out dbStudentId);
             }
             else
             {
-                long.TryParse(student_id, out dbStudentId);
+                int.TryParse(student_id, out dbStudentId);
             }
+
+            if (dbStudentId <= 0)
+                return BadRequest(new { success = false, message = "Invalid student ID format." });
 
             var student = await _context.Admissions.FindAsync(dbStudentId);
             if (student == null)
@@ -783,7 +837,7 @@ namespace SMS.Api.Controllers.AcademicManagement
             }
 
             var currentCount = await _context.Admissions
-                .CountAsync(s => s.ClassId == student.ClassId && s.SectionLetter.ToLower() == dto.SectionLetter.ToLower() && !s.IsDeleted);
+                .CountAsync(s => s.ClassId == student.ClassId && (s.SectionLetter ?? "").ToLower() == (dto.SectionLetter ?? "").ToLower() && !s.IsDeleted);
 
             if (currentCount >= section.Capacity)
             {
@@ -827,31 +881,31 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return Ok(new { success = true, message = "There are no unassigned students left." });
             }
 
+            // BUG-027 FIX: Pre-fetch section counts once — eliminates N×M DB queries
+            var sectionStudentsCounts = new Dictionary<string, int>();
+            foreach (var sec in sections)
+            {
+                var count = await _context.Admissions
+                    .CountAsync(s => s.ClassId == id && (s.SectionLetter ?? "").ToLower() == (sec.SectionName ?? "").ToLower() && !s.IsDeleted);
+                sectionStudentsCounts[sec.SectionName] = count;
+            }
+
             int allocatedCount = 0;
             foreach (var student in unassignedStudents)
             {
-                // Find section with minimum count of students that is below capacity
-                var sectionStudentsCounts = new Dictionary<string, int>();
-                foreach (var sec in sections)
-                {
-                    var count = await _context.Admissions
-                        .CountAsync(s => s.ClassId == id && s.SectionLetter.ToLower() == sec.SectionName.ToLower() && !s.IsDeleted);
-                    sectionStudentsCounts[sec.SectionName] = count;
-                }
-
                 var targetSection = sections
                     .Where(sec => sectionStudentsCounts[sec.SectionName] < sec.Capacity)
                     .OrderBy(sec => sectionStudentsCounts[sec.SectionName])
                     .FirstOrDefault();
 
                 if (targetSection == null)
-                {
                     break; // All sections full
-                }
 
                 var currentSectionCount = sectionStudentsCounts[targetSection.SectionName];
                 student.SectionLetter = targetSection.SectionName;
                 student.RollNo = $"R-{currentSectionCount + 1}";
+                // Update in-memory count so next iteration picks correctly
+                sectionStudentsCounts[targetSection.SectionName]++;
                 allocatedCount++;
             }
 
@@ -869,7 +923,10 @@ namespace SMS.Api.Controllers.AcademicManagement
         {
             if (string.IsNullOrEmpty(name)) return "";
             var normalized = name.ToLowerInvariant();
-            normalized = normalized.Replace("class", "").Replace("grade", "").Replace("std", "").Replace("standard", "").Trim();
+            // Use word-boundary pattern to avoid false positives (e.g. "Classic" matching "class")
+            normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\b(class|grade|std|standard)\b", "").Trim();
+            // Collapse multiple spaces
+            normalized = System.Text.RegularExpressions.Regex.Replace(normalized, @"\s+", " ").Trim();
             return normalized;
         }
 

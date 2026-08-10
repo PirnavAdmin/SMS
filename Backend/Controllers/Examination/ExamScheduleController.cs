@@ -113,8 +113,6 @@ public class ExamScheduleController : ControllerBase
         });
     }
 
-
-
     /// <summary>
     /// Get Schedule Preview across All Classes & Sections (Timetable Preview Mode - Screenshots 3, 4 & 5)
     /// </summary>

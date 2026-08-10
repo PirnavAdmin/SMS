@@ -9,6 +9,8 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { AcademicYearMaster, CertificateTemplateConfig } from '../../../types';
+import { PrintableCertificateContainer } from '../Certificates/PrintableCertificateContainer';
+import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
 
 export interface CampusItem {
   id: string;
@@ -120,7 +122,11 @@ export const defaultCertificateTemplates: CertificateTemplateConfig[] = [
 ];
 
 export const SettingsView: React.FC = () => {
-  const { schoolProfile, updateSchoolProfile, auditLogs, academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, setCurrentAcademicYear } = useData();
+  const { 
+    schoolProfile, updateSchoolProfile, auditLogs, 
+    academicYears, addAcademicYear, updateAcademicYear, deleteAcademicYear, setCurrentAcademicYear,
+    certificateTemplates: contextTemplates, updateCertificateTemplate: contextUpdateTemplate
+  } = useData();
   const { addToast } = useToast();
 
   const [profileForm, setProfileForm] = useState(schoolProfile);
@@ -131,11 +137,18 @@ export const SettingsView: React.FC = () => {
   const [isAYModalOpen, setIsAYModalOpen] = useState(false);
   const [editingAY, setEditingAY] = useState<AcademicYearMaster | null>(null);
   const [deletingAY, setDeletingAY] = useState<AcademicYearMaster | null>(null);
-  const [ayForm, setAyForm] = useState({
+  const [ayForm, setAyForm] = useState<{
+    academicYear: string;
+    startDate: string;
+    endDate: string;
+    status: 'Active' | 'Closed' | 'Upcoming';
+    description: string;
+    isCurrentAcademicYear: boolean;
+  }>({
     academicYear: '',
     startDate: '',
     endDate: '',
-    status: 'Upcoming' as 'Upcoming' | 'Active' | 'Closed',
+    status: 'Upcoming',
     description: '',
     isCurrentAcademicYear: false
   });
@@ -168,15 +181,28 @@ export const SettingsView: React.FC = () => {
   });
 
   // Certificate Template Configuration States
-  const [certificateTemplates, setCertificateTemplates] = useState<CertificateTemplateConfig[]>(() => {
-    const saved = localStorage.getItem('edu_db_certificate_templates');
-    return saved ? JSON.parse(saved) : defaultCertificateTemplates;
-  });
+  const certificateTemplates = useMemo(() => {
+    if (Array.isArray(contextTemplates) && contextTemplates.length > 0 && contextTemplates[0]?.certificateType && contextTemplates[0]?.title) {
+      return contextTemplates;
+    }
+    try {
+      const saved = localStorage.getItem('edu_db_certificate_templates');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0]?.certificateType && parsed[0]?.title) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return defaultCertificateTemplates;
+  }, [contextTemplates]);
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('TPL-TC');
 
   // Currently Selected Certificate Template
   const currentTemplate = useMemo(() => {
-    return certificateTemplates.find(t => t.id === selectedTemplateId) || certificateTemplates[0];
+    const found = certificateTemplates.find(t => t.id === selectedTemplateId);
+    return found || certificateTemplates[0] || defaultCertificateTemplates[0];
   }, [certificateTemplates, selectedTemplateId]);
 
   // Sync campuses to localStorage and trigger Header sync event
@@ -201,13 +227,15 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleUpdateTemplate = (updatedFields: Partial<CertificateTemplateConfig>) => {
-    const updated = certificateTemplates.map(t => t.id === selectedTemplateId ? { ...t, ...updatedFields } : t);
-    setCertificateTemplates(updated);
+    if (!currentTemplate) return;
+    if (contextUpdateTemplate) {
+      contextUpdateTemplate(currentTemplate.id, updatedFields);
+    }
   };
 
   const handleSaveCertificateTemplates = () => {
     localStorage.setItem('edu_db_certificate_templates', JSON.stringify(certificateTemplates));
-    addToast('success', 'Certificate Template Configured', `Saved layout and branding configurations for ${currentTemplate.certificateType}.`);
+    addToast('success', 'Certificate Template Configured', `Saved layout and branding configurations for ${currentTemplate?.certificateType || 'all certificates'}.`);
   };
 
   const handleOpenAddCampus = () => {
@@ -489,7 +517,6 @@ export const SettingsView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-indigo-600" /> Campus & Branch Master
               </h3>
-              <p className="text-xs text-slate-500">Configure multi-campus branches for global header selection</p>
             </div>
             <button
               onClick={handleOpenAddCampus}
@@ -561,7 +588,6 @@ export const SettingsView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-sky-600" /> Academic Year Master & Sessions
               </h3>
-              <p className="text-xs text-slate-500">Configure academic sessions, start/end dates, and set active academic year</p>
             </div>
             <button
               onClick={handleOpenAddAY}
@@ -589,8 +615,8 @@ export const SettingsView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                  <p>Start Date: <strong>{ay.startDate || 'N/A'}</strong></p>
-                  <p>End Date: <strong>{ay.endDate || 'N/A'}</strong></p>
+                  <p>Start Date: <strong>{formatDateDDMMYYYY(ay.startDate)}</strong></p>
+                  <p>End Date: <strong>{formatDateDDMMYYYY(ay.endDate)}</strong></p>
                   {ay.description && <p className="text-slate-400 text-[11px]">{ay.description}</p>}
                 </div>
 
@@ -640,7 +666,6 @@ export const SettingsView: React.FC = () => {
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Award className="w-4 h-4 text-amber-600" /> Certificate Template Designer & Configuration
               </h3>
-              <p className="text-xs text-slate-500">Configure layouts, titles, color themes, logos, seals, and signatories for all school certificates</p>
             </div>
 
             <button
@@ -660,9 +685,12 @@ export const SettingsView: React.FC = () => {
               <div className="space-y-2">
                 {certificateTemplates.map(tpl => {
                   const isSelected = tpl.id === selectedTemplateId;
+                  const certName = tpl.certificateType || tpl.title || 'Certificate Template';
+                  const certTitle = tpl.title || 'Official Certificate';
+                  const themeColor = tpl.themeColor || '#1e3a8a';
                   return (
                     <button
-                      key={tpl.id}
+                      key={tpl.id || Math.random().toString()}
                       onClick={() => setSelectedTemplateId(tpl.id)}
                       className={`w-full p-3.5 rounded-2xl text-left border transition-all flex items-center justify-between cursor-pointer ${
                         isSelected
@@ -673,11 +701,11 @@ export const SettingsView: React.FC = () => {
                       <div className="flex items-center gap-3">
                         <div
                           className="w-4 h-8 rounded-lg shrink-0"
-                          style={{ backgroundColor: tpl.themeColor }}
+                          style={{ backgroundColor: themeColor }}
                         />
                         <div>
-                          <p className="font-extrabold text-xs text-slate-900 dark:text-white">{tpl.certificateType}</p>
-                          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[180px]">{tpl.title}</p>
+                          <p className="font-extrabold text-xs text-slate-900 dark:text-white">{certName}</p>
+                          <p className="text-[10px] text-slate-400 font-medium truncate max-w-[180px]">{certTitle}</p>
                         </div>
                       </div>
 
@@ -814,62 +842,63 @@ export const SettingsView: React.FC = () => {
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white outline-none"
                     />
                   </div>
+
+                  {/* Custom Preamble */}
+                  <div className="sm:col-span-2">
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Custom Preamble Text</label>
+                    <textarea
+                      rows={2}
+                      value={currentTemplate.customPreamble || ''}
+                      placeholder="e.g. Certified that the student details listed below are verified from school admission registers..."
+                      onChange={e => handleUpdateTemplate({ customPreamble: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-900 dark:text-white text-xs outline-none"
+                    />
+                  </div>
+
+                  {/* Footer Disclaimer */}
+                  <div className="sm:col-span-2">
+                    <label className="block font-black uppercase tracking-wider text-[10px] text-slate-400 mb-1">Footer Disclaimer & Validity Statement</label>
+                    <textarea
+                      rows={2}
+                      value={currentTemplate.footerDisclaimer || ''}
+                      placeholder="e.g. Official Certificate issued in accordance with Education Code Rules..."
+                      onChange={e => handleUpdateTemplate({ footerDisclaimer: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-medium text-slate-900 dark:text-white text-xs outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Live Certificate Header Preview Box */}
+              {/* Live Certificate Header & Layout Preview Box */}
               <div className="space-y-2">
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">Live Certificate Header Preview</h4>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 px-1">Live Certificate Design Preview ({currentTemplate.headerStyle})</h4>
                 
-                <div
-                  className="p-6 rounded-2xl bg-white text-slate-900 border-4 space-y-4 font-serif shadow-lg transition-all"
-                  style={{ borderColor: currentTemplate.themeColor }}
-                >
-                  <div className="text-center border-b pb-3 space-y-1" style={{ borderColor: currentTemplate.themeColor }}>
-                    <div className="flex items-center justify-center gap-3">
-                      {currentTemplate.showLogo && (
-                        schoolProfile.logoUrl ? (
-                          <img src={schoolProfile.logoUrl} alt="Logo" className="w-8 h-8 object-contain shrink-0" />
-                        ) : (
-                          <Building2 className="w-7 h-7 shrink-0" style={{ color: currentTemplate.themeColor }} />
-                        )
-                      )}
-                      <h3 className="text-xl font-black uppercase font-sans tracking-wide">{schoolProfile.name}</h3>
-                    </div>
-                    <p className="text-[11px] font-sans text-slate-600 font-bold">{schoolProfile.address}</p>
-                    <div className="pt-2">
-                      <span
-                        className="px-4 py-0.5 rounded-full text-white text-[11px] font-bold tracking-widest uppercase font-sans inline-block"
-                        style={{ backgroundColor: currentTemplate.themeColor }}
-                      >
-                        {currentTemplate.title}
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-sans text-slate-500 pt-1">{currentTemplate.subTitle}</p>
-                  </div>
-
-                  {/* Signatories Footer Preview */}
-                  <div className="pt-6 flex items-center justify-between text-[11px] font-sans">
-                    <div className="text-center">
-                      <div className="h-6"></div>
-                      <p className="font-bold text-slate-800 border-t border-slate-300 pt-0.5 px-2">{currentTemplate.signatory1}</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="h-6"></div>
-                      <p className="font-bold text-slate-800 border-t border-slate-300 pt-0.5 px-2">{currentTemplate.signatory2}</p>
-                    </div>
-                    <div className="text-center">
-                      {currentTemplate.showSeal && (
-                        <div
-                          className="w-12 h-12 rounded-full border-2 border-dashed mx-auto flex items-center justify-center text-[8px] font-black rotate-12 mb-1"
-                          style={{ borderColor: currentTemplate.themeColor, color: currentTemplate.themeColor }}
-                        >
-                          SEAL
-                        </div>
-                      )}
-                      <p className="font-bold text-slate-800 border-t border-slate-300 pt-0.5 px-2">{currentTemplate.signatory3}</p>
-                    </div>
-                  </div>
+                <div className="transform scale-95 origin-top">
+                  <PrintableCertificateContainer
+                    template={currentTemplate}
+                    schoolProfile={schoolProfile}
+                    academicYear="2025-2026"
+                    studentName="Aarav Sharma"
+                    admissionNo="ADM-2024-001"
+                    admissionDate="2022-06-10"
+                    fatherName="Rajesh Sharma"
+                    motherName="Sunita Sharma"
+                    dob="2010-05-15"
+                    dobInWords="Fifteenth May Two Thousand Ten"
+                    gender="Male"
+                    className="Class 10"
+                    section="A"
+                    rollNo="101"
+                    leavingDate="2026-03-31"
+                    reason="Parent Request / Higher Education"
+                    conduct="Good"
+                    remarks="All school records verified and dues cleared."
+                    result="PASSED (Promoted)"
+                    feeClearanceStatus="CLEARED"
+                    tcNo="TC-2026-PREVIEW"
+                    issueDate="2026-08-10"
+                    isDraftPreview={true}
+                  />
                 </div>
               </div>
 

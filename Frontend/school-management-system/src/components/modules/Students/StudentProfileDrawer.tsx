@@ -11,6 +11,8 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { PrintableIDCard } from './PrintableIDCard';
 
+import { formatToDDMMYYYY } from '../../../utils/dateValidation';
+
 interface StudentProfileDrawerProps {
   student: Student | null;
   isOpen: boolean;
@@ -52,7 +54,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   const [docCategory, setDocCategory] = useState('Birth Certificate');
   const [docFile, setDocFile] = useState<File | null>(null);
 
-  const { feePayments, examMarks, updateStudent } = useData();
+  const { feePayments, examMarks, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
   const { addToast } = useToast();
 
   if (!isOpen || !student) return null;
@@ -222,7 +224,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             <div className="space-y-4 animate-in fade-in">
               <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">Personal & Identification Details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs shadow-sm">
-                <div><span className="text-slate-400 block font-semibold">Date of Birth (DD/MM/YYYY):</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.dob}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Date of Birth (DD-MM-YYYY):</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{formatToDDMMYYYY(student.dob, '-')}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Gender:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.gender}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Blood Group:</span> <p className="font-bold text-rose-500 mt-1 text-sm">{student.bloodGroup}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Religion:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.religion || 'General'}</p></div>
@@ -344,77 +346,77 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               </div>
 
               {/* Fee Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Total Fee Assigned</span>
-                  <p className="text-xl font-black text-slate-900 dark:text-white font-mono">{formatCurrency(student.totalFee || 45000)}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600">Total Payments Completed</span>
-                  <p className="text-xl font-black text-emerald-600 font-mono">{formatCurrency(student.paidFee || ((student.totalFee || 45000) - (student.dueFee || 10000)))}</p>
-                </div>
-                <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Outstanding Balance Due</span>
-                  <p className="text-xl font-black text-rose-500 font-mono">{formatCurrency(student.dueFee || 10000)}</p>
-                </div>
-              </div>
+              {(() => {
+                const summary = getStudentFeeOutstandingSummary(student.id);
 
-              {/* Assigned Fee Structure */}
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">Current Year Due</span>
+                      <p className="text-xl font-black text-slate-900 dark:text-white font-mono">{formatCurrency(summary.currentYearDue)}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600">Previous Academic Years Due</span>
+                      <p className="text-xl font-black text-amber-600 font-mono">{formatCurrency(summary.previousYearsDue)}</p>
+                    </div>
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Total Consolidated Outstanding</span>
+                      <p className="text-xl font-black text-rose-500 font-mono">{formatCurrency(summary.totalOutstanding)}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Multi-Academic-Year Fee History Table */}
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-                <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Assigned Fee Structure</h4>
+                <h4 className="font-black text-xs uppercase tracking-wider text-slate-700 dark:text-slate-300">Annual Fee Ledger History</h4>
                 <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase text-slate-500">
                       <tr>
-                        <th className="p-3">Fee Component</th>
-                        <th className="p-3">Frequency</th>
-                        <th className="p-3">Total Amount</th>
+                        <th className="p-3">Academic Year</th>
+                        <th className="p-3">Class</th>
+                        <th className="p-3">Total Payable</th>
                         <th className="p-3">Amount Paid</th>
-                        <th className="p-3">Balance Due</th>
+                        <th className="p-3">Outstanding Due</th>
                         <th className="p-3 text-right">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Tuition Fee</td>
-                        <td className="p-3 text-slate-500">Annual</td>
-                        <td className="p-3 font-mono font-semibold">{formatCurrency(30000)}</td>
-                        <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(25000)}</td>
-                        <td className="p-3 font-mono text-rose-500 font-bold">{formatCurrency(5000)}</td>
-                        <td className="p-3 text-right"><Badge variant="warning" size="sm">Partial</Badge></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Development & Activity Fee</td>
-                        <td className="p-3 text-slate-500">Annual</td>
-                        <td className="p-3 font-mono font-semibold">{formatCurrency(5000)}</td>
-                        <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(5000)}</td>
-                        <td className="p-3 font-mono text-slate-400">{formatCurrency(0)}</td>
-                        <td className="p-3 text-right"><Badge variant="success" size="sm">Paid</Badge></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Library & Computer Lab Fee</td>
-                        <td className="p-3 text-slate-500">Annual</td>
-                        <td className="p-3 font-mono font-semibold">{formatCurrency(3000)}</td>
-                        <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(3000)}</td>
-                        <td className="p-3 font-mono text-slate-400">{formatCurrency(0)}</td>
-                        <td className="p-3 text-right"><Badge variant="success" size="sm">Paid</Badge></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Examination Fee</td>
-                        <td className="p-3 text-slate-500">Per Term</td>
-                        <td className="p-3 font-mono font-semibold">{formatCurrency(2000)}</td>
-                        <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(2000)}</td>
-                        <td className="p-3 font-mono text-slate-400">{formatCurrency(0)}</td>
-                        <td className="p-3 text-right"><Badge variant="success" size="sm">Paid</Badge></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800 dark:text-slate-200">Transport / Bus Fee</td>
-                        <td className="p-3 text-slate-500">Annual</td>
-                        <td className="p-3 font-mono font-semibold">{formatCurrency(5000)}</td>
-                        <td className="p-3 font-mono text-slate-400">{formatCurrency(0)}</td>
-                        <td className="p-3 font-mono text-rose-500 font-bold">{formatCurrency(5000)}</td>
-                        <td className="p-3 text-right"><Badge variant="danger" size="sm">Pending</Badge></td>
-                      </tr>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                      {(() => {
+                        const summary = getStudentFeeOutstandingSummary(student.id);
+                        const grandTotal = summary.yearWiseOutstanding.reduce((sum, item) => sum + item.gross, 0);
+                        const grandPaid = summary.yearWiseOutstanding.reduce((sum, item) => sum + item.paid, 0);
+                        const grandDue = summary.totalOutstanding;
+
+                        return (
+                          <>
+                            {summary.yearWiseOutstanding.map(yr => (
+                              <tr key={yr.academicYear} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                                <td className="p-3 font-bold text-slate-900 dark:text-white">{yr.academicYear}</td>
+                                <td className="p-3 text-slate-600 dark:text-slate-400">{yr.className || student.className}</td>
+                                <td className="p-3 font-mono font-semibold">{formatCurrency(yr.gross)}</td>
+                                <td className="p-3 font-mono text-emerald-600 font-bold">{formatCurrency(yr.paid)}</td>
+                                <td className="p-3 font-mono text-rose-500 font-bold">{formatCurrency(yr.due)}</td>
+                                <td className="p-3 text-right">
+                                  <Badge variant={yr.status === 'Paid' ? 'success' : (yr.status === 'Partial' ? 'warning' : 'danger')} size="sm">
+                                    {yr.status}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                            <tr className="bg-slate-100/70 dark:bg-slate-800/80 font-black text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-700">
+                              <td className="p-3 uppercase text-[11px]" colSpan={2}>Grand Total</td>
+                              <td className="p-3 font-mono">{formatCurrency(grandTotal)}</td>
+                              <td className="p-3 font-mono text-emerald-600">{formatCurrency(grandPaid)}</td>
+                              <td className="p-3 font-mono text-rose-500">{formatCurrency(grandDue)}</td>
+                              <td className="p-3 text-right text-slate-400 text-[10px]">
+                                {grandDue === 0 ? '✓ ALL CLEARED' : 'PENDING'}
+                              </td>
+                            </tr>
+                          </>
+                        );
+                      })()}
                     </tbody>
                   </table>
                 </div>

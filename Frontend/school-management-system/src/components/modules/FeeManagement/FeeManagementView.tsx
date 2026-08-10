@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { IndianRupee, Search, Plus, Receipt, AlertCircle, CheckCircle, Trash2, Edit, X } from 'lucide-react';
 import { Student, FeePayment, FeeStructure, FeeTerm } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -11,7 +11,7 @@ import { FeeCollectModal } from './FeeCollectModal';
 import { PrintableFeeReceipt } from './PrintableFeeReceipt';
 
 export const FeeManagementView: React.FC = () => {
-  const { students, feeStructures, feePayments, addFeeStructure, updateFeeStructure, deleteFeeStructure } = useData();
+  const { students, feeStructures, feePayments, addFeeStructure, updateFeeStructure, deleteFeeStructure, getStudentFeeOutstandingSummary } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -39,14 +39,25 @@ export const FeeManagementView: React.FC = () => {
   });
 
   const totalCollected = feePayments.reduce((sum, p) => sum + p.amountPaid, 0);
-  const totalDues = students.reduce((sum, s) => sum + s.dueFee, 0);
+
+  const studentDuesMap = useMemo(() => {
+    return students.map(s => {
+      const summary = getStudentFeeOutstandingSummary(s.id);
+      return {
+        student: s,
+        dueAmount: summary.totalOutstanding
+      };
+    });
+  }, [students, getStudentFeeOutstandingSummary]);
+
+  const totalDues = studentDuesMap.reduce((sum: number, item: { student: Student; dueAmount: number }) => sum + item.dueAmount, 0);
 
   const filteredPayments = feePayments.filter(p =>
     p.studentName.toLowerCase().includes(query.toLowerCase()) ||
     p.receiptNo.toLowerCase().includes(query.toLowerCase())
   );
 
-  const studentsWithDues = students.filter(s => s.dueFee > 0 && s.firstName.toLowerCase().includes(query.toLowerCase()));
+  const studentsWithDues = studentDuesMap.filter((item: { student: Student; dueAmount: number }) => item.dueAmount > 0 && `${item.student.firstName} ${item.student.lastName}`.toLowerCase().includes(query.toLowerCase()));
 
   const handleOpenAddStruct = () => {
     setEditingStruct(null);
@@ -223,14 +234,14 @@ export const FeeManagementView: React.FC = () => {
       {/* Tab 2: Outstanding Dues List */}
       {activeTab === 'dues' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {studentsWithDues.map(s => (
+          {studentsWithDues.map(({ student: s, dueAmount }) => (
             <div key={s.id} className="glass-card p-5 rounded-2xl flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src={s.avatar} alt="" className="w-10 h-10 rounded-xl object-cover" />
                 <div>
                   <p className="font-bold text-slate-900 dark:text-white text-sm">{s.firstName} {s.lastName}</p>
                   <p className="text-xs text-slate-500">{s.className}-{s.section} • Adm: {s.admissionNo}</p>
-                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">Due: {formatCurrency(s.dueFee)}</p>
+                  <p className="text-xs font-bold text-rose-600 dark:text-rose-400 mt-0.5">Due: {formatCurrency(dueAmount)}</p>
                 </div>
               </div>
               <button

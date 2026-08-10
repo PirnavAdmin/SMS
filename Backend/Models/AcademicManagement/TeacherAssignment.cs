@@ -23,10 +23,10 @@ namespace SMS.Api.Models.AcademicManagement
         public string SectionLetter { get; set; } = string.Empty;
 
         [Column("subject_id")]
-        public int SubjectId { get; set; }
+        public int? SubjectId { get; set; }
 
         [ForeignKey(nameof(SubjectId))]
-        public Subject Subject { get; set; } = null!;
+        public Subject? Subject { get; set; }
 
         [Column("teacher_id")]
         public int TeacherId { get; set; }

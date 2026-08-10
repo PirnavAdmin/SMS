@@ -244,6 +244,15 @@ export interface TcRecord {
   remarks?: string;
   issuedBy: string;
   status: 'Issued' | 'Reissued' | 'Cancelled';
+  templateSnapshot?: CertificateTemplateConfig;
+  originalTcNo?: string;
+  reissueHistory?: {
+    reissueNo: string;
+    reissueDate: string;
+    reason: string;
+    authorizedBy: string;
+    remarks?: string;
+  }[];
   clearanceSummary: {
     feeCleared: boolean;
     dueFee: number;
@@ -452,6 +461,12 @@ export interface FeeStructure {
   dueDate: string;
 }
 
+export interface PaymentAllocationItem {
+  academicYear: string;
+  ledgerId?: string;
+  amount: number;
+}
+
 export interface FeePayment {
   id: string;
   receiptNo: string;
@@ -477,6 +492,12 @@ export interface FeePayment {
   discountAmount?: number;
   grossAmount?: number;
   previousDue?: number;
+  academicYear?: string;
+  ledgerId?: string;
+  paymentAllocation?: PaymentAllocationItem[];
+  chequeNo?: string;
+  chequeDate?: string;
+  bankName?: string;
 }
 
 export interface DailyAttendance {
@@ -1306,6 +1327,26 @@ export interface StudentFeeLedger {
   discountAmount: number;
   fineAmount: number;
   previousDue: number;
+}
+
+export interface YearWiseOutstandingItem {
+  academicYear: string;
+  ledgerId?: string;
+  className?: string;
+  gross: number;
+  paid: number;
+  due: number;
+  status: 'Paid' | 'Partial' | 'Pending';
+}
+
+export interface StudentFeeOutstandingSummary {
+  studentId: string;
+  currentAcademicYear: string;
+  currentYearDue: number;
+  previousYearsDue: number;
+  olderDues?: number;
+  totalOutstanding: number;
+  yearWiseOutstanding: YearWiseOutstandingItem[];
 }
 
 export interface VehicleMaster {

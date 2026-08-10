@@ -12,13 +12,13 @@ interface FeeCollectionContainerViewProps {
 }
 
 export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProps> = ({ onPrintReceipt }) => {
-  const { students, feePayments } = useData();
+  const { students, feePayments, getStudentFeeOutstandingSummary } = useData();
   const [activeSubTab, setActiveSubTab] = useState<'collect' | 'due' | 'receipts'>('collect');
 
   const subTabs = [
     { id: 'collect', label: 'Fee Collection', icon: IndianRupee },
     { id: 'due', label: 'Due Fees', icon: Clock },
-    { id: 'receipts', label: 'Receipts', icon: Receipt },
+    { id: 'receipts', label: 'Receipts', icon: IndianRupee },
   ] as const;
 
   const handleCollectStudentFee = (student: Student) => {
@@ -51,7 +51,7 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
         <div className="flex items-center gap-2">
           {activeSubTab === 'due' && (
             <ExportButton
-              data={students.filter(s => s.dueFee > 0).map(s => ({ name: `${s.firstName} ${s.lastName}`, admissionNo: s.admissionNo, class: `${s.className}-${s.section}`, due: s.dueFee }))}
+              data={students.map(s => ({ s, summary: getStudentFeeOutstandingSummary(s.id) })).filter(item => item.summary.totalOutstanding > 0).map(({ s, summary }) => ({ name: `${s.firstName} ${s.lastName}`, admissionNo: s.admissionNo, class: `${s.className}-${s.section}`, currentYearDue: summary.currentYearDue, previousYearsDue: summary.previousYearsDue, totalOutstanding: summary.totalOutstanding }))}
               filename="outstanding_dues"
             />
           )}

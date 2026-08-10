@@ -34,18 +34,30 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
 
   // Subjects assigned strictly to the selected class
   const classSubjects = useMemo(() => {
-    if (!selectedClass) return allSubjects.map(s => s.name);
-
-    const matchedClass = academicClasses.find(c => c.name === selectedClass);
-    if (!matchedClass || !matchedClass.subjects || matchedClass.subjects.length === 0) {
-      return allSubjects.map(s => s.name);
+    let rawNames: string[] = [];
+    if (!selectedClass) {
+      rawNames = allSubjects.map(s => s.name);
+    } else {
+      const matchedClass = academicClasses.find(c => c.name === selectedClass);
+      if (!matchedClass || !matchedClass.subjects || matchedClass.subjects.length === 0) {
+        rawNames = allSubjects.map(s => s.name);
+      } else {
+        rawNames = matchedClass.subjects
+          .map((sub: any) => (typeof sub === 'string' ? sub : (sub.name || '')))
+          .filter(Boolean);
+        if (rawNames.length === 0) {
+          rawNames = allSubjects.map(s => s.name);
+        }
+      }
     }
 
-    const names = matchedClass.subjects
-      .map((sub: any) => (typeof sub === 'string' ? sub : (sub.name || '')))
-      .filter(Boolean);
-
-    return names.length > 0 ? names : allSubjects.map(s => s.name);
+    const seen = new Set<string>();
+    return rawNames.filter(name => {
+      const lower = name.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
   }, [selectedClass, academicClasses, allSubjects]);
 
   // Active subjects for the currently selected class
