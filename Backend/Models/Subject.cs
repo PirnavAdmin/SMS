@@ -1,3 +1,5 @@
+using SMS.Api.Models.AcademicManagement;
+
 namespace SMS.Api.Models;
 
 using System.Collections.Generic;

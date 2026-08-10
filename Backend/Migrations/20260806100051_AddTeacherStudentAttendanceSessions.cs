@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -15,6 +15,19 @@ namespace Backend.Migrations
 
             // The earlier failed update already renamed the existing table and
             // removed its obsolete display columns. Continue from that state.
+
+            migrationBuilder.Sql(@"
+DROP PROCEDURE IF EXISTS RenameAttendanceTable;
+CREATE PROCEDURE RenameAttendanceTable()
+BEGIN
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+    IF EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE LOWER(TABLE_SCHEMA) = LOWER(DATABASE()) AND LOWER(TABLE_NAME) = 'studentattendances') THEN
+        RENAME TABLE StudentAttendances TO student_attendances;
+    END IF;
+END;
+CALL RenameAttendanceTable();
+DROP PROCEDURE IF EXISTS RenameAttendanceTable;
+");
 
             migrationBuilder.AlterColumn<string>(
                 name: "Status",

@@ -6,6 +6,8 @@ using Moq;
 using SMS.Api.Dtos;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
+using SMS.Api.Dtos.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Implementations;
 using Xunit;
@@ -196,7 +198,7 @@ namespace Backend.Tests.Services
             Assert.True(result);
             Assert.NotNull(capturedClass);
             Assert.Equal("Grade 9", capturedClass.ClassName);
-            Assert.Equal(2, capturedClass.CurriculumSubjects.Count);
+            Assert.Equal(2, capturedClass.SubjectMappings.Count);
             Assert.Single(capturedClass.Sections);
         }
 

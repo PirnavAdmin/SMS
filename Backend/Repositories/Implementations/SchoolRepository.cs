@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,11 @@ public class SchoolRepository : ISchoolRepository
     // --- STAFF ---
     public async Task<List<Staff>> GetAllStaffAsync(string? search, string? department)
     {
-        var query = _context.Staff.AsNoTracking().AsQueryable();
+        var query = _context.Staff.AsNoTracking()
+            .Include(s => s.Documents)
+            .Include(s => s.Qualifications)
+            .Include(s => s.ExperienceRecords)
+            .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
             query = query.Where(s => s.Department != null && s.Department.ToLower() == department.ToLower());
@@ -33,7 +38,12 @@ public class SchoolRepository : ISchoolRepository
         return await query.ToListAsync();
     }
 
-    public async Task<Staff?> GetStaffByIdAsync(int id) => await _context.Staff.FindAsync(id);
+    public async Task<Staff?> GetStaffByIdAsync(int id) => 
+        await _context.Staff
+            .Include(s => s.Documents)
+            .Include(s => s.Qualifications)
+            .Include(s => s.ExperienceRecords)
+            .FirstOrDefaultAsync(s => s.StaffId == id);
 
     public async Task<List<Staff>> GetTeachersForDropdownAsync(string? search)
     {
@@ -175,21 +185,21 @@ public class SchoolRepository : ISchoolRepository
 
     public void RemoveSubject(Subject subject) => _context.Subjects.Remove(subject);
 
-    // --- CLASS GRADES & SECTIONS ---
-    public async Task<List<ClassGrade>> GetAllClassGradesAsync()
-    {
-        return await _context.Classes
-            .AsNoTracking()
-            .Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
-            .Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
-            .ToListAsync();
-    }
+	// --- CLASS GRADES & SECTIONS ---
+	public async Task<List<ClassGrade>> GetAllClassGradesAsync()
+	{
+		return await _context.Classes
+			.AsNoTracking()
+			.Include(c => c.Sections)
+			.Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
+			.ToListAsync();
+	}
 
-    public async Task<ClassGrade?> GetClassGradeByIdAsync(int id) =>
-        await _context.Classes
-            .Include(c => c.Sections).ThenInclude(s => s.ClassTeacher)
-            .Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
-            .FirstOrDefaultAsync(c => c.ClassId == id);
+	public async Task<ClassGrade?> GetClassGradeByIdAsync(int id) =>
+		await _context.Classes
+			.Include(c => c.Sections)
+			.Include(c => c.SubjectMappings).ThenInclude(cs => cs.Subject)
+			.FirstOrDefaultAsync(c => c.ClassId == id);
 
     public async Task AddClassGradeAsync(ClassGrade classGrade) => await _context.Classes.AddAsync(classGrade);
 
@@ -345,7 +355,6 @@ public class SchoolRepository : ISchoolRepository
             .Include(s => s.AcademicYear)
             .Include(s => s.ClassGrade)
             .Include(s => s.ClassSection)
-            .Where(s => !s.IsDeleted)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -439,7 +448,7 @@ public class SchoolRepository : ISchoolRepository
     {
         return await _context.Students
             .AsNoTracking()
-            .Where(s => s.StudentId == studentId && !s.IsDeleted)
+            .Where(s => s.StudentId == studentId)
             .Select(s => new StudentDetailsDto
             {
                 StudentId = s.StudentId,
@@ -473,7 +482,7 @@ public class SchoolRepository : ISchoolRepository
     }
 
     public async Task<Student?> GetStudentEntityByIdAsync(int studentId) =>
-        await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId && !s.IsDeleted);
+        await _context.Students.FirstOrDefaultAsync(s => s.StudentId == studentId);
 
     public async Task<bool> AdmissionNumberExistsAsync(string admissionNumber, int? excludeStudentId = null)
     {

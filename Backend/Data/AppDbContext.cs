@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Models;
-using SMS.Api.Models.ExaminationNew;
+using SMS.Api.Models.AcademicManagement;
+using SMS.Api.Models.Examination;
 
 namespace SMS.Api.Data
 {
@@ -38,6 +39,8 @@ namespace SMS.Api.Data
         public DbSet<Staff> Staff { get; set; } = null!;
         public DbSet<StaffDocument> StaffDocuments { get; set; } = null!;
         public DbSet<StaffAttendance> StaffAttendances { get; set; } = null!;
+        public DbSet<StaffQualification> StaffQualifications { get; set; } = null!;
+        public DbSet<StaffExperience> StaffExperiences { get; set; } = null!;
         public DbSet<TeacherAttendanceCorrection> TeacherAttendanceCorrections { get; set; } = null!;
         public DbSet<LibraryBook> LibraryBooks { get; set; } = null!;
         public DbSet<LibraryIssueRecord> LibraryIssueRecords { get; set; } = null!;
@@ -50,6 +53,8 @@ namespace SMS.Api.Data
         public DbSet<ClassSubjectMapping> ClassSubjectMappings { get; set; } = null!;
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+        public DbSet<Admission> Admissions { get; set; } = null!;
+        public DbSet<SMS.Api.Models.AcademicManagement.DesignationMaster> DesignationMasters { get; set; } = null!;
 
         // Homework Module
         public DbSet<Homework> Homeworks { get; set; } = null!;
@@ -70,13 +75,10 @@ namespace SMS.Api.Data
         public DbSet<EmployeeSalaryAssignment> EmployeeSalaryAssignments { get; set; } = null!;
         public DbSet<Payslip> Payslips { get; set; } = null!;
 
-        // Examination & Invigilation Module
-        public DbSet<ExamSchedule> ExamSchedules { get; set; } = null!;
-        public DbSet<ExamInvigilatorAssignment> ExamInvigilatorAssignments { get; set; } = null!;
-        public DbSet<QuestionPaper> QuestionPapers { get; set; } = null!;
-        public DbSet<ExamMark> ExamMarks { get; set; } = null!;
-        public DbSet<GradeConfiguration> GradeConfigurations { get; set; } = null!;
-        public DbSet<ExamResult> ExamResults { get; set; } = null!;
+        // Examination Module
+        public DbSet<NewExamination> NewExaminations { get; set; } = null!;
+        public DbSet<NewExamSubjectConfig> NewExamSubjectConfigs { get; set; } = null!;
+        public DbSet<NewExamTimetableSlot> NewExamTimetableSlots { get; set; } = null!;
 
         // =====================================================
         // Transport Module
@@ -89,8 +91,6 @@ namespace SMS.Api.Data
         public DbSet<TransportVehicle> TransportVehicles => Set<TransportVehicle>();
 
         public DbSet<TransportDriver> TransportDrivers { get; set; } = null!;
-
-        public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;
 
         public DbSet<TransportVehicleAssignment> TransportVehicleAssignments { get; set; } = null!;
 
@@ -109,22 +109,6 @@ namespace SMS.Api.Data
         public DbSet<StudentBedAllocation> StudentBedAllocations { get; set; } = null!;
         public DbSet<HostelAttendance> HostelAttendances { get; set; } = null!;
 
-        // =====================================================
-        // Uniform Management Module
-        // =====================================================
-
-        public DbSet<UniformType> UniformTypes { get; set; } = null!;
-        public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
-        public DbSet<UniformSize> UniformSizes { get; set; } = null!;
-        public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
-        public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
-
-        // =====================================================
-        // Inventory Management Module
-        // =====================================================
-
-        public DbSet<InventoryItem> InventoryItems { get; set; } = null!;
-
 
         // =====================================================
         // Timetable Module
@@ -140,23 +124,6 @@ namespace SMS.Api.Data
         public DbSet<StudentAttendanceSession> StudentAttendanceSessions { get; set; } = null!;
         public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
         //public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-        public DbSet<Admission> Admissions { get; set; } = null!;
-
-        // =====================================================
-        // Examination Module
-        // =====================================================
-
-        public DbSet<ExamMaster> ExamMasters => Set<ExamMaster>();
-
-        public DbSet<ExamClass> ExamClasses => Set<ExamClass>();
-
-        // Examination Module - New Setup
-        public DbSet<NewExamination> NewExaminations { get; set; } = null!;
-        public DbSet<NewExamSubjectConfig> NewExamSubjectConfigs { get; set; } = null!;
-        public DbSet<NewExamTimetableSlot> NewExamTimetableSlots { get; set; } = null!;
-        public DbSet<NewStudentMarksEntry> NewStudentMarksEntries { get; set; } = null!;
-        public DbSet<NewStudentExamResult> NewStudentExamResults { get; set; } = null!;
-        public DbSet<NewGradingScaleRule> NewGradingScaleRules { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -181,12 +148,9 @@ namespace SMS.Api.Data
             ConfigurePickupPoint(modelBuilder);
             ConfigureTransportVehicle(modelBuilder);
             ConfigureTransportDriver(modelBuilder);
-            ConfigureTransportAttendant(modelBuilder);
             ConfigureTransportVehicleAssignment(modelBuilder);
             ConfigureStudentTransportAssignment(modelBuilder);
             ConfigureVehicleMaintenance(modelBuilder);
-            ConfigureExamMaster(modelBuilder);
-            ConfigureExamClass(modelBuilder);
 
             ConfigurePeriodSetting(modelBuilder);
             ConfigureTeacherSubjectAssignment(modelBuilder);
@@ -195,13 +159,17 @@ namespace SMS.Api.Data
             ConfigureStudentBedAllocation(modelBuilder);
             ConfigureTeacherAttendanceCorrection(modelBuilder);
             ConfigureAdmission(modelBuilder);
+            ConfigureDesignationMaster(modelBuilder);
+            ConfigureStaffRelations(modelBuilder);
 
-            ConfigureExaminationNew(modelBuilder);
             ConfigureStandardTableNames(modelBuilder);
             ConfigureAcademicYear(modelBuilder);
             ConfigureStudent(modelBuilder);
             ConfigureStudentAttendanceSession(modelBuilder);
             ConfigureStudentAttendance(modelBuilder);
+            ConfigureNewExamination(modelBuilder);
+            ConfigureNewExamSubjectConfig(modelBuilder);
+            ConfigureNewExamTimetableSlot(modelBuilder);
         }
 
         private static void ConfigureTeacherAttendanceCorrection(ModelBuilder modelBuilder)
@@ -530,20 +498,42 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("ClassId")
+                    .HasColumnName("id")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
-                    .HasColumnName("ClassName");
+                    .HasColumnName("name")
+                    .IsRequired()
+                    .HasMaxLength(100);
 
-                // These columns do not exist in the current classes table
-                entity.Ignore(x => x.AcademicYear);
-                entity.Ignore(x => x.CampusLocation);
-                entity.Ignore(x => x.CreatedAt);
-                entity.Ignore(x => x.DisplayOrder);
-                entity.Ignore(x => x.Remarks);
-                entity.Ignore(x => x.Status);
-                entity.Ignore(x => x.UpdatedAt);
+                entity.Property(x => x.CampusLocation)
+                    .HasColumnName("campus_location")
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.AcademicYear)
+                    .HasColumnName("academic_year")
+                    .IsRequired()
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.DisplayOrder)
+                    .HasColumnName("display_order");
+
+                entity.Property(x => x.Status)
+                    .HasColumnName("status")
+                    .IsRequired()
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Active");
+
+                entity.Property(x => x.Remarks)
+                    .HasColumnName("remarks");
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .IsRequired();
+
+                entity.Property(x => x.UpdatedAt)
+                    .HasColumnName("updated_at");
             });
         }
 
@@ -824,48 +814,6 @@ namespace SMS.Api.Data
                     .IsRequired()
                     .HasMaxLength(50);
 
-                entity.Property(x => x.Email)
-                    .HasMaxLength(150);
-
-                entity.Property(x => x.Status)
-                    .HasDefaultValue(true);
-
-                entity.Property(x => x.IsDeleted)
-                    .HasDefaultValue(false);
-            });
-        }
-
-        // =====================================================
-        // Transport Attendant Configuration
-        // =====================================================
-
-        private static void ConfigureTransportAttendant(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<TransportAttendant>(entity =>
-            {
-                entity.ToTable("transport_attendants");
-
-                entity.HasKey(x => x.AttendantId);
-
-                entity.HasIndex(x => x.MobileNumber);
-
-                entity.Property(x => x.AttendantName)
-                    .IsRequired()
-                    .HasMaxLength(100);
-
-                entity.Property(x => x.MobileNumber)
-                    .IsRequired()
-                    .HasMaxLength(20);
-
-                entity.Property(x => x.EmployeeId)
-                    .HasMaxLength(50);
-
-                entity.Property(x => x.Gender)
-                    .HasMaxLength(20);
-
-                entity.Property(x => x.BranchName)
-                    .HasMaxLength(150);
-
                 entity.Property(x => x.Status)
                     .HasDefaultValue(true);
 
@@ -902,11 +850,6 @@ namespace SMS.Api.Data
                         .HasForeignKey(x => x.DriverId)
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    entity.HasOne(x => x.Attendant)
-                        .WithMany()
-                        .HasForeignKey(x => x.AttendantId)
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     entity.HasIndex(x => new
                     {
                         x.RouteId,
@@ -930,18 +873,6 @@ namespace SMS.Api.Data
                         x.IsDeleted
                     })
                         .HasDatabaseName("IX_TVA_Vehicle_Driver_Route");
-
-                    entity.Property(x => x.BranchName)
-                        .HasMaxLength(150);
-
-                    entity.Property(x => x.AcademicYear)
-                        .HasMaxLength(50);
-
-                    entity.Property(x => x.MorningTripTime)
-                        .HasMaxLength(50);
-
-                    entity.Property(x => x.EveningTripTime)
-                        .HasMaxLength(50);
 
                     entity.Property(x => x.Status)
                         .HasDefaultValue(true);
@@ -1112,112 +1043,6 @@ namespace SMS.Api.Data
                     .HasDatabaseName("IX_VehMaint_Vehicle_ServiceDate_Deleted");
             });
         }
-        private static void ConfigureExamMaster(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<ExamMaster>(entity =>
-            {
-                entity.ToTable("exam_masters");
-
-                entity.HasKey(x => x.ExamId);
-
-                entity.Property(x => x.ExamId)
-                    .HasColumnName("exam_id")
-                    .ValueGeneratedOnAdd();
-
-                entity.Property(x => x.ExamTitle)
-                    .HasColumnName("exam_title")
-                    .HasMaxLength(150)
-                    .IsRequired();
-
-                entity.Property(x => x.ExamType)
-                    .HasColumnName("exam_type")
-                    .HasMaxLength(50)
-                    .IsRequired();
-
-                entity.Property(x => x.ExamStatus)
-                    .HasColumnName("exam_status")
-                    .HasMaxLength(30)
-                    .HasDefaultValue("Scheduled")
-                    .IsRequired();
-
-                entity.Property(x => x.BranchId)
-                    .HasColumnName("branch_id");
-
-                entity.Property(x => x.AcademicYearId)
-                    .HasColumnName("academic_year_id");
-
-                entity.Property(x => x.StartDate)
-                    .HasColumnName("start_date")
-                    .HasColumnType("date");
-
-                entity.Property(x => x.EndDate)
-                    .HasColumnName("end_date")
-                    .HasColumnType("date");
-
-                entity.Property(x => x.IsDeleted)
-                    .HasColumnName("is_deleted")
-                    .HasDefaultValue(false);
-
-                entity.Property(x => x.CreatedBy).HasColumnName("created_by");
-
-                entity.Property(x => x.UpdatedBy).HasColumnName("updated_by");
-
-                entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("datetime").HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                entity.Property(x => x.UpdatedAt).HasColumnName("updated_at").HasColumnType("datetime");
-
-                entity.HasIndex(x => new
-                {
-                    x.ExamTitle,
-                    x.BranchId,
-                    x.AcademicYearId
-                })
-                    .IsUnique()
-                    .HasDatabaseName("ux_exam_title_branch_academic_year");
-
-                entity.HasIndex(x => new
-                {
-                    x.BranchId,
-                    x.AcademicYearId,
-                    x.ExamStatus,
-                    x.IsDeleted
-                })
-                    .HasDatabaseName("ix_exam_master_filter");
-            });
-        }
-
-        private static void ConfigureExamClass(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<ExamClass>(entity =>
-            {
-                entity.ToTable("exam_classes");
-
-                entity.HasKey(x => new
-                {
-                    x.ExamId,
-                    x.ClassId
-                });
-
-                entity.Property(x => x.ExamId)
-                    .HasColumnName("exam_id");
-
-                entity.Property(x => x.ClassId)
-                    .HasColumnName("class_id");
-
-                entity.HasOne(x => x.Exam)
-                    .WithMany(x => x.ExamClasses)
-                    .HasForeignKey(x => x.ExamId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.Class)
-                    .WithMany()
-                    .HasForeignKey(x => x.ClassId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasIndex(x => x.ClassId)
-                    .HasDatabaseName("ix_exam_classes_class_id");
-            });
-        }
 
         private static void ConfigureStandardTableNames(ModelBuilder modelBuilder)
         {
@@ -1225,6 +1050,8 @@ namespace SMS.Api.Data
             modelBuilder.Entity<Staff>().ToTable("staff");
             modelBuilder.Entity<StaffDocument>().ToTable("staff_documents");
             modelBuilder.Entity<StaffAttendance>().ToTable("staff_attendances");
+            modelBuilder.Entity<StaffQualification>().ToTable("staff_qualifications");
+            modelBuilder.Entity<StaffExperience>().ToTable("staff_experiences");
             modelBuilder.Entity<LeaveTypeConfig>().ToTable("leave_type_configs");
             modelBuilder.Entity<LeaveApplication>().ToTable("leave_applications");
             modelBuilder.Entity<HolidayCalendar>().ToTable("holiday_calendars");
@@ -1240,12 +1067,6 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SalaryStructureItem>().ToTable("salary_structure_items");
             modelBuilder.Entity<EmployeeSalaryAssignment>().ToTable("employee_salary_assignments");
             modelBuilder.Entity<Payslip>().ToTable("payslips");
-            modelBuilder.Entity<ExamSchedule>().ToTable("exam_schedules");
-            modelBuilder.Entity<ExamInvigilatorAssignment>().ToTable("exam_invigilator_assignments");
-            modelBuilder.Entity<QuestionPaper>().ToTable("question_papers");
-            modelBuilder.Entity<ExamMark>().ToTable("exam_marks");
-            modelBuilder.Entity<GradeConfiguration>().ToTable("grade_configurations");
-            modelBuilder.Entity<ExamResult>().ToTable("exam_results");
             modelBuilder.Entity<HostelWarden>().ToTable("hostel_wardens");
             modelBuilder.Entity<HostelAttendance>().ToTable("hostel_attendances");
             modelBuilder.Entity<School>().ToTable("schools");
@@ -1544,9 +1365,6 @@ namespace SMS.Api.Data
         {
             modelBuilder.Entity<Admission>(entity =>
             {
-                entity.ToTable("admissions");
-                entity.HasKey(x => x.AdmissionId);
-
                 entity.HasOne<ClassGrade>()
                     .WithMany()
                     .HasForeignKey(x => x.ClassId)
@@ -1554,14 +1372,195 @@ namespace SMS.Api.Data
             });
         }
 
-        private static void ConfigureExaminationNew(ModelBuilder modelBuilder)
+        private static void ConfigureDesignationMaster(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<NewExamination>(entity => { entity.ToTable("NewExaminations"); entity.HasKey(e => e.ExamId); });
-            modelBuilder.Entity<NewExamSubjectConfig>(entity => { entity.ToTable("NewExamSubjectConfigs"); entity.HasKey(c => c.ConfigId); });
-            modelBuilder.Entity<NewExamTimetableSlot>(entity => { entity.ToTable("NewExamTimetableSlots"); entity.HasKey(t => t.SlotId); });
-            modelBuilder.Entity<NewStudentMarksEntry>(entity => { entity.ToTable("NewStudentMarksEntries"); entity.HasKey(m => m.EntryId); });
-            modelBuilder.Entity<NewStudentExamResult>(entity => { entity.ToTable("NewStudentExamResults"); entity.HasKey(r => r.ResultId); });
-            modelBuilder.Entity<NewGradingScaleRule>(entity => { entity.ToTable("NewGradingScaleRules"); entity.HasKey(g => g.RuleId); });
+            modelBuilder.Entity<SMS.Api.Models.AcademicManagement.DesignationMaster>(entity =>
+            {
+                entity.ToTable("designation_masters");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.DesignationName).HasMaxLength(150).IsRequired();
+                entity.Property(x => x.EmployeeCategory).HasMaxLength(50).IsRequired();
+                entity.Property(x => x.Status).HasMaxLength(20).IsRequired();
+            });
+        }
+
+        private static void ConfigureStaffRelations(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StaffQualification>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.HasOne(x => x.Staff)
+                    .WithMany(s => s.Qualifications)
+                    .HasForeignKey(x => x.StaffId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<StaffExperience>(entity =>
+            {
+                entity.HasKey(x => x.Id);
+                entity.HasOne(x => x.Staff)
+                    .WithMany(s => s.ExperienceRecords)
+                    .HasForeignKey(x => x.StaffId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureNewExamination(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewExamination>(entity =>
+            {
+                entity.ToTable("new_examinations");
+                entity.HasKey(x => x.ExamId);
+
+                entity.Property(x => x.ExamId)
+                    .HasColumnName("exam_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ExamName)
+                    .HasColumnName("exam_name")
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                entity.Property(x => x.AssessmentType)
+                    .HasColumnName("assessment_type")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.AcademicTerm)
+                    .HasColumnName("academic_term")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.StartDate)
+                    .HasColumnName("start_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.EndDate)
+                    .HasColumnName("end_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.ApplicableClasses)
+                    .HasColumnName("applicable_classes")
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.Status)
+                    .HasColumnName("status")
+                    .HasMaxLength(30)
+                    .HasDefaultValue("Draft");
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+        }
+
+        private static void ConfigureNewExamSubjectConfig(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewExamSubjectConfig>(entity =>
+            {
+                entity.ToTable("new_exam_subject_configs");
+                entity.HasKey(x => x.ConfigId);
+
+                entity.Property(x => x.ConfigId)
+                    .HasColumnName("config_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ExamId)
+                    .HasColumnName("exam_id");
+
+                entity.Property(x => x.ClassName)
+                    .HasColumnName("class_name")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.SubjectCode)
+                    .HasColumnName("subject_code")
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.SubjectName)
+                    .HasColumnName("subject_name")
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.IsActive)
+                    .HasColumnName("is_active")
+                    .HasDefaultValue(true);
+
+                entity.Property(x => x.MaxMarks)
+                    .HasColumnName("max_marks")
+                    .HasPrecision(10, 2)
+                    .HasDefaultValue(100m);
+
+                entity.Property(x => x.PassMarks)
+                    .HasColumnName("pass_marks")
+                    .HasPrecision(10, 2)
+                    .HasDefaultValue(35m);
+
+                entity.HasOne<NewExamination>()
+                    .WithMany(e => e.SubjectConfigs)
+                    .HasForeignKey(x => x.ExamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.ExamId, x.ClassName, x.SubjectCode })
+                    .HasDatabaseName("ix_new_exam_subject_configs_exam_class_subject");
+            });
+        }
+
+        private static void ConfigureNewExamTimetableSlot(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<NewExamTimetableSlot>(entity =>
+            {
+                entity.ToTable("new_exam_timetable_slots");
+                entity.HasKey(x => x.SlotId);
+
+                entity.Property(x => x.SlotId)
+                    .HasColumnName("slot_id")
+                    .ValueGeneratedOnAdd();
+
+                entity.Property(x => x.ExamId)
+                    .HasColumnName("exam_id");
+
+                entity.Property(x => x.ClassName)
+                    .HasColumnName("class_name")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.SectionName)
+                    .HasColumnName("section_name")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.SubjectCode)
+                    .HasColumnName("subject_code")
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.SubjectName)
+                    .HasColumnName("subject_name")
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.TotalMarks)
+                    .HasColumnName("total_marks");
+
+                entity.Property(x => x.ExamDate)
+                    .HasColumnName("exam_date")
+                    .HasColumnType("date");
+
+                entity.Property(x => x.TimeSlot)
+                    .HasColumnName("time_slot")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.Duration)
+                    .HasColumnName("duration")
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.RoomHall)
+                    .HasColumnName("room_hall")
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.InvigilatorFaculty)
+                    .HasColumnName("invigilator_faculty")
+                    .HasMaxLength(150);
+
+                entity.Property(x => x.CreatedAt)
+                    .HasColumnName("created_at")
+                    .HasColumnType("datetime")
+                    .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
         }
     }
 }

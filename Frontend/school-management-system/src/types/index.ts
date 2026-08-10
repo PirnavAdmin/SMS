@@ -326,6 +326,10 @@ export interface Staff {
   currentAddress?: string;
   residentialAddress?: string;
   permanentAddress?: string;
+  presentAddress?: string;
+  aadhaarNumber?: string;
+  panNumber?: string;
+  academicYear?: string;
   city?: string;
   district?: string;
   state?: string;
@@ -601,13 +605,16 @@ export interface PeriodSetting {
 
 export interface TeacherAssignment {
   id: string;
-  academicYear: string;
-  branch: string;
+  academicYear?: string;
+  branch?: string;
+  classId?: string;
   className: string;
   section: string;
   subject: string;
+  subjectId?: number;
   teacherId: string;
   teacherName: string;
+  role?: string;
   status: 'Active' | 'Inactive';
 }
 

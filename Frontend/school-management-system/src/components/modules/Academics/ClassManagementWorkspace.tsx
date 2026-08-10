@@ -781,54 +781,54 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     setIsSubmitting(true);
     setClassFormErrors([]);
 
-    // Simulate API request submission
-    setTimeout(() => {
-      const cleanName = finalName.trim();
-      const newClassData = {
-        name: cleanName,
-        branch: campus,
-        campus,
-        academicYear,
-        displayName: cleanName,
-        status,
-        remarks,
-        displayOrder: displayOrder !== '' ? parseInt(displayOrder) : undefined,
-        createdDate: new Date().toLocaleDateString(),
-        lastUpdated: new Date().toLocaleDateString(),
-        sections: [],
-        subjects: [],
-        teacher: '',
-        sectionTeachers: {},
-        sectionDetails: {}
-      };
+    const cleanName = finalName.trim();
+    const newClassData = {
+      name: cleanName,
+      branch: campus,
+      campus,
+      academicYear,
+      displayName: cleanName,
+      status,
+      remarks,
+      displayOrder: displayOrder !== '' ? parseInt(displayOrder) : undefined,
+      sections: [],
+      subjects: [],
+      teacher: '',
+      sectionTeachers: {},
+      sectionDetails: {}
+    };
 
-      // Update active top bar branch/year filters in global auth context
-      setSelectedBranch(campus);
-      setSelectedAcademicYear(academicYear);
+    // Update active top bar branch/year filters in global auth context
+    setSelectedBranch(campus);
+    setSelectedAcademicYear(academicYear);
 
-      // Reset local views filters
-      setFilterCampus('');
-      setFilterYear('');
-      setFilterStatus('');
-      setSearchClassName('');
+    // Reset local views filters
+    setFilterCampus('');
+    setFilterYear('');
+    setFilterStatus('');
+    setSearchClassName('');
 
-      addAcademicClass(newClassData as any);
-      addToast('success', 'Class created successfully', `Class ${cleanName} has been added to the dashboard.`);
-      setIsClassModalOpen(false);
-      setIsSubmitting(false);
+    Promise.resolve(addAcademicClass(newClassData as any))
+      .then(() => {
+        setIsClassModalOpen(false);
+        setIsSubmitting(false);
 
-      // Form reset only on successful creation
-      setClassForm({
-        campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
-        academicYear: ayObj ? ayObj.academicYear : '',
-        name: '',
-        displayName: '',
-        status: '' as any,
-        remarks: '',
-        displayOrder: ''
+        // Form reset on successful creation
+        setClassForm({
+          campus: selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses' ? selectedBranch : 'Main Campus',
+          academicYear: ayObj ? ayObj.academicYear : '',
+          name: '',
+          displayName: '',
+          status: '' as any,
+          remarks: '',
+          displayOrder: ''
+        });
+        setCustomClassName('');
+      })
+      .catch(err => {
+        console.error(err);
+        setIsSubmitting(false);
       });
-      setCustomClassName('');
-    }, 400);
   };
 
   const handleUpdateClass = (e: React.FormEvent) => {
@@ -1284,7 +1284,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // -------------------------------------------------------------
   // SUBJECT MASTER & MAPPING HANDLERS
   // -------------------------------------------------------------
-  const handleToggleSubjectMapping = (subjectName: string) => {
+  const handleToggleSubjectMapping = async (subjectName: string) => {
     if (!activeClass) return;
     const validGlobalNames = subjects.map(s => s.name);
     const currentMapped = (activeClass.subjects || []).filter(s => validGlobalNames.includes(s));
@@ -1297,19 +1297,35 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         addToast('warning', 'Mapping Locked', `Cannot remove subject ${subjectName} because subject teachers are assigned in sections.`);
         return;
       }
-      updated = currentMapped.filter(s => s !== subjectName);
-      updateAcademicClass(activeClass.id, { subjects: updated } as any);
-      addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
-
+      
       const subObj = subjects.find(s => s.name === subjectName);
       const numericSubId = subObj ? subObj.id.replace(/\D/g, '') : '0';
-      removeSubjectApi(activeClass.id, numericSubId).catch(() => {});
+      
+      try {
+        const res = await removeSubjectApi(activeClass.id, numericSubId);
+        if (res && res.success) {
+          updated = currentMapped.filter(s => s !== subjectName);
+          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
+        } else {
+          addToast('error', 'Mapping Failed', res?.message || 'Could not unmap subject.');
+        }
+      } catch (err: any) {
+        addToast('error', 'Mapping Failed', 'Could not unmap subject due to server error.');
+      }
     } else {
-      updated = [...currentMapped, subjectName];
-      updateAcademicClass(activeClass.id, { subjects: updated } as any);
-      addToast('success', 'Subject Mapped', `${subjectName} mapped to ${activeClass.name}`);
-
-      mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 }).catch(() => {});
+      try {
+        const res = await mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 });
+        if (res && res.success) {
+          updated = [...currentMapped, subjectName];
+          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          addToast('success', 'Subject Mapped', `${subjectName} mapped to ${activeClass.name}`);
+        } else {
+          addToast('error', 'Mapping Failed', res?.message || 'Could not map subject.');
+        }
+      } catch (err: any) {
+        addToast('error', 'Mapping Failed', 'Could not map subject due to server error.');
+      }
     }
   };
 
@@ -1572,11 +1588,22 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
 
   const handleRemoveStudentFromSection = (studId: string) => {
     verifySafetyLock(() => {
-      updateStudent(studId, {
-        section: '',
-        rollNo: ''
-      } as any);
-      addToast('info', 'Student de-allocated');
+      allocateStudentApi(studId, { section_letter: 'Unassigned', roll_no: '' })
+        .then(res => {
+          if (res && res.success) {
+            updateStudent(studId, {
+              section: '',
+              rollNo: ''
+            } as any);
+            addToast('success', 'Student De-allocated', 'Student unassigned from section successfully.');
+          } else {
+            addToast('error', 'Error', res?.message || 'Failed to unassign student.');
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          addToast('error', 'Error', 'Failed to communicate with server.');
+        });
     });
   };
 

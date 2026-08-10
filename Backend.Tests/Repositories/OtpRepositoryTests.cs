@@ -48,7 +48,7 @@ namespace Backend.Tests.Repositories
 
             Assert.True(oldOtp.IsUsed);
 
-            var activeOtp = await repo.GetLatestActiveOtpAsync(1, "General");
+            var activeOtp = await repo.GetLatestActiveOtpAsync(1, null, "General");
             Assert.NotNull(activeOtp);
             Assert.Equal("newHash", activeOtp!.OtpCodeHash);
         }
@@ -71,7 +71,7 @@ namespace Backend.Tests.Repositories
             db.OtpVerifications.Add(expiredOtp);
             await db.SaveChangesAsync();
 
-            bool result = await repo.ValidateOtpAsync(2, "hash123", "General");
+            bool result = await repo.ValidateOtpAsync(2, null, "hash123", "General");
 
             Assert.False(result);
             Assert.True(expiredOtp.IsUsed);
@@ -96,7 +96,7 @@ namespace Backend.Tests.Repositories
             db.OtpVerifications.Add(otp);
             await db.SaveChangesAsync();
 
-            bool result = await repo.ValidateOtpAsync(3, "hash123", "General");
+            bool result = await repo.ValidateOtpAsync(3, null, "hash123", "General");
 
             Assert.False(result);
             Assert.True(otp.IsUsed);
@@ -121,7 +121,7 @@ namespace Backend.Tests.Repositories
             db.OtpVerifications.Add(otp);
             await db.SaveChangesAsync();
 
-            bool result = await repo.ValidateOtpAsync(4, "wrongHash", "General");
+            bool result = await repo.ValidateOtpAsync(4, null, "wrongHash", "General");
 
             Assert.False(result);
             Assert.Equal(1, otp.AttemptCount);
@@ -147,7 +147,7 @@ namespace Backend.Tests.Repositories
             db.OtpVerifications.Add(otp);
             await db.SaveChangesAsync();
 
-            bool result = await repo.ValidateOtpAsync(5, "correctHash", "General");
+            bool result = await repo.ValidateOtpAsync(5, null, "correctHash", "General");
 
             Assert.True(result);
             Assert.Equal(1, otp.AttemptCount);

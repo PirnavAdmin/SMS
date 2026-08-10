@@ -13,25 +13,42 @@ export const HostelDashboardView: React.FC = () => {
   const [blocks, setBlocks] = useState<HostelBlock[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [metricsData, blocksData] = await Promise.all([
-        getHostelDashboardMetrics(),
-        getHostelBlocks()
-      ]);
-      setMetrics(metricsData);
-      setBlocks(blocksData);
-    } catch (error: any) {
-      addToast('error', 'Failed to load dashboard data', error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [addToast]);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const controller = new AbortController();
+    let isMounted = true;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [metricsData, blocksData] = await Promise.all([
+          getHostelDashboardMetrics(controller.signal),
+          getHostelBlocks(undefined, undefined, controller.signal)
+        ]);
+        if (isMounted) {
+          setMetrics(metricsData);
+          setBlocks(blocksData);
+        }
+      } catch (error: any) {
+        if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+          return;
+        }
+        if (isMounted) {
+          addToast('error', 'Failed to load dashboard data', error.message);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [addToast]);
 
   return (
     <div className="space-y-6 animate-in fade-in">

@@ -15,6 +15,7 @@ namespace Backend.Tests.Services
     {
         private readonly Mock<IOtpRepository> _otpRepoMock;
         private readonly Mock<IUserRepository> _userRepoMock;
+        private readonly Mock<IAdminRepository> _adminRepoMock;
         private readonly Mock<IConfiguration> _configMock;
         private readonly OtpService _service;
 
@@ -22,9 +23,10 @@ namespace Backend.Tests.Services
         {
             _otpRepoMock = new Mock<IOtpRepository>();
             _userRepoMock = new Mock<IUserRepository>();
+            _adminRepoMock = new Mock<IAdminRepository>();
             _configMock = new Mock<IConfiguration>();
 
-            _service = new OtpService(_otpRepoMock.Object, _userRepoMock.Object, _configMock.Object);
+            _service = new OtpService(_otpRepoMock.Object, _userRepoMock.Object, _adminRepoMock.Object, _configMock.Object);
         }
 
         [Fact]
@@ -73,7 +75,7 @@ namespace Backend.Tests.Services
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync(user);
-            _otpRepoMock.Setup(r => r.GetLatestActiveOtpAsync(2, "General"))
+            _otpRepoMock.Setup(r => r.GetLatestActiveOtpAsync(2, null, "General"))
                 .ReturnsAsync((OtpVerification?)null);
 
             bool result = await _service.VerifyOtpAsync(dto);
@@ -94,7 +96,7 @@ namespace Backend.Tests.Services
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync(user);
-            _otpRepoMock.Setup(r => r.GetLatestActiveOtpAsync(3, "General"))
+            _otpRepoMock.Setup(r => r.GetLatestActiveOtpAsync(3, null, "General"))
                 .ReturnsAsync(expiredOtp);
 
             bool result = await _service.VerifyOtpAsync(dto);
@@ -115,7 +117,7 @@ namespace Backend.Tests.Services
 
             _userRepoMock.Setup(r => r.GetByIdentifierAsync(dto.EmailOrPhone))
                 .ReturnsAsync(user);
-            _otpRepoMock.Setup(r => r.GetLatestActiveOtpAsync(4, "General"))
+            _otpRepoMock.Setup(r => r.GetLatestActiveOtpAsync(4, null, "General"))
                 .ReturnsAsync(activeOtp);
 
             bool result = await _service.VerifyOtpAsync(dto);
