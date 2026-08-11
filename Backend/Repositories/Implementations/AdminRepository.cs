@@ -19,26 +19,15 @@ public class AdminRepository : IAdminRepository
 
     public async Task<Admin?> GetByIdentifierAsync(string identifier)
     {
-        try
-        {
-            return await _context.Admins
-                .AsNoTracking()
-                .Include(a => a.Roles)
-                .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
-        }
-        catch
-        {
-            return await _context.Admins
-                .AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
-        }
+        return await _context.Admins
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
     }
 
     public async Task<Admin?> GetByIdAsync(int adminId)
     {
         return await _context.Admins
             .AsNoTracking()
-            .Include(a => a.Roles)
             .FirstOrDefaultAsync(a => a.AdminId == adminId);
     }
 

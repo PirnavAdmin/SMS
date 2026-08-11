@@ -145,6 +145,10 @@ builder.Services.AddScoped<ITeacherAttendanceRepository, TeacherAttendanceReposi
 
 builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>();
 
+// Faculty Development & Training Module
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IFacultyTrainingRepository, SMS.Api.Repositories.Implementations.FacultyTrainingRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFacultyTrainingService, SMS.Api.Services.Implementations.FacultyTrainingService>();
+
 // =========================================================
 // 3. JWT AUTHENTICATION
 // =========================================================
@@ -305,8 +309,8 @@ using (var scope = app.Services.CreateScope())
 
         if (isDbReachable)
         {
-            // Ensure EF Core Database and Schema are Created
-            try { context.Database.EnsureCreated(); } catch { }
+            // Ensure EF Core Database and Schema are Created (Bypassed to prevent legacy migration DDL logs)
+            // try { context.Database.EnsureCreated(); } catch { }
 
             // Dynamic Database Table Renaming & Schema Upgrades
             try
@@ -411,27 +415,133 @@ using (var scope = app.Services.CreateScope())
                 }
             }
 
-            // Upgrade staff_attendances table to add InTime and OutTime columns if they don't exist
+            // Upgrade staff, students, and admission_applications tables to automatically add missing columns
             using (var cmd = dbConnection.CreateCommand())
             {
                 try
                 {
-                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'staff_attendances' AND COLUMN_NAME = 'InTime';";
-                    var inTimeExists = System.Convert.ToInt32(cmd.ExecuteScalar());
-                    if (inTimeExists == 0)
+                    var staffColumnsToEnsure = new Dictionary<string, string>
                     {
-                        cmd.CommandText = "ALTER TABLE `staff_attendances` ADD COLUMN `InTime` longtext NULL;";
-                        cmd.ExecuteNonQuery();
-                        System.Console.WriteLine("[Database Schema Upgrade] Added column `InTime` to `staff_attendances`.");
+                        { "MiddleName", "longtext NULL" },
+                        { "AadhaarNumber", "longtext NULL" },
+                        { "PanNumber", "longtext NULL" },
+                        { "PresentAddress", "longtext NULL" },
+                        { "PermanentAddress", "longtext NULL" },
+                        { "ResidentialAddress", "longtext NULL" },
+                        { "City", "longtext NULL" },
+                        { "State", "longtext NULL" },
+                        { "PinCode", "longtext NULL" },
+                        { "EmploymentType", "longtext NULL" },
+                        { "ReportingManager", "longtext NULL" },
+                        { "AcademicYear", "longtext NULL" },
+                        { "IsClassTeacherEligible", "tinyint(1) NULL DEFAULT 0" },
+                        { "BloodGroup", "longtext NULL" },
+                        { "PrimarySubject", "longtext NULL" },
+                        { "Specialization", "longtext NULL" },
+                        { "SystemRole", "longtext NULL" },
+                        { "GrossSalary", "decimal(18,2) NULL" },
+                        { "NetSalary", "decimal(18,2) NULL" },
+                        { "SalaryStructureId", "int NULL" },
+                        { "SalaryStructureName", "varchar(150) NULL" },
+                        { "SalaryStructureEffectiveDate", "datetime NULL" },
+                        { "AccountHolderName", "varchar(150) NULL" },
+                        { "AccountNumber", "varchar(50) NULL" },
+                        { "BankName", "varchar(150) NULL" },
+                        { "BranchName", "varchar(150) NULL" },
+                        { "IfscCode", "varchar(50) NULL" },
+                        { "UpiId", "varchar(100) NULL" },
+                        { "AlternateMobile", "longtext NULL" },
+                        { "CurrentAddress", "longtext NULL" },
+                        { "EmergencyContactName", "longtext NULL" },
+                        { "EmergencyContactNumber", "longtext NULL" },
+                        { "EmergencyContactRelation", "longtext NULL" },
+                        { "Gender", "longtext NULL" },
+                        { "JoiningDate", "datetime(6) NULL" },
+                        { "MaritalStatus", "longtext NULL" },
+                        { "Qualification", "longtext NULL" },
+                        { "TotalExperience", "longtext NULL" },
+                        { "WorkLocation", "longtext NULL" },
+                        { "CasualLeaveBalance", "int NOT NULL DEFAULT 10" },
+                        { "EarnedLeaveBalance", "int NOT NULL DEFAULT 15" },
+                        { "SickLeaveBalance", "int NOT NULL DEFAULT 12" },
+                        { "BasicSalary", "decimal(18,2) NOT NULL DEFAULT 0" },
+                        { "Hra", "decimal(18,2) NOT NULL DEFAULT 0" },
+                        { "SpecialAllowance", "decimal(18,2) NOT NULL DEFAULT 0" }
+                    };
+
+                    foreach (var col in staffColumnsToEnsure)
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'staff' AND COLUMN_NAME = '{col.Key}';";
+                        var colExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (colExists == 0)
+                        {
+                            cmd.CommandText = $"ALTER TABLE `staff` ADD COLUMN `{col.Key}` {col.Value};";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine($"[Database Schema Upgrade] Added column `{col.Key}` to `staff`.");
+                        }
                     }
 
-                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'staff_attendances' AND COLUMN_NAME = 'OutTime';";
-                    var outTimeExists = System.Convert.ToInt32(cmd.ExecuteScalar());
-                    if (outTimeExists == 0)
+                    var studentColumnsToEnsure = new Dictionary<string, string>
                     {
-                        cmd.CommandText = "ALTER TABLE `staff_attendances` ADD COLUMN `OutTime` longtext NULL;";
-                        cmd.ExecuteNonQuery();
-                        System.Console.WriteLine("[Database Schema Upgrade] Added column `OutTime` to `staff_attendances`.");
+                        { "AadhaarNumber", "longtext NULL" },
+                        { "BloodGroup", "longtext NULL" },
+                        { "StudentType", "varchar(50) NOT NULL DEFAULT 'Day Scholar'" },
+                        { "AllocatedBedId", "varchar(50) NULL" },
+                        { "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0" }
+                    };
+
+                    foreach (var col in studentColumnsToEnsure)
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'students' AND COLUMN_NAME = '{col.Key}';";
+                        var colExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (colExists == 0)
+                        {
+                            cmd.CommandText = $"ALTER TABLE `students` ADD COLUMN `{col.Key}` {col.Value};";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine($"[Database Schema Upgrade] Added column `{col.Key}` to `students`.");
+                        }
+                    }
+
+                    var classColumnsToEnsure = new Dictionary<string, string>
+                    {
+                        { "CampusLocation", "varchar(100) NOT NULL DEFAULT 'Main Campus'" },
+                        { "AcademicYear", "varchar(20) NOT NULL DEFAULT '2026-2027'" },
+                        { "DisplayOrder", "int NULL" },
+                        { "Status", "varchar(20) NOT NULL DEFAULT 'Active'" },
+                        { "Remarks", "longtext NULL" },
+                        { "CreatedAt", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)" },
+                        { "UpdatedAt", "datetime(6) NULL" }
+                    };
+
+                    foreach (var col in classColumnsToEnsure)
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'classes' AND COLUMN_NAME = '{col.Key}';";
+                        var colExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (colExists == 0)
+                        {
+                            cmd.CommandText = $"ALTER TABLE `classes` ADD COLUMN `{col.Key}` {col.Value};";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine($"[Database Schema Upgrade] Added column `{col.Key}` to `classes`.");
+                        }
+                    }
+
+                    var sectionColumnsToEnsure = new Dictionary<string, string>
+                    {
+                        { "Capacity", "int NOT NULL DEFAULT 40" },
+                        { "Status", "varchar(20) NOT NULL DEFAULT 'Active'" },
+                        { "Remarks", "longtext NULL" }
+                    };
+
+                    foreach (var col in sectionColumnsToEnsure)
+                    {
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'class_sections' AND COLUMN_NAME = '{col.Key}';";
+                        var colExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (colExists == 0)
+                        {
+                            cmd.CommandText = $"ALTER TABLE `class_sections` ADD COLUMN `{col.Key}` {col.Value};";
+                            cmd.ExecuteNonQuery();
+                            System.Console.WriteLine($"[Database Schema Upgrade] Added column `{col.Key}` to `class_sections`.");
+                        }
                     }
                 }
                 catch (System.Exception ex)
@@ -983,6 +1093,90 @@ using (var scope = app.Services.CreateScope())
                 `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`slot_id`),
                 CONSTRAINT `fk_new_exam_timetable_slots_exam` FOREIGN KEY (`exam_id`) REFERENCES `new_examinations` (`exam_id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `faculty_workshops` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `title` varchar(200) NOT NULL,
+                `description` longtext NULL,
+                `trainer_name` varchar(100) NULL,
+                `organization` varchar(150) NULL,
+                `venue` varchar(100) NULL,
+                `start_date` datetime(6) NULL,
+                `end_date` datetime(6) NULL,
+                `start_time` varchar(20) NULL,
+                `end_time` varchar(20) NULL,
+                `category` varchar(50) NOT NULL,
+                `target_role_type` varchar(100) NULL,
+                `branch` varchar(100) NULL,
+                `status` varchar(20) NOT NULL DEFAULT 'Scheduled',
+                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `employee_competency_assessments` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `assessment_name` varchar(200) NOT NULL,
+                `assessment_type` varchar(100) NOT NULL,
+                `assessment_category` varchar(100) NOT NULL,
+                `total_marks` int NOT NULL DEFAULT 100,
+                `passing_marks` int NOT NULL DEFAULT 70,
+                `grading_scheme` varchar(100) NOT NULL,
+                `description` longtext NULL,
+                `assessment_instructions` longtext NULL,
+                `employee_type_filter` varchar(100) NULL,
+                `branch_filter` varchar(100) NULL,
+                `department_filter` varchar(100) NULL,
+                `designation_filter` varchar(100) NULL,
+                `scheduled_date` datetime(6) NULL,
+                `start_time` varchar(20) NULL,
+                `end_time` varchar(20) NULL,
+                `assessment_mode` varchar(100) NULL DEFAULT 'Offline (Exam Hall)',
+                `venue` varchar(250) NULL,
+                `main_evaluator` varchar(150) NULL,
+                `co_evaluator` varchar(150) NULL,
+                `notify_participants` tinyint(1) NOT NULL DEFAULT 1,
+                `auto_certificates` tinyint(1) NOT NULL DEFAULT 1,
+                `add_to_calendar` tinyint(1) NOT NULL DEFAULT 1,
+                `publish_immediately` tinyint(1) NOT NULL DEFAULT 1,
+                `candidates_count` int NOT NULL DEFAULT 0,
+                `status` varchar(20) NOT NULL DEFAULT 'Pending',
+                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `faculty_training_participations` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `workshop_id` int NOT NULL,
+                `staff_id` int NOT NULL,
+                `registration_status` varchar(20) NOT NULL DEFAULT 'Registered',
+                `assessment_score` decimal(5,2) NULL,
+                `certificate_issued` tinyint(1) NOT NULL DEFAULT 0,
+                `certificate_number` varchar(100) NULL,
+                `issued_date` datetime(6) NULL,
+                PRIMARY KEY (`id`),
+                KEY `ix_faculty_training_participations_workshop` (`workshop_id`),
+                KEY `ix_faculty_training_participations_staff` (`staff_id`),
+                CONSTRAINT `fk_participations_workshop` FOREIGN KEY (`workshop_id`) REFERENCES `faculty_workshops` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_participations_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `employee_assessment_candidates` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `assessment_id` int NOT NULL,
+                `staff_id` int NOT NULL,
+                `status` varchar(20) NOT NULL DEFAULT 'Assigned',
+                `score` decimal(5,2) NULL,
+                `grade` varchar(10) NULL,
+                `remarks` longtext NULL,
+                `certificate_issued` tinyint(1) NOT NULL DEFAULT 0,
+                `certificate_number` varchar(100) NULL,
+                `issued_date` datetime(6) NULL,
+                PRIMARY KEY (`id`),
+                KEY `ix_employee_assessment_candidates_assessment` (`assessment_id`),
+                KEY `ix_employee_assessment_candidates_staff` (`staff_id`),
+                CONSTRAINT `fk_candidates_assessment` FOREIGN KEY (`assessment_id`) REFERENCES `employee_competency_assessments` (`id`) ON DELETE CASCADE,
+                CONSTRAINT `fk_candidates_staff` FOREIGN KEY (`staff_id`) REFERENCES `staff` (`StaffId`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -999,17 +1193,22 @@ using (var scope = app.Services.CreateScope())
         {
             try
             {
-                var exists = context.Database.SqlQueryRaw<int>(
-                    "SELECT COUNT(1) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = {0} AND COLUMN_NAME = {1}",
-                    table, column
-                ).AsEnumerable().FirstOrDefault() > 0;
+                var conn = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
+                bool wasClosed = conn.State != System.Data.ConnectionState.Open;
+                if (wasClosed) conn.Open();
 
-                if (!exists)
+                using (var cmd = conn.CreateCommand())
                 {
-#pragma warning disable EF1002
-                    context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};");
-#pragma warning restore EF1002
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '{table}' AND COLUMN_NAME = '{column}';";
+                    var count = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (count == 0)
+                    {
+                        cmd.CommandText = $"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};";
+                        cmd.ExecuteNonQuery();
+                    }
                 }
+
+                if (wasClosed) conn.Close();
             }
             catch { }
         }
@@ -1036,9 +1235,25 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentId", "int NULL");
+
+        EnsureColumnExists("employee_competency_assessments", "employee_type_filter", "varchar(100) NULL");
+        EnsureColumnExists("employee_competency_assessments", "branch_filter", "varchar(100) NULL");
+        EnsureColumnExists("employee_competency_assessments", "department_filter", "varchar(100) NULL");
+        EnsureColumnExists("employee_competency_assessments", "designation_filter", "varchar(100) NULL");
+        EnsureColumnExists("employee_competency_assessments", "assessment_mode", "varchar(100) NULL DEFAULT 'Offline (Exam Hall)'");
+        EnsureColumnExists("employee_competency_assessments", "venue", "varchar(250) NULL");
+        EnsureColumnExists("employee_competency_assessments", "main_evaluator", "varchar(150) NULL");
+        EnsureColumnExists("employee_competency_assessments", "co_evaluator", "varchar(150) NULL");
+        EnsureColumnExists("employee_competency_assessments", "notify_participants", "tinyint(1) NOT NULL DEFAULT 1");
+        EnsureColumnExists("employee_competency_assessments", "auto_certificates", "tinyint(1) NOT NULL DEFAULT 1");
+        EnsureColumnExists("employee_competency_assessments", "add_to_calendar", "tinyint(1) NOT NULL DEFAULT 1");
+        EnsureColumnExists("employee_competency_assessments", "publish_immediately", "tinyint(1) NOT NULL DEFAULT 1");
         EnsureColumnExists("student_transport_assignments", "AdmissionNo", "varchar(50) NOT NULL DEFAULT ''");
         EnsureColumnExists("student_transport_assignments", "StudentId", "bigint NULL");
         EnsureColumnExists("transport_routes", "Description", "varchar(500) NULL");
+
+        EnsureColumnExists("faculty_workshops", "target_role_type", "varchar(100) NULL");
+        EnsureColumnExists("faculty_workshops", "branch", "varchar(100) NULL");
 
         // Homework table: ClassRoom column missing from MySQL but present in EF Core model
         EnsureColumnExists("homeworks", "ClassRoom", "varchar(150) NOT NULL DEFAULT 'Class 10-A'");
@@ -1096,6 +1311,10 @@ using (var scope = app.Services.CreateScope())
             context.Database.ExecuteSqlRaw("UPDATE `staff` SET `EmployeeCategory` = 'Non-Teaching Staff' WHERE `EmployeeCategory` IS NULL OR `EmployeeCategory` = '';");
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectCode` = CONCAT('SUB', `SubjectId`) WHERE `SubjectCode` IS NULL OR `SubjectCode` = '';");
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectName` = 'General Subject' WHERE `SubjectName` IS NULL OR `SubjectName` = '';");
+            context.Database.ExecuteSqlRaw("ALTER TABLE `faculty_workshops` MODIFY COLUMN `trainer_name` varchar(100) NULL;");
+            context.Database.ExecuteSqlRaw("ALTER TABLE `faculty_workshops` MODIFY COLUMN `venue` varchar(100) NULL;");
+            context.Database.ExecuteSqlRaw("ALTER TABLE `faculty_workshops` MODIFY COLUMN `start_date` datetime(6) NULL;");
+            context.Database.ExecuteSqlRaw("ALTER TABLE `faculty_workshops` MODIFY COLUMN `end_date` datetime(6) NULL;");
         }
         catch { }
 
@@ -1132,7 +1351,19 @@ using (var scope = app.Services.CreateScope())
 
             if (!constraintExists)
             {
-                try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` ADD CONSTRAINT `fk_otp_admins` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE;"); } catch { }
+                try
+                {
+                    var conn = Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions.GetDbConnection(context.Database);
+                    bool wasClosed = conn.State != System.Data.ConnectionState.Open;
+                    if (wasClosed) conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "ALTER TABLE `otp_verifications` ADD CONSTRAINT `fk_otp_admins` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE;";
+                        cmd.ExecuteNonQuery();
+                    }
+                    if (wasClosed) conn.Close();
+                }
+                catch { }
             }
 
             context.Database.ExecuteSqlRaw(@"
@@ -1228,7 +1459,6 @@ using (var scope = app.Services.CreateScope())
 
         var adminUser =
             await context.Users
-                .Include(x => x.Roles)
                 .FirstOrDefaultAsync(
                     x => x.Email == adminEmail);
 
@@ -1338,7 +1568,6 @@ using (var scope = app.Services.CreateScope())
             }
 
             var existingUser = await context.Users
-                .Include(x => x.Roles)
                 .FirstOrDefaultAsync(x =>
                     x.Email == portalUser.Email ||
                     x.MobileNumber == portalUser.Mobile);

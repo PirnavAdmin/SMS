@@ -65,7 +65,6 @@ public class SuperAdminRepository : ISuperAdminRepository
     {
         var query = _context.Admins
             .Include(a => a.School)
-            .Include(a => a.Roles)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -81,7 +80,6 @@ public class SuperAdminRepository : ISuperAdminRepository
     {
         return await _context.Admins
             .Include(a => a.School)
-            .Include(a => a.Roles)
             .FirstOrDefaultAsync(a => a.AdminId == adminId);
     }
 

@@ -19,19 +19,9 @@ namespace SMS.Api.Repositories.Implementations
 
         public async Task<User?> GetByIdentifierAsync(string identifier)
         {
-            try
-            {
-                return await _context.Users
-                    .AsNoTracking()
-                    .Include(u => u.Roles)
-                    .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
-            }
-            catch
-            {
-                return await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
-            }
+            return await _context.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
         }
 
         public async Task RegisterUserProcedureAsync(string fullName, string? email, string mobileNumber, string passwordHash, int roleId)
@@ -54,8 +44,6 @@ namespace SMS.Api.Repositories.Implementations
                 CreatedAt = DateTime.UtcNow
             };
 
-            user.Roles.Add(role);
-
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
         }
@@ -74,7 +62,6 @@ namespace SMS.Api.Repositories.Implementations
         {
             return await _context.Users
                 .AsNoTracking()
-                .Include(u => u.Roles)
                 .FirstOrDefaultAsync(u => u.UserId == userId);
         }
 
