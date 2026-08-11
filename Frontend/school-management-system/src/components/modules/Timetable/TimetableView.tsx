@@ -3,13 +3,14 @@ import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,
   Copy, User, BookOpen, AlertTriangle, Layers, SlidersHorizontal, Check, RefreshCw,
   Send, Lock, FileSpreadsheet, ShieldAlert, CheckCircle2, Info, Search,
-  Zap, UserCheck, Users, BookMarked, ChevronRight, School
+  Zap, UserCheck, Users, BookMarked, ChevronRight, School, Sparkles
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { AutoTimetableGeneratorModal } from './AutoTimetableGeneratorModal';
 import { 
   fetchPeriodsApi, savePeriodApi, deletePeriodApi,
   fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
@@ -227,6 +228,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const [deletingPeriodSetting, setDeletingPeriodSetting] = useState<PeriodSetting | null>(null);
   const [customPeriodType, setCustomPeriodType] = useState('');
   const [isEditingMaster, setIsEditingMaster] = useState(false);
+  const [isAutoGeneratorOpen, setIsAutoGeneratorOpen] = useState(false);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [bulkSelectedClasses, setBulkSelectedClasses] = useState<string[]>([]);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
@@ -1032,6 +1034,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
         {/* Global Timetable Filters */}
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+          <button
+            onClick={() => setIsAutoGeneratorOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+          >
+            <Clock className="w-4 h-4" />
+            <span>Auto-Generate Timetable</span>
+          </button>
+
           {/* Print Button */}
           {activeTab !== 'period-settings' && (
             <button
@@ -2318,6 +2328,13 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           }
         }}
         onCancel={() => setDeletingPeriodSetting(null)}
+      />
+
+      {/* Auto Timetable Generator Smart Wizard Modal */}
+      <AutoTimetableGeneratorModal
+        isOpen={isAutoGeneratorOpen}
+        onClose={() => setIsAutoGeneratorOpen(false)}
+        initialAcademicYear={academicYear}
       />
     </div>
   );

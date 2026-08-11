@@ -1184,6 +1184,7 @@ export interface FinanceTransaction {
     | 'Transport'
     | 'Library'
     | 'Inventory'
+    | 'Uniform'
     | 'Vendor Management'
     | 'Uniform'
     | 'Manual'

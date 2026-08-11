@@ -9,7 +9,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 
 export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
-  const { uniforms, addUniform, updateUniform, deleteUniform, uniformSizes } = useData();
+  const { uniforms, addUniform, updateUniform, deleteUniform, uniformSizes, uniformCategories } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -198,14 +198,101 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs overflow-y-auto pr-1 flex-1">
               <div>
                 <label className="block font-semibold mb-1">Uniform Category / Item Name *</label>
-                <input
-                  type="text"
+                <select
                   required
-                  placeholder="e.g. Winter Blazer, Tracksuit"
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                />
+                  value={formData.category || ''}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const itemPriceMap: Record<string, number> = {
+                      'Boys Uniform Package (Admission Kit)': 3000,
+                      'Girls Uniform Package (Admission Kit)': 3000,
+                      'Extra Shirt': 350,
+                      'Extra Pair of Trousers': 500,
+                      'Extra Skirt': 500,
+                      'Formal Blazer (Winter)': 1500,
+                      'Blazer': 1500,
+                      'V-Neck Sweater (Winter)': 800,
+                      'Tie & Crest': 150,
+                      'Belt': 150,
+                      'Black Shoes (Pair)': 600,
+                      'Socks (Pair)': 150,
+                      'Sports Tracksuit Kit': 500
+                    };
+                    const itemGenderMap: Record<string, 'Male' | 'Female' | 'Unisex'> = {
+                      'Boys Uniform Package (Admission Kit)': 'Male',
+                      'Girls Uniform Package (Admission Kit)': 'Female',
+                      'Extra Pair of Trousers': 'Male',
+                      'Extra Skirt': 'Female',
+                      'Extra Shirt': 'Unisex',
+                      'Formal Blazer (Winter)': 'Unisex',
+                      'Blazer': 'Unisex',
+                      'V-Neck Sweater (Winter)': 'Unisex',
+                      'Tie & Crest': 'Unisex',
+                      'Belt': 'Unisex',
+                      'Black Shoes (Pair)': 'Unisex',
+                      'Socks (Pair)': 'Unisex',
+                      'Sports Tracksuit Kit': 'Unisex'
+                    };
+
+                    const defaultPrice = itemPriceMap[val] !== undefined ? itemPriceMap[val] : (editingUniform ? formData.price : 350);
+                    const defaultGender = itemGenderMap[val] || formData.gender || 'Unisex';
+
+                    setFormData({ 
+                      ...formData, 
+                      category: val,
+                      price: defaultPrice,
+                      gender: defaultGender
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
+                >
+                  <option value="">Select Uniform Category / Item Name *</option>
+                  <optgroup label="📦 Standard Admission Packages (₹3,000 Fee Covered)">
+                    <option value="Boys Uniform Package (Admission Kit)">Boys Uniform Package (Admission Kit)</option>
+                    <option value="Girls Uniform Package (Admission Kit)">Girls Uniform Package (Admission Kit)</option>
+                  </optgroup>
+                  <optgroup label="👔 Individual Items & Extra Accessories">
+                    <option value="Extra Shirt">Extra Shirt</option>
+                    <option value="Extra Pair of Trousers">Extra Pair of Trousers</option>
+                    <option value="Extra Skirt">Extra Skirt</option>
+                    <option value="Formal Blazer (Winter)">Formal Blazer (Winter)</option>
+                    <option value="V-Neck Sweater (Winter)">V-Neck Sweater (Winter)</option>
+                    <option value="Tie & Crest">Tie & Crest</option>
+                    <option value="Belt">Belt</option>
+                    <option value="Black Shoes (Pair)">Black Shoes (Pair)</option>
+                    <option value="Socks (Pair)">Socks (Pair)</option>
+                    <option value="Sports Tracksuit Kit">Sports Tracksuit Kit</option>
+                  </optgroup>
+                </select>
+
+                {(() => {
+                  if (!formData.category) return null;
+                  const lower = formData.category.toLowerCase();
+                  const matchedCat = (uniformCategories || []).find(c => {
+                    const cLower = c.name.toLowerCase();
+                    if (lower === cLower || lower.includes(cLower) || cLower.includes(lower)) return true;
+                    if (lower.includes('boys') && cLower.includes('boys')) return true;
+                    if (lower.includes('girls') && cLower.includes('girls')) return true;
+                    if (lower.includes('shirt') && cLower.includes('shirt')) return true;
+                    if (lower.includes('trousers') && (cLower.includes('pant') || cLower.includes('trouser'))) return true;
+                    if (lower.includes('skirt') && cLower.includes('skirt')) return true;
+                    if (lower.includes('blazer') && cLower.includes('blazer')) return true;
+                    if (lower.includes('sweater') && cLower.includes('sweater')) return true;
+                    if (lower.includes('sports') && (cLower.includes('sports') || cLower.includes('tracksuit'))) return true;
+                    return false;
+                  });
+                  if (!matchedCat || !matchedCat.description) return null;
+                  return (
+                    <div className="mt-2.5 p-3.5 rounded-2xl bg-sky-50/90 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 space-y-1.5 animate-in fade-in">
+                      <div className="flex items-center justify-between text-xs font-black text-sky-900 dark:text-sky-200">
+                        <span>📦 Configured Package Specification (Category Master Data)</span>
+                      </div>
+                      <p className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 leading-relaxed">
+                        {matchedCat.description}
+                      </p>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

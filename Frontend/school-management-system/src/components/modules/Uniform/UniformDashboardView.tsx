@@ -269,7 +269,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
                 studentUniformIssues.slice(0, 5).map(issue => (
                   <tr key={issue.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{issue.studentName}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{issue.className} - {issue.section}</td>
+                    <td className="py-2.5 px-3 text-slate-500">{issue.className.includes('-') ? issue.className : (issue.section ? `${issue.className} - ${issue.section}` : issue.className)}</td>
                     <td className="py-2.5 px-3 font-semibold text-sky-600 dark:text-sky-400">{issue.itemName}</td>
                     <td className="py-2.5 px-3 text-center font-bold text-slate-900 dark:text-white">{issue.size}</td>
                     <td className="py-2.5 px-3 text-right font-black">{issue.quantity} Units</td>
