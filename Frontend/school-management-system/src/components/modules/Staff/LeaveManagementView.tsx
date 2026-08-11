@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter,
-  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, ChevronDown
+  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, ChevronDown, GraduationCap
 } from 'lucide-react';
 import { LeaveApplication, LeaveType, Holiday, Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';

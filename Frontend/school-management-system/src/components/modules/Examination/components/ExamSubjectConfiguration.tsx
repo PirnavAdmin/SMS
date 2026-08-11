@@ -52,17 +52,24 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
     }
 
     const seen = new Set<string>();
-    return rawNames.filter(name => {
+    const filtered = rawNames.filter(name => {
       const lower = name.toLowerCase();
       if (seen.has(lower)) return false;
       seen.add(lower);
       return true;
     });
+
+    console.log(`🎨 [ExamSubjectConfiguration] Selected class "${selectedClass}": classSubjects count:`, filtered.length, filtered);
+    return filtered;
   }, [selectedClass, academicClasses, allSubjects]);
 
-  // Active subjects for the currently selected class
+  // Active subjects strictly belonging to the displayed class subjects
   const currentClassMap = classWiseConfig[selectedClass] || {};
-  const activeSubjectNames = Object.keys(currentClassMap);
+  const activeSubjectNames = useMemo(() => {
+    const validSet = new Set(classSubjects.map(s => s.toLowerCase()));
+    return Object.keys(currentClassMap).filter(name => validSet.has(name.toLowerCase()));
+  }, [classSubjects, currentClassMap]);
+  console.log(`🎨 [ExamSubjectConfiguration] Selected class "${selectedClass}": activeSubjectNames (${activeSubjectNames.length}):`, activeSubjectNames, 'full map:', currentClassMap);
 
   const labelClass = "text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-0.5";
   const numInputClass = "w-full px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 font-mono transition h-[30px]";
@@ -94,7 +101,13 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Class:</span>
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
               {applicableClasses.map(cls => {
-                const count = Object.keys(classWiseConfig[cls] || {}).length;
+                const matchedClass = academicClasses.find(c => c.name === cls);
+                const raw = matchedClass?.subjects && matchedClass.subjects.length > 0
+                  ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+                  : allSubjects.map(s => s.name);
+                const subSet = new Set(raw.map((s: string) => s.toLowerCase()));
+                const clsMap = classWiseConfig[cls] || {};
+                const count = Object.keys(clsMap).filter(name => subSet.has(name.toLowerCase())).length;
                 const isSelected = selectedClass === cls;
                 return (
                   <button
@@ -127,20 +140,36 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
           Showing subjects for <strong className="text-slate-900 dark:text-white">{selectedClass}</strong> ({activeSubjectNames.length} selected of {classSubjects.length})
         </div>
         <div className="flex items-center gap-2">
-          {onSelectAllForClass && (
+          {onSelectAllForClass && onClearAllForClass && (
             <button
               type="button"
-              onClick={() => onSelectAllForClass(selectedClass, classSubjects)}
-              className="text-xs font-bold text-sky-600 hover:text-sky-500 transition cursor-pointer flex items-center gap-1"
+              onClick={() => {
+                const isAll = classSubjects.length > 0 && activeSubjectNames.length === classSubjects.length;
+                if (isAll) {
+                  onClearAllForClass(selectedClass);
+                } else {
+                  onSelectAllForClass(selectedClass, classSubjects);
+                }
+              }}
+              className={`text-xs font-bold transition cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-xl border ${
+                classSubjects.length > 0 && activeSubjectNames.length === classSubjects.length
+                  ? 'bg-sky-50 border-sky-400 text-sky-700 dark:bg-sky-950/40 dark:border-sky-700 dark:text-sky-300 shadow-xs'
+                  : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 hover:border-sky-400 shadow-xs'
+              }`}
             >
-              <CheckSquare className="w-3.5 h-3.5" /> Select All
+              {classSubjects.length > 0 && activeSubjectNames.length === classSubjects.length ? (
+                <CheckSquare className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+              ) : (
+                <Square className="w-4 h-4 text-slate-400 shrink-0" />
+              )}
+              <span>Select All</span>
             </button>
           )}
-          {onClearAllForClass && (
+          {onClearAllForClass && activeSubjectNames.length > 0 && (
             <button
               type="button"
               onClick={() => onClearAllForClass(selectedClass)}
-              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition cursor-pointer flex items-center gap-1"
+              className="text-xs font-bold text-slate-400 hover:text-rose-500 transition cursor-pointer flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-900/50"
             >
               <Square className="w-3.5 h-3.5" /> Clear All
             </button>

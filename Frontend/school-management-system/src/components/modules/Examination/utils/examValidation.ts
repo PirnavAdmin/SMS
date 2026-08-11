@@ -157,6 +157,13 @@ export function getPublishValidationIssues(
         issues.push(`Invigilator collision: Teacher ${s.invigilatorName} is double-booked on ${s.date} at ${s.startTime}.`);
       }
 
+      if (s.date) {
+        const d = new Date(s.date);
+        if (!isNaN(d.getTime()) && d.getDay() === 0) {
+          issues.push(`Sunday Warning: ${s.subject} is scheduled on a Sunday (${s.date}). Exams should not be scheduled on Sundays.`);
+        }
+      }
+
       if (exam.startDate && exam.endDate && !validateScheduleDate(s.date, exam.startDate, exam.endDate)) {
         issues.push(`Date out of bounds: ${s.subject} schedule date (${s.date}) falls outside exam range (${exam.startDate} to ${exam.endDate}).`);
       }

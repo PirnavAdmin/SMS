@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 
 // ==========================================
-// EXAM CONFIGURATION API
+// 1. EXAM CONFIGURATION / NEW SETUP API
 // ==========================================
 
 export const fetchExamOptionsApi = async () => {
@@ -10,6 +10,19 @@ export const fetchExamOptionsApi = async () => {
 
 export const fetchExamByIdApi = async (examId: number | string) => {
   return apiClient(`/api/examination-new/exams/${examId}`, { method: 'GET' });
+};
+
+export const updateExamByIdApi = async (examId: number | string, payload: any) => {
+  return apiClient(`/api/examination-new/exams/${examId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteExamApi = async (examId: number | string) => {
+  return apiClient(`/api/examination-new/exams/${examId}`, {
+    method: 'DELETE'
+  });
 };
 
 export const saveExamDetailsApi = async (payload: {
@@ -27,15 +40,17 @@ export const saveExamDetailsApi = async (payload: {
   });
 };
 
-export const deleteExamApi = async (examId: number | string) => {
-  return apiClient(`/api/examination-new/exams/${examId}`, {
-    method: 'DELETE'
-  });
-};
 
 export const fetchExamSubjectsApi = async (examId: number | string, className: string) => {
   return apiClient(`/api/examination-new/subjects/${examId}?className=${encodeURIComponent(className)}`, {
     method: 'GET'
+  });
+};
+
+export const updateExamSubjectsApi = async (examId: number | string, payload: any) => {
+  return apiClient(`/api/examination-new/subjects/${examId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
   });
 };
 
@@ -58,7 +73,7 @@ export const saveExamSubjectsApi = async (payload: {
 };
 
 // ==========================================
-// EXAM SCHEDULE / TIMETABLE API
+// 2. EXAM SCHEDULE & TIMETABLE API
 // ==========================================
 
 export const fetchScheduleOptionsApi = async () => {
@@ -70,6 +85,13 @@ export const fetchScheduleTimetableApi = async (className: string, sectionName?:
   const sectionQuery = sectionName ? `&sectionName=${encodeURIComponent(sectionName)}` : '';
   return apiClient(`/api/examination-new/schedule/timetable?${examQuery}className=${encodeURIComponent(className)}${sectionQuery}`, {
     method: 'GET'
+  });
+};
+
+export const updateScheduleTimetableApi = async (payload: any) => {
+  return apiClient('/api/examination-new/schedule/timetable', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
   });
 };
 
@@ -95,15 +117,132 @@ export const saveScheduleTimetableApi = async (payload: {
   });
 };
 
-export const fetchSchedulePreviewApi = async (academicYear: string, className: string, sectionName: string, examId?: number | string) => {
+export const deleteScheduleSlotApi = async (slotId: number | string) => {
+  return apiClient(`/api/examination-new/schedule/slot/${slotId}`, {
+    method: 'DELETE'
+  });
+};
+
+export const clearScheduleTimetableApi = async (params: { examId?: number | string; className?: string; sectionName?: string }) => {
+  const q = new URLSearchParams(params as any).toString();
+  return apiClient(`/api/examination-new/schedule/clear-timetable?${q}`, {
+    method: 'DELETE'
+  });
+};
+
+export const fetchSchedulePreviewApi = async (academicYear: string, className?: string, sectionName?: string, examId?: number | string) => {
   const examQuery = examId ? `examId=${encodeURIComponent(examId)}&` : '';
-  return apiClient(`/api/examination-new/schedule/preview?${examQuery}academicYear=${encodeURIComponent(academicYear)}&className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}`, {
+  const clsQuery = className ? `className=${encodeURIComponent(className)}&` : '';
+  const secQuery = sectionName ? `sectionName=${encodeURIComponent(sectionName)}&` : '';
+  return apiClient(`/api/examination-new/schedule/preview?${examQuery}${clsQuery}${secQuery}academicYear=${encodeURIComponent(academicYear)}`, {
     method: 'GET'
   });
 };
 
 // ==========================================
-// MARKS ENTRY API
+// 3. GRADE CONFIGURATION & SCALE RULES API
+// ==========================================
+
+export const fetchGradingScaleOptionsApi = async () => {
+  return apiClient('/api/examination-new/grading-scale/options', { method: 'GET' });
+};
+
+export const fetchGradingScaleRulesApi = async (examType?: string) => {
+  const query = examType ? `?examType=${encodeURIComponent(examType)}` : '';
+  return apiClient(`/api/examination-new/grading-scale/rules${query}`, {
+    method: 'GET'
+  });
+};
+
+export const saveGradingScaleRulesApi = async (payload: {
+  examType: string;
+  scaleRules: Array<{
+    ruleId: number;
+    grade: string;
+    minMarks: number;
+    maxMarks: number;
+    gpa: number;
+    passFail: string;
+    remarks: string;
+  }>;
+}) => {
+  return apiClient('/api/examination-new/grading-scale/save-rules', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateGradingScaleRulesApi = async (payload: any) => {
+  return apiClient('/api/examination-new/grading-scale/update-rules', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteGradingScaleRuleApi = async (ruleId: number | string) => {
+  return apiClient(`/api/examination-new/grading-scale/rules/${ruleId}`, {
+    method: 'DELETE'
+  });
+};
+
+// ==========================================
+// 4. RESULTS VERIFICATION & REPORT CARDS API
+// ==========================================
+
+export const fetchResultsOptionsApi = async () => {
+  return apiClient('/api/examination-new/results-reports/options', { method: 'GET' });
+};
+
+export const calculateResultsApi = async (payload: {
+  examId: number | string;
+  className: string;
+  sectionName: string;
+}) => {
+  return apiClient('/api/examination-new/results-reports/calculate', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateResultsReportsApi = async (payload: any) => {
+  return apiClient('/api/examination-new/results-reports/update-results', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchReportCardsApi = async (
+  className: string,
+  sectionName: string,
+  resultStatus?: string,
+  rankOrder?: string
+) => {
+  const statusQ = resultStatus ? `&resultStatus=${encodeURIComponent(resultStatus)}` : '';
+  const rankQ = rankOrder ? `&rankOrder=${encodeURIComponent(rankOrder)}` : '';
+  return apiClient(`/api/examination-new/results-reports/report-cards?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}${statusQ}${rankQ}`, {
+    method: 'GET'
+  });
+};
+
+export const printReportCardApi = async (
+  studentId: number | string,
+  className: string,
+  sectionName: string
+) => {
+  return apiClient(`/api/examination-new/results-reports/print-card/${studentId}?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}`, {
+    method: 'GET'
+  });
+};
+
+export const clearResultsReportsApi = async (params: { examId?: number | string; className?: string; sectionName?: string }) => {
+  const q = new URLSearchParams(params as any).toString();
+  return apiClient(`/api/examination-new/results-reports/clear-results?${q}`, {
+    method: 'DELETE'
+  });
+};
+
+// ==========================================
+// 5. STUDENT MARKS ENTRY API
 // ==========================================
 
 export const fetchMarksEntryOptionsApi = async () => {
@@ -166,74 +305,16 @@ export const submitMarksEntryApi = async (payload: {
   });
 };
 
-// ==========================================
-// RESULTS & REPORT CARDS API
-// ==========================================
-
-export const fetchResultsOptionsApi = async () => {
-  return apiClient('/api/examination-new/results-reports/options', { method: 'GET' });
-};
-
-export const calculateResultsApi = async (payload: {
-  examId: number | string;
-  className: string;
-  sectionName: string;
-}) => {
-  return apiClient('/api/examination-new/results-reports/calculate', {
-    method: 'POST',
+export const updateMarksEntryApi = async (payload: any) => {
+  return apiClient('/api/examination-new/marks-entry/update-marks', {
+    method: 'PUT',
     body: JSON.stringify(payload)
   });
 };
 
-export const fetchReportCardsApi = async (
-  className: string,
-  sectionName: string,
-  resultStatus: string,
-  rankOrder: string
-) => {
-  return apiClient(`/api/examination-new/results-reports/report-cards?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}&resultStatus=${encodeURIComponent(resultStatus)}&rankOrder=${encodeURIComponent(rankOrder)}`, {
-    method: 'GET'
-  });
-};
-
-export const printReportCardApi = async (
-  studentId: number | string,
-  className: string,
-  sectionName: string
-) => {
-  return apiClient(`/api/examination-new/results-reports/print-card/${studentId}?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}`, {
-    method: 'GET'
-  });
-};
-
-// ==========================================
-// GRADING SCALE API
-// ==========================================
-
-export const fetchGradingScaleOptionsApi = async () => {
-  return apiClient('/api/examination-new/grading-scale/options', { method: 'GET' });
-};
-
-export const fetchGradingScaleRulesApi = async (examType: string) => {
-  return apiClient(`/api/examination-new/grading-scale/rules?examType=${encodeURIComponent(examType)}`, {
-    method: 'GET'
-  });
-};
-
-export const saveGradingScaleRulesApi = async (payload: {
-  examType: string;
-  scaleRules: Array<{
-    ruleId: number;
-    grade: string;
-    minMarks: number;
-    maxMarks: number;
-    gpa: number;
-    passFail: string;
-    remarks: string;
-  }>;
-}) => {
-  return apiClient('/api/examination-new/grading-scale/save-rules', {
-    method: 'POST',
-    body: JSON.stringify(payload)
+export const clearMarksEntryApi = async (params: { examId?: number | string; className?: string; sectionName?: string }) => {
+  const q = new URLSearchParams(params as any).toString();
+  return apiClient(`/api/examination-new/marks-entry/clear-marks?${q}`, {
+    method: 'DELETE'
   });
 };

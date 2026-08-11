@@ -127,7 +127,7 @@ export const TeacherProfileView: React.FC = () => {
       const updated = await updateTeacherProfileMe(formData);
       setProfile(updated);
       setIsEditModalOpen(false);
-      addToast('Profile updated successfully', 'success');
+      addToast('success', 'Profile updated successfully');
     } catch (err: any) {
       console.error('Update profile error:', err);
       // Fallback local update
@@ -141,9 +141,9 @@ export const TeacherProfileView: React.FC = () => {
         };
         setProfile(updatedLocal);
         setIsEditModalOpen(false);
-        addToast('Profile updated locally', 'success');
+        addToast('success', 'Profile updated locally');
       } else {
-        addToast('Failed to update profile', 'error');
+        addToast('error', 'Failed to update profile');
       }
     } finally {
       setSubmitting(false);

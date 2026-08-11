@@ -3606,7 +3606,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? response
         : response?.data?.items || response?.data || [];
       if (Array.isArray(items) && items.length > 0) {
-        const mapped: Student[] = items.map((s: any) => ({
+        const mapped = items.map((s: any) => ({
           id: s.studentId?.toString() || s.id?.toString() || "",
           admissionNo: s.admissionNo || "",
           registrationNumber: s.registrationNumber || s.admissionNo || "",
@@ -3627,7 +3627,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           parentPhone: s.parentPhone || s.fatherContact || "",
           address: s.address || "",
           promotionHistory: [],
-        }));
+          rollNo: s.rollNo || "",
+          bloodGroup: s.bloodGroup || "O+",
+          category: s.category || "General",
+          avatar: s.avatar || "",
+          joiningDate: s.joiningDate || new Date().toISOString().split("T")[0]
+        } as unknown as Student));
         setStudents(mapped);
       }
     } catch (err) {

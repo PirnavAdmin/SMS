@@ -14,7 +14,8 @@ import {
   fetchExamOptionsApi, 
   fetchExamByIdApi, 
   saveExamDetailsApi,
-  fetchExamSubjectsApi
+  fetchExamSubjectsApi,
+  deleteExamApi
 } from '../../../api/examination';
 
 // Subcomponents
@@ -78,8 +79,10 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       return;
     }
     setLoadingDetails(true);
+    console.log('📌 [ExaminationView] loadExamDetails called for examId:', id);
     try {
       const response = await fetchExamByIdApi(id);
+      console.log('📌 [ExaminationView] fetchExamByIdApi response:', response);
       if (response && response.success && response.data) {
         const d = response.data;
         const appClasses = d.applicableClasses || [];
@@ -91,8 +94,9 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         const fetches = appClasses.map(async (cls: string) => {
           try {
             const res = await fetchExamSubjectsApi(id, cls);
+            console.log(`📌 [ExaminationView] fetchExamSubjectsApi for class "${cls}":`, res);
+            const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
             if (res && res.success && res.data?.subjects) {
-              const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
               res.data.subjects.forEach((s: any) => {
                 if (s.isActive) {
                   const conf = { 
@@ -105,8 +109,8 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
                   subjectWise[s.subjectName] = conf;
                 }
               });
-              classWise[cls] = subMap;
             }
+            classWise[cls] = subMap;
           } catch (e) {
             console.error(`Failed to load subjects for class ${cls}`, e);
           }
@@ -114,27 +118,40 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
         await Promise.all(fetches);
 
-        setActiveExam({
-          id: d.examId.toString(),
-          name: d.examName,
-          examType: d.assessmentType,
-          term: d.academicTerm,
-          startDate: d.startDate,
-          endDate: d.endDate,
-          applicableClasses: appClasses,
-          status: d.status || 'Scheduled',
-          publishStatus: d.publishStatus || 'Draft',
-          marksConfig: {
-            maxMarks: 100,
-            passMarks: 35,
-            classWiseConfig: classWise,
-            subjectWiseConfig: subjectWise
-          }
+        console.log('📌 [ExaminationView] Final active classWise map assembled:', classWise);
+
+        setActiveExam((prev: any) => {
+          const prevClassWise = (prev?.marksConfig as any)?.classWiseConfig || {};
+          const mergedClassWise = { ...prevClassWise };
+          Object.keys(classWise).forEach(cls => {
+            if (Object.keys(classWise[cls]).length > 0) {
+              mergedClassWise[cls] = { ...(prevClassWise[cls] || {}), ...classWise[cls] };
+            }
+          });
+
+          return {
+            id: d.examId.toString(),
+            name: d.examName,
+            examType: d.assessmentType,
+            term: d.academicTerm,
+            startDate: d.startDate,
+            endDate: d.endDate,
+            applicableClasses: appClasses,
+            status: d.status || 'Scheduled',
+            publishStatus: d.publishStatus || 'Draft',
+            marksConfig: {
+              maxMarks: 100,
+              passMarks: 35,
+              classWiseConfig: Object.keys(mergedClassWise).length > 0 ? mergedClassWise : classWise,
+              subjectWiseConfig: subjectWise
+            }
+          };
         });
       } else {
         addToast('error', 'Error Loading Exam Details', response?.message || 'Failed to fetch exam properties.');
       }
     } catch (err: any) {
+      console.error('❌ [ExaminationView] Error in loadExamDetails:', err);
       addToast('error', 'API Error', err.message || 'Failed to load exam details.');
     } finally {
       setLoadingDetails(false);
@@ -192,10 +209,17 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
     setShowDeleteConfirm(true);
   };
 
-  const confirmDeleteActiveExam = () => {
-    // Since there is no backend DELETE endpoint, remove locally from list
-    setExams(prev => prev.filter(e => e.id !== selectedExamId));
+  const confirmDeleteActiveExam = async () => {
+    if (!selectedExamId) return;
+    const examIdToDelete = selectedExamId;
+
+    // Trigger backend delete API (if server supports it)
+    deleteExamApi(examIdToDelete).catch(() => {});
+
+    // Update local state and DataContext
+    setExams(prev => prev.filter(e => e.id !== examIdToDelete));
     setSelectedExamId('');
+    setActiveExam(null);
     setShowDeleteConfirm(false);
     addToast('info', 'Examination Removed', 'Successfully removed the examination setup.');
   };
@@ -301,11 +325,24 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             subjects={subjects}
             selectedAcademicYear={selectedAcademicYear}
             selectedBranch={selectedBranch}
-            onSaveSetup={handleSaveSetup}
-            onNavigateNext={async () => {
-              if (selectedExamId) {
-                await loadExamDetails(selectedExamId);
+            onSaveSetup={(updates, showToast) => {
+              if (updates.marksConfig) {
+                setActiveExam((prev: any) => ({
+                  ...prev,
+                  ...updates,
+                  marksConfig: {
+                    ...(prev?.marksConfig || {}),
+                    ...updates.marksConfig,
+                    classWiseConfig: {
+                      ...((prev?.marksConfig as any)?.classWiseConfig || {}),
+                      ...((updates.marksConfig as any)?.classWiseConfig || {})
+                    }
+                  }
+                }));
               }
+              handleSaveSetup(updates, showToast);
+            }}
+            onNavigateNext={async () => {
               setActiveTab('schedule');
             }}
             addToast={addToast}
