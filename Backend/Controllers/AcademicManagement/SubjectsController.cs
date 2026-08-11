@@ -8,6 +8,7 @@ namespace SMS.Api.Controllers.AcademicManagement
 
     [ApiController]
     [Route("api/subjects")]
+    [Route("api/academics/subjects")]
     [Authorize]
     [Tags("Academic Subjects")]
     public class SubjectsController : ControllerBase

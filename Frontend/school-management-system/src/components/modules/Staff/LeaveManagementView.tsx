@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter,
-  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle
+  User, Layers, HelpCircle, ChevronLeft, ChevronRight, RefreshCw, AlertTriangle, ChevronDown
 } from 'lucide-react';
 import { LeaveApplication, LeaveType, Holiday, Staff } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
@@ -18,10 +19,32 @@ export const LeaveManagementView: React.FC = () => {
     holidays, addHoliday, updateHoliday, deleteHoliday
   } = useData();
 
+  const { user, role } = useAuth();
   const { addToast } = useToast();
 
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isTeacher = userRole === 'teacher';
+  const hasApprovalPermission = ['admin', 'principal', 'hr'].includes(userRole);
+
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>('queue');
+  const [activeTab, setActiveTab] = useState<'applications' | 'types' | 'balance' | 'queue' | 'holidays'>(
+    hasApprovalPermission ? 'queue' : 'applications'
+  );
+
+  // Match current staff member for logged in teacher
+  const teacherStaffMember = staff.find(s => 
+    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+    (s.phone && user?.phone && s.phone === user.phone) ||
+    (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
+  ) || staff.find(s => s.role === 'Teacher' || s.employeeCategory === 'Teacher') || staff[0];
+
+  // Filter applications for current user if teacher
+  const myApplications = leaveApplications.filter(a => {
+    if (!isTeacher) return true;
+    if (teacherStaffMember && (a.employeeId === teacherStaffMember.id || a.empId === teacherStaffMember.empId)) return true;
+    if (user?.name && a.employeeName.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
+    return false;
+  });
 
   // Filter States
   const [query, setQuery] = useState('');
@@ -35,6 +58,7 @@ export const LeaveManagementView: React.FC = () => {
   const [editingApplication, setEditingApplication] = useState<LeaveApplication | null>(null);
   const [viewingApplication, setViewingApplication] = useState<LeaveApplication | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+  const [cancelTargetApp, setCancelTargetApp] = useState<LeaveApplication | null>(null);
 
   // Leave Type Modals
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
@@ -57,14 +81,11 @@ export const LeaveManagementView: React.FC = () => {
     appData: Omit<LeaveApplication, 'id'> | null;
   }>({ show: false, available: 0, requested: 0, appData: null });
 
-  // Current User Role Simulation for RBAC
-  const currentUserRole = 'Admin'; // In production, this would come from an auth hook.
-  const hasApprovalPermission = ['Admin', 'Principal', 'HR'].includes(currentUserRole);
-
   // Summaries Calculations
-  const pendingCount = leaveApplications.filter(a => a.status === 'Pending').length;
-  const approvedCount = leaveApplications.filter(a => a.status === 'Approved').length;
-  const rejectedCount = leaveApplications.filter(a => a.status === 'Rejected').length;
+  const targetList = isTeacher ? myApplications : leaveApplications;
+  const pendingCount = targetList.filter(a => a.status === 'Pending').length;
+  const approvedCount = targetList.filter(a => a.status === 'Approved').length;
+  const rejectedCount = targetList.filter(a => a.status === 'Rejected').length;
   
   // Aggregate total leave balance for current active staff
   const totalBalance = staff.reduce((sum, s) => {
@@ -122,17 +143,20 @@ export const LeaveManagementView: React.FC = () => {
   // Submit Leave application
   const handleApplySubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!applyForm.employeeId || !applyForm.leaveTypeId || !applyForm.reason) {
+    const employee = (isTeacher && teacherStaffMember) 
+      ? teacherStaffMember 
+      : staff.find(s => s.id === applyForm.employeeId)!;
+
+    if (!employee || !applyForm.leaveTypeId || !applyForm.reason) {
       addToast('warning', 'Missing Details', 'Please complete all required fields.');
       return;
     }
 
-    if (hasOverlappingLeaves(applyForm.employeeId, applyForm.fromDate, applyForm.toDate, editingApplication?.id)) {
+    if (hasOverlappingLeaves(employee.id, applyForm.fromDate, applyForm.toDate, editingApplication?.id)) {
       addToast('error', 'Date Overlap', 'Leave has already been applied for the selected dates.');
       return;
     }
 
-    const employee = staff.find(s => s.id === applyForm.employeeId)!;
     const lType = leaveTypes.find(t => t.id === applyForm.leaveTypeId)!;
     const availableBal = getAvailableBalance(employee, lType.name);
 
@@ -225,15 +249,22 @@ export const LeaveManagementView: React.FC = () => {
     setIsApplyOpen(true);
   };
 
-  const triggerCancelApplication = (appId: string) => {
-    setConfirmCancelId(appId);
+  const triggerCancelApplication = (app: LeaveApplication) => {
+    setCancelTargetApp(app);
+    setConfirmCancelId(app.id);
   };
 
   const confirmCancel = () => {
     if (confirmCancelId) {
-      updateLeaveApplicationStatus(confirmCancelId, 'Rejected', 'Cancelled by employee');
-      addToast('info', 'Leave Cancelled', 'Leave request has been marked as cancelled/rejected.');
+      if (cancelTargetApp?.status === 'Approved') {
+        updateLeaveApplicationStatus(confirmCancelId, 'Rejected', 'Cancelled by employee after approval');
+        addToast('info', 'Approved Leave Cancelled', 'The approved leave request has been cancelled.');
+      } else {
+        deleteLeaveApplication(confirmCancelId);
+        addToast('info', 'Leave Application Deleted', 'Pending leave application has been deleted.');
+      }
       setConfirmCancelId(null);
+      setCancelTargetApp(null);
     }
   };
 
@@ -302,44 +333,61 @@ export const LeaveManagementView: React.FC = () => {
     setQueueActionType(null);
   };
 
-  // Printing application layout mock
+  // Printing application layout with official school template
   const handlePrintApplication = (app: LeaveApplication) => {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Leave Application - ${app.employeeName}</title>
+            <title>Leave Application Slip - ${app.employeeName}</title>
             <style>
-              body { font-family: sans-serif; padding: 40px; color: #333; }
-              .header { text-align: center; border-bottom: 2px solid #ddd; padding-bottom: 20px; }
-              .details { margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-              .section { margin-top: 40px; }
-              .sign { margin-top: 80px; display: flex; justify-content: space-between; }
+              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 35px; color: #1e293b; line-height: 1.5; }
+              .header { text-align: center; border-bottom: 3px double #0284c7; padding-bottom: 20px; margin-bottom: 25px; }
+              .logo { font-size: 24px; font-weight: 900; color: #0369a1; letter-spacing: 1px; }
+              .sub-logo { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; margin-top: 3px; }
+              .title { font-size: 15px; font-weight: 800; color: #0f172a; margin-top: 15px; background: #f0f9ff; display: inline-block; padding: 6px 18px; border-radius: 6px; border: 1px solid #bae6fd; }
+              .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 20px; font-size: 13px; }
+              .card { background: #f8fafc; padding: 14px; border-radius: 10px; border: 1px solid #e2e8f0; }
+              .label { color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+              .value { font-weight: 700; color: #0f172a; margin-top: 2px; }
+              .reason-box { margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px; }
+              .footer-sign { margin-top: 70px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #475569; }
             </style>
           </head>
           <body>
             <div class="header">
-              <h2>LEAVE APPLICATION SLIP</h2>
-              <p>St. Xavier's International Academy - HR Department</p>
+              <div class="logo">PIRNAV EDUCATIONAL INSTITUTION</div>
+              <div class="sub-logo">Human Resource & Administrative Management</div>
+              <div class="title">OFFICIAL LEAVE APPLICATION SLIP</div>
             </div>
-            <div class="details">
-              <div><strong>Employee Name:</strong> ${app.employeeName}</div>
-              <div><strong>Employee ID:</strong> ${app.empId}</div>
-              <div><strong>Department:</strong> ${app.department}</div>
-              <div><strong>Designation:</strong> ${app.designation}</div>
-              <div><strong>Leave Type:</strong> ${app.leaveTypeName}</div>
-              <div><strong>Period:</strong> ${app.fromDate} to ${app.toDate} (${app.numberOfDays} Days)</div>
-              <div><strong>Applied Date:</strong> ${app.appliedDate}</div>
-              <div><strong>Status:</strong> ${app.status}</div>
+            
+            <div class="grid">
+              <div class="card"><div class="label">Employee Name</div><div class="value">${app.employeeName}</div></div>
+              <div class="card"><div class="label">Employee ID</div><div class="value">${app.empId}</div></div>
+              <div class="card"><div class="label">Department</div><div class="value">${app.department}</div></div>
+              <div class="card"><div class="label">Designation</div><div class="value">${app.designation || 'Faculty Member'}</div></div>
+              <div class="card"><div class="label">Leave Type</div><div class="value">${app.leaveTypeName}</div></div>
+              <div class="card"><div class="label">Leave Duration</div><div class="value">${app.numberOfDays} Day(s) (${app.fromDate} to ${app.toDate})</div></div>
+              <div class="card"><div class="label">Applied Date</div><div class="value">${app.appliedDate}</div></div>
+              <div class="card"><div class="label">Application Status</div><div class="value" style="color: ${app.status === 'Approved' ? '#16a34a' : (app.status === 'Pending' ? '#d97706' : '#dc2626')}">${app.status.toUpperCase()}</div></div>
             </div>
-            <div class="section">
-              <h4>Reason for Leave:</h4>
-              <p>${app.reason}</p>
+
+            <div class="reason-box">
+              <div class="label">Reason for Leave</div>
+              <p style="margin-top: 5px; font-style: italic;">"${app.reason}"</p>
             </div>
-            <div class="sign">
-              <div>____________________<br/>Employee Signature</div>
-              <div>____________________<br/>Approver Signature</div>
+
+            ${app.approverRemarks ? `
+              <div class="reason-box" style="border-color: #fecaca; background: #fff5f5;">
+                <div class="label" style="color: #991b1b;">Approver Comments</div>
+                <p style="margin-top: 5px;">${app.approverRemarks}</p>
+              </div>
+            ` : ''}
+
+            <div class="footer-sign">
+              <div>__________________________________<br/>Employee Signature</div>
+              <div>__________________________________<br/>Authorized HR / Principal Signature</div>
             </div>
             <script>window.print();</script>
           </body>
@@ -358,18 +406,26 @@ export const LeaveManagementView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <FileText className="w-6 h-6 text-brand-600" /> Leave Management
           </h2>
+          {isTeacher && (
+            <p className="text-xs text-slate-500 mt-0.5">Apply for leave, manage your leave applications, and view leave balances.</p>
+          )}
         </div>
 
-        {!hasApprovalPermission && (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setEditingApplication(null); resetApplyForm(); setIsApplyOpen(true); }}
-              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
-            >
-              <Plus className="w-4 h-4" /> Submit Leave Application
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setEditingApplication(null);
+              resetApplyForm();
+              if (isTeacher && teacherStaffMember) {
+                setApplyForm(prev => ({ ...prev, employeeId: teacherStaffMember.id }));
+              }
+              setIsApplyOpen(true);
+            }}
+            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Apply for Leave
+          </button>
+        </div>
       </div>
 
       {/* Dashboard Summary Cards */}
@@ -413,14 +469,16 @@ export const LeaveManagementView: React.FC = () => {
         >
           Leave Applications
         </button>
-        <button
-          onClick={() => setActiveTab('types')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'types' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
-          }`}
-        >
-          Leave Types
-        </button>
+        {hasApprovalPermission && (
+          <button
+            onClick={() => setActiveTab('types')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'types' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            Leave Types
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('balance')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
@@ -448,45 +506,69 @@ export const LeaveManagementView: React.FC = () => {
             </div>
             
             <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-              <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)} className="px-3 py-2 text-xs rounded-xl bg-slate-50 border cursor-pointer outline-none">
-                <option value="All">All Categories</option>
-                <option value="Teacher">Teachers</option>
-                <option value="Staff">Staff</option>
-              </select>
+              {!isTeacher && (
+                <div className="relative">
+                  <select
+                    value={filterCategory}
+                    onChange={e => setFilterCategory(e.target.value)}
+                    className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+                  >
+                    <option value="All">All Categories</option>
+                    <option value="Teacher">Teachers</option>
+                    <option value="Staff">Staff</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              )}
 
-              <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 text-xs rounded-xl bg-slate-50 border cursor-pointer outline-none">
-                <option value="All">All Statuses</option>
-                <option value="Pending">Pending</option>
-                <option value="Approved">Approved</option>
-                <option value="Rejected">Rejected</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value)}
+                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
 
-              <select value={filterType} onChange={e => setFilterType(e.target.value)} className="px-3 py-2 text-xs rounded-xl bg-slate-50 border cursor-pointer outline-none">
-                <option value="All">All Leave Types</option>
-                {leaveTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-              </select>
+              <div className="relative">
+                <select
+                  value={filterType}
+                  onChange={e => setFilterType(e.target.value)}
+                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+                >
+                  <option value="All">All Leave Types</option>
+                  {leaveTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                </select>
+                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
 
           {/* Applications list table */}
           <div className="glass-card rounded-2xl overflow-hidden border">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-center border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
-                    <th className="py-3 px-4">Employee</th>
-                    <th className="py-3 px-4">Emp ID</th>
-                    <th className="py-3 px-4">Department</th>
-                    <th className="py-3 px-4">Leave Type</th>
-                    <th className="py-3 px-4">From - To Date</th>
-                    <th className="py-3 px-4">Requested Days</th>
-                    <th className="py-3 px-4">Applied On</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">S.No.</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Employee</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Emp ID</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Department</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Leave Type</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">From - To Date</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Requested Days</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Applied On</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y font-medium">
-                  {leaveApplications
+                  {myApplications
                     .filter(app => {
                       const nameMatch = app.employeeName.toLowerCase().includes(query.toLowerCase());
                       const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
@@ -494,40 +576,45 @@ export const LeaveManagementView: React.FC = () => {
                       const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
                       return nameMatch && catMatch && statusMatch && typeMatch;
                     })
-                    .map(app => (
+                    .map((app, idx) => (
                       <tr key={app.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-4 font-bold text-slate-800">{app.employeeName}</td>
-                        <td className="py-3 px-4 font-mono">{app.empId}</td>
-                        <td className="py-3 px-4">{app.department}</td>
-                        <td className="py-3 px-4">
-                          <span className="font-semibold text-sky-600">{app.leaveTypeName}</span>
-                          {app.isHalfDay && <span className="block text-[9px] text-amber-500">Half Day ({app.halfDayPeriod})</span>}
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-500 text-center whitespace-nowrap">{idx + 1}</td>
+                        <td className="py-3.5 px-4 font-bold text-slate-800 text-center whitespace-nowrap">{app.employeeName}</td>
+                        <td className="py-3.5 px-4 font-mono text-center whitespace-nowrap">{app.empId}</td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">{app.department}</td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <span className="font-semibold text-sky-600 block">{app.leaveTypeName}</span>
+                          {app.isHalfDay && <span className="block text-[9px] text-amber-600 font-semibold">{app.halfDayPeriod ? `Half Day (${app.halfDayPeriod})` : 'Half Day'}</span>}
                         </td>
-                        <td className="py-3 px-4">{app.fromDate} to {app.toDate}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900">{app.numberOfDays} Days</td>
-                        <td className="py-3 px-4">{app.appliedDate}</td>
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-700">
+                          {app.fromDate} <span className="text-slate-400 font-sans mx-0.5">to</span> {app.toDate}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-slate-900 text-center whitespace-nowrap">{app.numberOfDays} Days</td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono text-slate-500">{app.appliedDate}</td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           <Badge variant={app.status === 'Approved' ? 'success' : (app.status === 'Pending' ? 'warning' : 'danger')}>
                             {app.status}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button onClick={() => setViewingApplication(app)} className="p-1 rounded hover:bg-slate-100 text-slate-500" title="View Details">
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button onClick={() => setViewingApplication(app)} className="p-1.5 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors" title="View Details & Print">
                               <Eye className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handlePrintApplication(app)} className="p-1 rounded hover:bg-slate-100 text-brand-600" title="Print Request">
-                              <Printer className="w-4 h-4" />
                             </button>
                             {app.status === 'Pending' && (
                               <>
-                                <button onClick={() => openEditApplication(app)} className="p-1 rounded hover:bg-slate-100 text-blue-600" title="Edit Request">
+                                <button onClick={() => openEditApplication(app)} className="p-1.5 rounded hover:bg-slate-100 text-blue-600 hover:text-blue-800 transition-colors" title="Edit Request">
                                   <Edit className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => triggerCancelApplication(app.id)} className="p-1 rounded hover:bg-rose-50 text-rose-600" title="Cancel Request">
+                                <button onClick={() => triggerCancelApplication(app)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-800 transition-colors" title="Delete Pending Request">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </>
+                            )}
+                            {app.status === 'Approved' && (
+                              <button onClick={() => triggerCancelApplication(app)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600 hover:text-rose-800 transition-colors" title="Cancel Approved Leave">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
                         </td>
@@ -598,37 +685,46 @@ export const LeaveManagementView: React.FC = () => {
           </div>
 
           <div className="glass-card rounded-2xl overflow-hidden border">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
-                  <th className="py-3.5 px-4">Employee</th>
-                  <th className="py-3.5 px-4">Casual Leave Balance</th>
-                  <th className="py-3.5 px-4">Sick Leave Balance</th>
-                  <th className="py-3.5 px-4">Earned Leave Balance</th>
-                  <th className="py-3.5 px-4">Total Remaining Balance</th>
+                  <th className="py-3.5 px-4 text-center">S.No.</th>
+                  <th className="py-3.5 px-4 text-center">Employee</th>
+                  <th className="py-3.5 px-4 text-center">Casual Leave Balance</th>
+                  <th className="py-3.5 px-4 text-center">Sick Leave Balance</th>
+                  <th className="py-3.5 px-4 text-center">Earned Leave Balance</th>
+                  <th className="py-3.5 px-4 text-center">Total Remaining Balance</th>
                 </tr>
               </thead>
               <tbody className="divide-y font-medium">
                 {staff
-                  .filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase()))
-                  .map(s => {
+                  .filter(s => {
+                    if (isTeacher) {
+                      if (teacherStaffMember && s.id === teacherStaffMember.id) return true;
+                      if (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase().includes(user.name.toLowerCase().split(' ')[0])) return true;
+                      return false;
+                    }
+                    return `${s.firstName} ${s.lastName}`.toLowerCase().includes(query.toLowerCase());
+                  })
+                  .map((s, idx) => {
                     const bal = s.leaveBalance || { casual: 10, sick: 10, paid: 15 };
                     const totalRemaining = (bal.casual || 0) + (bal.sick || 0) + (bal.paid || 0);
                     return (
                       <tr key={s.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{idx + 1}</td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-2.5">
                             <img src={s.avatar} alt="" className="w-8 h-8 rounded-lg object-cover" />
-                            <div>
+                            <div className="text-left">
                               <p className="font-bold text-slate-800">{s.firstName} {s.lastName}</p>
                               <p className="text-[10px] text-slate-400">{s.designation} • {s.empId}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700">{bal.casual} Days</td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700">{bal.sick} Days</td>
-                        <td className="py-3 px-4 font-mono font-bold text-slate-700">{bal.paid} Days</td>
-                        <td className="py-3 px-4 font-mono font-black text-brand-600">{totalRemaining} Days</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.casual} Days</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.sick} Days</td>
+                        <td className="py-3 px-4 font-mono font-bold text-slate-700 text-center">{bal.paid} Days</td>
+                        <td className="py-3 px-4 font-mono font-black text-brand-600 text-center">{totalRemaining} Days</td>
                       </tr>
                     );
                   })}
@@ -642,37 +738,39 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'queue' && hasApprovalPermission && (
         <div className="space-y-4 animate-in fade-in">
           <div className="glass-card rounded-2xl overflow-hidden border">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
-                  <th className="py-3.5 px-4">Employee</th>
-                  <th className="py-3.5 px-4">Leave Type</th>
-                  <th className="py-3.5 px-4">Applied Date</th>
-                  <th className="py-3.5 px-4">From - To Date</th>
-                  <th className="py-3.5 px-4">Requested Days</th>
-                  <th className="py-3.5 px-4">Reason</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">S.No.</th>
+                  <th className="py-3.5 px-4 text-center">Employee</th>
+                  <th className="py-3.5 px-4 text-center">Leave Type</th>
+                  <th className="py-3.5 px-4 text-center">Applied Date</th>
+                  <th className="py-3.5 px-4 text-center">From - To Date</th>
+                  <th className="py-3.5 px-4 text-center">Requested Days</th>
+                  <th className="py-3.5 px-4 text-center">Reason</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y font-medium">
                 {leaveApplications.filter(app => app.status === 'Pending').length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-slate-400">All pending leave applications processed.</td></tr>
+                  <tr><td colSpan={8} className="text-center py-8 text-slate-400">All pending leave applications processed.</td></tr>
                 ) : (
                   leaveApplications
                     .filter(app => app.status === 'Pending')
-                    .map(app => (
+                    .map((app, idx) => (
                       <tr key={app.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-4">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{idx + 1}</td>
+                        <td className="py-3 px-4 text-center">
                           <p className="font-bold text-slate-800">{app.employeeName}</p>
                           <p className="text-[10px] text-slate-400">{app.designation} • {app.empId}</p>
                         </td>
-                        <td className="py-3 px-4 font-semibold text-sky-600">{app.leaveTypeName}</td>
-                        <td className="py-3 px-4">{app.appliedDate}</td>
-                        <td className="py-3 px-4">{app.fromDate} to {app.toDate}</td>
-                        <td className="py-3 px-4 font-bold text-slate-900">{app.numberOfDays} Days</td>
-                        <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate">{app.reason}</td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3 px-4 font-semibold text-sky-600 text-center">{app.leaveTypeName}</td>
+                        <td className="py-3 px-4 text-center">{app.appliedDate}</td>
+                        <td className="py-3 px-4 text-center">{app.fromDate} to {app.toDate}</td>
+                        <td className="py-3 px-4 font-bold text-slate-900 text-center">{app.numberOfDays} Days</td>
+                        <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate text-center">{app.reason}</td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => { setSelectedQueueApp(app); setQueueActionType('Approved'); }}
                               className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 font-bold rounded-lg"
@@ -771,16 +869,25 @@ export const LeaveManagementView: React.FC = () => {
               
               {/* Employee Selection */}
               <div>
-                <label className="block font-semibold mb-1 text-slate-700">Select Employee *</label>
-                <select
-                  required
-                  value={applyForm.employeeId}
-                  onChange={e => setApplyForm({ ...applyForm, employeeId: e.target.value })}
-                  className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
-                >
-                  <option value="">Choose Employee</option>
-                  {staff.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.empId})</option>)}
-                </select>
+                <label className="block font-semibold mb-1 text-slate-700">Applicant Employee *</label>
+                {isTeacher && teacherStaffMember ? (
+                  <input
+                    type="text"
+                    disabled
+                    value={`${teacherStaffMember.firstName} ${teacherStaffMember.lastName} (${teacherStaffMember.empId} - ${teacherStaffMember.designation || 'Teacher'})`}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 border text-slate-700 font-semibold cursor-not-allowed outline-none"
+                  />
+                ) : (
+                  <select
+                    required
+                    value={applyForm.employeeId}
+                    onChange={e => setApplyForm({ ...applyForm, employeeId: e.target.value })}
+                    className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
+                  >
+                    <option value="">Select Staff Member</option>
+                    {staff.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.empId} - {s.designation})</option>)}
+                  </select>
+                )}
               </div>
 
               {selectedStaffMember && (
@@ -975,56 +1082,103 @@ export const LeaveManagementView: React.FC = () => {
         </div>
       )}
 
-      {/* DIALOG: VIEW DETAILS */}
+      {/* DIALOG: VIEW DETAILS (PREVIEW MODAL WITH SCHOOL BRANDING) */}
       {viewingApplication && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             
-            <div className="flex justify-between items-center border-b pb-2">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Leave Application Details</h3>
-              <button onClick={() => setViewingApplication(null)} className="p-1 text-slate-400 hover:text-slate-600"><XCircle className="w-5 h-5" /></button>
+            {/* School Logo & Header */}
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-violet-600 flex items-center justify-center text-white font-black text-lg shadow-md shrink-0">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase">PIRNAV EDUCATIONAL INSTITUTION</h3>
+                  <p className="text-[10px] font-bold text-sky-600 uppercase tracking-wide">Leave Application Slip Preview</p>
+                </div>
+              </div>
+              <button onClick={() => setViewingApplication(null)} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"><XCircle className="w-5 h-5" /></button>
             </div>
 
-            <div className="space-y-2.5 text-xs">
-              <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-2xl border">
-                <div><span className="text-slate-400">Employee:</span> <p className="font-bold">{viewingApplication.employeeName}</p></div>
-                <div><span className="text-slate-400">Emp ID:</span> <p className="font-mono font-bold">{viewingApplication.empId}</p></div>
-                <div><span className="text-slate-400">Department:</span> <p className="font-semibold">{viewingApplication.department}</p></div>
-                <div><span className="text-slate-400">Leave Type:</span> <p className="font-semibold text-sky-600">{viewingApplication.leaveTypeName}</p></div>
-                <div><span className="text-slate-400">Duration:</span> <p className="font-bold">{viewingApplication.numberOfDays} Days</p></div>
-                <div><span className="text-slate-400">Period:</span> <p className="font-semibold">{viewingApplication.fromDate} to {viewingApplication.toDate}</p></div>
+            <div className="space-y-3 text-xs">
+              {/* Employee & Application Details Grid */}
+              <div className="grid grid-cols-2 gap-2.5 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Employee Name</span>
+                  <p className="font-bold text-slate-900 dark:text-white mt-0.5">{viewingApplication.employeeName}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Emp ID</span>
+                  <p className="font-mono font-bold text-slate-900 dark:text-white mt-0.5">{viewingApplication.empId}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Department</span>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingApplication.department}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Designation</span>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingApplication.designation || 'Faculty Member'}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Leave Type</span>
+                  <p className="font-bold text-sky-600 mt-0.5">{viewingApplication.leaveTypeName}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Status</span>
+                  <div className="mt-0.5">
+                    <Badge variant={viewingApplication.status === 'Approved' ? 'success' : (viewingApplication.status === 'Pending' ? 'warning' : 'danger')}>
+                      {viewingApplication.status}
+                    </Badge>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Leave Period</span>
+                  <p className="font-semibold text-slate-700 dark:text-slate-300 mt-0.5">{viewingApplication.fromDate} to {viewingApplication.toDate}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400">Total Duration</span>
+                  <p className="font-black text-slate-900 dark:text-white mt-0.5">{viewingApplication.numberOfDays} Day(s) {viewingApplication.isHalfDay ? `(Half Day - ${viewingApplication.halfDayPeriod})` : ''}</p>
+                </div>
               </div>
 
               <div>
-                <span className="text-slate-400">Reason for Leave:</span>
-                <p className="p-3 bg-slate-50 border rounded-xl italic text-slate-700 mt-1">{viewingApplication.reason}</p>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Reason for Leave</span>
+                <p className="p-3 bg-slate-50 dark:bg-slate-800/40 border rounded-xl italic text-slate-700 dark:text-slate-300 mt-1">{viewingApplication.reason}</p>
               </div>
 
               {viewingApplication.approverRemarks && (
                 <div>
-                  <span className="text-slate-400">Approver Remarks:</span>
-                  <p className="p-3 bg-red-50/50 border border-red-100 rounded-xl text-rose-800 mt-1">{viewingApplication.approverRemarks}</p>
+                  <span className="text-[10px] uppercase font-bold text-rose-500">Approver Remarks</span>
+                  <p className="p-3 bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900 rounded-xl text-rose-800 dark:text-rose-300 mt-1">{viewingApplication.approverRemarks}</p>
                 </div>
               )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => handlePrintApplication(viewingApplication)} className="px-4 py-2 text-xs bg-brand-50 text-brand-700 font-bold rounded-xl flex items-center gap-1">
-                <Printer className="w-3.5 h-3.5" /> Print Slip
-              </button>
-              <button onClick={() => setViewingApplication(null)} className="px-4 py-2 text-xs bg-slate-100 font-semibold rounded-xl">Close</button>
+            <div className="flex items-center justify-between pt-3 border-t">
+              <span className="text-[10px] text-slate-400 font-mono">Applied on: {viewingApplication.appliedDate}</span>
+              <div className="flex gap-2">
+                <button onClick={() => handlePrintApplication(viewingApplication)} className="px-4 py-2 text-xs bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl flex items-center gap-1.5 shadow-md shadow-brand-500/20 transition-all cursor-pointer">
+                  <Printer className="w-4 h-4" /> Print Slip
+                </button>
+                <button onClick={() => setViewingApplication(null)} className="px-4 py-2 text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl cursor-pointer">Close</button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* CONFIRM CANCEL MODAL */}
+      {/* CONFIRM CANCEL / DELETE MODAL */}
       <ConfirmModal
         isOpen={!!confirmCancelId}
-        title="Cancel Leave Application"
-        message="Are you sure you want to cancel this pending leave request?"
+        title={cancelTargetApp?.status === 'Approved' ? "Cancel Approved Leave" : "Delete Leave Application"}
+        message={
+          cancelTargetApp?.status === 'Approved'
+            ? "Are you sure you want to cancel this approved leave request?"
+            : "Are you sure you want to delete this pending leave request before approval?"
+        }
         onConfirm={confirmCancel}
-        onCancel={() => setConfirmCancelId(null)}
+        onCancel={() => { setConfirmCancelId(null); setCancelTargetApp(null); }}
       />
 
       {/* MASTER FORM MODAL: LEAVE TYPES */}

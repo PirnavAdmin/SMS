@@ -2577,6 +2577,9 @@ namespace Backend.Migrations
                     b.Property<string>("PrimarySubject")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("ProfilePhoto")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("Qualification")
                         .HasColumnType("longtext");
 

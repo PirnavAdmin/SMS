@@ -18,10 +18,12 @@ import { StudentPromotionView } from './components/modules/Students/StudentPromo
 import { TransferCertificatesView } from './components/modules/Students/TransferCertificatesView';
 import { AlumniView } from './components/modules/Students/AlumniView';
 import { StaffList } from './components/modules/Staff/StaffList';
+import { TeacherProfileView } from './components/modules/Staff/TeacherProfileView';
 import { StaffRegistrationPage } from './components/modules/Staff/StaffRegistrationPage';
 import { LeaveManagementView } from './components/modules/Staff/LeaveManagementView';
 import { StaffAttendanceView } from './components/modules/Staff/StaffAttendanceView';
 import { PayrollModuleView } from './components/modules/Staff/PayrollModuleViewSimple';
+import { TeacherPayslipsView } from './components/modules/Staff/TeacherPayslipsView';
 import { AdmissionsView } from './components/modules/Admissions/AdmissionsView';
 import { AcademicDashboardView } from './components/modules/Academics/AcademicDashboardView';
 import { ClassManagementWorkspace } from './components/modules/Academics/ClassManagementWorkspace';
@@ -141,7 +143,9 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith('staff-payroll')) {
-      return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <PayrollModuleView initialTab={activeModule} onTabChange={setActiveModule} />;
+      if (userRole === 'parent' || userRole === 'student') return <ParentTeacherInfoView />;
+      if (userRole === 'teacher') return <TeacherPayslipsView />;
+      return <PayrollModuleView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     switch (activeModule) {
@@ -156,18 +160,28 @@ const MainLayout: React.FC = () => {
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <TransferCertificatesView />;
       case 'alumni':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <AlumniView />;
+      case 'teacher-profile':
+      case 'teacher-my-profile':
+        return <TeacherProfileView />;
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':
-        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList onNavigate={setActiveModule} />;
+        if (userRole === 'parent' || userRole === 'student') return <ParentTeacherInfoView />;
+        if (userRole === 'teacher') return <TeacherProfileView />;
+        return <StaffList onNavigate={setActiveModule} />;
       case 'staff-non-teaching':
+        if (userRole === 'teacher') return <TeacherProfileView />;
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList initialCategory="Staff" onNavigate={setActiveModule} />;
       case 'staff-add':
+        if (userRole === 'teacher') return <TeacherProfileView />;
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffRegistrationPage onNavigate={setActiveModule} />;
       case 'staff-attendance':
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffAttendanceView />;
       case 'staff-leave':
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <LeaveManagementView />;
+      case 'staff-my-payslips':
+      case 'teacher-payslips':
+        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <TeacherPayslipsView />;
       case 'admissions':
       case 'admissions-add':
         return userRole === 'parent' || userRole === 'student' ? (
@@ -300,14 +314,24 @@ const MainLayout: React.FC = () => {
   );
 };
 
+import { HostelProvider } from './context/HostelContext';
+import { ExaminationProvider } from './context/ExaminationContext';
+import { HRProvider } from './context/HRContext';
+
 export function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <DataProvider>
-            <MainLayout />
-          </DataProvider>
+          <HostelProvider>
+            <ExaminationProvider>
+              <HRProvider>
+                <DataProvider>
+                  <MainLayout />
+                </DataProvider>
+              </HRProvider>
+            </ExaminationProvider>
+          </HostelProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

@@ -15,6 +15,9 @@ namespace SMS.Api.Dtos.AcademicManagement
         public string Status { get; set; } = "Active";
 
         public string? Remarks { get; set; }
+
+        [JsonPropertyName("room_no")]
+        public string? RoomNo { get; set; }
     }
 
     public class SectionUpdateDto
@@ -24,6 +27,9 @@ namespace SMS.Api.Dtos.AcademicManagement
         public string Status { get; set; } = "Active";
 
         public string? Remarks { get; set; }
+
+        [JsonPropertyName("room_no")]
+        public string? RoomNo { get; set; }
     }
 
     public class SubjectMapDto

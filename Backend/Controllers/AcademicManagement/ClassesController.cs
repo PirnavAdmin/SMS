@@ -32,8 +32,11 @@ namespace SMS.Api.Controllers.AcademicManagement
         // =========================================================
 
         // --- GET ALL TEACHER ASSIGNMENTS (for frontend persistence on reload) ---
-
+        // Accessible at both:
+        //   GET /api/classes/teacher-assignments  (canonical)
+        //   GET /api/teacher-assignments          (alias — frontend compatibility)
         [HttpGet("teacher-assignments")]
+        [HttpGet("/api/teacher-assignments")]   // absolute alias — overrides class-level route prefix
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> GetAllTeacherAssignments()
         {
@@ -100,7 +103,8 @@ namespace SMS.Api.Controllers.AcademicManagement
                         ClassTeacherName = classTeacherAssign != null
                             ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
                             : null,
-                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId
+                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
+                        RoomNo = s.RoomNo
                     };
                 }).ToList(),
                 CurriculumSubjects = c.SubjectMappings.Select(sm => new SubjectDto
@@ -151,7 +155,8 @@ namespace SMS.Api.Controllers.AcademicManagement
                         ClassTeacherName = classTeacherAssign != null
                             ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
                             : null,
-                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId
+                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
+                        RoomNo = s.RoomNo
                     };
                 }).ToList(),
                 CurriculumSubjects = classObj.SubjectMappings.Select(sm => new SubjectDto
@@ -411,7 +416,8 @@ await transaction.CommitAsync();
                 SectionName = dto.SectionLetter,
                 Capacity = dto.Capacity,
                 Status = dto.Status,
-                Remarks = dto.Remarks
+                Remarks = dto.Remarks,
+                RoomNo = dto.RoomNo
             };
 
             await _context.ClassSections.AddAsync(section);
@@ -436,6 +442,7 @@ await transaction.CommitAsync();
             section.Capacity = dto.Capacity;
             section.Status = dto.Status;
             section.Remarks = dto.Remarks;
+            section.RoomNo = dto.RoomNo;
 
             await _context.SaveChangesAsync();
             await LogAuditActionAsync("Update Section", $"Updated section '{section_letter}' in class ID {id}.");

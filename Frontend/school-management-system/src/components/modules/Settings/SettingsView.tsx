@@ -28,7 +28,7 @@ const defaultCampuses: CampusItem[] = [
   { id: 'CMP-03', name: 'West Campus', code: 'WEST', address: '99 Mission Way, Knowledge Hub, NY 10003', phone: '+1 (555) 333-111', email: 'west@stxaviers.edu', status: 'Active' }
 ];
 
-export const defaultCertificateTemplates: CertificateTemplateConfig[] = [
+const defaultCertificateTemplates: CertificateTemplateConfig[] = [
   {
     id: 'TPL-TC',
     certificateType: 'Transfer Certificate',

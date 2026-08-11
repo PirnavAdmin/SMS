@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/payroll")]
-[Authorize(Roles = "Admin,Staff")]
+[Authorize]
 [Tags("HR & Payroll Processing Engine")]
 public class PayrollProcessingController : ControllerBase
 {

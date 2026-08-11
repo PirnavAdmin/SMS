@@ -1,3 +1,4 @@
+// @refresh reset
 import React, {
   createContext,
   useContext,
@@ -216,7 +217,6 @@ import {
   createStaffApi,
   updateStaffApi,
   deleteStaffApi,
-  fetchTeacherAssignmentsApi,
 } from "../api/staff";
 import {
   fetchLeaveTypesApi,
@@ -240,6 +240,78 @@ import {
   fetchMonthlyStaffAttendanceApi,
   markBulkStaffAttendanceApi,
 } from "../api/attendance";
+import {
+  fetchBooksApi,
+  fetchIssuedBooksApi,
+  issueBookApi,
+  returnBookApi,
+  createBookApi,
+  updateBookApi,
+  deleteBookApi,
+} from "../api/library";
+import {
+  fetchHomeworkApi,
+  createHomeworkApi,
+  updateHomeworkApi,
+  deleteHomeworkApi,
+} from "../api/homework";
+import {
+  fetchInventoryItemsApi,
+  fetchInventoryCategoriesApi,
+  createInventoryItemApi,
+  updateInventoryItemApi,
+  deleteInventoryItemApi,
+} from "../api/inventory";
+import {
+  fetchUniformCategoriesApi,
+  fetchUniformSizesApi,
+  fetchUniformSuppliersApi,
+  fetchUniformTypesApi,
+  fetchUniformDistributionsApi,
+  issueUniformApi,
+  createUniformTypeApi,
+  updateUniformTypeApi,
+  deleteUniformTypeApi,
+  createUniformCategoryApi,
+  updateUniformCategoryApi,
+  deleteUniformCategoryApi,
+  createUniformSizeApi,
+  updateUniformSizeApi,
+  deleteUniformSizeApi,
+  createUniformSupplierApi,
+  updateUniformSupplierApi,
+  deleteUniformSupplierApi,
+  fetchUniformDashboardApi,
+} from "../api/uniform";
+import {
+  fetchStudentsApi,
+  fetchStudentByIdApi,
+  createStudentApi,
+  updateStudentApi,
+  updateStudentStatusApi,
+  deleteStudentApi,
+} from "../api/students";
+import {
+  fetchSchoolEventsApi,
+  createSchoolEventApi,
+  updateSchoolEventApi,
+  deleteSchoolEventApi,
+  fetchHolidaysApi,
+  createHolidayApi,
+  updateHolidayApi,
+  deleteHolidayApi,
+  fetchCalendarEventsApi,
+} from "../api/events";
+import {
+  fetchNotificationsApi,
+  createNotificationApi,
+  updateNotificationApi,
+  deleteNotificationApi,
+  fetchMeetingsApi,
+  scheduleMeetingApi,
+  updateMeetingApi,
+  deleteMeetingApi,
+} from "../api/communication";
 
 export interface AcademicClass {
   id: string;
@@ -248,6 +320,8 @@ export interface AcademicClass {
   sectionTeachers?: Record<string, string>;
   teacher: string;
   subjects: string[];
+  weeklyPeriods?: Record<string, number>;
+  sectionDetails?: Record<string, any>;
 }
 
 const initialClasses: AcademicClass[] = [
@@ -2274,10 +2348,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
     const stored = getStored("uniforms", initialUniforms);
-    const version = localStorage.getItem("edu_db_uniforms_v8");
-    if (!version || stored.length < initialUniforms.length) {
-      localStorage.setItem("edu_db_uniforms_v8", "true");
+    const version = localStorage.getItem("edu_db_uniforms_v20");
+    if (!version || stored.length < initialUniforms.length || stored.some(u => u.category.includes('School ') || u.category === 'Blazer' || u.category === 'Extra Shirt')) {
+      localStorage.setItem("edu_db_uniforms_v20", "true");
       localStorage.setItem("edu_db_uniforms", JSON.stringify(initialUniforms));
+      localStorage.setItem("uniforms", JSON.stringify(initialUniforms));
       return initialUniforms;
     }
     return stored;
@@ -2409,7 +2484,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
-    () => getStored("uniform_categories", initialUniformCategories),
+    () => {
+      const stored = getStored("uniform_categories", initialUniformCategories);
+      const version = localStorage.getItem("edu_db_uniform_categories_v37");
+      if (!version || stored.length < initialUniformCategories.length) {
+        localStorage.setItem("edu_db_uniform_categories_v37", "true");
+        localStorage.setItem("uniform_categories", JSON.stringify(initialUniformCategories));
+        return initialUniformCategories;
+      }
+      return stored;
+    }
   );
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() =>
     getStored("uniform_sizes", initialUniformSizes),
@@ -2421,11 +2505,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     UniformInventoryItem[]
   >(() => {
     const stored = getStored("uniform_inventory", initialUniformInventory);
-    const version = localStorage.getItem("edu_db_uniform_inventory_v8");
-    if (!version || stored.length < initialUniformInventory.length) {
-      localStorage.setItem("edu_db_uniform_inventory_v8", "true");
+    const version = localStorage.getItem("edu_db_uniform_inventory_v35");
+    if (!version || stored.length < initialUniformInventory.length || stored.some(i => i.itemName.includes('School ') || i.itemName === 'Blazer' || i.itemName === 'Polo Shirt (Summer)')) {
+      localStorage.setItem("edu_db_uniform_inventory_v35", "true");
       localStorage.setItem(
         "edu_db_uniform_inventory",
+        JSON.stringify(initialUniformInventory),
+      );
+      localStorage.setItem(
+        "uniform_inventory",
         JSON.stringify(initialUniformInventory),
       );
       return initialUniformInventory;
@@ -2434,7 +2522,34 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
-  >(() => getStored("student_uniform_issues", initialStudentUniformIssues));
+  >(() => {
+    const stored = getStored("student_uniform_issues", initialStudentUniformIssues);
+    const version = localStorage.getItem("edu_db_student_uniform_issues_v35");
+    const hasInvalidFormat = stored.some((i: any) =>
+      i.itemName?.includes("Summer blazer") ||
+      i.itemName?.includes("Autumn Blazer") ||
+      i.itemName?.includes("Summer Sweater") ||
+      i.itemName?.includes("Polo Shirt") ||
+      i.className?.includes("- A - A") ||
+      i.className?.includes(" - A - ") ||
+      i.quantity > 5
+    );
+    if (!version || hasInvalidFormat || stored.length < initialStudentUniformIssues.length) {
+      localStorage.setItem("edu_db_student_uniform_issues_v35", "true");
+      localStorage.setItem(
+        "student_uniform_issues",
+        JSON.stringify(initialStudentUniformIssues),
+      );
+      return initialStudentUniformIssues;
+    }
+    const cleaned = stored.map((i: any) => {
+      if (i.className && (i.className.includes(" - A - A") || i.className.includes(" - B - B"))) {
+        return { ...i, className: i.className.replace(/\s*-\s*[A-Z]\s*-\s*[A-Z]$/, ' - A') };
+      }
+      return i;
+    });
+    return cleaned;
+  });
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
     FinanceUniformConfig[]
   >(() => getStored("finance_uniform_configs", initialFinanceUniformConfigs));
@@ -3249,14 +3364,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? data.data
             : null;
         if (classList) {
-          const mapped: AcademicClass[] = classList.map((c: any) => ({
-            id: c.classId?.toString() || c.id?.toString(),
-            name: c.className || c.name,
-            sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-            sectionTeachers: c.sectionTeachers || {},
-            teacher: c.teacher || "Unassigned",
-            subjects: c.subjects || [],
-          }));
+          const storedLocal = localStorage.getItem("edu_db_academic_classes");
+          const localClasses: AcademicClass[] = storedLocal ? JSON.parse(storedLocal) : [];
+
+          const mapped: AcademicClass[] = classList.map((c: any) => {
+            const classIdStr = c.classId?.toString() || c.id?.toString();
+            const localCls = localClasses.find(lc => lc.id === classIdStr);
+
+            return {
+              id: classIdStr,
+              name: c.className || c.name,
+              sections: c.sections?.map((s: any) => s.sectionName || s) || [],
+              sectionTeachers: c.sectionTeachers || {},
+              teacher: c.teacher || "Unassigned",
+              subjects: c.subjects || [],
+              weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
+              sectionDetails: localCls?.sectionDetails || c.sectionDetails || {},
+            };
+          });
           setAcademicClasses(mapped);
         }
       }
@@ -3470,6 +3595,173 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // =========================================================
+  // FETCH FUNCTIONS — REAL API REPLACEMENTS FOR MOCK DATA
+  // =========================================================
+
+  const fetchStudents = async () => {
+    try {
+      const response: any = await fetchStudentsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const mapped: Student[] = items.map((s: any) => ({
+          id: s.studentId?.toString() || s.id?.toString() || "",
+          admissionNo: s.admissionNo || "",
+          registrationNumber: s.registrationNumber || s.admissionNo || "",
+          firstName: s.firstName || "",
+          middleName: s.middleName || "",
+          lastName: s.lastName || "",
+          email: s.email || "",
+          phone: s.phone || s.contactNumber || "",
+          gender: s.gender || "Male",
+          dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
+          className: s.className || s.class || "",
+          section: s.sectionName || s.section || "",
+          academicYear: s.academicYear || "",
+          branch: s.branch || "Main Campus",
+          status: s.status || "Active",
+          studentType: s.studentType || "Day Scholar",
+          parentName: s.parentName || s.fatherName || "",
+          parentPhone: s.parentPhone || s.fatherContact || "",
+          address: s.address || "",
+          promotionHistory: [],
+        }));
+        setStudents(mapped);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch students from API", err);
+    }
+  };
+
+  const fetchBooks = async () => {
+    try {
+      const response: any = await fetchBooksApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setBooks(items);
+    } catch (err) {
+      console.warn("Failed to fetch books from API", err);
+    }
+  };
+
+  const fetchBookIssues = async () => {
+    try {
+      const response: any = await fetchIssuedBooksApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setBookIssues(items);
+    } catch (err) {
+      console.warn("Failed to fetch issued books from API", err);
+    }
+  };
+
+  const fetchHomeworkData = async () => {
+    try {
+      const response: any = await fetchHomeworkApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setHomework(items);
+    } catch (err) {
+      console.warn("Failed to fetch homework from API", err);
+    }
+  };
+
+  const fetchInventoryData = async () => {
+    try {
+      const response: any = await fetchInventoryItemsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setInventory(items);
+    } catch (err) {
+      console.warn("Failed to fetch inventory from API", err);
+    }
+  };
+
+  const fetchUniformData = async () => {
+    try {
+      const [catRes, sizeRes, supplierRes, typeRes, distRes] =
+        await Promise.allSettled([
+          fetchUniformCategoriesApi(),
+          fetchUniformSizesApi(),
+          fetchUniformSuppliersApi(),
+          fetchUniformTypesApi(),
+          fetchUniformDistributionsApi(),
+        ]);
+      const extract = (r: PromiseSettledResult<any>) =>
+        r.status === "fulfilled"
+          ? Array.isArray(r.value)
+            ? r.value
+            : r.value?.data || []
+          : [];
+      const cats = extract(catRes);
+      const sizes = extract(sizeRes);
+      const suppliers = extract(supplierRes);
+      const types = extract(typeRes);
+      const dists = extract(distRes);
+      if (cats.length) setUniformCategories(cats);
+      if (sizes.length) setUniformSizes(sizes);
+      if (suppliers.length) setUniformSuppliers(suppliers);
+      if (types.length) setUniformInventory(types);
+      if (dists.length) setStudentUniformIssues(dists);
+    } catch (err) {
+      console.warn("Failed to fetch uniform data from API", err);
+    }
+  };
+
+  const fetchSchoolEventsData = async () => {
+    try {
+      const response: any = await fetchSchoolEventsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setSchoolEvents(items);
+    } catch (err) {
+      console.warn("Failed to fetch school events from API", err);
+    }
+  };
+
+  const fetchHolidaysData = async () => {
+    try {
+      const response: any = await fetchHolidaysApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items) && items.length > 0) setHolidays(items);
+    } catch (err) {
+      console.warn("Failed to fetch holidays from API", err);
+    }
+  };
+
+  const fetchAnnouncementsData = async () => {
+    try {
+      const response: any = await fetchNotificationsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setAnnouncements(items);
+    } catch (err) {
+      console.warn("Failed to fetch announcements from API", err);
+    }
+  };
+
+  const fetchMeetingsData = async () => {
+    try {
+      const response: any = await fetchMeetingsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setMeetings(items);
+    } catch (err) {
+      console.warn("Failed to fetch meetings from API", err);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchAcademicClasses();
@@ -3477,6 +3769,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchPeriods();
       fetchDepartments();
       fetchDesignations();
+      // Students (replaces initialStudents mock data)
+      fetchStudents();
+      // Library (replaces initialBooks / initialBookIssues mock data)
+      fetchBooks();
+      fetchBookIssues();
+      // Homework (replaces initialHomework mock data)
+      fetchHomeworkData();
+      // Inventory (replaces initialInventory mock data)
+      fetchInventoryData();
+      // Uniforms (replaces initialUniforms* mock data)
+      fetchUniformData();
+      // Events & Holidays (replaces initialSchoolEvents / initialHolidays mock data)
+      fetchSchoolEventsData();
+      fetchHolidaysData();
+      // Communication (replaces initialAnnouncements / initialMeetings mock data)
+      fetchAnnouncementsData();
+      fetchMeetingsData();
     }
     const allowedAdmissionsRoles = [
       "Super Admin",
@@ -4890,36 +5199,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [teacherAssignments]);
 
-  // Load teacher assignments from backend on mount (source of truth)
   useEffect(() => {
-    const loadTeacherAssignments = async () => {
-      try {
-        const res: any = await fetchTeacherAssignmentsApi();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          const mapped: TeacherAssignment[] = res.data.map((ta: any) => ({
-            id: ta.id,
-            classId: ta.classId,
-            className: ta.className,
-            section: ta.section,
-            teacherId: ta.teacherId,
-            teacherName: ta.teacherName,
-            subject: ta.subject,
-            subjectId: ta.subjectId,
-            role: ta.role,
-            status: ta.status,
-          }));
-          setTeacherAssignments(mapped);
-        }
-      } catch (err) {
-        // Fallback to localStorage if API unavailable
-        try {
-          const saved = localStorage.getItem("edu_db_teacher_assignments");
-          if (saved) setTeacherAssignments(JSON.parse(saved));
-        } catch {}
-      }
-    };
-    loadTeacherAssignments();
-  }, []);
+    localStorage.setItem("edu_db_timetable", JSON.stringify(timetable));
+  }, [timetable]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_period_settings", JSON.stringify(periodSettings));
+  }, [periodSettings]);
+
+
 
   const addPeriodSetting = (data: Omit<PeriodSetting, "id">) => {
     // Check duplicate
@@ -9895,7 +10183,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         sectionName,
         academicYear,
       );
-      if (res?.success && Array.isArray(res.data)) {
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
         setTimetable(res.data);
       }
     } catch (err) {
@@ -10280,10 +10568,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+import { useHostel } from "./HostelContext";
+import { useExamination } from "./ExaminationContext";
+import { useHR } from "./HRContext";
+
 export const useData = () => {
   const context = useContext(DataContext);
+  const hostel = useHostel();
+  const exam = useExamination();
+  const hr = useHR();
   if (!context) {
     throw new Error("useData must be used within a DataProvider");
   }
-  return context;
+  return { ...context, ...hostel, ...exam, ...hr } as unknown as DataContextType;
 };

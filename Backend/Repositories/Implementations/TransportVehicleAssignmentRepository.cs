@@ -23,7 +23,6 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
-                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted);
 
             if (filter.RouteId.HasValue)
@@ -51,8 +50,7 @@ namespace SMS.Api.Repositories.Implementations
                 query = query.Where(x =>
                     (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.ToLower().Contains(search)) ||
                     (x.Vehicle != null && x.Vehicle.VehicleNumber != null && x.Vehicle.VehicleNumber.ToLower().Contains(search)) ||
-                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)) ||
-                    (x.Attendant != null && x.Attendant.AttendantName != null && x.Attendant.AttendantName.ToLower().Contains(search)));
+                    (x.Driver != null && x.Driver.DriverName != null && x.Driver.DriverName.ToLower().Contains(search)));
             }
 
             var totalCount = await query.CountAsync();
@@ -78,7 +76,7 @@ namespace SMS.Api.Repositories.Implementations
                     DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
 
                     AttendantId = x.AttendantId,
-                    AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+                    AttendantName = null,
 
                     BranchName = x.BranchName ?? "Main Campus",
                     AcademicYear = x.AcademicYear ?? "2026-2027",
@@ -113,7 +111,6 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
-                .Include(x => x.Attendant)
                 .Where(x => x.AssignmentId == assignmentId && !x.IsDeleted)
                 .Select(x => new TransportVehicleAssignmentDto
                 {
@@ -132,7 +129,7 @@ namespace SMS.Api.Repositories.Implementations
                     DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
 
                     AttendantId = x.AttendantId,
-                    AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+                    AttendantName = null,
 
                     BranchName = x.BranchName ?? "Main Campus",
                     AcademicYear = x.AcademicYear ?? "2026-2027",

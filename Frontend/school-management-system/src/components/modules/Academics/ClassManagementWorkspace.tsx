@@ -343,11 +343,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     capacity: string | number;
     status: 'Active' | 'Inactive' | 'Archived';
     remarks: string;
+    roomNo: string;
   }>({
     name: 'A',
     capacity: '',
     status: 'Active',
-    remarks: ''
+    remarks: '',
+    roomNo: ''
   });
 
   // Track async creation redirection
@@ -771,12 +773,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       return;
     }
 
-    const ayObj = academicYears.find(ay => ay.academicYear === academicYear);
-    if (!ayObj) {
-      setClassFormErrors(['Please select a valid academic year session.']);
-      addToast('warning', 'Academic Year Invalid', 'Please select a valid academic year session.');
-      return;
-    }
+    const ayObj = academicYears.find(ay => ay.academicYear === academicYear) || { academicYear: academicYear || '2026-2027' };
 
     setIsSubmitting(true);
     setClassFormErrors([]);
@@ -917,7 +914,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       name: nextLetter,
       capacity: '',
       status: 'Active',
-      remarks: ''
+      remarks: '',
+      roomNo: ''
     });
     setIsSectionModalOpen(true);
   };
@@ -930,7 +928,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       name: secName,
       capacity: detail.capacity !== undefined ? detail.capacity : '',
       status: detail.status || 'Active',
-      remarks: detail.remarks || ''
+      remarks: detail.remarks || '',
+      roomNo: detail.roomNo || ''
     });
     setIsSectionModalOpen(true);
   };
@@ -938,7 +937,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   const handleSaveSection = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeClass) return;
-    const { name, status, remarks } = sectionForm;
+    const { name, status, remarks, roomNo } = sectionForm;
     const capacityNum = Number(sectionForm.capacity);
 
     if (!sectionForm.capacity || isNaN(capacityNum) || capacityNum <= 0) {
@@ -961,7 +960,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         updateSectionApi(activeClass.id, editingSectionName, { capacity, status, remarks })
           .then(res => {
             if (res && res.success) {
-              details[editingSectionName] = { capacity, status, remarks };
+              details[editingSectionName] = { capacity, status, remarks, roomNo };
               updateAcademicClass(activeClass.id, {
                 sections: currentSections,
                 sectionDetails: details
@@ -975,7 +974,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           .catch(err => {
             console.error(err);
             // offline fallback
-            details[editingSectionName] = { capacity, status, remarks };
+            details[editingSectionName] = { capacity, status, remarks, roomNo };
             updateAcademicClass(activeClass.id, {
               sections: currentSections,
               sectionDetails: details
@@ -993,7 +992,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         .then(res => {
           if (res && res.success) {
             currentSections.push(name);
-            details[name] = { capacity, status, remarks };
+            details[name] = { capacity, status, remarks, roomNo };
             updateAcademicClass(activeClass.id, {
               sections: currentSections,
               sectionDetails: details
@@ -1008,7 +1007,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
           console.error(err);
           // offline fallback
           currentSections.push(name);
-          details[name] = { capacity, status, remarks };
+          details[name] = { capacity, status, remarks, roomNo };
           updateAcademicClass(activeClass.id, {
             sections: currentSections,
             sectionDetails: details
@@ -1305,27 +1304,46 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         const res = await removeSubjectApi(activeClass.id, numericSubId);
         if (res && res.success) {
           updated = currentMapped.filter(s => s !== subjectName);
-          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          const updatedPeriods = { ...(activeClass.weeklyPeriods || {}) };
+          delete updatedPeriods[subjectName];
+          updateAcademicClass(activeClass.id, { subjects: updated, weeklyPeriods: updatedPeriods } as any);
           addToast('info', 'Subject Unmapped', `${subjectName} removed from ${activeClass.name}`);
         } else {
           addToast('error', 'Mapping Failed', res?.message || 'Could not unmap subject.');
         }
       } catch (err: any) {
-        addToast('error', 'Mapping Failed', 'Could not unmap subject due to server error.');
+        addToast('error', 'Mapping Failed', err.message || 'Could not unmap subject due to server error.');
       }
     } else {
       try {
         const res = await mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: 5 });
         if (res && res.success) {
           updated = [...currentMapped, subjectName];
-          updateAcademicClass(activeClass.id, { subjects: updated } as any);
+          const updatedPeriods = { ...(activeClass.weeklyPeriods || {}), [subjectName]: 5 };
+          updateAcademicClass(activeClass.id, { subjects: updated, weeklyPeriods: updatedPeriods } as any);
           addToast('success', 'Subject Mapped', `${subjectName} mapped to ${activeClass.name}`);
         } else {
           addToast('error', 'Mapping Failed', res?.message || 'Could not map subject.');
         }
       } catch (err: any) {
-        addToast('error', 'Mapping Failed', 'Could not map subject due to server error.');
+        addToast('error', 'Mapping Failed', err.message || 'Could not map subject due to server error.');
       }
+    }
+  };
+
+  const handleUpdateSubjectPeriods = async (subjectName: string, count: number) => {
+    if (!activeClass) return;
+    if (count < 1 || count > 20) return;
+    const updatedPeriods = { ...(activeClass.weeklyPeriods || {}), [subjectName]: count };
+    updateAcademicClass(activeClass.id, { weeklyPeriods: updatedPeriods } as any);
+    
+    try {
+      const res = await mapSubjectApi(activeClass.id, { subject_name: subjectName, weekly_periods: count });
+      if (!res || !res.success) {
+        addToast('error', 'Update Failed', res?.message || 'Could not update weekly periods count.');
+      }
+    } catch (err) {
+      console.error('Failed to sync updated weekly periods with database', err);
     }
   };
 
@@ -2196,6 +2214,41 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                                   {isMapped && <Check className="w-3 h-3 stroke-[3]" />}
                                 </div>
                               </div>
+
+                              {/* Periods Selector (only visible when mapped) */}
+                              {isMapped && (
+                                <div 
+                                  className="flex items-center justify-between bg-white dark:bg-slate-950 p-2 rounded-xl border border-slate-100 dark:border-slate-800 shadow-3xs"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Periods/Week:</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const current = activeClass.weeklyPeriods?.[sub.name] ?? 5;
+                                        handleUpdateSubjectPeriods(sub.name, Math.max(1, current - 1));
+                                      }}
+                                      className="w-5 h-5 flex items-center justify-center rounded bg-slate-105 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-200 text-xs font-black transition-colors cursor-pointer"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="text-xs font-mono font-black text-brand-600 w-4 text-center">
+                                      {activeClass.weeklyPeriods?.[sub.name] ?? 5}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const current = activeClass.weeklyPeriods?.[sub.name] ?? 5;
+                                        handleUpdateSubjectPeriods(sub.name, Math.min(20, current + 1));
+                                      }}
+                                      className="w-5 h-5 flex items-center justify-center rounded bg-slate-105 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-200 text-xs font-black transition-colors cursor-pointer"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
 
                               {/* Bottom row: Department name in small size */}
                               <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 text-[10px] font-bold">
@@ -3155,6 +3208,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 </div>
               </div>
 
+
               <div>
                 <label className="block text-slate-700 dark:text-slate-300 mb-1">Remarks / Comments</label>
                 <textarea
@@ -3222,7 +3276,7 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
       {isSectionModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm text-left">
           <div className="bg-white dark:bg-slate-900 border border-slate-202 dark:border-slate-808 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900 dark:text-slate-105 font-bold">
-            <div className="flex items-center justify-between border-b border-slate-101 pb-3">
+            <div className="flex items-center justify-between pb-1">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingSectionName ? 'Configure Section Details' : 'Add Section'}</h3>
             </div>
             
@@ -3257,6 +3311,17 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                 {editingSectionName && Number(sectionForm.capacity) > 0 && Number(sectionForm.capacity) < students.filter(s => s.className === activeClass?.name && s.section === editingSectionName).length && (
                   <span className="text-[10px] text-rose-500 mt-1 block">Capacity cannot be less than assigned students.</span>
                 )}
+              </div>
+
+              <div>
+                <label className="block text-slate-700 dark:text-slate-300 font-bold mb-1">Room Number (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Room 101 or 101"
+                  value={sectionForm.roomNo || ''}
+                  onChange={e => setSectionForm({ ...sectionForm, roomNo: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs text-slate-900 dark:text-white focus:border-sky-500"
+                />
               </div>
 
 

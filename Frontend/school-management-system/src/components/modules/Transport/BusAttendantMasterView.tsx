@@ -5,46 +5,11 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { BusAttendantMaster, initialBusAttendants } from './transportData';
+export type { BusAttendantMaster };      // re-export type for backward compat
+export { initialBusAttendants };          // re-export value for backward compat
 
-export interface BusAttendantMaster {
-  id: string;
-  employeeId: string;
-  attendantName: string;
-  mobileNumber: string;
-  gender: 'Male' | 'Female' | 'Other';
-  branch: string;
-  status: 'Active' | 'Inactive' | 'On Leave';
-}
-
-export const initialBusAttendants: BusAttendantMaster[] = [
-  {
-    id: 'att-1',
-    employeeId: 'ATT-2026-01',
-    attendantName: 'Mary Smith',
-    mobileNumber: '+1 (555) 019-8274',
-    gender: 'Female',
-    branch: 'Main Campus',
-    status: 'Active'
-  },
-  {
-    id: 'att-2',
-    employeeId: 'ATT-2026-02',
-    attendantName: 'Sarah Jenkins',
-    mobileNumber: '+1 (555) 019-8275',
-    gender: 'Female',
-    branch: 'Main Campus',
-    status: 'Active'
-  },
-  {
-    id: 'att-3',
-    employeeId: 'ATT-2026-03',
-    attendantName: 'Robert Vance',
-    mobileNumber: '+1 (555) 019-8276',
-    gender: 'Male',
-    branch: 'North Branch',
-    status: 'Active'
-  }
-];
+// BusAttendantMaster type and initialBusAttendants are now in transportData.ts
 
 export const BusAttendantMasterView: React.FC = () => {
   const { vehicleAssignments } = useData();

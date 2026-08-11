@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 using SMS.Api.Dtos.Auth;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
@@ -21,15 +22,18 @@ namespace SMS.Api.Services.Implementations
         private readonly IUserRepository _userRepository;
         private readonly IAdminRepository _adminRepository;
         private readonly IConfiguration _config;
+        private readonly Data.AppDbContext _context;
 
         public AuthService(
             IUserRepository userRepository,
             IAdminRepository adminRepository,
-            IConfiguration config)
+            IConfiguration config,
+            Data.AppDbContext context)
         {
             _userRepository = userRepository;
             _adminRepository = adminRepository;
             _config = config;
+            _context = context;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto dto)
@@ -265,6 +269,22 @@ namespace SMS.Api.Services.Implementations
 
             foreach (var role in roles)
                 claims.Add(new Claim(ClaimTypes.Role, role));
+
+            if (roles.Contains("Teacher") || user.Role == "Teacher")
+            {
+                var staffId = _context.Staff
+                    .AsNoTracking()
+                    .Where(s => s.IsActive == true &&
+                        ((!string.IsNullOrEmpty(user.Email) && s.Email != null && s.Email.ToLower() == user.Email.ToLower()) ||
+                         (!string.IsNullOrEmpty(user.MobileNumber) && s.Phone != null && s.Phone == user.MobileNumber)))
+                    .Select(s => s.StaffId)
+                    .FirstOrDefault();
+
+                if (staffId > 0)
+                {
+                    claims.Add(new Claim("StaffId", staffId.ToString()));
+                }
+            }
 
             var keyStr = _config["Jwt:Key"] ?? "SUPER_SECRET_JWT_KEY_1234567890_ANTIGRAVITY_SMS";
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(keyStr));

@@ -514,7 +514,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     <tr key={i.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{i.studentName}</td>
                       <td className="py-3 px-4 font-mono">{i.admissionNo}</td>
-                      <td className="py-3 px-4">{i.className} - {i.section}</td>
+                      <td className="py-3 px-4">{i.className.includes('-') ? i.className : (i.section ? `${i.className} - ${i.section}` : i.className)}</td>
                       <td className="py-3 px-4 font-semibold text-sky-600">{i.itemName}</td>
                       <td className="py-3 px-4 text-center font-bold">{i.size}</td>
                       <td className="py-3 px-4 text-right">{i.quantity}</td>

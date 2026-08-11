@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
+using SMS.Api.Models.Examination;
 using Xunit;
 
 namespace Backend.Tests.E2E

@@ -12,7 +12,7 @@ export default defineConfig({
         target: 'https://backspace-prowler-bleach.ngrok-free.dev',
         changeOrigin: true,
         secure: false,
-         headers: {
+        headers: {
           'ngrok-skip-browser-warning': 'true'
         }
       }

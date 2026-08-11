@@ -214,10 +214,10 @@ public class ExamNewRepository : IExamNewRepository
     {
         try
         {
-            var exam = await _context.NewExaminations.FindAsync(examId);
-            if (exam != null)
+            var dbExam = await _context.NewExaminations.FindAsync(examId);
+            if (dbExam != null)
             {
-                _context.NewExaminations.Remove(exam);
+                _context.NewExaminations.Remove(dbExam);
                 await _context.SaveChangesAsync();
             }
         }
@@ -226,7 +226,12 @@ public class ExamNewRepository : IExamNewRepository
             // Fallback
         }
 
-        _inMemoryExams.RemoveAll(e => e.ExamId == examId);
+        var inMem = _inMemoryExams.FirstOrDefault(e => e.ExamId == examId);
+        if (inMem != null)
+        {
+            _inMemoryExams.Remove(inMem);
+        }
+
         return true;
     }
 }

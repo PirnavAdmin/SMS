@@ -168,7 +168,6 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Vehicle)
                 .Include(x => x.Route)
                 .Include(x => x.Driver)
-                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted && x.Status && x.EffectiveFrom <= today && (!x.EffectiveTo.HasValue || x.EffectiveTo.Value >= today))
                 .ToListAsync();
 
@@ -184,7 +183,7 @@ namespace SMS.Api.Repositories.Implementations
                 DriverId = x.DriverId,
                 DriverName = x.Driver?.DriverName ?? "Assigned Driver",
                 AttendantId = x.AttendantId,
-                AttendantName = x.Attendant?.AttendantName ?? "Unassigned",
+                AttendantName = "Unassigned",
                 Status = index % 3 == 0 ? "Morning Running" : (index % 3 == 1 ? "Morning Completed" : "Evening Pending"),
                 Shift = x.Shift ?? "Morning"
             }).ToList();

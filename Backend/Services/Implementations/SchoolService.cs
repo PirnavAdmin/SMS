@@ -502,7 +502,8 @@ public class SchoolService : ISchoolService
 			var section = new ClassSection
 			{
 				ClassId = newClass.ClassId,
-				SectionName = secDto.SectionName
+				SectionName = secDto.SectionName,
+				RoomNo = secDto.RoomNo
 			};
 			newClass.Sections.Add(section);
 
@@ -615,7 +616,8 @@ public class SchoolService : ISchoolService
 				cls.Sections.Add(new ClassSection
 				{
 					ClassId = cls.ClassId,
-					SectionName = secDto.SectionName
+					SectionName = secDto.SectionName,
+					RoomNo = secDto.RoomNo
 				});
 			}
 		}
