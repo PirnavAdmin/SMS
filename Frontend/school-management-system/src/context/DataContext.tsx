@@ -320,6 +320,8 @@ export interface AcademicClass {
   sectionTeachers?: Record<string, string>;
   teacher: string;
   subjects: string[];
+  weeklyPeriods?: Record<string, number>;
+  sectionDetails?: Record<string, any>;
 }
 
 const initialClasses: AcademicClass[] = [
@@ -3362,14 +3364,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ? data.data
             : null;
         if (classList) {
-          const mapped: AcademicClass[] = classList.map((c: any) => ({
-            id: c.classId?.toString() || c.id?.toString(),
-            name: c.className || c.name,
-            sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-            sectionTeachers: c.sectionTeachers || {},
-            teacher: c.teacher || "Unassigned",
-            subjects: c.subjects || [],
-          }));
+          const storedLocal = localStorage.getItem("edu_db_academic_classes");
+          const localClasses: AcademicClass[] = storedLocal ? JSON.parse(storedLocal) : [];
+
+          const mapped: AcademicClass[] = classList.map((c: any) => {
+            const classIdStr = c.classId?.toString() || c.id?.toString();
+            const localCls = localClasses.find(lc => lc.id === classIdStr);
+
+            return {
+              id: classIdStr,
+              name: c.className || c.name,
+              sections: c.sections?.map((s: any) => s.sectionName || s) || [],
+              sectionTeachers: c.sectionTeachers || {},
+              teacher: c.teacher || "Unassigned",
+              subjects: c.subjects || [],
+              weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
+              sectionDetails: localCls?.sectionDetails || c.sectionDetails || {},
+            };
+          });
           setAcademicClasses(mapped);
         }
       }
@@ -5186,6 +5198,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(teacherAssignments),
     );
   }, [teacherAssignments]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_timetable", JSON.stringify(timetable));
+  }, [timetable]);
+
+  useEffect(() => {
+    localStorage.setItem("edu_db_period_settings", JSON.stringify(periodSettings));
+  }, [periodSettings]);
 
 
 
@@ -10163,7 +10183,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         sectionName,
         academicYear,
       );
-      if (res?.success && Array.isArray(res.data)) {
+      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
         setTimetable(res.data);
       }
     } catch (err) {

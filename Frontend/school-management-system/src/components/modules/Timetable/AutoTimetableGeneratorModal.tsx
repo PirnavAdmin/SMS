@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X, Clock, Zap, CheckCircle2, AlertCircle, Calendar,
   Layers, School, Users, BookOpen, ChevronRight, Check,
@@ -6,7 +6,7 @@ import {
   ArrowRight, ShieldCheck, FileSpreadsheet, Plus, Edit, Trash2
 } from 'lucide-react';
 import { PeriodSetting, TimetableSlot } from '../../../types';
-import { useData } from '../../../context/DataContext';
+import { useData, AcademicClass } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 
@@ -115,7 +115,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     addPeriodSetting,
     periodSettings,
     timetable,
-    addTimetableSlot
+    addTimetableSlot,
+    deleteTimetableSlot
   } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -154,10 +155,42 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   ]);
   const allWeekDays: DayOfWeek[] = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-  // Target Classes Selection
-  const [selectedClassNames, setSelectedClassNames] = useState<string[]>([
-    'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'
-  ]);
+  // Target Class-Section combinations (e.g., ["Class 1-A", "Class 1-B"])
+  const [selectedClassSections, setSelectedClassSections] = useState<string[]>([]);
+  const [classGroupFilter, setClassGroupFilter] = useState<'all' | 'primary' | 'middle' | 'high' | 'senior'>('primary');
+
+  const displayedClasses = useMemo(() => {
+    return academicClasses.filter(c => {
+      const n = c.name;
+      if (classGroupFilter === 'primary') {
+        return /class\s*[1-5]\b/i.test(n) || /grade\s*[1-5]\b/i.test(n) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(n);
+      }
+      if (classGroupFilter === 'middle') {
+        return /class\s*[6-8]\b/i.test(n) || /grade\s*[6-8]\b/i.test(n) || ['Class 6', 'Class 7', 'Class 8'].includes(n);
+      }
+      if (classGroupFilter === 'high') {
+        return /class\s*(9|10)\b/i.test(n) || ['Class 9', 'Class 10'].includes(n);
+      }
+      if (classGroupFilter === 'senior') {
+        return /class\s*(11|12)\b/i.test(n) || ['Class 11', 'Class 12'].includes(n);
+      }
+      return true;
+    });
+  }, [academicClasses, classGroupFilter]);
+
+  useEffect(() => {
+    if (academicClasses.length > 0 && selectedClassSections.length === 0) {
+      const initial: string[] = [];
+      academicClasses.forEach(c => {
+        const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+        // By default, select all sections of Class 1-5 (Primary)
+        if (['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(c.name)) {
+          sections.forEach(sec => initial.push(`${c.name}-${sec}`));
+        }
+      });
+      setSelectedClassSections(initial);
+    }
+  }, [academicClasses, selectedClassSections]);
 
   // Auto-populate timetable with mapped subjects/teachers
   const [autoAssignMappedSubjects, setAutoAssignMappedSubjects] = useState(true);
@@ -330,54 +363,77 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     };
   }, [schoolStartTime, schoolEndTime, periodDurationMinutes, breaks]);
 
-  // Quick Class Group Selector
-  const handleSelectClassGroup = (group: 'primary' | 'middle' | 'high' | 'senior' | 'all' | 'none') => {
+  // Quick Class & Section Group Selector
+  const handleSelectClassGroup = (group: 'primary' | 'middle' | 'high' | 'senior' | 'all' | 'none' | 'sec-A' | 'sec-B') => {
+    const allSections: string[] = [];
+    academicClasses.forEach(c => {
+      const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+      sections.forEach(sec => allSections.push(`${c.name}-${sec}`));
+    });
+
+    if (group === 'primary' || group === 'middle' || group === 'high' || group === 'senior' || group === 'all') {
+      setClassGroupFilter(group);
+    }
+
     if (group === 'none') {
-      setSelectedClassNames([]);
+      setSelectedClassSections([]);
       return;
     }
     if (group === 'all') {
-      setSelectedClassNames(academicClasses.map(c => c.name));
+      setSelectedClassSections(allSections);
       return;
     }
+    if (group === 'sec-A' || group === 'sec-B') {
+      const letter = group === 'sec-A' ? 'A' : 'B';
+      const targetClassNames = displayedClasses.map(c => c.name);
+      setSelectedClassSections(allSections.filter(k => {
+        const [clsName, sec] = k.split('-');
+        return targetClassNames.includes(clsName) && sec === letter;
+      }));
+      return;
+    }
+
+    let classNamesToSelect: string[] = [];
     if (group === 'primary') {
-      setSelectedClassNames(
-        academicClasses
-          .map(c => c.name)
-          .filter(n => /class\s*[1-5]\b/i.test(n) || /grade\s*[1-5]\b/i.test(n) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(n))
-      );
-      return;
+      classNamesToSelect = academicClasses
+        .map(c => c.name)
+        .filter(n => /class\s*[1-5]\b/i.test(n) || /grade\s*[1-5]\b/i.test(n) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(n));
+    } else if (group === 'middle') {
+      classNamesToSelect = academicClasses
+        .map(c => c.name)
+        .filter(n => /class\s*[6-8]\b/i.test(n) || /grade\s*[6-8]\b/i.test(n) || ['Class 6', 'Class 7', 'Class 8'].includes(n));
+    } else if (group === 'high') {
+      classNamesToSelect = academicClasses
+        .map(c => c.name)
+        .filter(n => /class\s*(9|10)\b/i.test(n) || ['Class 9', 'Class 10'].includes(n));
+    } else if (group === 'senior') {
+      classNamesToSelect = academicClasses
+        .map(c => c.name)
+        .filter(n => /class\s*(11|12)\b/i.test(n) || ['Class 11', 'Class 12'].includes(n));
     }
-    if (group === 'middle') {
-      setSelectedClassNames(
-        academicClasses
-          .map(c => c.name)
-          .filter(n => /class\s*[6-8]\b/i.test(n) || /grade\s*[6-8]\b/i.test(n) || ['Class 6', 'Class 7', 'Class 8'].includes(n))
-      );
-      return;
-    }
-    if (group === 'high') {
-      setSelectedClassNames(
-        academicClasses
-          .map(c => c.name)
-          .filter(n => /class\s*(9|10)\b/i.test(n) || ['Class 9', 'Class 10'].includes(n))
-      );
-      return;
-    }
-    if (group === 'senior') {
-      setSelectedClassNames(
-        academicClasses
-          .map(c => c.name)
-          .filter(n => /class\s*(11|12)\b/i.test(n) || ['Class 11', 'Class 12'].includes(n))
-      );
-      return;
-    }
+
+    setSelectedClassSections(allSections.filter(k => {
+      const clsName = k.split('-')[0];
+      return classNamesToSelect.includes(clsName);
+    }));
   };
 
-  const handleToggleClass = (className: string) => {
-    setSelectedClassNames(prev =>
-      prev.includes(className) ? prev.filter(c => c !== className) : [...prev, className]
+  const toggleSection = (className: string, section: string) => {
+    const key = `${className}-${section}`;
+    setSelectedClassSections(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
     );
+  };
+
+  const toggleClass = (cls: AcademicClass) => {
+    const sections = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
+    const keys = sections.map((sec: string) => `${cls.name}-${sec}`);
+    const someSelected = keys.some((key: string) => selectedClassSections.includes(key));
+    if (someSelected) {
+      setSelectedClassSections(prev => prev.filter((k: string) => !keys.includes(k)));
+    } else {
+      setSelectedClassSections(prev => [...new Set([...prev, ...keys])]);
+    }
   };
 
   const handleToggleDay = (day: DayOfWeek) => {
@@ -395,8 +451,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       return;
     }
 
-    if (selectedClassNames.length === 0) {
-      addToast('warning', 'No Classes Selected', 'Please select at least one class to apply the schedule to.');
+    if (selectedClassSections.length === 0) {
+      addToast('warning', 'No Classes Selected', 'Please select at least one class section to apply the schedule to.');
       setActiveStep('classes');
       return;
     }
@@ -427,68 +483,136 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       let totalSlotsCreated = 0;
       let totalSectionsCount = 0;
 
-      // Filter classes to target
-      const targetClasses = academicClasses.filter(c => selectedClassNames.includes(c.name));
+      // Filter classes to target (classes that have at least one selected section)
+      const targetClasses = academicClasses.filter(c =>
+        (c.sections && c.sections.length > 0 ? c.sections : ['A']).some(sec =>
+          selectedClassSections.includes(`${c.name}-${sec}`)
+        )
+      );
+
+      // Map to track teacher busy time slots across sections: "teachername" -> Set of "Day_TimeSlot"
+      const teacherBusySchedule = new Map<string, Set<string>>();
+
+      // Pre-populate with existing timetable slots that are NOT being regenerated
+      const targetSectionKeys = selectedClassSections; // e.g. ["Class 5-A", "Class 5-B"]
+      timetable.forEach(slot => {
+        const slotKey = `${slot.className}-${slot.section}`;
+        if (!targetSectionKeys.includes(slotKey) && slot.teacherName && slot.teacherName !== 'Unassigned' && slot.teacherName !== '--') {
+          const tNorm = slot.teacherName.toLowerCase().trim();
+          if (!teacherBusySchedule.has(tNorm)) {
+            teacherBusySchedule.set(tNorm, new Set());
+          }
+          teacherBusySchedule.get(tNorm)!.add(`${slot.day}_${slot.timeSlot}`);
+        }
+      });
 
       for (const cls of targetClasses) {
-        const sections = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
-        
+        const allSecs = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
+        // Filter sections to generate for this class (only selected ones)
+        const sections = allSecs.filter(sec => selectedClassSections.includes(`${cls.name}-${sec}`));
+
         // Find mapped subjects & teachers for this class
         const rawCls = rawClasses.find(rc => rc.id === cls.id || rc.className === cls.name);
-        const mappedSubjects: Array<{ subjectName: string; teacherName: string; weeklyPeriods: number }> = [];
-
-        if (rawCls && rawCls.subjects && rawCls.subjects.length > 0) {
-          rawCls.subjects.forEach((s: any) => {
-            const sName = typeof s === 'string' ? s : (s.name || s.subjectName || '');
-            if (sName) {
-              const teacherObj = teacherAssignments.find(ta =>
-                (ta.className === cls.name || ta.classId === cls.id) &&
-                (ta.subject === sName)
-              );
-              mappedSubjects.push({
-                subjectName: sName,
-                teacherName: teacherObj ? teacherObj.teacherName : (rawCls.teacher || 'Unassigned'),
-                weeklyPeriods: s.weeklyPeriods || 5
-              });
-            }
-          });
-        } else if (cls.subjects && cls.subjects.length > 0) {
-          cls.subjects.forEach((sName: string) => {
-            const teacherObj = teacherAssignments.find(ta =>
-              (ta.className === cls.name || ta.classId === cls.id) &&
-              (ta.subject === sName)
-            );
-            mappedSubjects.push({
-              subjectName: sName,
-              teacherName: teacherObj ? teacherObj.teacherName : (cls.teacher || 'Unassigned'),
-              weeklyPeriods: 5
-            });
-          });
-        } else {
-          ['Mathematics', 'Science', 'English', 'Social Studies', 'Regional Language'].forEach(sName => {
-            mappedSubjects.push({
-              subjectName: sName,
-              teacherName: cls.teacher || 'Class Teacher',
-              weeklyPeriods: 5
-            });
-          });
-        }
 
         for (const section of sections) {
+          // 1. Clear any existing timetable slots for this class & section
+          const existingSlots = timetable.filter(t => t.className === cls.name && t.section === section);
+          existingSlots.forEach(slot => {
+            deleteTimetableSlot(slot.id);
+          });
+
+          // Find mapped subjects & teachers for this SPECIFIC section
+          const sectionTeacherAssignments = teacherAssignments.filter(ta =>
+            (ta.className === cls.name || ta.classId === cls.id) &&
+            (ta.section === section || ta.section === `Section ${section}` || section === `Section ${ta.section}`) &&
+            ta.teacherName && ta.teacherName !== 'Unassigned'
+          );
+
+          // STRICT CHECK: If NO teachers are assigned to this section, do NOT generate any timetable for this section!
+          if (sectionTeacherAssignments.length === 0) {
+            addToast('warning', 'Generation Skipped', `Skipped timetable for ${cls.name} - Section ${section}: No teachers assigned in Section ${section}.`);
+            continue; // Skip generating slots for this section!
+          }
+
           totalSectionsCount++;
+
+          const mappedSubjects: Array<{ subjectName: string; teacherName: string; weeklyPeriods: number }> = [];
+
+          if (rawCls && rawCls.subjects && rawCls.subjects.length > 0) {
+            rawCls.subjects.forEach((s: any) => {
+              const sName = typeof s === 'string' ? s : (s.name || s.subjectName || '');
+              if (sName) {
+                const teacherObj = sectionTeacherAssignments.find(ta => ta.subject === sName);
+                if (teacherObj && teacherObj.teacherName && teacherObj.teacherName !== 'Unassigned') {
+                  mappedSubjects.push({
+                    subjectName: sName,
+                    teacherName: teacherObj.teacherName,
+                    weeklyPeriods: cls.weeklyPeriods?.[sName] || s.weeklyPeriods || 5
+                  });
+                }
+              }
+            });
+          } else if (cls.subjects && cls.subjects.length > 0) {
+            cls.subjects.forEach((sName: string) => {
+              const teacherObj = sectionTeacherAssignments.find(ta => ta.subject === sName);
+              if (teacherObj && teacherObj.teacherName && teacherObj.teacherName !== 'Unassigned') {
+                mappedSubjects.push({
+                  subjectName: sName,
+                  teacherName: teacherObj.teacherName,
+                  weeklyPeriods: cls.weeklyPeriods?.[sName] || 5
+                });
+              }
+            });
+          }
+
           let subjectDistributionIdx = 0;
 
           for (const day of workingDays) {
             for (const period of calculationResult.periods) {
               const isNonTeaching = period.type !== 'Teaching';
+              const timeSlotStr = `${period.startTime} - ${period.endTime}`;
               let slotSubject = isNonTeaching ? period.name : 'Study Period';
-              let slotTeacher = isNonTeaching ? '--' : 'Class Teacher';
+              let slotTeacher = isNonTeaching ? '--' : 'Unassigned';
 
               if (!isNonTeaching && autoAssignMappedSubjects && mappedSubjects.length > 0) {
-                const assignedSub = mappedSubjects[subjectDistributionIdx % mappedSubjects.length];
-                slotSubject = assignedSub.subjectName;
-                slotTeacher = assignedSub.teacherName || 'Assigned Teacher';
-                subjectDistributionIdx++;
+                // Find a candidate subject whose assigned teacher is FREE at this (day, timeSlotStr)
+                let selectedSub: { subjectName: string; teacherName: string; weeklyPeriods: number } | null = null;
+                
+                for (let offset = 0; offset < mappedSubjects.length; offset++) {
+                  const candidate = mappedSubjects[(subjectDistributionIdx + offset) % mappedSubjects.length];
+                  const candidateTeacher = candidate.teacherName?.toLowerCase().trim();
+
+                  if (!candidateTeacher || candidateTeacher === 'unassigned' || candidateTeacher === '--') {
+                    selectedSub = candidate;
+                    subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.length;
+                    break;
+                  }
+
+                  const isBusy = teacherBusySchedule.get(candidateTeacher)?.has(`${day}_${timeSlotStr}`);
+                  if (!isBusy) {
+                    selectedSub = candidate;
+                    subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.length;
+                    break;
+                  }
+                }
+
+                if (selectedSub) {
+                  slotSubject = selectedSub.subjectName;
+                  slotTeacher = selectedSub.teacherName || 'Unassigned';
+
+                  // Mark teacher as busy for this day & time slot so no other section can double book them!
+                  if (slotTeacher && slotTeacher !== 'Unassigned' && slotTeacher !== '--') {
+                    const tNorm = slotTeacher.toLowerCase().trim();
+                    if (!teacherBusySchedule.has(tNorm)) {
+                      teacherBusySchedule.set(tNorm, new Set());
+                    }
+                    teacherBusySchedule.get(tNorm)!.add(`${day}_${timeSlotStr}`);
+                  }
+                } else {
+                  // All assigned teachers for this section are busy at this exact time slot across other classes!
+                  slotSubject = 'Self Study / Reliever';
+                  slotTeacher = 'Unassigned';
+                }
               }
 
               const newSlot: TimetableSlot = {
@@ -496,12 +620,12 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                 className: cls.name,
                 section: section,
                 day: day,
-                timeSlot: `${period.startTime} - ${period.endTime}`,
+                timeSlot: timeSlotStr,
                 startTime: period.startTime,
                 endTime: period.endTime,
                 subject: slotSubject,
                 teacherName: slotTeacher,
-                roomNo: `Room ${cls.name.replace(/\D/g, '') || '1'}0${section.charCodeAt(0) - 64}`,
+                roomNo: cls.sectionDetails?.[section]?.roomNo || `Room ${cls.name.replace(/\D/g, '') || '1'}0${section.charCodeAt(0) - 64}`,
                 status: 'Draft',
                 academicYear,
                 branch: selectedBranch || 'Main Campus'
@@ -517,7 +641,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
       addToast(
         'success',
         'Auto-Generation Complete! 🎉',
-        `Generated ${calculationResult.periods.length} period schedule and created ${totalSlotsCreated} timetable slots across ${selectedClassNames.length} classes (${totalSectionsCount} sections).`
+        `Generated ${calculationResult.periods.length} period schedule and created ${totalSlotsCreated} timetable slots across ${targetClasses.length} classes (${totalSectionsCount} sections).`
       );
 
       if (onSuccess) onSuccess();
@@ -1036,79 +1160,131 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                   <div>
                     <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                       <School className="w-4 h-4 text-brand-500" />
-                      Select Classes ({selectedClassNames.length} selected)
+                      Select Sections ({selectedClassSections.length} selected)
                     </h4>
                   </div>
 
                   {/* Quick Select Buttons */}
-                  <div className="flex flex-wrap items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => handleSelectClassGroup('primary')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-brand-50 hover:bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800 transition-colors"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        classGroupFilter === 'primary'
+                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
                     >
-                      Class 1 to 5 (Primary)
+                      Class 1-5
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSelectClassGroup('middle')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        classGroupFilter === 'middle'
+                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
                     >
-                      Class 6 to 8
+                      Class 6-8
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSelectClassGroup('high')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        classGroupFilter === 'high'
+                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
                     >
-                      Class 9 to 10
+                      Class 9-10
                     </button>
+
+                    <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
+
                     <button
                       type="button"
                       onClick={() => handleSelectClassGroup('all')}
-                      className="px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors"
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                        classGroupFilter === 'all'
+                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700'
+                      }`}
                     >
-                      All Classes
+                      All
                     </button>
                     <button
                       type="button"
                       onClick={() => handleSelectClassGroup('none')}
-                      className="px-2 py-1 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                      className="px-2 py-0.5 text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                     >
                       Clear
                     </button>
                   </div>
                 </div>
 
-                {/* Class Multi-Select Checkbox Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-56 overflow-y-auto p-0.5">
-                  {academicClasses.map(cls => {
-                    const isSelected = selectedClassNames.includes(cls.name);
+                {/* Section-Wise Class Checkbox Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-72 overflow-y-auto p-1 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  {displayedClasses.map(cls => {
                     const sections = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
+                    const sectionKeys = sections.map(sec => `${cls.name}-${sec}`);
+                    const allSelected = sectionKeys.every(key => selectedClassSections.includes(key));
+                    const someSelected = sectionKeys.some(key => selectedClassSections.includes(key));
+
                     return (
-                      <label
+                      <div
                         key={cls.id || cls.name}
-                        onClick={() => handleToggleClass(cls.name)}
-                        className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
-                          isSelected
-                            ? 'bg-brand-50/80 dark:bg-brand-950/40 border-brand-400 dark:border-brand-600 text-slate-900 dark:text-white shadow-2xs'
-                            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 hover:border-slate-300'
-                        }`}
+                        className="p-3 rounded-2xl border bg-white dark:bg-slate-800 transition-all space-y-2.5 shadow-xs border-slate-200 dark:border-slate-750"
                       >
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
-                            isSelected
-                              ? 'bg-brand-600 border-brand-600 text-white'
-                              : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
-                          }`}>
-                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                          </div>
-                          <span className="text-xs font-bold">{cls.name}</span>
+                        {/* Class Header */}
+                        <div className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => toggleClass(cls)}
+                            className="flex items-center gap-2 cursor-pointer outline-none bg-transparent border-0 p-0 text-left"
+                          >
+                            <div className={`w-4 h-4 rounded flex items-center justify-center border transition-colors ${
+                              allSelected
+                                ? 'bg-brand-600 border-brand-600 text-white'
+                                : someSelected
+                                ? 'bg-brand-400 border-brand-400 text-white'
+                                : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700'
+                            }`}>
+                              {allSelected ? (
+                                <Check className="w-3 h-3 stroke-[3]" />
+                              ) : someSelected ? (
+                                <div className="w-1.5 h-1.5 bg-white rounded-xs" />
+                              ) : null}
+                            </div>
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-100">{cls.name}</span>
+                          </button>
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-555 dark:text-slate-400 font-mono">
+                            {sections.length} Sec
+                          </span>
                         </div>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 font-mono">
-                          {sections.length} Sec
-                        </span>
-                      </label>
+
+                        {/* Section Pills */}
+                        <div className="flex flex-wrap gap-1.5 pl-6">
+                          {sections.map(section => {
+                            const key = `${cls.name}-${section}`;
+                            const isSectionSelected = selectedClassSections.includes(key);
+                            return (
+                              <button
+                                key={section}
+                                type="button"
+                                onClick={() => toggleSection(cls.name, section)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wide uppercase transition-all border ${
+                                  isSectionSelected
+                                    ? 'bg-sky-500/10 dark:bg-sky-500/20 border-sky-400 dark:border-sky-500 text-sky-600 dark:text-sky-300'
+                                    : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-750 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400'
+                                }`}
+                              >
+                                Sec {section}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -1155,9 +1331,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                     </p>
                   </div>
                   <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Target Classes</span>
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block">Target Sections</span>
                     <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">
-                      {selectedClassNames.length} Classes
+                      {selectedClassSections.length} Sections
                     </p>
                   </div>
                 </div>
@@ -1275,8 +1451,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
               <button
                 type="button"
                 onClick={() => {
-                  if (selectedClassNames.length === 0) {
-                    addToast('warning', 'Select Classes', 'Please select at least one class.');
+                  if (selectedClassSections.length === 0) {
+                    addToast('warning', 'Select Sections', 'Please select at least one class section.');
                     return;
                   }
                   setActiveStep('generate');
@@ -1290,7 +1466,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
             {activeStep === 'generate' && (
               <button
                 type="button"
-                disabled={isGenerating || calculationResult.errors.length > 0 || selectedClassNames.length === 0}
+                disabled={isGenerating || calculationResult.errors.length > 0 || selectedClassSections.length === 0}
                 onClick={handleExecuteGeneration}
                 className="px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl transition-all shadow-md flex items-center gap-1.5"
               >
