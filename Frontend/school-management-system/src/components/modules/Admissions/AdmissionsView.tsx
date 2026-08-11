@@ -1789,167 +1789,278 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       {/* View Application Details Modal */}
       {selectedAppForView && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
             
-            {/* Header */}
-            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center text-brand-600 dark:text-brand-400">
-                  <User className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                    {selectedAppForView.applicantName}
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                      selectedAppForView.status === 'Enrolled' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
-                      selectedAppForView.status === 'Rejected' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' :
-                      selectedAppForView.status === 'Approved' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                      selectedAppForView.status === 'Verified' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'
-                    }`}>
-                      {selectedAppForView.status}
-                    </span>
-                  </h3>
-                  <div className="flex items-center gap-3 text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                    <span className="flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> App No: {selectedAppForView.applicationNo}</span>
-                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700"></span>
-                    <span className="flex items-center gap-1.5"><BookOpen className="w-3.5 h-3.5" /> {selectedAppForView.appliedClass}</span>
+            {/* Header with SMS Brand Gradient */}
+            <div className="p-5 sm:p-6 bg-gradient-to-r from-brand-600 via-sky-600 to-indigo-600 dark:from-slate-850 dark:via-slate-900 dark:to-slate-950 text-white relative overflow-hidden shrink-0">
+              <div className="relative z-10 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  {selectedAppForView.avatar ? (
+                    <img 
+                      src={selectedAppForView.avatar} 
+                      alt={selectedAppForView.applicantName} 
+                      className="w-14 h-14 rounded-2xl object-cover border-2 border-white/40 shadow-md shrink-0 bg-white/10"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-white shadow-inner shrink-0">
+                      <User className="w-7 h-7" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                        {selectedAppForView.applicantName}
+                      </h3>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border backdrop-blur-xs ${
+                        selectedAppForView.status === 'Enrolled' ? 'bg-emerald-500/25 border-emerald-300/40 text-emerald-100' :
+                        selectedAppForView.status === 'Rejected' ? 'bg-rose-500/25 border-rose-300/40 text-rose-100' :
+                        selectedAppForView.status === 'Approved' ? 'bg-blue-500/25 border-blue-300/40 text-blue-100' :
+                        selectedAppForView.status === 'Verified' ? 'bg-amber-500/25 border-amber-300/40 text-amber-100' :
+                        'bg-white/20 border-white/30 text-white'
+                      }`}>
+                        {selectedAppForView.status}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-white/90 font-medium">
+                      <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-xs border border-white/20 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-white/80" /> App No: <span className="font-bold font-mono text-white">{selectedAppForView.applicationNo}</span>
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-xs border border-white/20 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5 text-white/80" /> Class: <span className="font-bold text-white">{selectedAppForView.appliedClass}</span>
+                      </span>
+                      {selectedAppForView.branch && (
+                        <span className="px-2.5 py-1 rounded-lg bg-white/15 backdrop-blur-xs border border-white/20 flex items-center gap-1.5 hidden sm:inline-flex">
+                          <MapPin className="w-3.5 h-3.5 text-white/80" /> {selectedAppForView.branch}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                <button 
+                  onClick={() => setSelectedAppForView(null)} 
+                  className="p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl border border-white/20 shadow-sm backdrop-blur-xs transition-colors shrink-0"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <button onClick={() => setSelectedAppForView(null)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white bg-white dark:bg-slate-800 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+
+              {/* Subtle background decorative shapes */}
+              <div className="absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+              <div className="absolute left-1/2 -top-10 w-40 h-40 rounded-full bg-brand-400/20 blur-2xl pointer-events-none" />
             </div>
 
-            {/* Body */}
-            <div className="flex-1 overflow-y-auto p-6 bg-slate-50/30 dark:bg-slate-900">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 bg-slate-50/60 dark:bg-slate-950/40 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 
-                {/* Personal Info */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    <Info className="w-4 h-4 text-brand-500" /> Personal Details
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Date of Birth</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.dob}</p>
+                {/* 1. Personal Details */}
+                <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                    <Info className="w-4 h-4 text-brand-500" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      Personal Details
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Date of Birth</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{selectedAppForView.dob || 'Not provided'}</p>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Gender</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.gender}</p>
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Gender</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{selectedAppForView.gender || 'Not specified'}</p>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Blood Group</p>
-                      <p className="text-sm font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5"><Heart className="w-3 h-3" /> {selectedAppForView.bloodGroup}</p>
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Blood Group</p>
+                      <p className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1">
+                        <Heart className="w-3 h-3 fill-rose-500/20 text-rose-500" /> {selectedAppForView.bloodGroup || 'N/A'}
+                      </p>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm">
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Religion & Caste</p>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.religion} - {selectedAppForView.casteCategory}</p>
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Religion & Caste</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate" title={`${selectedAppForView.religion || 'General'} - ${selectedAppForView.casteCategory || 'General'}`}>
+                        {selectedAppForView.religion || 'General'} • {selectedAppForView.casteCategory || 'General'}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Parent Info */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    <Users className="w-4 h-4 text-brand-500" /> Parent / Guardian Details
-                  </h4>
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
-                    <div className="flex items-start gap-3">
-                      <User className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                {/* 2. Parent / Guardian Details */}
+                <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                    <Users className="w-4 h-4 text-brand-500" />
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      Parent / Guardian Details
+                    </h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
                       <div>
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Father's Name</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.parentName}</p>
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{selectedAppForView.parentName || 'Not provided'}</p>
                       </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <Phone className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
-                      <div>
+                      <div className="text-right">
                         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Primary Phone</p>
-                        <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{selectedAppForView.phone}</p>
+                        <a href={`tel:${selectedAppForView.phone}`} className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 hover:underline">
+                          <Phone className="w-3 h-3" /> {selectedAppForView.phone || 'N/A'}
+                        </a>
                       </div>
                     </div>
-                    {selectedAppForView.email && (
-                      <div className="flex items-start gap-3">
-                        <Mail className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+
+                    {selectedAppForView.motherName && (
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center justify-between">
                         <div>
+                          <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mother's Name</p>
+                          <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{selectedAppForView.motherName}</p>
+                        </div>
+                        {selectedAppForView.motherPhone && (
+                          <div className="text-right">
+                            <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Mother's Phone</p>
+                            <a href={`tel:${selectedAppForView.motherPhone}`} className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+                              {selectedAppForView.motherPhone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedAppForView.email && (
+                      <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                        <div className="min-w-0">
                           <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Email Address</p>
-                          <p className="text-sm font-semibold text-blue-600 dark:text-blue-400 break-all">{selectedAppForView.email}</p>
+                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 truncate">{selectedAppForView.email}</p>
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Logistics */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') ? <Home className="w-4 h-4 text-brand-500" /> : <Bus className="w-4 h-4 text-brand-500" />} 
-                    Transport & Accommodation
-                  </h4>
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Student Type</p>
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold">
-                          {selectedAppForView.studentType}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Branch</p>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{selectedAppForView.branch || 'Main Campus'}</p>
-                      </div>
-                    </div>
-                    
-                    {(selectedAppForView.studentType === 'Day Scholar' || selectedAppForView.studentType === 'Non-Residential') && selectedAppForView.transportRequired && (
-                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Transport Details</p>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {selectedAppForView.pickupPoint || 'Pending allocation'}</p>
-                      </div>
+                {/* 3. Transport & Accommodation */}
+                <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') ? (
+                      <Home className="w-4 h-4 text-brand-500" />
+                    ) : (
+                      <Bus className="w-4 h-4 text-brand-500" />
                     )}
-                    
-                    {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') && (
-                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 space-y-2">
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Hostel Allocation</p>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">{selectedAppForView.hostelBlock ? `${selectedAppForView.hostelBlock} - Room ${selectedAppForView.hostelRoom}` : 'Pending allocation'}</p>
-                      </div>
-                    )}
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                      Transport & Accommodation
+                    </h4>
                   </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Student Type</p>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 text-xs font-bold">
+                        {selectedAppForView.studentType || 'Day Scholar'}
+                      </span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Campus</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{selectedAppForView.branch || 'Main Campus'}</p>
+                    </div>
+                  </div>
+
+                  {(selectedAppForView.studentType === 'Day Scholar' || selectedAppForView.studentType === 'Non-Residential' || !selectedAppForView.studentType) && (
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Transport Service</p>
+                      {selectedAppForView.transportRequired ? (
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                            <Bus className="w-3.5 h-3.5 text-emerald-500" /> Route: {selectedAppForView.busRoute || 'Assigned Route'}
+                          </p>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" /> Stop: {selectedAppForView.pickupPoint || 'Pending allocation'}
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Self Commute / Transport Not Opted</p>
+                      )}
+                    </div>
+                  )}
+
+                  {(selectedAppForView.studentType === 'Hosteller' || selectedAppForView.studentType === 'Residential') && (
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">Hostel Allocation</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                        <Home className="w-3.5 h-3.5 text-brand-500" /> 
+                        {selectedAppForView.hostelBlock ? `${selectedAppForView.hostelBlock} - Room ${selectedAppForView.hostelRoom || 'N/A'}${selectedAppForView.hostelBed ? ` (Bed ${selectedAppForView.hostelBed})` : ''}` : 'Pending allocation'}
+                      </p>
+                    </div>
+                  )}
                 </div>
-                
-                {/* Address */}
-                <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    <MapPin className="w-4 h-4 text-brand-500" /> Address Details
-                  </h4>
-                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm h-full flex flex-col justify-center">
-                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-                      {selectedAppForView.addressHouseNo && `${selectedAppForView.addressHouseNo}, `}
-                      {selectedAppForView.addressStreet && `${selectedAppForView.addressStreet}, `}
-                      <br/>
-                      {selectedAppForView.addressArea && `${selectedAppForView.addressArea}, `}
-                      {selectedAppForView.addressCity && `${selectedAppForView.addressCity}`}
-                      <br/>
-                      {selectedAppForView.addressDistrict && `${selectedAppForView.addressDistrict}, `}
-                      {selectedAppForView.addressState && `${selectedAppForView.addressState}`}
-                      {selectedAppForView.addressPinCode && ` - ${selectedAppForView.addressPinCode}`}
-                    </p>
+
+                {/* 4. Residential Address */}
+                <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-700/60">
+                      <MapPin className="w-4 h-4 text-brand-500" />
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                        Residential Address
+                      </h4>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
+                      {selectedAppForView.addressHouseNo || selectedAppForView.addressStreet || selectedAppForView.addressCity ? (
+                        <p className="text-xs font-medium text-slate-700 dark:text-slate-300 leading-relaxed">
+                          {[
+                            selectedAppForView.addressHouseNo,
+                            selectedAppForView.addressStreet,
+                            selectedAppForView.addressArea,
+                            selectedAppForView.addressCity,
+                            selectedAppForView.addressDistrict,
+                            selectedAppForView.addressState
+                          ].filter(Boolean).join(', ')}
+                          {selectedAppForView.addressPinCode && ` - ${selectedAppForView.addressPinCode}`}
+                        </p>
+                      ) : (
+                        <p className="text-xs italic text-slate-400 dark:text-slate-500">
+                          No address details recorded for this student.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Submission date tag */}
+                  <div className="pt-2 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-700/50">
+                    <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Submitted:</span>
+                    <span className="font-semibold text-slate-600 dark:text-slate-400">{selectedAppForView.submissionDate || 'N/A'}</span>
                   </div>
                 </div>
 
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-end gap-3">
-              <button 
-                onClick={() => setSelectedAppForView(null)} 
-                className="px-6 py-2.5 font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors"
-              >
-                Close
-              </button>
+            {/* Footer with Neat Layout & Action Buttons */}
+            <div className="px-5 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0">
+              <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
+                Application <span className="font-mono font-bold text-slate-700 dark:text-slate-200">{selectedAppForView.applicationNo}</span>
+              </div>
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const appToEdit = selectedAppForView;
+                    setSelectedAppForView(null);
+                    handleOpenEdit(appToEdit);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-950/50 hover:bg-brand-100 dark:hover:bg-brand-900/40 border border-brand-200 dark:border-brand-800 rounded-xl transition-all flex items-center gap-1.5 shadow-xs"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  Edit Application
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setSelectedAppForView(null)} 
+                  className="px-5 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl transition-colors shadow-xs"
+                >
+                  Close
+                </button>
+              </div>
             </div>
             
           </div>

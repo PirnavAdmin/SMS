@@ -388,8 +388,11 @@ public class SchoolRepository : ISchoolRepository
             query = query.Where(s => s.Status == status);
         }
 
-        var descending = filter.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        query = filter.SortBy.Trim().ToLowerInvariant() switch
+        // Null-safe sort: default to "studentname" asc if filter values are null/empty
+        var sortOrder = filter.SortOrder ?? "asc";
+        var sortBy = filter.SortBy?.Trim().ToLowerInvariant() ?? "studentname";
+        var descending = sortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
+        query = sortBy switch
         {
             "admissionnumber" => descending
                 ? query.OrderByDescending(s => s.AdmissionNumber)
@@ -398,11 +401,11 @@ public class SchoolRepository : ISchoolRepository
                 ? query.OrderByDescending(s => s.RollNumber)
                 : query.OrderBy(s => s.RollNumber),
             "classname" => descending
-                ? query.OrderByDescending(s => s.ClassGrade.ClassName)
-                : query.OrderBy(s => s.ClassGrade.ClassName),
+                ? query.OrderByDescending(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "")
+                : query.OrderBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : ""),
             "sectionname" => descending
-                ? query.OrderByDescending(s => s.ClassSection.SectionName)
-                : query.OrderBy(s => s.ClassSection.SectionName),
+                ? query.OrderByDescending(s => s.ClassSection != null ? s.ClassSection.SectionName : "")
+                : query.OrderBy(s => s.ClassSection != null ? s.ClassSection.SectionName : ""),
             "status" => descending
                 ? query.OrderByDescending(s => s.Status)
                 : query.OrderBy(s => s.Status),
@@ -422,13 +425,14 @@ public class SchoolRepository : ISchoolRepository
                 RollNumber = s.RollNumber,
                 StudentName = s.StudentName,
                 BranchId = s.BranchId,
-                BranchName = s.Branch.BranchName,
+                // Null-safe: student may not have a Branch/AcademicYear/Section linked
+                BranchName = s.Branch != null ? s.Branch.BranchName : "",
                 AcademicYearId = s.AcademicYearId,
-                AcademicYearName = s.AcademicYear.AcademicYearName,
+                AcademicYearName = s.AcademicYear != null ? s.AcademicYear.AcademicYearName : "",
                 ClassId = s.ClassId,
-                ClassName = s.ClassGrade.ClassName ?? "",
+                ClassName = s.ClassGrade != null ? s.ClassGrade.ClassName ?? "" : "",
                 SectionId = s.SectionId,
-                SectionName = s.ClassSection.SectionName,
+                SectionName = s.ClassSection != null ? s.ClassSection.SectionName : "",
                 Status = s.Status,
                 AttendancePercentage = null,
                 Performance = null

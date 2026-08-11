@@ -927,14 +927,18 @@ export const initialHostelBeds: HostelBed[] = [
 ];
 
 export const initialUniforms: UniformItem[] = [
-  { id: "UNI-01", category: "Summer Polo Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 35, availableStock: 107 },
-  { id: "UNI-02", category: "Winter Blazer", gender: "Male", className: "Class 10", size: "L", color: "Dark Charcoal", price: 85, availableStock: 43 },
-  { id: "UNI-03", category: "Summer blazer", gender: "Female", className: "Class 10", size: "M", color: "Emerald Green", price: 65, availableStock: 40 },
-  { id: "UNI-04", category: "Summer Sweater", gender: "Unisex", className: "Class 10", size: "M", color: "Sky Blue", price: 40, availableStock: 50 },
-  { id: "UNI-05", category: "Summer Polo Shirt", gender: "Unisex", className: "Class 10", size: "L", color: "Navy Blue", price: 35, availableStock: 40 },
-  { id: "UNI-06", category: "Autumn Blazer", gender: "Unisex", className: "Class 10", size: "M", color: "Rust Brown", price: 75, availableStock: 0 },
-  { id: "UNI-07", category: "Sapphron sweater", gender: "Unisex", className: "Class 10", size: "M", color: "Saffron Yellow", price: 45, availableStock: 50 },
-  { id: "UNI-08", category: "Track Pants", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 40, availableStock: 5 }
+  { id: "UNI-01", category: "Boys Uniform Package (Admission Kit)", gender: "Male", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 50 },
+  { id: "UNI-02", category: "Girls Uniform Package (Admission Kit)", gender: "Female", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 50 },
+  { id: "UNI-03", category: "Extra Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "White", price: 350, availableStock: 120 },
+  { id: "UNI-04", category: "Extra Pair of Trousers", gender: "Male", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 100 },
+  { id: "UNI-05", category: "Extra Skirt", gender: "Female", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 90 },
+  { id: "UNI-06", category: "Formal Blazer (Winter)", gender: "Unisex", className: "Class 10", size: "L", color: "Dark Navy", price: 1500, availableStock: 45 },
+  { id: "UNI-07", category: "Tie & Crest", gender: "Unisex", className: "Class 10", size: "Free Size", color: "Navy Stripe", price: 150, availableStock: 150 },
+  { id: "UNI-08", category: "Belt", gender: "Unisex", className: "Class 10", size: "M", color: "Black / Logo", price: 200, availableStock: 120 },
+  { id: "UNI-09", category: "Black Shoes (Pair)", gender: "Unisex", className: "Class 10", size: "8", color: "Black", price: 600, availableStock: 80 },
+  { id: "UNI-10", category: "Socks (Pair)", gender: "Unisex", className: "Class 10", size: "Free Size", color: "White / Striped", price: 150, availableStock: 200 },
+  { id: "UNI-11", category: "Sports Tracksuit Kit", gender: "Unisex", className: "Class 10", size: "M", color: "Navy / House Color", price: 500, availableStock: 45 },
+  { id: "UNI-12", category: "V-Neck Sweater (Winter)", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 800, availableStock: 60 }
 ];
 
 export const initialBooks: BookItem[] = [
@@ -1803,16 +1807,16 @@ export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [
 ];
 
 export const initialUniformCategories: UniformCategory[] = [
-  { id: 'UC-01', name: 'Shirt', description: 'Regular school uniform shirts' },
-  { id: 'UC-02', name: 'Pant', description: 'Regular school uniform trousers' },
-  { id: 'UC-03', name: 'Skirt', description: 'Regular school uniform skirts' },
-  { id: 'UC-04', name: 'Tie', description: 'School uniform neckties' },
-  { id: 'UC-05', name: 'Belt', description: 'School uniform belts' },
-  { id: 'UC-06', name: 'Blazer', description: 'Winter uniform blazers' },
-  { id: 'UC-07', name: 'Shoes', description: 'Black formal shoes' },
-  { id: 'UC-08', name: 'Socks', description: 'School logo socks' },
-  { id: 'UC-09', name: 'Sports Uniform', description: 'House wise sports tracksuits' },
-  { id: 'UC-10', name: 'Winter Uniform', description: 'Woolen sweaters and jackets' }
+  { id: 'UC-01', name: 'Boys Uniform Package (Admission Kit)', description: 'Full Admission Uniform Kit for Boys (2 Shirts, 2 Trousers, Blazer, Tie & Belt)' },
+  { id: 'UC-02', name: 'Girls Uniform Package (Admission Kit)', description: 'Full Admission Uniform Kit for Girls (2 Shirts, 2 Skirts/Pants, Blazer, Ribbon & Belt)' },
+  { id: 'UC-03', name: 'Shirt / Polo (Summer)', description: 'Summer half-sleeve shirts & polo tees' },
+  { id: 'UC-04', name: 'Pant / Trousers', description: 'School uniform trousers' },
+  { id: 'UC-05', name: 'Skirt', description: 'School uniform skirts' },
+  { id: 'UC-06', name: 'Formal Blazer (Winter)', description: 'Winter formal blazers with school crest' },
+  { id: 'UC-07', name: 'V-Neck Sweater (Winter)', description: 'Woolen sweaters & cardigans for winter' },
+  { id: 'UC-08', name: 'Tie & Belt', description: 'School ties, crests, and leather belts' },
+  { id: 'UC-09', name: 'Shoes & Socks', description: 'Black formal shoes and logo socks' },
+  { id: 'UC-10', name: 'Sports Uniform', description: 'Tracksuits, sports tees, and shorts' }
 ];
 
 export const initialUniformSizes: UniformSize[] = [
@@ -1828,18 +1832,27 @@ export const initialUniformSuppliers: UniformSupplier[] = [
 ];
 
 export const initialUniformInventory: UniformInventoryItem[] = [
-  { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'M', openingStock: 120, currentStock: 107, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
-  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Winter Blazer', category: 'Blazer', size: 'L', openingStock: 50, currentStock: 43, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-03', itemId: 'UNI-03', itemName: 'Summer blazer', category: 'Blazer', size: 'M', openingStock: 50, currentStock: 40, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-04', itemId: 'UNI-04', itemName: 'Summer Sweater', category: 'Sweater', size: 'M', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-05', itemId: 'UNI-05', itemName: 'Summer Polo Shirt', category: 'Shirt', size: 'L', openingStock: 50, currentStock: 40, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-06', itemId: 'UNI-06', itemName: 'Autumn Blazer', category: 'Blazer', size: 'M', openingStock: 50, currentStock: 0, minimumStock: 10, reorderLevel: 15, status: 'Out of Stock' },
-  { id: 'UINV-07', itemId: 'UNI-07', itemName: 'Sapphron sweater', category: 'Sweater', size: 'M', openingStock: 50, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-08', itemId: 'UNI-08', itemName: 'Track Pants', category: 'Pants', size: 'M', openingStock: 50, currentStock: 5, minimumStock: 10, reorderLevel: 15, status: 'Low Stock' }
+  { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Boys Uniform Package (Admission Kit)', category: 'Boys Package', size: 'M', openingStock: 60, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Girls Uniform Package (Admission Kit)', category: 'Girls Package', size: 'M', openingStock: 60, currentStock: 50, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-03', itemId: 'UNI-03', itemName: 'Extra Shirt', category: 'Shirt', size: 'M', openingStock: 150, currentStock: 120, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
+  { id: 'UINV-04', itemId: 'UNI-04', itemName: 'Extra Pair of Trousers', category: 'Pant / Trousers', size: 'M', openingStock: 120, currentStock: 100, minimumStock: 20, reorderLevel: 30, status: 'In Stock' },
+  { id: 'UINV-05', itemId: 'UNI-05', itemName: 'Extra Skirt', category: 'Skirt', size: 'M', openingStock: 110, currentStock: 90, minimumStock: 20, reorderLevel: 30, status: 'In Stock' },
+  { id: 'UINV-06', itemId: 'UNI-06', itemName: 'Formal Blazer (Winter)', category: 'Formal Blazer (Winter)', size: 'L', openingStock: 50, currentStock: 45, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-07', itemId: 'UNI-07', itemName: 'Tie & Crest', category: 'Tie & Belt', size: 'Free Size', openingStock: 160, currentStock: 150, minimumStock: 20, reorderLevel: 30, status: 'In Stock' },
+  { id: 'UINV-08', itemId: 'UNI-08', itemName: 'Belt', category: 'Tie & Belt', size: 'M', openingStock: 130, currentStock: 120, minimumStock: 15, reorderLevel: 25, status: 'In Stock' },
+  { id: 'UINV-09', itemId: 'UNI-09', itemName: 'Black Shoes (Pair)', category: 'Shoes & Socks', size: '8', openingStock: 90, currentStock: 80, minimumStock: 15, reorderLevel: 20, status: 'In Stock' },
+  { id: 'UINV-10', itemId: 'UNI-10', itemName: 'Socks (Pair)', category: 'Shoes & Socks', size: 'Free Size', openingStock: 220, currentStock: 200, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
+  { id: 'UINV-11', itemId: 'UNI-11', itemName: 'Sports Tracksuit Kit', category: 'Sports Uniform', size: 'M', openingStock: 50, currentStock: 45, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
+  { id: 'UINV-12', itemId: 'UNI-12', itemName: 'V-Neck Sweater (Winter)', category: 'V-Neck Sweater (Winter)', size: 'M', openingStock: 70, currentStock: 60, minimumStock: 10, reorderLevel: 15, status: 'In Stock' }
 ];
 
 export const initialStudentUniformIssues: StudentUniformIssue[] = [
-  { id: 'UIS-01', studentId: 'STU-001', studentName: 'Alexander Wright', admissionNo: 'ADM-2026-000', className: 'Class 10', section: 'A', itemId: 'UNI-01', itemName: 'Summer Polo Shirt', size: 'M', quantity: 2, issueDate: '2026-06-15', status: 'Issued', academicYear: '2025-2026' }
+  { id: 'UIS-01', studentId: 'STU-001', studentName: 'venkata javvadi', admissionNo: 'REG-1102', className: 'Class 2', section: 'A', itemId: 'UNI-01', itemName: 'Boys Uniform Package (Admission Kit)', size: 'M', quantity: 1, issueDate: '2026-08-09', status: 'Issued', academicYear: '2026-2027' },
+  { id: 'UIS-02', studentId: 'STU-002', studentName: 'Rahul Kumar', admissionNo: 'REG-1012', className: 'Class 2', section: 'A', itemId: 'UNI-06', itemName: 'Formal Blazer (Winter)', size: 'M', quantity: 1, issueDate: '2026-08-09', status: 'Issued', academicYear: '2026-2027' },
+  { id: 'UIS-03', studentId: 'STU-003', studentName: 'Mahesh kamati', admissionNo: 'REG-1010', className: 'Class 1', section: 'A', itemId: 'UNI-03', itemName: 'Extra Shirt', size: 'M', quantity: 2, issueDate: '2026-08-09', status: 'Issued', academicYear: '2026-2027' },
+  { id: 'UIS-04', studentId: 'STU-004', studentName: 'nagaraj kamati', admissionNo: 'REG-1011', className: 'Class 1', section: 'A', itemId: 'UNI-12', itemName: 'V-Neck Sweater (Winter)', size: 'M', quantity: 1, issueDate: '2026-08-09', status: 'Returned', academicYear: '2026-2027' },
+  { id: 'UIS-05', studentId: 'STU-005', studentName: 'Priya Patel', admissionNo: 'REG-1103', className: 'Class 10', section: 'A', itemId: 'UNI-02', itemName: 'Girls Uniform Package (Admission Kit)', size: 'M', quantity: 1, issueDate: '2026-08-10', status: 'Issued', academicYear: '2026-2027' },
+  { id: 'UIS-06', studentId: 'STU-006', studentName: 'Alexander Wright', admissionNo: 'ADM-2026-001', className: 'Class 10', section: 'A', itemId: 'UNI-11', itemName: 'Sports Tracksuit Kit', size: 'L', quantity: 1, issueDate: '2026-08-10', status: 'Issued', academicYear: '2026-2027' }
 ];
 
 export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [

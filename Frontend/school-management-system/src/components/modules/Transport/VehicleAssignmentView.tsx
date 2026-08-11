@@ -26,7 +26,7 @@ export interface VehicleAssignmentLogItem {
   status: 'Active' | 'Historical';
 }
 
-export const initialAssignmentLogs: VehicleAssignmentLogItem[] = [
+const initialAssignmentLogs: VehicleAssignmentLogItem[] = [
   {
     id: 'log-1',
     vehicleNumber: 'BUS-101',

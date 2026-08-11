@@ -515,7 +515,7 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("ClassId")
+                    .HasColumnName("id")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
@@ -536,19 +536,19 @@ namespace SMS.Api.Data
                     .HasColumnName("DisplayOrder");
 
                 entity.Property(x => x.Status)
-                    .HasColumnName("Status")
+                    .HasColumnName("status")
                     .HasMaxLength(20)
                     .HasDefaultValue("Active");
 
                 entity.Property(x => x.Remarks)
-                    .HasColumnName("Remarks");
+                    .HasColumnName("remarks");
 
                 entity.Property(x => x.CreatedAt)
                     .HasColumnName("CreatedAt")
                     .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                 entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("UpdatedAt");
+                    .HasColumnName("updated_at");
             });
         }
 
@@ -639,6 +639,7 @@ namespace SMS.Api.Data
                 entity.Property(x => x.Capacity).HasColumnName("capacity").HasDefaultValue(40);
                 entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20).HasDefaultValue("Active");
                 entity.Property(x => x.Remarks).HasColumnName("remarks");
+                entity.Property(x => x.RoomNo).HasColumnName("room_no").HasMaxLength(100);
 
                 entity.HasIndex(x => new { x.ClassId, x.SectionName }).IsUnique();
 

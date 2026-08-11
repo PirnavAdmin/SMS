@@ -3,13 +3,14 @@ import {
   Clock, Plus, Edit, Trash2, X, ChevronDown, Calendar, Printer,
   Copy, User, BookOpen, AlertTriangle, Layers, SlidersHorizontal, Check, RefreshCw,
   Send, Lock, FileSpreadsheet, ShieldAlert, CheckCircle2, Info, Search,
-  Zap, UserCheck, Users, BookMarked, ChevronRight, School
+  Zap, UserCheck, Users, BookMarked, ChevronRight, School, Sparkles
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { TimetableSlot, PeriodSetting, TeacherAssignment } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { AutoTimetableGeneratorModal } from './AutoTimetableGeneratorModal';
 import { 
   fetchPeriodsApi, savePeriodApi, deletePeriodApi,
   fetchTimetableGridApi, saveTimetableSlotApi, deleteTimetableSlotApi,
@@ -227,6 +228,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   const [deletingPeriodSetting, setDeletingPeriodSetting] = useState<PeriodSetting | null>(null);
   const [customPeriodType, setCustomPeriodType] = useState('');
   const [isEditingMaster, setIsEditingMaster] = useState(false);
+  const [isAutoGeneratorOpen, setIsAutoGeneratorOpen] = useState(false);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
   const [bulkSelectedClasses, setBulkSelectedClasses] = useState<string[]>([]);
   const [bulkSearchQuery, setBulkSearchQuery] = useState('');
@@ -256,7 +258,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
   );
 
   useEffect(() => {
-    if (selectedClass && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
+    if (selectedClass && selectedSection && sectionOptions.length > 0 && !sectionOptions.includes(selectedSection)) {
       setSelectedSection(sectionOptions[0]);
     }
   }, [sectionOptions, selectedSection, selectedClass]);
@@ -454,7 +456,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       section: selectedSection,
       subject: firstSubject,
       teacherName: '',
-      roomNo: '',
+      roomNo: clsObj?.sectionDetails?.[selectedSection]?.roomNo || '',
       status: 'Draft' as 'Draft' | 'Published' | 'Archived'
     };
     setFormData(initialSlot);
@@ -480,12 +482,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     if (!formData.subject || !formData.className || !formData.section) return;
 
     const timeSlotStr = `${formatTo12(startTime)} - ${formatTo12(endTime)}`;
+    const clsObj = academicClasses.find(c => c.name.toLowerCase().trim() === formData.className?.toLowerCase().trim());
     const finalData = {
       ...formData,
       teacherName: autoAssignedTeacher,
       timeSlot: timeSlotStr,
       academicYear,
       branch: selectedBranch || 'Main Campus',
+      roomNo: formData.roomNo || clsObj?.sectionDetails?.[formData.section]?.roomNo || '',
       status: (formData.status || 'Draft') as 'Draft' | 'Published'
     };
 
@@ -1032,6 +1036,14 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
         {/* Global Timetable Filters */}
         <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+          <button
+            onClick={() => setIsAutoGeneratorOpen(true)}
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 cursor-pointer transition-all shrink-0"
+          >
+            <Clock className="w-4 h-4" />
+            <span>Auto-Generate Timetable</span>
+          </button>
+
           {/* Print Button */}
           {activeTab !== 'period-settings' && (
             <button
@@ -1074,9 +1086,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
       {/* TAB 1: CLASS TIMETABLE (WEEKLY GRID) */}
       {activeTab === 'class-timetable' && (
         <div id="printable-content" className="space-y-4">
-          <div className="hidden print:block mb-4 text-center border-b pb-4">
-            <h1 className="text-2xl font-black">Class Timetable</h1>
-            <p className="text-sm font-bold text-slate-600 mt-2">Class: {selectedClass} | Section: {selectedSection}</p>
+          <div className="hidden print:block pb-3 mb-2 border-b-2 border-slate-800">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-black tracking-tight text-slate-900">PIRNAV SCHOOLS</h1>
+                <p className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Class Timetable • Academic Year {academicYear}</p>
+              </div>
+              <div className="text-right">
+                <span className="inline-block px-3 py-1 bg-slate-100 text-xs font-black text-slate-900 border border-slate-300 rounded-lg">
+                  {selectedClass} — Section {selectedSection}
+                </span>
+              </div>
+            </div>
           </div>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 no-print">
             <div className="flex flex-wrap items-center gap-3">
@@ -1142,6 +1163,18 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                   >
                     <Plus className="w-3.5 h-3.5" /> Add Period Slot
                   </button>
+                  <button
+                    onClick={() => {
+                      if (!selectedClass || !selectedSection) return;
+                      const existing = timetable.filter(t => t.className === selectedClass && t.section === selectedSection);
+                      existing.forEach(t => deleteTimetableSlot(t.id));
+                      addToast('info', 'Timetable Cleared', `Cleared schedule for ${selectedClass} - Section ${selectedSection}`);
+                    }}
+                    disabled={!selectedClass || !selectedSection || classTimetable.length === 0}
+                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 disabled:opacity-50 disabled:pointer-events-none text-xs font-bold shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Clear Schedule
+                  </button>
                 </>
               )}
             </div>
@@ -1163,9 +1196,9 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-3.5 px-4 min-w-[160px]">Period & Time</th>
+                    <th className="py-3.5 px-4 min-w-[160px] print:min-w-0 print:w-auto">Period & Time</th>
                     {days.map(d => (
-                      <th key={d} className="py-3.5 px-4 text-center min-w-[160px]">{d}</th>
+                      <th key={d} className="py-3.5 px-4 text-center min-w-[160px] print:min-w-0 print:w-auto">{d}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1732,37 +1765,82 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           </div>
 
           <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-            <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">
-              Teacher Timetable: {selectedTeacherName}
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              {baseDays.map(day => {
-                const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
-                let displaySlots = teacherSlots;
-                
-                // Real slots from database/state only
-
-                return (
-                  <div key={day} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
-                    <h4 className="font-extrabold text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 border-b pb-2 border-slate-200 dark:border-slate-700">
-                      {day}
-                    </h4>
-                    {displaySlots.length === 0 ? (
-                      <p className="text-[11px] text-slate-400 italic">No assigned periods</p>
-                    ) : (
-                      displaySlots.map(st => (
-                        <div key={st.id} className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1 relative overflow-hidden">
-                          <p className="font-bold text-xs text-slate-900 dark:text-white">{st.subject}</p>
-                          <p className="text-[10px] text-brand-600 font-bold">{st.className}-{st.section}</p>
-                          <p className="text-[10px] font-mono text-slate-400">{st.timeSlot}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-black text-slate-900 dark:text-white">
+                Teacher Timetable: {selectedTeacherName}
+              </h3>
             </div>
+
+            {(() => {
+              const teacherAllSlots = timetable.filter(t => t.teacherName === selectedTeacherName);
+              const clashingSlotIds = new Set(
+                teacherAllSlots
+                  .filter(s1 => teacherAllSlots.some(s2 => s2.id !== s1.id && s2.day === s1.day && s2.timeSlot === s1.timeSlot))
+                  .map(s => s.id)
+              );
+
+              return (
+                <>
+                  {clashingSlotIds.size > 0 && (
+                    <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-start gap-2.5 animate-in fade-in">
+                      <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <p className="font-extrabold text-rose-800 dark:text-rose-200">
+                          Schedule Clash Detected ({clashingSlotIds.size} Conflicting Slots)
+                        </p>
+                        <p className="mt-0.5 leading-relaxed text-rose-600 dark:text-rose-300">
+                          {selectedTeacherName} is assigned to teach multiple classes simultaneously during the same time slot (highlighted in red below). Re-run <strong>Auto-Generate Timetable</strong> to automatically resolve this clash conflict-free.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    {baseDays.map(day => {
+                      const teacherSlots = timetable.filter(t => t.teacherName === selectedTeacherName && t.day === day);
+                      let displaySlots = teacherSlots;
+
+                      return (
+                        <div key={day} className="space-y-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+                          <h4 className="font-extrabold text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 border-b pb-2 border-slate-200 dark:border-slate-700">
+                            {day}
+                          </h4>
+                          {displaySlots.length === 0 ? (
+                            <p className="text-[11px] text-slate-400 italic">No assigned periods</p>
+                          ) : (
+                            displaySlots.map(st => {
+                              const isClashing = clashingSlotIds.has(st.id);
+                              return (
+                                <div
+                                  key={st.id}
+                                  className={`p-2.5 rounded-xl border space-y-1 relative overflow-hidden transition-all ${
+                                    isClashing
+                                      ? 'bg-rose-50/90 dark:bg-rose-950/50 border-rose-300 dark:border-rose-700 shadow-xs'
+                                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+                                  }`}
+                                >
+                                  {isClashing && (
+                                    <div className="flex items-center gap-1 text-[9px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-wide">
+                                      <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0" />
+                                      <span>Time Clash / Double Booked</span>
+                                    </div>
+                                  )}
+                                  <p className="font-bold text-xs text-slate-900 dark:text-white">{st.subject}</p>
+                                  <p className={`text-[10px] font-bold ${isClashing ? 'text-rose-600 dark:text-rose-400' : 'text-brand-600'}`}>
+                                    {st.className}-{st.section}
+                                  </p>
+                                  <p className="text-[10px] font-mono text-slate-400">{st.timeSlot}</p>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       )}
@@ -2318,6 +2396,13 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           }
         }}
         onCancel={() => setDeletingPeriodSetting(null)}
+      />
+
+      {/* Auto Timetable Generator Smart Wizard Modal */}
+      <AutoTimetableGeneratorModal
+        isOpen={isAutoGeneratorOpen}
+        onClose={() => setIsAutoGeneratorOpen(false)}
+        initialAcademicYear={academicYear}
       />
     </div>
   );

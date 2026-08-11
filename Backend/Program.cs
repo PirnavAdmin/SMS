@@ -28,7 +28,7 @@ var builder = WebApplication.CreateBuilder(args);
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
-        "DefaultConnection is missing in appsettings.json.");
+        "Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -436,6 +436,26 @@ using (var scope = app.Services.CreateScope())
                         cmd.CommandText = "ALTER TABLE `staff_attendances` ADD COLUMN `OutTime` longtext NULL;";
                         cmd.ExecuteNonQuery();
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `OutTime` to `staff_attendances`.");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    System.Console.WriteLine($"[Database Columns Upgrade Warning] {ex.Message}");
+                }
+            }
+
+            // Upgrade class_sections table to add room_no column if it doesn't exist
+            using (var cmd = dbConnection.CreateCommand())
+            {
+                try
+                {
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'class_sections' AND COLUMN_NAME = 'room_no';";
+                    var roomNoExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (roomNoExists == 0)
+                    {
+                        cmd.CommandText = "ALTER TABLE `class_sections` ADD COLUMN `room_no` VARCHAR(255) NULL;";
+                        cmd.ExecuteNonQuery();
+                        System.Console.WriteLine("[Database Schema Upgrade] Added column `room_no` to `class_sections`.");
                     }
                 }
                 catch (System.Exception ex)
@@ -987,6 +1007,39 @@ using (var scope = app.Services.CreateScope())
                 `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`slot_id`),
                 CONSTRAINT `fk_new_exam_timetable_slots_exam` FOREIGN KEY (`exam_id`) REFERENCES `new_examinations` (`exam_id`) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `homeworks` (
+                `HomeworkId` int NOT NULL AUTO_INCREMENT,
+                `ClassName` varchar(150) NOT NULL DEFAULT 'Class 10-A',
+                `ClassRoom` varchar(150) NOT NULL DEFAULT 'Class 10-A',
+                `SubjectName` varchar(150) NOT NULL DEFAULT 'Mathematics',
+                `Title` varchar(255) NOT NULL DEFAULT 'Homework',
+                `Topic` varchar(255) NULL,
+                `Description` longtext NULL,
+                `DueDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `PublishedTo` varchar(100) NOT NULL DEFAULT 'Entire Class',
+                `Status` varchar(50) NOT NULL DEFAULT 'PUBLISHED',
+                `AttachmentFileName` varchar(255) NULL,
+                `AttachmentUrl` varchar(500) NULL,
+                `TeacherName` varchar(150) NOT NULL DEFAULT 'Teacher',
+                `SubmissionsCount` int NOT NULL DEFAULT 0,
+                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`HomeworkId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `homework_submissions` (
+                `SubmissionId` int NOT NULL AUTO_INCREMENT,
+                `HomeworkId` int NOT NULL,
+                `StudentId` int NOT NULL,
+                `StudentName` varchar(200) NOT NULL DEFAULT '',
+                `SubmissionDate` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `AttachmentUrl` varchar(500) NULL,
+                `Status` varchar(50) NOT NULL DEFAULT 'Submitted',
+                `MarksObtained` decimal(10,2) NULL,
+                `Feedback` longtext NULL,
+                PRIMARY KEY (`SubmissionId`),
+                CONSTRAINT `fk_hw_submissions_homework` FOREIGN KEY (`HomeworkId`) REFERENCES `homeworks` (`HomeworkId`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -1003,10 +1056,43 @@ using (var scope = app.Services.CreateScope())
         {
             try
             {
-                var exists = context.Database.SqlQueryRaw<int>(
-                    "SELECT COUNT(1) AS Value FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = {0} AND COLUMN_NAME = {1}",
-                    table, column
-                ).AsEnumerable().FirstOrDefault() > 0;
+                var conn = context.Database.GetDbConnection();
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+
+                bool exists = false;
+                using (var schemaTable = conn.GetSchema("Columns", new[] { null, conn.Database, table, column }))
+                {
+                    if (schemaTable.Rows.Count > 0)
+                    {
+                        exists = true;
+                    }
+                    else
+                    {
+                        // Fallback check for case differences
+                        using (var allColumns = conn.GetSchema("Columns", new[] { null, conn.Database, table, null }))
+                        {
+                            foreach (System.Data.DataRow row in allColumns.Rows)
+                            {
+                                var colName = row["COLUMN_NAME"]?.ToString();
+                                if (colName != null && colName.Equals(column, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    exists = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (closeConn)
+                {
+                    conn.Close();
+                }
 
                 if (!exists)
                 {
@@ -1835,6 +1921,27 @@ using (var scope = app.Services.CreateScope())
                 await conn.OpenAsync();
 
             bool tablesReady = false;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+                    SET FOREIGN_KEY_CHECKS=0;
+                    CREATE TABLE IF NOT EXISTS `academic_years` (
+                        `academic_year_id` int NOT NULL AUTO_INCREMENT,
+                        `academic_year_name` varchar(20) NOT NULL,
+                        `start_date` date NOT NULL,
+                        `end_date` date NOT NULL,
+                        `is_current` tinyint(1) NOT NULL,
+                        `is_active` tinyint(1) NOT NULL,
+                        `is_deleted` tinyint(1) NOT NULL,
+                        `created_at` datetime(6) NOT NULL,
+                        `updated_at` datetime(6) NULL,
+                        PRIMARY KEY (`academic_year_id`)
+                    ) CHARACTER SET=utf8mb4;
+                    SET FOREIGN_KEY_CHECKS=1;
+                ";
+                await cmd.ExecuteNonQueryAsync();
+            }
+
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = @"

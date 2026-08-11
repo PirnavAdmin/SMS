@@ -314,14 +314,24 @@ const MainLayout: React.FC = () => {
   );
 };
 
+import { HostelProvider } from './context/HostelContext';
+import { ExaminationProvider } from './context/ExaminationContext';
+import { HRProvider } from './context/HRContext';
+
 export function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <DataProvider>
-            <MainLayout />
-          </DataProvider>
+          <HostelProvider>
+            <ExaminationProvider>
+              <HRProvider>
+                <DataProvider>
+                  <MainLayout />
+                </DataProvider>
+              </HRProvider>
+            </ExaminationProvider>
+          </HostelProvider>
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

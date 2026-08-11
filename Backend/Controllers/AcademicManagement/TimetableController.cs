@@ -5,6 +5,8 @@ namespace SMS.Api.Controllers.AcademicManagement
     using System.Threading.Tasks;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.Mvc;
+    using Microsoft.EntityFrameworkCore;
+    using SMS.Api.Data;
     using SMS.Api.Dtos;
     using SMS.Api.Exceptions;
     using SMS.Api.Services.Interfaces;
@@ -16,10 +18,12 @@ namespace SMS.Api.Controllers.AcademicManagement
     public class TimetableController : ControllerBase
     {
         private readonly ITimetableService _timetableService;
+        private readonly AppDbContext _context;
 
-        public TimetableController(ITimetableService timetableService)
+        public TimetableController(ITimetableService timetableService, AppDbContext context)
         {
             _timetableService = timetableService;
+            _context = context;
         }
 
         /// <summary>
@@ -115,6 +119,7 @@ namespace SMS.Api.Controllers.AcademicManagement
         }
 
         [HttpGet("periods")]
+        [HttpGet("/api/academics/periods")]
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
         public async Task<IActionResult> GetPeriodSettings()
         {
@@ -122,6 +127,72 @@ namespace SMS.Api.Controllers.AcademicManagement
             {
                 var periods = await _timetableService.GetPeriodSettingsAsync();
                 return Ok(new { success = true, data = periods });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet("/api/academics/timetable")]
+        [Authorize(Roles = "SuperAdmin,Admin,Teacher,Student,Parent,Principal")]
+        public async Task<IActionResult> GetAcademicsTimetable(
+            [FromQuery] string classId,
+            [FromQuery] string section,
+            [FromQuery] string academicYear = "2026-2027")
+        {
+            try
+            {
+                int numericClassId = 0;
+                if (string.IsNullOrEmpty(classId))
+                {
+                    return BadRequest(new { success = false, message = "classId is required." });
+                }
+
+                if (classId.StartsWith("CL-"))
+                {
+                    int.TryParse(classId.Replace("CL-", ""), out numericClassId);
+                }
+                else
+                {
+                    int.TryParse(classId, out numericClassId);
+                }
+
+                var classItem = await _context.Classes
+                    .Include(c => c.Sections)
+                    .FirstOrDefaultAsync(c => c.ClassId == numericClassId);
+                
+                int sectionId = 0;
+                if (classItem != null && classItem.Sections != null)
+                {
+                    var sec = classItem.Sections.FirstOrDefault(s => s.SectionName.Equals(section, StringComparison.OrdinalIgnoreCase));
+                    if (sec != null)
+                    {
+                        sectionId = (int)sec.SectionId;
+                    }
+                }
+
+                var grid = await _timetableService.GetClassTimetableGridAsync(numericClassId, sectionId, academicYear);
+                
+                var slots = grid.Slots.Select(s => new
+                {
+                    id = s.SlotId.ToString(),
+                    day = s.DayOfWeek,
+                    timeSlot = s.PeriodName,
+                    startTime = s.StartTime,
+                    endTime = s.EndTime,
+                    className = grid.ClassName,
+                    section = grid.SectionName,
+                    subject = s.SubjectName,
+                    subjectId = s.SubjectId.ToString(),
+                    teacherName = s.TeacherName,
+                    teacherId = s.TeacherId.ToString(),
+                    roomNo = s.RoomNo ?? "",
+                    academicYear = grid.AcademicYear,
+                    status = grid.Status
+                }).ToList();
+
+                return Ok(new { success = true, data = slots });
             }
             catch (Exception ex)
             {

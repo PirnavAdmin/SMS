@@ -49,7 +49,7 @@
 @media print {
   @page {
     size: auto;
-    margin: 10mm;
+    margin: 5mm 6mm;
   }
   body * {
     visibility: hidden;
@@ -71,24 +71,94 @@
     left: 0 !important;
     top: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
     margin: 0 !important;
-    padding: 12px !important;
+    padding: 0 !important;
     background: white !important;
     color: #0f172a !important;
     z-index: 999999 !important;
     display: block !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   #printable-content table,
   .printable-area table {
     width: 100% !important;
+    table-layout: fixed !important;
     border-collapse: collapse !important;
+    border: 1.5px solid #334155 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
   #printable-content th,
+  .printable-area th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    font-size: 9.5px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    padding: 5px 3px !important;
+    border: 1px solid #94a3b8 !important;
+    text-align: center !important;
+  }
+  #printable-content th:first-child,
+  .printable-area th:first-child {
+    text-align: left !important;
+    padding-left: 6px !important;
+    width: 15% !important;
+  }
   #printable-content td,
-  .printable-area th,
   .printable-area td {
     color: #0f172a !important;
-    border-bottom: 1px solid #e2e8f0 !important;
+    border: 1px solid #cbd5e1 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    padding: 4px 3px !important;
+    font-size: 9px !important;
+    word-break: break-word !important;
+    vertical-align: middle !important;
+  }
+  #printable-content td:first-child,
+  .printable-area td:first-child {
+    background-color: #f8fafc !important;
+    font-weight: 700 !important;
+    font-size: 9px !important;
+    text-align: left !important;
+    padding-left: 6px !important;
+  }
+  /* Strip all inner container cards in print so cells render cleanly */
+  #printable-content td > div,
+  .printable-area td > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 1px 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    text-align: center !important;
+  }
+  #printable-content td > div span,
+  .printable-area td > div span {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    font-size: 7.5px !important;
+    color: #64748b !important;
+  }
+  #printable-content .glass-card,
+  .printable-area .glass-card {
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  #printable-content .text-xs,
+  #printable-content .text-sm,
+  #printable-content .text-[11px] {
+    font-size: 8.5px !important;
+    line-height: 1.15 !important;
   }
   #printable-content .no-print,
   #printable-content .no-print *,

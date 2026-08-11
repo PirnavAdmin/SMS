@@ -464,7 +464,6 @@ namespace SMS.Api.Repositories.Implementations
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
                 .Include(x => x.Driver)
-                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted);
 
             if (filter.RouteId.HasValue) query = query.Where(x => x.RouteId == filter.RouteId.Value);
@@ -488,7 +487,7 @@ namespace SMS.Api.Repositories.Implementations
                 VehicleNumber = x.Vehicle?.VehicleNumber ?? string.Empty,
                 RouteName = x.Route?.RouteName ?? "N/A",
                 DriverName = x.Driver?.DriverName ?? "Unassigned",
-                BusAttendant = x.Attendant?.AttendantName ?? "Unassigned",
+                BusAttendant = "Unassigned",
                 StudentsOnRoute = 0,
                 CapacityUsed = "N/A",
                 EffectiveFrom = x.EffectiveFrom.ToString("yyyy-MM-ddTHH:mm:ss.ffffff"),
@@ -522,7 +521,6 @@ namespace SMS.Api.Repositories.Implementations
                 .AsNoTracking()
                 .Include(x => x.Route)
                 .Include(x => x.Driver)
-                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted && x.Status)
                 .ToListAsync();
 
@@ -539,7 +537,7 @@ namespace SMS.Api.Repositories.Implementations
                     AssignedStudents = 0,
                     AssignedRoute = assignment?.Route?.RouteName ?? "Unassigned",
                     AssignedDriver = assignment?.Driver?.DriverName ?? "Unassigned",
-                    BusAttendant = assignment?.Attendant?.AttendantName ?? "Unassigned",
+                    BusAttendant = "Unassigned",
                     AssignmentStatus = assignment != null ? "Assigned" : "Unassigned",
                     UtilizationPercentage = "0%",
                     Status = v.Status ? "Active" : "Inactive"
@@ -573,7 +571,6 @@ namespace SMS.Api.Repositories.Implementations
                 .AsNoTracking()
                 .Include(x => x.Route)
                 .Include(x => x.Vehicle)
-                .Include(x => x.Attendant)
                 .Where(x => !x.IsDeleted && x.Status)
                 .ToListAsync();
 
@@ -588,7 +585,7 @@ namespace SMS.Api.Repositories.Implementations
                     LicenseExpiry = d.LicenceExpiry?.ToString("yyyy-MM-dd"),
                     CurrentBus = assignment?.Vehicle?.VehicleNumber ?? "Unassigned",
                     CurrentRoute = assignment?.Route?.RouteName ?? "Unassigned",
-                    BusAttendant = assignment?.Attendant?.AttendantName ?? "Unassigned",
+                    BusAttendant = "Unassigned",
                     AssignmentStatus = assignment != null ? "Assigned" : "Unassigned",
                     ExperienceYears = 5,
                     Status = d.Status ? "Active" : "Inactive"
