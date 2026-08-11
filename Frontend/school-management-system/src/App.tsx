@@ -18,6 +18,7 @@ import { StudentPromotionView } from './components/modules/Students/StudentPromo
 import { TransferCertificatesView } from './components/modules/Students/TransferCertificatesView';
 import { AlumniView } from './components/modules/Students/AlumniView';
 import { StaffList } from './components/modules/Staff/StaffList';
+import { TeacherProfileView } from './components/modules/Staff/TeacherProfileView';
 import { StaffRegistrationPage } from './components/modules/Staff/StaffRegistrationPage';
 import { LeaveManagementView } from './components/modules/Staff/LeaveManagementView';
 import { StaffAttendanceView } from './components/modules/Staff/StaffAttendanceView';
@@ -156,13 +157,20 @@ const MainLayout: React.FC = () => {
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <TransferCertificatesView />;
       case 'alumni':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <AlumniView />;
+      case 'teacher-profile':
+      case 'teacher-my-profile':
+        return <TeacherProfileView />;
       case 'staff':
       case 'staff-teachers':
       case 'staff-directory':
-        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList onNavigate={setActiveModule} />;
+        if (userRole === 'parent' || userRole === 'student') return <ParentTeacherInfoView />;
+        if (userRole === 'teacher') return <TeacherProfileView />;
+        return <StaffList onNavigate={setActiveModule} />;
       case 'staff-non-teaching':
+        if (userRole === 'teacher') return <TeacherProfileView />;
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffList initialCategory="Staff" onNavigate={setActiveModule} />;
       case 'staff-add':
+        if (userRole === 'teacher') return <TeacherProfileView />;
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffRegistrationPage onNavigate={setActiveModule} />;
       case 'staff-attendance':
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffAttendanceView />;

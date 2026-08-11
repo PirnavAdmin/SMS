@@ -34,10 +34,19 @@ import {
   nonTeachingDesignationNames,
 } from "./staffFlowOptions";
 
+import { useAuth } from "../../../context/AuthContext";
+import { TeacherProfileView } from "./TeacherProfileView";
+
 export const StaffList: React.FC<{
   initialCategory?: string;
   onNavigate?: (module: string) => void;
 }> = ({ initialCategory, onNavigate }) => {
+  const { role } = useAuth();
+
+  if (role && role.toLowerCase() === "teacher") {
+    return <TeacherProfileView />;
+  }
+
   const {
     staff,
     addStaff,

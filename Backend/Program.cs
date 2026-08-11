@@ -115,6 +115,10 @@ builder.Services.AddScoped<ITeacherStudentAttendanceRepository,TeacherStudentAtt
 builder.Services.AddScoped<ITeacherStudentAttendanceService,TeacherStudentAttendanceService>();
 
 
+// Teacher Self Profile
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.ITeacherProfileRepository, SMS.Api.Repositories.Implementations.TeacherProfileRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.ITeacherProfileService, SMS.Api.Services.Implementations.TeacherProfileService>();
+
 // Academic and School Management
 builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
 

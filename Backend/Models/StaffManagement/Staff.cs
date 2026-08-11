@@ -80,6 +80,7 @@ public class Staff
     public string? AcademicYear { get; set; }
     public bool? IsClassTeacherEligible { get; set; } = false;
     public string? BloodGroup { get; set; }
+    public string? ProfilePhoto { get; set; }
 
     // Navigation Properties
     public ICollection<Section> SectionsTaught { get; set; } = new List<Section>();

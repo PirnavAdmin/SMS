@@ -313,6 +313,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const staffSubItems =
     role.toLowerCase() === "parent" || role.toLowerCase() === "student"
       ? []
+      : role.toLowerCase() === "teacher"
+      ? [
+          { id: "teacher-profile", label: "My Profile", icon: User },
+          {
+            id: "staff-attendance",
+            label: "My Attendance",
+            icon: CalendarCheck,
+          },
+          { id: "staff-leave", label: "Leave Management", icon: FileText },
+        ]
       : [
           { id: "staff-directory", label: "Staff Directory", icon: Users },
           {
