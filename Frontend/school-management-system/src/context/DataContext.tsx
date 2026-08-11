@@ -1,3 +1,4 @@
+// @refresh reset
 import React, {
   createContext,
   useContext,
@@ -240,6 +241,78 @@ import {
   fetchMonthlyStaffAttendanceApi,
   markBulkStaffAttendanceApi,
 } from "../api/attendance";
+import {
+  fetchBooksApi,
+  fetchIssuedBooksApi,
+  issueBookApi,
+  returnBookApi,
+  createBookApi,
+  updateBookApi,
+  deleteBookApi,
+} from "../api/library";
+import {
+  fetchHomeworkApi,
+  createHomeworkApi,
+  updateHomeworkApi,
+  deleteHomeworkApi,
+} from "../api/homework";
+import {
+  fetchInventoryItemsApi,
+  fetchInventoryCategoriesApi,
+  createInventoryItemApi,
+  updateInventoryItemApi,
+  deleteInventoryItemApi,
+} from "../api/inventory";
+import {
+  fetchUniformCategoriesApi,
+  fetchUniformSizesApi,
+  fetchUniformSuppliersApi,
+  fetchUniformTypesApi,
+  fetchUniformDistributionsApi,
+  issueUniformApi,
+  createUniformTypeApi,
+  updateUniformTypeApi,
+  deleteUniformTypeApi,
+  createUniformCategoryApi,
+  updateUniformCategoryApi,
+  deleteUniformCategoryApi,
+  createUniformSizeApi,
+  updateUniformSizeApi,
+  deleteUniformSizeApi,
+  createUniformSupplierApi,
+  updateUniformSupplierApi,
+  deleteUniformSupplierApi,
+  fetchUniformDashboardApi,
+} from "../api/uniform";
+import {
+  fetchStudentsApi,
+  fetchStudentByIdApi,
+  createStudentApi,
+  updateStudentApi,
+  updateStudentStatusApi,
+  deleteStudentApi,
+} from "../api/students";
+import {
+  fetchSchoolEventsApi,
+  createSchoolEventApi,
+  updateSchoolEventApi,
+  deleteSchoolEventApi,
+  fetchHolidaysApi,
+  createHolidayApi,
+  updateHolidayApi,
+  deleteHolidayApi,
+  fetchCalendarEventsApi,
+} from "../api/events";
+import {
+  fetchNotificationsApi,
+  createNotificationApi,
+  updateNotificationApi,
+  deleteNotificationApi,
+  fetchMeetingsApi,
+  scheduleMeetingApi,
+  updateMeetingApi,
+  deleteMeetingApi,
+} from "../api/communication";
 
 export interface AcademicClass {
   id: string;
@@ -3470,6 +3543,173 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // =========================================================
+  // FETCH FUNCTIONS — REAL API REPLACEMENTS FOR MOCK DATA
+  // =========================================================
+
+  const fetchStudents = async () => {
+    try {
+      const response: any = await fetchStudentsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items) && items.length > 0) {
+        const mapped: Student[] = items.map((s: any) => ({
+          id: s.studentId?.toString() || s.id?.toString() || "",
+          admissionNo: s.admissionNo || "",
+          registrationNumber: s.registrationNumber || s.admissionNo || "",
+          firstName: s.firstName || "",
+          middleName: s.middleName || "",
+          lastName: s.lastName || "",
+          email: s.email || "",
+          phone: s.phone || s.contactNumber || "",
+          gender: s.gender || "Male",
+          dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
+          className: s.className || s.class || "",
+          section: s.sectionName || s.section || "",
+          academicYear: s.academicYear || "",
+          branch: s.branch || "Main Campus",
+          status: s.status || "Active",
+          studentType: s.studentType || "Day Scholar",
+          parentName: s.parentName || s.fatherName || "",
+          parentPhone: s.parentPhone || s.fatherContact || "",
+          address: s.address || "",
+          promotionHistory: [],
+        }));
+        setStudents(mapped);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch students from API", err);
+    }
+  };
+
+  const fetchBooks = async () => {
+    try {
+      const response: any = await fetchBooksApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setBooks(items);
+    } catch (err) {
+      console.warn("Failed to fetch books from API", err);
+    }
+  };
+
+  const fetchBookIssues = async () => {
+    try {
+      const response: any = await fetchIssuedBooksApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setBookIssues(items);
+    } catch (err) {
+      console.warn("Failed to fetch issued books from API", err);
+    }
+  };
+
+  const fetchHomeworkData = async () => {
+    try {
+      const response: any = await fetchHomeworkApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setHomework(items);
+    } catch (err) {
+      console.warn("Failed to fetch homework from API", err);
+    }
+  };
+
+  const fetchInventoryData = async () => {
+    try {
+      const response: any = await fetchInventoryItemsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setInventory(items);
+    } catch (err) {
+      console.warn("Failed to fetch inventory from API", err);
+    }
+  };
+
+  const fetchUniformData = async () => {
+    try {
+      const [catRes, sizeRes, supplierRes, typeRes, distRes] =
+        await Promise.allSettled([
+          fetchUniformCategoriesApi(),
+          fetchUniformSizesApi(),
+          fetchUniformSuppliersApi(),
+          fetchUniformTypesApi(),
+          fetchUniformDistributionsApi(),
+        ]);
+      const extract = (r: PromiseSettledResult<any>) =>
+        r.status === "fulfilled"
+          ? Array.isArray(r.value)
+            ? r.value
+            : r.value?.data || []
+          : [];
+      const cats = extract(catRes);
+      const sizes = extract(sizeRes);
+      const suppliers = extract(supplierRes);
+      const types = extract(typeRes);
+      const dists = extract(distRes);
+      if (cats.length) setUniformCategories(cats);
+      if (sizes.length) setUniformSizes(sizes);
+      if (suppliers.length) setUniformSuppliers(suppliers);
+      if (types.length) setUniformInventory(types);
+      if (dists.length) setStudentUniformIssues(dists);
+    } catch (err) {
+      console.warn("Failed to fetch uniform data from API", err);
+    }
+  };
+
+  const fetchSchoolEventsData = async () => {
+    try {
+      const response: any = await fetchSchoolEventsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setSchoolEvents(items);
+    } catch (err) {
+      console.warn("Failed to fetch school events from API", err);
+    }
+  };
+
+  const fetchHolidaysData = async () => {
+    try {
+      const response: any = await fetchHolidaysApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items) && items.length > 0) setHolidays(items);
+    } catch (err) {
+      console.warn("Failed to fetch holidays from API", err);
+    }
+  };
+
+  const fetchAnnouncementsData = async () => {
+    try {
+      const response: any = await fetchNotificationsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setAnnouncements(items);
+    } catch (err) {
+      console.warn("Failed to fetch announcements from API", err);
+    }
+  };
+
+  const fetchMeetingsData = async () => {
+    try {
+      const response: any = await fetchMeetingsApi();
+      const items = Array.isArray(response)
+        ? response
+        : response?.data?.items || response?.data || [];
+      if (Array.isArray(items)) setMeetings(items);
+    } catch (err) {
+      console.warn("Failed to fetch meetings from API", err);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchAcademicClasses();
@@ -3477,6 +3717,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchPeriods();
       fetchDepartments();
       fetchDesignations();
+      // Students (replaces initialStudents mock data)
+      fetchStudents();
+      // Library (replaces initialBooks / initialBookIssues mock data)
+      fetchBooks();
+      fetchBookIssues();
+      // Homework (replaces initialHomework mock data)
+      fetchHomeworkData();
+      // Inventory (replaces initialInventory mock data)
+      fetchInventoryData();
+      // Uniforms (replaces initialUniforms* mock data)
+      fetchUniformData();
+      // Events & Holidays (replaces initialSchoolEvents / initialHolidays mock data)
+      fetchSchoolEventsData();
+      fetchHolidaysData();
+      // Communication (replaces initialAnnouncements / initialMeetings mock data)
+      fetchAnnouncementsData();
+      fetchMeetingsData();
     }
     const allowedAdmissionsRoles = [
       "Super Admin",
@@ -10280,10 +10537,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+import { useHostel } from "./HostelContext";
+import { useExamination } from "./ExaminationContext";
+import { useHR } from "./HRContext";
+
 export const useData = () => {
   const context = useContext(DataContext);
+  const hostel = useHostel();
+  const exam = useExamination();
+  const hr = useHR();
   if (!context) {
     throw new Error("useData must be used within a DataProvider");
   }
-  return context;
+  return { ...context, ...hostel, ...exam, ...hr } as unknown as DataContextType;
 };

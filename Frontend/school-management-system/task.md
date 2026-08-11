@@ -18,7 +18,12 @@
 - [x] Implement Mark Attendance action integration (onNavigate `'attendance'`)
 - [x] Implement Open Lesson Plan modal displaying topic objectives, materials, and delivery steps
 - [x] Implement Weekly Timetable grid (Monday-Saturday rows/columns)
-- [x] Implement Substitution Schedule panel showing room changes and substitute duties
-- [x] Implement Free Periods panel listing free periods today with suggested activities
-- [x] Implement Quick Actions shortcuts with modal/navigation deep-links
-- [x] Verify compilation passes successfully
+- [x] Add `RoomNo` property to `ClassSection.cs`
+- [x] Add EF Core mapping for `RoomNo` in `AppDbContext.cs`
+- [x] Add `RoomNo` property to `SectionCreateDto` and `SectionUpdateDto` in `AcademicModuleDtos.cs`
+- [x] Add `RoomNo` property to `SectionResponseDto.cs`
+- [x] Add `RoomNo` property to `SectionAssignmentDto.cs`
+- [x] Update `ClassesController.cs` endpoints mapping RoomNo
+- [x] Update `SchoolService.cs` mappings for room number
+- [x] Add automatic schema upgrade code in `Program.cs`
+- [x] Verify compilation and test database alterationssfully

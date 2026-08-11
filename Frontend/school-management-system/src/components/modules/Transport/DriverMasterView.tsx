@@ -18,7 +18,7 @@ export interface DriverDocumentItem {
   attachmentName?: string;
 }
 
-export const initialDriverDocs: DriverDocumentItem[] = [
+const initialDriverDocs: DriverDocumentItem[] = [
   { id: 'dd-1', driverId: 'dm-01', docType: 'Driving License', docNumber: 'DL-NY-2022-77112', issueDate: '2022-10-31', expiryDate: '2029-10-31', badgeNumber: 'BDG-9901', attachmentName: 'Commercial_Driving_License.pdf' },
   { id: 'dd-2', driverId: 'dm-01', docType: 'Medical Certificate', docNumber: 'MED-2025-004', issueDate: '2025-05-01', expiryDate: '2026-08-30', attachmentName: 'Medical_Fitness_Report.pdf' },
   { id: 'dd-3', driverId: 'dm-01', docType: 'Police Verification', docNumber: 'POL-VER-8821', issueDate: '2025-01-10', expiryDate: '2027-01-10', attachmentName: 'Police_Clearance_Certificate.pdf' }

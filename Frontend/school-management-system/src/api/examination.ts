@@ -27,6 +27,12 @@ export const saveExamDetailsApi = async (payload: {
   });
 };
 
+export const deleteExamApi = async (examId: number | string) => {
+  return apiClient(`/api/examination-new/exams/${examId}`, {
+    method: 'DELETE'
+  });
+};
+
 export const fetchExamSubjectsApi = async (examId: number | string, className: string) => {
   return apiClient(`/api/examination-new/subjects/${examId}?className=${encodeURIComponent(className)}`, {
     method: 'GET'

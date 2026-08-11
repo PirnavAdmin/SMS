@@ -25,7 +25,7 @@ export interface StudentTransportHistoryItem {
   status: 'Active' | 'Revoked';
 }
 
-export const initialStudentHistory: StudentTransportHistoryItem[] = [
+const initialStudentHistory: StudentTransportHistoryItem[] = [
   { id: 'sth-1', studentId: 'std-1', studentName: 'Ethan Hunt', admissionNo: 'ADM2026-413', academicYear: '2026-2027', branch: 'Main Campus', routeName: 'Route A - Downtown Express', pickupPoint: 'Central Park West', vehicleNumber: 'BUS-101', driverName: 'Dwight Schrute', attendantName: 'Mary Smith', assignmentDate: '2026-04-01', status: 'Active' },
   { id: 'sth-2', studentId: 'std-2', studentName: 'Jane Doe', admissionNo: 'ADM2026-102', academicYear: '2026-2027', branch: 'Main Campus', routeName: 'Route B - North Campus Direct', pickupPoint: 'Tech Park Stop 2', vehicleNumber: 'BUS-102', driverName: 'Jim Halpert', attendantName: 'Sarah Jenkins', assignmentDate: '2026-04-01', status: 'Active' },
   { id: 'sth-3', studentId: 'std-1', studentName: 'Ethan Hunt', admissionNo: 'ADM2026-413', academicYear: '2025-2026', branch: 'Main Campus', routeName: 'Route C - West Suburbs', pickupPoint: 'West Colony Stop 1', vehicleNumber: 'BUS-103', driverName: 'Michael Scott', attendantName: 'Pam Beesly', assignmentDate: '2025-04-01', status: 'Revoked' }

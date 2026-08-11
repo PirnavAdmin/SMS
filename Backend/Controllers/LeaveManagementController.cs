@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/hr")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 [Tags("Leave & HR Management")]
 public class LeaveManagementController : ControllerBase
 {

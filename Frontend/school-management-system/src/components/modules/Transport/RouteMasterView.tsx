@@ -17,7 +17,7 @@ export interface RouteStop {
   distanceKm?: number;
 }
 
-export const initialRouteStops: RouteStop[] = [
+const initialRouteStops: RouteStop[] = [
   { id: 'stop-1', routeId: 'rm-01', stopName: 'School Main Gate', stopOrder: 1, pickupTime: '07:00 AM', dropTime: '04:45 PM', distanceKm: 0 },
   { id: 'stop-2', routeId: 'rm-01', stopName: 'Central Bus Stand', stopOrder: 2, pickupTime: '07:15 AM', dropTime: '04:30 PM', distanceKm: 3.5 },
   { id: 'stop-3', routeId: 'rm-01', stopName: 'Temple Square', stopOrder: 3, pickupTime: '07:30 AM', dropTime: '04:15 PM', distanceKm: 7.2 },

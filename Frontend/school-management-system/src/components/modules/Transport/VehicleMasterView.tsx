@@ -17,7 +17,7 @@ export interface VehicleDocumentItem {
   attachmentName?: string;
 }
 
-export const initialVehicleDocs: VehicleDocumentItem[] = [
+const initialVehicleDocs: VehicleDocumentItem[] = [
   { id: 'vd-1', vehicleId: 'vm-01', docType: 'RC', docNumber: 'RC-NY-99104', issueDate: '2022-01-15', expiryDate: '2037-01-15', attachmentName: 'RC_Official_Bus101.pdf' },
   { id: 'vd-2', vehicleId: 'vm-01', docType: 'Insurance', docNumber: 'INS-8810-AB', issueDate: '2025-12-01', expiryDate: '2026-12-01', attachmentName: 'Insurance_Policy_2026.pdf' },
   { id: 'vd-3', vehicleId: 'vm-01', docType: 'Fitness', docNumber: 'FIT-2025-001', issueDate: '2025-03-01', expiryDate: '2026-08-15', attachmentName: 'Fitness_Certificate_Passed.pdf' },
