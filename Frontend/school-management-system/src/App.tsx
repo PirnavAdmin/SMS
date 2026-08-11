@@ -23,6 +23,7 @@ import { StaffRegistrationPage } from './components/modules/Staff/StaffRegistrat
 import { LeaveManagementView } from './components/modules/Staff/LeaveManagementView';
 import { StaffAttendanceView } from './components/modules/Staff/StaffAttendanceView';
 import { PayrollModuleView } from './components/modules/Staff/PayrollModuleViewSimple';
+import { TeacherPayslipsView } from './components/modules/Staff/TeacherPayslipsView';
 import { AdmissionsView } from './components/modules/Admissions/AdmissionsView';
 import { AcademicDashboardView } from './components/modules/Academics/AcademicDashboardView';
 import { ClassManagementWorkspace } from './components/modules/Academics/ClassManagementWorkspace';
@@ -142,7 +143,9 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith('staff-payroll')) {
-      return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <PayrollModuleView initialTab={activeModule} onTabChange={setActiveModule} />;
+      if (userRole === 'parent' || userRole === 'student') return <ParentTeacherInfoView />;
+      if (userRole === 'teacher') return <TeacherPayslipsView />;
+      return <PayrollModuleView initialTab={activeModule} onTabChange={setActiveModule} />;
     }
 
     switch (activeModule) {
@@ -176,6 +179,9 @@ const MainLayout: React.FC = () => {
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <StaffAttendanceView />;
       case 'staff-leave':
         return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <LeaveManagementView />;
+      case 'staff-my-payslips':
+      case 'teacher-payslips':
+        return userRole === 'parent' || userRole === 'student' ? <ParentTeacherInfoView /> : <TeacherPayslipsView />;
       case 'admissions':
       case 'admissions-add':
         return userRole === 'parent' || userRole === 'student' ? (

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   LayoutDashboard,
   Users,
+  User,
   UserCheck,
   GraduationCap,
   IndianRupee,
@@ -322,6 +323,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             icon: CalendarCheck,
           },
           { id: "staff-leave", label: "Leave Management", icon: FileText },
+          { id: "staff-my-payslips", label: "My Payslips", icon: IndianRupee },
         ]
       : [
           { id: "staff-directory", label: "Staff Directory", icon: Users },

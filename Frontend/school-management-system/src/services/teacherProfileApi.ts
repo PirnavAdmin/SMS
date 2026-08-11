@@ -1,16 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = 'http://localhost:5000/api/v1/teacher/profile';
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('auth_token');
-  return {
-    headers: {
-      Authorization: token ? `Bearer ${token}` : '',
-      'Content-Type': 'application/json',
-    },
-  };
-};
+import { apiClient } from '../api/client';
 
 export interface TeacherSelfProfile {
   staffId: number;
@@ -58,20 +46,27 @@ export interface TeacherAssignments {
 }
 
 export const getTeacherProfileMe = async (): Promise<TeacherSelfProfile> => {
-  const response = await axios.get(`${API_BASE_URL}/me`, getAuthHeaders());
-  return response.data.data;
+  const response = await apiClient('/api/v1/teacher/profile/me', {
+    method: 'GET'
+  });
+  return response.data;
 };
 
 export const updateTeacherProfileMe = async (payload: UpdateMyTeacherProfilePayload): Promise<TeacherSelfProfile> => {
-  const response = await axios.put(`${API_BASE_URL}/me`, payload, getAuthHeaders());
-  return response.data.data;
+  const response = await apiClient('/api/v1/teacher/profile/me', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+  return response.data;
 };
 
 export const getTeacherAssignmentsMe = async (academicYear?: string): Promise<TeacherAssignments> => {
-  const params = academicYear ? { academicYear } : {};
-  const response = await axios.get(`${API_BASE_URL}/me/assignments`, {
-    ...getAuthHeaders(),
-    params,
+  const url = academicYear 
+    ? `/api/v1/teacher/profile/me/assignments?academicYear=${encodeURIComponent(academicYear)}`
+    : '/api/v1/teacher/profile/me/assignments';
+    
+  const response = await apiClient(url, {
+    method: 'GET'
   });
-  return response.data.data;
+  return response.data;
 };
