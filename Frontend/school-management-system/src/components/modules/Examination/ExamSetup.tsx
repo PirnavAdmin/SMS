@@ -113,10 +113,13 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
             const apiMatch = apiSubs.find(s => s.subjectName?.toLowerCase() === sName.toLowerCase());
             const existing = existingClassWise ? existingClassWise[sName] : undefined;
 
-            // Start strictly unselected / inactive unless user has explicitly configured this class
+            // Start strictly unselected (isActive: false)
+            // Only active if explicitly selected in this exam configuration
             let isAct = false;
-            if (existingClassWise !== undefined && Object.keys(existingClassWise).length > 0) {
-              isAct = existing !== undefined;
+            if (existing && existing.isActive === true) {
+              isAct = true;
+            } else if (apiMatch && (apiMatch.isExamSubject === true || apiMatch.selected === true)) {
+              isAct = true;
             }
 
             const maxM = existing?.maxMarks || apiMatch?.maxMarks || 100;
@@ -540,7 +543,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         const subjectsPayload = allKnownNames.map(sName => {
           const orig = origList.find(s => s.subjectName.toLowerCase() === sName.toLowerCase());
           const activeConfig = classSubsMap[sName];
-          const isActive = activeConfig !== undefined || (orig ? orig.isActive === true : true);
+          const isActive = activeConfig !== undefined || orig?.isActive === true;
           const maxMarks = activeConfig?.maxMarks || orig?.maxMarks || 100;
           const passMarks = activeConfig?.passMarks || orig?.passMarks || 35;
           const subjectCode = orig?.subjectCode || `${sName.substring(0, 3).toUpperCase()}-101`;

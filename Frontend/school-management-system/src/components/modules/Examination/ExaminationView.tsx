@@ -98,7 +98,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
             if (res && res.success && res.data?.subjects) {
               res.data.subjects.forEach((s: any) => {
-                if (s.isActive) {
+                if (s.isExamSubject === true || s.selected === true || (res.data?.isConfigured === true && s.isActive === true)) {
                   const conf = { 
                     maxMarks: s.maxMarks || 100, 
                     passMarks: s.passMarks || 35,
@@ -120,32 +120,22 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
 
         console.log('📌 [ExaminationView] Final active classWise map assembled:', classWise);
 
-        setActiveExam((prev: any) => {
-          const prevClassWise = (prev?.marksConfig as any)?.classWiseConfig || {};
-          const mergedClassWise = { ...prevClassWise };
-          Object.keys(classWise).forEach(cls => {
-            if (Object.keys(classWise[cls]).length > 0) {
-              mergedClassWise[cls] = { ...(prevClassWise[cls] || {}), ...classWise[cls] };
-            }
-          });
-
-          return {
-            id: d.examId.toString(),
-            name: d.examName,
-            examType: d.assessmentType,
-            term: d.academicTerm,
-            startDate: d.startDate,
-            endDate: d.endDate,
-            applicableClasses: appClasses,
-            status: d.status || 'Scheduled',
-            publishStatus: d.publishStatus || 'Draft',
-            marksConfig: {
-              maxMarks: 100,
-              passMarks: 35,
-              classWiseConfig: Object.keys(mergedClassWise).length > 0 ? mergedClassWise : classWise,
-              subjectWiseConfig: subjectWise
-            }
-          };
+        setActiveExam({
+          id: d.examId.toString(),
+          name: d.examName,
+          examType: d.assessmentType,
+          term: d.academicTerm,
+          startDate: d.startDate,
+          endDate: d.endDate,
+          applicableClasses: appClasses,
+          status: d.status || 'Scheduled',
+          publishStatus: d.publishStatus || 'Draft',
+          marksConfig: {
+            maxMarks: 100,
+            passMarks: 35,
+            classWiseConfig: classWise,
+            subjectWiseConfig: subjectWise
+          }
         });
       } else {
         addToast('error', 'Error Loading Exam Details', response?.message || 'Failed to fetch exam properties.');
