@@ -51,6 +51,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     applicableClasses: [],
     startDate: '',
     endDate: '',
+    defaultStartTime: '09:00',
+    defaultEndTime: '12:00',
     status: 'Scheduled',
     publishStatus: 'Draft',
     marksConfig: {
@@ -65,64 +67,137 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     const loadAllSubjects = async () => {
       if (!exam?.id) return;
       setLoadingSubjects(true);
+      console.log('🔍 [ExamSetup] Starting loadAllSubjects for exam:', { id: exam.id, name: exam.name, applicableClasses: exam.applicableClasses });
       try {
         const appClasses = exam.applicableClasses || [];
         const classWise: Record<string, Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }>> = {};
         const origMap: Record<string, any[]> = {};
 
-        // Fetch in parallel for all applicable classes
-        const fetches = appClasses.map(async (cls) => {
+        // Process each applicable class
+        await Promise.all(appClasses.map(async (cls) => {
+          const matchedClass = academicClasses.find(c => c.name === cls);
+          let rawSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+            ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+            : [];
+          if (rawSubs.length === 0) {
+            rawSubs = (subjects || []).map(s => s.name);
+          }
+
+          // Deduplicate valid class subjects
+          const seen = new Set<string>();
+          const validClassSubs = rawSubs.filter(sName => {
+            const lower = sName.toLowerCase();
+            if (seen.has(lower)) return false;
+            seen.add(lower);
+            return true;
+          });
+
+          console.log(`🔍 [ExamSetup] Class "${cls}": Valid class subjects (${validClassSubs.length}):`, validClassSubs);
+
+          // Fetch previously saved subjects from API if available
+          let apiSubs: any[] = [];
           try {
-            const res = await fetchExamSubjectsApi(exam.id, cls);
-            if (res && res.success && res.data?.subjects) {
-              origMap[cls] = res.data.subjects;
-              const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
-              res.data.subjects.forEach((s: any) => {
-                if (s.isActive) {
-                  subMap[s.subjectName] = { 
-                    maxMarks: s.maxMarks || 100, 
-                    passMarks: s.passMarks || 35,
-                    subjectCode: s.subjectCode,
-                    isActive: true
-                  };
-                }
-              });
-              classWise[cls] = subMap;
+            const apiRes = await fetchExamSubjectsApi(exam.id, cls);
+            console.log(`🔍 [ExamSetup] Class "${cls}": fetchExamSubjectsApi response:`, apiRes);
+            if (apiRes && apiRes.success && Array.isArray(apiRes.data?.subjects)) {
+              apiSubs = apiRes.data.subjects;
             }
           } catch (e) {
-            console.error(`Failed to load subjects for class ${cls}`, e);
+            console.warn(`⚠️ [ExamSetup] Class "${cls}": fetchExamSubjectsApi error:`, e);
           }
+
+          const existingClassWise = (exam.marksConfig as any)?.classWiseConfig?.[cls];
+          console.log(`🔍 [ExamSetup] Class "${cls}": existingClassWise from props:`, existingClassWise);
+
+          const subList: any[] = validClassSubs.map(sName => {
+            const apiMatch = apiSubs.find(s => s.subjectName?.toLowerCase() === sName.toLowerCase());
+            const existing = existingClassWise ? existingClassWise[sName] : undefined;
+
+            // Start strictly unselected (isActive: false)
+            // Only active if explicitly selected in this exam configuration
+            let isAct = false;
+            if (existing && existing.isActive === true) {
+              isAct = true;
+            } else if (apiMatch && (apiMatch.isExamSubject === true || apiMatch.selected === true)) {
+              isAct = true;
+            }
+
+            const maxM = existing?.maxMarks || apiMatch?.maxMarks || 100;
+            const passM = existing?.passMarks || apiMatch?.passMarks || 35;
+            const sCode = apiMatch?.subjectCode || `${sName.substring(0, 3).toUpperCase()}-101`;
+
+            return {
+              subjectCode: sCode,
+              subjectName: sName,
+              maxMarks: maxM,
+              passMarks: passM,
+              isActive: isAct
+            };
+          });
+
+          console.log(`🔍 [ExamSetup] Class "${cls}": computed subList (with isActive flags):`, subList);
+
+          origMap[cls] = subList;
+
+          const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
+          subList.forEach(s => {
+            if (s.isActive) {
+              subMap[s.subjectName] = {
+                maxMarks: s.maxMarks,
+                passMarks: s.passMarks,
+                subjectCode: s.subjectCode,
+                isActive: true
+              };
+            }
+          });
+          classWise[cls] = subMap;
+        }));
+
+        setOriginalSubjects(origMap);
+
+        const aggregated: Record<string, { maxMarks: number; passMarks: number }> = {};
+        Object.values(classWise).forEach(cw => {
+          Object.entries(cw).forEach(([sub, conf]) => {
+            aggregated[sub] = { maxMarks: conf.maxMarks, passMarks: conf.passMarks };
+          });
         });
 
-        await Promise.all(fetches);
-        setOriginalSubjects(origMap);
+        console.log('🔍 [ExamSetup] Setting final classWiseConfig in formData:', classWise);
 
         setFormData(prev => ({
           ...prev,
           marksConfig: {
-            maxMarks: prev.marksConfig?.maxMarks || 100,
-            passMarks: prev.marksConfig?.passMarks || 35,
-            classWiseConfig: classWise,
-            subjectWiseConfig: {}
+            maxMarks: exam.marksConfig?.maxMarks || 100,
+            passMarks: exam.marksConfig?.passMarks || 35,
+            subjectWiseConfig: aggregated,
+            classWiseConfig: classWise
           } as any
         }));
       } catch (err: any) {
-        addToast('error', 'Error Loading Subjects', err.message || 'Failed to load subject setups.');
+        console.error('❌ [ExamSetup] Error in loadAllSubjects:', err);
+        addToast('error', 'Error Loading Subjects', err.message || 'Could not fetch subjects.');
       } finally {
         setLoadingSubjects(false);
       }
     };
 
     if (exam) {
-      const appClasses = exam.applicableClasses || [];
       setFormData({
-        ...exam,
-        applicableClasses: appClasses,
+        id: exam.id,
+        name: exam.name || '',
+        examType: exam.examType || (exam as any).assessmentType || 'Unit Test',
+        applicableClasses: exam.applicableClasses || (exam.className ? [exam.className] : []),
+        startDate: exam.startDate || '',
+        endDate: exam.endDate || '',
+        defaultStartTime: exam.defaultStartTime || '09:00',
+        defaultEndTime: exam.defaultEndTime || '12:00',
+        status: exam.status || 'Scheduled',
+        publishStatus: exam.publishStatus || 'Draft',
         marksConfig: {
           maxMarks: exam.marksConfig?.maxMarks || 100,
           passMarks: exam.marksConfig?.passMarks || 35,
           subjectWiseConfig: exam.marksConfig?.subjectWiseConfig || {},
-          classWiseConfig: {}
+          classWiseConfig: (exam.marksConfig as any)?.classWiseConfig || {}
         } as any
       });
       loadAllSubjects();
@@ -133,6 +208,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         applicableClasses: [],
         startDate: '',
         endDate: '',
+        defaultStartTime: '09:00',
+        defaultEndTime: '12:00',
         status: 'Scheduled',
         publishStatus: 'Draft',
         marksConfig: {
@@ -155,20 +232,40 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         const updatedClassWise: Record<string, Record<string, { maxMarks: number; passMarks: number }>> = {};
 
         nextClasses.forEach(cls => {
-          if (currentClassWise[cls]) {
+          if (currentClassWise[cls] && Object.keys(currentClassWise[cls]).length > 0) {
             updatedClassWise[cls] = currentClassWise[cls];
           } else {
-            const matchedClass = academicClasses.find(c => c.name === cls);
-            const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
-              ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || ''))
-              : [];
-
-            const subMap: Record<string, { maxMarks: number; passMarks: number }> = {};
-            classSubs.forEach(s => {
-              if (s) subMap[s] = { maxMarks: 100, passMarks: 35 };
-            });
-            updatedClassWise[cls] = subMap;
+            // New class: Start with NO subjects auto-selected (empty map)
+            updatedClassWise[cls] = {};
           }
+        });
+
+        // Initialize originalSubjects for newly added classes as inactive (false)
+        setOriginalSubjects(prevOrig => {
+          const nextOrig = { ...prevOrig };
+          nextClasses.forEach(cls => {
+            if (!nextOrig[cls]) {
+              const matchedClass = academicClasses.find(c => c.name === cls);
+              let raw = matchedClass?.subjects && matchedClass.subjects.length > 0
+                ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+                : (subjects || []).map(s => s.name);
+              const seen = new Set<string>();
+              const valid = raw.filter(name => {
+                const lower = name.toLowerCase();
+                if (seen.has(lower)) return false;
+                seen.add(lower);
+                return true;
+              });
+              nextOrig[cls] = valid.map(sName => ({
+                subjectCode: `${sName.substring(0, 3).toUpperCase()}-101`,
+                subjectName: sName,
+                maxMarks: 100,
+                passMarks: 35,
+                isActive: false
+              }));
+            }
+          });
+          return nextOrig;
         });
 
         const aggregatedSubjectWise: Record<string, { maxMarks: number; passMarks: number }> = {};
@@ -192,12 +289,27 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   const handleUpdateSubjectConfig = (className: string, subjectName: string, maxMarks: number, passMarks: number) => {
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
-      const updated = list.map(sub => {
-        if (sub.subjectName === subjectName) {
-          return { ...sub, maxMarks, passMarks };
-        }
-        return sub;
-      });
+      const exists = list.some(sub => sub.subjectName.toLowerCase() === subjectName.toLowerCase());
+      let updated: any[];
+      if (exists) {
+        updated = list.map(sub => {
+          if (sub.subjectName.toLowerCase() === subjectName.toLowerCase()) {
+            return { ...sub, maxMarks, passMarks };
+          }
+          return sub;
+        });
+      } else {
+        updated = [
+          ...list,
+          {
+            subjectCode: `${subjectName.substring(0, 3).toUpperCase()}-101`,
+            subjectName,
+            maxMarks,
+            passMarks,
+            isActive: true
+          }
+        ];
+      }
       return { ...prev, [className]: updated };
     });
 
@@ -228,14 +340,31 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   };
 
   const handleToggleSubject = (className: string, subjectName: string) => {
+    console.log('🔘 [ExamSetup] handleToggleSubject called:', { className, subjectName });
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
-      const updated = list.map(sub => {
-        if (sub.subjectName === subjectName) {
-          return { ...sub, isActive: !sub.isActive };
-        }
-        return sub;
-      });
+      const exists = list.some(s => s.subjectName.toLowerCase() === subjectName.toLowerCase());
+      let updated: any[];
+      if (exists) {
+        updated = list.map(sub => {
+          if (sub.subjectName.toLowerCase() === subjectName.toLowerCase()) {
+            return { ...sub, isActive: !sub.isActive };
+          }
+          return sub;
+        });
+      } else {
+        updated = [
+          ...list,
+          {
+            subjectCode: `${subjectName.substring(0, 3).toUpperCase()}-101`,
+            subjectName,
+            maxMarks: 100,
+            passMarks: 35,
+            isActive: true
+          }
+        ];
+      }
+      console.log('🔘 [ExamSetup] Updated originalSubjects for', className, ':', updated);
       return { ...prev, [className]: updated };
     });
 
@@ -247,7 +376,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       if (currentClassSubjects[subjectName]) {
         delete currentClassSubjects[subjectName];
       } else {
-        const subObj = originalSubjects[className]?.find(s => s.subjectName === subjectName);
+        const subObj = originalSubjects[className]?.find(s => s.subjectName.toLowerCase() === subjectName.toLowerCase());
         currentClassSubjects[subjectName] = { 
           maxMarks: subObj?.maxMarks || config.maxMarks || 100, 
           passMarks: subObj?.passMarks || config.passMarks || 35 
@@ -263,6 +392,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         });
       });
 
+      console.log('🔘 [ExamSetup] New classWiseConfig for', className, ':', currentClassSubjects);
+
       return {
         ...prev,
         marksConfig: {
@@ -275,9 +406,23 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   };
 
   const handleSelectAllForClass = (className: string, subjectsList: string[]) => {
+    console.log('✅ [ExamSetup] handleSelectAllForClass called:', { className, subjectsList });
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
-      const updated = list.map(sub => ({ ...sub, isActive: true }));
+      const subjectMap = new Map(list.map(s => [s.subjectName.toLowerCase(), s]));
+
+      const updated = subjectsList.map(sName => {
+        const existing = subjectMap.get(sName.toLowerCase());
+        return {
+          subjectCode: existing?.subjectCode || `${sName.substring(0, 3).toUpperCase()}-101`,
+          subjectName: sName,
+          maxMarks: existing?.maxMarks || 100,
+          passMarks: existing?.passMarks || 35,
+          isActive: true
+        };
+      });
+
+      console.log('✅ [ExamSetup] Updated originalSubjects (all active) for', className, ':', updated);
       return { ...prev, [className]: updated };
     });
 
@@ -287,7 +432,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       const currentClassSubjects: Record<string, { maxMarks: number; passMarks: number }> = {};
 
       subjectsList.forEach(s => {
-        const subObj = originalSubjects[className]?.find(sub => sub.subjectName === s);
+        const subObj = originalSubjects[className]?.find(sub => sub.subjectName.toLowerCase() === s.toLowerCase());
         currentClassSubjects[s] = classWise[className]?.[s] || { 
           maxMarks: subObj?.maxMarks || config.maxMarks || 100, 
           passMarks: subObj?.passMarks || config.passMarks || 35 
@@ -303,6 +448,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         });
       });
 
+      console.log('✅ [ExamSetup] Updated classWiseConfig (all active) for', className, ':', currentClassSubjects);
+
       return {
         ...prev,
         marksConfig: {
@@ -315,6 +462,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   };
 
   const handleClearAllForClass = (className: string) => {
+    console.log('❌ [ExamSetup] handleClearAllForClass called for:', className);
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
       const updated = list.map(sub => ({ ...sub, isActive: false }));
@@ -346,7 +494,19 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
 
   const handleSaveGeneral = () => {
     if (!formData.name?.trim()) {
-      addToast('warning', 'Validation Warning', 'Please enter an exam name.');
+      addToast('warning', 'Validation Warning', 'Please enter an examination name.');
+      return;
+    }
+    if (!formData.examType?.trim()) {
+      addToast('warning', 'Validation Warning', 'Please select or enter an assessment type.');
+      return;
+    }
+    if (!formData.term?.trim()) {
+      addToast('warning', 'Validation Warning', 'Please enter an academic term (e.g. Term 1, Mid-Term, Annual).');
+      return;
+    }
+    if (!formData.applicableClasses || formData.applicableClasses.length === 0) {
+      addToast('warning', 'Validation Warning', 'Please select at least one applicable class.');
       return;
     }
     onSaveSetup(formData);
@@ -356,32 +516,68 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   const handleSaveSubjects = async () => {
     if (!exam?.id) return;
     setLoadingSubjects(true);
+    console.log('💾 [ExamSetup] Starting handleSaveSubjects for examId:', exam.id);
     try {
       const appClasses = formData.applicableClasses || [];
+      const classWise = (formData.marksConfig as any)?.classWiseConfig || {};
+
       const saves = appClasses.map(async (cls) => {
-        const list = originalSubjects[cls] || [];
+        const origList = originalSubjects[cls] || [];
+        const classSubsMap = classWise[cls] || {};
+
+        // Find matched class subjects or all global subjects
+        const matchedClass = academicClasses.find(c => c.name === cls);
+        let defaultSubNames = matchedClass?.subjects && matchedClass.subjects.length > 0
+          ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+          : [];
+        if (defaultSubNames.length === 0) {
+          defaultSubNames = (subjects || []).map(s => s.name);
+        }
+
+        const allKnownNames = Array.from(new Set([
+          ...origList.map(s => s.subjectName),
+          ...Object.keys(classSubsMap),
+          ...defaultSubNames
+        ])).filter(Boolean);
+
+        const subjectsPayload = allKnownNames.map(sName => {
+          const orig = origList.find(s => s.subjectName.toLowerCase() === sName.toLowerCase());
+          const activeConfig = classSubsMap[sName];
+          const isActive = activeConfig !== undefined || orig?.isActive === true;
+          const maxMarks = activeConfig?.maxMarks || orig?.maxMarks || 100;
+          const passMarks = activeConfig?.passMarks || orig?.passMarks || 35;
+          const subjectCode = orig?.subjectCode || `${sName.substring(0, 3).toUpperCase()}-101`;
+
+          return {
+            subjectCode,
+            subjectName: sName,
+            isActive: Boolean(isActive),
+            maxMarks: Number(maxMarks) || 100,
+            passMarks: Number(passMarks) || 35
+          };
+        });
+
         const payload = {
           examId: Number(exam.id),
           className: cls,
-          subjects: list.map(s => ({
-            subjectCode: s.subjectCode || `${s.subjectName.substring(0, 3).toUpperCase()}-101`,
-            subjectName: s.subjectName,
-            isActive: s.isActive || false,
-            maxMarks: s.maxMarks || 100,
-            passMarks: s.passMarks || 35
-          })),
+          subjects: subjectsPayload,
           proceedToSchedule: true
         };
+
+        console.log(`💾 [ExamSetup] Saving payload for class "${cls}":`, payload);
         const response = await saveExamSubjectsApi(payload);
+        console.log(`💾 [ExamSetup] Response for class "${cls}":`, response);
         if (!response || !response.success) {
           throw new Error(response?.message || `Failed to save subjects configuration for class ${cls}`);
         }
       });
 
       await Promise.all(saves);
+      onSaveSetup(formData, false);
       addToast('success', 'Subjects Configurations Saved', 'Exam subject rules updated successfully.');
       onNavigateNext();
     } catch (err: any) {
+      console.error('❌ [ExamSetup] Save failed:', err);
       addToast('error', 'Save Failed', err.message || 'Failed to save subject configuration.');
     } finally {
       setLoadingSubjects(false);
@@ -494,6 +690,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                   term={(formData as any).term || ''}
                   startDate={formData.startDate || ''}
                   endDate={formData.endDate || ''}
+                  defaultStartTime={formData.defaultStartTime || '09:00'}
+                  defaultEndTime={formData.defaultEndTime || '12:00'}
                   applicableClasses={formData.applicableClasses || []}
                   classOptions={classOptions}
                   selectedAcademicYear={selectedAcademicYear}

@@ -8,6 +8,8 @@ interface ExamGeneralFormProps {
   term: string;
   startDate: string;
   endDate: string;
+  defaultStartTime?: string;
+  defaultEndTime?: string;
   applicableClasses: string[];
   classOptions: string[];
   selectedAcademicYear: string;
@@ -23,6 +25,8 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
   term,
   startDate,
   endDate,
+  defaultStartTime,
+  defaultEndTime,
   applicableClasses,
   classOptions,
   onChange,
@@ -47,33 +51,14 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         'Internal / Continuous Evaluation'
       ];
 
-  const termCycles = termCyclesOptions && termCyclesOptions.length > 0
-    ? termCyclesOptions.filter(t => t !== "Other / Custom...")
-    : [
-        'Mid Term 1',
-        'Mid Term 2',
-        'Half Yearly',
-        'Annual / Final'
-      ];
-
   const [isCustomType, setIsCustomType] = useState(() => {
     if (!examType) return false;
     return !assessmentTypes.some(t => t.toLowerCase() === examType.toLowerCase() || t.startsWith(examType));
   });
 
-  const [isCustomTerm, setIsCustomTerm] = useState(() => {
-    if (!term) return false;
-    return !termCycles.some(t => t.toLowerCase() === term.toLowerCase() || t.startsWith(term));
-  });
-
   const [customTypeVal, setCustomTypeVal] = useState(() => {
     if (!examType || assessmentTypes.some(t => t.toLowerCase() === examType.toLowerCase() || t.startsWith(examType))) return '';
     return examType;
-  });
-
-  const [customTermVal, setCustomTermVal] = useState(() => {
-    if (!term || termCycles.some(t => t.toLowerCase() === term.toLowerCase() || t.startsWith(term))) return '';
-    return term;
   });
 
   useEffect(() => {
@@ -90,21 +75,6 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
       setCustomTypeVal('');
     }
   }, [examType]);
-
-  useEffect(() => {
-    if (term) {
-      const match = termCycles.find(t => t.toLowerCase() === term.toLowerCase() || t.startsWith(term));
-      if (!match) {
-        setIsCustomTerm(true);
-        setCustomTermVal(term);
-      } else {
-        setIsCustomTerm(false);
-      }
-    } else {
-      setIsCustomTerm(false);
-      setCustomTermVal('');
-    }
-  }, [term]);
 
   const handleToggleClass = (cls: string) => {
     let next: string[];
@@ -197,53 +167,16 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
         {/* Academic Term */}
         <div className="space-y-1">
           <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-            Academic Term
+            Academic Term *
           </label>
-          {isCustomTerm ? (
-            <div className="relative">
-              <input
-                type="text"
-                value={customTermVal}
-                onChange={e => {
-                  setCustomTermVal(e.target.value);
-                  onChange({ term: e.target.value });
-                }}
-                className={`${inputClass} pr-14`}
-                placeholder="Enter custom term..."
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCustomTerm(false);
-                  setCustomTermVal('');
-                  onChange({ term: '' });
-                }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-extrabold uppercase text-sky-600 hover:text-sky-500 cursor-pointer bg-white dark:bg-slate-800 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-700 shadow-xs"
-              >
-                Select
-              </button>
-            </div>
-          ) : (
-            <select
-              value={term || ''}
-              onChange={e => {
-                if (e.target.value === 'Other') {
-                  setIsCustomTerm(true);
-                  setCustomTermVal('');
-                  onChange({ term: '' });
-                } else {
-                  onChange({ term: e.target.value });
-                }
-              }}
-              className={selectClass}
-            >
-              <option value="">-- Select Academic Term --</option>
-              {termCycles.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-              <option value="Other">Other / Custom...</option>
-            </select>
-          )}
+          <input
+            type="text"
+            required
+            value={term || ''}
+            onChange={e => onChange({ term: e.target.value })}
+            className={inputClass}
+            placeholder="e.g. Term 1, Mid-Term, Annual, 2026-27"
+          />
         </div>
 
         {/* Start Date */}
@@ -269,6 +202,32 @@ export const ExamGeneralForm: React.FC<ExamGeneralFormProps> = ({
             onChange={(val: string) => onChange({ endDate: val })}
             className={inputClass}
             placeholder="DD-MM-YYYY"
+          />
+        </div>
+
+        {/* Start Time */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            Start Time *
+          </label>
+          <input
+            type="time"
+            value={defaultStartTime || '09:00'}
+            onChange={(e) => onChange({ defaultStartTime: e.target.value })}
+            className={`${inputClass} font-mono font-bold cursor-pointer`}
+          />
+        </div>
+
+        {/* End Time */}
+        <div className="space-y-1">
+          <label className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+            End Time *
+          </label>
+          <input
+            type="time"
+            value={defaultEndTime || '12:00'}
+            onChange={(e) => onChange({ defaultEndTime: e.target.value })}
+            className={`${inputClass} font-mono font-bold cursor-pointer`}
           />
         </div>
       </div>

@@ -11,7 +11,8 @@ import { checkRoomCollision, checkInvigilatorCollision } from './utils/examValid
 import {
   fetchScheduleTimetableApi as fetchExamScheduleTimetableApi,
   saveScheduleTimetableApi as saveExamScheduleTimetableApi,
-  fetchSchedulePreviewApi as fetchExamSchedulePreviewApi
+  fetchSchedulePreviewApi as fetchExamSchedulePreviewApi,
+  fetchExamSubjectsApi
 } from '../../../api/examination';
 
 interface ExamScheduleProps {
@@ -77,6 +78,37 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
       }));
   }, [staff]);
 
+  // Helper to generate distinct sequential dates skipping Sundays
+  const generateSequentialExamDates = (startDateStr?: string, count: number = 1): string[] => {
+    const dates: string[] = [];
+    if (!startDateStr) {
+      startDateStr = new Date().toISOString().split('T')[0];
+    }
+
+    let curr = new Date(startDateStr);
+    if (isNaN(curr.getTime())) {
+      const parts = startDateStr.split(/[-/]/);
+      if (parts.length === 3 && parts[0].length === 2) {
+        curr = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      } else {
+        curr = new Date();
+      }
+    }
+
+    while (dates.length < count) {
+      // Skip Sundays (0 in JS Date)
+      if (curr.getDay() !== 0) {
+        const yyyy = curr.getFullYear();
+        const mm = String(curr.getMonth() + 1).padStart(2, '0');
+        const dd = String(curr.getDate()).padStart(2, '0');
+        dates.push(`${yyyy}-${mm}-${dd}`);
+      }
+      curr.setDate(curr.getDate() + 1);
+    }
+
+    return dates;
+  };
+
   // Load timetable on class/section change
   const loadTimetable = async () => {
     if (!exam?.id || !selectedClass || !selectedSection) return;
@@ -84,13 +116,16 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
     try {
       const res = await fetchExamScheduleTimetableApi(selectedClass, selectedSection, exam.id);
       if (res && res.success) {
+        const defStart = exam.defaultStartTime || '09:00';
+        const defEnd = exam.defaultEndTime || '12:00';
+
         const fetched = (res.data?.timetable || []).map((item: any, index: number) => {
-          let startTime = '09:00';
-          let endTime = '12:00';
+          let startTime = defStart;
+          let endTime = defEnd;
           if (item.timeSlot && item.timeSlot.includes('-')) {
             const parts = item.timeSlot.split('-');
-            startTime = parts[0]?.trim() || '09:00';
-            endTime = parts[1]?.trim() || '12:00';
+            startTime = parts[0]?.trim() || defStart;
+            endTime = parts[1]?.trim() || defEnd;
           }
           return {
             id: item.slotId ? `item_${item.slotId}` : `item_${index}`,
@@ -112,33 +147,99 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
           };
         });
 
-        // Merge with any configured class subjects not yet scheduled
-        const classConfig = (exam.marksConfig as any)?.classWiseConfig?.[selectedClass] || exam.marksConfig?.subjectWiseConfig || {};
-        const activeSubjects = Object.keys(classConfig);
+        // Merge with all configured class subjects
+        const matchedClass = academicClasses.find(c => c.name === selectedClass);
+        const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
+          ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+          : [];
 
-        const merged = [...fetched];
+        // Check if API has saved subject configurations
+        const subjectsRes = await fetchExamSubjectsApi(exam.id, selectedClass).catch(() => null);
+        let apiActiveSubs: string[] = [];
+        let apiConfigs: Record<string, { maxMarks: number; passMarks: number }> = {};
+        
+        if (subjectsRes && subjectsRes.success && Array.isArray(subjectsRes.data?.subjects)) {
+          subjectsRes.data.subjects.forEach((s: any) => {
+            if (s.isActive !== false) {
+              apiActiveSubs.push(s.subjectName);
+              apiConfigs[s.subjectName] = { maxMarks: s.maxMarks || 100, passMarks: s.passMarks || 35 };
+            }
+          });
+        }
+
+        const classConfig = (exam?.marksConfig as any)?.classWiseConfig?.[selectedClass] || {};
+        const configKeys = Object.keys(classConfig);
+        
+        // Priority: 1. User-configured classWiseConfig, 2. API saved active subjects, 3. all class subjects, 4. all subjects
+        let activeSubjects: string[] = [];
+        if (configKeys.length > 0) {
+          activeSubjects = configKeys;
+        } else if (apiActiveSubs.length > 0) {
+          activeSubjects = apiActiveSubs;
+        } else if (classSubs.length > 0) {
+          activeSubjects = classSubs;
+        } else {
+          activeSubjects = (subjects || []).map(s => s.name);
+        }
+
+        const seenNames = new Set<string>();
+        activeSubjects = activeSubjects.filter(name => {
+          if (!name) return false;
+          const lower = name.toLowerCase();
+          if (seenNames.has(lower)) return false;
+          seenNames.add(lower);
+          return true;
+        });
+
+        console.log(`📅 [ExamSchedule] Resolved activeSubjects for ${selectedClass} (${activeSubjects.length}):`, activeSubjects);
+
+        const merged: any[] = [];
+        // Add all active subjects
         activeSubjects.forEach(subjectName => {
-          const exists = fetched.some((s: any) => s.subject === subjectName);
-          if (!exists) {
-            const itemConfig = classConfig[subjectName] || { maxMarks: 100, passMarks: 35 };
+          const existingFetched = fetched.find((s: any) => s.subject?.toLowerCase() === subjectName.toLowerCase());
+          const itemConfig = apiConfigs[subjectName] || classConfig[subjectName] || { maxMarks: 100, passMarks: 35 };
+
+          if (existingFetched) {
+            merged.push({
+              ...existingFetched,
+              subject: subjectName,
+              maxMarks: existingFetched.maxMarks || itemConfig.maxMarks || 100,
+              passMarks: existingFetched.passMarks || itemConfig.passMarks || 35
+            });
+          } else {
             merged.push({
               id: `temp_${Date.now()}_${Math.random()}`,
               examId: exam.id,
               className: selectedClass,
               section: selectedSection,
               subject: subjectName,
-              date: exam.startDate || new Date().toISOString().split('T')[0],
-              startTime: '09:00',
-              endTime: '12:00',
+              date: '',
+              startTime: defStart,
+              endTime: defEnd,
               duration: '3h',
               room: 'TBA',
               invigilatorName: 'TBA',
               invigilatorNames: [],
-              maxMarks: itemConfig.maxMarks,
-              passMarks: itemConfig.passMarks
+              maxMarks: itemConfig.maxMarks || 100,
+              passMarks: itemConfig.passMarks || 35
             });
           }
         });
+
+        // Auto-distribute dates if they are all identical or unset (skipping Sundays)
+        const allSameOrBlank = merged.length > 1 && (
+          merged.some(m => !m.date) ||
+          merged.every(m => m.date === merged[0].date || m.date === exam.startDate)
+        );
+
+        if (allSameOrBlank || merged.some(m => !m.date)) {
+          const autoDates = generateSequentialExamDates(exam.startDate, merged.length);
+          merged.forEach((item, idx) => {
+            if (autoDates[idx]) {
+              item.date = autoDates[idx];
+            }
+          });
+        }
 
         setTimetable(merged);
       } else {
@@ -210,9 +311,31 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
     }
   }, [scheduleMode, exam?.id, auditClassFilter, auditSectionFilter]);
 
+  const handleAutoDistributeDates = () => {
+    if (timetable.length === 0) return;
+    const autoDates = generateSequentialExamDates(exam?.startDate, timetable.length);
+    const updated = timetable.map((item, idx) => ({
+      ...item,
+      date: autoDates[idx] || item.date
+    }));
+    setTimetable(updated);
+    addToast('success', 'Exam Dates Distributed', `Spread ${timetable.length} subjects sequentially across exam dates (Sundays skipped).`);
+  };
+
   const handleSaveTimetable = async (updatedList?: any[]) => {
     if (!exam?.id || !selectedClass || !selectedSection) return;
     const listToSave = updatedList || timetable;
+
+    // Check for any Sunday dates and warn
+    const sundaySlots = listToSave.filter(row => {
+      if (!row.date) return false;
+      const d = new Date(row.date);
+      return !isNaN(d.getTime()) && d.getDay() === 0;
+    });
+    if (sundaySlots.length > 0) {
+      addToast('warning', 'Sunday Schedule Warning', `${sundaySlots.map(s => s.subject).join(', ')} is scheduled on a Sunday. Usually examinations are not conducted on Sundays.`);
+    }
+
     setLoading(true);
     try {
       const payload = {
@@ -245,6 +368,13 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
   };
 
   const handleUpdateRow = (id: string, updates: Partial<ExamScheduleType>) => {
+    if (updates.date) {
+      const d = new Date(updates.date);
+      if (!isNaN(d.getTime()) && d.getDay() === 0) {
+        addToast('warning', 'Sunday Selected', 'Notice: Selected exam date falls on a Sunday.');
+      }
+    }
+
     const list = timetable.map(row => {
       if (row.id === id) {
         const merged = { ...row, ...updates };
@@ -440,6 +570,15 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
 
               {selectedClass && selectedSection && (
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAutoDistributeDates}
+                    className="px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1.5"
+                    title="Automatically spread exam subjects across sequential dates from start date (Sundays excluded)"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Auto-Distribute Dates</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleToggleEdit}

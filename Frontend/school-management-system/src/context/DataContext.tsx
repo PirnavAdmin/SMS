@@ -3606,7 +3606,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? response
         : response?.data?.items || response?.data || [];
       if (Array.isArray(items) && items.length > 0) {
-        const mapped: Student[] = items.map((s: any) => ({
+        const mapped = items.map((s: any) => ({
           id: s.studentId?.toString() || s.id?.toString() || "",
           admissionNo: s.admissionNo || "",
           registrationNumber: s.registrationNumber || s.admissionNo || "",

@@ -523,9 +523,14 @@ export interface ExamSetup {
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Results Published';
   
   // Enterprise & Unified Fields
+  defaultStartTime?: string;
+  defaultEndTime?: string;
   branch?: string;
   examType?: string;
+  assessmentType?: string;
+  term?: string;
   applicableClasses?: string[];
+  classes?: string[];
   sections?: string[];
   description?: string;
   publishResult?: boolean;
@@ -573,6 +578,7 @@ export interface ExamMark {
   className?: string;
   section?: string;
   studentId: string;
+  studentName?: string;
   subject: string;
   marksObtained: number;
   totalMarks: number;
