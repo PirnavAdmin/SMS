@@ -58,9 +58,12 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
           status: e.status || 'Draft',
           displayText: e.displayText,
           academicYear: selectedAcademicYear || '',
-          startDate: '',
-          endDate: '',
-          applicableClasses: []
+          examType: e.assessmentType || e.examType || 'Unit Test',
+          term: e.academicTerm || e.term || '',
+          academicTerm: e.academicTerm || e.term || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+          applicableClasses: Array.isArray(e.applicableClasses) ? e.applicableClasses : (Array.isArray(e.classes) ? e.classes : [])
         }));
         setExams(mapped);
       } else {
@@ -85,7 +88,14 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       console.log('📌 [ExaminationView] fetchExamByIdApi response:', response);
       if (response && response.success && response.data) {
         const d = response.data;
-        const appClasses = d.applicableClasses || [];
+        const appClasses = Array.isArray(d.applicableClasses) && d.applicableClasses.length > 0
+          ? d.applicableClasses
+          : (Array.isArray(d.classes) && d.classes.length > 0
+              ? d.classes
+              : (Array.isArray(d.assignedClasses) && d.assignedClasses.length > 0
+                  ? d.assignedClasses
+                  : (d.className ? [d.className] : [])));
+        const termVal = d.academicTerm || d.term || d.termCycle || '';
         
         // Fetch in parallel for all applicable classes to build classWiseConfig
         const classWise: Record<string, Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }>> = {};
@@ -121,12 +131,13 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         console.log('📌 [ExaminationView] Final active classWise map assembled:', classWise);
 
         setActiveExam({
-          id: d.examId.toString(),
-          name: d.examName,
-          examType: d.assessmentType,
-          term: d.academicTerm,
-          startDate: d.startDate,
-          endDate: d.endDate,
+          id: (d.examId || id).toString(),
+          name: d.examName || d.name || '',
+          examType: d.assessmentType || d.examType || 'Unit Test',
+          term: termVal,
+          academicTerm: termVal,
+          startDate: d.startDate || '',
+          endDate: d.endDate || '',
           applicableClasses: appClasses,
           status: d.status || 'Scheduled',
           publishStatus: d.publishStatus || 'Draft',
@@ -316,20 +327,25 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             selectedAcademicYear={selectedAcademicYear}
             selectedBranch={selectedBranch}
             onSaveSetup={(updates, showToast) => {
-              if (updates.marksConfig) {
-                setActiveExam((prev: any) => ({
-                  ...prev,
-                  ...updates,
-                  marksConfig: {
-                    ...(prev?.marksConfig || {}),
-                    ...updates.marksConfig,
-                    classWiseConfig: {
-                      ...((prev?.marksConfig as any)?.classWiseConfig || {}),
-                      ...((updates.marksConfig as any)?.classWiseConfig || {})
-                    }
+              setActiveExam((prev: any) => ({
+                ...prev,
+                ...updates,
+                name: updates.name || prev?.name,
+                examType: updates.examType || prev?.examType,
+                term: updates.term || prev?.term,
+                academicTerm: updates.term || prev?.academicTerm,
+                applicableClasses: updates.applicableClasses || prev?.applicableClasses || [],
+                startDate: updates.startDate || prev?.startDate,
+                endDate: updates.endDate || prev?.endDate,
+                marksConfig: {
+                  ...(prev?.marksConfig || {}),
+                  ...(updates.marksConfig || {}),
+                  classWiseConfig: {
+                    ...((prev?.marksConfig as any)?.classWiseConfig || {}),
+                    ...((updates.marksConfig as any)?.classWiseConfig || {})
                   }
-                }));
-              }
+                }
+              }));
               handleSaveSetup(updates, showToast);
             }}
             onNavigateNext={async () => {

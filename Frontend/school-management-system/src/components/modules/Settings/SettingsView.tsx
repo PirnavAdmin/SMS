@@ -11,6 +11,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { AcademicYearMaster, CertificateTemplateConfig } from '../../../types';
 import { PrintableCertificateContainer } from '../Certificates/PrintableCertificateContainer';
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
+import { SchoolLogoUploader } from './SchoolLogoUploader';
 
 export interface CampusItem {
   id: string;
@@ -130,6 +131,9 @@ export const SettingsView: React.FC = () => {
   const { addToast } = useToast();
 
   const [profileForm, setProfileForm] = useState(schoolProfile);
+  useEffect(() => {
+    setProfileForm(schoolProfile);
+  }, [schoolProfile]);
   const [activeTab, setActiveTab] = useState<'profile' | 'campus' | 'academic-year' | 'certificates' | 'backup' | 'audit'>('profile');
 
   // Academic Year Configuration States
@@ -487,13 +491,10 @@ export const SettingsView: React.FC = () => {
                 />
               </div>
             </div>
-            <div>
-              <label className="block font-semibold mb-1">School Logo URL</label>
-              <input
-                type="text"
-                value={profileForm.logoUrl}
-                onChange={e => setProfileForm({ ...profileForm, logoUrl: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+            <div className="pt-2">
+              <SchoolLogoUploader
+                value={profileForm.logoUrl || ''}
+                onChange={(newLogoUrl) => setProfileForm(prev => ({ ...prev, logoUrl: newLogoUrl }))}
               />
             </div>
 

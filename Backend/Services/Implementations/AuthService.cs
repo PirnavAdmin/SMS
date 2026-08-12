@@ -84,7 +84,7 @@ namespace SMS.Api.Services.Implementations
                 await _userRepository.SaveChangesAsync();
 
                 var rolesList = GetUserRolesList(user);
-                var token = GenerateJwtToken(user, rolesList);
+                var token = await GenerateJwtTokenAsync(user, rolesList);
 
                 return new AuthResponseDto(user.UserId, user.FullName, token, rolesList);
             }
@@ -94,7 +94,7 @@ namespace SMS.Api.Services.Implementations
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.EmailOrPhone))
             {
-                dto = new LoginRequestDto("admin@pirnav.com", "password");
+                throw new AppException("Username and password are required.", HttpStatusCode.BadRequest);
             }
 
             var identifier = dto.EmailOrPhone.Trim();
@@ -123,7 +123,7 @@ namespace SMS.Api.Services.Implementations
                         var rolesList = GetAdminRolesList(admin);
                         if (rolesList.Count == 0)
                         {
-                            rolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
+                            throw new AppException("User has no roles assigned.", HttpStatusCode.Forbidden);
                         }
 
                         var token = GenerateJwtTokenForAdmin(admin, rolesList);
@@ -158,10 +158,10 @@ namespace SMS.Api.Services.Implementations
                         var userRolesList = GetUserRolesList(user);
                         if (userRolesList.Count == 0)
                         {
-                            userRolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
+                            throw new AppException("User has no roles assigned.", HttpStatusCode.Forbidden);
                         }
 
-                        var userToken = GenerateJwtToken(user, userRolesList);
+                        var userToken = await GenerateJwtTokenAsync(user, userRolesList);
 
                         return new AuthResponseDto(
                             user.UserId,
@@ -184,19 +184,6 @@ namespace SMS.Api.Services.Implementations
             {
                 throw new AppException($"Database or authentication service error: {ex.Message}", HttpStatusCode.InternalServerError);
             }
-
-            // Default Fallback Admin Login for Demo/Offline Testing
-            var fallbackRoles = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-            var mockAdmin = new Admin
-            {
-                AdminId = 1,
-                FullName = "Admin User",
-                Email = identifier,
-                MobileNumber = "9876543210"
-            };
-
-            var fallbackToken = GenerateJwtTokenForAdmin(mockAdmin, fallbackRoles);
-            return new AuthResponseDto(1, "Admin User", fallbackToken, fallbackRoles);
         }
 
         private static string GetPortalRole(string portal)
@@ -249,7 +236,7 @@ namespace SMS.Api.Services.Implementations
             return rolesList.Distinct().ToList();
         }
 
-        private string GenerateJwtToken(User user, List<string> roles)
+        private async Task<string> GenerateJwtTokenAsync(User user, List<string> roles)
         {
             var claims = new List<Claim>
             {
@@ -269,13 +256,13 @@ namespace SMS.Api.Services.Implementations
 
             if (roles.Contains("Teacher") || user.Role == "Teacher")
             {
-                var staffId = _context.Staff
+                var staffId = await _context.Staff
                     .AsNoTracking()
                     .Where(s => s.IsActive == true &&
                         ((!string.IsNullOrEmpty(user.Email) && s.Email != null && s.Email.ToLower() == user.Email.ToLower()) ||
                          (!string.IsNullOrEmpty(user.MobileNumber) && s.Phone != null && s.Phone == user.MobileNumber)))
                     .Select(s => s.StaffId)
-                    .FirstOrDefault();
+                    .FirstOrDefaultAsync();
 
                 if (staffId > 0)
                 {

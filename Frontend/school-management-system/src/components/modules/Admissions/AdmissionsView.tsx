@@ -2087,6 +2087,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       <ConfirmModal
         isOpen={!!confirmingApp}
         title={confirmingApp?.status === 'Enrolled' ? 'Confirm Student Enrollment' : 'Confirm Application Rejection'}
+        subtitle={confirmingApp?.status === 'Enrolled' ? 'Finalize Admission & Create Student Profile' : 'Application Status Update'}
+        variant={confirmingApp?.status === 'Enrolled' ? 'success' : 'danger'}
         message={
           confirmingApp?.status === 'Enrolled'
             ? `Are you sure you want to enroll applicant ${confirmingApp?.app.applicantName}? This will create their student record and transfer all data into Student Management.`
