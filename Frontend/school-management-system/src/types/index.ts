@@ -128,6 +128,79 @@ export interface DocumentRequirementRule {
 
 export type SectionAssignmentMethod = 'Manual' | 'Merit' | 'Balanced';
 
+export type StudentStatus =
+  | 'Active'
+  | 'Inactive'
+  | 'Discontinued'
+  | 'Branch Transfer'
+  | 'Transferred Out'
+  | 'Completed'
+  | 'Alumni'
+  | 'Promoted'
+  | 'Transferred';
+
+export type AcademicYearStatus =
+  | 'Promoted'
+  | 'Retained'
+  | 'Discontinued'
+  | 'Branch Transfer'
+  | 'Transferred Out'
+  | 'Graduated'
+  | 'Active';
+
+export interface DiscontinuationDetails {
+  discontinuationDate: string;
+  discontinuationAcademicYear: string;
+  lastAcademicYear: string;
+  lastClass: string;
+  lastSection: string;
+  reason: string;
+  remarks?: string;
+  tcRequired: boolean;
+  tcNo?: string;
+  authorizedBy?: string;
+}
+
+export interface TransferDetails {
+  transferDate: string;
+  lastAcademicYear: string;
+  lastClass: string;
+  lastSection: string;
+  reason: string;
+  destinationSchool?: string;
+  tcRequired: boolean;
+  tcNo?: string;
+  remarks?: string;
+}
+
+export interface BranchTransferDetails {
+  transferDate: string;
+  fromBranch: string;
+  toBranch: string;
+  reason: string;
+  remarks?: string;
+}
+
+export interface AcademicHistoryRecord {
+  id: string;
+  studentId: string;
+  admissionNo: string;
+  academicYear: string;
+  className: string;
+  section: string;
+  rollNo: string;
+  classTeacher?: string;
+  branch?: string;
+  status: AcademicYearStatus;
+  promotionStatus?: string;
+  discontinuationDetails?: DiscontinuationDetails;
+  transferDetails?: TransferDetails;
+  branchTransferDetails?: BranchTransferDetails;
+  remarks?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface PromotionHistoryItem {
   id: string;
   academicYear: string;
@@ -160,7 +233,7 @@ export interface Student {
   className: string;
   section: string;
   category: string;
-  status: 'Active' | 'Inactive' | 'Promoted' | 'Transferred' | 'Completed' | 'Alumni';
+  status: StudentStatus;
   avatar: string;
   joiningDate: string;
 
@@ -170,6 +243,10 @@ export interface Student {
 
   completionDate?: string;
   completionAcademicYear?: string;
+  academicHistory?: AcademicHistoryRecord[];
+  discontinuationDetails?: DiscontinuationDetails;
+  transferDetails?: TransferDetails;
+  branchTransferDetails?: BranchTransferDetails;
   busRoute?: string;
   transportType?: 'AC' | 'Non-AC';
   pickupPoint?: string;
@@ -430,6 +507,9 @@ export interface AdmissionApplication {
   discountId?: string;
   selectedOptionalFees?: string[];
   submissionDate: string;
+  joiningDate?: string;
+  admissionDate?: string;
+  feeCalculationMethod?: 'Monthly' | 'Term-wise' | 'Full Annual Fee';
   status: 'Pending' | 'Verified' | 'Approved' | 'Rejected' | 'Enrolled';
   documentsSubmitted: string[];
 }
@@ -465,6 +545,9 @@ export interface PaymentAllocationItem {
   academicYear: string;
   ledgerId?: string;
   amount: number;
+  installmentId?: string;
+  termName?: string;
+  feeHeadName?: string;
 }
 
 export interface FeePayment {
@@ -477,7 +560,7 @@ export interface FeePayment {
   discount: number;
   fine: number;
   transportFee?: number;
-  paymentMode: 'Cash' | 'Card' | 'Online' | 'Cheque';
+  paymentMode: 'Cash' | 'Card' | 'Online' | 'Cheque' | 'UPI' | 'Bank Transfer' | 'Other';
   transactionId?: string;
   paymentDate: string;
   status: 'Paid' | 'Partial' | 'Pending';
@@ -498,6 +581,7 @@ export interface FeePayment {
   chequeNo?: string;
   chequeDate?: string;
   bankName?: string;
+  selectedInstallmentIds?: string[];
 }
 
 export interface DailyAttendance {
@@ -936,7 +1020,9 @@ export type FeeHeadFrequency =
   | 'One Time'
   | 'Monthly'
   | 'Quarterly'
+  | 'Half-Yearly'
   | 'Half Yearly'
+  | 'Term-wise'
   | 'Annual'
   | 'Custom';
 
@@ -973,6 +1059,19 @@ export interface DynamicFeeStructure {
   status: 'Active' | 'Inactive';
 }
 
+export type FeePolicyType = 'Full Annual Fee' | 'Pro-rata' | 'Term-wise' | 'Custom';
+
+export interface FeeHeadAssignmentBreakdown {
+  feeHeadId: string;
+  feeHeadName: string;
+  category: string;
+  billingType?: 'Monthly' | 'Quarterly' | 'Term' | 'Annual' | 'One-time';
+  originalAmount: number;
+  assignedAmount: number;
+  adjustmentAmount: number;
+  isEligibleForProRata?: boolean;
+}
+
 export interface StudentFeeAssignment {
   id: string;
   studentId: string;
@@ -985,7 +1084,14 @@ export interface StudentFeeAssignment {
   feeStructureId: string;
   assignedFeeHeads: FeeStructureItem[];
   baseFeeTotal: number;
+  originalFeeTotal?: number;
+  adjustmentTotal?: number;
+  feePolicy?: FeePolicyType;
+  feeBreakdown?: FeeHeadAssignmentBreakdown[];
+  adjustmentReason?: string;
   assignedDate: string;
+  createdBy?: string;
+  createdAt?: string;
   status: 'Active' | 'Modified' | 'Removed';
 }
 
@@ -1335,6 +1441,7 @@ export interface StudentFeeLedger {
   discountAmount: number;
   fineAmount: number;
   previousDue: number;
+  installments?: StudentFeeInstallment[];
 }
 
 export interface YearWiseOutstandingItem {
@@ -2241,6 +2348,44 @@ export interface AlumniRecord {
   tcIssued?: boolean;
   tcNumber?: string;
 }
+
+export interface FeeScheduleTerm {
+  id: string;
+  termName: string;
+  startDate: string;
+  endDate: string;
+  dueDate: string;
+  sequence: number;
+  status: 'Active' | 'Inactive';
+}
+
+export interface AcademicYearFeeSchedule {
+  id: string;
+  academicYear: string;
+  numberOfTerms: number;
+  terms: FeeScheduleTerm[];
+  status: 'Active' | 'Inactive';
+}
+
+export interface StudentFeeInstallment {
+  id: string;
+  studentId: string;
+  academicYear: string;
+  feeAssignmentId: string;
+  feeHeadId: string;
+  feeHeadName: string;
+  frequency: string;
+  termId?: string;
+  termName?: string;
+  dueDate: string;
+  amount: number;
+  paidAmount: number;
+  dueAmount: number;
+  status: 'Paid' | 'Partial' | 'Pending';
+  createdAt: string;
+  updatedAt: string;
+}
+
 
 
 

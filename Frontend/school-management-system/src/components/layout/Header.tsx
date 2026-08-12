@@ -200,36 +200,31 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const ayOptions = useMemo(() => {
-    let list: { id: string; academicYear: string; isCurrent: boolean }[] = [];
+    const allYears = new Set<string>();
+
     if (academicYears && academicYears.length > 0) {
-      list = academicYears.map(ay => ({
-        id: ay.id,
-        academicYear: ay.academicYear || (ay as any).year || '',
-        isCurrent: ay.isCurrentAcademicYear || ay.status === 'Active'
-      })).filter(a => a.academicYear && a.academicYear.length > 4); // Filter out junk IDs like '01', '02'
-    } else {
-      list = [
-        { id: 'AY-2026-2027', academicYear: '2026-2027', isCurrent: true },
-        { id: 'AY-2025-2026', academicYear: '2025-2026', isCurrent: false }
-      ];
+      academicYears.forEach(ay => {
+        const val = ay.academicYear || (ay as any).year;
+        if (val && String(val).length >= 7) allYears.add(String(val));
+      });
     }
 
-    if (!list.some(ay => ay.academicYear === '2026-2027')) {
-      list.push({ id: 'AY-2026-2027', academicYear: '2026-2027', isCurrent: true });
-    }
+    (students || []).forEach(s => {
+      (s.academicHistory || []).forEach(h => {
+        if (h.academicYear && String(h.academicYear).length >= 7) allYears.add(String(h.academicYear));
+      });
+    });
 
-    // Deduplicate by academicYear
-    const uniqueList: typeof list = [];
-    const seen = new Set<string>();
-    for (const item of list) {
-      if (item.academicYear && !seen.has(item.academicYear)) {
-        seen.add(item.academicYear);
-        uniqueList.push(item);
-      }
-    }
+    ['2024-2025', '2025-2026', '2026-2027', '2027-2028'].forEach(y => allYears.add(y));
 
-    return uniqueList.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
-  }, [academicYears]);
+    const list = Array.from(allYears).map(y => ({
+      id: `AY-${y}`,
+      academicYear: y,
+      isCurrent: y === '2026-2027'
+    }));
+
+    return list.sort((a, b) => b.academicYear.localeCompare(a.academicYear));
+  }, [academicYears, students]);
 
   const confirmDeactivateBranch = () => {
     if (!deactivatingBranch || !canManageBranch) return;
