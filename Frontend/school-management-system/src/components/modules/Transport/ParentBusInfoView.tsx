@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
-import { Bus, MapPin, Phone, UserCircle, AlertCircle, Clock, ShieldCheck, UserCheck, Navigation, Radio, X, CheckCircle, Bell } from 'lucide-react';
+import { 
+  Bus, MapPin, Phone, UserCircle, AlertCircle, Clock, ShieldCheck, UserCheck, 
+  Navigation, Radio, X, CheckCircle, Bell, Sun, Moon 
+} from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { Badge } from '../../common/Badge';
 import { initialBusAttendants } from './BusAttendantMasterView';
 
 export const ParentBusInfoView: React.FC = () => {
@@ -31,10 +35,18 @@ export const ParentBusInfoView: React.FC = () => {
   const assignedRoute = routeMasters.find(r => r.id === assignedTransport?.routeId || r.routeName === assignedTransport?.routeName) || routeMasters[0];
   const assignedPickup = pickupPoints.find(p => p.pickupName === assignedTransport?.pickupPoint) || pickupPoints[0];
   
-  const assignedVehicleRel = vehicleAssignments.find(va => va.routeId === assignedRoute?.id && va.status === 'Active');
+  const assignedVehicleRel = vehicleAssignments.find(va => va.routeId === assignedRoute?.id && va.status === 'Active') ||
+                             vehicleAssignments.find(va => va.vehicleId === assignedTransport?.vehicleId);
   const assignedVehicleObj = vehicleMasters.find(v => v.id === assignedTransport?.vehicleId || v.vehicleNumber === assignedTransport?.vehicleNumber) || vehicleMasters[0];
   const assignedDriverObj = driverMasters.find(d => d.id === assignedVehicleRel?.driverId || d.driverName === assignedVehicleRel?.driverName) || driverMasters[0];
+  const assignedAttendantObj = initialBusAttendants.find(a => a.id === assignedVehicleRel?.attendantId || a.attendantName === assignedVehicleRel?.attendantName) || initialBusAttendants[0];
   
+  const driverEmpId = assignedDriverObj?.employeeId || assignedVehicleRel?.driverEmployeeId || `DRV-${assignedDriverObj?.id || '01'}`;
+  const attendantEmpId = assignedAttendantObj?.employeeId || assignedVehicleRel?.attendantEmployeeId || 'ATT-2026-01';
+
+  const morningPickupTime = assignedPickup?.morningPickupTime || assignedPickup?.arrivalTime || assignedVehicleRel?.morningTripTime || '07:30 AM';
+  const eveningDropTime = assignedPickup?.eveningDropTime || assignedVehicleRel?.eveningTripTime || '04:15 PM';
+
   const busInfo = {
     hasTransport: !!assignedTransport || true,
     routeNumber: assignedRoute ? assignedRoute.routeCode : 'R-101',
@@ -42,17 +54,21 @@ export const ParentBusInfoView: React.FC = () => {
     busNumber: assignedVehicleObj ? assignedVehicleObj.vehicleNumber : (assignedTransport?.vehicleNumber || 'BUS-101'),
     registrationNumber: assignedVehicleObj ? assignedVehicleObj.registrationNumber : 'NY-99-AB-1001',
     driverName: assignedDriverObj ? assignedDriverObj.driverName : 'Dwight Schrute',
+    driverEmployeeId: driverEmpId,
     driverPhone: assignedDriverObj ? assignedDriverObj.mobileNumber : '+1 (555) 333-333',
-    attendantName: 'Mary Smith',
-    attendantPhone: '+1 (555) 019-8274',
-    pickupTime: assignedPickup ? assignedPickup.arrivalTime : '07:30 AM',
-    dropTime: '04:15 PM',
+    attendantName: assignedAttendantObj ? assignedAttendantObj.attendantName : 'Mary Smith',
+    attendantEmployeeId: attendantEmpId,
+    attendantPhone: assignedAttendantObj ? assignedAttendantObj.mobileNumber : '+1 (555) 019-8274',
+    pickupTime: morningPickupTime,
+    dropTime: eveningDropTime,
+    distanceKm: assignedPickup?.distanceFromSchoolKm || 10,
     stopName: assignedTransport ? assignedTransport.pickupPoint : (assignedPickup ? assignedPickup.pickupName : 'Central Park West'),
     currentLocation: 'En-route near Central Park West',
     currentStop: 'Stop #2 - Temple Road',
     nextStop: 'Stop #3 - Bus Stand',
     etaMinutes: '6 Mins',
-    boardingStatus: 'Boarded (07:22 AM via RFID)',
+    morningStatus: 'Boarded (07:22 AM via RFID)',
+    eveningStatus: 'Scheduled (Bus departs school at 03:45 PM)',
     gpsStatus: 'Online'
   };
 
@@ -64,13 +80,14 @@ export const ParentBusInfoView: React.FC = () => {
             <Bus className="w-6 h-6 text-sky-600 dark:text-sky-400" />
           </div>
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Transport Management</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Transport & Bus Tracking</h2>
+            <p className="text-xs text-slate-500">Live GPS tracking and daily morning & evening commute schedule</p>
           </div>
         </div>
 
         <button
           onClick={() => setIsTrackModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-sky-600 hover:from-sky-500 hover:to-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 text-white font-extrabold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all cursor-pointer"
         >
           <Navigation className="w-4 h-4" /> 📍 Track Bus Live Map
         </button>
@@ -83,7 +100,7 @@ export const ParentBusInfoView: React.FC = () => {
             {currentWard.firstName.charAt(0)}
           </div>
           <div>
-            <p className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400">Currently Viewing Ward</p>
+            <p className="text-[10px] uppercase font-bold text-sky-600 dark:text-sky-400">Currently Viewing Student</p>
             <p className="font-bold text-slate-900 dark:text-white">
               {currentWard.firstName} {currentWard.lastName} <span className="opacity-75 text-xs ml-1">({currentWard.className}-{currentWard.section} • Adm: {currentWard.admissionNo})</span>
             </p>
@@ -98,6 +115,7 @@ export const ParentBusInfoView: React.FC = () => {
           </span>
         </div>
       </div>
+
       {!busInfo.hasTransport ? (
         <div className="glass-card p-12 text-center rounded-3xl">
           <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
@@ -105,78 +123,172 @@ export const ParentBusInfoView: React.FC = () => {
           <p className="text-slate-500 mt-2">Your ward is not currently assigned to any school transport service.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Route & Timings Info */}
-          <div className="glass-card p-6 rounded-3xl space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-sky-500" />
-                <h3 className="font-bold text-slate-900 dark:text-white text-lg">Route & Pickup Details</h3>
-              </div>
-              <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded-full border">
-                Live GPS Active
-              </span>
+        <div className="space-y-6">
+          {/* TWO TRIPS BREAKDOWN: MORNING & EVENING */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-5 h-5 text-sky-500" /> Daily Transit Trips Schedule
+              </h3>
+              <span className="text-xs font-bold text-sky-600 dark:text-sky-400">2 Commute Trips (Morning & Evening)</span>
             </div>
-            
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-xs text-slate-500">Transit Route</span>
-                <span className="font-bold text-slate-900 dark:text-white text-sm">{busInfo.routeName} ({busInfo.routeNumber})</span>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Morning Pickup Trip Card */}
+              <div className="glass-card p-5 rounded-3xl border-2 border-emerald-200/80 dark:border-emerald-900/60 bg-gradient-to-br from-emerald-50/40 via-white to-sky-50/30 dark:from-emerald-950/20 dark:to-slate-900 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-emerald-100 dark:border-emerald-900/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-emerald-600 text-white font-bold">
+                      <Sun className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Trip 1 • Morning</span>
+                      <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Pickup from Home to School</h4>
+                    </div>
+                  </div>
+                  <Badge variant="success">Completed</Badge>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border">
+                    <span className="text-slate-500">Pickup Stop:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{busInfo.stopName}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border">
+                    <span className="text-slate-500">Distance from School:</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{busInfo.distanceKm} KM</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-900">
+                    <span className="font-bold text-emerald-700 dark:text-emerald-300">Scheduled Pickup Time:</span>
+                    <span className="font-mono font-black text-emerald-700 dark:text-emerald-300 text-sm">{busInfo.pickupTime}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border">
+                    <span className="text-slate-500">Live RFID Status:</span>
+                    <span className="font-extrabold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle className="w-3.5 h-3.5" /> {busInfo.morningStatus}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-xs text-slate-500">Assigned Pickup Stop</span>
-                <span className="font-bold text-slate-900 dark:text-white text-sm">{busInfo.stopName}</span>
-              </div>
-              <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-4 h-4 text-emerald-500" /> Morning Pickup Time</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm font-mono">{busInfo.pickupTime}</span>
-              </div>
-              <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-4 h-4 text-sky-500" /> Evening Drop Time</span>
-                <span className="font-bold text-sky-600 dark:text-sky-400 text-sm font-mono">{busInfo.dropTime}</span>
-              </div>
-              <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                <span className="text-xs text-slate-500 flex items-center gap-1"><Bell className="w-4 h-4 text-sky-500" /> RFID Boarding Status</span>
-                <span className="font-extrabold text-sky-600 dark:text-sky-400 text-xs">{busInfo.boardingStatus}</span>
+
+              {/* Evening Drop Trip Card */}
+              <div className="glass-card p-5 rounded-3xl border-2 border-sky-200/80 dark:border-sky-900/60 bg-gradient-to-br from-sky-50/40 via-white to-blue-50/30 dark:from-sky-950/20 dark:to-slate-900 space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-sky-100 dark:border-sky-900/50">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-sky-600 text-white font-bold">
+                      <Moon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-600 dark:text-sky-400">Trip 2 • Evening</span>
+                      <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Drop from School to Home</h4>
+                    </div>
+                  </div>
+                  <Badge variant="neutral">Upcoming</Badge>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border">
+                    <span className="text-slate-500">Drop-off Stop:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{busInfo.stopName}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border">
+                    <span className="text-slate-500">Distance to Stop:</span>
+                    <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{busInfo.distanceKm} KM</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-900">
+                    <span className="font-bold text-sky-700 dark:text-sky-300">Scheduled Drop Time:</span>
+                    <span className="font-mono font-black text-sky-700 dark:text-sky-300 text-sm">{busInfo.dropTime}</span>
+                  </div>
+                  <div className="flex justify-between items-center p-2.5 rounded-xl bg-white dark:bg-slate-800/80 border">
+                    <span className="text-slate-500">Trip Status:</span>
+                    <span className="font-bold text-sky-600 dark:text-sky-400 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" /> {busInfo.eveningStatus}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Vehicle & Contact Info */}
-          <div className="glass-card p-6 rounded-3xl space-y-6">
-            <div className="flex items-center gap-2">
-              <UserCircle className="w-5 h-5 text-amber-500" />
-              <h3 className="font-bold text-slate-900 dark:text-white text-lg">Vehicle & On-Board Crew</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Route & Pickup Stop Details */}
+            <div className="glass-card p-6 rounded-3xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-sky-500" />
+                  <h3 className="font-bold text-slate-900 dark:text-white text-lg">Transit Route Master</h3>
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2.5 py-1 rounded-full border">
+                  Live GPS Active
+                </span>
+              </div>
+              
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                  <span className="text-slate-500">Assigned Transit Route:</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm">{busInfo.routeName} ({busInfo.routeNumber})</span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                  <span className="text-slate-500">Assigned Pickup Stop:</span>
+                  <span className="font-bold text-slate-900 dark:text-white text-sm">{busInfo.stopName}</span>
+                </div>
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                  <span className="text-slate-500">Live GPS Location:</span>
+                  <span className="font-bold text-sky-600 dark:text-sky-400">{busInfo.currentLocation}</span>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex justify-between items-center p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-l-4 border-brand-500">
-                <div>
-                  <span className="text-xs text-slate-500 block">Assigned Vehicle Number</span>
-                  <span className="font-mono font-black text-brand-600 dark:text-brand-400 text-base">{busInfo.busNumber}</span>
-                </div>
-                <span className="font-mono text-xs text-slate-400">Reg: {busInfo.registrationNumber}</span>
+            {/* Vehicle & On-Board Crew (with Employee ID) */}
+            <div className="glass-card p-6 rounded-3xl space-y-4">
+              <div className="flex items-center gap-2">
+                <UserCircle className="w-5 h-5 text-amber-500" />
+                <h3 className="font-bold text-slate-900 dark:text-white text-lg">Vehicle & On-Board Crew</h3>
               </div>
 
-              {/* Driver Contact Card */}
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-2 shadow-sm">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-sky-500" /> Commercial Driver</p>
-                <div className="flex justify-between items-center">
-                  <span className="font-black text-slate-900 dark:text-white text-sm">{busInfo.driverName}</span>
-                  <a href={`tel:${busInfo.driverPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors">
-                    <Phone className="w-3.5 h-3.5" /> {busInfo.driverPhone}
-                  </a>
+              <div className="space-y-3 text-xs">
+                <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-l-4 border-sky-500">
+                  <div>
+                    <span className="text-[10px] text-slate-400 block font-bold">Assigned Bus</span>
+                    <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-base">{busInfo.busNumber}</span>
+                  </div>
+                  <span className="font-mono text-xs text-slate-400">Reg: {busInfo.registrationNumber}</span>
                 </div>
-              </div>
 
-              {/* Bus Attendant Contact Card */}
-              <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-2 shadow-sm">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1"><UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Bus Attendant</p>
-                <div className="flex justify-between items-center">
-                  <span className="font-black text-slate-900 dark:text-white text-sm">{busInfo.attendantName}</span>
-                  <a href={`tel:${busInfo.attendantPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors">
-                    <Phone className="w-3.5 h-3.5" /> {busInfo.attendantPhone}
-                  </a>
+                {/* Driver Contact Card with Employee ID */}
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-1 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <ShieldCheck className="w-3.5 h-3.5 text-sky-500" /> Commercial Driver
+                    </p>
+                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                      Emp ID: {busInfo.driverEmployeeId}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="font-black text-slate-900 dark:text-white text-sm">{busInfo.driverName}</span>
+                    <a href={`tel:${busInfo.driverPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors">
+                      <Phone className="w-3.5 h-3.5" /> {busInfo.driverPhone}
+                    </a>
+                  </div>
+                </div>
+
+                {/* Bus Attendant Contact Card with Employee ID */}
+                <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 space-y-1 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Bus Attendant
+                    </p>
+                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      Emp ID: {busInfo.attendantEmployeeId}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <span className="font-black text-slate-900 dark:text-white text-sm">{busInfo.attendantName}</span>
+                    <a href={`tel:${busInfo.attendantPhone}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs hover:bg-emerald-100 transition-colors">
+                      <Phone className="w-3.5 h-3.5" /> {busInfo.attendantPhone}
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

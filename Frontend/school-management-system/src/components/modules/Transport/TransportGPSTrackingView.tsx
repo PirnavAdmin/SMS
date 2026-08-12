@@ -77,34 +77,82 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
     const driver = driverMasters.find(d => d.id === assignment?.driverId || d.driverName === assignment?.driverName);
     const route = routeMasters.find(r => r.id === assignment?.routeId || r.routeName === assignment?.routeName);
     const attendant = resolveAttendant(assignment);
-    const routeStops = pickupPoints
-      .filter((point: PickupPoint) => point.routeId === route?.id || point.routeName === route?.routeName)
-      .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-      .map<TripStopView>(point => ({
-        id: point.id,
-        label: point.pickupName,
-        order: point.sequenceNumber,
-        time: point.arrivalTime,
-        distanceKm: point.distanceFromSchoolKm,
-        status: point.status
-      }));
+    // 1. Fetch all configured pickup points for this route
+    const configuredStops = pickupPoints
+      .filter((point: PickupPoint) =>
+        (point.routeId && route?.id && point.routeId.toString() === route.id.toString()) ||
+        (point.routeName && route?.routeName && point.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase())
+      )
+      .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
 
-    const fallbackStops: TripStopView[] = [
-      { id: `${vehicle.id}-st-1`, label: 'School Campus', order: 1, time: '07:00 AM', distanceKm: 0, status: 'Active' },
-      { id: `${vehicle.id}-st-2`, label: 'Temple Road', order: 2, time: '07:20 AM', distanceKm: 3.5, status: 'Active' },
-      { id: `${vehicle.id}-st-3`, label: 'Bus Stand', order: 3, time: '07:35 AM', distanceKm: 7.2, status: 'Active' },
-      { id: `${vehicle.id}-st-4`, label: 'Lakshmi Nagar', order: 4, time: '07:50 AM', distanceKm: 12, status: 'Active' }
-    ];
+    // 2. Construct complete dynamic stop timeline (Origin -> Pickup Points -> Destination)
+    let stops: TripStopView[] = [];
 
-    const stops = routeStops.length > 0 ? routeStops : fallbackStops;
-    const currentIndex = stops.length > 0 ? Math.min(stops.length - 1, index % stops.length) : 0;
+    if (route) {
+      const originName = route.routeStart?.trim() || 'Route Start';
+      const destinationName = route.routeEnd?.trim() || 'School Campus';
+      const morningStart = assignment?.morningTripTime || '07:00 AM';
+
+      if (configuredStops.length > 0) {
+        const hasOrigin = configuredStops.some(p => p.pickupName.toLowerCase() === originName.toLowerCase());
+        const hasDest = configuredStops.some(p => p.pickupName.toLowerCase() === destinationName.toLowerCase());
+
+        let seq = 1;
+        if (!hasOrigin) {
+          stops.push({
+            id: `origin-${route.id}`,
+            label: originName,
+            order: seq++,
+            time: morningStart,
+            distanceKm: 0,
+            status: 'Active'
+          });
+        }
+
+        configuredStops.forEach(p => {
+          stops.push({
+            id: p.id,
+            label: p.pickupName,
+            order: seq++,
+            time: p.morningPickupTime || p.arrivalTime || '07:30 AM',
+            distanceKm: p.distanceFromSchoolKm || 5,
+            status: p.status || 'Active'
+          });
+        });
+
+        if (!hasDest) {
+          stops.push({
+            id: `dest-${route.id}`,
+            label: destinationName,
+            order: seq++,
+            time: '08:15 AM',
+            distanceKm: route.totalDistanceKm || 15,
+            status: 'Active'
+          });
+        }
+      } else {
+        stops = [
+          { id: `origin-${route.id}`, label: originName, order: 1, time: morningStart, distanceKm: 0, status: 'Active' },
+          { id: `mid-${route.id}`, label: `${route.routeName} (Waypoint)`, order: 2, time: '07:40 AM', distanceKm: Math.round((route.totalDistanceKm || 10) / 2), status: 'Active' },
+          { id: `dest-${route.id}`, label: destinationName, order: 3, time: '08:15 AM', distanceKm: route.totalDistanceKm || 15, status: 'Active' }
+        ];
+      }
+    } else {
+      stops = [
+        { id: `${vehicle.id}-st-1`, label: 'Main Bus Depot', order: 1, time: '07:00 AM', distanceKm: 0, status: 'Active' },
+        { id: `${vehicle.id}-st-2`, label: 'Central Point', order: 2, time: '07:25 AM', distanceKm: 4, status: 'Active' },
+        { id: `${vehicle.id}-st-3`, label: 'School Campus', order: 3, time: '07:55 AM', distanceKm: 10, status: 'Active' }
+      ];
+    }
+
+    const currentIndex = stops.length > 1 ? Math.min(stops.length - 1, Math.max(1, (index + 1) % stops.length)) : 0;
     const currentStop = stops[currentIndex] || stops[0];
     const nextStop = stops[Math.min(currentIndex + 1, Math.max(0, stops.length - 1))] || currentStop;
     const tripStatus = assignment?.status === 'Active' ? 'Running' : 'Idle';
     const gpsOnline = assignment?.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle.gpsDeviceId;
     const speed = gpsOnline ? 28 + (index * 6) % 16 : 0;
     const etaMinutes = gpsOnline ? Math.max(4, 18 - currentIndex * 2) : 0;
-    const progressPercent = stops.length > 1 ? Math.round(((currentIndex + 1) / stops.length) * 100) : 0;
+    const progressPercent = stops.length > 1 ? Math.round(((currentIndex) / (stops.length - 1)) * 100) : 50;
     const assignedStudents = studentTransports.filter(st => st.routeId === route?.id || st.routeName === route?.routeName).length;
     const currentStudentCount = assignment?.assignedStudents ?? assignedStudents;
 
@@ -138,9 +186,13 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
   }
 
   const formatStopTime = (stop?: TripStopView) => stop ? formatTripTime(stop.time) : 'Not set';
-  const movementLabel = selectedVehicle.nextStop
+  const movementLabel = selectedVehicle.nextStop && selectedVehicle.nextStop.id !== selectedVehicle.currentStop?.id
     ? `Heading to ${selectedVehicle.nextStop.label}`
-    : 'Awaiting route data';
+    : selectedVehicle.currentStop ? `Arrived at ${selectedVehicle.currentStop.label}` : 'Awaiting route data';
+
+  const tBus = Math.min(1, Math.max(0, (selectedVehicle.progressPercent || 35) / 100));
+  const busPosX = 70 + tBus * 660;
+  const busPosY = 150 - Math.sin(tBus * Math.PI * 2) * 60;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -256,8 +308,9 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
                 <div className="absolute inset-0 bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:20px_20px] opacity-25" />
 
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 300" preserveAspectRatio="none">
+                  {/* Transit Route Path */}
                   <path
-                    d="M 50 220 C 150 80 260 80 360 190 S 600 280 750 120"
+                    d="M 70 150 C 180 20, 290 20, 400 150 C 510 280, 620 280, 730 150"
                     fill="none"
                     stroke="#0ea5e9"
                     strokeWidth="6"
@@ -265,44 +318,73 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
                     className="animate-pulse"
                   />
 
+                  {/* All Dynamic Stops */}
                   {selectedVehicle.stops.map((stop, index) => {
                     const total = Math.max(selectedVehicle.stops.length - 1, 1);
-                    const x = 50 + ((700 / total) * index);
-                    const y = index % 2 === 0 ? 220 : 130;
+                    const t = index / total;
+                    const x = 70 + (t * 660);
+                    const y = 150 - Math.sin(t * Math.PI * 2) * 60;
                     const isCurrent = selectedVehicle.currentStop?.id === stop.id;
-                    const isNext = selectedVehicle.nextStop?.id === stop.id;
+                    const isNext = selectedVehicle.nextStop?.id === stop.id && !isCurrent;
+                    const isPassed = index < (selectedVehicle.stops.findIndex(s => s.id === selectedVehicle.currentStop?.id));
 
                     return (
                       <g key={stop.id}>
+                        {/* Halo glow on current stop */}
+                        {isCurrent && (
+                          <circle cx={x} cy={y} r={18} fill="#10b981" opacity="0.25" className="animate-ping" />
+                        )}
+
+                        {/* Stop Node Point */}
                         <circle
                           cx={x}
                           cy={y}
                           r={isCurrent ? 12 : isNext ? 10 : 8}
-                          fill={isCurrent ? '#10b981' : isNext ? '#f59e0b' : '#38bdf8'}
+                          fill={isCurrent ? '#10b981' : isNext ? '#f59e0b' : isPassed ? '#38bdf8' : '#64748b'}
+                          stroke="#ffffff"
+                          strokeWidth={2}
                         />
+
+                        {/* Stop Name Label */}
                         <text
                           x={x}
-                          y={y + 28}
+                          y={y > 150 ? y - 18 : y + 26}
                           fill="#ffffff"
-                          fontSize="12"
+                          fontSize="11"
                           textAnchor="middle"
                           fontWeight="bold"
                         >
                           {stop.label}
+                        </text>
+
+                        {/* Stop Time Label */}
+                        <text
+                          x={x}
+                          y={y > 150 ? y - 30 : y + 38}
+                          fill={isCurrent ? '#34d399' : '#94a3b8'}
+                          fontSize="9"
+                          fontFamily="monospace"
+                          textAnchor="middle"
+                        >
+                          {formatTripTime(stop.time)}
                         </text>
                       </g>
                     );
                   })}
                 </svg>
 
+                {/* Animated Bus Icon Marker directly on path */}
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 flex flex-col items-center"
-                  style={{ left: `${Math.min(92, Math.max(8, selectedVehicle.progressPercent))}%` }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none transition-all duration-700"
+                  style={{ 
+                    left: `${(busPosX / 800) * 100}%`, 
+                    top: `${(busPosY / 300) * 100}%` 
+                  }}
                 >
-                  <div className="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-mono font-black text-[10px] shadow-lg flex items-center gap-1 border border-white">
+                  <div className="px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 font-mono font-black text-[10px] shadow-xl flex items-center gap-1 border-2 border-white">
                     <Bus className="w-3.5 h-3.5" /> {selectedVehicle.vehicle.vehicleNumber}
                   </div>
-                  <div className="w-4 h-4 bg-sky-500 rounded-full border-2 border-white shadow-xl animate-ping mt-2" />
+                  <div className="w-3.5 h-3.5 bg-sky-400 rounded-full border-2 border-white shadow-lg animate-ping mt-0.5" />
                 </div>
               </div>
 

@@ -172,10 +172,10 @@ export const VehicleAssignmentView: React.FC = () => {
     setForm({
       branch: selectedBranch || 'Main Campus',
       academicYear: getCurrentAcademicYear(),
-      vehicleId: vehicleMasters.find(v => v.status === 'Active')?.id || '',
-      routeId: routeMasters.find(r => r.status === 'Active')?.id || '',
-      driverId: driverMasters.find(d => d.status === 'Active')?.id || '',
-      attendantId: initialBusAttendants.find(a => a.status === 'Active')?.id || '',
+      vehicleId: '',
+      routeId: '',
+      driverId: '',
+      attendantId: '',
       morningTripTime: '07:00',
       eveningTripTime: '15:45',
       effectiveFrom: new Date().toISOString().split('T')[0],
@@ -269,6 +269,52 @@ export const VehicleAssignmentView: React.FC = () => {
     if (attendant && attendant.status !== 'Active') {
       addToast('warning', 'Inactive Bus Attendant', `Cannot assign ${attendant.attendantName} because its status is ${attendant.status}.`);
       return;
+    }
+
+    // Strict Rule 1: A route can only be assigned to ONE active bus
+    const routeAlreadyAssigned = vehicleAssignments.find(va =>
+      va.id !== editingAssignment?.id &&
+      (va.routeId === route.id || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase())) &&
+      va.status === 'Active'
+    );
+    if (routeAlreadyAssigned && modalMode !== 'reassign') {
+      addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}. A route cannot have multiple active buses.`);
+      return;
+    }
+
+    // Strict Rule 2: A bus can only be assigned to ONE active route
+    const vehicleAlreadyAssigned = vehicleAssignments.find(va =>
+      va.id !== editingAssignment?.id &&
+      (va.vehicleId === vehicle.id || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase())) &&
+      va.status === 'Active'
+    );
+    if (vehicleAlreadyAssigned && modalMode !== 'reassign') {
+      addToast('warning', 'Vehicle Already Assigned', `Bus "${vehicle.vehicleNumber}" is already assigned to route "${vehicleAlreadyAssigned.routeName}".`);
+      return;
+    }
+
+    // Strict Rule 3: No single driver can drive multiple buses
+    const driverAlreadyAssigned = vehicleAssignments.find(va =>
+      va.id !== editingAssignment?.id &&
+      (va.driverId === driver.id || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase())) &&
+      va.status === 'Active'
+    );
+    if (driverAlreadyAssigned && modalMode !== 'reassign') {
+      addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}). A driver cannot be assigned to two buses.`);
+      return;
+    }
+
+    // Strict Rule 4: No single attendant for two buses
+    if (attendant) {
+      const attendantAlreadyAssigned = vehicleAssignments.find(va =>
+        va.id !== editingAssignment?.id &&
+        (va.attendantId === attendant.id || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase())) &&
+        va.status === 'Active'
+      );
+      if (attendantAlreadyAssigned && modalMode !== 'reassign') {
+        addToast('warning', 'Attendant Already Assigned', `Bus Attendant "${attendant.attendantName}" is already assigned to bus ${attendantAlreadyAssigned.vehicleNumber}.`);
+        return;
+      }
     }
 
     const attendantName = attendant?.attendantName || 'Unassigned';
@@ -434,9 +480,9 @@ export const VehicleAssignmentView: React.FC = () => {
         </button>
       </div>
 
-      <div className="glass-card p-3.5 rounded-2xl flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between overflow-x-auto w-full">
-        <div className="relative w-full xl:w-72 shrink-0">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 w-full">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search by vehicle, driver, attendant, or route..."
@@ -487,69 +533,98 @@ export const VehicleAssignmentView: React.FC = () => {
                   <th className="py-3.5 px-4">Route Name</th>
                   <th className="py-3.5 px-4">Driver Name</th>
                   <th className="py-3.5 px-4">Bus Attendant</th>
-                  <th className="py-3.5 px-4">Vehicle Capacity</th>
-                  <th className="py-3.5 px-4">Assigned Students</th>
+                  <th className="py-3.5 px-4 text-center">Capacity</th>
+                  <th className="py-3.5 px-4 text-center">Students</th>
                   <th className="py-3.5 px-4">Morning Trip</th>
                   <th className="py-3.5 px-4">Evening Trip</th>
-                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
                   <th className="py-3.5 px-4">Effective Date</th>
                   <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {currentAssignments.map(({ assignment, vehicle, route, driver, attendant, capacity, assignedStudents, morningTripTime, eveningTripTime }) => (
-                  <tr key={assignment.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{assignment.vehicleNumber}</td>
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-sky-600 dark:text-sky-400">{assignment.routeName}</div>
-                      <div className="text-[10px] text-slate-400">
-                        {assignment.branch || 'Main Campus'} - {assignment.academicYear || getCurrentAcademicYear()}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{driver?.driverName || assignment.driverName}</td>
-                    <td className="py-3 px-4 text-emerald-600 dark:text-emerald-400">
-                      {attendant.name}
-                    </td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{capacity}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-emerald-600">{assignedStudents}</td>
-                    <td className="py-3 px-4 font-mono text-sky-600 font-bold">{morningTripTime}</td>
-                    <td className="py-3 px-4 font-mono text-amber-600 font-bold">{eveningTripTime}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">
-                        {assignment.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-slate-500 font-mono">{assignment.effectiveFrom}</td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2 flex-wrap">
-                        <button
-                          onClick={() => handleOpenTripDetails(assignment)}
-                          className="px-2.5 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold text-[11px] hover:bg-sky-100 flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> View
-                        </button>
-                        <button
-                          onClick={() => openEditModal(assignment)}
-                          className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-bold text-[11px] hover:bg-slate-200 flex items-center gap-1"
-                        >
-                          <Edit className="w-3.5 h-3.5" /> Edit
-                        </button>
-                        <button
-                          onClick={() => openReassignModal(assignment)}
-                          className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px] hover:bg-amber-100 flex items-center gap-1"
-                        >
-                          <ArrowRight className="w-3.5 h-3.5" /> Reassign
-                        </button>
-                        <button
-                          onClick={() => setDeletingAssignment(assignment)}
-                          className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-bold text-[11px] hover:bg-rose-100 flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Remove
-                        </button>
-                      </div>
+                {currentAssignments.length === 0 ? (
+                  <tr>
+                    <td colSpan={11} className="py-10 text-center text-slate-400">
+                      No active vehicle assignments match the selected filters.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  currentAssignments.map(({ assignment, vehicle, route, driver, attendant, capacity, assignedStudents, morningTripTime, eveningTripTime }) => {
+                    const cleanDate = (assignment.effectiveFrom || '').split('T')[0] || '-';
+                    return (
+                      <tr key={assignment.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                            {assignment.vehicleNumber}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-sky-600 dark:text-sky-400">{assignment.routeName}</div>
+                          <div className="text-[10px] text-slate-400">
+                            {assignment.branch || 'Main Campus'} • {assignment.academicYear || getCurrentAcademicYear()}
+                          </div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-800 dark:text-slate-200">{driver?.driverName || assignment.driverName}</div>
+                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {driver?.employeeId || assignment.driverEmployeeId || `DRV-${driver?.id || '01'}`}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-emerald-600 dark:text-emerald-400">{attendant.name}</div>
+                          <div className="text-[10px] font-mono text-slate-400">Emp ID: {attendant.id || assignment.attendantEmployeeId || 'ATT-2026-01'}</div>
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono font-bold text-slate-900 dark:text-white">{capacity}</td>
+                        <td className="py-3 px-4 text-center font-mono font-bold text-emerald-600">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
+                            {assignedStudents}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 font-mono text-sky-600 font-bold">{morningTripTime}</td>
+                        <td className="py-3 px-4 font-mono text-amber-600 font-bold">{eveningTripTime}</td>
+                        <td className="py-3 px-4 text-center">
+                          <Badge variant={assignment.status === 'Active' ? 'success' : 'neutral'} size="sm">
+                            {assignment.status || 'Active'}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-mono text-[11px] whitespace-nowrap">
+                          {cleanDate}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenTripDetails(assignment)}
+                              title="View Trip Details"
+                              className="p-2 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-all cursor-pointer shadow-sm hover:scale-105"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openEditModal(assignment)}
+                              title="Edit Assignment"
+                              className="p-2 rounded-xl bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all cursor-pointer shadow-sm hover:scale-105"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openReassignModal(assignment)}
+                              title="Reassign Bus / Route"
+                              className="p-2 rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-all cursor-pointer shadow-sm hover:scale-105"
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingAssignment(assignment)}
+                              title="Remove Assignment"
+                              className="p-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-all cursor-pointer shadow-sm hover:scale-105"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -581,8 +656,8 @@ export const VehicleAssignmentView: React.FC = () => {
                     <td className="py-3 px-4 text-emerald-600 dark:text-emerald-400">{log.attendantName}</td>
                     <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.branch}</td>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.academicYear}</td>
-                    <td className="py-3 px-4 text-slate-500">
-                      {log.effectiveFrom}{log.effectiveTo ? ` to ${log.effectiveTo}` : ' (Current)'}
+                    <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
+                      {(log.effectiveFrom || '').split('T')[0]}{log.effectiveTo ? ` to ${(log.effectiveTo || '').split('T')[0]}` : ' (Current)'}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <Badge variant={log.status === 'Active' ? 'success' : 'neutral'} size="sm">
@@ -646,10 +721,15 @@ export const VehicleAssignmentView: React.FC = () => {
                   onChange={e => setForm(prev => ({ ...prev, routeId: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
-                  <option value="" disabled>-- Select a Route --</option>
-                  {routeMasters.filter(route => route.status === 'Active').map(route => (
-                    <option key={route.id} value={route.id}>{route.routeName} ({route.routeCode})</option>
-                  ))}
+                  <option value="">-- Select Route --</option>
+                  {routeMasters.filter(route => route.status === 'Active').map(route => {
+                    const activeOther = vehicleAssignments.find(va => va.routeId === route.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    return (
+                      <option key={route.id} value={route.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                        {route.routeName} ({route.routeCode}) {activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -660,10 +740,16 @@ export const VehicleAssignmentView: React.FC = () => {
                   onChange={e => setForm(prev => ({ ...prev, vehicleId: e.target.value }))}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
-                  <option value="" disabled>-- Select a Vehicle --</option>
-                  {vehicleMasters.filter(vehicle => vehicle.status === 'Active').map(vehicle => (
-                    <option key={vehicle.id} value={vehicle.id}>{vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats)</option>
-                  ))}
+                  <option value="">-- Select Vehicle --</option>
+                  {vehicleMasters.filter(vehicle => vehicle.status === 'Active').map(vehicle => {
+                    const activeOther = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    return (
+                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                        {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats)
+                        {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -671,13 +757,27 @@ export const VehicleAssignmentView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Licensed Driver *</label>
                 <select
                   value={form.driverId}
-                  onChange={e => setForm(prev => ({ ...prev, driverId: e.target.value }))}
+                  onChange={e => {
+                    const drv = driverMasters.find(d => d.id === e.target.value);
+                    setForm(prev => ({
+                      ...prev,
+                      driverId: e.target.value,
+                      driverEmployeeId: drv?.employeeId || `DRV-${drv?.id || '01'}`
+                    }));
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
-                  <option value="" disabled>-- Select a Driver --</option>
-                  {driverMasters.filter(driver => driver.status === 'Active').map(driver => (
-                    <option key={driver.id} value={driver.id}>{driver.driverName} ({driver.mobileNumber})</option>
-                  ))}
+                  <option value="">-- Select Driver --</option>
+                  {driverMasters.filter(driver => driver.status === 'Active').map(driver => {
+                    const activeOther = vehicleAssignments.find(va => va.driverId === driver.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
+                    return (
+                      <option key={driver.id} value={driver.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                        {driver.driverName} ({empIdText} • {driver.mobileNumber})
+                        {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -685,13 +785,26 @@ export const VehicleAssignmentView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Bus Attendant *</label>
                 <select
                   value={form.attendantId}
-                  onChange={e => setForm(prev => ({ ...prev, attendantId: e.target.value }))}
+                  onChange={e => {
+                    const att = initialBusAttendants.find(a => a.id === e.target.value);
+                    setForm(prev => ({
+                      ...prev,
+                      attendantId: e.target.value,
+                      attendantEmployeeId: att?.employeeId || 'ATT-2026-01'
+                    }));
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
-                  <option value="" disabled>-- Select a Bus Attendant --</option>
-                  {initialBusAttendants.filter(attendant => attendant.status === 'Active').map(attendant => (
-                    <option key={attendant.id} value={attendant.id}>{attendant.attendantName} ({attendant.employeeId} - {attendant.mobileNumber})</option>
-                  ))}
+                  <option value="">-- Select Bus Attendant --</option>
+                  {initialBusAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
+                    const activeOther = vehicleAssignments.find(va => va.attendantId === attendant.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    return (
+                      <option key={attendant.id} value={attendant.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                        {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber})
+                        {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 

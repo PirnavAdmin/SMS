@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { Bus, UserPlus, Search, Trash2, CheckCircle, AlertTriangle, Users, ShieldAlert, History, Filter } from 'lucide-react';
+import { 
+  Bus, UserPlus, Search, Trash2, CheckCircle, AlertTriangle, Users, ShieldAlert, 
+  History, Filter, Eye, Phone, MapPin, Clock, ShieldCheck, UserCheck, X, Navigation 
+} from 'lucide-react';
 import { StudentTransport, Student } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -47,6 +50,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingAssignment, setDeletingAssignment] = useState<StudentTransport | null>(null);
+  const [inspectingAssignment, setInspectingAssignment] = useState<StudentTransport | null>(null);
 
   const [studentId, setStudentId] = useState('');
   const [routeId, setRouteId] = useState('');
@@ -78,6 +82,20 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const availableSeats = Math.max(0, totalCapacity - assignedCount);
   const isVehicleFull = availableSeats <= 0;
 
+  // Only show Non-Residential / Day Scholar students who opted for bus transport
+  const eligibleStudents = React.useMemo(() => {
+    return students.filter(st => {
+      const isNonResidential = st.studentType === 'Day Scholar' || st.studentType === 'Non-Residential' || (!st.studentType && st.studentType !== 'Hosteller' && st.studentType !== 'Residential');
+      const hasBusOption = st.transportRequired === true || Boolean(st.busRoute) || Boolean(st.transportType) || Boolean(st.routeId);
+      return isNonResidential && hasBusOption;
+    });
+  }, [students]);
+
+  // Fallback to all non-residential students if none explicitly marked yet
+  const availableStudentsForTransport = eligibleStudents.length > 0 
+    ? eligibleStudents 
+    : students.filter(st => st.studentType === 'Day Scholar' || st.studentType === 'Non-Residential' || (!st.studentType && st.studentType !== 'Hosteller' && st.studentType !== 'Residential'));
+
   const filteredStudentTransports = studentTransports.filter(st => {
     const matchesQuery = st.studentName.toLowerCase().includes(query.toLowerCase()) || st.admissionNo.toLowerCase().includes(query.toLowerCase());
     const sObj = students.find(s => s.id === st.studentId);
@@ -87,14 +105,11 @@ export const StudentTransportAssignmentView: React.FC = () => {
   });
 
   const handleOpenAdd = () => {
-    const defaultRoute = routeMasters[0];
-    const defaultVehicle = vehicleMasters[0];
-    setStudentId(students[0]?.id || '');
-    setRouteId(defaultRoute?.id || '');
-    setSelectedVehicleId(defaultVehicle?.id || '');
-    const firstPickup = pickupPoints.find(p => p.routeId === defaultRoute?.id);
-    setPickupPointId(firstPickup?.id || '');
-    setFeePlan('Quarterly');
+    setStudentId('');
+    setRouteId('');
+    setSelectedVehicleId('');
+    setPickupPointId('');
+    setFeePlan('Monthly');
     setIsModalOpen(true);
   };
 
@@ -182,7 +197,10 @@ export const StudentTransportAssignmentView: React.FC = () => {
           >
             <UserPlus className="w-4 h-4" /> Add
           </button>
-          <ExportButton data={studentTransports} filename="student_transport_allocations" />
+          <ExportButton 
+            data={(activeTab === 'current' ? filteredStudentTransports : studentHistory) as any[]} 
+            filename={activeTab === 'current' ? "student_transport_allocations" : "student_transport_history"} 
+          />
         </div>
       </div>
 
@@ -259,7 +277,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Student Name</th>
+                  <th className="py-3.5 px-4">Student & Class</th>
                   <th className="py-3.5 px-4">Adm No</th>
                   <th className="py-3.5 px-4">Transit Route</th>
                   <th className="py-3.5 px-4">Pickup Point</th>
@@ -271,23 +289,51 @@ export const StudentTransportAssignmentView: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {filteredStudentTransports.map(st => (
-                  <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{st.studentName}</td>
-                    <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
-                    <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{st.routeName}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-200">{st.pickupPoint}</td>
-                    <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{st.vehicleNumber || 'BUS-101'}</td>
-                    <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{st.feePlan}</td>
-                    <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(st.feeAmount)}</td>
-                    <td className="py-3 px-4"><Badge variant={st.status === 'Active' ? 'success' : 'neutral'}>{st.status}</Badge></td>
-                    <td className="py-3 px-4 text-right">
-                      <button onClick={() => setDeletingAssignment(st)} className="p-1 rounded hover:bg-rose-50 text-rose-600 ml-auto flex items-center gap-1 font-bold">
-                        <Trash2 className="w-3.5 h-3.5" /> Revoke
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredStudentTransports.map(st => {
+                  const sObj = students.find(s => s.id === st.studentId);
+                  const pObj = pickupPoints.find(p => p.pickupName === st.pickupPoint || p.routeId === st.routeId);
+                  return (
+                    <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          {st.studentName}
+                          <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10px]">
+                            {sObj ? `${sObj.className}-${sObj.section}` : 'Class 10-A'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-medium">{sObj?.studentType || 'Day Scholar (Non-Residential)'}</div>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
+                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{st.routeName}</td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-slate-700 dark:text-slate-200">{st.pickupPoint}</div>
+                        <div className="text-[10px] text-slate-400">{pObj ? `${pObj.distanceFromSchoolKm || 10} KM from school` : ''}</div>
+                      </td>
+                      <td className="py-3 px-4 font-mono text-emerald-600 font-bold">{st.vehicleNumber || 'BUS-101'}</td>
+                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{st.feePlan}</td>
+                      <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(st.feeAmount)}</td>
+                      <td className="py-3 px-4"><Badge variant={st.status === 'Active' ? 'success' : 'neutral'}>{st.status}</Badge></td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setInspectingAssignment(st)}
+                            className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold text-[11px] hover:bg-sky-100 flex items-center gap-1 transition-all"
+                            title="View Complete Transport Details"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </button>
+                          <button
+                            onClick={() => setDeletingAssignment(st)}
+                            className="px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 font-bold text-[11px] hover:bg-rose-100 flex items-center gap-1 transition-all"
+                            title="Revoke Transport Service"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Revoke
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -341,10 +387,20 @@ export const StudentTransportAssignmentView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Enrolled Student *</label>
-                <select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                  {students.map(st => (
-                    <option key={st.id} value={st.id}>{st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo})</option>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-semibold text-slate-700 dark:text-slate-200">
+                    Select Non-Residential Student (Bus Opted) *
+                  </label>
+                  <span className="text-[10px] text-sky-600 dark:text-sky-400 font-bold bg-sky-50 dark:bg-sky-950/60 px-2 py-0.5 rounded-md">
+                    {availableStudentsForTransport.length} Eligible
+                  </span>
+                </div>
+                <select value={studentId} onChange={e => setStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white">
+                  <option value="">-- Select Day Scholar Student --</option>
+                  {availableStudentsForTransport.map(st => (
+                    <option key={st.id} value={st.id}>
+                      {st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo}) — {st.studentType || 'Day Scholar'}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -360,6 +416,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
                 >
+                  <option value="">-- Select Transit Route --</option>
                   {routeMasters.map(r => (
                     <option key={r.id} value={r.id}>{r.routeName} ({r.routeCode})</option>
                   ))}
@@ -369,16 +426,10 @@ export const StudentTransportAssignmentView: React.FC = () => {
               <div>
                 <label className="block font-semibold mb-1">Select Pickup Point (Stop) *</label>
                 <select value={pickupPointId} onChange={e => setPickupPointId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                  {availablePickupPoints.length === 0 ? (
-                    <option value="" disabled>No pickup points available for this route</option>
-                  ) : (
-                    <>
-                      <option value="" disabled>-- Select a Pickup Point --</option>
-                      {availablePickupPoints.map(p => (
-                        <option key={p.id} value={p.id}>{p.pickupName} (Stop #{p.sequenceNumber} • {formatCurrency(p.monthlyFee || 0)}/mo)</option>
-                      ))}
-                    </>
-                  )}
+                  <option value="">-- Select Pickup Point --</option>
+                  {availablePickupPoints.map(p => (
+                    <option key={p.id} value={p.id}>{p.pickupName} (Stop #{p.sequenceNumber} • {formatCurrency(p.monthlyFee || 0)}/mo)</option>
+                  ))}
                 </select>
               </div>
 
@@ -389,6 +440,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                   onChange={e => setSelectedVehicleId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600"
                 >
+                  <option value="">-- Select Fleet Vehicle --</option>
                   {vehicleMasters.map(v => (
                     <option key={v.id} value={v.id}>{v.vehicleNumber} ({v.vehicleType} • Capacity: {v.capacity} Seats)</option>
                   ))}
@@ -447,6 +499,205 @@ export const StudentTransportAssignmentView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* STUDENT TRANSPORT DETAILS INSPECTION MODAL (EYE ICON) */}
+      {inspectingAssignment && (() => {
+        const studentObj = students.find(s => s.id === inspectingAssignment.studentId);
+        const routeObj = routeMasters.find(r => r.id === inspectingAssignment.routeId || r.routeName === inspectingAssignment.routeName);
+        const pickupObj = pickupPoints.find(p => p.pickupName === inspectingAssignment.pickupPoint || p.routeId === inspectingAssignment.routeId);
+        const vehicleAssignedRel = vehicleAssignments.find(va => va.routeId === routeObj?.id && va.status === 'Active') ||
+                                   vehicleAssignments.find(va => va.vehicleId === inspectingAssignment.vehicleId);
+        const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || vehicleMasters[0];
+        const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || driverMasters[0];
+        const attendantObj = initialBusAttendants.find(a => a.id === vehicleAssignedRel?.attendantId || a.attendantName === vehicleAssignedRel?.attendantName) || initialBusAttendants[0];
+
+        const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || `DRV-${driverObj?.id || '01'}`;
+        const attendantEmpId = attendantObj?.employeeId || vehicleAssignedRel?.attendantEmployeeId || 'ATT-2026-01';
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400">
+                    <Bus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                      Student Transport Card
+                    </h3>
+                    <p className="text-xs text-slate-400">Official School Transit Allocation & Bus Pass</p>
+                  </div>
+                </div>
+                <button onClick={() => setInspectingAssignment(null)} className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Student Overview Card */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-50 to-blue-50 dark:from-slate-800/80 dark:to-slate-900/80 border border-sky-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-200 dark:border-sky-800 flex items-center justify-center text-xl font-black text-sky-600 shadow-sm overflow-hidden shrink-0">
+                    {studentObj?.avatar ? (
+                      <img src={studentObj.avatar} alt="Student" className="w-full h-full object-cover" />
+                    ) : (
+                      inspectingAssignment.studentName.charAt(0)
+                    )}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-extrabold text-base text-slate-900 dark:text-white">{inspectingAssignment.studentName}</h4>
+                      <span className="px-2 py-0.5 rounded-md bg-sky-600 text-white font-extrabold text-[10px]">
+                        {studentObj ? `${studentObj.className}-${studentObj.section}` : 'Class 10-A'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-mono">
+                      Adm No: <strong>{inspectingAssignment.admissionNo}</strong> • Roll No: {studentObj?.rollNo || '1001'}
+                    </p>
+                    <p className="text-[11px] text-sky-700 dark:text-sky-300 font-bold mt-0.5">
+                      {studentObj?.studentType || 'Day Scholar (Non-Residential)'} • {studentObj?.branch || 'Main Campus'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-xs flex items-center gap-1 justify-end">
+                    <CheckCircle className="w-3.5 h-3.5" /> RFID Enrolled
+                  </span>
+                  <span className="text-[11px] text-slate-500 block mt-1 font-mono">
+                    Session: 2026-2027
+                  </span>
+                </div>
+              </div>
+
+              {/* 2-Column Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Transit Route & Stop */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                  <p className="text-[10px] font-extrabold uppercase text-sky-600 tracking-wider flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5" /> Route & Stop Details
+                  </p>
+                  <div className="space-y-1.5 text-slate-700 dark:text-slate-300">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Route Name:</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{inspectingAssignment.routeName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Route Code:</span>
+                      <span className="font-mono font-bold text-sky-600">{routeObj?.routeCode || 'R-NORTH-101'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Designated Stop:</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{inspectingAssignment.pickupPoint}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Stop Distance:</span>
+                      <span className="font-mono font-bold">{pickupObj?.distanceFromSchoolKm || 10} KM from campus</span>
+                    </div>
+                    <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
+                      <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-emerald-500" /> Morning Pickup:</span>
+                      <span className="font-mono font-black text-emerald-600">{pickupObj?.morningPickupTime || pickupObj?.arrivalTime || '07:30 AM'}</span>
+                    </div>
+                    <div className="flex justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border">
+                      <span className="text-slate-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-sky-500" /> Evening Drop:</span>
+                      <span className="font-mono font-black text-sky-600">{pickupObj?.eveningDropTime || '04:15 PM'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Assigned Vehicle & Crew with Employee IDs */}
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5">
+                  <p className="text-[10px] font-extrabold uppercase text-amber-600 tracking-wider flex items-center gap-1.5">
+                    <Bus className="w-3.5 h-3.5" /> Fleet & On-Duty Crew
+                  </p>
+                  <div className="space-y-2">
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border flex justify-between items-center">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block font-bold">Assigned Bus</span>
+                        <span className="font-mono font-black text-slate-900 dark:text-white text-sm">{inspectingAssignment.vehicleNumber || 'BUS-101'}</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-500">{vehicleObj?.registrationNumber || 'NY-99-AB-1001'}</span>
+                    </div>
+
+                    {/* Driver Card */}
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-sky-500" /> Driver
+                        </span>
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300">
+                          Emp ID: {driverEmpId}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 dark:text-white">{driverObj?.driverName || 'Dwight Schrute'}</span>
+                        <a href={`tel:${driverObj?.mobileNumber || '+1 555-333-333'}`} className="text-sky-600 font-bold flex items-center gap-1 hover:underline">
+                          <Phone className="w-3 h-3" /> {driverObj?.mobileNumber || '+1 555-333-333'}
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Attendant Card */}
+                    <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 flex items-center gap-1">
+                          <UserCheck className="w-3 h-3 text-emerald-500" /> Bus Attendant
+                        </span>
+                        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-bold text-slate-600 dark:text-slate-300">
+                          Emp ID: {attendantEmpId}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-slate-900 dark:text-white">{attendantObj?.attendantName || 'Mary Smith'}</span>
+                        <a href={`tel:${attendantObj?.mobileNumber || '+1 555-019-8274'}`} className="text-emerald-600 font-bold flex items-center gap-1 hover:underline">
+                          <Phone className="w-3 h-3" /> {attendantObj?.mobileNumber || '+1 555-019-8274'}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Parent & Financial Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Parent Contact */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1.5">
+                  <p className="text-[10px] font-extrabold uppercase text-slate-400">Parent / Guardian Contact</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{studentObj?.fatherName || studentObj?.parentName || 'Robert Wright'}</p>
+                  <p className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                    <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone: {studentObj?.fatherPhone || studentObj?.phone || '+1 (555) 019-2834'}
+                  </p>
+                  <p className="text-slate-500 truncate">{studentObj?.address || 'H.No 42, Willow Brook Way, Knowledge City'}</p>
+                </div>
+
+                {/* Transit Fee Plan */}
+                <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/60 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300 block">Fee Payment Plan</span>
+                    <span className="font-black text-slate-900 dark:text-white text-sm">{inspectingAssignment.feePlan} Plan</span>
+                    <span className="text-[11px] text-slate-500 block">Effective: {inspectingAssignment.effectiveFrom || '2026-04-01'}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-300 block">Transit Amount</span>
+                    <span className="text-lg font-black text-emerald-600 dark:text-emerald-400 font-mono">{formatCurrency(inspectingAssignment.feeAmount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  onClick={() => setInspectingAssignment(null)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs hover:opacity-90 transition-all"
+                >
+                  Close Details
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <ConfirmModal
         isOpen={!!deletingAssignment}

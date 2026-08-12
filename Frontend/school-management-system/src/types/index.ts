@@ -292,6 +292,7 @@ export interface Student {
   remarks?: string;
   scholarshipId?: string;
   discountId?: string;
+  feeCalculationMethod?: 'Standard' | 'Prorated' | 'Custom' | 'STANDARD' | 'DYNAMIC' | string;
 
   promotionHistory?: PromotionHistoryItem[];
 }
@@ -1361,6 +1362,10 @@ export interface RouteMaster {
   routeEnd: string;
   totalDistanceKm: number;
   estimatedTimeMinutes: number;
+  minDistanceKm?: number;
+  minBaseFare?: number;
+  ratePerKm?: number;
+  pricingModel?: 'Per Kilometer' | 'Distance Slabs' | 'Flat Rate';
   description: string;
   status: 'Active' | 'Inactive';
 }
@@ -1372,6 +1377,8 @@ export interface PickupPoint {
   pickupName: string;
   sequenceNumber: number;
   arrivalTime: string;
+  morningPickupTime?: string;
+  eveningDropTime?: string;
   distanceFromSchoolKm: number;
   monthlyFee?: number;
   quarterlyFee?: number;
@@ -1482,6 +1489,7 @@ export interface VehicleMaster {
 
 export interface DriverMaster {
   id: string;
+  employeeId?: string;
   driverName: string;
   mobileNumber: string;
   email?: string;
@@ -1502,8 +1510,10 @@ export interface VehicleAssignment {
   routeId: string;
   routeName: string;
   driverId: string;
+  driverEmployeeId?: string;
   driverName: string;
   attendantId?: string;
+  attendantEmployeeId?: string;
   attendantName?: string;
   attendantMobile?: string;
   morningTripTime?: string;
