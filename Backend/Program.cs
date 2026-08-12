@@ -1173,6 +1173,7 @@ using (var scope = app.Services.CreateScope())
             EnsureColumnExists(tbl, "SalaryStructureId", "int NULL");
             EnsureColumnExists(tbl, "SalaryStructureName", "varchar(150) NULL");
             EnsureColumnExists(tbl, "SalaryStructureEffectiveDate", "datetime NULL");
+            EnsureColumnExists(tbl, "ProfilePhoto", "longtext NULL");
         }
 
         try
@@ -1318,7 +1319,6 @@ using (var scope = app.Services.CreateScope())
 
         var adminUser =
             await context.Users
-                .Include(x => x.Roles)
                 .FirstOrDefaultAsync(
                     x => x.Email == adminEmail);
 
@@ -1428,7 +1428,6 @@ using (var scope = app.Services.CreateScope())
             }
 
             var existingUser = await context.Users
-                .Include(x => x.Roles)
                 .FirstOrDefaultAsync(x =>
                     x.Email == portalUser.Email ||
                     x.MobileNumber == portalUser.Mobile);
