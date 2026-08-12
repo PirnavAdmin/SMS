@@ -20,6 +20,7 @@ public class AdminRepository : IAdminRepository
     public async Task<Admin?> GetByIdentifierAsync(string identifier)
     {
         return await _context.Admins
+            .Include(a => a.Roles)
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
     }

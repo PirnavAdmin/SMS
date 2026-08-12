@@ -334,7 +334,13 @@ namespace SMS.Api.Data
             modelBuilder.Entity<User>(entity =>
             {
                 entity.HasKey(x => x.UserId);
-                entity.Ignore(x => x.Roles);
+                
+                entity.HasMany(x => x.Roles)
+                    .WithMany(x => x.Users)
+                    .UsingEntity<System.Collections.Generic.Dictionary<string, object>>(
+                        "user_roles",
+                        j => j.HasOne<Role>().WithMany().HasForeignKey("RoleId"),
+                        j => j.HasOne<User>().WithMany().HasForeignKey("UserId"));
 
                 entity.HasIndex(x => x.MobileNumber)
                     .IsUnique();
@@ -346,8 +352,6 @@ namespace SMS.Api.Data
             modelBuilder.Entity<Role>(entity =>
             {
                 entity.HasKey(x => x.RoleId);
-                entity.Ignore(x => x.Users);
-                entity.Ignore(x => x.Admins);
             });
         }
 
@@ -356,7 +360,13 @@ namespace SMS.Api.Data
             modelBuilder.Entity<Admin>(entity =>
             {
                 entity.HasKey(x => x.AdminId);
-                entity.Ignore(x => x.Roles);
+
+                entity.HasMany(x => x.Roles)
+                    .WithMany(x => x.Admins)
+                    .UsingEntity<System.Collections.Generic.Dictionary<string, object>>(
+                        "admin_roles_junction",
+                        j => j.HasOne<Role>().WithMany().HasForeignKey("RoleId"),
+                        j => j.HasOne<Admin>().WithMany().HasForeignKey("AdminId"));
 
                 entity.HasIndex(x => x.MobileNumber)
                     .IsUnique();

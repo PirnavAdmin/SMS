@@ -2248,8 +2248,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   } = useAuth();
 
   const getStored = <T,>(key: string, initial: T): T => {
-    const saved = localStorage.getItem(`edu_db_${key}`);
-    return saved ? JSON.parse(saved) : initial;
+    try {
+      const saved = localStorage.getItem(`edu_db_${key}`);
+      return saved ? JSON.parse(saved) : initial;
+    } catch {
+      localStorage.removeItem(`edu_db_${key}`);
+      return initial;
+    }
   };
 
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() =>
