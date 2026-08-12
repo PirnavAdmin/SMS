@@ -79,13 +79,13 @@ export const TrainingContainerView: React.FC = () => {
 
   const [wizardStep1, setWizardStep1] = useState({
     assessmentName: '',
-    assessmentType: 'Teaching Competency' as AssessmentType,
+    assessmentType: 'Subject Knowledge Test' as AssessmentType,
     category: 'Knowledge' as AssessmentCategory,
-    description: 'Evaluation of instructional design, classroom delivery, digital board integration, and student engagement tactics.',
+    description: '',
     totalMarks: 100,
-    passingMarks: 70,
+    passingMarks: 40,
     gradingScheme: 'Letter Grade' as 'Letter Grade' | 'Percentage' | 'Pass/Fail',
-    instructions: '1. Duration is strictly enforced. 2. Passing score is required for certification. 3. Results will be published automatically.'
+    instructions: ''
   });
 
   const [wizardStep2, setWizardStep2] = useState({
@@ -100,10 +100,10 @@ export const TrainingContainerView: React.FC = () => {
     assessmentDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
     startTime: '10:00 AM',
     endTime: '12:00 PM',
-    venue: 'Smart Assessment Hall & Online LMS Portal',
+    venue: '',
     mode: 'Offline' as AssessmentMode,
-    evaluatorName: 'Academic Director (Prof. V. K. Mehta)',
-    coEvaluatorName: 'Vice Principal (Dr. Sarah Jenkins)',
+    evaluatorName: '',
+    coEvaluatorName: '',
     options: {
       notifyParticipants: true,
       addToCalendar: true,
@@ -112,6 +112,46 @@ export const TrainingContainerView: React.FC = () => {
       generateCertificatesOnCompletion: true
     }
   });
+
+  const handleOpenCreateAssessmentModal = () => {
+    setWizardStep1({
+      assessmentName: '',
+      assessmentType: 'Subject Knowledge Test' as AssessmentType,
+      category: 'Knowledge' as AssessmentCategory,
+      description: '',
+      totalMarks: 100,
+      passingMarks: 40,
+      gradingScheme: 'Letter Grade' as 'Letter Grade' | 'Percentage' | 'Pass/Fail',
+      instructions: ''
+    });
+    setWizardStep2({
+      targetEmployeeType: 'Teaching Staff',
+      academicYear: '2025-2026',
+      branch: 'Main Campus',
+      department: 'All',
+      designation: 'All',
+      subject: 'All',
+      employmentType: 'Permanent',
+      experienceRange: 'All',
+      assessmentDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+      startTime: '10:00 AM',
+      endTime: '12:00 PM',
+      venue: '',
+      mode: 'Offline',
+      evaluatorName: '',
+      coEvaluatorName: '',
+      options: {
+        notifyParticipants: true,
+        addToCalendar: true,
+        allowReassessment: false,
+        publishImmediately: true,
+        generateCertificatesOnCompletion: true
+      }
+    });
+    setSelectedAssessmentCandidateIds([]);
+    setAssessmentWizardStep(1);
+    setIsAddAssessmentModalOpen(true);
+  };
 
   const [assessmentCandidateSearch, setAssessmentCandidateSearch] = useState('');
   const [selectedAssessmentCandidateIds, setSelectedAssessmentCandidateIds] = useState<string[]>([]);
@@ -433,7 +473,7 @@ export const TrainingContainerView: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setIsAddAssessmentModalOpen(true)}
+            onClick={() => handleOpenCreateAssessmentModal()}
             className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all"
           >
              Schedule Evaluation
@@ -673,7 +713,7 @@ export const TrainingContainerView: React.FC = () => {
               <p className="text-[11px] text-slate-400">Subject Knowledge, Teaching Competency & Digital Skills Evaluation</p>
             </div>
             <button
-              onClick={() => setIsAddAssessmentModalOpen(true)}
+              onClick={() => handleOpenCreateAssessmentModal()}
               className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-md"
             >
               <Plus className="w-4 h-4" /> Schedule Assessment
@@ -989,35 +1029,38 @@ export const TrainingContainerView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onClick={() => setIsAddWorkshopModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold">Cancel</button>
-                <button type="submit" className="px-5 py-2 bg-brand-600 text-white font-bold rounded-xl shadow-md">Create & Notify Employees</button>
-              </div>
             </form>
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <button type="button" onClick={() => setIsAddWorkshopModalOpen(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold">Cancel</button>
+              <button type="submit" onClick={handleAddWorkshopSubmit} className="px-5 py-2 bg-brand-600 text-white font-bold rounded-xl shadow-md">Create & Notify Employees</button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* ENTERPRISE 2-STEP ASSESSMENT SCHEDULING WIZARD MODAL */}
+      {/* SCHOOL ASSESSMENT SCHEDULER MODAL */}
       {isAddAssessmentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh] text-xs">
             
-            {/* Modal Title & Close */}
-            <div className="flex justify-between items-center border-b pb-3">
+            {/* Modal Header (Fixed Top) */}
+            <div className="flex justify-between items-center pb-3 shrink-0 border-b border-slate-100 dark:border-slate-800/80 mb-3">
               <div>
                 <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-sky-600" /> Enterprise Assessment Scheduling Wizard
+                  <FileCheck className="w-5 h-5 text-sky-600" /> Faculty Training & Evaluation Scheduler
                 </h3>
-                <p className="text-[10px] text-slate-400">Schedule competency evaluations, select candidates, and assign evaluators</p>
               </div>
-              <button onClick={() => { setIsAddAssessmentModalOpen(false); setAssessmentWizardStep(1); }} className="p-1 text-slate-400 hover:text-slate-600">
+              <button
+                type="button"
+                onClick={() => { setIsAddAssessmentModalOpen(false); setAssessmentWizardStep(1); }}
+                className="p-1 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* STEP PROGRESS INDICATOR */}
-            <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+            {/* STEP PROGRESS INDICATOR (Fixed Top) */}
+            <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 shrink-0 mb-4">
               <div
                 onClick={() => setAssessmentWizardStep(1)}
                 className={`flex-1 flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all ${
@@ -1061,427 +1104,429 @@ export const TrainingContainerView: React.FC = () => {
               </div>
             </div>
 
-            {/* STEP 1 CONTENT: ASSESSMENT DETAILS */}
-            {assessmentWizardStep === 1 && (
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-                <div>
-                  <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Digital Pedagogy & Smart Board Competency Test"
-                    value={wizardStep1.assessmentName}
-                    onChange={e => setWizardStep1({ ...wizardStep1, assessmentName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-semibold"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* SCROLLABLE BODY AREA */}
+            <div className="flex-1 overflow-y-auto min-h-0 pr-1.5 space-y-4">
+              {assessmentWizardStep === 1 ? (
+                <div className="space-y-4">
                   <div>
-                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Type *</label>
-                    <select
-                      value={wizardStep1.assessmentType}
-                      onChange={e => setWizardStep1({ ...wizardStep1, assessmentType: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs"
-                    >
-                      <option value="Subject Knowledge Test">Subject Knowledge Test</option>
-                      <option value="Teaching Competency">Teaching Competency</option>
-                      <option value="Practical Demonstration">Practical Demonstration</option>
-                      <option value="Classroom Observation">Classroom Observation</option>
-                      <option value="Viva">Viva / Interview</option>
-                      <option value="Online Assessment">Online Assessment</option>
-                      <option value="Offline Assessment">Offline Assessment</option>
-                      <option value="Digital Skills Test">Digital Skills Test</option>
-                      <option value="Safety Assessment">Safety Assessment</option>
-                      <option value="Internal Promotion Assessment">Internal Promotion Assessment</option>
-                      <option value="Compliance Assessment">Compliance Assessment</option>
-                      <option value="Custom Assessment">Custom Assessment</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Category *</label>
-                    <select
-                      value={wizardStep1.category}
-                      onChange={e => setWizardStep1({ ...wizardStep1, category: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs"
-                    >
-                      <option value="Knowledge">Knowledge</option>
-                      <option value="Practical">Practical</option>
-                      <option value="Observation">Observation</option>
-                      <option value="Interview">Interview</option>
-                      <option value="Certification">Certification</option>
-                      <option value="Performance Evaluation">Performance Evaluation</option>
-                      <option value="Validation">Validation</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Total Marks *</label>
+                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Name *</label>
                     <input
-                      type="number"
-                      min={1}
-                      value={wizardStep1.totalMarks}
-                      onChange={e => setWizardStep1({ ...wizardStep1, totalMarks: Math.max(1, Number(e.target.value)) })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs font-bold"
+                      type="text"
+                      required
+                      placeholder="e.g. Digital Pedagogy & Smart Board Competency Test"
+                      value={wizardStep1.assessmentName}
+                      onChange={e => setWizardStep1({ ...wizardStep1, assessmentName: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-semibold focus:border-sky-500 outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Type *</label>
+                      <select
+                        value={wizardStep1.assessmentType}
+                        onChange={e => setWizardStep1({ ...wizardStep1, assessmentType: e.target.value as any })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
+                      >
+                        <option value="Subject Knowledge Test">Subject Knowledge Test</option>
+                        <option value="Teaching Competency">Teaching Competency</option>
+                        <option value="Practical Demonstration">Practical Demonstration</option>
+                        <option value="Classroom Observation">Classroom Observation</option>
+                        <option value="Viva">Viva / Interview</option>
+                        <option value="Online Assessment">Online Assessment</option>
+                        <option value="Offline Assessment">Offline Assessment</option>
+                        <option value="Digital Skills Test">Digital Skills Test</option>
+                        <option value="Safety Assessment">Safety Assessment</option>
+                        <option value="Internal Promotion Assessment">Internal Promotion Assessment</option>
+                        <option value="Compliance Assessment">Compliance Assessment</option>
+                        <option value="Custom Assessment">Custom Assessment</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Category *</label>
+                      <select
+                        value={wizardStep1.category}
+                        onChange={e => setWizardStep1({ ...wizardStep1, category: e.target.value as any })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
+                      >
+                        <option value="Knowledge">Knowledge</option>
+                        <option value="Practical">Practical</option>
+                        <option value="Observation">Observation</option>
+                        <option value="Interview">Interview</option>
+                        <option value="Certification">Certification</option>
+                        <option value="Performance Evaluation">Performance Evaluation</option>
+                        <option value="Validation">Validation</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Total Marks *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={wizardStep1.totalMarks}
+                        onChange={e => setWizardStep1({ ...wizardStep1, totalMarks: Math.max(1, Number(e.target.value)) })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Passing Marks *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={wizardStep1.totalMarks}
+                        value={wizardStep1.passingMarks}
+                        onChange={e => setWizardStep1({ ...wizardStep1, passingMarks: Number(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs font-bold"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-900 dark:text-white mb-1">Grading Scheme</label>
+                      <select
+                        value={wizardStep1.gradingScheme}
+                        onChange={e => setWizardStep1({ ...wizardStep1, gradingScheme: e.target.value as any })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
+                      >
+                        <option value="Letter Grade">Letter Grade (A+, A, B, C, F)</option>
+                        <option value="Percentage">Percentage (%)</option>
+                        <option value="Pass/Fail">Pass / Fail Only</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Description</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Enter overview of assessment goals and competencies measured..."
+                      value={wizardStep1.description}
+                      onChange={e => setWizardStep1({ ...wizardStep1, description: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Passing Marks *</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={wizardStep1.totalMarks}
-                      value={wizardStep1.passingMarks}
-                      onChange={e => setWizardStep1({ ...wizardStep1, passingMarks: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs font-bold"
+                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Instructions</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Specify guidelines for candidates during the test..."
+                      value={wizardStep1.instructions}
+                      onChange={e => setWizardStep1({ ...wizardStep1, instructions: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs"
                     />
                   </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Target Audience Filters */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
+                    <span className="font-extrabold text-xs text-slate-900 dark:text-white block">1. Participant Selection Filters</span>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div>
+                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Employee Type</label>
+                        <select
+                          value={wizardStep2.targetEmployeeType}
+                          onChange={e => setWizardStep2({ ...wizardStep2, targetEmployeeType: e.target.value as any })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                        >
+                          <option value="Teaching Staff">Teaching Staff</option>
+                          <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                          <option value="Both">Both (All Staff)</option>
+                        </select>
+                      </div>
 
-                  <div>
-                    <label className="block font-bold text-slate-900 dark:text-white mb-1">Grading Scheme</label>
-                    <select
-                      value={wizardStep1.gradingScheme}
-                      onChange={e => setWizardStep1({ ...wizardStep1, gradingScheme: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs"
-                    >
-                      <option value="Letter Grade">Letter Grade (A+, A, B, C, F)</option>
-                      <option value="Percentage">Percentage (%)</option>
-                      <option value="Pass/Fail">Pass / Fail Only</option>
-                    </select>
+                      <div>
+                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Branch *</label>
+                        <select
+                          value={wizardStep2.branch}
+                          onChange={e => setWizardStep2({ ...wizardStep2, branch: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                        >
+                          <option value="Main Campus">Main Campus</option>
+                          <option value="North Branch">North Branch</option>
+                          <option value="West Campus">West Campus</option>
+                          <option value="All">All Branches</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Department *</label>
+                        <select
+                          value={wizardStep2.department}
+                          onChange={e => setWizardStep2({ ...wizardStep2, department: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                        >
+                          <option value="All">All Departments</option>
+                          <option value="Academics">Academics</option>
+                          <option value="Mathematics">Mathematics</option>
+                          <option value="Science">Science</option>
+                          <option value="Administration">Administration</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Designation</label>
+                        <select
+                          value={wizardStep2.designation}
+                          onChange={e => setWizardStep2({ ...wizardStep2, designation: e.target.value })}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                        >
+                          <option value="All">All Designations</option>
+                          <option value="Senior Teacher">Senior Teacher</option>
+                          <option value="Teacher">Teacher</option>
+                          <option value="Assistant Teacher">Assistant Teacher</option>
+                          <option value="Department Head">Department Head</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300">
+                          Selected Candidates ({selectedAssessmentCandidateIds.length} of {matchingAssessmentCandidates.length})
+                        </span>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            placeholder="Filter candidate names..."
+                            value={assessmentCandidateSearch}
+                            onChange={e => setAssessmentCandidateSearch(e.target.value)}
+                            className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border text-[11px]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length) {
+                                setSelectedAssessmentCandidateIds([]);
+                              } else {
+                                setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
+                              }
+                            }}
+                            className="text-[10px] font-bold text-sky-600 hover:underline cursor-pointer"
+                          >
+                            {selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length ? 'Deselect All' : 'Select All'}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="max-h-28 overflow-y-auto space-y-1">
+                        {matchingAssessmentCandidates.map(emp => (
+                          <label key={emp.id} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={selectedAssessmentCandidateIds.includes(emp.id)}
+                                onChange={e => {
+                                  if (e.target.checked) setSelectedAssessmentCandidateIds([...selectedAssessmentCandidateIds, emp.id]);
+                                  else setSelectedAssessmentCandidateIds(selectedAssessmentCandidateIds.filter(id => id !== emp.id));
+                                }}
+                              />
+                              <span className="font-semibold">{emp.firstName} {emp.lastName}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400">{emp.designation || emp.role} • {emp.department}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Schedule & Timing Details */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
+                    <span className="font-extrabold text-xs text-slate-900 dark:text-white block">2. Date, Time & Venue Configuration</span>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block font-bold mb-1">Assessment Date *</label>
+                        <input
+                          type="date"
+                          required
+                          value={wizardStep2.assessmentDate}
+                          onChange={e => setWizardStep2({ ...wizardStep2, assessmentDate: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold mb-1">Start Time *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 10:00 AM"
+                          value={wizardStep2.startTime}
+                          onChange={e => setWizardStep2({ ...wizardStep2, startTime: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-bold mb-1">End Time *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. 12:00 PM"
+                          value={wizardStep2.endTime}
+                          onChange={e => setWizardStep2({ ...wizardStep2, endTime: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block font-bold mb-1">Assessment Mode</label>
+                        <select
+                          value={wizardStep2.mode}
+                          onChange={e => setWizardStep2({ ...wizardStep2, mode: e.target.value as any })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
+                        >
+                          <option value="Offline">Offline (Exam Hall)</option>
+                          <option value="Online">Online (Computer Portal)</option>
+                          <option value="Practical">Practical Demonstration</option>
+                          <option value="Classroom Observation">Classroom Observation</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block font-bold mb-1">Venue / Location</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Smart Assessment Hall A"
+                          value={wizardStep2.venue}
+                          onChange={e => setWizardStep2({ ...wizardStep2, venue: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Evaluator Assignment & Options */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold mb-1">Main Evaluator *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Academic Director"
+                        value={wizardStep2.evaluatorName}
+                        onChange={e => setWizardStep2({ ...wizardStep2, evaluatorName: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">Co-Evaluator (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Vice Principal"
+                        value={wizardStep2.coEvaluatorName}
+                        onChange={e => setWizardStep2({ ...wizardStep2, coEvaluatorName: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Checkboxes Configuration */}
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border grid grid-cols-2 gap-2 font-semibold">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={wizardStep2.options.notifyParticipants}
+                        onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, notifyParticipants: e.target.checked } })}
+                      />
+                      <span>Notify Participants (In-App / Email)</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={wizardStep2.options.addToCalendar}
+                        onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, addToCalendar: e.target.checked } })}
+                      />
+                      <span>Add to Academic Calendar</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={wizardStep2.options.generateCertificatesOnCompletion}
+                        onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, generateCertificatesOnCompletion: e.target.checked } })}
+                      />
+                      <span>Auto Certificates on Pass</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={wizardStep2.options.publishImmediately}
+                        onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, publishImmediately: e.target.checked } })}
+                      />
+                      <span>Publish Schedule Immediately</span>
+                    </label>
+                  </div>
+
+                  {/* REVIEW SUMMARY SUMMARY CARD */}
+                  <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 space-y-2">
+                    <h4 className="font-extrabold text-xs text-sky-900 dark:text-sky-300 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-sky-600" /> Review Assessment Summary
+                    </h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700 dark:text-slate-300">
+                      <p><strong>Name:</strong> {wizardStep1.assessmentName || 'Not Set'}</p>
+                      <p><strong>Type:</strong> {wizardStep1.assessmentType} ({wizardStep1.category})</p>
+                      <p><strong>Candidates:</strong> {selectedAssessmentCandidateIds.length} Employees</p>
+                      <p><strong>Schedule:</strong> {wizardStep2.assessmentDate} ({wizardStep2.startTime || '10:00 AM'} - {wizardStep2.endTime || '12:00 PM'})</p>
+                      <p><strong>Evaluator:</strong> {wizardStep2.evaluatorName || 'Not Assigned'}</p>
+                      <p><strong>Passing Score:</strong> {wizardStep1.passingMarks} / {wizardStep1.totalMarks} Marks</p>
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div>
-                  <label className="block font-bold text-slate-900 dark:text-white mb-1">Description</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Enter overview of assessment goals and competencies measured..."
-                    value={wizardStep1.description}
-                    onChange={e => setWizardStep1({ ...wizardStep1, description: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Instructions</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Specify guidelines for candidates during the test..."
-                    value={wizardStep1.instructions}
-                    onChange={e => setWizardStep1({ ...wizardStep1, instructions: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-3 border-t">
+            {/* Modal Footer (Fixed Bottom, Always Visible, Never Cut Off!) */}
+            <div className="flex items-center justify-between pt-3.5 mt-3 border-t border-slate-200 dark:border-slate-800 shrink-0">
+              {assessmentWizardStep === 1 ? (
+                <>
                   <button
                     type="button"
                     onClick={() => setIsAddAssessmentModalOpen(false)}
-                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold"
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={handleProceedToStep2}
-                    className="px-5 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     Next: Schedule & Participants <ChevronRight className="w-4 h-4" />
                   </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2 CONTENT: SCHEDULE & PARTICIPANTS */}
-            {assessmentWizardStep === 2 && (
-              <form onSubmit={handleScheduleWizardSubmit} className="flex-1 overflow-y-auto space-y-4 pr-1">
-                
-                {/* Target Audience Filters */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
-                  <span className="font-extrabold text-xs text-slate-900 dark:text-white block">1. Participant Selection Filters</span>
-                  
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div>
-                      <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Employee Type</label>
-                      <select
-                        value={wizardStep2.targetEmployeeType}
-                        onChange={e => setWizardStep2({ ...wizardStep2, targetEmployeeType: e.target.value as any })}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs"
-                      >
-                        <option value="Teaching Staff">Teaching Staff</option>
-                        <option value="Non-Teaching Staff">Non-Teaching Staff</option>
-                        <option value="Both">Both (All Staff)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Branch *</label>
-                      <select
-                        value={wizardStep2.branch}
-                        onChange={e => setWizardStep2({ ...wizardStep2, branch: e.target.value })}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs"
-                      >
-                        <option value="Main Campus">Main Campus</option>
-                        <option value="North Branch">North Branch</option>
-                        <option value="West Campus">West Campus</option>
-                        <option value="All">All Branches</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Department *</label>
-                      <select
-                        value={wizardStep2.department}
-                        onChange={e => setWizardStep2({ ...wizardStep2, department: e.target.value })}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs"
-                      >
-                        <option value="All">All Departments</option>
-                        <option value="Academics">Academics</option>
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="Science">Science</option>
-                        <option value="Administration">Administration</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Designation</label>
-                      <select
-                        value={wizardStep2.designation}
-                        onChange={e => setWizardStep2({ ...wizardStep2, designation: e.target.value })}
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs"
-                      >
-                        <option value="All">All Designations</option>
-                        <option value="Senior PGT Teacher">Senior PGT Teacher</option>
-                        <option value="TGT Teacher">TGT Teacher</option>
-                        <option value="PRT Teacher">PRT Teacher</option>
-                        <option value="Staff">Support Staff</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Matching Candidates Selection List */}
-                  <div className="space-y-2 pt-1 border-t">
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 dark:text-white">Matching Employees</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 border border-sky-200">
-                          {selectedAssessmentCandidateIds.length} Selected
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          placeholder="Search candidate..."
-                          value={assessmentCandidateSearch}
-                          onChange={e => setAssessmentCandidateSearch(e.target.value)}
-                          className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border text-[11px]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length) {
-                              setSelectedAssessmentCandidateIds([]);
-                            } else {
-                              setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
-                            }
-                          }}
-                          className="text-[10px] font-bold text-sky-600 hover:underline"
-                        >
-                          {selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length ? 'Deselect All' : 'Select All'}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="max-h-28 overflow-y-auto space-y-1">
-                      {matchingAssessmentCandidates.map(emp => (
-                        <label key={emp.id} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={selectedAssessmentCandidateIds.includes(emp.id)}
-                              onChange={e => {
-                                if (e.target.checked) setSelectedAssessmentCandidateIds([...selectedAssessmentCandidateIds, emp.id]);
-                                else setSelectedAssessmentCandidateIds(selectedAssessmentCandidateIds.filter(id => id !== emp.id));
-                              }}
-                            />
-                            <span className="font-semibold">{emp.firstName} {emp.lastName}</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400">{emp.designation || emp.role} • {emp.department}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Schedule & Timing Details */}
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
-                  <span className="font-extrabold text-xs text-slate-900 dark:text-white block">2. Date, Time & Venue Configuration</span>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block font-bold mb-1">Assessment Date *</label>
-                      <input
-                        type="date"
-                        required
-                        value={wizardStep2.assessmentDate}
-                        onChange={e => setWizardStep2({ ...wizardStep2, assessmentDate: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold mb-1">Start Time *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 10:00 AM"
-                        value={wizardStep2.startTime}
-                        onChange={e => setWizardStep2({ ...wizardStep2, startTime: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block font-bold mb-1">End Time *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 12:00 PM"
-                        value={wizardStep2.endTime}
-                        onChange={e => setWizardStep2({ ...wizardStep2, endTime: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold mb-1">Assessment Mode</label>
-                      <select
-                        value={wizardStep2.mode}
-                        onChange={e => setWizardStep2({ ...wizardStep2, mode: e.target.value as any })}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-xs"
-                      >
-                        <option value="Offline">Offline (Exam Hall)</option>
-                        <option value="Online">Online (Computer Portal)</option>
-                        <option value="Practical">Practical Demonstration</option>
-                        <option value="Classroom Observation">Classroom Observation</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-bold mb-1">Venue / Location</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Smart Assessment Hall A"
-                        value={wizardStep2.venue}
-                        onChange={e => setWizardStep2({ ...wizardStep2, venue: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Evaluator Assignment & Options */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold mb-1">Main Evaluator *</label>
-                    <input
-                      type="text"
-                      required
-                      value={wizardStep2.evaluatorName}
-                      onChange={e => setWizardStep2({ ...wizardStep2, evaluatorName: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold mb-1">Co-Evaluator (Optional)</label>
-                    <input
-                      type="text"
-                      value={wizardStep2.coEvaluatorName}
-                      onChange={e => setWizardStep2({ ...wizardStep2, coEvaluatorName: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                    />
-                  </div>
-                </div>
-
-                {/* Checkboxes Configuration */}
-                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border grid grid-cols-2 gap-2 font-semibold">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={wizardStep2.options.notifyParticipants}
-                      onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, notifyParticipants: e.target.checked } })}
-                    />
-                    <span>Notify Participants (In-App / Email)</span>
-                  </label>
-
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={wizardStep2.options.addToCalendar}
-                      onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, addToCalendar: e.target.checked } })}
-                    />
-                    <span>Add to Academic Calendar</span>
-                  </label>
-
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={wizardStep2.options.generateCertificatesOnCompletion}
-                      onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, generateCertificatesOnCompletion: e.target.checked } })}
-                    />
-                    <span>Auto Certificates on Pass</span>
-                  </label>
-
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={wizardStep2.options.publishImmediately}
-                      onChange={e => setWizardStep2({ ...wizardStep2, options: { ...wizardStep2.options, publishImmediately: e.target.checked } })}
-                    />
-                    <span>Publish Schedule Immediately</span>
-                  </label>
-                </div>
-
-                {/* REVIEW SUMMARY SUMMARY CARD */}
-                <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 space-y-2">
-                  <h4 className="font-extrabold text-xs text-sky-900 dark:text-sky-300 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-sky-600" /> Review Assessment Summary
-                  </h4>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-700 dark:text-slate-300">
-                    <p><strong>Name:</strong> {wizardStep1.assessmentName || 'Not Set'}</p>
-                    <p><strong>Type:</strong> {wizardStep1.assessmentType} ({wizardStep1.category})</p>
-                    <p><strong>Candidates:</strong> {selectedAssessmentCandidateIds.length} Employees</p>
-                    <p><strong>Schedule:</strong> {wizardStep2.assessmentDate} ({wizardStep2.startTime} - {wizardStep2.endTime})</p>
-                    <p><strong>Evaluator:</strong> {wizardStep2.evaluatorName}</p>
-                    <p><strong>Passing Score:</strong> {wizardStep1.passingMarks} / {wizardStep1.totalMarks} Marks</p>
-                  </div>
-                </div>
-
-                <div className="flex justify-between gap-2 pt-3 border-t">
+                </>
+              ) : (
+                <>
                   <button
                     type="button"
                     onClick={() => setAssessmentWizardStep(1)}
-                    className="px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-xl font-bold"
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl transition-all cursor-pointer"
                   >
                     ← Back to Step 1
                   </button>
                   <button
-                    type="submit"
-                    className="px-6 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md flex items-center gap-1.5"
+                    type="button"
+                    onClick={handleScheduleWizardSubmit}
+                    className="px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
                   >
-                    <CheckCircle2 className="w-4 h-4" /> Schedule Assessment
+                    <CheckCircle2 className="w-4 h-4" /> Confirm & Schedule Assessment
                   </button>
-                </div>
-              </form>
-            )}
+                </>
+              )}
+            </div>
 
           </div>
         </div>

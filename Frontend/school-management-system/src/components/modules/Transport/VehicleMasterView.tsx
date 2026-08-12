@@ -198,7 +198,7 @@ export const VehicleMasterView: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -229,9 +229,9 @@ export const VehicleMasterView: React.FC = () => {
       </div>
 
       {selectedVehicleFilter === '' ? (
-        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
-            <Bus className="w-7 h-7" />
+        <div className="glass-card p-10 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
+            <Bus className="w-4.5 h-4.5" />
           </div>
           <h3 className="text-base font-black text-slate-900 dark:text-white">Please Select a Vehicle</h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">

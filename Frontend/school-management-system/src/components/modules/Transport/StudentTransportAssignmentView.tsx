@@ -229,7 +229,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
       </div>
 
       {/* Multi-level Filters: Academic Year, Branch, Class, Section */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between gap-4 overflow-x-auto w-full">
+      <div className="glass-card p-4 rounded-2xl flex items-center justify-between gap-4 overflow-x-auto w-full border border-slate-200/80 dark:border-slate-800">
         <div className="relative w-64 shrink-0 pt-3">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-5" />
           <input
@@ -277,15 +277,15 @@ export const StudentTransportAssignmentView: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Student & Class</th>
-                  <th className="py-3.5 px-4">Adm No</th>
-                  <th className="py-3.5 px-4">Transit Route</th>
-                  <th className="py-3.5 px-4">Pickup Point</th>
-                  <th className="py-3.5 px-4">Assigned Vehicle</th>
-                  <th className="py-3.5 px-4">Fee Plan</th>
-                  <th className="py-3.5 px-4">Fee Amount</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">Student & Class</th>
+                  <th className="py-3.5 px-4 text-center">Adm No</th>
+                  <th className="py-3.5 px-4 text-center">Transit Route</th>
+                  <th className="py-3.5 px-4 text-center">Pickup Point</th>
+                  <th className="py-3.5 px-4 text-center">Assigned Vehicle</th>
+                  <th className="py-3.5 px-4 text-center">Fee Plan</th>
+                  <th className="py-3.5 px-4 text-center">Fee Amount</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -347,14 +347,14 @@ export const StudentTransportAssignmentView: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Student</th>
-                  <th className="py-3.5 px-4">Academic Session</th>
-                  <th className="py-3.5 px-4">Route Name</th>
-                  <th className="py-3.5 px-4">Pickup Point</th>
-                  <th className="py-3.5 px-4">Vehicle</th>
-                  <th className="py-3.5 px-4">Crew (Driver / Attendant)</th>
-                  <th className="py-3.5 px-4">Assignment Date</th>
-                  <th className="py-3.5 px-4 text-right">Status</th>
+                  <th className="py-3.5 px-4 text-center">Student</th>
+                  <th className="py-3.5 px-4 text-center">Academic Session</th>
+                  <th className="py-3.5 px-4 text-center">Route Name</th>
+                  <th className="py-3.5 px-4 text-center">Pickup Point</th>
+                  <th className="py-3.5 px-4 text-center">Vehicle</th>
+                  <th className="py-3.5 px-4 text-center">Crew (Driver / Attendant)</th>
+                  <th className="py-3.5 px-4 text-center">Assignment Date</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -538,7 +538,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
               {/* Student Overview Card */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-sky-50 to-blue-50 dark:from-slate-800/80 dark:to-slate-900/80 border border-sky-100 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3.5">
-                  <div className="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border-2 border-sky-200 dark:border-sky-800 flex items-center justify-center text-xl font-black text-sky-600 shadow-sm overflow-hidden shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sm font-black text-sky-600 shadow-sm overflow-hidden shrink-0">
                     {studentObj?.avatar ? (
                       <img src={studentObj.avatar} alt="Student" className="w-full h-full object-cover" />
                     ) : (

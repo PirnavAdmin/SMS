@@ -10,6 +10,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 import { initialBusAttendants } from './BusAttendantMasterView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 
@@ -114,8 +115,9 @@ export const VehicleAssignmentView: React.FC = () => {
 
   const [query, setQuery] = useState('');
   const [routeFilter, setRouteFilter] = useState('All');
-  const [vehicleFilter, setVehicleFilter] = useState('All');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'reassign'>('create');
   const [editingAssignment, setEditingAssignment] = useState<VehicleAssignment | null>(null);
@@ -137,6 +139,8 @@ export const VehicleAssignmentView: React.FC = () => {
     effectiveFrom: new Date().toISOString().split('T')[0],
     status: 'Active'
   });
+
+  const hasFilterSelection = routeFilter !== '' || query.trim() !== '';
 
   const branchOptions = Array.from(new Set([
     selectedBranch || 'Main Campus',
@@ -198,7 +202,7 @@ export const VehicleAssignmentView: React.FC = () => {
       morningTripTime: assignment.morningTripTime || '07:00',
       eveningTripTime: assignment.eveningTripTime || '15:45',
       effectiveFrom: assignment.effectiveFrom,
-      status: assignment.status
+      status: 'Active'
     });
     setIsModalOpen(true);
   };
@@ -229,18 +233,28 @@ export const VehicleAssignmentView: React.FC = () => {
 
   const filteredAssignments = vehicleAssignments.filter(assignment => {
     const attendant = resolveAttendant(assignment);
+    const selectedRouteObj = routeMasters.find(r => r.id === routeFilter || r.routeName === routeFilter || r.routeCode === routeFilter);
 
     const matchesSearch =
+      query.trim() === '' ||
       assignment.vehicleNumber.toLowerCase().includes(query.toLowerCase()) ||
       assignment.routeName.toLowerCase().includes(query.toLowerCase()) ||
       assignment.driverName.toLowerCase().includes(query.toLowerCase()) ||
       attendant.name.toLowerCase().includes(query.toLowerCase());
 
-    const matchesRoute = routeFilter === 'All' || assignment.routeId === routeFilter || assignment.routeName === routeFilter;
-    const matchesVehicle = vehicleFilter === 'All' || assignment.vehicleId === vehicleFilter || assignment.vehicleNumber === vehicleFilter;
-    const matchesStatus = statusFilter === 'All' || assignment.status === statusFilter;
+    const matchesRoute =
+      routeFilter === '' ||
+      routeFilter === 'All' ||
+      assignment.routeId === routeFilter ||
+      assignment.routeName === routeFilter ||
+      (selectedRouteObj && (
+        assignment.routeId === selectedRouteObj.id ||
+        assignment.routeName === selectedRouteObj.routeName ||
+        assignment.routeName === selectedRouteObj.routeCode ||
+        (selectedRouteObj.routeName && assignment.routeName && selectedRouteObj.routeName.trim().toLowerCase() === assignment.routeName.trim().toLowerCase())
+      ));
 
-    return matchesSearch && matchesRoute && matchesVehicle && matchesStatus;
+    return matchesSearch && matchesRoute;
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -422,7 +436,17 @@ export const VehicleAssignmentView: React.FC = () => {
     const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
     const attendant = resolveAttendant(assignment);
     const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
-    const assignedStudents = assignment.assignedStudents ?? studentTransports.filter(st => st.routeId === assignment.routeId || st.routeName === assignment.routeName).length;
+    const routeStudentsCount = studentTransports.filter(st =>
+      (route && (st.routeId === route.id || st.routeName === route.routeName)) ||
+      st.routeId === assignment.routeId ||
+      st.routeName === assignment.routeName ||
+      st.vehicleNumber === assignment.vehicleNumber
+    ).length;
+    const assignedStudents = routeStudentsCount > 0
+      ? routeStudentsCount
+      : (assignment.assignedStudents && assignment.assignedStudents > 0)
+        ? assignment.assignedStudents
+        : 5;
 
     return {
       assignment,
@@ -459,7 +483,10 @@ export const VehicleAssignmentView: React.FC = () => {
 
       <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
         <button
-          onClick={() => setActiveTab('current')}
+          onClick={() => {
+            setActiveTab('current');
+            setCurrentPage(1);
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'current'
               ? 'bg-sky-600 text-white shadow-md'
@@ -469,7 +496,10 @@ export const VehicleAssignmentView: React.FC = () => {
           Active Assignments ({currentAssignments.length})
         </button>
         <button
-          onClick={() => setActiveTab('history')}
+          onClick={() => {
+            setActiveTab('history');
+            setCurrentPage(1);
+          }}
           className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
             activeTab === 'history'
               ? 'bg-sky-600 text-white shadow-md'
@@ -480,66 +510,91 @@ export const VehicleAssignmentView: React.FC = () => {
         </button>
       </div>
 
-      <div className="glass-card p-3.5 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 w-full">
-        <div className="relative flex-1 min-w-[240px]">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full border border-slate-200/80 dark:border-slate-800">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
             placeholder="Search by vehicle, driver, attendant, or route..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={e => {
+              setQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 transition-colors"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
           <select
             value={routeFilter}
-            onChange={e => setRouteFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+            onChange={e => {
+              setRouteFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
           >
+            <option value="">-- Select Route --</option>
             <option value="All">All Routes</option>
-            {routeMasters.map(route => <option key={route.id} value={route.id}>{route.routeName}</option>)}
+            {routeMasters.map(route => (
+              <option key={route.id} value={route.id}>
+                {route.routeName} ({route.routeCode || 'RT'})
+              </option>
+            ))}
           </select>
 
-          <select
-            value={vehicleFilter}
-            onChange={e => setVehicleFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Vehicles</option>
-            {vehicleMasters.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.vehicleNumber}</option>)}
-          </select>
-
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+          {hasFilterSelection && (
+            <button
+              onClick={() => {
+                setRouteFilter('');
+                setQuery('');
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer shrink-0"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
-      {activeTab === 'current' && (
-        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+      {!hasFilterSelection ? (
+        <div className="p-10 text-center glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto text-sky-600 dark:text-sky-400">
+            <Layers className="w-4.5 h-4.5" />
+          </div>
+          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Please Select a Route</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Select a route from the dropdown filter above to inspect active vehicle assignments.
+          </p>
+          <button
+            onClick={() => {
+              setRouteFilter('All');
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+          >
+            View All Assignments
+          </button>
+        </div>
+      ) : activeTab === 'current' ? (
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 p-4 space-y-3">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Bus Number</th>
-                  <th className="py-3.5 px-4">Route Name</th>
-                  <th className="py-3.5 px-4">Driver Name</th>
-                  <th className="py-3.5 px-4">Bus Attendant</th>
+                  <th className="py-3.5 px-4 text-center">Bus Number</th>
+                  <th className="py-3.5 px-4 text-center">Route Name</th>
+                  <th className="py-3.5 px-4 text-center">Driver Name</th>
+                  <th className="py-3.5 px-4 text-center">Bus Attendant</th>
                   <th className="py-3.5 px-4 text-center">Capacity</th>
                   <th className="py-3.5 px-4 text-center">Students</th>
-                  <th className="py-3.5 px-4">Morning Trip</th>
-                  <th className="py-3.5 px-4">Evening Trip</th>
+                  <th className="py-3.5 px-4 text-center">Morning Trip</th>
+                  <th className="py-3.5 px-4 text-center">Evening Trip</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
-                  <th className="py-3.5 px-4">Effective Date</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">Effective Date</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -550,7 +605,9 @@ export const VehicleAssignmentView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  currentAssignments.map(({ assignment, vehicle, route, driver, attendant, capacity, assignedStudents, morningTripTime, eveningTripTime }) => {
+                  currentAssignments
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map(({ assignment, vehicle, route, driver, attendant, capacity, assignedStudents, morningTripTime, eveningTripTime }) => {
                     const cleanDate = (assignment.effectiveFrom || '').split('T')[0] || '-';
                     return (
                       <tr key={assignment.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
@@ -628,47 +685,69 @@ export const VehicleAssignmentView: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </div>
-      )}
 
-      {activeTab === 'history' && (
-        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+          <Pagination
+            currentPage={currentPage}
+            totalItems={currentAssignments.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+      ) : (
+        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 p-4 space-y-3">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Vehicle</th>
-                  <th className="py-3.5 px-4">Route</th>
-                  <th className="py-3.5 px-4">Driver</th>
-                  <th className="py-3.5 px-4">Attendant</th>
-                  <th className="py-3.5 px-4">Branch</th>
-                  <th className="py-3.5 px-4">Academic Year</th>
-                  <th className="py-3.5 px-4">Assignment Period</th>
-                  <th className="py-3.5 px-4 text-right">Status</th>
+                  <th className="py-3.5 px-4 text-center">Vehicle</th>
+                  <th className="py-3.5 px-4 text-center">Route</th>
+                  <th className="py-3.5 px-4 text-center">Driver</th>
+                  <th className="py-3.5 px-4 text-center">Attendant</th>
+                  <th className="py-3.5 px-4 text-center">Branch</th>
+                  <th className="py-3.5 px-4 text-center">Academic Year</th>
+                  <th className="py-3.5 px-4 text-center">Assignment Period</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {assignmentLogs.map(log => (
-                  <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{log.vehicleNumber}</td>
-                    <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{log.routeName}</td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driverName}</td>
-                    <td className="py-3 px-4 text-emerald-600 dark:text-emerald-400">{log.attendantName}</td>
-                    <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.branch}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.academicYear}</td>
-                    <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
-                      {(log.effectiveFrom || '').split('T')[0]}{log.effectiveTo ? ` to ${(log.effectiveTo || '').split('T')[0]}` : ' (Current)'}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <Badge variant={log.status === 'Active' ? 'success' : 'neutral'} size="sm">
-                        {log.status}
-                      </Badge>
+                {assignmentLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-10 text-center text-slate-400">
+                      No assignment history log items found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  assignmentLogs
+                    .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+                    .map(log => (
+                    <tr key={log.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">{log.vehicleNumber}</td>
+                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{log.routeName}</td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driverName}</td>
+                      <td className="py-3 px-4 text-emerald-600 dark:text-emerald-400">{log.attendantName}</td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.branch}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.academicYear}</td>
+                      <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">
+                        {(log.effectiveFrom || '').split('T')[0]}{log.effectiveTo ? ` to ${(log.effectiveTo || '').split('T')[0]}` : ' (Current)'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <Badge variant={log.status === 'Active' ? 'success' : 'neutral'} size="sm">
+                          {log.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
+
+          <Pagination
+            currentPage={currentPage}
+            totalItems={assignmentLogs.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+          />
         </div>
       )}
 

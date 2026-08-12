@@ -69,7 +69,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     const loadAllSubjects = async (classesToProcess?: string[]) => {
       if (!exam?.id) return;
       setLoadingSubjects(true);
-      console.log('🔍 [ExamSetup] Starting loadAllSubjects for exam:', { id: exam.id, name: exam.name, applicableClasses: exam.applicableClasses });
       try {
         const appClasses = classesToProcess || (Array.isArray(exam.applicableClasses) && exam.applicableClasses.length > 0
           ? exam.applicableClasses
@@ -98,22 +97,18 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
             return true;
           });
 
-          console.log(`🔍 [ExamSetup] Class "${cls}": Valid class subjects (${validClassSubs.length}):`, validClassSubs);
-
           // Fetch previously saved subjects from API if available
           let apiSubs: any[] = [];
           try {
             const apiRes = await fetchExamSubjectsApi(exam.id, cls);
-            console.log(`🔍 [ExamSetup] Class "${cls}": fetchExamSubjectsApi response:`, apiRes);
             if (apiRes && apiRes.success && Array.isArray(apiRes.data?.subjects)) {
               apiSubs = apiRes.data.subjects;
             }
           } catch (e) {
-            console.warn(`⚠️ [ExamSetup] Class "${cls}": fetchExamSubjectsApi error:`, e);
+            // Ignore fetch error
           }
 
           const existingClassWise = (exam.marksConfig as any)?.classWiseConfig?.[cls];
-          console.log(`🔍 [ExamSetup] Class "${cls}": existingClassWise from props:`, existingClassWise);
 
           const subList: any[] = validClassSubs.map(sName => {
             const apiMatch = apiSubs.find(s => s.subjectName?.toLowerCase() === sName.toLowerCase());
@@ -141,8 +136,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
             };
           });
 
-          console.log(`🔍 [ExamSetup] Class "${cls}": computed subList (with isActive flags):`, subList);
-
           origMap[cls] = subList;
 
           const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
@@ -168,8 +161,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           });
         });
 
-        console.log('🔍 [ExamSetup] Setting final classWiseConfig in formData:', classWise);
-
         setFormData(prev => ({
           ...prev,
           marksConfig: {
@@ -181,7 +172,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           } as any
         }));
       } catch (err: any) {
-        console.error('❌ [ExamSetup] Error in loadAllSubjects:', err);
         addToast('error', 'Error Loading Subjects', err.message || 'Could not fetch subjects.');
       } finally {
         setLoadingSubjects(false);
@@ -357,7 +347,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   };
 
   const handleToggleSubject = (className: string, subjectName: string) => {
-    console.log('🔘 [ExamSetup] handleToggleSubject called:', { className, subjectName });
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
       const exists = list.some(s => s.subjectName.toLowerCase() === subjectName.toLowerCase());
@@ -381,7 +370,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           }
         ];
       }
-      console.log('🔘 [ExamSetup] Updated originalSubjects for', className, ':', updated);
       return { ...prev, [className]: updated };
     });
 
@@ -409,8 +397,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         });
       });
 
-      console.log('🔘 [ExamSetup] New classWiseConfig for', className, ':', currentClassSubjects);
-
       return {
         ...prev,
         marksConfig: {
@@ -423,7 +409,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   };
 
   const handleSelectAllForClass = (className: string, subjectsList: string[]) => {
-    console.log('✅ [ExamSetup] handleSelectAllForClass called:', { className, subjectsList });
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
       const subjectMap = new Map(list.map(s => [s.subjectName.toLowerCase(), s]));
@@ -439,7 +424,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         };
       });
 
-      console.log('✅ [ExamSetup] Updated originalSubjects (all active) for', className, ':', updated);
       return { ...prev, [className]: updated };
     });
 
@@ -465,8 +449,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         });
       });
 
-      console.log('✅ [ExamSetup] Updated classWiseConfig (all active) for', className, ':', currentClassSubjects);
-
       return {
         ...prev,
         marksConfig: {
@@ -479,7 +461,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   };
 
   const handleClearAllForClass = (className: string) => {
-    console.log('❌ [ExamSetup] handleClearAllForClass called for:', className);
     setOriginalSubjects(prev => {
       const list = prev[className] || [];
       const updated = list.map(sub => ({ ...sub, isActive: false }));
@@ -533,7 +514,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   const handleSaveSubjects = async () => {
     if (!exam?.id) return;
     setLoadingSubjects(true);
-    console.log('💾 [ExamSetup] Starting handleSaveSubjects for examId:', exam.id);
     try {
       const appClasses = formData.applicableClasses || [];
       const classWise = (formData.marksConfig as any)?.classWiseConfig || {};
@@ -581,9 +561,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           proceedToSchedule: true
         };
 
-        console.log(`💾 [ExamSetup] Saving payload for class "${cls}":`, payload);
         const response = await saveExamSubjectsApi(payload);
-        console.log(`💾 [ExamSetup] Response for class "${cls}":`, response);
         if (!response || !response.success) {
           throw new Error(response?.message || `Failed to save subjects configuration for class ${cls}`);
         }
@@ -594,7 +572,6 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
       addToast('success', 'Subjects Configurations Saved', 'Exam subject rules updated successfully.');
       onNavigateNext();
     } catch (err: any) {
-      console.error('❌ [ExamSetup] Save failed:', err);
       addToast('error', 'Save Failed', err.message || 'Failed to save subject configuration.');
     } finally {
       setLoadingSubjects(false);

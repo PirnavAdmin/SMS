@@ -88,78 +88,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
-    let mappedRole: UserRole = chosenRole || 'Admin';
-    let realToken = 'mock-jwt-token-' + Date.now();
-    let userName = emailOrPhone.split('@')[0] || 'Administrator';
-    let userIdStr = `USR-${Math.floor(Math.random() * 1000)}`;
-    const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
-
-    const normalizedIdentifier = (emailOrPhone || '').trim().toLowerCase();
-
-    // Check offline development credentials
-    if (
-      normalizedIdentifier === 'admin@pirnavschools.com' ||
-      normalizedIdentifier === 'admin' ||
-      normalizedIdentifier === 'admin@stxaviers.edu' ||
-      chosenRole === 'Admin'
-    ) {
-      mappedRole = 'Admin';
-      userName = 'Administrator';
-    } else if (normalizedIdentifier === 'teacher@pirnavschools.com' || chosenRole === 'Teacher') {
-      mappedRole = 'Teacher';
-      userName = 'Teacher';
-    } else if (normalizedIdentifier === 'student@pirnavschools.com' || chosenRole === 'Student') {
-      mappedRole = 'Student';
-      userName = 'Student';
-    } else if (normalizedIdentifier === 'parent@pirnavschools.com' || chosenRole === 'Parent') {
-      mappedRole = 'Parent';
-      userName = 'Parent';
-    }
-
     try {
       const response = await loginApi(emailOrPhone, password);
-      if (response?.token) {
-        realToken = response.token;
-        const roles = response?.roles || [];
-        const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
 
-        if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
-          mappedRole = 'Admin';
-        } else {
-          const resolvedRole = priorityRoles.find(role => roles.includes(role));
-          if (resolvedRole) {
-            mappedRole = resolvedRole;
-          }
-        }
-
-        userName = response?.fullName || response?.user?.name || userName;
-        userIdStr = response?.userId ? String(response.userId) : userIdStr;
+      const realToken = response?.token;
+      if (!realToken) {
+        throw new Error('No authentication token received.');
       }
+
+      const roles = response?.roles || [];
+      const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
+      let mappedRole: UserRole = 'Student'; // Default fallback
+
+      if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
+        mappedRole = 'Admin';
+      } else {
+        const resolvedRole = priorityRoles.find(role => roles.includes(role));
+        if (resolvedRole) {
+          mappedRole = resolvedRole;
+
+        }
+      }
+
+      const userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
+      const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
+
+      const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
+
+      const loggedUser: User = {
+        id: userIdStr,
+        name: userName,
+        email: emailOrPhone,
+        role: mappedRole,
+        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+        lastLogin: new Date().toLocaleString(),
+        status: 'Active',
+        isFirstLogin: employeeRoles.includes(mappedRole) || mappedRole === 'Teacher'
+      };
+
+      setUser(loggedUser);
+      setRoleState(mappedRole);
+      setToken(realToken);
+
+      localStorage.setItem('auth_user', JSON.stringify(loggedUser));
+      localStorage.setItem('auth_token', realToken);
+
+      // Store roles specifically to mirror backend logic in App
+      localStorage.setItem('roles', JSON.stringify(roles));
+
+      return true;
     } catch (err: any) {
-      // Backend server is offline or unreachable - fallback to offline development session
-      console.warn('Backend server offline or unreachable. Initializing offline development session for:', emailOrPhone);
+      console.error('Login error:', err);
+      // Clean up any stale data just in case
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('roles');
+      throw err;
     }
-
-    const loggedUser: User = {
-      id: userIdStr,
-      name: userName,
-      email: emailOrPhone,
-      role: mappedRole,
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
-      lastLogin: new Date().toLocaleString(),
-      status: 'Active',
-      isFirstLogin: employeeRoles.includes(mappedRole) || mappedRole === 'Teacher'
-    };
-
-    setUser(loggedUser);
-    setRoleState(mappedRole);
-    setToken(realToken);
-
-    localStorage.setItem('auth_user', JSON.stringify(loggedUser));
-    localStorage.setItem('auth_token', realToken);
-    localStorage.setItem('roles', JSON.stringify([mappedRole]));
-
-    return true;
   };
 
   const logout = () => {
@@ -224,3 +209,4 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
+

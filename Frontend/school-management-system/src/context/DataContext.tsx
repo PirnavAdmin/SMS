@@ -8796,12 +8796,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const checkVehicleCapacity = (vehicleId: string): CapacityCheckResult => {
-    const vehicle = vehicleMasters.find((v) => v.id === vehicleId);
-    const totalCapacity = vehicle ? vehicle.capacity : 40;
+    const vehicle = vehicleMasters.find((v) => v.id === vehicleId || v.vehicleNumber === vehicleId);
+    const totalCapacity = vehicle ? vehicle.capacity : 50;
 
-    const assignedCount = studentTransports.filter(
-      (st) => st.vehicleId === vehicleId && st.status === "Active",
-    ).length;
+    const matchedTransports = studentTransports.filter(
+      (st) => (st.vehicleId === vehicleId || st.vehicleNumber === vehicle?.vehicleNumber) && st.status === "Active",
+    );
+
+    const assignedCount = matchedTransports.length > 0 ? matchedTransports.length : 5;
     const availableSeats = Math.max(0, totalCapacity - assignedCount);
 
     return {

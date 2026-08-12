@@ -147,7 +147,7 @@ export const PickupPointsView: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
         <div className="relative flex-1 sm:max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -167,7 +167,7 @@ export const PickupPointsView: React.FC = () => {
             className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
           >
             <option value="">-- Select Route --</option>
-            <option value="All">All Transit Routes</option>
+            <option value="All">All Pickup Points</option>
             {routeMasters.map(r => (
               <option key={r.id} value={r.id}>
                 {r.routeName} ({r.routeCode})
@@ -178,9 +178,9 @@ export const PickupPointsView: React.FC = () => {
       </div>
 
       {selectedRouteFilter === '' ? (
-        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
-            <MapPin className="w-7 h-7" />
+        <div className="glass-card p-10 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
+            <MapPin className="w-4.5 h-4.5" />
           </div>
           <h3 className="text-base font-black text-slate-900 dark:text-white">Please Select a Route</h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
@@ -212,15 +212,15 @@ export const PickupPointsView: React.FC = () => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Seq #</th>
-                  <th className="py-3.5 px-4">Route</th>
-                  <th className="py-3.5 px-4">Pickup Point Name</th>
-                  <th className="py-3.5 px-4">Distance (KM)</th>
-                  <th className="py-3.5 px-4">Morning Pickup</th>
-                  <th className="py-3.5 px-4">Evening Drop</th>
-                  <th className="py-3.5 px-4">Monthly Fee</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">Seq #</th>
+                  <th className="py-3.5 px-4 text-center">Route</th>
+                  <th className="py-3.5 px-4 text-center">Pickup Point Name</th>
+                  <th className="py-3.5 px-4 text-center">Distance (KM)</th>
+                  <th className="py-3.5 px-4 text-center">Morning Pickup</th>
+                  <th className="py-3.5 px-4 text-center">Evening Drop</th>
+                  <th className="py-3.5 px-4 text-center">Monthly Fee</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">

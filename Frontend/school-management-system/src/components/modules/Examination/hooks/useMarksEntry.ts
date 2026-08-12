@@ -95,7 +95,7 @@ export function useMarksEntry() {
           try {
             rosterMarks[student.id] = JSON.parse(draft);
           } catch (e) {
-            console.error(e);
+            // Ignore parse errors
           }
         } else {
           rosterMarks[student.id] = {
