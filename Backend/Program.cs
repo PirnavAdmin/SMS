@@ -1318,7 +1318,6 @@ using (var scope = app.Services.CreateScope())
 
         var adminUser =
             await context.Users
-                .Include(x => x.Roles)
                 .FirstOrDefaultAsync(
                     x => x.Email == adminEmail);
 
@@ -1340,16 +1339,6 @@ using (var scope = app.Services.CreateScope())
                 CreatedAt = DateTime.UtcNow
             };
 
-            if (adminRole != null)
-            {
-                adminUser.Roles.Add(adminRole);
-            }
-
-            if (superAdminRole != null)
-            {
-                adminUser.Roles.Add(superAdminRole);
-            }
-
             await context.Users.AddAsync(adminUser);
         }
         else
@@ -1361,20 +1350,6 @@ using (var scope = app.Services.CreateScope())
                     "admin1234");
 
             adminUser.Role = "Admin";
-
-            if (adminRole != null &&
-                adminUser.Roles.All(
-                    x => x.RoleName != "Admin"))
-            {
-                adminUser.Roles.Add(adminRole);
-            }
-
-            if (superAdminRole != null &&
-                adminUser.Roles.All(
-                    x => x.RoleName != "SuperAdmin"))
-            {
-                adminUser.Roles.Add(superAdminRole);
-            }
         }
 
         await context.SaveChangesAsync();
@@ -1428,7 +1403,6 @@ using (var scope = app.Services.CreateScope())
             }
 
             var existingUser = await context.Users
-                .Include(x => x.Roles)
                 .FirstOrDefaultAsync(x =>
                     x.Email == portalUser.Email ||
                     x.MobileNumber == portalUser.Mobile);
@@ -1448,19 +1422,11 @@ using (var scope = app.Services.CreateScope())
                     CreatedAt = DateTime.UtcNow
                 };
 
-                newUser.Roles.Add(portalUser.Role);
-
                 await context.Users.AddAsync(newUser);
             }
             else
             {
                 existingUser.Role = portalUser.Role.RoleName;
-
-                if (existingUser.Roles.All(x =>
-                    x.RoleId != portalUser.Role.RoleId))
-                {
-                    existingUser.Roles.Add(portalUser.Role);
-                }
             }
         }
 

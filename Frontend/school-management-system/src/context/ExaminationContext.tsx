@@ -62,14 +62,15 @@ export const ExaminationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [refreshExamData]);
 
   const handleAddExam = async (examData: Omit<ExamSetup, 'id'>) => {
+    const data = examData as any;
     try {
       await saveExamDetailsApi({
-        examName: examData.name,
-        assessmentType: examData.assessmentType || 'Main Exam',
-        academicTerm: examData.term || 'Term 1',
-        startDate: examData.startDate,
-        endDate: examData.endDate,
-        applicableClasses: examData.classes || []
+        examName: data.name,
+        assessmentType: data.assessmentType || 'Main Exam',
+        academicTerm: data.term || 'Term 1',
+        startDate: data.startDate,
+        endDate: data.endDate,
+        applicableClasses: data.classes || []
       });
       addToast('success', 'Exam Setup Saved', 'Examination configuration created successfully.');
       await refreshExamData();
@@ -83,14 +84,17 @@ export const ExaminationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const original = exams.find(e => e.id === id);
       if (!original) return;
 
+      const up = updates as any;
+      const orig = original as any;
+
       await saveExamDetailsApi({
         examId: parseInt(id),
-        examName: updates.name || original.name,
-        assessmentType: updates.assessmentType || original.assessmentType || 'Main Exam',
-        academicTerm: updates.term || original.term || 'Term 1',
-        startDate: updates.startDate || original.startDate,
-        endDate: updates.endDate || original.endDate,
-        applicableClasses: updates.classes || original.classes || []
+        examName: up.name || orig.name,
+        assessmentType: up.assessmentType || orig.assessmentType || 'Main Exam',
+        academicTerm: up.term || orig.term || 'Term 1',
+        startDate: up.startDate || orig.startDate,
+        endDate: up.endDate || orig.endDate,
+        applicableClasses: up.classes || orig.classes || []
       });
       addToast('success', 'Exam Setup Updated', 'Examination details updated successfully.');
       await refreshExamData();
@@ -131,7 +135,7 @@ export const ExaminationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           students: items.map((m, idx) => ({
             entryId: 0,
             rollNo: (idx + 1).toString(),
-            studentName: m.studentName || `Student ${m.studentId}`,
+            studentName: (m as any).studentName || `Student ${m.studentId}`,
             admissionNo: m.studentId, // Legacy studentId is often used as admissionNo or studentId
             attendanceStatus: 'Present',
             marksObtained: m.marksObtained,

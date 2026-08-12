@@ -127,7 +127,7 @@ export const TeacherProfileView: React.FC = () => {
       const updated = await updateTeacherProfileMe(formData);
       setProfile(updated);
       setIsEditModalOpen(false);
-      addToast('Profile updated successfully', 'success');
+      addToast('success', 'Profile Updated', 'Profile updated successfully');
     } catch (err: any) {
       console.error('Update profile error:', err);
       // Fallback local update
@@ -141,9 +141,9 @@ export const TeacherProfileView: React.FC = () => {
         };
         setProfile(updatedLocal);
         setIsEditModalOpen(false);
-        addToast('Profile updated locally', 'success');
+        addToast('success', 'Profile Updated', 'Profile updated locally');
       } else {
-        addToast('Failed to update profile', 'error');
+        addToast('error', 'Update Failed', 'Failed to update profile');
       }
     } finally {
       setSubmitting(false);
@@ -300,7 +300,6 @@ export const TeacherProfileView: React.FC = () => {
               <div>
                 <span className="text-xs text-slate-500 dark:text-slate-400 block font-medium">Blood Group</span>
                 <span className="text-slate-800 dark:text-slate-200 font-medium flex items-center gap-1">
-                  <Heart className="w-3.5 h-3.5 text-rose-500 inline" />
                   {profile?.bloodGroup || 'N/A'}
                 </span>
               </div>

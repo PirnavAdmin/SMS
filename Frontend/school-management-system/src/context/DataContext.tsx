@@ -3627,7 +3627,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           parentPhone: s.parentPhone || s.fatherContact || "",
           address: s.address || "",
           promotionHistory: [],
-        }));
+          rollNo: s.rollNo || "",
+          bloodGroup: s.bloodGroup || "",
+          category: s.category || "",
+          avatar: s.avatar || "",
+          joiningDate: s.joiningDate || "",
+          fatherName: s.fatherName || "",
+          fatherPhone: s.fatherPhone || "",
+          fatherOccupation: s.fatherOccupation || "",
+          motherName: s.motherName || "",
+          motherPhone: s.motherPhone || ""
+        } as any)) as Student[];
         setStudents(mapped);
       }
     } catch (err) {
