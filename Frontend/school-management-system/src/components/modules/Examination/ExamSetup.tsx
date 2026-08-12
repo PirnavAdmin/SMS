@@ -46,35 +46,41 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
   const [originalSubjects, setOriginalSubjects] = useState<Record<string, any[]>>({});
 
   const [formData, setFormData] = useState<Partial<ExamSetupType>>({
-    name: '',
-    examType: '',
-    applicableClasses: [],
-    startDate: '',
-    endDate: '',
-    defaultStartTime: '09:00',
-    defaultEndTime: '12:00',
-    status: 'Scheduled',
-    publishStatus: 'Draft',
+    name: exam?.name || '',
+    examType: exam?.examType || (exam as any)?.assessmentType || '',
+    term: (exam as any)?.term || (exam as any)?.academicTerm || '',
+    applicableClasses: exam?.applicableClasses || (exam as any)?.classes || (exam?.className ? [exam.className] : []),
+    startDate: exam?.startDate || '',
+    endDate: exam?.endDate || '',
+    defaultStartTime: exam?.defaultStartTime || '09:00',
+    defaultEndTime: exam?.defaultEndTime || '12:00',
+    status: exam?.status || 'Scheduled',
+    publishStatus: exam?.publishStatus || 'Draft',
     marksConfig: {
       maxMarks: 100,
       passMarks: 35,
-      subjectWiseConfig: {}
+      subjectWiseConfig: {},
+      classWiseConfig: {}
     } as any
   });
 
   // Sync state if selected exam changes
   useEffect(() => {
-    const loadAllSubjects = async () => {
+    const loadAllSubjects = async (classesToProcess?: string[]) => {
       if (!exam?.id) return;
       setLoadingSubjects(true);
       console.log('🔍 [ExamSetup] Starting loadAllSubjects for exam:', { id: exam.id, name: exam.name, applicableClasses: exam.applicableClasses });
       try {
-        const appClasses = exam.applicableClasses || [];
+        const appClasses = classesToProcess || (Array.isArray(exam.applicableClasses) && exam.applicableClasses.length > 0
+          ? exam.applicableClasses
+          : (Array.isArray((exam as any).classes) && (exam as any).classes.length > 0
+              ? (exam as any).classes
+              : (exam.className ? [exam.className] : [])));
         const classWise: Record<string, Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }>> = {};
         const origMap: Record<string, any[]> = {};
 
         // Process each applicable class
-        await Promise.all(appClasses.map(async (cls) => {
+        await Promise.all(appClasses.map(async (cls: string) => {
           const matchedClass = academicClasses.find(c => c.name === cls);
           let rawSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
             ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
@@ -167,6 +173,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         setFormData(prev => ({
           ...prev,
           marksConfig: {
+            ...(prev.marksConfig || {}),
             maxMarks: exam.marksConfig?.maxMarks || 100,
             passMarks: exam.marksConfig?.passMarks || 35,
             subjectWiseConfig: aggregated,
@@ -182,11 +189,20 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
     };
 
     if (exam) {
+      const appClasses = Array.isArray(exam.applicableClasses) && exam.applicableClasses.length > 0
+        ? exam.applicableClasses
+        : (Array.isArray((exam as any).classes) && (exam as any).classes.length > 0
+            ? (exam as any).classes
+            : (exam.className ? [exam.className] : []));
+
+      const termVal = (exam as any).term || (exam as any).academicTerm || (exam as any).termCycle || '';
+
       setFormData({
         id: exam.id,
         name: exam.name || '',
         examType: exam.examType || (exam as any).assessmentType || 'Unit Test',
-        applicableClasses: exam.applicableClasses || (exam.className ? [exam.className] : []),
+        term: termVal,
+        applicableClasses: appClasses,
         startDate: exam.startDate || '',
         endDate: exam.endDate || '',
         defaultStartTime: exam.defaultStartTime || '09:00',
@@ -200,11 +216,12 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
           classWiseConfig: (exam.marksConfig as any)?.classWiseConfig || {}
         } as any
       });
-      loadAllSubjects();
+      loadAllSubjects(appClasses);
     } else {
       setFormData({
         name: '',
         examType: '',
+        term: '',
         applicableClasses: [],
         startDate: '',
         endDate: '',
@@ -220,7 +237,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         } as any
       });
     }
-  }, [exam]);
+  }, [exam?.id, exam?.name, (exam as any)?.term, (exam as any)?.academicTerm, exam?.applicableClasses]);
 
   const handleUpdateForm = (updates: any) => {
     setFormData(prev => {
@@ -738,6 +755,8 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
                   <ExamSubjectConfiguration
                     applicableClasses={formData.applicableClasses || []}
                     classWiseConfig={(formData.marksConfig as any)?.classWiseConfig || {}}
+                    startDate={formData.startDate}
+                    endDate={formData.endDate}
                     onToggleSubject={handleToggleSubject}
                     onUpdateMarks={handleUpdateSubjectConfig}
                     onSelectAllForClass={handleSelectAllForClass}

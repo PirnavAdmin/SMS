@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle2, Circle, Layers, CheckSquare, Square } from 'lucide-react';
+import { CheckCircle2, Circle, Layers, CheckSquare, Square, AlertTriangle, Info, Calendar, Clock } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 
 interface ExamSubjectConfigurationProps {
   applicableClasses: string[];
   classWiseConfig: Record<string, Record<string, { maxMarks: number; passMarks: number }>>;
+  startDate?: string;
+  endDate?: string;
   onToggleSubject: (className: string, subject: string) => void;
   onUpdateMarks: (className: string, subject: string, maxMarks: number, passMarks: number) => void;
   onSelectAllForClass?: (className: string, subjects: string[]) => void;
@@ -14,6 +16,8 @@ interface ExamSubjectConfigurationProps {
 export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> = ({
   applicableClasses,
   classWiseConfig,
+  startDate,
+  endDate,
   onToggleSubject,
   onUpdateMarks,
   onSelectAllForClass,
@@ -70,6 +74,31 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
     return Object.keys(currentClassMap).filter(name => validSet.has(name.toLowerCase()));
   }, [classSubjects, currentClassMap]);
   console.log(`🎨 [ExamSubjectConfiguration] Selected class "${selectedClass}": activeSubjectNames (${activeSubjectNames.length}):`, activeSubjectNames, 'full map:', currentClassMap);
+
+  // Calculate working days in the exam window (skipping Sundays)
+  const windowDays = useMemo(() => {
+    if (!startDate || !endDate) return { totalDays: 0, workingDays: 0 };
+    const parseDate = (dStr: string) => {
+      const parts = dStr.split(/[-/]/);
+      if (parts.length === 3 && parts[0].length === 2) {
+        return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+      return new Date(dStr);
+    };
+    const s = parseDate(startDate);
+    const e = parseDate(endDate);
+    if (isNaN(s.getTime()) || isNaN(e.getTime()) || s > e) return { totalDays: 0, workingDays: 0 };
+
+    let totalDays = 0;
+    let workingDays = 0;
+    let curr = new Date(s);
+    while (curr <= e) {
+      totalDays++;
+      if (curr.getDay() !== 0) workingDays++;
+      curr.setDate(curr.getDate() + 1);
+    }
+    return { totalDays, workingDays };
+  }, [startDate, endDate]);
 
   const labelClass = "text-[8px] font-black uppercase tracking-wider text-slate-400 block mb-0.5";
   const numInputClass = "w-full px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 font-mono transition h-[30px]";
@@ -133,6 +162,28 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
           </div>
         )}
       </div>
+
+      {/* Scheduling Intelligence Notice: When subjects exceed available days */}
+      {windowDays.workingDays > 0 && activeSubjectNames.length > windowDays.workingDays && (
+        <div className="p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs animate-in fade-in">
+          <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/70 text-amber-600 dark:text-amber-300 shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-extrabold text-amber-950 dark:text-amber-100 text-xs">
+                Scheduling Notice: {activeSubjectNames.length} Subjects Selected for {selectedClass} vs {windowDays.workingDays} Available Working Day{windowDays.workingDays === 1 ? '' : 's'}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-amber-200/80 dark:bg-amber-900/80 text-[10px] font-mono font-bold text-amber-900 dark:text-amber-200">
+                {startDate} to {endDate}
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-800 dark:text-amber-300/90 leading-relaxed">
+              You have selected more subjects ({activeSubjectNames.length}) than single exam days ({windowDays.workingDays} days). In the next step (<strong>Exam Schedule</strong>), you can easily schedule multiple subjects on the same day using different time slots (e.g. morning and afternoon sessions), or extend the <strong>End Date</strong> under <em>1. Exam Details</em> if you require one exam per day.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Quick Select / Deselect All Controls for the active class */}
       <div className="flex items-center justify-between gap-2 px-1">
