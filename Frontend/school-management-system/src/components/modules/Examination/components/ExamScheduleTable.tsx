@@ -194,7 +194,6 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
             <th className={`${tableHeaderClass} min-w-[155px] text-center`}>Exam Date</th>
             <th className={`${tableHeaderClass} min-w-[290px] text-center`}>Time Slot</th>
             <th className={`${tableHeaderClass} min-w-[90px] text-center`}>Duration</th>
-            <th className={`${tableHeaderClass} min-w-[110px] text-center`}>Room / Hall</th>
             <th className={`${tableHeaderClass} min-w-[200px] text-left`}>Invigilator Faculty</th>
           </tr>
         </thead>
@@ -267,29 +266,6 @@ export const ExamScheduleTable: React.FC<ExamScheduleTableProps> = ({
                 {/* Duration */}
                 <td className={`${tdClass} font-mono text-slate-500 dark:text-slate-400 font-bold whitespace-nowrap text-center`}>
                   {calculateDurationLabel(row.startTime, row.endTime)}
-                </td>
-
-                {/* Room / Hall */}
-                <td className={`${tdClass} whitespace-nowrap text-center`}>
-                  {isEditing ? (
-                    <div className="flex justify-center">
-                      <input
-                        type="text"
-                        placeholder="e.g. 101"
-                        value={row.room === 'TBA' ? '' : (row.room || '')}
-                        onChange={e => onUpdateRow(row.id, { room: e.target.value || 'TBA' })}
-                        className="w-24 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-white outline-none text-center focus:border-sky-500 shadow-xs"
-                      />
-                    </div>
-                  ) : (
-                    <span className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-bold ${
-                      row.room && row.room !== 'TBA'
-                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200'
-                        : 'text-slate-400 italic'
-                    }`}>
-                      {row.room || 'TBA'}
-                    </span>
-                  )}
                 </td>
 
                 {/* Multi-Invigilator Staff */}
