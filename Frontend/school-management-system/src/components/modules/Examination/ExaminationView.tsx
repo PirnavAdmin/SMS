@@ -82,10 +82,8 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
       return;
     }
     setLoadingDetails(true);
-    console.log('📌 [ExaminationView] loadExamDetails called for examId:', id);
     try {
       const response = await fetchExamByIdApi(id);
-      console.log('📌 [ExaminationView] fetchExamByIdApi response:', response);
       if (response && response.success && response.data) {
         const d = response.data;
         const appClasses = Array.isArray(d.applicableClasses) && d.applicableClasses.length > 0
@@ -104,7 +102,6 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         const fetches = appClasses.map(async (cls: string) => {
           try {
             const res = await fetchExamSubjectsApi(id, cls);
-            console.log(`📌 [ExaminationView] fetchExamSubjectsApi for class "${cls}":`, res);
             const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
             if (res && res.success && res.data?.subjects) {
               res.data.subjects.forEach((s: any) => {
@@ -122,13 +119,11 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             }
             classWise[cls] = subMap;
           } catch (e) {
-            console.error(`Failed to load subjects for class ${cls}`, e);
+            // Ignore individual class fetch error
           }
         });
 
         await Promise.all(fetches);
-
-        console.log('📌 [ExaminationView] Final active classWise map assembled:', classWise);
 
         setActiveExam({
           id: (d.examId || id).toString(),
@@ -152,7 +147,6 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
         addToast('error', 'Error Loading Exam Details', response?.message || 'Failed to fetch exam properties.');
       }
     } catch (err: any) {
-      console.error('❌ [ExaminationView] Error in loadExamDetails:', err);
       addToast('error', 'API Error', err.message || 'Failed to load exam details.');
     } finally {
       setLoadingDetails(false);

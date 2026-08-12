@@ -12,29 +12,51 @@ export { initialBusAttendants };          // re-export value for backward compat
 // BusAttendantMaster type and initialBusAttendants are now in transportData.ts
 
 export const BusAttendantMasterView: React.FC = () => {
-  const { vehicleAssignments } = useData();
+  const { staff, vehicleAssignments } = useData();
   const { addToast } = useToast();
+
+  const nonTeachingStaff = React.useMemo(() => {
+    return (staff || []).filter(s => 
+      s.employeeCategory === 'Staff' ||
+      s.department?.toLowerCase().includes('transport') ||
+      s.department?.toLowerCase().includes('operation') ||
+      s.department?.toLowerCase().includes('maintenance') ||
+      s.department?.toLowerCase().includes('security') ||
+      s.department?.toLowerCase().includes('admin') ||
+      s.designation?.toLowerCase().includes('attendant') ||
+      s.designation?.toLowerCase().includes('driver') ||
+      s.designation?.toLowerCase().includes('staff')
+    );
+  }, [staff]);
 
   const [attendants, setAttendants] = useState<BusAttendantMaster[]>(initialBusAttendants);
   const [query, setQuery] = useState('');
+  const [selectedAttendantFilter, setSelectedAttendantFilter] = useState(() => sessionStorage.getItem('tm_attendant_filter') || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAttendant, setEditingAttendant] = useState<BusAttendantMaster | null>(null);
   const [deletingAttendant, setDeletingAttendant] = useState<BusAttendantMaster | null>(null);
 
+  const handleAttendantFilterChange = (val: string) => {
+    setSelectedAttendantFilter(val);
+    sessionStorage.setItem('tm_attendant_filter', val);
+  };
+
   const [form, setForm] = useState<Partial<BusAttendantMaster>>({
-    employeeId: 'ATT-2026-04',
+    employeeId: '',
     attendantName: '',
-    mobileNumber: '+1 (555) 019-8800',
+    mobileNumber: '',
     gender: '' as any,
     branch: 'Main Campus',
     status: 'Active'
   });
 
-  const filteredAttendants = attendants.filter(a =>
-    a.attendantName.toLowerCase().includes(query.toLowerCase()) ||
-    a.employeeId.toLowerCase().includes(query.toLowerCase()) ||
-    a.mobileNumber.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredAttendants = attendants.filter(a => {
+    const matchesQuery = a.attendantName.toLowerCase().includes(query.toLowerCase()) ||
+                         a.employeeId.toLowerCase().includes(query.toLowerCase()) ||
+                         a.mobileNumber.toLowerCase().includes(query.toLowerCase());
+    const matchesAttendant = selectedAttendantFilter === 'ALL' || a.id === selectedAttendantFilter;
+    return matchesQuery && matchesAttendant;
+  });
 
   const resolveCurrentAssignment = (attendant: BusAttendantMaster) =>
     vehicleAssignments.find(assignment => assignment.attendantId === attendant.id && assignment.status === 'Active') ||
@@ -43,9 +65,9 @@ export const BusAttendantMasterView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingAttendant(null);
     setForm({
-      employeeId: `ATT-2026-${Math.floor(10 + Math.random() * 90)}`,
+      employeeId: '',
       attendantName: '',
-      mobileNumber: '+1 (555) 019-8800',
+      mobileNumber: '',
       gender: '' as any,
       branch: 'Main Campus',
       status: 'Active'
@@ -103,13 +125,18 @@ export const BusAttendantMasterView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add Bus Attendant
           </button>
-          <ExportButton data={attendants} filename="bus_attendants_directory" />
+          <ExportButton 
+            data={filteredAttendants} 
+            filename={selectedAttendantFilter && selectedAttendantFilter !== 'ALL' 
+              ? `attendant_${attendants.find(a => a.id === selectedAttendantFilter)?.attendantName.replace(/\s+/g, '_') || 'filtered'}` 
+              : 'bus_attendants_directory'} 
+          />
         </div>
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
-        <div className="relative w-full sm:w-72">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
@@ -119,10 +146,56 @@ export const BusAttendantMasterView: React.FC = () => {
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Attendant:</label>
+          <select
+            value={selectedAttendantFilter}
+            onChange={e => handleAttendantFilterChange(e.target.value)}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="">-- Select Bus Attendant --</option>
+            <option value="ALL">All Bus Attendants</option>
+            {attendants.map(a => (
+              <option key={a.id} value={a.id}>
+                {a.attendantName} ({a.employeeId})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Attendant Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {selectedAttendantFilter === '' ? (
+        <div className="glass-card p-10 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
+            <UserCheck className="w-4.5 h-4.5" />
+          </div>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">Please Select a Bus Attendant</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Select an attendant from the dropdown above or click below to view all attendants.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => handleAttendantFilterChange('ALL')}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 inline-flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              View All Bus Attendants
+            </button>
+          </div>
+        </div>
+      ) : filteredAttendants.length === 0 ? (
+        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+          <p className="text-slate-400 text-xs font-bold">No bus attendants found matching your filter or search query.</p>
+          <button
+            onClick={() => { handleAttendantFilterChange('ALL'); setQuery(''); }}
+            className="text-xs text-sky-600 font-bold hover:underline"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        /* Attendant Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredAttendants.map(a => {
           const currentAssignment = resolveCurrentAssignment(a);
           return (
@@ -169,7 +242,8 @@ export const BusAttendantMasterView: React.FC = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Modal */}
       {isModalOpen && (
@@ -196,6 +270,36 @@ export const BusAttendantMasterView: React.FC = () => {
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Import from Non-Teaching Staff (Optional)
+                </label>
+                <select
+                  onChange={e => {
+                    const selected = nonTeachingStaff.find(s => s.id === e.target.value);
+                    if (selected) {
+                      setForm(prev => ({
+                        ...prev,
+                        employeeId: selected.empId || prev.employeeId,
+                        attendantName: `${selected.firstName} ${selected.lastName}`.trim(),
+                        mobileNumber: selected.phone || prev.mobileNumber,
+                        gender: (selected.gender as any) || prev.gender,
+                        branch: selected.branch || prev.branch
+                      }));
+                    }
+                  }}
+                  defaultValue=""
+                  className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  <option value="">-- Choose Non-Teaching Staff Member --</option>
+                  {nonTeachingStaff.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName} ({s.empId} • {s.designation} • {s.department})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

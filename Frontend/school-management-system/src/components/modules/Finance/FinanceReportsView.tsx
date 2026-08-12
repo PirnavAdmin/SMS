@@ -5,6 +5,7 @@ import {
   BarChart3, CheckCircle2, AlertCircle, Gift, Tag, Bus, Home, Info 
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { ExportButton } from '../../common/ExportButton';
 
 const REPORT_CATEGORIES = [
@@ -21,6 +22,12 @@ const REPORTS_BY_CATEGORY: Record<ReportCategory, string[]> = {
     'Daily Collection',
     'Monthly Collection',
     'Yearly Collection',
+    'Term-wise Collection',
+    'Term-wise Outstanding',
+    'Overdue Collection',
+    'Upcoming Dues',
+    'Academic Year Collection',
+    'Outstanding by Academic Year',
     'Branch Wise Collection',
     'Class Wise Collection',
     'Section Wise Collection',
@@ -43,7 +50,18 @@ const REPORTS_BY_CATEGORY: Record<ReportCategory, string[]> = {
 };
 
 export const FinanceReportsView: React.FC = () => {
-  const { feePayments, students, studentTransports, studentHostels, studentScholarships, getStudentFeeOutstandingSummary } = useData();
+  const {
+    feePayments,
+    students,
+    studentTransports,
+    studentHostels,
+    studentScholarships,
+    getStudentFeeOutstandingSummary,
+    getStudentFeeLedger,
+    financeSettings
+  } = useData();
+
+  const { selectedAcademicYear } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState<ReportCategory>('Collection Reports');
   const [selectedReport, setSelectedReport] = useState<string>('Daily Collection');
@@ -150,6 +168,116 @@ export const FinanceReportsView: React.FC = () => {
           previousYearsDue: summary.previousYearsDue,
           totalOutstanding: summary.totalOutstanding
         }));
+        break;
+      case 'Term-wise Collection':
+        students.forEach(st => {
+          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+          if (ledger && ledger.installments) {
+            ledger.installments.forEach(inst => {
+              if (inst.paidAmount > 0) {
+                result.push({
+                  studentName: `${st.firstName} ${st.lastName}`,
+                  admissionNo: st.admissionNo,
+                  classSection: `${st.className}-${st.section}`,
+                  termName: inst.termName,
+                  feeHead: inst.feeHeadName,
+                  dueDate: inst.dueDate,
+                  amount: inst.paidAmount
+                });
+              }
+            });
+          }
+        });
+        break;
+      case 'Term-wise Outstanding':
+        students.forEach(st => {
+          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+          if (ledger && ledger.installments) {
+            ledger.installments.forEach(inst => {
+              if (inst.dueAmount > 0) {
+                result.push({
+                  studentName: `${st.firstName} ${st.lastName}`,
+                  admissionNo: st.admissionNo,
+                  classSection: `${st.className}-${st.section}`,
+                  termName: inst.termName,
+                  feeHead: inst.feeHeadName,
+                  dueDate: inst.dueDate,
+                  amount: inst.dueAmount
+                });
+              }
+            });
+          }
+        });
+        break;
+      case 'Overdue Collection':
+        {
+          const todayStr = new Date().toISOString().split('T')[0];
+          students.forEach(st => {
+            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+            if (ledger && ledger.installments) {
+              ledger.installments.forEach(inst => {
+                if (inst.dueAmount > 0 && inst.dueDate < todayStr) {
+                  result.push({
+                    studentName: `${st.firstName} ${st.lastName}`,
+                    admissionNo: st.admissionNo,
+                    classSection: `${st.className}-${st.section}`,
+                    termName: inst.termName,
+                    feeHead: inst.feeHeadName,
+                    dueDate: inst.dueDate,
+                    amount: inst.dueAmount
+                  });
+                }
+              });
+            }
+          });
+        }
+        break;
+      case 'Upcoming Dues':
+        {
+          const currentToday = new Date().toISOString().split('T')[0];
+          students.forEach(st => {
+            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+            if (ledger && ledger.installments) {
+              ledger.installments.forEach(inst => {
+                if (inst.dueAmount > 0 && inst.dueDate >= currentToday) {
+                  result.push({
+                    studentName: `${st.firstName} ${st.lastName}`,
+                    admissionNo: st.admissionNo,
+                    classSection: `${st.className}-${st.section}`,
+                    termName: inst.termName,
+                    feeHead: inst.feeHeadName,
+                    dueDate: inst.dueDate,
+                    amount: inst.dueAmount
+                  });
+                }
+              });
+            }
+          });
+        }
+        break;
+      case 'Academic Year Collection':
+        result = feePayments.filter(p => p.academicYear === (selectedAcademicYear || financeSettings?.academicYear || '2026-2027')).map(p => ({
+          receiptNo: p.receiptNo,
+          studentName: p.studentName,
+          classSection: p.className,
+          paymentMode: p.paymentMode,
+          paymentDate: p.paymentDate,
+          amount: p.amountPaid
+        }));
+        break;
+      case 'Outstanding by Academic Year':
+        students.forEach(st => {
+          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '2026-2027');
+          if (ledger && ledger.dueBalance > 0) {
+            result.push({
+              studentName: `${st.firstName} ${st.lastName}`,
+              admissionNo: st.admissionNo,
+              classSection: `${st.className}-${st.section}`,
+              academicYear: selectedAcademicYear || financeSettings?.academicYear || '2026-2027',
+              amount: ledger.dueBalance
+            });
+          }
+        });
         break;
       default:
         // Daily Collection, Monthly Collection, Yearly Collection, Branch Wise Collection,

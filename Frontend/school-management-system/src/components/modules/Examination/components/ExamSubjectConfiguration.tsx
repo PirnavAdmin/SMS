@@ -63,7 +63,6 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
       return true;
     });
 
-    console.log(`🎨 [ExamSubjectConfiguration] Selected class "${selectedClass}": classSubjects count:`, filtered.length, filtered);
     return filtered;
   }, [selectedClass, academicClasses, allSubjects]);
 
@@ -73,7 +72,6 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
     const validSet = new Set(classSubjects.map(s => s.toLowerCase()));
     return Object.keys(currentClassMap).filter(name => validSet.has(name.toLowerCase()));
   }, [classSubjects, currentClassMap]);
-  console.log(`🎨 [ExamSubjectConfiguration] Selected class "${selectedClass}": activeSubjectNames (${activeSubjectNames.length}):`, activeSubjectNames, 'full map:', currentClassMap);
 
   // Calculate working days in the exam window (skipping Sundays)
   const windowDays = useMemo(() => {

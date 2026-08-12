@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Tag, Layers, Gift, Percent, AlertTriangle, Route, Bus,
-  Home, Bed, UserPlus, RotateCcw, SlidersHorizontal, Shirt
+  Home, Bed, UserPlus, RotateCcw, SlidersHorizontal, Shirt, Calendar
 } from 'lucide-react';
 
 import { FeeHeadsView } from './FeeHeadsView';
@@ -17,6 +17,7 @@ import { HostelConfigView } from './HostelConfigView';
 import { RefundManagementView } from './RefundManagementView';
 import { FinanceSettingsView } from './FinanceSettingsView';
 import { FinanceUniformConfigView } from './FinanceUniformConfigView';
+import { FeeScheduleView } from './FeeScheduleView';
 import { TransportScrollableTabs } from '../Transport/TransportScrollableTabs';
 
 export const FinanceMastersView: React.FC = () => {
@@ -25,6 +26,7 @@ export const FinanceMastersView: React.FC = () => {
   const subTabs = [
     { id: 'fee-heads', label: 'Fee Types', icon: Tag },
     { id: 'fee-structure', label: 'Fee Structures', icon: Layers },
+    { id: 'fee-schedule', label: 'Fee Schedule', icon: Calendar },
     { id: 'scholarships', label: 'Scholarships', icon: Gift },
     { id: 'discounts', label: 'Discounts', icon: Percent },
     { id: 'fine-rules', label: 'Fine Rules', icon: AlertTriangle },
@@ -44,6 +46,8 @@ export const FinanceMastersView: React.FC = () => {
         return <FeeHeadsView />;
       case 'fee-structure':
         return <FeeStructuresView />;
+      case 'fee-schedule':
+        return <FeeScheduleView />;
       case 'scholarships':
         return <ScholarshipsView />;
       case 'discounts':

@@ -25,13 +25,33 @@ const initialDriverDocs: DriverDocumentItem[] = [
 ];
 
 export const DriverMasterView: React.FC = () => {
-  const { driverMasters, vehicleAssignments, addDriverMaster, updateDriverMaster, deleteDriverMaster } = useData();
+  const { staff, driverMasters, vehicleAssignments, addDriverMaster, updateDriverMaster, deleteDriverMaster } = useData();
   const { addToast } = useToast();
 
+  const nonTeachingStaff = React.useMemo(() => {
+    return (staff || []).filter(s => 
+      s.employeeCategory === 'Staff' ||
+      s.department?.toLowerCase().includes('transport') ||
+      s.department?.toLowerCase().includes('operation') ||
+      s.department?.toLowerCase().includes('maintenance') ||
+      s.department?.toLowerCase().includes('security') ||
+      s.department?.toLowerCase().includes('admin') ||
+      s.designation?.toLowerCase().includes('driver') ||
+      s.designation?.toLowerCase().includes('attendant') ||
+      s.designation?.toLowerCase().includes('staff')
+    );
+  }, [staff]);
+
   const [query, setQuery] = useState('');
+  const [selectedDriverFilter, setSelectedDriverFilter] = useState(() => sessionStorage.getItem('tm_driver_filter') || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<DriverMaster | null>(null);
   const [deletingDriver, setDeletingDriver] = useState<DriverMaster | null>(null);
+
+  const handleDriverFilterChange = (val: string) => {
+    setSelectedDriverFilter(val);
+    sessionStorage.setItem('tm_driver_filter', val);
+  };
 
   // Driver Documents Modal State
   const [driverDocs, setDriverDocs] = useState<DriverDocumentItem[]>(initialDriverDocs);
@@ -46,29 +66,34 @@ export const DriverMasterView: React.FC = () => {
   });
 
   const [form, setForm] = useState<Partial<DriverMaster>>({
-    driverName: 'Dwight Schrute',
-    mobileNumber: '+1 555-333-333',
-    email: 'dwight@stxaviers.edu',
-    licenseNumber: 'DL-NY-2022-77112',
-    licenseExpiryDate: '2029-10-31',
-    address: 'Beet Farm Road, Scranton, NY',
+    employeeId: '',
+    driverName: '',
+    mobileNumber: '',
+    email: '',
+    licenseNumber: '',
+    licenseExpiryDate: '',
+    address: '',
     status: 'Active'
   });
 
-  const filteredDrivers = driverMasters.filter(d =>
-    d.driverName.toLowerCase().includes(query.toLowerCase()) ||
-    d.mobileNumber.toLowerCase().includes(query.toLowerCase()) ||
-    d.licenseNumber.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredDrivers = driverMasters.filter(d => {
+    const matchesQuery = d.driverName.toLowerCase().includes(query.toLowerCase()) ||
+                         d.mobileNumber.toLowerCase().includes(query.toLowerCase()) ||
+                         d.licenseNumber.toLowerCase().includes(query.toLowerCase()) ||
+                         (d.employeeId && d.employeeId.toLowerCase().includes(query.toLowerCase()));
+    const matchesDriver = selectedDriverFilter === 'ALL' || d.id === selectedDriverFilter;
+    return matchesQuery && matchesDriver;
+  });
 
   const handleOpenAdd = () => {
     setEditingDriver(null);
     setForm({
+      employeeId: '',
       driverName: '',
-      mobileNumber: '+1 555-333-444',
+      mobileNumber: '',
       email: '',
-      licenseNumber: `DL-NY-2023-${Math.floor(10000 + Math.random() * 90000)}`,
-      licenseExpiryDate: '2030-01-01',
+      licenseNumber: '',
+      licenseExpiryDate: '',
       address: '',
       status: 'Active'
     });
@@ -158,15 +183,20 @@ export const DriverMasterView: React.FC = () => {
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Add
+            <Plus className="w-4 h-4" /> Add Driver
           </button>
-          <ExportButton data={driverMasters} filename="driver_masters" />
+          <ExportButton 
+            data={filteredDrivers} 
+            filename={selectedDriverFilter && selectedDriverFilter !== 'ALL' 
+              ? `driver_${driverMasters.find(d => d.id === selectedDriverFilter)?.driverName.replace(/\s+/g, '_') || 'filtered'}` 
+              : 'driver_masters'} 
+          />
         </div>
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
-        <div className="relative w-full sm:w-72">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
@@ -176,10 +206,56 @@ export const DriverMasterView: React.FC = () => {
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Driver:</label>
+          <select
+            value={selectedDriverFilter}
+            onChange={e => handleDriverFilterChange(e.target.value)}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="">-- Select Driver --</option>
+            <option value="ALL">All Drivers</option>
+            {driverMasters.map(d => (
+              <option key={d.id} value={d.id}>
+                {d.driverName} ({d.employeeId || `DRV-${d.id}`})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Driver Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {selectedDriverFilter === '' ? (
+        <div className="glass-card p-10 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
+            <Users className="w-4.5 h-4.5" />
+          </div>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">Please Select a Driver</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Select a driver from the dropdown above or click below to view all drivers.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => handleDriverFilterChange('ALL')}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 inline-flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              View All Drivers
+            </button>
+          </div>
+        </div>
+      ) : filteredDrivers.length === 0 ? (
+        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+          <p className="text-slate-400 text-xs font-bold">No drivers found matching your filter or search query.</p>
+          <button
+            onClick={() => { handleDriverFilterChange('ALL'); setQuery(''); }}
+            className="text-xs text-sky-600 font-bold hover:underline"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        /* Driver Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredDrivers.map(d => {
           const currentAssignment = resolveCurrentAssignment(d);
           const dDocs = driverDocs.filter(doc => doc.driverId === d.id);
@@ -197,8 +273,8 @@ export const DriverMasterView: React.FC = () => {
                 </div>
 
                 <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
-                  <div className="flex justify-between"><span className="text-slate-400">Driver ID:</span><span className="font-mono font-bold text-slate-900 dark:text-white">{d.id}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-sky-600 flex items-center gap-1"><Phone className="w-3 h-3" /> {d.mobileNumber}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Employee ID:</span><span className="font-mono font-bold text-sky-600 dark:text-sky-400">{d.employeeId || `DRV-${d.id}`}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-400">Mobile Number:</span><span className="font-bold text-slate-900 dark:text-white flex items-center gap-1"><Phone className="w-3 h-3 text-sky-500" /> {d.mobileNumber}</span></div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">Email:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1">
@@ -240,7 +316,8 @@ export const DriverMasterView: React.FC = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
@@ -255,8 +332,43 @@ export const DriverMasterView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Driver Full Name *</label>
-                <input type="text" required value={form.driverName} onChange={e => setForm({ ...form, driverName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                  Import from Non-Teaching Staff (Optional)
+                </label>
+                <select
+                  onChange={e => {
+                    const selected = nonTeachingStaff.find(s => s.id === e.target.value);
+                    if (selected) {
+                      setForm(prev => ({
+                        ...prev,
+                        driverName: `${selected.firstName} ${selected.lastName}`.trim(),
+                        mobileNumber: selected.phone || prev.mobileNumber,
+                        email: selected.email || prev.email,
+                        address: selected.address || selected.presentAddress || prev.address
+                      }));
+                    }
+                  }}
+                  defaultValue=""
+                  className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border text-xs font-semibold text-slate-700 dark:text-slate-300"
+                >
+                  <option value="">-- Choose Non-Teaching Staff Member --</option>
+                  {nonTeachingStaff.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.firstName} {s.lastName} ({s.empId} • {s.designation} • {s.department})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold mb-1">Driver Full Name *</label>
+                  <input type="text" required value={form.driverName} onChange={e => setForm({ ...form, driverName: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1">Employee ID *</label>
+                  <input type="text" placeholder="e.g. EMP-DRV-101" value={form.employeeId || ''} onChange={e => setForm({ ...form, employeeId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold" />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

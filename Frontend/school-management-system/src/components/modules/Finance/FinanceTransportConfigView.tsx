@@ -162,7 +162,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                 <th className="py-3.5 px-4">Assigned Vehicle</th>
                 <th className="py-3.5 px-4">Assigned Driver</th>
                 <th className="py-3.5 px-4">Pickup Point</th>
-                <th className="py-3.5 px-4">Fee Plan</th>
+                <th className="py-3.5 px-4">Global Frequency</th>
                 <th className="py-3.5 px-4">Fee Amount</th>
                 <th className="py-3.5 px-4">Effective Date</th>
                 <th className="py-3.5 px-4">Status</th>
@@ -268,10 +268,10 @@ export const FinanceTransportConfigView: React.FC = () => {
                 </select>
               </div>
 
-              {/* Fee Plan & Fee Amount */}
+              {/* Global Frequency & Fee Amount */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Fee Plan *</label>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Global Frequency *</label>
                   <select
                     value={form.feePlan}
                     onChange={e => setForm({ ...form, feePlan: e.target.value as any })}

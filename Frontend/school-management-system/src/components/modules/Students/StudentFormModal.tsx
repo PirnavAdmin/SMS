@@ -155,9 +155,14 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       street, area, city, district, stateName, pinCode ? `PIN: ${pinCode}` : ''
     ].filter(Boolean).join(', ') || formData.address || 'Main Campus Area';
 
+    const isTransport = (formData.studentType === 'Non-Residential' || formData.studentType === 'Day Scholar') && formData.busRoute;
+    const isHostel = (formData.studentType === 'Residential' || formData.studentType === 'Hosteller') && formData.hostelBed;
+
     const payload = {
       ...formData,
-      address: fullAddr
+      address: fullAddr,
+      transportRequired: !!isTransport,
+      hostelRequired: !!isHostel
     };
 
     if (studentToEdit) {
@@ -332,6 +337,16 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 {dobError && <p className="text-[10px] text-rose-500 font-semibold mt-0.5">{dobError}</p>}
               </div>
               <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Admission / Joining Date *</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.joiningDate || new Date().toISOString().split('T')[0]}
+                  onChange={e => setFormData({ ...formData, joiningDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
+                />
+              </div>
+              <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Blood Group *</label>
                 <select
                   value={formData.bloodGroup}
@@ -386,6 +401,49 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Mid-Year Admission Fee Calculation Method */}
+            {formData.joiningDate && new Date(formData.joiningDate) > new Date('2026-04-01') && (
+              <div className="p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2 animate-in fade-in mt-2">
+                <div className="flex items-center justify-between">
+                  <label className="block font-extrabold text-amber-900 dark:text-amber-200 text-xs">
+                    Fee Calculation Method (Mid-Year Admission) *
+                  </label>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-200/70 dark:bg-amber-900 text-amber-800 dark:text-amber-300 font-mono">
+                    Admission Date: {formData.joiningDate}
+                  </span>
+                </div>
+                <div className="flex items-center gap-6 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    <input
+                      type="radio"
+                      name="feeCalculationMethodModal"
+                      value="Monthly"
+                      checked={formData.feeCalculationMethod === 'Monthly'}
+                      onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Monthly' })}
+                      className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                    />
+                    <span>Monthly</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200 text-xs">
+                    <input
+                      type="radio"
+                      name="feeCalculationMethodModal"
+                      value="Term-wise"
+                      checked={formData.feeCalculationMethod === 'Term-wise' || !formData.feeCalculationMethod}
+                      onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Term-wise' })}
+                      className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                    />
+                    <span>Term-wise</span>
+                  </label>
+                </div>
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                  {formData.feeCalculationMethod === 'Monthly'
+                    ? 'Fees will be calculated from the admission month (e.g. September) through March. Previous months will not be charged as pending dues.'
+                    : 'Fees will be calculated from the applicable term/quarter according to school policy. Previous completed terms will not be charged.'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Section 2: Parent & Guardian Details */}

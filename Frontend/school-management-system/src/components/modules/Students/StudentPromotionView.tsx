@@ -35,7 +35,7 @@ interface PromotionStudentRow {
 }
 
 export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNavigate }) => {
-  const { students, academicClasses, academicYears, feeStructures, updateStudent, getHighestClass, logActivity } = useData();
+  const { students, academicClasses, academicYears, feeStructures, updateStudent, addAcademicHistoryRecord, getHighestClass, logActivity } = useData();
   const { addToast } = useToast();
 
   const highestClass = getHighestClass();
@@ -543,6 +543,40 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
 
       const existingStudent = students.find(s => s.id === row.id);
       const updatedHistory = [...(existingStudent?.promotionHistory || []), historyItem];
+
+      // 1. History record for completed year (currentYear)
+      addAcademicHistoryRecord(row.id, {
+        id: `ACH-${row.id}-${currentYear}`,
+        studentId: row.id,
+        admissionNo: row.admissionNo,
+        academicYear: currentYear,
+        className: row.currentClass,
+        section: row.currentSection,
+        rollNo: row.rollNo,
+        branch: row.branch,
+        status: isPromote ? (isHighestClass ? 'Graduated' : 'Promoted') : 'Retained',
+        promotionStatus: isPromote ? 'Promoted' : 'Retained',
+        remarks: row.remarks,
+        createdAt: today,
+      });
+
+      // 2. History record for new year (targetYear) if not graduated
+      if (!isHighestClass || !isPromote) {
+        addAcademicHistoryRecord(row.id, {
+          id: `ACH-${row.id}-${targetYear}`,
+          studentId: row.id,
+          admissionNo: row.admissionNo,
+          academicYear: targetYear,
+          className: row.newClass,
+          section: cleanSection,
+          rollNo: row.rollNo,
+          branch: row.branch,
+          status: 'Active',
+          promotionStatus: isPromote ? 'Enrolled' : 'Retained Enrollment',
+          remarks: `Enrolled for ${targetYear}`,
+          createdAt: today,
+        });
+      }
 
       updateStudent(row.id, {
         className: row.newClass,

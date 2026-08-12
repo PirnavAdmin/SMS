@@ -161,7 +161,7 @@ export const HostelReportsView: React.FC = () => {
       </div>
 
       <div className="glass-card p-4 rounded-2xl space-y-3">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Select Enterprise Hostel Report</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Select School Hostel Report</span>
         <div className="flex flex-wrap gap-2">
           {ENTERPRISE_HOSTEL_REPORTS.map(report => (
             <button

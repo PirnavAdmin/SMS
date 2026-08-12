@@ -40,6 +40,7 @@ import {
   Presentation,
   Link2,
   TrendingUp,
+  History,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -409,6 +410,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: "admissions", label: "Admissions", icon: GraduationCap },
         { id: "students", label: "Student Directory", icon: UserCheck },
+        { id: "academic-history", label: "Academic History", icon: History },
         { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
         {
           id: "student-promotion",
@@ -541,9 +543,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-1">
                       <button
                         onClick={() => {
-                          if (collapsed) {
-                            setCollapsed(false);
-                          }
                           const newExpanded = !financeExpanded;
                           setFinanceExpanded(newExpanded);
                           if (newExpanded) {
@@ -647,9 +646,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-1 pt-1">
                       <button
                         onClick={() => {
-                          if (collapsed) {
-                            setCollapsed(false);
-                          }
                           const newExpanded = !hostelExpanded;
                           setHostelExpanded(newExpanded);
                           if (newExpanded) {
@@ -743,9 +739,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-1 pt-1">
                       <button
                         onClick={() => {
-                          if (collapsed) {
-                            setCollapsed(false);
-                          }
                           const newExpanded = !transportExpanded;
                           setTransportExpanded(newExpanded);
                           if (newExpanded) {
@@ -845,9 +838,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div className="space-y-1 pt-1">
                       <button
                         onClick={() => {
-                          if (collapsed) {
-                            setCollapsed(false);
-                          }
                           const newExpanded = !uniformExpanded;
                           setUniformExpanded(newExpanded);
                           if (newExpanded) {
@@ -952,9 +942,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div key={item.id} className="space-y-1">
                       <button
                         onClick={() => {
-                          if (collapsed) {
-                            setCollapsed(false);
-                          }
                           const newExpanded = !academicsExpanded;
                           setAcademicsExpanded(newExpanded);
                           if (newExpanded) {
@@ -1031,9 +1018,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div key={item.id} className="space-y-1">
                       <button
                         onClick={() => {
-                          if (collapsed) {
-                            setCollapsed(false);
-                          }
                           const newExpanded = !staffExpanded;
                           setStaffExpanded(newExpanded);
                           if (newExpanded) {
