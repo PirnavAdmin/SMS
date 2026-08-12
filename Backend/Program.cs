@@ -249,6 +249,16 @@ builder.Services.AddSwaggerGen(options =>
         apiDescriptions => apiDescriptions.First());
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 // =========================================================
@@ -267,6 +277,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowAll");
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -1101,7 +1113,10 @@ using (var scope = app.Services.CreateScope())
 #pragma warning restore EF1002
                 }
             }
-            catch { }
+            catch (Exception ex) 
+            { 
+                Console.WriteLine($"ERROR IN EnsureColumnExists for {table}.{column}: {ex.Message}");
+            }
         }
 
         EnsureColumnExists("Subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
@@ -1145,6 +1160,9 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("homeworks", "TeacherName", "varchar(150) NOT NULL DEFAULT 'Teacher'");
         EnsureColumnExists("homeworks", "SubmissionsCount", "int NOT NULL DEFAULT 0");
         EnsureColumnExists("homeworks", "CreatedAt", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+
+        EnsureColumnExists("staff", "ProfilePhoto", "longtext NULL");
+        EnsureColumnExists("Staff", "ProfilePhoto", "longtext NULL");
 
         EnsureColumnExists("users", "SchoolId", "int NULL");
 
@@ -1225,29 +1243,58 @@ using (var scope = app.Services.CreateScope())
                 try { context.Database.ExecuteSqlRaw("ALTER TABLE `otp_verifications` ADD CONSTRAINT `fk_otp_admins` FOREIGN KEY (`AdminId`) REFERENCES `admins` (`AdminId`) ON DELETE CASCADE;"); } catch { }
             }
 
-            context.Database.ExecuteSqlRaw(@"
-                INSERT INTO `admins` (`FullName`, `Email`, `MobileNumber`, `PasswordHash`, `Role`, `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`)
-                SELECT `FullName`, `Email`, `MobileNumber`, `PasswordHash`, 'Admin', `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`
-                FROM `users`
-                WHERE `Role` = 'Admin' AND `MobileNumber` NOT IN (SELECT `MobileNumber` FROM `admins`);");
+            var hasUsersTable = false;
+            var hasUserRolesTable = false;
+            try
+            {
+                using var cmd = context.Database.GetDbConnection().CreateCommand();
+                var dbName = context.Database.GetDbConnection().Database;
+                cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'users'";
+                
+                var connState = context.Database.GetDbConnection().State;
+                if (connState != System.Data.ConnectionState.Open) context.Database.GetDbConnection().Open();
+                
+                hasUsersTable = System.Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                
+                cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'user_roles'";
+                hasUserRolesTable = System.Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+                
+                if (connState != System.Data.ConnectionState.Open) context.Database.GetDbConnection().Close();
+            }
+            catch { }
 
-            context.Database.ExecuteSqlRaw(@"
-                INSERT INTO `admin_roles_junction` (`AdminId`, `RoleId`)
-                SELECT a.`AdminId`, ur.`RoleId`
-                FROM `user_roles` ur
-                JOIN `users` u ON u.`UserId` = ur.`UserId`
-                JOIN `admins` a ON a.`MobileNumber` = u.`MobileNumber`
-                WHERE u.`Role` = 'Admin' AND NOT EXISTS (
-                    SELECT 1 FROM `admin_roles_junction` arj WHERE arj.`AdminId` = a.`AdminId` AND arj.`RoleId` = ur.`RoleId`
-                );");
+            if (hasUsersTable)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO `admins` (`FullName`, `Email`, `MobileNumber`, `PasswordHash`, `Role`, `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`)
+                    SELECT `FullName`, `Email`, `MobileNumber`, `PasswordHash`, 'Admin', `IsEmailVerified`, `IsMobileVerified`, `CreatedAt`, `SchoolId`
+                    FROM `users`
+                    WHERE `Role` = 'Admin' AND `MobileNumber` NOT IN (SELECT `MobileNumber` FROM `admins`);");
+            }
 
-            context.Database.ExecuteSqlRaw(@"
-                DELETE ur
-                FROM `user_roles` ur
-                JOIN `users` u ON u.`UserId` = ur.`UserId`
-                WHERE u.`Role` = 'Admin';");
+            if (hasUsersTable && hasUserRolesTable)
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    INSERT INTO `admin_roles_junction` (`AdminId`, `RoleId`)
+                    SELECT a.`AdminId`, ur.`RoleId`
+                    FROM `user_roles` ur
+                    JOIN `users` u ON u.`UserId` = ur.`UserId`
+                    JOIN `admins` a ON a.`MobileNumber` = u.`MobileNumber`
+                    WHERE u.`Role` = 'Admin' AND NOT EXISTS (
+                        SELECT 1 FROM `admin_roles_junction` arj WHERE arj.`AdminId` = a.`AdminId` AND arj.`RoleId` = ur.`RoleId`
+                    );");
 
-            context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
+                context.Database.ExecuteSqlRaw(@"
+                    DELETE ur
+                    FROM `user_roles` ur
+                    JOIN `users` u ON u.`UserId` = ur.`UserId`
+                    WHERE u.`Role` = 'Admin';");
+            }
+
+            if (hasUsersTable)
+            {
+                context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
+            }
         }
         catch (System.Exception ex)
         {

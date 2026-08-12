@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,12 +10,12 @@ namespace Backend.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "ProfilePhoto",
-                table: "staff",
-                type: "longtext",
-                nullable: true)
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // migrationBuilder.AddColumn<string>(
+            //     name: "ProfilePhoto",
+            //     table: "staff",
+            //     type: "longtext",
+            //     nullable: true)
+            //     .Annotation("MySql:CharSet", "utf8mb4");
         }
 
         /// <inheritdoc />

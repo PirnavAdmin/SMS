@@ -105,7 +105,7 @@ namespace SMS.Api.Services.Implementations
                 var admin = await _adminRepository.GetByIdentifierAsync(identifier);
                 if (admin != null)
                 {
-                    bool passwordMatches = true;
+                    bool passwordMatches = false;
                     try
                     {
                         if (!string.IsNullOrEmpty(admin.PasswordHash))
@@ -115,36 +115,32 @@ namespace SMS.Api.Services.Implementations
                     }
                     catch
                     {
-                        passwordMatches = true;
+                        passwordMatches = false;
                     }
 
-                    if (!passwordMatches)
+                    if (passwordMatches)
                     {
-                        throw new AppException(
-                            "Invalid email/mobile number or password.",
-                            HttpStatusCode.Unauthorized);
+                        var rolesList = GetAdminRolesList(admin);
+                        if (rolesList.Count == 0)
+                        {
+                            rolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
+                        }
+
+                        var token = GenerateJwtTokenForAdmin(admin, rolesList);
+
+                        return new AuthResponseDto(
+                            admin.AdminId,
+                            admin.FullName,
+                            token,
+                            rolesList);
                     }
-
-                    var rolesList = GetAdminRolesList(admin);
-                    if (rolesList.Count == 0)
-                    {
-                        rolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-                    }
-
-                    var token = GenerateJwtTokenForAdmin(admin, rolesList);
-
-                    return new AuthResponseDto(
-                        admin.AdminId,
-                        admin.FullName,
-                        token,
-                        rolesList);
                 }
 
                 // Fallback to User login
                 var user = await _userRepository.GetByIdentifierAsync(identifier);
                 if (user != null)
                 {
-                    bool userPasswordMatches = true;
+                    bool userPasswordMatches = false;
                     try
                     {
                         if (!string.IsNullOrEmpty(user.PasswordHash))
@@ -154,38 +150,39 @@ namespace SMS.Api.Services.Implementations
                     }
                     catch
                     {
-                        userPasswordMatches = true;
+                        userPasswordMatches = false;
                     }
 
-                    if (!userPasswordMatches)
+                    if (userPasswordMatches)
                     {
-                        throw new AppException(
-                            "Invalid email/mobile number or password.",
-                            HttpStatusCode.Unauthorized);
+                        var userRolesList = GetUserRolesList(user);
+                        if (userRolesList.Count == 0)
+                        {
+                            userRolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
+                        }
+
+                        var userToken = GenerateJwtToken(user, userRolesList);
+
+                        return new AuthResponseDto(
+                            user.UserId,
+                            user.FullName,
+                            userToken,
+                            userRolesList);
                     }
-
-                    var userRolesList = GetUserRolesList(user);
-                    if (userRolesList.Count == 0)
-                    {
-                        userRolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-                    }
-
-                    var userToken = GenerateJwtToken(user, userRolesList);
-
-                    return new AuthResponseDto(
-                        user.UserId,
-                        user.FullName,
-                        userToken,
-                        userRolesList);
                 }
+
+                // If neither matched or passwords didn't match, throw Unauthorized
+                throw new AppException(
+                    "Invalid email/mobile number or password.",
+                    HttpStatusCode.Unauthorized);
             }
             catch (AppException)
             {
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback gracefully if database or BCrypt query fails
+                throw new AppException($"Database or authentication service error: {ex.Message}", HttpStatusCode.InternalServerError);
             }
 
             // Default Fallback Admin Login for Demo/Offline Testing
