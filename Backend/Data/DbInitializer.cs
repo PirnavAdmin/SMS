@@ -103,6 +103,70 @@ namespace SMS.Api.Data
                 logger.LogWarning($"[DbInitializer] Failed to pre-fetch table/column metadata: {ex.Message}. Proceeding with fallback check.");
             }
 
+            // Run unconditional schema check for hostel_wardens before the fast bypass
+            try
+            {
+                var conn = context.Database.GetDbConnection();
+                var wasOpen = conn.State == System.Data.ConnectionState.Open;
+                if (!wasOpen) await conn.OpenAsync();
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hostel_wardens' AND COLUMN_NAME = 'Designation';";
+                    var hasDesignation = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+
+                    if (!hasDesignation)
+                    {
+                        cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'hostel_wardens';";
+                        var hasTable = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+                        if (hasTable)
+                        {
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` DROP FOREIGN KEY `fk_wardens_block`;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` CHANGE COLUMN `FullName` `WardenName` varchar(150) NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` CHANGE COLUMN `Email` `EmailAddress` varchar(150) NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` CHANGE COLUMN `BlockId` `HostelId` int NOT NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` ADD COLUMN `AlternateMobile` varchar(20) NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` ADD COLUMN `Designation` varchar(50) NOT NULL DEFAULT 'Warden';"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` ADD COLUMN `CreatedAt` datetime(6) NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` ADD CONSTRAINT `FK_hostel_wardens_hostel_blocks_HostelId` FOREIGN KEY (`HostelId`) REFERENCES `hostel_blocks` (`HostelId`) ON DELETE CASCADE;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `hostel_wardens` ADD CONSTRAINT `FK_hostel_wardens_staff_StaffId` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`);"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            
+                            logger.LogInformation("[DbInitializer] Successfully migrated hostel_wardens table to include new schema columns.");
+                        }
+                    }
+
+                    // Check class_sections table migration
+                    cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'class_sections' AND COLUMN_NAME = 'id';";
+                    var hasClassSectionsId = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+
+                    if (!hasClassSectionsId)
+                    {
+                        cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'class_sections';";
+                        var hasTable = Convert.ToInt32(await cmd.ExecuteScalarAsync()) > 0;
+                        if (hasTable)
+                        {
+                            try { cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 0;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` CHANGE COLUMN `SectionId` `id` int NOT NULL AUTO_INCREMENT;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` CHANGE COLUMN `AcademicClassId` `class_id` int NOT NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` CHANGE COLUMN `SectionName` `section_letter` varchar(50) NOT NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` ADD COLUMN `capacity` int NOT NULL DEFAULT 40;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` ADD COLUMN `status` varchar(20) NOT NULL DEFAULT 'Active';"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` ADD COLUMN `remarks` longtext NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "ALTER TABLE `class_sections` ADD COLUMN `room_no` varchar(100) NULL;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+                            try { cmd.CommandText = "SET FOREIGN_KEY_CHECKS = 1;"; await cmd.ExecuteNonQueryAsync(); } catch { }
+
+                            logger.LogInformation("[DbInitializer] Successfully migrated class_sections table to include new schema columns.");
+                        }
+                    }
+                }
+
+                if (!wasOpen) await conn.CloseAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"[DbInitializer] Failed running unconditional hostel_wardens schema check: {ex.Message}");
+            }
+
             // =========================================================
             // 3. FAST SHIFT BYPASS IF FULLY INITIALIZED
             // =========================================================
@@ -210,12 +274,15 @@ namespace SMS.Api.Data
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;" },
 
                 { "class_sections", @"CREATE TABLE IF NOT EXISTS `class_sections` (
-                    `SectionId` int NOT NULL AUTO_INCREMENT,
-                    `AcademicClassId` int NOT NULL,
-                    `SectionName` varchar(50) NOT NULL,
-                    `ClassTeacherId` int NULL,
-                    PRIMARY KEY (`SectionId`),
-                    UNIQUE KEY `ux_class_sections_class_name` (`AcademicClassId`, `SectionName`)
+                    `id` int NOT NULL AUTO_INCREMENT,
+                    `section_letter` varchar(50) NOT NULL,
+                    `class_id` int NOT NULL,
+                    `capacity` int NOT NULL DEFAULT 40,
+                    `status` varchar(20) NOT NULL DEFAULT 'Active',
+                    `remarks` longtext NULL,
+                    `room_no` varchar(100) NULL,
+                    PRIMARY KEY (`id`),
+                    CONSTRAINT `FK_class_sections_classes_class_id` FOREIGN KEY (`class_id`) REFERENCES `classes` (`ClassId`) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;" },
 
                 { "class_curriculum_subjects", @"CREATE TABLE IF NOT EXISTS `class_curriculum_subjects` (
@@ -402,14 +469,17 @@ namespace SMS.Api.Data
 
                 { "hostel_wardens", @"CREATE TABLE IF NOT EXISTS `hostel_wardens` (
                     `WardenId` int NOT NULL AUTO_INCREMENT,
-                    `FullName` varchar(150) NOT NULL,
-                    `Email` varchar(150) NULL,
-                    `MobileNumber` varchar(20) NOT NULL,
-                    `BlockId` int NOT NULL,
-                    `Status` varchar(20) NOT NULL DEFAULT 'Active',
+                    `HostelId` int NOT NULL,
                     `StaffId` int NULL,
-                    PRIMARY KEY (`WardenId`),
-                    CONSTRAINT `fk_wardens_block` FOREIGN KEY (`BlockId`) REFERENCES `hostel_blocks` (`BlockId`) ON DELETE CASCADE
+                    `WardenName` varchar(150) NULL,
+                    `MobileNumber` varchar(20) NULL,
+                    `AlternateMobile` varchar(20) NULL,
+                    `EmailAddress` varchar(150) NULL,
+                    `Designation` varchar(50) NOT NULL DEFAULT 'Warden',
+                    `CreatedAt` datetime(6) NULL,
+                    CONSTRAINT `PK_hostel_wardens` PRIMARY KEY (`WardenId`),
+                    CONSTRAINT `FK_hostel_wardens_hostel_blocks_HostelId` FOREIGN KEY (`HostelId`) REFERENCES `hostel_blocks` (`HostelId`) ON DELETE CASCADE,
+                    CONSTRAINT `FK_hostel_wardens_staff_StaffId` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;" },
 
                 { "student_bed_allocations", @"CREATE TABLE IF NOT EXISTS `student_bed_allocations` (
@@ -571,6 +641,12 @@ namespace SMS.Api.Data
             EnsureColumnExists("student_transport_assignments", "Remarks", "varchar(255) NULL");
             EnsureColumnExists("student_transport_assignments", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
             EnsureColumnExists("hostel_wardens", "StaffId", "int NULL");
+            EnsureColumnExists("hostel_wardens", "WardenName", "varchar(150) NULL");
+            EnsureColumnExists("hostel_wardens", "EmailAddress", "varchar(150) NULL");
+            EnsureColumnExists("hostel_wardens", "HostelId", "int NOT NULL DEFAULT 1");
+            EnsureColumnExists("hostel_wardens", "AlternateMobile", "varchar(20) NULL");
+            EnsureColumnExists("hostel_wardens", "Designation", "varchar(50) NOT NULL DEFAULT 'Warden'");
+            EnsureColumnExists("hostel_wardens", "CreatedAt", "datetime(6) NULL");
             EnsureColumnExists("admission_applications", "StudentType", "varchar(50) NOT NULL DEFAULT 'Day Scholar'");
             EnsureColumnExists("admission_applications", "AllocatedBedId", "varchar(50) NULL");
             EnsureColumnExists("admission_applications", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
@@ -723,6 +799,18 @@ namespace SMS.Api.Data
                 {
                     await context.Database.ExecuteSqlRawAsync("DELETE FROM `users` WHERE `Role` = 'Admin';");
                 }
+
+                // Migrate hostel_wardens old schema to new structure
+                try
+                {
+                    try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE `hostel_wardens` DROP FOREIGN KEY `fk_wardens_block`;"); } catch { }
+                    try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE `hostel_wardens` CHANGE COLUMN `FullName` `WardenName` varchar(150) NULL;"); } catch { }
+                    try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE `hostel_wardens` CHANGE COLUMN `Email` `EmailAddress` varchar(150) NULL;"); } catch { }
+                    try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE `hostel_wardens` CHANGE COLUMN `BlockId` `HostelId` int NOT NULL;"); } catch { }
+                    try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE `hostel_wardens` ADD CONSTRAINT `FK_hostel_wardens_hostel_blocks_HostelId` FOREIGN KEY (`HostelId`) REFERENCES `hostel_blocks` (`HostelId`) ON DELETE CASCADE;"); } catch { }
+                    try { await context.Database.ExecuteSqlRawAsync("ALTER TABLE `hostel_wardens` ADD CONSTRAINT `FK_hostel_wardens_staff_StaffId` FOREIGN KEY (`StaffId`) REFERENCES `staff` (`StaffId`);"); } catch { }
+                }
+                catch { }
             }
             catch (Exception ex)
             {
