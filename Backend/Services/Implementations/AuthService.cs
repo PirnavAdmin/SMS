@@ -84,7 +84,7 @@ namespace SMS.Api.Services.Implementations
                 await _userRepository.SaveChangesAsync();
 
                 var rolesList = GetUserRolesList(user);
-                var token = GenerateJwtToken(user, rolesList);
+                var token = await GenerateJwtTokenAsync(user, rolesList);
 
                 return new AuthResponseDto(user.UserId, user.FullName, token, rolesList);
             }
@@ -94,7 +94,7 @@ namespace SMS.Api.Services.Implementations
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.EmailOrPhone))
             {
-                dto = new LoginRequestDto("admin@pirnav.com", "password");
+                throw new AppException("Username and password are required.", HttpStatusCode.BadRequest);
             }
 
             var identifier = dto.EmailOrPhone.Trim();
@@ -105,7 +105,7 @@ namespace SMS.Api.Services.Implementations
                 var admin = await _adminRepository.GetByIdentifierAsync(identifier);
                 if (admin != null)
                 {
-                    bool passwordMatches = true;
+                    bool passwordMatches = false;
                     try
                     {
                         if (!string.IsNullOrEmpty(admin.PasswordHash))
@@ -115,36 +115,32 @@ namespace SMS.Api.Services.Implementations
                     }
                     catch
                     {
-                        passwordMatches = true;
+                        passwordMatches = false;
                     }
 
-                    if (!passwordMatches)
+                    if (passwordMatches)
                     {
-                        throw new AppException(
-                            "Invalid email/mobile number or password.",
-                            HttpStatusCode.Unauthorized);
+                        var rolesList = GetAdminRolesList(admin);
+                        if (rolesList.Count == 0)
+                        {
+                            throw new AppException("User has no roles assigned.", HttpStatusCode.Forbidden);
+                        }
+
+                        var token = GenerateJwtTokenForAdmin(admin, rolesList);
+
+                        return new AuthResponseDto(
+                            admin.AdminId,
+                            admin.FullName,
+                            token,
+                            rolesList);
                     }
-
-                    var rolesList = GetAdminRolesList(admin);
-                    if (rolesList.Count == 0)
-                    {
-                        rolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-                    }
-
-                    var token = GenerateJwtTokenForAdmin(admin, rolesList);
-
-                    return new AuthResponseDto(
-                        admin.AdminId,
-                        admin.FullName,
-                        token,
-                        rolesList);
                 }
 
                 // Fallback to User login
                 var user = await _userRepository.GetByIdentifierAsync(identifier);
                 if (user != null)
                 {
-                    bool userPasswordMatches = true;
+                    bool userPasswordMatches = false;
                     try
                     {
                         if (!string.IsNullOrEmpty(user.PasswordHash))
@@ -154,52 +150,40 @@ namespace SMS.Api.Services.Implementations
                     }
                     catch
                     {
-                        userPasswordMatches = true;
+                        userPasswordMatches = false;
                     }
 
-                    if (!userPasswordMatches)
+                    if (userPasswordMatches)
                     {
-                        throw new AppException(
-                            "Invalid email/mobile number or password.",
-                            HttpStatusCode.Unauthorized);
+                        var userRolesList = GetUserRolesList(user);
+                        if (userRolesList.Count == 0)
+                        {
+                            throw new AppException("User has no roles assigned.", HttpStatusCode.Forbidden);
+                        }
+
+                        var userToken = await GenerateJwtTokenAsync(user, userRolesList);
+
+                        return new AuthResponseDto(
+                            user.UserId,
+                            user.FullName,
+                            userToken,
+                            userRolesList);
                     }
-
-                    var userRolesList = GetUserRolesList(user);
-                    if (userRolesList.Count == 0)
-                    {
-                        userRolesList = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-                    }
-
-                    var userToken = GenerateJwtToken(user, userRolesList);
-
-                    return new AuthResponseDto(
-                        user.UserId,
-                        user.FullName,
-                        userToken,
-                        userRolesList);
                 }
+
+                // If neither matched or passwords didn't match, throw Unauthorized
+                throw new AppException(
+                    "Invalid email/mobile number or password.",
+                    HttpStatusCode.Unauthorized);
             }
             catch (AppException)
             {
                 throw;
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback gracefully if database or BCrypt query fails
+                throw new AppException($"Database or authentication service error: {ex.Message}", HttpStatusCode.InternalServerError);
             }
-
-            // Default Fallback Admin Login for Demo/Offline Testing
-            var fallbackRoles = new List<string> { "Admin", "Teacher", "Student", "Parent" };
-            var mockAdmin = new Admin
-            {
-                AdminId = 1,
-                FullName = "Admin User",
-                Email = identifier,
-                MobileNumber = "9876543210"
-            };
-
-            var fallbackToken = GenerateJwtTokenForAdmin(mockAdmin, fallbackRoles);
-            return new AuthResponseDto(1, "Admin User", fallbackToken, fallbackRoles);
         }
 
         private static string GetPortalRole(string portal)
@@ -252,7 +236,7 @@ namespace SMS.Api.Services.Implementations
             return rolesList.Distinct().ToList();
         }
 
-        private string GenerateJwtToken(User user, List<string> roles)
+        private async Task<string> GenerateJwtTokenAsync(User user, List<string> roles)
         {
             var claims = new List<Claim>
             {
@@ -272,13 +256,13 @@ namespace SMS.Api.Services.Implementations
 
             if (roles.Contains("Teacher") || user.Role == "Teacher")
             {
-                var staffId = _context.Staff
+                var staffId = await _context.Staff
                     .AsNoTracking()
                     .Where(s => s.IsActive == true &&
                         ((!string.IsNullOrEmpty(user.Email) && s.Email != null && s.Email.ToLower() == user.Email.ToLower()) ||
                          (!string.IsNullOrEmpty(user.MobileNumber) && s.Phone != null && s.Phone == user.MobileNumber)))
                     .Select(s => s.StaffId)
-                    .FirstOrDefault();
+                    .FirstOrDefaultAsync();
 
                 if (staffId > 0)
                 {

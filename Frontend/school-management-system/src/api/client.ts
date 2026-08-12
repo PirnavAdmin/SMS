@@ -5,7 +5,8 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   const headers = new Headers(options.headers || {});
   headers.set('Content-Type', 'application/json');
-  if (token) {
+  headers.set('ngrok-skip-browser-warning', 'true');
+  if (token && token !== 'null' && token !== 'undefined' && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
   if (branch) {
@@ -15,12 +16,23 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  const response = await fetch(endpoint, {
+  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });
 
   if (!response.ok) {
+    if (response.status === 401 && !endpoint.includes('/auth/')) {
+      const hadToken = !!localStorage.getItem('auth_token');
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+      if (hadToken) {
+        window.location.reload();
+      }
+    }
     let errorMessage = `HTTP error! status: ${response.status}`;
     try {
       const errorBody = await response.text();

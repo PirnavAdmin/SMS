@@ -43,8 +43,13 @@ const getDefaultAcademicYear = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('auth_user');
-    return saved ? JSON.parse(saved) : defaultAdminUser;
+    try {
+      const saved = localStorage.getItem('auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      localStorage.removeItem('auth_user');
+      return null;
+    }
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
@@ -52,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || 'mock-jwt-admin-token';
+    return localStorage.getItem('auth_token') || null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
@@ -84,48 +89,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
     try {
-      let mappedRole: UserRole = 'Admin';
-      let realToken = 'mock-jwt-token-' + Date.now();
-      let userName = emailOrPhone.split('@')[0] || 'User';
-      const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
+      const response = await loginApi(emailOrPhone, password);
+      
+      const realToken = response?.token;
+      if (!realToken) {
+        throw new Error('No authentication token received.');
+      }
 
-      // Check for mock credentials first
-      if (emailOrPhone === 'admin@pirnavschools.com' && password === 'Admin@123') {
+      const roles = response?.roles || [];
+      const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
+      let mappedRole: UserRole = 'Student'; // Default fallback
+
+      if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
         mappedRole = 'Admin';
-        userName = 'Admin';
-      } else if (emailOrPhone === 'teacher@pirnavschools.com' && password === 'Teacher@123') {
-        mappedRole = 'Teacher';
-        userName = 'Teacher';
-      } else if (emailOrPhone === 'student@pirnavschools.com' && password === 'Student@123') {
-        mappedRole = 'Student';
-        userName = 'Student';
-      } else if (emailOrPhone === 'parent@pirnavschools.com' && password === 'Parent@123') {
-        mappedRole = 'Parent';
-        userName = 'Parent';
       } else {
-        // Fallback to real API
-        const response = await loginApi(emailOrPhone, password);
-        realToken = response?.token || response?.accessToken || realToken;
-        
-        const roles = response?.roles || [];
-        const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
-
-        if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
-          mappedRole = 'Admin';
-        } else {
-          const resolvedRole = priorityRoles.find(role => roles.includes(role));
-          if (resolvedRole) {
-            mappedRole = resolvedRole;
-          }
-        }
-
-        if (response?.user?.name) {
-          userName = response.user.name;
+        const resolvedRole = priorityRoles.find(role => roles.includes(role));
+        if (resolvedRole) {
+          mappedRole = resolvedRole;
         }
       }
 
+      const userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
+      const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
+
+      const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
+
       const loggedUser: User = {
-        id: `USR-${Math.floor(Math.random() * 1000)}`,
+        id: userIdStr,
         name: userName,
         email: emailOrPhone,
         role: mappedRole,
@@ -143,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_token', realToken);
       
       // Store roles specifically to mirror backend logic in App
-      localStorage.setItem('roles', JSON.stringify([mappedRole]));
+      localStorage.setItem('roles', JSON.stringify(roles));
       
       return true;
     } catch (err: any) {
@@ -151,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Clean up any stale data just in case
       localStorage.removeItem('auth_user');
       localStorage.removeItem('auth_token');
+      localStorage.removeItem('roles');
       throw err;
     }
   };

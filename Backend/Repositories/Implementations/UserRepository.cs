@@ -20,6 +20,7 @@ namespace SMS.Api.Repositories.Implementations
         public async Task<User?> GetByIdentifierAsync(string identifier)
         {
             return await _context.Users
+                .Include(u => u.Roles)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Email == identifier || u.MobileNumber == identifier);
         }
