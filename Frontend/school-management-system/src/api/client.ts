@@ -15,12 +15,20 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
     headers.set('X-Academic-Year-Id', academicYear);
   }
 
-  const response = await fetch(endpoint, {
+  const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });
 
   if (!response.ok) {
+    if (response.status === 401 && !endpoint.includes('/auth/')) {
+      localStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_token');
+      window.location.reload();
+    }
     let errorMessage = `HTTP error! status: ${response.status}`;
     try {
       const errorBody = await response.text();

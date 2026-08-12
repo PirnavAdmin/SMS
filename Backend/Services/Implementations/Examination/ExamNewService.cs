@@ -90,34 +90,30 @@ public class ExamNewService : IExamNewService
 
         string targetClass = string.IsNullOrWhiteSpace(className) ? "Class 1" : className;
 
-        var availableSubjects = new List<SubjectMarksConfigItemDto>
-        {
-            new SubjectMarksConfigItemDto { SubjectCode = "MTH-101", SubjectName = "Mathematics", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "CHM-103", SubjectName = "Chemistry", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "ENG-105", SubjectName = "English Literature", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "HIS-107", SubjectName = "History", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "ACC-109", SubjectName = "Accounts", IsActive = false, MaxMarks = 100, PassMarks = 35 },
-            new SubjectMarksConfigItemDto { SubjectCode = "PHY-102", SubjectName = "Physics", IsActive = false, MaxMarks = 100, PassMarks = 35 }
-        };
-
         var savedConfigs = await _repository.GetSubjectConfigsAsync(examId, targetClass);
+        List<SubjectMarksConfigItemDto> subjectsList;
+
         if (savedConfigs != null && savedConfigs.Any())
         {
-            foreach (var sub in availableSubjects)
+            subjectsList = savedConfigs.Select(c => new SubjectMarksConfigItemDto
             {
-                var match = savedConfigs.FirstOrDefault(c => c.SubjectName.Equals(sub.SubjectName, StringComparison.OrdinalIgnoreCase)
-                                                          || c.SubjectCode.Equals(sub.SubjectCode, StringComparison.OrdinalIgnoreCase));
-                if (match != null)
-                {
-                    sub.IsActive = match.IsActive;
-                    sub.MaxMarks = match.MaxMarks;
-                    sub.PassMarks = match.PassMarks;
-                    if (!string.IsNullOrWhiteSpace(match.SubjectCode))
-                    {
-                        sub.SubjectCode = match.SubjectCode;
-                    }
-                }
-            }
+                SubjectCode = c.SubjectCode,
+                SubjectName = c.SubjectName,
+                IsActive = c.IsActive,
+                MaxMarks = c.MaxMarks,
+                PassMarks = c.PassMarks
+            }).ToList();
+        }
+        else
+        {
+            subjectsList = new List<SubjectMarksConfigItemDto>
+            {
+                new SubjectMarksConfigItemDto { SubjectCode = "CHM-101", SubjectName = "Chemistry", IsActive = true, MaxMarks = 100, PassMarks = 35 },
+                new SubjectMarksConfigItemDto { SubjectCode = "ENG-101", SubjectName = "English Language", IsActive = true, MaxMarks = 100, PassMarks = 35 },
+                new SubjectMarksConfigItemDto { SubjectCode = "CMP-101", SubjectName = "Computer", IsActive = true, MaxMarks = 100, PassMarks = 35 },
+                new SubjectMarksConfigItemDto { SubjectCode = "MTH-101", SubjectName = "maths", IsActive = true, MaxMarks = 100, PassMarks = 35 },
+                new SubjectMarksConfigItemDto { SubjectCode = "BIO-101", SubjectName = "Biology", IsActive = true, MaxMarks = 100, PassMarks = 35 }
+            };
         }
 
         var applicableClasses = (exam.ApplicableClasses ?? "Class 1").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList();
@@ -129,7 +125,7 @@ public class ExamNewService : IExamNewService
             ExamName = exam.ExamName,
             ClassName = targetClass,
             AvailableClasses = applicableClasses,
-            Subjects = availableSubjects
+            Subjects = subjectsList
         };
     }
 

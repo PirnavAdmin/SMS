@@ -44,7 +44,7 @@ const getDefaultAcademicYear = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('auth_user');
-    return saved ? JSON.parse(saved) : defaultAdminUser;
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('auth_token') || 'mock-jwt-admin-token';
+    return localStorage.getItem('auth_token') || null;
   });
 
   const [selectedBranch, setSelectedBranch] = useState<string>(() => {
