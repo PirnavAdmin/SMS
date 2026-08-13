@@ -3,7 +3,7 @@ import { X, UserCheck, User, Shield, Bus, Camera, Trash2, Home } from 'lucide-re
 import { Student, StudentType } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
-import { validateDOB, formatToDDMMYYYY } from '../../../utils/dateValidation';
+import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
 import { validate10DigitPhone, BLOOD_GROUPS, CASTE_CATEGORIES, BRANCHES } from '../../../utils/validation';
 
 interface StudentFormModalProps {
@@ -34,6 +34,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     status: 'Active',
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
     joiningDate: new Date().toISOString().split('T')[0],
+    isLateAdmission: false,
+    feeCalculationMethod: 'Term-wise',
     branch: 'Main Campus',
     studentType: 'Day Scholar',
     busRoute: transportRoutes[0]?.routeName || 'Route A - North Suburbs',
@@ -73,6 +75,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
   const [dobError, setDobError] = useState<string>('');
   const [phoneError, setPhoneError] = useState<string>('');
+  const [isMidYearFeeModalOpen, setIsMidYearFeeModalOpen] = useState(false);
 
   const availableBeds = hostelBeds.filter(b => b.status === 'Available');
 
@@ -80,6 +83,8 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     if (studentToEdit) {
       setFormData({
         ...studentToEdit,
+        isLateAdmission: !!studentToEdit.isLateAdmission,
+        feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
         dob: formatToDDMMYYYY(studentToEdit.dob)
       });
     }
@@ -337,16 +342,6 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
                 {dobError && <p className="text-[10px] text-rose-500 font-semibold mt-0.5">{dobError}</p>}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Admission / Joining Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={formData.joiningDate || new Date().toISOString().split('T')[0]}
-                  onChange={e => setFormData({ ...formData, joiningDate: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none"
-                />
-              </div>
-              <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Blood Group *</label>
                 <select
                   value={formData.bloodGroup}
@@ -402,46 +397,117 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               </div>
             </div>
 
-            {/* Mid-Year Admission Fee Calculation Method */}
-            {formData.joiningDate && new Date(formData.joiningDate) > new Date('2026-04-01') && (
-              <div className="p-3.5 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2 animate-in fade-in mt-2">
-                <div className="flex items-center justify-between">
-                  <label className="block font-extrabold text-amber-900 dark:text-amber-200 text-xs">
-                    Fee Calculation Method (Mid-Year Admission) *
-                  </label>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-200/70 dark:bg-amber-900 text-amber-800 dark:text-amber-300 font-mono">
-                    Admission Date: {formData.joiningDate}
-                  </span>
-                </div>
-                <div className="flex items-center gap-6 pt-1">
-                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    <input
-                      type="radio"
-                      name="feeCalculationMethodModal"
-                      value="Monthly"
-                      checked={formData.feeCalculationMethod === 'Monthly'}
-                      onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Monthly' })}
-                      className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                    />
-                    <span>Monthly</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800 dark:text-slate-200 text-xs">
-                    <input
-                      type="radio"
-                      name="feeCalculationMethodModal"
-                      value="Term-wise"
-                      checked={formData.feeCalculationMethod === 'Term-wise' || !formData.feeCalculationMethod}
-                      onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Term-wise' })}
-                      className="w-4 h-4 text-brand-600 focus:ring-brand-500 cursor-pointer"
-                    />
-                    <span>Term-wise</span>
+            {/* Admission / Joining Date & Late Admission Configuration */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div>
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Date of Admission *</label>
+                <input
+                  type="date"
+                  required
+                  value={formData.joiningDate || new Date().toISOString().split('T')[0]}
+                  onChange={e => setFormData({ ...formData, joiningDate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-slate-900 dark:text-white outline-none cursor-pointer"
+                />
+                <div className="mt-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isLateAdmissionCheckboxModal"
+                    checked={!!formData.isLateAdmission}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setFormData({
+                        ...formData,
+                        isLateAdmission: checked,
+                        feeCalculationMethod: formData.feeCalculationMethod || 'Term-wise'
+                      });
+                      if (checked) {
+                        setIsMidYearFeeModalOpen(true);
+                      }
+                    }}
+                    className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500 cursor-pointer"
+                  />
+                  <label htmlFor="isLateAdmissionCheckboxModal" className="font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                    Late Admission
                   </label>
                 </div>
-                <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
-                  {formData.feeCalculationMethod === 'Monthly'
-                    ? 'Fees will be calculated from the admission month (e.g. September) through March. Previous months will not be charged as pending dues.'
-                    : 'Fees will be calculated from the applicable term/quarter according to school policy. Previous completed terms will not be charged.'}
-                </p>
+              </div>
+
+              {formData.isLateAdmission && (
+                <div className="flex items-end pb-0.5">
+                  <div className="w-full p-3 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between shadow-xs">
+                    <div>
+                      <label className="block font-extrabold text-amber-900 dark:text-amber-200 text-xs">
+                        Fee Calculation Method (Late Admission) *
+                      </label>
+                      <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                        Selected: {formData.feeCalculationMethod || 'Term-wise'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsMidYearFeeModalOpen(true)}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition-colors shadow-xs cursor-pointer"
+                    >
+                      Configure
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Popup Modal for Mid-Year Fee Calculation */}
+            {isMidYearFeeModalOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+                <div className="w-full max-w-lg bg-amber-50/95 dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
+                  <div className="flex items-center justify-between pb-3 border-b border-amber-200/80 dark:border-amber-800">
+                    <h3 className="font-extrabold text-amber-900 dark:text-amber-200 text-base">
+                      Fee Calculation Method (Late Admission) *
+                    </h3>
+                    <span className="text-xs font-bold px-3 py-1 rounded-xl bg-amber-200/80 dark:bg-amber-900 text-amber-900 dark:text-amber-200 font-mono shadow-xs">
+                      Date: {formatToDDMMYYYY(formData.joiningDate || '', '-')}
+                    </span>
+                  </div>
+
+                  <div className="space-y-4 pt-1">
+                    <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800 border-amber-200 hover:border-amber-400">
+                      <input
+                        type="radio"
+                        name="popupStudentFeeMethod"
+                        value="Monthly"
+                        checked={formData.feeCalculationMethod === 'Monthly'}
+                        onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Monthly' })}
+                        className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                        Monthly (Calculate from admission month to year-end)
+                      </span>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800 border-amber-200 hover:border-amber-400">
+                      <input
+                        type="radio"
+                        name="popupStudentFeeMethod"
+                        value="Term-wise"
+                        checked={formData.feeCalculationMethod === 'Term-wise' || !formData.feeCalculationMethod}
+                        onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Term-wise' })}
+                        className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                        Term-wise (Calculate from applicable term/quarter)
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsMidYearFeeModalOpen(false)}
+                      className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-lg shadow-amber-600/20 transition-all cursor-pointer"
+                    >
+                      Confirm & Apply Choice
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
