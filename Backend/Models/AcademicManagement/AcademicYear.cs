@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SMS.Api.Models;
+namespace SMS.Api.Models.AcademicManagement;
 
 [Table("academic_years")]
 public class AcademicYear

@@ -1,5 +1,6 @@
 namespace SMS.Api.Repositories.Interfaces;
 
+using Microsoft.EntityFrameworkCore.Storage;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
@@ -80,6 +81,15 @@ public interface ISchoolRepository
     Task<List<StudentDropdownDto>> GetAcademicYearDropdownAsync(string? search);
     Task<List<StudentDropdownDto>> GetClassDropdownAsync(string? search);
     Task<List<StudentDropdownDto>> GetSectionDropdownAsync(int classId, string? search);
+
+    Task<IDbContextTransaction> BeginTransactionAsync();
+    Task<ClassSection?> GetFirstSectionByClassIdAsync(int classId);
+    Task AddClassSectionAsync(ClassSection section);
+    Task<Branch?> GetDefaultBranchAsync();
+    Task AddBranchAsync(Branch branch);
+    Task<AcademicYear?> GetDefaultAcademicYearAsync();
+    Task AddAcademicYearAsync(AcademicYear academicYear);
+    Task<int> CountStudentsInClassSectionAsync(int academicYearId, int classId, int sectionId);
 
     Task SaveChangesAsync();
 }

@@ -1,6 +1,7 @@
 namespace SMS.Api.Repositories.Implementations;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
@@ -435,7 +436,8 @@ public class SchoolRepository : ISchoolRepository
                 SectionName = s.ClassSection != null ? s.ClassSection.SectionName : "",
                 Status = s.Status,
                 AttendancePercentage = null,
-                Performance = null
+                Performance = null,
+                Avatar = s.Avatar
             })
             .ToListAsync();
 
@@ -479,6 +481,7 @@ public class SchoolRepository : ISchoolRepository
                 Status = s.Status,
                 AttendancePercentage = null,
                 Performance = null,
+                Avatar = s.Avatar,
                 CreatedAt = s.CreatedAt,
                 UpdatedAt = s.UpdatedAt
             })
@@ -584,6 +587,30 @@ public class SchoolRepository : ISchoolRepository
             })
             .ToListAsync();
     }
+
+    public async Task<IDbContextTransaction> BeginTransactionAsync() =>
+        await _context.Database.BeginTransactionAsync();
+
+    public async Task<ClassSection?> GetFirstSectionByClassIdAsync(int classId) =>
+        await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classId);
+
+    public async Task AddClassSectionAsync(ClassSection section) =>
+        await _context.ClassSections.AddAsync(section);
+
+    public async Task<Branch?> GetDefaultBranchAsync() =>
+        await _context.Branches.FirstOrDefaultAsync();
+
+    public async Task AddBranchAsync(Branch branch) =>
+        await _context.Branches.AddAsync(branch);
+
+    public async Task<AcademicYear?> GetDefaultAcademicYearAsync() =>
+        await _context.AcademicYears.FirstOrDefaultAsync();
+
+    public async Task AddAcademicYearAsync(AcademicYear academicYear) =>
+        await _context.AcademicYears.AddAsync(academicYear);
+
+    public async Task<int> CountStudentsInClassSectionAsync(int academicYearId, int classId, int sectionId) =>
+        await _context.Students.CountAsync(s => s.AcademicYearId == academicYearId && s.ClassId == classId && s.SectionId == sectionId);
 
     public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 }

@@ -1,8 +1,9 @@
-namespace SMS.Api.Services.Interfaces;
+namespace SMS.Api.Services.Interfaces.AcademicManagement;
 
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SMS.Api.Dtos;
+using SMS.Api.Dtos.AcademicManagement;
 
 public interface ITimetableService
 {
@@ -26,4 +27,8 @@ public interface ITimetableService
 
     // Class Subjects Candidate Helper
     Task<List<ClassSubjectQuotaDto>> GetClassSubjectsCandidatesAsync(int classId, int sectionId);
+
+    // Automatic Timetable Generation & Validation
+    Task<List<TimetableSlotDto>> GenerateTimetableAsync(GenerateTimetableRequestDto dto);
+    Task<TimetableValidationResultDto> ValidateTimetableAsync(int classId, int sectionId, string academicYear);
 }

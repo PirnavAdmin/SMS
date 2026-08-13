@@ -134,6 +134,10 @@ namespace SMS.Api.Services.Implementations
                             token,
                             rolesList);
                     }
+                    else
+                    {
+                        throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
+                    }
                 }
 
                 // Fallback to User login

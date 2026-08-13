@@ -1,6 +1,4 @@
-using SMS.Api.Models.AcademicManagement;
-
-namespace SMS.Api.Models;
+namespace SMS.Api.Models.AcademicManagement;
 
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;

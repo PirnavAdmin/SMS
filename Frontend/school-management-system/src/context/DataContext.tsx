@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import {
@@ -211,6 +212,13 @@ import {
   fetchAcademicSubjectsApi,
   fetchAcademicPeriodsApi,
   fetchTimetableForClassSectionApi,
+  savePeriodApi,
+  deletePeriodApi,
+  fetchTimetableGridApi,
+  saveTimetableSlotApi,
+  deleteTimetableSlotApi,
+  generateTimetableApi,
+  validateTimetableApi,
 } from "../api/academic";
 import {
   fetchStaffApi,
@@ -317,6 +325,7 @@ export interface AcademicClass {
   id: string;
   name: string;
   sections: string[];
+  sectionsList?: any[];
   sectionTeachers?: Record<string, string>;
   teacher: string;
   subjects: string[];
@@ -324,151 +333,9 @@ export interface AcademicClass {
   sectionDetails?: Record<string, any>;
 }
 
-const initialClasses: AcademicClass[] = [
-  {
-    id: "CL-9",
-    name: "Class 9",
-    sections: ["A", "B"],
-    sectionTeachers: { A: "Sarah Jenkins", B: "Jonathan Miller" },
-    teacher: "Sarah Jenkins",
-    subjects: ["Mathematics", "Physics", "Chemistry", "English", "History"],
-  },
-  {
-    id: "CL-10",
-    name: "Class 10",
-    sections: ["A", "B"],
-    sectionTeachers: { A: "Jonathan Miller", B: "Robert Langdon" },
-    teacher: "Jonathan Miller",
-    subjects: [
-      "Mathematics",
-      "Physics",
-      "Computer Science",
-      "English",
-      "Biology",
-    ],
-  },
-  {
-    id: "CL-11",
-    name: "Class 11",
-    sections: ["A", "B", "C"],
-    sectionTeachers: {
-      A: "Robert Langdon",
-      B: "Dr. Eleanor Vance",
-      C: "Jonathan Miller",
-    },
-    teacher: "Robert Langdon",
-    subjects: [
-      "Advanced Calculus",
-      "Organic Chemistry",
-      "Physics",
-      "Economics",
-    ],
-  },
-  {
-    id: "CL-12",
-    name: "Class 12",
-    sections: ["A", "B"],
-    sectionTeachers: { A: "Dr. Eleanor Vance", B: "Sarah Jenkins" },
-    teacher: "Dr. Eleanor Vance",
-    subjects: [
-      "Higher Mathematics",
-      "Quantum Physics",
-      "Literature",
-      "Accountancy",
-    ],
-  },
-];
+const initialClasses: AcademicClass[] = [];
 
-const defaultPeriodSettings: PeriodSetting[] = [
-  {
-    id: "PS-1",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 1",
-    startTime: "08:30 AM",
-    endTime: "09:15 AM",
-    sequence: 1,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-2",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 2",
-    startTime: "09:15 AM",
-    endTime: "10:00 AM",
-    sequence: 2,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-3",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Morning Break",
-    startTime: "10:00 AM",
-    endTime: "10:15 AM",
-    sequence: 3,
-    periodType: "Break",
-    status: "Active",
-  },
-  {
-    id: "PS-4",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 3",
-    startTime: "10:15 AM",
-    endTime: "11:00 AM",
-    sequence: 4,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-5",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 4",
-    startTime: "11:00 AM",
-    endTime: "11:45 AM",
-    sequence: 5,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-6",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Lunch Break",
-    startTime: "11:45 AM",
-    endTime: "12:30 PM",
-    sequence: 6,
-    periodType: "Lunch",
-    status: "Active",
-  },
-  {
-    id: "PS-7",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 5",
-    startTime: "12:30 PM",
-    endTime: "01:15 PM",
-    sequence: 7,
-    periodType: "Teaching",
-    status: "Active",
-  },
-  {
-    id: "PS-8",
-    academicYear: "2026-2027",
-    branch: "Main Campus",
-    periodName: "Period 6",
-    startTime: "01:15 PM",
-    endTime: "02:00 PM",
-    sequence: 8,
-    periodType: "Teaching",
-    status: "Active",
-  },
-];
+const defaultPeriodSettings: PeriodSetting[] = [];
 const defaultTeacherAssignments: TeacherAssignment[] = [];
 export interface StudentCalculationResult {
   student: Student;
@@ -587,9 +454,16 @@ interface DataContextType {
     id: string,
     status: AdmissionApplication["status"],
   ) => Promise<string | null>;
+  fetchAdmissions: () => Promise<void>;
+  fetchStudents: () => Promise<void>;
 
   academicClasses: AcademicClass[];
   rawClasses: any[];
+  fetchAcademicClasses: (force?: boolean) => Promise<void>;
+  fetchSubjects: (force?: boolean) => Promise<void>;
+  fetchPeriods: (force?: boolean) => Promise<void>;
+  fetchDepartments: (force?: boolean) => Promise<void>;
+  fetchDesignations: (force?: boolean) => Promise<void>;
   addAcademicClass: (cls: Omit<AcademicClass, "id">) => void;
   updateAcademicClass: (id: string, updates: Partial<AcademicClass>) => void;
   deleteAcademicClass: (id: string) => void;
@@ -1183,972 +1057,22 @@ interface DataContextType {
   ) => void;
 }
 
-const defaultGradeConfigurations: GradeConfig[] = [
-  {
-    id: "GRD-1",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "A+",
-    minPercent: 90,
-    maxPercent: 100,
-    gradePoints: 10,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-2",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "A",
-    minPercent: 80,
-    maxPercent: 89,
-    gradePoints: 9,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-3",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "B+",
-    minPercent: 70,
-    maxPercent: 79,
-    gradePoints: 8,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-4",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "B",
-    minPercent: 60,
-    maxPercent: 69,
-    gradePoints: 7,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-5",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "C",
-    minPercent: 50,
-    maxPercent: 59,
-    gradePoints: 6,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-6",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "D",
-    minPercent: 33,
-    maxPercent: 49,
-    gradePoints: 4,
-    passCriteria: "Pass",
-  },
-  {
-    id: "GRD-7",
-    academicYear: "2025-2026",
-    branch: "All Branches",
-    schemeName: "Default Scholastic",
-    gradeName: "F",
-    minPercent: 0,
-    maxPercent: 32,
-    gradePoints: 0,
-    passCriteria: "Fail",
-  },
-];
+const defaultGradeConfigurations: GradeConfig[] = [];
 
-const defaultExamSchedules: ExamSchedule[] = [
-  {
-    id: "SCH-1",
-    examId: "EXM-01",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    date: "2026-09-10",
-    startTime: "09:00",
-    endTime: "12:00",
-    subject: "Mathematics",
-    className: "Class 10",
-    section: "A",
-    maxMarks: 100,
-    passMarks: 33,
-    room: "Room 101",
-    invigilatorId: "STF-002",
-    invigilatorName: "Jonathan Miller",
-  },
-  {
-    id: "SCH-2",
-    examId: "EXM-01",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    date: "2026-09-12",
-    startTime: "09:00",
-    endTime: "12:00",
-    subject: "Physics",
-    className: "Class 10",
-    section: "A",
-    maxMarks: 100,
-    passMarks: 33,
-    room: "Room 102",
-    invigilatorId: "STF-002",
-    invigilatorName: "Jonathan Miller",
-  },
-];
+const defaultExamSchedules: ExamSchedule[] = [];
 
-const initialFinanceTransactions: FinanceTransaction[] = [
-  {
-    id: "TXN-001",
-    transactionId: "TXN-2026-891001",
-    date: "2026-07-28",
-    time: "10:15 AM",
-    type: "Income",
-    category: "Student Tuition Fees",
-    sourceModule: "Student Fee Collection",
-    referenceNumber: "REC-2026-1001",
-    description: "Term 1 Tuition Fee Collection for Aarav Sharma (Class 10-A)",
-    amount: 18500,
-    paymentMode: "UPI",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Accounts Officer (Venkat)",
-    approvedBy: "Chief Accountant",
-    auditTrail: [
-      {
-        id: "AUD-1",
-        action: "Created",
-        user: "System Auto-Ledger",
-        timestamp: "2026-07-28 10:15 AM",
-        notes: "Auto-recorded from Fee Payment REC-2026-1001",
-      },
-    ],
-  },
-  {
-    id: "TXN-002",
-    transactionId: "TXN-2026-891002",
-    date: "2026-07-28",
-    time: "11:00 AM",
-    type: "Income",
-    category: "Admission Fees",
-    sourceModule: "Admissions",
-    referenceNumber: "ADM-2026-054",
-    description:
-      "New Student Admission & Registration Fee for Priya Patel (Class 1-B)",
-    amount: 25000,
-    paymentMode: "Bank Transfer",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Admission Officer",
-    approvedBy: "Principal",
-    auditTrail: [
-      {
-        id: "AUD-2",
-        action: "Created",
-        user: "Admissions Module",
-        timestamp: "2026-07-28 11:00 AM",
-        notes: "Admission confirmation fee",
-      },
-    ],
-  },
-  {
-    id: "TXN-003",
-    transactionId: "TXN-2026-891003",
-    date: "2026-07-27",
-    time: "04:30 PM",
-    type: "Expense",
-    category: "Employee Salaries",
-    sourceModule: "Payroll",
-    referenceNumber: "PAYROLL-JUL-2026",
-    description:
-      "Monthly Faculty & Staff Payroll Disbursement (July 2026 Batch)",
-    amount: 145000,
-    paymentMode: "Bank Transfer",
-    account: "Salary Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "HR Manager",
-    approvedBy: "Chief Accountant",
-    auditTrail: [
-      {
-        id: "AUD-3",
-        action: "Created",
-        user: "Payroll Module",
-        timestamp: "2026-07-27 04:30 PM",
-        notes: "Batch salary payout for 32 employees",
-      },
-    ],
-  },
-  {
-    id: "TXN-004",
-    transactionId: "TXN-2026-891004",
-    date: "2026-07-26",
-    time: "02:15 PM",
-    type: "Income",
-    category: "Hostel Fees",
-    sourceModule: "Hostel",
-    referenceNumber: "HST-REC-088",
-    description:
-      "Hostel Accommodation & Mess Fee Quarter 2 for Rohan Verma (Boys Block A)",
-    amount: 32000,
-    paymentMode: "Online",
-    account: "Hostel Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Chief Warden",
-    approvedBy: "Accounts Officer",
-    auditTrail: [
-      {
-        id: "AUD-4",
-        action: "Created",
-        user: "Hostel Module",
-        timestamp: "2026-07-26 02:15 PM",
-        notes: "Hostel booking payment",
-      },
-    ],
-  },
-  {
-    id: "TXN-005",
-    transactionId: "TXN-2026-891005",
-    date: "2026-07-25",
-    time: "09:45 AM",
-    type: "Income",
-    category: "Transport Fees",
-    sourceModule: "Transport",
-    referenceNumber: "TRP-REC-112",
-    description: "Bus Route #4 Monthly Pass Fee for Ananya Reddy",
-    amount: 4500,
-    paymentMode: "Cash",
-    account: "Transport Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Transport Manager",
-    approvedBy: "Accounts Officer",
-    auditTrail: [
-      {
-        id: "AUD-5",
-        action: "Created",
-        user: "Transport Module",
-        timestamp: "2026-07-25 09:45 AM",
-        notes: "Transport pass issued",
-      },
-    ],
-  },
-  {
-    id: "TXN-006",
-    transactionId: "TXN-2026-891006",
-    date: "2026-07-24",
-    time: "03:20 PM",
-    type: "Expense",
-    category: "Fuel Expenses",
-    sourceModule: "Transport",
-    referenceNumber: "TRP-EXP-034",
-    description:
-      "Diesel Refueling for School Buses KA-01-F-1234 & KA-01-F-5678",
-    amount: 18400,
-    paymentMode: "Card",
-    account: "Transport Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Transport Manager",
-    approvedBy: "Chief Accountant",
-    auditTrail: [
-      {
-        id: "AUD-6",
-        action: "Created",
-        user: "Transport Expense Entry",
-        timestamp: "2026-07-24 03:20 PM",
-        notes: "Indian Oil petrol bunk receipt #9921",
-      },
-    ],
-  },
-  {
-    id: "TXN-007",
-    transactionId: "TXN-2026-891007",
-    date: "2026-07-23",
-    time: "11:30 AM",
-    type: "Expense",
-    category: "Vendor Payments",
-    sourceModule: "Inventory",
-    referenceNumber: "PO-2026-789",
-    description:
-      "Purchase of Physics & Chemistry Laboratory Chemicals & Apparatus (Apex Scientific)",
-    amount: 42500,
-    paymentMode: "Bank Transfer",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Store Keeper",
-    approvedBy: "Principal",
-    auditTrail: [
-      {
-        id: "AUD-7",
-        action: "Created",
-        user: "Inventory Module",
-        timestamp: "2026-07-23 11:30 AM",
-        notes: "Purchase Order #PO-2026-789 settled",
-      },
-    ],
-  },
-  {
-    id: "TXN-008",
-    transactionId: "TXN-2026-891008",
-    date: "2026-07-22",
-    time: "01:10 PM",
-    type: "Income",
-    category: "Library Fines",
-    sourceModule: "Library",
-    referenceNumber: "LIB-FINE-044",
-    description: "Overdue Book Return Fine Collection (5 Days Late)",
-    amount: 150,
-    paymentMode: "Cash",
-    account: "Cash",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Librarian",
-    auditTrail: [
-      {
-        id: "AUD-8",
-        action: "Created",
-        user: "Library Module",
-        timestamp: "2026-07-22 01:10 PM",
-        notes: "Book issue ID ISS-104 fine",
-      },
-    ],
-  },
-  {
-    id: "TXN-009",
-    transactionId: "TXN-2026-891009",
-    date: "2026-07-21",
-    time: "10:00 AM",
-    type: "Income",
-    category: "Donations & Grants",
-    sourceModule: "Manual",
-    referenceNumber: "DON-2026-004",
-    description:
-      "Alumni Trust Annual Education Infrastructure Sponsorship & Endowment Fund",
-    amount: 100000,
-    paymentMode: "Cheque",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Principal",
-    approvedBy: "School Management Board",
-    auditTrail: [
-      {
-        id: "AUD-9",
-        action: "Created",
-        user: "Manual Transaction Entry",
-        timestamp: "2026-07-21 10:00 AM",
-        notes: "Cheque No. 445902 deposited",
-      },
-    ],
-  },
-  {
-    id: "TXN-010",
-    transactionId: "TXN-2026-891010",
-    date: "2026-07-20",
-    time: "05:00 PM",
-    type: "Expense",
-    category: "Electricity Bills",
-    sourceModule: "Manual",
-    referenceNumber: "UTIL-ELEC-JUL26",
-    description:
-      "Monthly Campus Electricity Tariff Payment (State Power Utility Board)",
-    amount: 38700,
-    paymentMode: "Bank Transfer",
-    account: "Main Bank Account",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    status: "Completed",
-    createdBy: "Accounts Officer",
-    approvedBy: "Principal",
-    auditTrail: [
-      {
-        id: "AUD-10",
-        action: "Created",
-        user: "Accounts Entry",
-        timestamp: "2026-07-20 05:00 PM",
-        notes: "Consumer Account #998124501",
-      },
-    ],
-  },
-];
+const initialFinanceTransactions: FinanceTransaction[] = [];
 
-const initialFinancialAccounts: FinancialAccount[] = [
-  {
-    id: "ACC-01",
-    accountName: "Cash in Hand",
-    accountType: "Cash",
-    currentBalance: 48500,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-02",
-    accountName: "State Bank of India (Main Account)",
-    accountType: "Main Bank Account",
-    accountNumber: "30998124501",
-    bankName: "State Bank of India",
-    branchName: "MG Road Branch",
-    currentBalance: 1245000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-03",
-    accountName: "HDFC Salary Disbursement Account",
-    accountType: "Salary Account",
-    accountNumber: "50100234891",
-    bankName: "HDFC Bank",
-    branchName: "City Center",
-    currentBalance: 450000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-04",
-    accountName: "ICICI Hostel & Operations Account",
-    accountType: "Hostel Account",
-    accountNumber: "00120500981",
-    bankName: "ICICI Bank",
-    branchName: "Campus Branch",
-    currentBalance: 320000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-05",
-    accountName: "Axis Bank Transport Account",
-    accountType: "Transport Account",
-    accountNumber: "91802004561",
-    bankName: "Axis Bank",
-    branchName: "Industrial Suburb",
-    currentBalance: 185000,
-    currency: "INR",
-    status: "Active",
-  },
-  {
-    id: "ACC-06",
-    accountName: "Office Petty Cash Vault",
-    accountType: "Petty Cash Account",
-    currentBalance: 15000,
-    currency: "INR",
-    status: "Active",
-  },
-];
+const initialFinancialAccounts: FinancialAccount[] = [];
 
-const initialFinancialCategories: FinancialCategory[] = [
-  {
-    id: "CAT-INC-01",
-    name: "Student Tuition Fees",
-    type: "Income",
-    sourceModule: "Student Fee Collection",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-02",
-    name: "Admission Fees",
-    type: "Income",
-    sourceModule: "Admissions",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-03",
-    name: "Registration Fees",
-    type: "Income",
-    sourceModule: "Admissions",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-04",
-    name: "Examination Fees",
-    type: "Income",
-    sourceModule: "Examination",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-05",
-    name: "Hostel Fees",
-    type: "Income",
-    sourceModule: "Hostel",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-06",
-    name: "Transport Fees",
-    type: "Income",
-    sourceModule: "Transport",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-07",
-    name: "Library Fines",
-    type: "Income",
-    sourceModule: "Library",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-08",
-    name: "Certificate Fees",
-    type: "Income",
-    sourceModule: "Student Management",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-09",
-    name: "Uniform Sales",
-    type: "Income",
-    sourceModule: "Uniform",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-INC-10",
-    name: "Donations & Grants",
-    type: "Income",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-INC-11",
-    name: "Miscellaneous Income",
-    type: "Income",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-01",
-    name: "Employee Salaries",
-    type: "Expense",
-    sourceModule: "Payroll",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-02",
-    name: "Vendor Payments",
-    type: "Expense",
-    sourceModule: "Inventory",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-03",
-    name: "Fuel Expenses",
-    type: "Expense",
-    sourceModule: "Transport",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-04",
-    name: "Vehicle Maintenance",
-    type: "Expense",
-    sourceModule: "Transport",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-05",
-    name: "Hostel Expenses",
-    type: "Expense",
-    sourceModule: "Hostel",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-06",
-    name: "Library Purchases",
-    type: "Expense",
-    sourceModule: "Library",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-07",
-    name: "Laboratory Equipment",
-    type: "Expense",
-    sourceModule: "Inventory",
-    status: "Active",
-    isSystem: true,
-  },
-  {
-    id: "CAT-EXP-08",
-    name: "Electricity Bills",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-09",
-    name: "Water & Internet Bills",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-10",
-    name: "Building & Furniture Maintenance",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-11",
-    name: "Event & Festival Expenses",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-  {
-    id: "CAT-EXP-12",
-    name: "Petty Cash Expenses",
-    type: "Expense",
-    sourceModule: "Manual",
-    status: "Active",
-    isSystem: false,
-  },
-];
+const initialFinancialCategories: FinancialCategory[] = [];
 
-const initialFinancialBudgets: FinancialBudget[] = [
-  {
-    id: "BDG-01",
-    categoryName: "Employee Salaries",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 2000000,
-    consumedAmount: 145000,
-    remainingAmount: 1855000,
-    status: "Active",
-  },
-  {
-    id: "BDG-02",
-    categoryName: "Fuel Expenses",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 250000,
-    consumedAmount: 18400,
-    remainingAmount: 231600,
-    status: "Active",
-  },
-  {
-    id: "BDG-03",
-    categoryName: "Laboratory Equipment",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 500000,
-    consumedAmount: 42500,
-    remainingAmount: 457500,
-    status: "Active",
-  },
-  {
-    id: "BDG-04",
-    categoryName: "Electricity Bills",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 400000,
-    consumedAmount: 38700,
-    remainingAmount: 361300,
-    status: "Active",
-  },
-  {
-    id: "BDG-05",
-    categoryName: "Event & Festival Expenses",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    allocatedAmount: 300000,
-    consumedAmount: 0,
-    remainingAmount: 300000,
-    status: "Active",
-  },
-];
-const initialAlumniRecords: AlumniRecord[] = [
-  {
-    id: "ALM-101",
-    studentId: "STD-1001",
-    admissionNo: "ADM-2022-089",
-    studentName: "Rohan Deshmukh",
-    avatar:
-      "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-2025",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2025-05-20",
-    currentStatus: "Higher Studies",
-    higherEducationDetail: "IIT Madras (B.Tech Computer Science)",
-    contactPhone: "9876543210",
-    contactEmail: "rohan.deshmukh@gmail.com",
-    parentName: "Sanjay Deshmukh",
-    branch: "Main Campus",
-    createdDate: "2025-05-20",
-  },
-  {
-    id: "ALM-102",
-    studentId: "STD-1002",
-    admissionNo: "ADM-2022-094",
-    studentName: "Ananya Verma",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2025",
-    completionAcademicYear: "2024-2025",
-    finalClass: "Class 12",
-    finalSection: "B",
-    completionDate: "2025-05-20",
-    currentStatus: "Working",
-    organizationCompany: "Software Engineer @ Microsoft India",
-    contactPhone: "9876543211",
-    contactEmail: "ananya.verma@gmail.com",
-    parentName: "Vikram Verma",
-    branch: "Main Campus",
-    createdDate: "2025-05-20",
-  },
-  {
-    id: "ALM-103",
-    studentId: "STD-1003",
-    admissionNo: "ADM-2021-045",
-    studentName: "Karthik Raja",
-    avatar:
-      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    batch: "Class of 2024",
-    completionAcademicYear: "2023-2024",
-    finalClass: "Class 12",
-    finalSection: "A",
-    completionDate: "2024-05-18",
-    currentStatus: "Competitive Exams",
-    higherEducationDetail: "UPSC Civil Services Aspirant",
-    contactPhone: "9876543212",
-    contactEmail: "karthik.raja@gmail.com",
-    parentName: "Ramanathan Raja",
-    branch: "Main Campus",
-    createdDate: "2024-05-18",
-  },
-];
+const initialFinancialBudgets: FinancialBudget[] = [];
+const initialAlumniRecords: AlumniRecord[] = [];
 
-const initialSchoolEvents: SchoolEvent[] = [
-  {
-    id: "EVT-001",
-    title: "Annual Sports Day & Athletic Meet 2026",
-    category: "Sports Day",
-    description:
-      "Grand Annual Sports Day featuring track & field competitions, march past, relay races, and trophy distribution.",
-    organizer: "Physical Education Dept",
-    venue: "Main Campus Stadium Ground",
-    startDate: "2026-08-15",
-    endDate: "2026-08-15",
-    startTime: "08:30 AM",
-    endTime: "04:30 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: [
-      "Class 1",
-      "Class 2",
-      "Class 5",
-      "Class 8",
-      "Class 10",
-      "Class 12",
-    ],
-    participants: "All Students & Faculty",
-    attachments: [
-      { id: "ATT-1", name: "Sports_Day_Schedule.pdf", url: "#", type: "PDF" },
-      { id: "ATT-2", name: "Track_Events_Rules.pdf", url: "#", type: "PDF" },
-    ],
-    status: "Published",
-    createdBy: "PE Director (Jonathan Miller)",
-  },
-  {
-    id: "EVT-002",
-    title: "Inter-House Science & Robotics Exhibition",
-    category: "Science Exhibition",
-    description:
-      "Student project showcases in AI, Renewable Energy, Physics Experiments, and Robotics Prototypes.",
-    organizer: "Department of Science & Tech",
-    venue: "Auditorium & STEM Lab 1",
-    startDate: "2026-08-22",
-    endDate: "2026-08-22",
-    startTime: "10:00 AM",
-    endTime: "03:00 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: [
-      "Class 8",
-      "Class 9",
-      "Class 10",
-      "Class 11",
-      "Class 12",
-    ],
-    participants: "Class 8-12 Students",
-    attachments: [
-      {
-        id: "ATT-3",
-        name: "Science_Fair_Guidelines.pdf",
-        url: "#",
-        type: "PDF",
-      },
-    ],
-    status: "Published",
-    createdBy: "HOD Science (Dr. Sarah Jenkins)",
-  },
-  {
-    id: "EVT-003",
-    title: "Term 1 Parent Teacher Meeting (PTM)",
-    category: "Parent Teacher Meeting",
-    description:
-      "Quarterly review meeting to discuss academic progress, attendance, and holistic student growth with parents.",
-    organizer: "Academic Committee",
-    venue: "Respective Classrooms",
-    startDate: "2026-08-28",
-    endDate: "2026-08-28",
-    startTime: "09:00 AM",
-    endTime: "01:00 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: ["All Classes"],
-    participants: "Parents, Students & Class Teachers",
-    status: "Published",
-    createdBy: "Vice Principal",
-  },
-  {
-    id: "EVT-004",
-    title: "Grand Cultural Fest & Musical Night",
-    category: "Cultural Fest",
-    description:
-      "Annual cultural extravaganza featuring classical dance, drama performance, school choir, and band live show.",
-    organizer: "Cultural Arts Association",
-    venue: "Open Air Amphitheatre",
-    startDate: "2026-09-05",
-    endDate: "2026-09-05",
-    startTime: "04:00 PM",
-    endTime: "08:30 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    participants: "All Students, Staff & Alumni",
-    status: "Published",
-    createdBy: "Arts Coordinator",
-  },
-  {
-    id: "EVT-005",
-    title: "Career Guidance & University Fair Seminar",
-    category: "Workshop & Seminar",
-    description:
-      "Interactive session with global university delegates and career counselors for Senior Secondary Students.",
-    organizer: "Student Counseling Cell",
-    venue: "Conference Hall B",
-    startDate: "2026-09-18",
-    endDate: "2026-09-18",
-    startTime: "11:00 AM",
-    endTime: "02:00 PM",
-    branch: "Main Campus",
-    academicYear: "2025-2026",
-    applicableClasses: ["Class 11", "Class 12"],
-    participants: "Class 11 & 12 Students",
-    status: "Published",
-    createdBy: "Senior Counselor",
-  },
-];
+const initialSchoolEvents: SchoolEvent[] = [];
 
-const initialWorkshops: WorkshopTraining[] = [
-  {
-    id: "WKS-101",
-    workshopName: "AI & Machine Learning Tools in Modern Education",
-    category: "AI Training",
-    type: "Internal",
-    trainerName: "Dr. Vikramaditya Sharma",
-    organization: "EdTech Innovations Institute",
-    branch: "Main Campus",
-    department: "Academics",
-    applicableDesignation: "All Teaching Staff",
-    venue: "Smart Audio-Visual Lab 1",
-    startDate: "2026-08-10",
-    endDate: "2026-08-11",
-    startTime: "09:30 AM",
-    endTime: "03:30 PM",
-    capacity: 40,
-    description:
-      "Hands-on workshop on leveraging Generative AI, lesson planning tools, automated assessment creators, and interactive student engagement platforms.",
-    attachments: [
-      { id: "ATT-W1", name: "AI_Tools_Handbook.pdf", url: "#", type: "PDF" },
-    ],
-    status: "Scheduled",
-    attendancePct: 95,
-    participants: [
-      {
-        employeeId: "STF-101",
-        employeeName: "Rajesh Sharma",
-        employeeRole: "Teaching Staff",
-        department: "Mathematics",
-        designation: "Senior PGT Teacher",
-        branch: "Main Campus",
-        attendanceStatus: "Present",
-        certificateIssued: true,
-        certificateNo: "CERT-2026-101",
-      },
-      {
-        employeeId: "STF-102",
-        employeeName: "Ananya Roy",
-        employeeRole: "Teaching Staff",
-        department: "Science",
-        designation: "TGT Teacher",
-        branch: "Main Campus",
-        attendanceStatus: "Present",
-        certificateIssued: true,
-        certificateNo: "CERT-2026-102",
-      },
-    ],
-  },
-  {
-    id: "WKS-102",
-    workshopName: "POCSO & Child Safety Awareness Training",
-    category: "POCSO Awareness",
-    type: "External",
-    trainerName: "Adv. Meenakshi Sundaram",
-    organization: "National Child Rights & Protection Forum",
-    branch: "Main Campus",
-    department: "Administration",
-    applicableDesignation: "All Staff",
-    venue: "Main Auditorium",
-    startDate: "2026-08-25",
-    endDate: "2026-08-25",
-    startTime: "10:00 AM",
-    endTime: "01:00 PM",
-    capacity: 100,
-    description:
-      "Mandatory workshop on POCSO Act guidelines, identifying behavioral indicators, emergency protocols, and institutional reporting procedures.",
-    attachments: [],
-    status: "Scheduled",
-    attendancePct: 100,
-    participants: [],
-  },
-];
+const initialWorkshops: WorkshopTraining[] = [];
 
 const initialEmployeeAssessments: EmployeeAssessment[] = [
   {
@@ -2283,23 +1207,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [tcRegister, setTcRegister] = useState<TcRecord[]>(() =>
     getStored("tc_register", []),
   );
-  const [students, setStudents] = useState<Student[]>(() => {
-    const stored = getStored("students", initialStudents);
-    const hasMigrated = localStorage.getItem(
-      "edu_db_students_section_cleaned_v3",
-    );
-    if (!hasMigrated) {
-      const migrated = stored.map((s: any) => ({
-        ...s,
-        section: "",
-        rollNo: "",
-      }));
-      localStorage.setItem("edu_db_students_section_cleaned_v3", "true");
-      localStorage.setItem("edu_db_students", JSON.stringify(migrated));
-      return migrated;
-    }
-    return stored;
-  });
+  const [students, setStudents] = useState<Student[]>(() =>
+    getStored("students", initialStudents),
+  );
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("staff", initialStaff),
   );
@@ -2307,37 +1217,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("admissions", initialAdmissions),
   );
   const [rawClasses, setRawClasses] = useState<any[]>([]);
+  const classesLoadedRef = useRef(false);
+  const subjectsLoadedRef = useRef(false);
+  const periodsLoadedRef = useRef(false);
+  const departmentsLoadedRef = useRef(false);
+  const designationsLoadedRef = useRef(false);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
-    () => {
-      const stored = getStored("academic_classes", initialClasses);
-      const ids = stored.map((c: any) => c.id);
-      const hasDuplicates = ids.some(
-        (id: any, index: number) => ids.indexOf(id) !== index,
-      );
-      if (hasDuplicates) {
-        const seenIds = new Set<string>();
-        const migrated = stored.map((c: any) => {
-          let newId = c.id;
-          if (!newId || seenIds.has(newId)) {
-            let counter = 1;
-            do {
-              newId = `CL-${Math.floor(100 + Math.random() * 900)}`;
-            } while (
-              stored.some((x: any) => x.id === newId) ||
-              seenIds.has(newId)
-            );
-          }
-          seenIds.add(newId);
-          return { ...c, id: newId };
-        });
-        localStorage.setItem(
-          "edu_db_academic_classes",
-          JSON.stringify(migrated),
-        );
-        return migrated;
-      }
-      return stored;
-    },
+    () => getStored("academic_classes", initialClasses),
   );
   const [subjects, setSubjects] = useState<SubjectItem[]>(() =>
     getStored("subjects", initialSubjects),
@@ -2351,17 +1237,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [hostelBeds, setHostelBeds] = useState<HostelBed[]>(() =>
     getStored("hostel_beds", initialHostelBeds),
   );
-  const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
-    const stored = getStored("uniforms", initialUniforms);
-    const version = localStorage.getItem("edu_db_uniforms_v20");
-    if (!version || stored.length < initialUniforms.length || stored.some(u => u.category.includes('School ') || u.category === 'Blazer' || u.category === 'Extra Shirt')) {
-      localStorage.setItem("edu_db_uniforms_v20", "true");
-      localStorage.setItem("edu_db_uniforms", JSON.stringify(initialUniforms));
-      localStorage.setItem("uniforms", JSON.stringify(initialUniforms));
-      return initialUniforms;
-    }
-    return stored;
-  });
+  const [uniforms, setUniforms] = useState<UniformItem[]>(() =>
+    getStored("uniforms", initialUniforms),
+  );
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() =>
     getStored("custom_roles", initialCustomRoles),
   );
@@ -2374,10 +1252,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [attendance, setAttendance] = useState<DailyAttendance[]>(() =>
     getStored("attendance", []),
   );
-  const [exams, setExams] = useState<ExamSetup[]>(() => {
-    const stored = getStored<ExamSetup[]>("exams", initialExamSetups);
-    return stored.length === 0 ? initialExamSetups : stored;
-  });
+  const [exams, setExams] = useState<ExamSetup[]>(() =>
+    getStored<ExamSetup[]>("exams", initialExamSetups),
+  );
   const [examMarks, setExamMarks] = useState<ExamMark[]>(() =>
     getStored("exam_marks", initialExamMarks),
   );
@@ -2434,27 +1311,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [announcements, setAnnouncements] = useState<Announcement[]>(() =>
     getStored("announcements", initialAnnouncements),
   );
-  const [holidays, setHolidays] = useState<Holiday[]>(() => {
-    const stored = getStored("holidays", initialHolidays);
-    if (!stored || stored.length <= 1) {
-      localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
-      return initialHolidays;
-    }
-    return stored;
-  });
+  const [holidays, setHolidays] = useState<Holiday[]>(() =>
+    getStored("holidays", initialHolidays),
+  );
   const [schoolEvents, setSchoolEvents] = useState<SchoolEvent[]>(() =>
     getStored("school_events", initialSchoolEvents),
   );
-  const [birthdays] = useState<Birthday[]>(() => {
-    const val = getStored("birthdays", initialBirthdays);
-    if (
-      val.some((b) => b.name === "Alexander Wright" && b.role === "Student")
-    ) {
-      localStorage.setItem("birthdays", JSON.stringify(initialBirthdays));
-      return initialBirthdays;
-    }
-    return val;
-  });
+  const [birthdays] = useState<Birthday[]>(() =>
+    getStored("birthdays", initialBirthdays),
+  );
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() =>
     getStored("audit_logs", initialAuditLogs),
   );
@@ -2489,16 +1354,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
-    () => {
-      const stored = getStored("uniform_categories", initialUniformCategories);
-      const version = localStorage.getItem("edu_db_uniform_categories_v37");
-      if (!version || stored.length < initialUniformCategories.length) {
-        localStorage.setItem("edu_db_uniform_categories_v37", "true");
-        localStorage.setItem("uniform_categories", JSON.stringify(initialUniformCategories));
-        return initialUniformCategories;
-      }
-      return stored;
-    }
+    () => getStored("uniform_categories", initialUniformCategories),
   );
   const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() =>
     getStored("uniform_sizes", initialUniformSizes),
@@ -2508,53 +1364,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [uniformInventory, setUniformInventory] = useState<
     UniformInventoryItem[]
-  >(() => {
-    const stored = getStored("uniform_inventory", initialUniformInventory);
-    const version = localStorage.getItem("edu_db_uniform_inventory_v35");
-    if (!version || stored.length < initialUniformInventory.length || stored.some(i => i.itemName.includes('School ') || i.itemName === 'Blazer' || i.itemName === 'Polo Shirt (Summer)')) {
-      localStorage.setItem("edu_db_uniform_inventory_v35", "true");
-      localStorage.setItem(
-        "edu_db_uniform_inventory",
-        JSON.stringify(initialUniformInventory),
-      );
-      localStorage.setItem(
-        "uniform_inventory",
-        JSON.stringify(initialUniformInventory),
-      );
-      return initialUniformInventory;
-    }
-    return stored;
-  });
+  >(() => getStored("uniform_inventory", initialUniformInventory));
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
-  >(() => {
-    const stored = getStored("student_uniform_issues", initialStudentUniformIssues);
-    const version = localStorage.getItem("edu_db_student_uniform_issues_v35");
-    const hasInvalidFormat = stored.some((i: any) =>
-      i.itemName?.includes("Summer blazer") ||
-      i.itemName?.includes("Autumn Blazer") ||
-      i.itemName?.includes("Summer Sweater") ||
-      i.itemName?.includes("Polo Shirt") ||
-      i.className?.includes("- A - A") ||
-      i.className?.includes(" - A - ") ||
-      i.quantity > 5
-    );
-    if (!version || hasInvalidFormat || stored.length < initialStudentUniformIssues.length) {
-      localStorage.setItem("edu_db_student_uniform_issues_v35", "true");
-      localStorage.setItem(
-        "student_uniform_issues",
-        JSON.stringify(initialStudentUniformIssues),
-      );
-      return initialStudentUniformIssues;
-    }
-    const cleaned = stored.map((i: any) => {
-      if (i.className && (i.className.includes(" - A - A") || i.className.includes(" - B - B"))) {
-        return { ...i, className: i.className.replace(/\s*-\s*[A-Z]\s*-\s*[A-Z]$/, ' - A') };
-      }
-      return i;
-    });
-    return cleaned;
-  });
+  >(() => getStored("student_uniform_issues", initialStudentUniformIssues));
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
     FinanceUniformConfig[]
   >(() => getStored("finance_uniform_configs", initialFinanceUniformConfigs));
@@ -2565,13 +1378,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [dynamicFeeStructures, setDynamicFeeStructures] = useState<
     DynamicFeeStructure[]
-  >(() => {
-    const stored = getStored(
-      "edu_db_dynamic_fee_structures",
-      getStored("dynamic_fee_structures", initialDynamicFeeStructures),
-    );
-    return stored && stored.length > 0 ? stored : initialDynamicFeeStructures;
-  });
+  >(() => getStored("dynamic_fee_structures", initialDynamicFeeStructures));
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<
     StudentFeeAssignment[]
   >(() => getStored("student_fee_assignments", initialStudentFeeAssignments));
@@ -3358,7 +2165,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [coScholasticAssessments]);
 
-  const fetchAcademicClasses = async () => {
+  const fetchAcademicClasses = async (force = false) => {
+    if (classesLoadedRef.current && !force) return;
     try {
       const data = await fetchClassesApi();
       if (data) {
@@ -3380,6 +2188,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               id: classIdStr,
               name: c.className || c.name,
               sections: c.sections?.map((s: any) => s.sectionName || s) || [],
+              sectionsList: c.sections || [],
               sectionTeachers: c.sectionTeachers || {},
               teacher: c.teacher || "Unassigned",
               subjects: c.subjects || [],
@@ -3388,6 +2197,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
           setAcademicClasses(mapped);
+          classesLoadedRef.current = true;
         }
       }
     } catch (err: any) {
@@ -3395,7 +2205,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const fetchSubjects = async () => {
+  const fetchSubjects = async (force = false) => {
+    if (subjectsLoadedRef.current && !force) return;
     try {
       const data: any = await fetchAcademicSubjectsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -3412,13 +2223,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: item.status || "Active",
         }));
         setSubjects(mappedData);
+        subjectsLoadedRef.current = true;
       }
     } catch (err: any) {
       console.warn("Error fetching subjects", err);
     }
   };
 
-  const fetchPeriods = async () => {
+  const fetchPeriods = async (force = false) => {
+    if (periodsLoadedRef.current && !force) return;
     try {
       const data: any = await fetchAcademicPeriodsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -3440,6 +2253,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: item.status || "Active",
         }));
         setPeriodSettings(mappedData);
+        periodsLoadedRef.current = true;
       }
     } catch (err: any) {
       console.warn("Error fetching periods", err);
@@ -3517,7 +2331,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const fetchDepartments = async () => {
+  const fetchDepartments = async (force = false) => {
+    if (departmentsLoadedRef.current && !force) return;
     try {
       const response: any = await fetchDepartmentsApi();
       if (response && response.success && response.data) {
@@ -3529,13 +2344,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: item.status || "Active",
         }));
         setDepartments(mapped);
+        departmentsLoadedRef.current = true;
       }
     } catch (err) {
       console.warn("Failed to fetch departments", err);
     }
   };
 
-  const fetchDesignations = async () => {
+  const fetchDesignations = async (force = false) => {
+    if (designationsLoadedRef.current && !force) return;
     try {
       const response: any = await fetchDesignationsApi();
       if (response && response.success && response.data) {
@@ -3546,6 +2363,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           status: item.status || "Active",
         }));
         setDesignations(mapped);
+        designationsLoadedRef.current = true;
       }
     } catch (err) {
       console.warn("Failed to fetch designations", err);
@@ -3601,7 +2419,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // =========================================================
-  // FETCH FUNCTIONS — REAL API REPLACEMENTS FOR MOCK DATA
+  // FETCH FUNCTIONS Ã¢â‚¬â€ REAL API REPLACEMENTS FOR MOCK DATA
   // =========================================================
 
   const fetchStudents = async () => {
@@ -3774,13 +2592,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchAcademicClasses();
-      fetchSubjects();
-      fetchPeriods();
-      fetchDepartments();
-      fetchDesignations();
-      // Students (replaces initialStudents mock data)
-      fetchStudents();
       // Library (replaces initialBooks / initialBookIssues mock data)
       fetchBooks();
       fetchBookIssues();
@@ -3804,7 +2615,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Receptionist",
     ];
     if (isAuthenticated && allowedAdmissionsRoles.includes(role)) {
-      fetchAdmissions();
       fetchStaff().then(() => {
         fetchLeaveTypes();
         fetchLeaveApplications();
@@ -4864,29 +3674,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             baseFeeTotal + additionalFees - scholarshipAmount - discountAmount,
           );
 
-          const newStudent = addStudent({
-            admissionNo:
-              app.applicationNo ||
-              "ADM2026-" + Math.floor(100 + Math.random() * 900),
-            rollNo: "",
-            firstName:
-              app.firstName || app.applicantName.split(" ")[0] || "Enrolled",
-            lastName:
-              app.lastName ||
-              app.applicantName.slice(app.applicantName.indexOf(" ") + 1) ||
-              "Student",
+          const studentIdStr = String(json.studentId || "STU-" + Math.floor(100 + Math.random() * 900));
+          const newStudent: Student = {
+            id: studentIdStr,
+            admissionNo: json.admissionNumber || (app as any).registrationNo || app.applicationNo || "",
+            rollNo: json.rollNumber || "",
+            firstName: app.firstName || app.applicantName.split(" ")[0] || "Enrolled",
+            lastName: app.lastName || app.applicantName.slice(app.applicantName.indexOf(" ") + 1) || "Student",
             gender: app.gender || "Male",
             dob: app.dob || "15/08/2012",
             bloodGroup: app.bloodGroup || "O+",
             religion: app.religion || "General",
             casteCategory: app.casteCategory || "General",
             className: app.appliedClass || "Class 10",
-            section: "",
+            section: json.section || "A",
             category: app.casteCategory || "General",
             status: "Active",
-            avatar:
-              app.avatar ||
-              "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
+            avatar: app.avatar || `/api/v1/students/${studentIdStr}/image`,
             joiningDate: new Date().toISOString().split("T")[0],
             branch: app.branch || "Main Campus",
             studentType: app.studentType || "Day Scholar",
@@ -4916,9 +3720,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             dueFee: calculatedTotalFee,
             attendancePct: 100.0,
             gpa: 4.0,
-          });
+          };
 
-          enrolledStudentId = newStudent.id;
+          setStudents((prev) => [...prev.filter((s) => s.id !== studentIdStr), newStudent]);
+          enrolledStudentId = studentIdStr;
+
+          // Reload from backend in background to sync complete dataset
+          setTimeout(() => {
+            fetchStudents();
+          }, 100);
 
           // Create Student Fee Assignment based on selected fee types
           const sfaId = "SFA-" + Math.floor(100 + Math.random() * 900);
@@ -5081,11 +3891,51 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       id,
       branch: (clsData as any).branch || selectedBranch || "Main Campus",
     } as any;
+
     setAcademicClasses((prev) => [...prev, newCls]);
+
+    createClassApi({
+      name: clsData.name,
+      class_name: clsData.name,
+      campus_location: (clsData as any).branch || (clsData as any).campus || selectedBranch || "Main Campus",
+      academic_year: (clsData as any).academicYear || selectedAcademicYear || "2026-2027",
+      display_order: (clsData as any).displayOrder,
+      status: (clsData as any).status || "Active",
+      remarks: (clsData as any).remarks || "",
+      sections: clsData.sections || [],
+      sectionTeachers: (clsData as any).sectionTeachers || {},
+      subjects: clsData.subjects || []
+    })
+      .then((response) => {
+        if (response && response.success && response.id) {
+          const dbId = response.id.toString();
+          setAcademicClasses((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, id: dbId } : c))
+          );
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to create class in backend", err);
+      });
+
     logActivity("Created Academic Class", `Added ${newCls.name}`);
   };
 
   const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
+    const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
+
+    if (!isNaN(Number(numericId))) {
+      updateClassApi(numericId, {
+        name: updates.name,
+        class_name: updates.name,
+        status: (updates as any).status,
+        remarks: (updates as any).remarks,
+        display_order: (updates as any).displayOrder
+      }).catch((err) => {
+        console.error("Failed to update class in backend", err);
+      });
+    }
+
     setAcademicClasses((prev) =>
       prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
     );
@@ -5093,6 +3943,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const deleteAcademicClass = (id: string) => {
+    const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
+
+    if (!isNaN(Number(numericId))) {
+      deleteClassApi(numericId).catch((err) => {
+        console.error("Failed to delete class in backend", err);
+      });
+    }
+
     const cls = academicClasses.find((c) => c.id === id);
     if (cls) {
       setStudents((prev) =>
@@ -5219,7 +4077,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
 
 
-  const addPeriodSetting = (data: Omit<PeriodSetting, "id">) => {
+  const addPeriodSetting = async (data: Omit<PeriodSetting, "id">) => {
     // Check duplicate
     const isDuplicate = periodSettings.some((p) => {
       if (p.status !== "Active") return false;
@@ -5238,54 +4096,82 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (isDuplicate) return;
 
-    const id = "PS-" + Math.floor(100 + Math.random() * 900);
-    const newPs: PeriodSetting = { ...data, id };
-    setPeriodSettings((prev) => [...prev, newPs]);
-    logActivity(
-      "Created Period Setting",
-      `Added ${newPs.periodName} (${newPs.startTime}-${newPs.endTime})`,
-    );
-  };
-
-  const updatePeriodSetting = (id: string, updates: Partial<PeriodSetting>) => {
-    // Check duplicate if updates contains fields that can duplicate
-    if (
-      updates.periodName ||
-      updates.sequence ||
-      updates.startTime ||
-      updates.endTime
-    ) {
-      const existing = periodSettings.find((p) => p.id === id);
-      if (existing) {
-        const merged = { ...existing, ...updates };
-        const isDuplicate = periodSettings.some((p) => {
-          if (p.id === id || p.status !== "Active") return false;
-          const sameScope =
-            (!p.className &&
-              !p.section &&
-              !merged.className &&
-              !merged.section) ||
-            (p.className === merged.className && p.section === merged.section);
-          if (!sameScope) return false;
-          const sameName =
-            p.periodName.trim().toLowerCase() ===
-            merged.periodName.trim().toLowerCase();
-          const sameSeq = Number(p.sequence) === Number(merged.sequence);
-          const sameTime =
-            p.startTime === merged.startTime && p.endTime === merged.endTime;
-          return sameName || sameSeq || sameTime;
-        });
-        if (isDuplicate) return;
+    try {
+      const payload = {
+        periodName: data.periodName,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        periodType: data.periodType || "Teaching Period",
+        displayOrder: Number(data.sequence) || 1
+      };
+      const res: any = await savePeriodApi(payload);
+      if (res?.success && res.data) {
+        const newPs: PeriodSetting = {
+          id: `PS-${res.data.periodId}`,
+          periodName: res.data.periodName,
+          startTime: res.data.startTime,
+          endTime: res.data.endTime,
+          periodType: res.data.periodType,
+          sequence: res.data.displayOrder.toString(),
+          status: "Active",
+          academicYear: res.data.academicYear || data.academicYear || "2026-2027",
+          branch: res.data.branch || data.branch || selectedBranch || "Main Campus"
+        };
+        setPeriodSettings((prev) => [...prev, newPs]);
+        logActivity(
+          "Created Period Setting",
+          `Added ${newPs.periodName} (${newPs.startTime}-${newPs.endTime})`,
+        );
       }
+    } catch (err: any) {
+      console.error("Error saving period setting", err);
     }
-
-    setPeriodSettings((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-    );
   };
 
-  const deletePeriodSetting = (id: string) => {
-    setPeriodSettings((prev) => prev.filter((p) => p.id !== id));
+  const updatePeriodSetting = async (id: string, updates: Partial<PeriodSetting>) => {
+    const existing = periodSettings.find((p) => p.id === id);
+    if (!existing) return;
+    const merged = { ...existing, ...updates };
+
+    try {
+      const numericId = typeof id === "string" && id.startsWith("PS-") ? parseInt(id.replace("PS-", "")) : parseInt(id);
+      const payload = {
+        periodId: numericId,
+        periodName: merged.periodName,
+        startTime: merged.startTime,
+        endTime: merged.endTime,
+        periodType: merged.periodType || "Teaching Period",
+        displayOrder: Number(merged.sequence) || 1
+      };
+      const res: any = await savePeriodApi(payload);
+      if (res?.success && res.data) {
+        const updated: PeriodSetting = {
+          id,
+          periodName: res.data.periodName,
+          startTime: res.data.startTime,
+          endTime: res.data.endTime,
+          periodType: res.data.periodType,
+          sequence: res.data.displayOrder.toString(),
+          status: merged.status || "Active",
+          academicYear: res.data.academicYear || merged.academicYear || "2026-2027",
+          branch: res.data.branch || merged.branch || selectedBranch || "Main Campus"
+        };
+        setPeriodSettings((prev) =>
+          prev.map((p) => (p.id === id ? updated : p)),
+        );
+      }
+    } catch (err: any) {
+      console.error("Error updating period setting", err);
+    }
+  };
+
+  const deletePeriodSetting = async (id: string) => {
+    try {
+      await deletePeriodApi(id);
+      setPeriodSettings((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      console.error("Error deleting period setting", err);
+    }
   };
 
   const bulkAssignPeriods = (classKeys: string[]) => {
@@ -8867,24 +7753,110 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const addTimetableSlot = (slotData: Omit<TimetableSlot, "id">) => {
-    const id = "TT-" + Math.floor(100 + Math.random() * 900);
-    const newSlot: TimetableSlot = {
-      ...slotData,
-      id,
-      branch: (slotData as any).branch || selectedBranch || "Main Campus",
-    } as any;
-    setTimetable((prev) => [...prev, newSlot]);
+  const mapSlotToPayload = (slot: any) => {
+    const clsObj = academicClasses.find(c => c.name === slot.className);
+    const classId = clsObj ? parseInt(clsObj.id.replace("CL-", "")) : 0;
+    
+    const secObj = clsObj?.sectionsList?.find((s: any) => s.sectionName === slot.section || s.name === slot.section);
+    const sectionId = secObj ? parseInt(secObj.sectionId || secObj.id) : 0;
+
+    const subObj = subjects.find(s => s.name === slot.subject);
+    const subjectId = subObj ? parseInt(subObj.id.replace("SUB-", "")) : 0;
+
+    const staffObj = staff.find(s => `${s.firstName} ${s.lastName}` === slot.teacherName || (s as any).displayName === slot.teacherName);
+    const teacherId = staffObj ? parseInt(staffObj.id.replace("STF-", "")) : 0;
+
+    // Time Slot parse
+    let startTime = "";
+    let endTime = "";
+    if (slot.timeSlot && slot.timeSlot.includes("-")) {
+      const parts = slot.timeSlot.split("-");
+      startTime = parts[0].trim();
+      endTime = parts[1].trim();
+    }
+
+    const perObj = periodSettings.find(p => `${p.startTime} - ${p.endTime}` === slot.timeSlot);
+    const periodId = perObj ? parseInt(perObj.id.replace("PS-", "")) : undefined;
+
+    return {
+      classId,
+      sectionId,
+      academicYear: slot.academicYear || "2026-2027",
+      branchName: slot.branch || selectedBranch || "Main Campus",
+      dayOfWeek: slot.day,
+      startTime,
+      endTime,
+      subjectId,
+      teacherId: teacherId > 0 ? teacherId : undefined,
+      roomNo: slot.roomNo || "",
+      periodId
+    };
   };
 
-  const updateTimetableSlot = (id: string, updates: Partial<TimetableSlot>) => {
-    setTimetable((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, ...updates } : t)),
-    );
+  const addTimetableSlot = async (slotData: Omit<TimetableSlot, "id">) => {
+    try {
+      const payload = mapSlotToPayload(slotData);
+      const res: any = await saveTimetableSlotApi(payload);
+      if (res?.success && res.data) {
+        const backendSlot = res.data;
+        const subObj = subjects.find(s => s.id === `SUB-${backendSlot.subjectId}`) || { name: backendSlot.subjectName || "", code: backendSlot.subjectCode || "" };
+        const clsObj = academicClasses.find(c => parseInt(c.id.replace("CL-", "")) === backendSlot.classId || c.name === slotData.className);
+        const mappedSlot: TimetableSlot = {
+          id: `TT-${backendSlot.slotId}`,
+          className: clsObj?.name || slotData.className,
+          section: slotData.section,
+          day: backendSlot.dayOfWeek,
+          timeSlot: `${backendSlot.startTime} - ${backendSlot.endTime}`,
+          subject: subObj.name,
+          teacherName: backendSlot.teacherName,
+          roomNo: backendSlot.roomNo,
+          branch: backendSlot.branchName || "Main Campus",
+          status: "Draft"
+        };
+        setTimetable((prev) => [...prev, mappedSlot]);
+      }
+    } catch (err: any) {
+      console.error("Error adding timetable slot", err);
+    }
   };
 
-  const deleteTimetableSlot = (id: string) => {
-    setTimetable((prev) => prev.filter((t) => t.id !== id));
+  const updateTimetableSlot = async (id: string, updates: Partial<TimetableSlot>) => {
+    const existing = timetable.find(t => t.id === id);
+    if (!existing) return;
+    const updatedSlot = { ...existing, ...updates };
+    try {
+      const payload = mapSlotToPayload(updatedSlot);
+      const res: any = await saveTimetableSlotApi(payload);
+      if (res?.success && res.data) {
+        const backendSlot = res.data;
+        const subObj = subjects.find(s => s.id === `SUB-${backendSlot.subjectId}`) || { name: backendSlot.subjectName || "", code: backendSlot.subjectCode || "" };
+        const clsObj = academicClasses.find(c => parseInt(c.id.replace("CL-", "")) === backendSlot.classId || c.name === updatedSlot.className);
+        const mappedSlot: TimetableSlot = {
+          id: `TT-${backendSlot.slotId}`,
+          className: clsObj?.name || updatedSlot.className,
+          section: updatedSlot.section,
+          day: backendSlot.dayOfWeek,
+          timeSlot: `${backendSlot.startTime} - ${backendSlot.endTime}`,
+          subject: subObj.name,
+          teacherName: backendSlot.teacherName,
+          roomNo: backendSlot.roomNo,
+          branch: backendSlot.branchName || "Main Campus",
+          status: "Draft"
+        };
+        setTimetable((prev) => prev.map(t => t.id === id ? mappedSlot : t));
+      }
+    } catch (err: any) {
+      console.error("Error updating timetable slot", err);
+    }
+  };
+
+  const deleteTimetableSlot = async (id: string) => {
+    try {
+      await deleteTimetableSlotApi(id);
+      setTimetable((prev) => prev.filter((t) => t.id !== id));
+    } catch (err: any) {
+      console.error("Error deleting timetable slot", err);
+    }
   };
 
   const addHomework = (hwData: Omit<Homework, "id">) => {
@@ -10243,6 +9215,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteAdmission,
         updateAdmissionStatus,
         academicClasses: filteredClasses,
+        fetchAdmissions,
+        fetchStudents,
+        fetchAcademicClasses,
+        fetchSubjects,
+        fetchPeriods,
+        fetchDepartments,
+        fetchDesignations,
         addAcademicClass,
         updateAcademicClass,
         deleteAcademicClass,
@@ -10592,3 +9571,7 @@ export const useData = () => {
   }
   return { ...context, ...hostel, ...exam, ...hr } as unknown as DataContextType;
 };
+
+
+
+

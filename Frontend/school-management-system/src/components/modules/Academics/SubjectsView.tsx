@@ -207,10 +207,14 @@ export const SubjectsView: React.FC = () => {
   };
 
   useEffect(() => {
-    loadSubjects();
-    loadDepartments();
-    loadDesignations();
-  }, []);
+    if (activeTab === 'subjects') {
+      loadSubjects();
+    } else if (activeTab === 'departments') {
+      loadDepartments();
+    } else if (activeTab === 'designations') {
+      loadDesignations();
+    }
+  }, [activeTab]);
 
   // Update local subjects list if context subjects change
   // Removed static context dependency per request

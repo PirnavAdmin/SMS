@@ -1,4 +1,4 @@
-namespace SMS.Api.Repositories.Implementations;
+namespace SMS.Api.Repositories.Implementations.AcademicManagement;
 
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,7 @@ using SMS.Api.Data;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
+using SMS.Api.Repositories.Interfaces.AcademicManagement;
 
 public class TimetableRepository : ITimetableRepository
 {

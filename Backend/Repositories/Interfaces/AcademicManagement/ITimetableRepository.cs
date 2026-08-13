@@ -1,9 +1,10 @@
-namespace SMS.Api.Repositories.Interfaces;
+namespace SMS.Api.Repositories.Interfaces.AcademicManagement;
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 
 public interface ITimetableRepository
 {

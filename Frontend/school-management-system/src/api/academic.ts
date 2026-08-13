@@ -376,3 +376,18 @@ export const fetchTimetableForClassSectionApi = async (
   );
 };
 
+export const generateTimetableApi = async (payload: any) => {
+  return apiClient('/api/academics/timetable/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const validateTimetableApi = async (classId: number | string, sectionId: number | string, academicYear: string) => {
+  return apiClient(
+    `/api/academics/timetable/validate?classId=${classId}&sectionId=${sectionId}&academicYear=${encodeURIComponent(academicYear)}`,
+    { method: 'POST' }
+  );
+};
+
+

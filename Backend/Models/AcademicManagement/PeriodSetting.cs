@@ -1,4 +1,4 @@
-namespace SMS.Api.Models;
+namespace SMS.Api.Models.AcademicManagement;
 
 using System;
 using System.ComponentModel.DataAnnotations;

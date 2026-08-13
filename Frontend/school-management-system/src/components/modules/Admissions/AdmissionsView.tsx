@@ -30,9 +30,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     routeMasters, pickupPoints,
     getStudentFeeLedger, dynamicFeeStructures, financeTransportConfigs, hostelMasters, financeHostelConfigs,
     roomMasters, studentHostelAssignments, scholarships, discounts, roomTypeMasters, academicClasses,
-    feeHeads
+    feeHeads,
+    fetchAdmissions
   } = useData();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    fetchAdmissions().catch(err => {
+      console.error('Failed to fetch admissions:', err);
+    });
+  }, [fetchAdmissions]);
   const { selectedBranch } = useAuth();
 
   const [query, setQuery] = useState('');

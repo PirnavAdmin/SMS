@@ -869,17 +869,160 @@ public class SchoolService : ISchoolService
 		return true;
 	}
 
-	public async Task<bool> EnrollStudentAsync(int id)
+	public async Task<Student> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id)
 			?? throw new NotFoundException($"Admission application with ID '{id}' not found.");
 
-		if (app.Status == "Enrolled") throw new BadRequestException("Student is already enrolled.");
+		if (app.Status == "Enrolled") 
+			throw new BadRequestException("Student is already enrolled.");
 
-		app.Status = "Enrolled";
-		await _schoolRepository.SaveChangesAsync();
-		await SyncToAdmissionsTableAsync(app);
-		return true;
+		var alreadyExists = await _schoolRepository.AdmissionNumberExistsAsync(app.RegistrationNo ?? "");
+		if (alreadyExists)
+			throw new BadRequestException("A student is already registered with this application's registration number.");
+
+		using (var transaction = await _schoolRepository.BeginTransactionAsync())
+		{
+			try
+			{
+				int classId = app.AppliedClassId ?? 1;
+				var sectionObj = await _schoolRepository.GetFirstSectionByClassIdAsync(classId);
+				if (sectionObj == null)
+				{
+					sectionObj = new ClassSection
+					{
+						ClassId = classId,
+						SectionName = "A"
+					};
+					await _schoolRepository.AddClassSectionAsync(sectionObj);
+					await _schoolRepository.SaveChangesAsync();
+				}
+
+				var defaultBranch = await _schoolRepository.GetDefaultBranchAsync();
+				if (defaultBranch == null)
+				{
+					defaultBranch = new Branch { BranchName = "Main Campus" };
+					await _schoolRepository.AddBranchAsync(defaultBranch);
+					await _schoolRepository.SaveChangesAsync();
+				}
+
+				var defaultAcademicYear = await _schoolRepository.GetDefaultAcademicYearAsync();
+				if (defaultAcademicYear == null)
+				{
+					defaultAcademicYear = new AcademicYear
+					{
+						AcademicYearName = "2025-2026",
+						StartDate = new DateTime(2025, 6, 1),
+						EndDate = new DateTime(2026, 5, 31),
+						IsCurrent = true,
+						IsActive = true,
+						IsDeleted = false,
+						CreatedAt = DateTime.UtcNow
+					};
+					await _schoolRepository.AddAcademicYearAsync(defaultAcademicYear);
+					await _schoolRepository.SaveChangesAsync();
+				}
+
+				int studentCount = await _schoolRepository.CountStudentsInClassSectionAsync(defaultAcademicYear.AcademicYearId, classId, sectionObj.SectionId);
+				string rollNumber = (studentCount + 1).ToString();
+
+				var student = new Student
+				{
+					AdmissionNumber = app.RegistrationNo ?? $"REG-{app.Id}",
+					RollNumber = rollNumber,
+					StudentName = $"{app.FirstName} {app.LastName}".Trim(),
+					DateOfBirth = app.DateOfBirth,
+					Gender = app.Gender,
+					FatherName = app.FatherName,
+					FatherMobile = app.FatherContact,
+					MotherName = app.MotherName,
+					MotherMobile = app.MotherMobileNumber,
+					Email = app.ParentEmail,
+					MobileNumber = app.FatherContact,
+					Address = $"{app.HouseNo} {app.Street} {app.AreaLocality} {app.City} {app.District} {app.State} {app.PinCode}".Trim(),
+					BranchId = defaultBranch.BranchId,
+					AcademicYearId = defaultAcademicYear.AcademicYearId,
+					ClassId = classId,
+					SectionId = sectionObj.SectionId,
+					Status = "Active",
+					IsDeleted = false,
+					CreatedAt = DateTime.UtcNow
+				};
+
+				await _schoolRepository.AddStudentAsync(student);
+				await _schoolRepository.SaveChangesAsync();
+
+				app.Status = "Enrolled";
+				await _schoolRepository.SaveChangesAsync();
+
+				await SyncToAdmissionsTableWithSectionAsync(app, sectionObj.SectionName, rollNumber);
+
+				student.ClassSection = sectionObj;
+
+				await transaction.CommitAsync();
+				return student;
+			}
+			catch (Exception)
+			{
+				await transaction.RollbackAsync();
+				throw;
+			}
+		}
+	}
+
+	private async Task SyncToAdmissionsTableWithSectionAsync(AdmissionApplication app, string sectionLetter, string rollNo, bool isDeleted = false)
+	{
+		try
+		{
+			var existing = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+				_context.Admissions, x => x.ApplicationNo == app.RegistrationNo);
+
+			if (existing == null)
+			{
+				var newAdmission = new Admission
+				{
+					ApplicationNo = app.RegistrationNo ?? "",
+					StudentName = $"{app.FirstName} {app.LastName}".Trim(),
+					Dob = app.DateOfBirth,
+					Gender = app.Gender,
+					FatherName = app.FatherName,
+					FatherMobile = app.FatherContact,
+					BloodGroup = app.BloodGroup,
+					Caste = app.Caste,
+					BranchId = 1,
+					ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1,
+					SectionLetter = sectionLetter,
+					RollNo = rollNo,
+					AdmissionType = "Regular",
+					Status = "Enrolled",
+					IsDeleted = isDeleted,
+					CreatedDate = DateTime.UtcNow
+				};
+				await _context.Admissions.AddAsync(newAdmission);
+			}
+			else
+			{
+				existing.StudentName = $"{app.FirstName} {app.LastName}".Trim();
+				existing.Dob = app.DateOfBirth;
+				existing.Gender = app.Gender;
+				existing.FatherName = app.FatherName;
+				existing.FatherMobile = app.FatherContact;
+				existing.BloodGroup = app.BloodGroup;
+				existing.Caste = app.Caste;
+				existing.ClassId = app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 ? app.AppliedClassId.Value : 1;
+				existing.SectionLetter = sectionLetter;
+				existing.RollNo = rollNo;
+				existing.Status = "Enrolled";
+				existing.IsDeleted = isDeleted;
+				existing.ModifiedDate = DateTime.UtcNow;
+			}
+
+			await _context.SaveChangesAsync();
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error syncing to admissions table with section: {ex.Message}");
+		}
 	}
 
 	public async Task<bool> UpdateApplicationStatusAsync(int id, string status)
@@ -1523,6 +1666,7 @@ public class SchoolService : ISchoolService
 			ClassId = dto.ClassId,
 			SectionId = dto.SectionId,
 			Status = NormalizeStudentStatus(dto.Status),
+			Avatar = dto.Avatar,
 			IsDeleted = false,
 			CreatedAt = DateTime.UtcNow
 		};
@@ -1578,6 +1722,7 @@ public class SchoolService : ISchoolService
 		student.ClassId = dto.ClassId;
 		student.SectionId = dto.SectionId;
 		student.Status = NormalizeStudentStatus(dto.Status);
+		student.Avatar = dto.Avatar;
 		student.UpdatedAt = DateTime.UtcNow;
 
 		await _schoolRepository.SaveChangesAsync();

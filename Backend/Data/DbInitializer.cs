@@ -106,7 +106,7 @@ namespace SMS.Api.Data
             // =========================================================
             // 3. FAST SHIFT BYPASS IF FULLY INITIALIZED
             // =========================================================
-            var coreTables = new[] { "users", "roles", "admins", "departments", "subjects", "classes", "class_sections", "staff", "transport_vehicles", "transport_routes", "transport_drivers" };
+            var coreTables = new[] { "users", "roles", "user_roles", "admins", "departments", "subjects", "classes", "class_sections", "staff", "transport_vehicles", "transport_routes", "transport_drivers" };
             bool allCoreTablesExist = coreTables.All(t => existingTables.Contains(t));
             if (allCoreTablesExist)
             {
@@ -514,6 +514,14 @@ namespace SMS.Api.Data
                     `Feedback` longtext NULL,
                     PRIMARY KEY (`SubmissionId`),
                     CONSTRAINT `fk_hw_submissions_homework` FOREIGN KEY (`HomeworkId`) REFERENCES `homeworks` (`HomeworkId`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;" },
+
+                { "user_roles", @"CREATE TABLE IF NOT EXISTS `user_roles` (
+                    `UserId` int NOT NULL,
+                    `RoleId` int NOT NULL,
+                    PRIMARY KEY (`UserId`, `RoleId`),
+                    CONSTRAINT `fk_user_roles_user` FOREIGN KEY (`UserId`) REFERENCES `users` (`UserId`) ON DELETE CASCADE,
+                    CONSTRAINT `fk_user_roles_role` FOREIGN KEY (`RoleId`) REFERENCES `roles` (`RoleId`) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;" }
             };
 
@@ -728,6 +736,10 @@ namespace SMS.Api.Data
             {
                 logger.LogWarning($"[DbInitializer] Migration block error: {ex.Message}");
             }
+
+            // Seeding has been removed per user request.
+            logger.LogInformation("[DbInitializer] Database schema validation and setup completed successfully (seeding disabled).");
+            return;
 
             // =========================================================
             // 7. ENTITY SEEDING
@@ -1055,6 +1067,44 @@ namespace SMS.Api.Data
 
                 if (tablesReady)
                 {
+                    if (!await context.Branches.AnyAsync())
+                    {
+                        var branch = new Branch { BranchName = "Main Campus" };
+                        await context.Branches.AddAsync(branch);
+                        await context.SaveChangesAsync();
+                    }
+
+                    if (!await context.AcademicYears.AnyAsync())
+                    {
+                        var academicYear = new AcademicYear
+                        {
+                            AcademicYearName = "2025-2026",
+                            StartDate = new DateTime(2025, 6, 1),
+                            EndDate = new DateTime(2026, 5, 31),
+                            IsCurrent = true,
+                            IsActive = true,
+                            IsDeleted = false,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await context.AcademicYears.AddAsync(academicYear);
+                        await context.SaveChangesAsync();
+                    }
+
+                    var classesList = await context.Classes.ToListAsync();
+                    foreach (var cls in classesList)
+                    {
+                        var hasSection = await context.ClassSections.AnyAsync(cs => cs.ClassId == cls.ClassId);
+                        if (!hasSection)
+                        {
+                            await context.ClassSections.AddAsync(new ClassSection
+                            {
+                                ClassId = cls.ClassId,
+                                SectionName = "A"
+                            });
+                        }
+                    }
+                    await context.SaveChangesAsync();
+
                     var defaultBranch = await context.Branches.FirstOrDefaultAsync();
                     var defaultAcademicYear = await context.AcademicYears.FirstOrDefaultAsync();
 

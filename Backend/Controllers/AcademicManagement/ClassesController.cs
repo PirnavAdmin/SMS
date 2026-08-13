@@ -175,6 +175,11 @@ namespace SMS.Api.Controllers.AcademicManagement
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
         public async Task<IActionResult> CreateClassGrade([FromBody] CreateClassGradeDto dto)
         {
+            if (string.IsNullOrEmpty(dto.Name) && string.IsNullOrEmpty(dto.ClassName))
+            {
+                return BadRequest(new { success = false, message = "Class name is required." });
+            }
+
             var campus = Request.Headers["X-Branch-Id"].ToString();
             if (string.IsNullOrEmpty(campus)) campus = "Main Campus";
 
