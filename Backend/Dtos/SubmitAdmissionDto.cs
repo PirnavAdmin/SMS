@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 
 public class SubmitAdmissionDto
 {
+    [JsonPropertyName("avatar")]
     public string? ProfilePhotoUrl { get; set; }
 
     public string? FirstName { get; set; }

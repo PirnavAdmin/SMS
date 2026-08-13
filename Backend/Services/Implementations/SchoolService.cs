@@ -710,14 +710,24 @@ public class SchoolService : ISchoolService
 			{
 				var allClasses = await _schoolRepository.GetAllClassGradesAsync();
 				if (allClasses != null && allClasses.Any())
-					targetClassId = allClasses.First().ClassId;
+				{
+					var matchingClass = !string.IsNullOrEmpty(dto.AppliedClass)
+						? allClasses.FirstOrDefault(c => c.ClassName != null && c.ClassName.Trim().Equals(dto.AppliedClass.Trim(), StringComparison.OrdinalIgnoreCase))
+						: null;
+					targetClassId = matchingClass?.ClassId ?? allClasses.First().ClassId;
+				}
 			}
 		}
 		else
 		{
 			var allClasses = await _schoolRepository.GetAllClassGradesAsync();
 			if (allClasses != null && allClasses.Any())
-				targetClassId = allClasses.First().ClassId;
+			{
+				var matchingClass = !string.IsNullOrEmpty(dto.AppliedClass)
+					? allClasses.FirstOrDefault(c => c.ClassName != null && c.ClassName.Trim().Equals(dto.AppliedClass.Trim(), StringComparison.OrdinalIgnoreCase))
+					: null;
+				targetClassId = matchingClass?.ClassId ?? allClasses.First().ClassId;
+			}
 		}
 
 		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
@@ -802,7 +812,22 @@ public class SchoolService : ISchoolService
 		app.FirstName = dto.FirstName ?? app.FirstName;
 		app.LastName = dto.LastName ?? app.LastName;
 		app.Gender = dto.Gender;
-		if (dto.AppliedClassId > 0) app.AppliedClassId = dto.AppliedClassId;
+		if (dto.AppliedClassId > 0)
+		{
+			app.AppliedClassId = dto.AppliedClassId;
+		}
+		else if (!string.IsNullOrEmpty(dto.AppliedClass))
+		{
+			var allClasses = await _schoolRepository.GetAllClassGradesAsync();
+			if (allClasses != null && allClasses.Any())
+			{
+				var matchingClass = allClasses.FirstOrDefault(c => c.ClassName != null && c.ClassName.Trim().Equals(dto.AppliedClass.Trim(), StringComparison.OrdinalIgnoreCase));
+				if (matchingClass != null)
+				{
+					app.AppliedClassId = matchingClass.ClassId;
+				}
+			}
+		}
 		app.BranchName = dto.BranchName;
 		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
 		app.BloodGroup = dto.BloodGroup;
@@ -944,6 +969,7 @@ public class SchoolService : ISchoolService
 					AcademicYearId = defaultAcademicYear.AcademicYearId,
 					ClassId = classId,
 					SectionId = sectionObj.SectionId,
+					Avatar = app.ProfilePhotoUrl,
 					Status = "Active",
 					IsDeleted = false,
 					CreatedAt = DateTime.UtcNow
