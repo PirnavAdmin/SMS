@@ -1380,6 +1380,8 @@ export interface RouteMaster {
   minDistanceKm?: number;
   minBaseFare?: number;
   ratePerKm?: number;
+  acMinBaseFare?: number;
+  acRatePerKm?: number;
   pricingModel?: 'Per Kilometer' | 'Distance Slabs' | 'Flat Rate';
   description: string;
   status: 'Active' | 'Inactive';
