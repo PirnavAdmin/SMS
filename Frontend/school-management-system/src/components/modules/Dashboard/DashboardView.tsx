@@ -72,7 +72,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
        absent = students.length - present - late - halfDay;
     }
     const total = present + absent + late + halfDay || 1;
-    return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
+    const presentPct = Math.round((present / total) * 100);
+    const latePct = Math.round((late / total) * 100);
+    const halfDayPct = Math.round((halfDay / total) * 100);
+    const absentPct = 100 - presentPct - latePct - halfDayPct;
+
+    const pEnd = presentPct;
+    const lEnd = pEnd + latePct;
+    const hdEnd = lEnd + halfDayPct;
+
+    return { 
+      present, absent, late, halfDay, total, 
+      presentPct, latePct, halfDayPct, absentPct,
+      pEnd, lEnd, hdEnd
+    };
   }, [attendance, students.length]);
 
   // Pie chart calculation (Teaching Staff Attendance)
@@ -98,7 +111,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
        absent = teachingStaff.length - present - late - halfDay;
     }
     const total = present + absent + late + halfDay || 1;
-    return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
+    const presentPct = Math.round((present / total) * 100);
+    const latePct = Math.round((late / total) * 100);
+    const halfDayPct = Math.round((halfDay / total) * 100);
+    const absentPct = 100 - presentPct - latePct - halfDayPct;
+
+    const pEnd = presentPct;
+    const lEnd = pEnd + latePct;
+    const hdEnd = lEnd + halfDayPct;
+
+    return { 
+      present, absent, late, halfDay, total, 
+      presentPct, latePct, halfDayPct, absentPct,
+      pEnd, lEnd, hdEnd
+    };
   }, [attendance, teachingStaff]);
 
   // Section 2: Non-Teaching Staff Attendance calculation
@@ -122,8 +148,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
        absent = nonTeachingStaff.length - present - late - halfDay;
     }
     const total = present + absent + late + halfDay || 1;
-    return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
+    const presentPct = Math.round((present / total) * 100);
+    const latePct = Math.round((late / total) * 100);
+    const halfDayPct = Math.round((halfDay / total) * 100);
+    const absentPct = 100 - presentPct - latePct - halfDayPct;
+
+    const pEnd = presentPct;
+    const lEnd = pEnd + latePct;
+    const hdEnd = lEnd + halfDayPct;
+
+    return { 
+      present, absent, late, halfDay, total, 
+      presentPct, latePct, halfDayPct, absentPct,
+      pEnd, lEnd, hdEnd
+    };
   }, [attendance, nonTeachingStaff]);
+
+  const activeStaffStats = staffAttendanceTab === 'Teaching' ? teacherAttendanceStats : nonTeachingAttendanceStats;
 
   // Class wise strength calculation
   const classCounts = useMemo(() => {
@@ -292,9 +333,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
       <div className="space-y-6">
         {/* Top Row: Attendance & Events */}
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Pie Chart: Student Attendance */}
-          <div onClick={() => onNavigate('attendance')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
+          <div onClick={() => onNavigate('attendance')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[300px]">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Student Attendance</h3>
@@ -304,42 +345,53 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   <Badge variant="info">Total: {attendanceStats.total}</Badge>
                 </div>
               </div>
-            <div className="flex-1 flex flex-col items-center justify-start pt-2 pb-1">
+            <div className="flex-1 flex flex-col items-center justify-center pt-2">
               <div 
-                className="w-40 h-40 rounded-full shrink-0 relative flex items-center justify-center"
+                className="w-40 h-40 rounded-full shrink-0 relative flex items-center justify-center group/chart cursor-pointer"
                 style={{
-                  background: `conic-gradient(#4ade80 0% ${attendanceStats.presentPct}%, #f87171 ${attendanceStats.presentPct}% 100%)`
+                  background: `conic-gradient(
+                    #4ade80 0% ${attendanceStats.pEnd}%, 
+                    #facc15 ${attendanceStats.pEnd}% ${attendanceStats.lEnd}%, 
+                    #fb923c ${attendanceStats.lEnd}% ${attendanceStats.hdEnd}%, 
+                    #f87171 ${attendanceStats.hdEnd}% 100%
+                  )`
                 }}
               >
-                <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-full flex flex-col items-center justify-center shadow-inner">
+                {/* Inner Donut Circle (Normal state) */}
+                <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-full flex flex-col items-center justify-center shadow-inner group-hover/chart:scale-95 transition-transform duration-200">
                   <span className="text-lg font-black text-slate-900 dark:text-white">{attendanceStats.presentPct}%</span>
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Present</span>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
-                  <span className="text-xs font-semibold">Present ({attendanceStats.present})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <span className="text-xs font-semibold">Absent ({attendanceStats.absent})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <span className="text-xs font-semibold">Late ({attendanceStats.late})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-orange-400" />
-                  <span className="text-xs font-semibold">Half Day ({attendanceStats.halfDay})</span>
+
+                {/* Tooltip Overlay displayed inside the circle on hover */}
+                <div className="absolute inset-0 bg-slate-950/95 dark:bg-slate-900/95 text-white rounded-full opacity-0 group-hover/chart:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center p-3 text-center shadow-lg border border-slate-700/50">
+                  <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 mb-1 border-b border-slate-700 w-24 pb-0.5">Details</p>
+                  <div className="text-[9px] font-bold space-y-0.5 text-left">
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#4ade80' }} />
+                      <span>Present: {attendanceStats.present} ({attendanceStats.presentPct}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#facc15' }} />
+                      <span>Late: {attendanceStats.late} ({attendanceStats.latePct}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#fb923c' }} />
+                      <span>Half Day: {attendanceStats.halfDay} ({attendanceStats.halfDayPct}%)</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#f87171' }} />
+                      <span>Absent: {attendanceStats.absent} ({attendanceStats.absentPct}%)</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-
+ 
             {/* Pie Chart: Staff Attendance */}
-            <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
-              <div className="flex items-start justify-between gap-2">
+            <div onClick={() => onNavigate(staffAttendanceTab === 'Teaching' ? 'staff' : 'staff-non-teaching')} className="lg:col-span-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[300px]">
+              <div className="flex items-start justify-between gap-2 shrink-0">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">Today's overall staff attendance</p>
@@ -359,41 +411,52 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   </button>
                 </div>
               </div>
-              <div className="flex-1 flex flex-col items-center justify-start pt-2 pb-1">
+              <div className="flex-1 flex flex-col items-center justify-center pt-2">
                 <div 
-                  className="w-40 h-40 rounded-full shrink-0 relative flex items-center justify-center"
+                  className="w-40 h-40 rounded-full shrink-0 relative flex items-center justify-center group/chart cursor-pointer"
                   style={{
-                    background: `conic-gradient(#4ade80 0% ${staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.presentPct : nonTeachingAttendanceStats.presentPct}%, #f87171 ${staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.presentPct : nonTeachingAttendanceStats.presentPct}% 100%)`
+                    background: `conic-gradient(
+                      #4ade80 0% ${activeStaffStats.pEnd}%, 
+                      #facc15 ${activeStaffStats.pEnd}% ${activeStaffStats.lEnd}%, 
+                      #fb923c ${activeStaffStats.lEnd}% ${activeStaffStats.hdEnd}%, 
+                      #f87171 ${activeStaffStats.hdEnd}% 100%
+                    )`
                   }}
                 >
-                  <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-full flex flex-col items-center justify-center shadow-inner">
-                    <span className="text-lg font-black text-slate-900 dark:text-white">{staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.presentPct : nonTeachingAttendanceStats.presentPct}%</span>
+                  {/* Inner Donut Circle (Normal state) */}
+                  <div className="w-24 h-24 bg-white dark:bg-slate-900 rounded-full flex flex-col items-center justify-center shadow-inner group-hover/chart:scale-95 transition-transform duration-200">
+                    <span className="text-lg font-black text-slate-900 dark:text-white">{activeStaffStats.presentPct}%</span>
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Present</span>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 mt-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-400" />
-                    <span className="text-xs font-semibold">Present ({staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.present : nonTeachingAttendanceStats.present})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                    <span className="text-xs font-semibold">Absent ({staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.absent : nonTeachingAttendanceStats.absent})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                    <span className="text-xs font-semibold">Late ({staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.late : nonTeachingAttendanceStats.late})</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-orange-400" />
-                    <span className="text-xs font-semibold">Half Day ({staffAttendanceTab === 'Teaching' ? teacherAttendanceStats.halfDay : nonTeachingAttendanceStats.halfDay})</span>
+
+                  {/* Tooltip Overlay displayed inside the circle on hover */}
+                  <div className="absolute inset-0 bg-slate-950/95 dark:bg-slate-900/95 text-white rounded-full opacity-0 group-hover/chart:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center p-3 text-center shadow-lg border border-slate-700/50">
+                    <p className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 mb-1 border-b border-slate-700 w-24 pb-0.5">Details</p>
+                    <div className="text-[9px] font-bold space-y-0.5 text-left">
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#4ade80' }} />
+                        <span>Present: {activeStaffStats.present} ({activeStaffStats.presentPct}%)</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#facc15' }} />
+                        <span>Late: {activeStaffStats.late} ({activeStaffStats.latePct}%)</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#fb923c' }} />
+                        <span>Half Day: {activeStaffStats.halfDay} ({activeStaffStats.halfDayPct}%)</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#f87171' }} />
+                        <span>Absent: {activeStaffStats.absent} ({activeStaffStats.absentPct}%)</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
           {/* Upcoming Events & Holidays */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[340px]">
+          <div onClick={() => onNavigate('events')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[300px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <Calendar className="w-5 h-5 text-brand-600 shrink-0" />

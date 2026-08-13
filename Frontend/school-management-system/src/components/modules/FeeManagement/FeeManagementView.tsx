@@ -9,15 +9,29 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { FeeCollectModal } from './FeeCollectModal';
 import { PrintableFeeReceipt } from './PrintableFeeReceipt';
+import { PromotedStudentsDuesView } from './PromotedStudentsDuesView';
 
 export const FeeManagementView: React.FC = () => {
-  const { students, feeStructures, feePayments, addFeeStructure, updateFeeStructure, deleteFeeStructure, getStudentFeeOutstandingSummary } = useData();
+  const {
+    students,
+    feeStructures,
+    feePayments,
+    addFeeStructure,
+    updateFeeStructure,
+    deleteFeeStructure,
+    getStudentFeeOutstandingSummary,
+    getPromotedStudentsWithPreviousDues,
+  } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'payments' | 'structures' | 'dues'>('payments');
+  const [activeTab, setActiveTab] = useState<'payments' | 'structures' | 'dues' | 'promoted_dues'>('payments');
   const [selectedStudentForCollect, setSelectedStudentForCollect] = useState<Student | null>(null);
   const [receiptToPrint, setReceiptToPrint] = useState<FeePayment | null>(null);
+
+  const promotedDuesList = useMemo(() => {
+    return getPromotedStudentsWithPreviousDues();
+  }, [getPromotedStudentsWithPreviousDues]);
 
   // Fee Structure Form Modal
   const [isStructFormOpen, setIsStructFormOpen] = useState(false);
@@ -166,6 +180,19 @@ export const FeeManagementView: React.FC = () => {
             Outstanding Dues ({studentsWithDues.length})
           </button>
           <button
+            onClick={() => setActiveTab('promoted_dues')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'promoted_dues' ? 'bg-white dark:bg-slate-900 text-amber-600 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700 dark:hover:text-white'
+            }`}
+          >
+            <span>Promoted Students Dues</span>
+            {promotedDuesList.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-500 text-white font-extrabold font-mono">
+                {promotedDuesList.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab('structures')}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'structures' ? 'bg-white dark:bg-slate-900 text-brand-600 shadow-sm' : 'text-slate-500'
@@ -292,6 +319,13 @@ export const FeeManagementView: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {/* Tab 4: Promoted Students with Previous Dues */}
+      {activeTab === 'promoted_dues' && (
+        <PromotedStudentsDuesView
+          onCollectDue={(student) => setSelectedStudentForCollect(student)}
+        />
       )}
 
       {/* Fee Structure Modal */}
