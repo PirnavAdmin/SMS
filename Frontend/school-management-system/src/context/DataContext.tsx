@@ -4041,7 +4041,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) setMeetings(items);
+      if (Array.isArray(items)) {
+        const mapped = items.map((item: any) => {
+          // Normalize status
+          let status: any = "Scheduled";
+          const backendStatus = (item.meetingStatus || item.status || "").toLowerCase();
+          if (backendStatus === "draft") status = "Draft";
+          else if (backendStatus === "completed") status = "Completed";
+          else if (backendStatus === "cancelled") status = "Cancelled";
+
+          // Normalize audience
+          let audience: any = "Individual";
+          const audStr = (item.meetingAudience || "").toLowerCase();
+          if (audStr.includes("group")) {
+            audience = "Group";
+          }
+
+          // Build participants list from ParticipantName etc. if present
+          const participants: any[] = [];
+          if (item.participantName) {
+            participants.push({
+              id: "P-" + Math.floor(100 + Math.random() * 900),
+              name: item.participantName,
+              type: item.participantType || "Parent",
+              details: item.wardStudentName 
+                ? `Ward: ${item.wardStudentName} (${item.wardClass || ""})` 
+                : (item.participantPhone || "")
+            });
+          }
+
+          return {
+            id: (item.meetingId || item.id || "").toString(),
+            title: item.meetingTitle || item.title || "",
+            description: item.agenda || item.description || "",
+            academicYear: item.academicYear || "2026-2027",
+            branch: item.branch || "Main Campus",
+            meetingAudience: audience,
+            participantType: item.participantType,
+            participants: participants,
+            targetGroupDescription: item.targetGroupDescription || item.wardStudentName || item.participantName || "",
+            meetingMode: item.meetingMode || "In-Person",
+            roomVenue: item.meetingRoom || item.roomVenue || "",
+            building: item.building || "",
+            floor: item.floor || "",
+            onlineMeetingUrl: item.onlineMeetingUrl || "",
+            meetingDate: item.meetingDate ? item.meetingDate.split("T")[0] : "",
+            startTime: item.startTime || "",
+            endTime: item.endTime || "",
+            status: status,
+            organizerName: item.organizerName || "Administration",
+            organizerRole: item.organizerRole || "Admin",
+            createdAt: item.createdAt ? item.createdAt.split("T")[0] : new Date().toISOString().split("T")[0],
+          };
+        });
+        setMeetings(mapped);
+      }
     } catch (err) {
       console.warn("Failed to fetch meetings from API", err);
     }
@@ -4845,9 +4899,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      const clsObj = academicClasses.find(c => c.name === appData.appliedClass || c.id === appData.appliedClass);
+      const resolvedClassId = clsObj ? Number(clsObj.id) : 0;
+
       const payload = {
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
+        appliedClassId: resolvedClassId,
+        AppliedClassId: resolvedClassId,
         gender: appData.gender || "",
         dob: isoDob,
         bloodGroup: appData.bloodGroup || "O+",
@@ -4866,6 +4925,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         numberOfSiblings: appData.siblingsCount || 0,
         siblingStudentId: "N/A",
         studentType: appData.studentType || "Day Scholar",
+        StudentType: appData.studentType || "Day Scholar",
         transportRequired: !!appData.transportRequired,
         transportType: appData.transportType || "N/A",
         busRoute: appData.busRoute || "N/A",
@@ -4875,6 +4935,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         floorLevel: "N/A",
         allocatedBedId: appData.hostelBed || "N/A",
         branch: appData.branch || selectedBranch || "Main Campus",
+        branchName: appData.branch || selectedBranch || "Main Campus",
+        BranchName: appData.branch || selectedBranch || "Main Campus",
       };
 
       const json = await createAdmissionApi(payload);
@@ -4933,9 +4995,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      const clsObj = academicClasses.find(c => c.name === appData.appliedClass || c.id === appData.appliedClass);
+      const resolvedClassId = clsObj ? Number(clsObj.id) : 0;
+
       const payload = {
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
+        appliedClassId: resolvedClassId,
+        AppliedClassId: resolvedClassId,
         gender: appData.gender || "",
         dob: isoDob,
         bloodGroup: appData.bloodGroup || "O+",
@@ -4954,6 +5021,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         numberOfSiblings: appData.siblingsCount || 0,
         siblingStudentId: "N/A",
         studentType: appData.studentType || "Day Scholar",
+        StudentType: appData.studentType || "Day Scholar",
         transportRequired: !!appData.transportRequired,
         transportType: appData.transportType || "N/A",
         busRoute: appData.busRoute || "N/A",
@@ -4964,6 +5032,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         scholarship:
           (appData as any).scholarship || appData.scholarshipId || "None",
         discount: (appData as any).discount || appData.discountId || "None",
+        branchName: appData.branch || selectedBranch || "Main Campus",
+        BranchName: appData.branch || selectedBranch || "Main Campus",
       };
 
       await updateAdmissionApi(parseInt(id, 10), payload);

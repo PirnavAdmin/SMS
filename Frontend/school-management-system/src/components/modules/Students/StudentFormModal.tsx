@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, UserCheck, User, Shield, Bus, Camera, Trash2, Home } from 'lucide-react';
-import { Student, StudentType } from '../../../types';
+import { X, UserCheck, User, Shield, Bus, Camera, Trash2, Home, Users, Search, ChevronDown } from 'lucide-react';
+import { Student, StudentType, SiblingDetail } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { validateDOB, formatToDDMMYYYY, formatToISO } from '../../../utils/dateValidation';
@@ -77,6 +77,143 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [phoneError, setPhoneError] = useState<string>('');
   const [isMidYearFeeModalOpen, setIsMidYearFeeModalOpen] = useState(false);
 
+  const [hasSiblings, setHasSiblings] = useState<boolean>(false);
+  const [siblingsCount, setSiblingsCount] = useState<number>(1);
+  const [siblingDetails, setSiblingDetails] = useState<SiblingDetail[]>([]);
+  const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<number | null>(null);
+  const [siblingSearchQuery, setSiblingSearchQuery] = useState<string>('');
+
+  const handleHasSiblingsChange = (val: boolean) => {
+    setHasSiblings(val);
+    if (val) {
+      const count = siblingsCount >= 1 ? siblingsCount : 1;
+      setSiblingsCount(count);
+      setSiblingDetails((prev) => {
+        if (prev.length >= count) {
+          return prev.slice(0, count);
+        }
+        const newEntries = [...prev];
+        while (newEntries.length < count) {
+          newEntries.push({ name: '', isExisting: false });
+        }
+        return newEntries;
+      });
+      setFormData((prev) => ({
+        ...prev,
+        hasSiblings: true,
+        siblingsCount: count,
+      }));
+    } else {
+      setSiblingsCount(0);
+      setSiblingDetails([]);
+      setActiveSiblingDropdownIdx(null);
+      setFormData((prev) => ({
+        ...prev,
+        hasSiblings: false,
+        siblingsCount: 0,
+        siblingDetails: [],
+        siblingStudentId: '',
+        siblingStudentIds: [],
+      }));
+    }
+  };
+
+  const handleSiblingsCountChange = (valStr: string) => {
+    if (valStr === '') {
+      setSiblingsCount(0);
+      return;
+    }
+    let num = parseInt(valStr, 10);
+    if (isNaN(num) || num < 0) {
+      num = 0;
+    }
+    setSiblingsCount(num);
+    if (num > 0) {
+      setSiblingDetails((prev) => {
+        if (prev.length === num) return prev;
+        if (prev.length > num) {
+          return prev.slice(0, num);
+        }
+        const newEntries = [...prev];
+        while (newEntries.length < num) {
+          newEntries.push({ name: '', isExisting: false });
+        }
+        return newEntries;
+      });
+      setFormData((prev) => ({
+        ...prev,
+        siblingsCount: num,
+      }));
+    }
+  };
+
+  const handleSiblingIsExistingChange = (idx: number, isExisting: boolean) => {
+    setSiblingDetails((prev) => {
+      const next = [...prev];
+      const curr = next[idx] || { name: '', isExisting: false };
+      if (!isExisting) {
+        next[idx] = {
+          ...curr,
+          isExisting: false,
+          studentId: undefined,
+          admissionNo: undefined,
+          name: curr.studentId ? '' : curr.name,
+        };
+      } else {
+        next[idx] = {
+          ...curr,
+          isExisting: true,
+        };
+      }
+      return next;
+    });
+  };
+
+  const handleSiblingNameChange = (idx: number, nameVal: string) => {
+    setSiblingDetails((prev) => {
+      const next = [...prev];
+      next[idx] = {
+        ...(next[idx] || { isExisting: false }),
+        name: nameVal,
+      };
+      return next;
+    });
+  };
+
+  const handleSelectExistingStudent = (idx: number, selectedStudent: Student) => {
+    const isAlreadyChosen = siblingDetails.some(
+      (item, i) => i !== idx && item.studentId === selectedStudent.id
+    );
+    if (isAlreadyChosen) {
+      addToast('warning', 'Already Selected', `${selectedStudent.firstName} ${selectedStudent.lastName} is already selected as a sibling.`);
+      return;
+    }
+
+    const existingCountOtherSlots = siblingDetails.filter(
+      (item, i) => i !== idx && item.isExisting && item.studentId
+    ).length;
+
+    if (existingCountOtherSlots + 1 > siblingsCount) {
+      addToast('warning', 'Limit Reached', `You can select a maximum of ${siblingsCount} siblings.`);
+      return;
+    }
+
+    const sName = `${selectedStudent.firstName} ${selectedStudent.lastName}`;
+    setSiblingDetails((prev) => {
+      const next = [...prev];
+      next[idx] = {
+        id: selectedStudent.id,
+        name: sName,
+        isExisting: true,
+        studentId: selectedStudent.id,
+        admissionNo: selectedStudent.admissionNo,
+      };
+      return next;
+    });
+    setActiveSiblingDropdownIdx(null);
+    setSiblingSearchQuery('');
+  };
+
   const availableBeds = hostelBeds.filter(b => b.status === 'Available');
 
   useEffect(() => {
@@ -87,6 +224,39 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         feeCalculationMethod: studentToEdit.feeCalculationMethod || 'Term-wise',
         dob: formatToDDMMYYYY(studentToEdit.dob)
       });
+      const hasSib = studentToEdit.hasSiblings ?? ((studentToEdit.siblingsCount && studentToEdit.siblingsCount > 0) || !!studentToEdit.siblingStudentId || (studentToEdit.siblingDetails && studentToEdit.siblingDetails.length > 0));
+      setHasSiblings(!!hasSib);
+      const count = studentToEdit.siblingsCount && studentToEdit.siblingsCount > 0 ? studentToEdit.siblingsCount : (studentToEdit.siblingDetails?.length || 1);
+      setSiblingsCount(count);
+
+      if (studentToEdit.siblingDetails && studentToEdit.siblingDetails.length > 0) {
+        setSiblingDetails(studentToEdit.siblingDetails);
+      } else if (hasSib) {
+        const sIds = studentToEdit.siblingStudentIds || (studentToEdit.siblingStudentId ? [studentToEdit.siblingStudentId] : []);
+        const reconstructed: SiblingDetail[] = [];
+        for (let i = 0; i < count; i++) {
+          const sId = sIds[i];
+          if (sId) {
+            const matchedSt = students.find((s) => s.id === sId);
+            reconstructed.push({
+              id: sId,
+              name: matchedSt ? `${matchedSt.firstName} ${matchedSt.lastName}` : "Existing Student",
+              isExisting: true,
+              studentId: sId,
+              admissionNo: matchedSt?.admissionNo,
+            });
+          } else {
+            reconstructed.push({ name: "", isExisting: false });
+          }
+        }
+        setSiblingDetails(reconstructed);
+      } else {
+        setSiblingDetails([]);
+      }
+    } else {
+      setHasSiblings(false);
+      setSiblingsCount(1);
+      setSiblingDetails([]);
     }
   }, [studentToEdit]);
 
@@ -160,6 +330,31 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       street, area, city, district, stateName, pinCode ? `PIN: ${pinCode}` : ''
     ].filter(Boolean).join(', ') || formData.address || 'Main Campus Area';
 
+    if (hasSiblings) {
+      if (!siblingsCount || siblingsCount < 1) {
+        addToast('error', 'Validation Error', 'Number of siblings must be at least 1.');
+        return;
+      }
+      for (let i = 0; i < siblingDetails.length; i++) {
+        const entry = siblingDetails[i];
+        if (entry.isExisting) {
+          if (!entry.studentId) {
+            addToast('error', 'Validation Error', `Please select an existing student for Sibling ${i + 1}.`);
+            return;
+          }
+        } else {
+          if (!entry.name || !entry.name.trim()) {
+            addToast('error', 'Validation Error', `Please enter a name for Sibling ${i + 1}.`);
+            return;
+          }
+        }
+      }
+    }
+
+    const selectedStudentIds = hasSiblings
+      ? (siblingDetails.map((d) => d.studentId).filter(Boolean) as string[])
+      : [];
+
     const isTransport = (formData.studentType === 'Non-Residential' || formData.studentType === 'Day Scholar') && formData.busRoute;
     const isHostel = (formData.studentType === 'Residential' || formData.studentType === 'Hosteller') && formData.hostelBed;
 
@@ -167,7 +362,12 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
       ...formData,
       address: fullAddr,
       transportRequired: !!isTransport,
-      hostelRequired: !!isHostel
+      hostelRequired: !!isHostel,
+      hasSiblings,
+      siblingsCount: hasSiblings ? siblingsCount : 0,
+      siblingDetails: hasSiblings ? siblingDetails : [],
+      siblingStudentId: selectedStudentIds[0] || '',
+      siblingStudentIds: selectedStudentIds,
     };
 
     if (studentToEdit) {
@@ -434,19 +634,19 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
               {formData.isLateAdmission && (
                 <div className="flex items-end pb-0.5">
-                  <div className="w-full p-3 rounded-2xl bg-amber-50/90 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-between shadow-xs">
+                  <div className="w-full p-3 rounded-2xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 flex items-center justify-between shadow-xs">
                     <div>
-                      <label className="block font-extrabold text-amber-900 dark:text-amber-200 text-xs">
+                      <label className="block font-extrabold text-sky-900 dark:text-sky-200 text-xs">
                         Fee Calculation Method (Late Admission) *
                       </label>
-                      <span className="text-xs font-bold text-brand-600 dark:text-brand-400">
+                      <span className="text-xs font-bold text-sky-600 dark:text-sky-400">
                         Selected: {formData.feeCalculationMethod || 'Term-wise'}
                       </span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setIsMidYearFeeModalOpen(true)}
-                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition-colors shadow-xs cursor-pointer"
+                      className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs transition-colors shadow-xs cursor-pointer"
                     >
                       Configure
                     </button>
@@ -457,54 +657,71 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
             {/* Popup Modal for Mid-Year Fee Calculation */}
             {isMidYearFeeModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-                <div className="w-full max-w-lg bg-amber-50/95 dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-                  <div className="flex items-center justify-between pb-3 border-b border-amber-200/80 dark:border-amber-800">
-                    <h3 className="font-extrabold text-amber-900 dark:text-amber-200 text-base">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+                <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95 text-slate-900 dark:text-white">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                       Fee Calculation Method (Late Admission) *
                     </h3>
-                    <span className="text-xs font-bold px-3 py-1 rounded-xl bg-amber-200/80 dark:bg-amber-900 text-amber-900 dark:text-amber-200 font-mono shadow-xs">
-                      Date: {formatToDDMMYYYY(formData.joiningDate || '', '-')}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsMidYearFeeModalOpen(false)}
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors rounded-lg cursor-pointer"
+                      title="Close"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
                   </div>
 
-                  <div className="space-y-4 pt-1">
-                    <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800 border-amber-200 hover:border-amber-400">
+                  <div className="space-y-3.5 pt-1">
+                    <label
+                      className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                        formData.feeCalculationMethod === 'Monthly'
+                          ? 'bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs'
+                          : 'bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
                       <input
                         type="radio"
                         name="popupStudentFeeMethod"
                         value="Monthly"
                         checked={formData.feeCalculationMethod === 'Monthly'}
                         onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Monthly' })}
-                        className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                        className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                       />
-                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                      <span className="font-extrabold text-xs">
                         Monthly (Calculate from admission month to year-end)
                       </span>
                     </label>
 
-                    <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800 border-amber-200 hover:border-amber-400">
+                    <label
+                      className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                        formData.feeCalculationMethod === 'Term-wise' || !formData.feeCalculationMethod
+                          ? 'bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs'
+                          : 'bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
                       <input
                         type="radio"
                         name="popupStudentFeeMethod"
                         value="Term-wise"
                         checked={formData.feeCalculationMethod === 'Term-wise' || !formData.feeCalculationMethod}
                         onChange={() => setFormData({ ...formData, feeCalculationMethod: 'Term-wise' })}
-                        className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                        className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                       />
-                      <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                      <span className="font-extrabold text-xs">
                         Term-wise (Calculate from applicable term/quarter)
                       </span>
                     </label>
                   </div>
 
-                  <div className="flex justify-end pt-2">
+                  <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button
                       type="button"
                       onClick={() => setIsMidYearFeeModalOpen(false)}
-                      className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-lg shadow-amber-600/20 transition-all cursor-pointer"
+                      className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 transition-all cursor-pointer"
                     >
-                      Confirm & Apply Choice
+                      Confirm & Apply Method
                     </button>
                   </div>
                 </div>
@@ -574,29 +791,214 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
 
           {/* Section 4: Siblings */}
           <div className="space-y-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">4. Sibling Information</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Number of Siblings</label>
-                <input
-                  type="number"
-                  min={0}
-                  value={formData.siblingsCount}
-                  onChange={e => setFormData({ ...formData, siblingsCount: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" /> 4. Sibling Information
+            </h4>
+
+            <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-4 animate-in fade-in">
+              {/* 1. First Question */}
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                  Any siblings?
+                </span>
+                <div className="flex gap-5 font-bold text-xs text-slate-900 dark:text-white">
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-sky-600 transition-colors">
+                    <input
+                      type="radio"
+                      name="modalHasSiblingsRadio"
+                      checked={hasSiblings === true}
+                      onChange={() => handleHasSiblingsChange(true)}
+                      className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                    Yes
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer hover:text-sky-600 transition-colors">
+                    <input
+                      type="radio"
+                      name="modalHasSiblingsRadio"
+                      checked={hasSiblings === false}
+                      onChange={() => handleHasSiblingsChange(false)}
+                      className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                    No
+                  </label>
+                </div>
               </div>
-              <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Existing Student Sibling Lookup (Optional)</label>
-                <select
-                  value={formData.remarks || ''}
-                  onChange={e => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-                >
-                  <option value="">None / Not Enrolled</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.firstName} {s.lastName} ({s.className})</option>)}
-                </select>
-              </div>
+
+              {/* 2 & 3. Display when Yes is selected */}
+              {hasSiblings && (
+                <div className="space-y-4 pt-3 border-t border-sky-100 dark:border-sky-900/40">
+                  <div className="max-w-xs">
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                      Number of Siblings *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={siblingsCount === 0 ? "" : siblingsCount}
+                      onChange={(e) => handleSiblingsCountChange(e.target.value)}
+                      onBlur={() => {
+                        if (!siblingsCount || siblingsCount < 1) {
+                          handleSiblingsCountChange("1");
+                        }
+                      }}
+                      placeholder="e.g. 1"
+                      className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  {/* Dynamic Sibling Cards */}
+                  <div className="space-y-3 pt-1">
+                    {siblingDetails.map((entry, idx) => (
+                      <div
+                        key={idx}
+                        className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs"
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                          <span className="font-extrabold text-xs text-sky-700 dark:text-sky-400">
+                            Sibling {idx + 1}
+                          </span>
+                        </div>
+
+                        {/* Is already enrolled? */}
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                            Is this sibling already enrolled in this school?
+                          </span>
+                          <div className="flex gap-4 font-bold text-xs text-slate-900 dark:text-white">
+                            <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                              <input
+                                type="radio"
+                                name={`modalSiblingIsExisting_${idx}`}
+                                checked={entry.isExisting === true}
+                                onChange={() => handleSiblingIsExistingChange(idx, true)}
+                                className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                              />
+                              Yes
+                            </label>
+                            <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                              <input
+                                type="radio"
+                                name={`modalSiblingIsExisting_${idx}`}
+                                checked={entry.isExisting === false}
+                                onChange={() => handleSiblingIsExistingChange(idx, false)}
+                                className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                              />
+                              No
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* If Existing = Yes: Searchable Existing Student Dropdown */}
+                        {entry.isExisting ? (
+                          <div>
+                            <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                              Select Existing Student *
+                            </label>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setActiveSiblingDropdownIdx(
+                                    activeSiblingDropdownIdx === idx ? null : idx
+                                  );
+                                  setSiblingSearchQuery("");
+                                }}
+                                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs cursor-pointer flex justify-between items-center pr-10 font-bold text-left"
+                              >
+                                <span className="truncate">
+                                  {entry.studentId
+                                    ? `${entry.name} — ${entry.admissionNo || "Enrolled"}`
+                                    : "Search student name or admission no..."}
+                                </span>
+                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </button>
+
+                              {activeSiblingDropdownIdx === idx && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-40"
+                                    onClick={() => setActiveSiblingDropdownIdx(null)}
+                                  />
+                                  <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 space-y-2">
+                                    <div className="relative">
+                                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                      <input
+                                        type="text"
+                                        autoFocus
+                                        placeholder="Search student name or admission no..."
+                                        value={siblingSearchQuery}
+                                        onChange={(e) => setSiblingSearchQuery(e.target.value)}
+                                        className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                                      />
+                                    </div>
+
+                                    <div className="max-h-48 overflow-y-auto space-y-1">
+                                      {students
+                                        .filter((s) => {
+                                          if (!siblingSearchQuery.trim()) return true;
+                                          const q = siblingSearchQuery.toLowerCase();
+                                          return (
+                                            `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+                                            (s.admissionNo && s.admissionNo.toLowerCase().includes(q))
+                                          );
+                                        })
+                                        .map((s) => {
+                                          const isSelected = entry.studentId === s.id;
+                                          return (
+                                            <div
+                                              key={s.id}
+                                              onClick={() => handleSelectExistingStudent(idx, s)}
+                                              className={`px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-lg text-xs font-bold flex items-center gap-2.5 transition-colors ${
+                                                isSelected
+                                                  ? "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300"
+                                                  : "text-slate-800 dark:text-slate-200"
+                                              }`}
+                                            >
+                                              <input
+                                                type="radio"
+                                                name={`modalStudentSelectRadio_${idx}`}
+                                                checked={isSelected}
+                                                onChange={() => {}}
+                                                className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer shrink-0"
+                                              />
+                                              <div className="flex-1 min-w-0">
+                                                <span className="truncate block font-bold">
+                                                  {s.firstName} {s.lastName} — {s.admissionNo || "ADM-N/A"}
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 font-normal">
+                                                  Class {s.className} {s.section ? `(${s.section})` : ""}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          /* If Existing = No: Manual Name Input */
+                          <div>
+                            <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                              Sibling Name *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Enter sibling name"
+                              value={entry.name || ""}
+                              onChange={(e) => handleSiblingNameChange(idx, e.target.value)}
+                              className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

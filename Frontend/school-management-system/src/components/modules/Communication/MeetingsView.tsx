@@ -506,7 +506,7 @@ export const MeetingsView: React.FC = () => {
     setMeetingAudience(meeting.meetingAudience);
     setParticipantType(meeting.participantType || 'Parent');
     setSelectedGroupParticipantTypes([meeting.participantType || 'Teaching Staff']);
-    setSelectedParticipantId(meeting.participants[0]?.id || '');
+    setSelectedParticipantId(meeting.participants?.[0]?.id || '');
     setFormData({
       title: meeting.title,
       description: meeting.description || '',
@@ -676,7 +676,7 @@ export const MeetingsView: React.FC = () => {
     }
 
     cancelMeeting(cancellingMeeting.id, cancellationReason);
-    const targetName = cancellingMeeting.meetingAudience === 'Individual' ? cancellingMeeting.participants[0]?.name : cancellingMeeting.targetGroupDescription;
+    const targetName = cancellingMeeting.meetingAudience === 'Individual' ? cancellingMeeting.participants?.[0]?.name : cancellingMeeting.targetGroupDescription;
     addToast('info', 'Meeting Cancelled', `Cancellation notification sent exclusively to ${targetName}.`);
     setCancellingMeeting(null);
     setCancellationReason('');
@@ -774,7 +774,7 @@ export const MeetingsView: React.FC = () => {
             if (filterStatus && m.status !== filterStatus) return false;
             if (searchQuery) {
               const q = searchQuery.toLowerCase();
-              const pMatch = m.participants.some(p => p.name.toLowerCase().includes(q) || p.details.toLowerCase().includes(q));
+              const pMatch = (m.participants || []).some(p => p.name.toLowerCase().includes(q) || p.details.toLowerCase().includes(q));
               const match = m.title.toLowerCase().includes(q) || (m.roomVenue && m.roomVenue.toLowerCase().includes(q)) || pMatch;
               if (!match) return false;
             }
@@ -826,12 +826,12 @@ export const MeetingsView: React.FC = () => {
                   <div className="truncate">
                     {meeting.meetingAudience === 'Individual' ? (
                       <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                        {meeting.participants[0]?.name || '1 Participant'}
-                        <span className="block text-[10px] text-slate-400 font-normal truncate">{meeting.participants[0]?.details}</span>
+                        {meeting.participants?.[0]?.name || '1 Participant'}
+                        <span className="block text-[10px] text-slate-400 font-normal truncate">{meeting.participants?.[0]?.details}</span>
                       </span>
                     ) : (
                       <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                        {meeting.targetGroupDescription || `${meeting.participants.length} Participants`}
+                        {meeting.targetGroupDescription || `${meeting.participants?.length || 0} Participants`}
                       </span>
                     )}
                   </div>
