@@ -78,6 +78,7 @@ import {
   PaymentAllocationItem,
   YearWiseOutstandingItem,
   StudentFeeOutstandingSummary,
+  PromotedStudentWithDues,
   RoomTypeMaster,
   RoomMaster,
   StudentHostelAssignment,
@@ -867,6 +868,9 @@ interface DataContextType {
   getStudentFeeOutstandingSummary: (
     studentId: string,
   ) => StudentFeeOutstandingSummary;
+  getPromotedStudentsWithPreviousDues: (
+    targetAcademicYear?: string,
+  ) => PromotedStudentWithDues[];
 
   calculateStudentPayableFee: (
     studentId: string,
@@ -4125,6 +4129,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       updates.className ||
       updates.section ||
       updates.joiningDate ||
+      (updates as any).isLateAdmission !== undefined ||
       (updates as any).feeCalculationMethod ||
       (updates as any).feePolicy ||
       updates.transportRequired !== undefined ||
@@ -5154,6 +5159,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               app.avatar ||
               "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
             joiningDate: app.joiningDate || app.admissionDate || app.submissionDate || new Date().toISOString().split("T")[0],
+            isLateAdmission: !!app.isLateAdmission,
             feeCalculationMethod: app.feeCalculationMethod || 'Term-wise',
             branch: app.branch || "Main Campus",
             studentType: app.studentType || "Day Scholar",
@@ -7078,15 +7084,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const ayStartYear = parseInt(academicYear.split('-')[0]) || 2026;
     const ayStartDate = `${ayStartYear}-04-01`;
 
-    // Mid-year admission check: admission date falls after academic year start date
-    const isMidYearAdmission = admissionDate && new Date(admissionDate) > new Date(ayStartDate);
+    // Late admission check: ONLY if explicitly set to true by admin
+    const isLateAdmission = !!(student as any)?.isLateAdmission;
 
-    // Fee Calculation Method for Mid-Year Admission: 'Monthly' | 'Term-wise' | 'Full Annual Fee'
-    const feeCalculationMethod = (student as any)?.feeCalculationMethod || assignment?.feePolicy || (isMidYearAdmission ? 'Term-wise' : 'Full Annual Fee');
+    // Fee Calculation Method for Late Admission: 'Monthly' | 'Term-wise'
+    const feeCalculationMethod = (student as any)?.feeCalculationMethod || assignment?.feePolicy || 'Term-wise';
 
-    // Helper: is term applicable based on mid-year admission
+    // Helper: is term applicable based on late admission
     const isTermApplicable = (term: FeeScheduleTerm) => {
-      if (!isMidYearAdmission || feeCalculationMethod === 'Full Annual Fee') return true;
+      if (!isLateAdmission) return true; // Normal admission -> all terms applicable
+      if (!admissionDate) return true;
       return new Date(admissionDate) <= new Date(term.endDate);
     };
 
@@ -7139,7 +7146,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const finalAmount = item.finalAmount;
 
-      // 1. ONE-TIME FEES
+      // 1. ONE-TIME FEES (Never split into terms or months)
       if (frequency === 'One Time') {
         installments.push({
           id: `INST-${studentId}-${academicYear}-${item.headId}-onetime`,
@@ -7156,13 +7163,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           paidAmount: 0,
           dueAmount: finalAmount,
           status: 'Pending',
+          isLateAdmission,
+          feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
       }
-      // 2. MID-YEAR MONTHLY CALCULATION (for recurring Tuition / Transport fees)
-      else if (isMidYearAdmission && feeCalculationMethod === 'Monthly' && (isTuitionItem || isTransportItem)) {
-        const admDateObj = new Date(admissionDate);
+      // 2. LATE ADMISSION MONTHLY CALCULATION (for eligible recurring Tuition / Transport / Mess / Monthly fees)
+      else if (isLateAdmission && feeCalculationMethod === 'Monthly' && (isTuitionItem || isTransportItem || frequency === 'Monthly')) {
+        const admDateObj = admissionDate ? new Date(admissionDate) : new Date(ayStartDate);
         const admYear = admDateObj.getFullYear();
         const admMonth = admDateObj.getMonth();
 
@@ -7193,6 +7202,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             paidAmount: 0,
             dueAmount: monthlyBase,
             status: 'Pending',
+            isLateAdmission,
+            feeCalculationMethod: 'Monthly',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           });
@@ -7203,7 +7214,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // 3. QUARTERLY / TERM-WISE (Tuition & Transport)
       else if (frequency === 'Quarterly' || frequency === 'Term-wise') {
-        const targetTerms = isMidYearAdmission && feeCalculationMethod !== 'Full Annual Fee' ? applicableTerms : terms;
+        const targetTerms = isLateAdmission ? applicableTerms : terms;
         const count = 4;
         const base = Math.floor(finalAmount / count);
 
@@ -7226,6 +7237,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             paidAmount: 0,
             dueAmount: amt,
             status: 'Pending',
+            isLateAdmission,
+            feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
           });
@@ -7233,7 +7246,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       // 4. HALF YEARLY
       else if (frequency === 'Half Yearly' || frequency === 'Half-Yearly') {
-        const targetTerms = isMidYearAdmission && feeCalculationMethod !== 'Full Annual Fee' ? applicableTerms : terms;
+        const targetTerms = isLateAdmission ? applicableTerms : terms;
         const count = Math.min(2, targetTerms.length);
         const base = Math.floor(finalAmount / 2);
 
@@ -7256,6 +7269,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               paidAmount: 0,
               dueAmount: amt,
               status: 'Pending',
+              isLateAdmission,
+              feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             });
@@ -7272,7 +7287,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           mDate.setMonth(start.getMonth() + m);
           mDate.setDate(15);
 
-          if (!isMidYearAdmission || feeCalculationMethod === 'Full Annual Fee' || new Date(admissionDate) <= mDate) {
+          const admDateObj = admissionDate ? new Date(admissionDate) : null;
+          const isMonthApplicable = !isLateAdmission || (admDateObj && (admDateObj.getFullYear() < mDate.getFullYear() || (admDateObj.getFullYear() === mDate.getFullYear() && admDateObj.getMonth() <= mDate.getMonth())));
+
+          if (isMonthApplicable) {
             const amt = (m === 11) ? (finalAmount - base * 11) : base;
             const monthName = mDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
             installments.push({
@@ -7289,6 +7307,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               paidAmount: 0,
               dueAmount: amt,
               status: 'Pending',
+              isLateAdmission,
+              feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
               createdAt: new Date().toISOString(),
               updatedAt: new Date().toISOString()
             });
@@ -7312,6 +7332,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           paidAmount: 0,
           dueAmount: finalAmount,
           status: 'Pending',
+          isLateAdmission,
+          feeCalculationMethod: isLateAdmission ? feeCalculationMethod : undefined,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -7432,6 +7454,151 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       upcomingAmount,
       totalOutstanding,
     };
+  };
+
+  const getPromotedStudentsWithPreviousDues = (
+    targetAcademicYear?: string,
+  ): PromotedStudentWithDues[] => {
+    const activeAY =
+      targetAcademicYear ||
+      selectedAcademicYear ||
+      financeSettings?.academicYear ||
+      "2026-2027";
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const result: PromotedStudentWithDues[] = [];
+
+    students.forEach((student) => {
+      if (student.status === "Inactive") return;
+
+      // Collect all installments belonging to academic years strictly before activeAY
+      let prevInsts = studentFeeInstallments.filter(
+        (inst) => inst.studentId === student.id && inst.academicYear < activeAY && inst.dueAmount > 0,
+      );
+
+      // Inspect previous year ledgers for student
+      const prevLedgers = studentFeeLedgers.filter(
+        (l) => l.studentId === student.id && l.academicYear < activeAY && l.dueBalance > 0,
+      );
+
+      // If ledger installments exist but not in prevInsts, merge them
+      prevLedgers.forEach((ledger) => {
+        if (ledger.installments && ledger.installments.length > 0) {
+          ledger.installments.forEach((inst) => {
+            if (inst.dueAmount > 0 && !prevInsts.some((i) => i.id === inst.id)) {
+              prevInsts.push(inst);
+            }
+          });
+        }
+      });
+
+      // If no individual installments found, generate fallback installment items from feeItems
+      if (prevInsts.length === 0 && prevLedgers.length > 0) {
+        prevLedgers.forEach((ledger) => {
+          if (ledger.feeItems && ledger.feeItems.length > 0) {
+            ledger.feeItems.forEach((item, idx) => {
+              if (item.status !== "Paid" && item.finalAmount > 0) {
+                prevInsts.push({
+                  id: `INST-HIST-${ledger.id}-${idx}`,
+                  studentId: student.id,
+                  studentName: `${student.firstName} ${student.lastName}`,
+                  admissionNo: student.admissionNo,
+                  academicYear: ledger.academicYear,
+                  className: ledger.className || student.className,
+                  feeHeadId: item.headId,
+                  feeHeadName: item.headName,
+                  termId: ledger.academicYear,
+                  termName: item.category || item.headName,
+                  dueDate: ledger.updatedAt || `${ledger.academicYear.slice(0, 4)}-12-31`,
+                  amount: item.originalAmount || item.finalAmount,
+                  originalAmount: item.originalAmount,
+                  paidAmount: item.status === "Partial" ? Math.max(0, item.originalAmount - item.finalAmount) : 0,
+                  dueAmount: item.finalAmount > 0 ? item.finalAmount : ledger.dueBalance,
+                  status: item.finalAmount > 0 ? (ledger.paidAmount > 0 ? "Partial" : "Pending") : "Paid",
+                  isApplicable: true,
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            });
+          }
+        });
+      }
+
+      const activeUnpaidInsts = prevInsts.filter((i) => i.dueAmount > 0);
+      const previousYearPendingAmount = activeUnpaidInsts.reduce(
+        (sum, i) => sum + i.dueAmount,
+        0,
+      );
+
+      // Rule 3: Only include if previous year pending amount > 0
+      if (previousYearPendingAmount <= 0) return;
+
+      // Group by academic year
+      const yearMap = new Map<string, StudentFeeInstallment[]>();
+      activeUnpaidInsts.forEach((inst) => {
+        const ay = inst.academicYear;
+        if (!yearMap.has(ay)) yearMap.set(ay, []);
+        yearMap.get(ay)!.push(inst);
+      });
+
+      const previousAcademicYears = Array.from(yearMap.keys()).sort((a, b) =>
+        b.localeCompare(a),
+      );
+
+      const latestPrevAY = previousAcademicYears[0];
+      const prevHist = student.academicHistory?.find(
+        (h) => h.academicYear === latestPrevAY,
+      );
+      const prevLedgerObj = prevLedgers.find(
+        (l) => l.academicYear === latestPrevAY,
+      );
+      const previousClass =
+        prevHist?.className || prevLedgerObj?.className || "Class 5";
+
+      const breakdownByYear = previousAcademicYears.map((ay) => {
+        const items = yearMap.get(ay) || [];
+        const totPending = items.reduce((sum, i) => sum + i.dueAmount, 0);
+        const histItem = student.academicHistory?.find(
+          (h) => h.academicYear === ay,
+        );
+        const lObj = prevLedgers.find((l) => l.academicYear === ay);
+        return {
+          academicYear: ay,
+          className: histItem?.className || lObj?.className || previousClass,
+          totalPending: totPending,
+          items,
+        };
+      });
+
+      // Status logic: OVERDUE > PARTIALLY PAID > DUE
+      const isOverdue = activeUnpaidInsts.some(
+        (i) => i.dueDate && i.dueDate < todayStr,
+      );
+      const isPartiallyPaid =
+        activeUnpaidInsts.some((i) => i.paidAmount > 0) ||
+        prevLedgers.some((l) => l.paidAmount > 0);
+
+      let status: "Due" | "Partially Paid" | "Overdue" = "Due";
+      if (isOverdue) {
+        status = "Overdue";
+      } else if (isPartiallyPaid) {
+        status = "Partially Paid";
+      }
+
+      result.push({
+        student,
+        previousYearPendingAmount,
+        previousAcademicYears,
+        previousClass,
+        currentClass: `${student.className}-${student.section}`,
+        currentAcademicYear: activeAY,
+        pendingComponentsCount: activeUnpaidInsts.length,
+        status,
+        breakdownByYear,
+      });
+    });
+
+    return result;
   };
 
   // ==========================================
@@ -11604,6 +11771,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         generateStudentFeeLedger,
         recalculateStudentFeeLedger,
         getStudentFeeLedger,
+        getPromotedStudentsWithPreviousDues,
         calculateStudentPayableFee,
         applyScholarshipToStudent,
         removeScholarshipFromStudent,

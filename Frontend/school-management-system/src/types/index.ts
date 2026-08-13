@@ -292,7 +292,8 @@ export interface Student {
   remarks?: string;
   scholarshipId?: string;
   discountId?: string;
-  feeCalculationMethod?: 'Standard' | 'Prorated' | 'Custom' | 'STANDARD' | 'DYNAMIC' | string;
+  isLateAdmission?: boolean;
+  feeCalculationMethod?: 'Monthly' | 'Term-wise' | 'Standard' | 'Prorated' | 'Custom' | 'STANDARD' | 'DYNAMIC' | string;
 
   promotionHistory?: PromotionHistoryItem[];
 }
@@ -510,7 +511,8 @@ export interface AdmissionApplication {
   submissionDate: string;
   joiningDate?: string;
   admissionDate?: string;
-  feeCalculationMethod?: 'Monthly' | 'Term-wise' | 'Full Annual Fee';
+  isLateAdmission?: boolean;
+  feeCalculationMethod?: 'Monthly' | 'Term-wise' | 'Full Annual Fee' | string;
   status: 'Pending' | 'Verified' | 'Approved' | 'Rejected' | 'Enrolled';
   documentsSubmitted: string[];
 }
@@ -2380,27 +2382,42 @@ export interface AcademicYearFeeSchedule {
 export interface StudentFeeInstallment {
   id: string;
   studentId: string;
+  studentName?: string;
+  admissionNo?: string;
+  className?: string;
   academicYear: string;
-  feeAssignmentId: string;
+  feeAssignmentId?: string;
   feeHeadId: string;
   feeHeadName: string;
-  frequency: string;
+  frequency?: string;
   termId?: string;
   termName?: string;
   dueDate: string;
   amount: number;
+  originalAmount?: number;
   paidAmount: number;
   dueAmount: number;
   status: 'Paid' | 'Partial' | 'Pending';
-  createdAt: string;
+  isLateAdmission?: boolean;
+  feeCalculationMethod?: string;
+  isApplicable?: boolean;
+  createdAt?: string;
   updatedAt: string;
 }
 
-
-
-
-
-
-
-
-
+export interface PromotedStudentWithDues {
+  student: Student;
+  previousYearPendingAmount: number;
+  previousAcademicYears: string[];
+  previousClass?: string;
+  currentClass?: string;
+  currentAcademicYear: string;
+  pendingComponentsCount: number;
+  status: 'Due' | 'Partially Paid' | 'Overdue';
+  breakdownByYear: {
+    academicYear: string;
+    className?: string;
+    totalPending: number;
+    items: StudentFeeInstallment[];
+  }[];
+}
