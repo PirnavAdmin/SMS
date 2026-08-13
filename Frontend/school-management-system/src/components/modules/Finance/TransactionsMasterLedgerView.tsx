@@ -8,6 +8,7 @@ import {
 import { formatCurrency } from '../../../utils/currency';
 import { FinanceTransaction, FinancialAccount, FinancialCategory, FinancialBudget, TransactionType } from '../../../types';
 import { useData } from '../../../context/DataContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 
 export const TransactionsMasterLedgerView: React.FC = () => {
@@ -19,6 +20,7 @@ export const TransactionsMasterLedgerView: React.FC = () => {
     students, staff
   } = useData();
 
+  const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
 
   // Active Sub-Tab: 'ledger' | 'manual' | 'categories-accounts' | 'budget' | 'audit'
@@ -101,7 +103,10 @@ export const TransactionsMasterLedgerView: React.FC = () => {
     // Status
     const matchesStatus = statusFilter === 'All' || t.status === statusFilter;
 
-    return matchesSearch && matchesType && matchesModule && matchesCategory && matchesMode && matchesStatus;
+    // Academic Year (Global Header filter)
+    const matchesAcademicYear = !selectedAcademicYear || selectedAcademicYear === 'All' || selectedAcademicYear === 'All Years' || t.academicYear === selectedAcademicYear || !t.academicYear;
+
+    return matchesSearch && matchesType && matchesModule && matchesCategory && matchesMode && matchesStatus && matchesAcademicYear;
   }).sort((a, b) => {
     if (sortBy === 'date-desc') return new Date(b.date).getTime() - new Date(a.date).getTime();
     if (sortBy === 'date-asc') return new Date(a.date).getTime() - new Date(b.date).getTime();

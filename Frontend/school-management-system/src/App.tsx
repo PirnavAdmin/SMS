@@ -14,6 +14,7 @@ import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordMod
 
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
+import { AcademicHistoryView } from './components/modules/Students/AcademicHistoryView';
 import { StudentPromotionView } from './components/modules/Students/StudentPromotionView';
 import { TransferCertificatesView } from './components/modules/Students/TransferCertificatesView';
 import { AlumniView } from './components/modules/Students/AlumniView';
@@ -60,7 +61,24 @@ const MainLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const [activeModule, setActiveModule] = useState<string>('dashboard');
   const [showLogin, setShowLogin] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsedState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('sidebar_collapsed');
+      return saved !== null ? JSON.parse(saved) : false;
+    } catch {
+      return false;
+    }
+  });
+
+  const setCollapsed = (val: boolean | ((prev: boolean) => boolean)) => {
+    setCollapsedState((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      try {
+        localStorage.setItem('sidebar_collapsed', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string>('');
@@ -154,6 +172,8 @@ const MainLayout: React.FC = () => {
       case 'students':
       case 'student-directory':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <StudentList onNavigate={(mod) => setActiveModule(mod)} />;
+      case 'academic-history':
+        return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <AcademicHistoryView />;
       case 'student-promotion':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <StudentPromotionView />;
       case 'transfer-certificates':

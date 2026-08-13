@@ -9,11 +9,19 @@ import React, {
 import { formatCurrency } from "../utils/currency";
 import {
   Student,
+  AcademicHistoryRecord,
+  DiscontinuationDetails,
+  TransferDetails,
+  BranchTransferDetails,
+  StudentStatus,
+  AcademicYearStatus,
   Staff,
   StaffDocument,
   BankDetails,
   AdmissionApplication,
   FeeStructure,
+  FeePolicyType,
+  FeeHeadAssignmentBreakdown,
   FeePayment,
   DailyAttendance,
   ExamSetup,
@@ -115,6 +123,9 @@ import {
   AlumniCurrentStatus,
   CertificateTemplateConfig,
   TcRecord,
+  AcademicYearFeeSchedule,
+  StudentFeeInstallment,
+  FeeScheduleTerm,
 } from "../types";
 import {
   initialCertificateTemplates,
@@ -535,6 +546,14 @@ interface DataContextType {
     currentStatus?: AlumniCurrentStatus,
   ) => void;
   getHighestClass: () => string;
+  addAcademicHistoryRecord: (studentId: string, record: AcademicHistoryRecord) => void;
+  discontinueStudent: (studentId: string, details: DiscontinuationDetails) => void;
+  transferOutStudent: (studentId: string, details: TransferDetails) => void;
+  branchTransferStudent: (studentId: string, details: BranchTransferDetails) => void;
+  importHistoricalAcademicData: (records: any[]) => { successCount: number; errorCount: number; errors: string[] };
+  importHistoricalAttendanceData: (records: any[]) => { successCount: number; errorCount: number; errors: string[] };
+  importHistoricalExamData: (records: any[]) => { successCount: number; errorCount: number; errors: string[] };
+  importHistoricalFeeData: (records: any[]) => { successCount: number; errorCount: number; errors: string[] };
 
   alumniRecords: AlumniRecord[];
   addAlumniRecord: (
@@ -649,6 +668,14 @@ interface DataContextType {
 
   studentFeeAssignments: StudentFeeAssignment[];
   assignFeeStructure: (studentId: string, feeStructureId: string) => void;
+  assignCustomFeeStructure: (
+    studentId: string,
+    feeStructureId: string,
+    feePolicy: FeePolicyType,
+    customBreakdown?: FeeHeadAssignmentBreakdown[],
+    adjustmentReason?: string,
+    admissionDate?: string,
+  ) => void;
   bulkAssignFeeStructure: (
     studentIds: string[],
     feeStructureId: string,
@@ -804,6 +831,26 @@ interface DataContextType {
 
   // STUDENT PERMANENT FEE LEDGER ENGINE
   studentFeeLedgers: StudentFeeLedger[];
+  academicYearFeeSchedules: AcademicYearFeeSchedule[];
+  setAcademicYearFeeSchedules: React.Dispatch<React.SetStateAction<AcademicYearFeeSchedule[]>>;
+  studentFeeInstallments: StudentFeeInstallment[];
+  setStudentFeeInstallments: React.Dispatch<React.SetStateAction<StudentFeeInstallment[]>>;
+  getStudentInstallmentSummary: (studentId: string, targetAcademicYear?: string) => {
+    currentAcademicYear: string;
+    currentTerm: string;
+    termDueDate: string;
+    currentTermDue: number;
+    previousTermDue: number;
+    overdueAmount: number;
+    upcomingAmount: number;
+    totalOutstanding: number;
+  };
+  generateInstallmentsForStudent: (
+    studentId: string,
+    academicYear: string,
+    assignment: StudentFeeAssignment | undefined,
+    ledger: StudentFeeLedger
+  ) => StudentFeeInstallment[];
   generateStudentFeeLedger: (
     studentId: string,
     optStudentOrYear?: Student | string,
@@ -2285,18 +2332,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const [students, setStudents] = useState<Student[]>(() => {
     const stored = getStored("students", initialStudents);
-    const hasMigrated = localStorage.getItem(
-      "edu_db_students_section_cleaned_v3",
-    );
-    if (!hasMigrated) {
-      const migrated = stored.map((s: any) => ({
-        ...s,
-        section: "",
-        rollNo: "",
-      }));
-      localStorage.setItem("edu_db_students_section_cleaned_v3", "true");
-      localStorage.setItem("edu_db_students", JSON.stringify(migrated));
-      return migrated;
+    const version = localStorage.getItem("edu_db_full_data_v60");
+    if (!version || stored.length < initialStudents.length) {
+      localStorage.setItem("edu_db_full_data_v60", "true");
+      localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
+      localStorage.setItem("students", JSON.stringify(initialStudents));
+      return initialStudents;
     }
     return stored;
   });
@@ -2378,9 +2419,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const stored = getStored<ExamSetup[]>("exams", initialExamSetups);
     return stored.length === 0 ? initialExamSetups : stored;
   });
-  const [examMarks, setExamMarks] = useState<ExamMark[]>(() =>
-    getStored("exam_marks", initialExamMarks),
-  );
+  const [examMarks, setExamMarks] = useState<ExamMark[]>(() => {
+    const stored = getStored("exam_marks", initialExamMarks);
+    const version = localStorage.getItem("edu_db_full_exam_marks_v60");
+    if (!version || stored.length < initialExamMarks.length) {
+      localStorage.setItem("edu_db_full_exam_marks_v60", "true");
+      localStorage.setItem("edu_db_exam_marks", JSON.stringify(initialExamMarks));
+      localStorage.setItem("exam_marks", JSON.stringify(initialExamMarks));
+      return initialExamMarks;
+    }
+    return stored;
+  });
 
   const [examSchedules, setExamSchedules] = useState<ExamSchedule[]>(() =>
     getStored("exam_schedules", defaultExamSchedules),
@@ -2560,9 +2609,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   >(() => getStored("finance_uniform_configs", initialFinanceUniformConfigs));
 
   // ERP Finance System States
-  const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() =>
-    getStored("fee_heads", initialFeeHeads),
-  );
+  const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => {
+    const version = localStorage.getItem("edu_db_fee_heads_v68");
+    if (!version) {
+      localStorage.setItem("edu_db_fee_heads_v68", "true");
+      localStorage.removeItem("fee_heads");
+      localStorage.removeItem("edu_db_fee_heads");
+      localStorage.removeItem("student_fee_installments");
+      localStorage.removeItem("edu_db_student_fee_installments");
+      localStorage.setItem("fee_heads", JSON.stringify(initialFeeHeads));
+      return initialFeeHeads;
+    }
+    const stored = getStored("fee_heads", initialFeeHeads);
+    return stored.map(fh => {
+      if (fh.name.toLowerCase().includes("tuition") && fh.frequency === "Monthly") {
+        return { ...fh, frequency: "Quarterly" as const };
+      }
+      return fh;
+    });
+  });
   const [dynamicFeeStructures, setDynamicFeeStructures] = useState<
     DynamicFeeStructure[]
   >(() => {
@@ -2660,10 +2725,175 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("finance_transport_configs", initialFinanceTransportConfigs),
   );
 
+  // Academic Year Fee Schedules State
+  const [academicYearFeeSchedules, setAcademicYearFeeSchedules] = useState<
+    AcademicYearFeeSchedule[]
+  >(() => {
+    const stored = getStored("academic_year_fee_schedules", []);
+    const version = localStorage.getItem("edu_db_schedules_v63");
+    if (!version || stored.length < 3) {
+      localStorage.setItem("edu_db_schedules_v63", "true");
+      const seeded: AcademicYearFeeSchedule[] = [
+        {
+          id: 'SCH-2026-2027',
+          academicYear: '2026-2027',
+          numberOfTerms: 4,
+          status: 'Active',
+          terms: [
+            {
+              id: 'T1-2026-2027',
+              termName: 'Term 1',
+              startDate: '2026-04-01',
+              endDate: '2026-06-30',
+              dueDate: '2026-04-15',
+              sequence: 1,
+              status: 'Active'
+            },
+            {
+              id: 'T2-2026-2027',
+              termName: 'Term 2',
+              startDate: '2026-07-01',
+              endDate: '2026-09-30',
+              dueDate: '2026-07-15',
+              sequence: 2,
+              status: 'Active'
+            },
+            {
+              id: 'T3-2026-2027',
+              termName: 'Term 3',
+              startDate: '2026-10-01',
+              endDate: '2026-12-31',
+              dueDate: '2026-10-15',
+              sequence: 3,
+              status: 'Active'
+            },
+            {
+              id: 'T4-2026-2027',
+              termName: 'Term 4',
+              startDate: '2027-01-01',
+              endDate: '2027-03-31',
+              dueDate: '2027-01-15',
+              sequence: 4,
+              status: 'Active'
+            }
+          ]
+        },
+        {
+          id: 'SCH-2025-2026',
+          academicYear: '2025-2026',
+          numberOfTerms: 4,
+          status: 'Active',
+          terms: [
+            {
+              id: 'T1-2025-2026',
+              termName: 'Term 1',
+              startDate: '2025-04-01',
+              endDate: '2025-06-30',
+              dueDate: '2025-04-15',
+              sequence: 1,
+              status: 'Active'
+            },
+            {
+              id: 'T2-2025-2026',
+              termName: 'Term 2',
+              startDate: '2025-07-01',
+              endDate: '2025-09-30',
+              dueDate: '2025-07-15',
+              sequence: 2,
+              status: 'Active'
+            },
+            {
+              id: 'T3-2025-2026',
+              termName: 'Term 3',
+              startDate: '2025-10-01',
+              endDate: '2025-12-31',
+              dueDate: '2025-10-15',
+              sequence: 3,
+              status: 'Active'
+            },
+            {
+              id: 'T4-2025-2026',
+              termName: 'Term 4',
+              startDate: '2026-01-01',
+              endDate: '2026-03-31',
+              dueDate: '2026-01-15',
+              sequence: 4,
+              status: 'Active'
+            }
+          ]
+        },
+        {
+          id: 'SCH-2024-2025',
+          academicYear: '2024-2025',
+          numberOfTerms: 4,
+          status: 'Active',
+          terms: [
+            {
+              id: 'T1-2024-2025',
+              termName: 'Term 1',
+              startDate: '2024-04-01',
+              endDate: '2024-06-30',
+              dueDate: '2024-06-15',
+              sequence: 1,
+              status: 'Active'
+            },
+            {
+              id: 'T2-2024-2025',
+              termName: 'Term 2',
+              startDate: '2024-07-01',
+              endDate: '2024-09-30',
+              dueDate: '2024-09-15',
+              sequence: 2,
+              status: 'Active'
+            },
+            {
+              id: 'T3-2024-2025',
+              termName: 'Term 3',
+              startDate: '2024-10-01',
+              endDate: '2024-12-31',
+              dueDate: '2024-12-15',
+              sequence: 3,
+              status: 'Active'
+            },
+            {
+              id: 'T4-2024-2025',
+              termName: 'Term 4',
+              startDate: '2025-01-01',
+              endDate: '2025-03-31',
+              dueDate: '2025-03-15',
+              sequence: 4,
+              status: 'Active'
+            }
+          ]
+        }
+      ];
+      localStorage.setItem("academic_year_fee_schedules", JSON.stringify(seeded));
+      return seeded;
+    }
+    return stored;
+  });
+
+  // Student Fee Installments State
+  const [studentFeeInstallments, setStudentFeeInstallments] = useState<
+    StudentFeeInstallment[]
+  >(() => {
+    return getStored("student_fee_installments", []);
+  });
+
   // Permanent Student Fee Ledger State
   const [studentFeeLedgers, setStudentFeeLedgers] = useState<
     StudentFeeLedger[]
-  >(() => getStored("student_fee_ledgers", initialStudentFeeLedgers));
+  >(() => {
+    const stored = getStored("student_fee_ledgers", initialStudentFeeLedgers);
+    const version = localStorage.getItem("edu_db_full_ledgers_v60");
+    if (!version || stored.length < initialStudentFeeLedgers.length) {
+      localStorage.setItem("edu_db_full_ledgers_v60", "true");
+      localStorage.setItem("edu_db_student_fee_ledgers", JSON.stringify(initialStudentFeeLedgers));
+      localStorage.setItem("student_fee_ledgers", JSON.stringify(initialStudentFeeLedgers));
+      return initialStudentFeeLedgers;
+    }
+    return stored;
+  });
 
   // Master Finance Ledger & Transactions States
   const [financeTransactions, setFinanceTransactions] = useState<
@@ -3280,6 +3510,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   }, [studentFeeLedgers]);
 
+  useEffect(() => {
+    localStorage.setItem(
+      "edu_db_academic_year_fee_schedules",
+      JSON.stringify(academicYearFeeSchedules),
+    );
+  }, [academicYearFeeSchedules]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      "edu_db_student_fee_installments",
+      JSON.stringify(studentFeeInstallments),
+    );
+  }, [studentFeeInstallments]);
+
   // Leave & Payroll System Effects
   useEffect(() => {
     localStorage.setItem("edu_db_holidays", JSON.stringify(holidays));
@@ -3855,6 +4099,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       "Registered Student",
       `Enrolled ${newStudent.firstName} ${newStudent.lastName}`,
     );
+    setTimeout(() => {
+      generateStudentFeeLedger(id, newStudent, selectedAcademicYear || financeSettings.academicYear || "2026-2027");
+    }, 100);
     return newStudent;
   };
 
@@ -3862,10 +4109,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setStudents((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     );
+
+    if ((updates as any).feeCalculationMethod || (updates as any).feePolicy) {
+      const pol = (updates as any).feeCalculationMethod || (updates as any).feePolicy;
+      setStudentFeeAssignments((prev) =>
+        prev.map((a) => (a.studentId === id ? { ...a, feePolicy: pol } : a)),
+      );
+    }
+
     logActivity("Updated Student", `Updated record for ID ${id}`);
 
-    // Dynamic recalculation of Fee Ledger if studentType or details change
-    if (updates.studentType || updates.className || updates.section) {
+    // Dynamic recalculation of Fee Ledger if studentType, class, section, joiningDate, feeCalculationMethod, transport, or hostel details change
+    if (
+      updates.studentType ||
+      updates.className ||
+      updates.section ||
+      updates.joiningDate ||
+      (updates as any).feeCalculationMethod ||
+      (updates as any).feePolicy ||
+      updates.transportRequired !== undefined ||
+      updates.busRoute ||
+      updates.hostelBed !== undefined ||
+      updates.hostelBlock
+    ) {
       setTimeout(() => recalculateStudentFeeLedger(id), 100);
     }
   };
@@ -4777,7 +5043,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           );
 
           let additionalFees = 0;
-          if (app.studentType === "Day Scholar" && app.transportRequired) {
+          if ((app.studentType === "Day Scholar" || app.studentType === "Non-Residential") && app.transportRequired) {
             const rObj = routeMasters.find(
               (r) => r.id === app.routeId || r.routeName === app.busRoute,
             );
@@ -4887,7 +5153,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             avatar:
               app.avatar ||
               "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80",
-            joiningDate: new Date().toISOString().split("T")[0],
+            joiningDate: app.joiningDate || app.admissionDate || app.submissionDate || new Date().toISOString().split("T")[0],
+            feeCalculationMethod: app.feeCalculationMethod || 'Term-wise',
             branch: app.branch || "Main Campus",
             studentType: app.studentType || "Day Scholar",
             transportRequired: app.transportRequired,
@@ -4934,6 +5201,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             feeStructureId: dfs?.id || "DFS-FALLBACK",
             assignedFeeHeads,
             baseFeeTotal,
+            feePolicy: (app.feeCalculationMethod as any) || 'Term-wise',
             assignedDate: new Date().toISOString().split("T")[0],
             status: "Active",
           };
@@ -4943,7 +5211,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ]);
 
           // Auto-assign transport facility if Day Scholar opted for transport
-          if (app.studentType === "Day Scholar" && app.transportRequired) {
+          if ((app.studentType === "Day Scholar" || app.studentType === "Non-Residential") && app.transportRequired) {
             const rObj = routeMasters.find(
               (r) => r.id === app.routeId || r.routeName === app.busRoute,
             );
@@ -5531,27 +5799,177 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const activeAY =
       selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
-    // Calculate allocation across annual ledgers (FIFO: Oldest year first)
-    const summary = getStudentFeeOutstandingSummary(paymentData.studentId);
     let remainingAmountToAllocate = paymentData.amountPaid;
     const allocations: PaymentAllocationItem[] = [];
 
-    // Sort unpaid items by academicYear ascending
-    const sortedYears = [...summary.yearWiseOutstanding].sort((a, b) =>
-      a.academicYear.localeCompare(b.academicYear),
-    );
+    let nextLedgers = [...studentFeeLedgers];
+    let nextInstallments = [...studentFeeInstallments];
 
-    // Calculate allocations for each year
-    for (const yr of sortedYears) {
-      if (remainingAmountToAllocate <= 0) break;
-      if (yr.due <= 0) continue;
+    if (paymentData.paymentAllocation && paymentData.paymentAllocation.length > 0) {
+      // 1. EXPLICIT CUSTOM ALLOCATION PER INSTALLMENT
+      paymentData.paymentAllocation.forEach((allocItem) => {
+        const instIndex = nextInstallments.findIndex((i) => i.id === allocItem.installmentId);
+        if (instIndex !== -1) {
+          const inst = { ...nextInstallments[instIndex] };
+          const allocAmount = Math.min(inst.dueAmount, allocItem.amount);
+          remainingAmountToAllocate -= allocAmount;
 
-      const allocAmount = Math.min(yr.due, remainingAmountToAllocate);
-      remainingAmountToAllocate -= allocAmount;
-      allocations.push({
-        academicYear: yr.academicYear,
-        ledgerId: yr.ledgerId,
-        amount: allocAmount,
+          inst.paidAmount += allocAmount;
+          inst.dueAmount = Math.max(0, inst.dueAmount - allocAmount);
+          inst.status = inst.dueAmount <= 0 ? "Paid" : "Partial";
+          inst.updatedAt = new Date().toISOString();
+
+          nextInstallments[instIndex] = inst;
+
+          const ledgerIndex = nextLedgers.findIndex(
+            (l) => l.studentId === paymentData.studentId && l.academicYear === inst.academicYear
+          );
+
+          if (ledgerIndex !== -1) {
+            const ledger = { ...nextLedgers[ledgerIndex] };
+            const ledgerInsts = ledger.installments || [];
+            const updatedLedgerInsts = ledgerInsts.map((li) => (li.id === inst.id ? { ...inst } : li));
+            ledger.installments = updatedLedgerInsts;
+
+            const totalPaid = updatedLedgerInsts.reduce((sum, i) => sum + i.paidAmount, 0);
+            const totalDue = Math.max(0, ledger.totalPayable - totalPaid);
+            ledger.paidAmount = totalPaid;
+            ledger.dueBalance = totalDue;
+            ledger.updatedAt = new Date().toISOString().split("T")[0];
+
+            nextLedgers[ledgerIndex] = ledger;
+          }
+
+          allocations.push({
+            academicYear: inst.academicYear,
+            ledgerId: nextLedgers.find((l) => l.studentId === paymentData.studentId && l.academicYear === inst.academicYear)?.id,
+            amount: allocAmount,
+            installmentId: inst.id,
+            feeHeadName: inst.feeHeadName,
+            termName: inst.termName || inst.termId || "Installment",
+          });
+        }
+      });
+    } else if (paymentData.selectedInstallmentIds && paymentData.selectedInstallmentIds.length > 0) {
+      // 2. DIRECT SELECTED INSTALLMENT ALLOCATION
+      const selectedInsts = nextInstallments
+        .filter((i) => i.studentId === paymentData.studentId && paymentData.selectedInstallmentIds?.includes(i.id))
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)); // Pay chronologically if there's any overflow/partial
+
+      selectedInsts.forEach((inst) => {
+        if (remainingAmountToAllocate <= 0) return;
+
+        const allocAmount = Math.min(inst.dueAmount, remainingAmountToAllocate);
+        remainingAmountToAllocate -= allocAmount;
+
+        // Apply allocation to installment
+        inst.paidAmount += allocAmount;
+        inst.dueAmount -= allocAmount;
+        inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+        inst.updatedAt = new Date().toISOString();
+
+        // Find parent ledger for this installment
+        const ledgerIndex = nextLedgers.findIndex(
+          (l) => l.studentId === paymentData.studentId && l.academicYear === inst.academicYear
+        );
+
+        if (ledgerIndex !== -1) {
+          const ledger = { ...nextLedgers[ledgerIndex] };
+          const ledgerInsts = ledger.installments || [];
+          const updatedLedgerInsts = ledgerInsts.map((li) => (li.id === inst.id ? { ...inst } : li));
+          ledger.installments = updatedLedgerInsts;
+
+          // Recalculate ledger totals
+          const totalPaid = updatedLedgerInsts.reduce((sum, i) => sum + i.paidAmount, 0);
+          const totalDue = Math.max(0, ledger.totalPayable - totalPaid);
+          ledger.paidAmount = totalPaid;
+          ledger.dueBalance = totalDue;
+          ledger.updatedAt = new Date().toISOString().split("T")[0];
+
+          nextLedgers[ledgerIndex] = ledger;
+        }
+
+        allocations.push({
+          academicYear: inst.academicYear,
+          ledgerId: nextLedgers.find((l) => l.studentId === paymentData.studentId && l.academicYear === inst.academicYear)?.id,
+          amount: allocAmount,
+          installmentId: inst.id,
+          feeHeadName: inst.feeHeadName,
+          termName: inst.termName || inst.termId || "Installment",
+        });
+
+        // Sync global studentFeeInstallments
+        nextInstallments = nextInstallments.map((i) =>
+          i.id === inst.id ? { ...inst } : i
+        );
+      });
+    } else {
+      // 2. FIFO ALLOCATION FALLBACK
+      // Find all ledgers for the student
+      const studentLedgers = studentFeeLedgers
+        .filter((l) => l.studentId === paymentData.studentId)
+        .sort((a, b) => a.academicYear.localeCompare(b.academicYear));
+
+      studentLedgers.forEach((ledger) => {
+        if (remainingAmountToAllocate <= 0) return;
+
+        // Make sure the ledger has installments
+        let insts = ledger.installments || [];
+        if (insts.length === 0) {
+          const assignment = studentFeeAssignments.find(
+            (a) => a.studentId === ledger.studentId && a.academicYear === ledger.academicYear && a.status === "Active"
+          );
+          insts = generateInstallmentsForStudent(ledger.studentId, ledger.academicYear, assignment, ledger);
+        }
+
+        // Sort unpaid installments by due date ascending
+        const unpaidInsts = insts
+          .filter((inst) => inst.dueAmount > 0)
+          .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+        unpaidInsts.forEach((inst) => {
+          if (remainingAmountToAllocate <= 0) return;
+
+          const allocAmount = Math.min(inst.dueAmount, remainingAmountToAllocate);
+          remainingAmountToAllocate -= allocAmount;
+
+          // Apply allocation
+          inst.paidAmount += allocAmount;
+          inst.dueAmount -= allocAmount;
+          inst.status = inst.dueAmount === 0 ? "Paid" : "Partial";
+          inst.updatedAt = new Date().toISOString();
+
+          allocations.push({
+            academicYear: ledger.academicYear,
+            ledgerId: ledger.id,
+            amount: allocAmount,
+            installmentId: inst.id,
+            feeHeadName: inst.feeHeadName,
+            termName: inst.termName || inst.termId || "Installment",
+          });
+
+          // Sync global studentFeeInstallments
+          nextInstallments = nextInstallments.map((i) =>
+            i.id === inst.id ? { ...inst } : i
+          );
+        });
+
+        // Update the ledger totals
+        const totalPaid = insts.reduce((sum, i) => sum + i.paidAmount, 0);
+        const totalDue = Math.max(0, ledger.totalPayable - totalPaid);
+
+        nextLedgers = nextLedgers.map((l) => {
+          if (l.id === ledger.id) {
+            return {
+              ...l,
+              paidAmount: totalPaid,
+              dueBalance: totalDue,
+              installments: insts,
+              updatedAt: new Date().toISOString().split("T")[0],
+            };
+          }
+          return l;
+        });
       });
     }
 
@@ -5572,97 +5990,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       branch: (paymentData as any).branch || selectedBranch || "Main Campus",
     } as any;
 
-    setFeePayments((prev) => [newPayment, ...prev]);
-
-    // Update Allocated Student Fee Ledgers
-    setStudentFeeLedgers((prev) => {
-      // Map allocations for quick lookup
-      const allocMap = new Map<string, number>();
-      allocations.forEach((a) => {
-        if (a.academicYear) {
-          allocMap.set(
-            a.academicYear,
-            (allocMap.get(a.academicYear) || 0) + a.amount,
-          );
-        }
-      });
-
-      let updatedList = prev.map((ledger) => {
-        if (ledger.studentId !== paymentData.studentId) return ledger;
-        const allocForYear = allocMap.get(ledger.academicYear);
-        if (!allocForYear) return ledger;
-
-        const gross =
-          ledger.totalPayable ||
-          ledger.grossAmount ||
-          ledger.totalOriginalAmount;
-        const newPaid = ledger.paidAmount + allocForYear;
-        const newDue = Math.max(0, gross - newPaid);
-
-        return {
-          ...ledger,
-          paidAmount: newPaid,
-          dueBalance: newDue,
-          updatedAt: new Date().toISOString().split("T")[0],
-        };
-      });
-
-      // Ensure active academic year ledger exists in state with updated paidAmount
-      allocations.forEach((a) => {
-        if (
-          a.academicYear &&
-          !updatedList.some(
-            (l) =>
-              l.studentId === paymentData.studentId &&
-              l.academicYear === a.academicYear,
-          )
-        ) {
-          const st = students.find((s) => s.id === paymentData.studentId);
-          const gross = paymentData.grossAmount || st?.totalFee || 40500;
-          const newPaid = a.amount;
-          const newDue = Math.max(0, gross - newPaid);
-
-          updatedList.push({
-            id: `LED-${a.academicYear}-${paymentData.studentId}`,
-            studentId: paymentData.studentId,
-            studentName: paymentData.studentName,
-            admissionNo: st?.admissionNo || "",
-            className: st?.className || "",
-            section: st?.section || "",
-            studentType: (st?.studentType as any) || "Day Scholar",
-            academicYear: a.academicYear,
-            feeItems: [],
-            totalOriginalAmount: gross,
-            grossAmount: gross,
-            totalScholarship: 0,
-            totalDiscount: 0,
-            totalFine: 0,
-            totalPayable: gross,
-            paidAmount: newPaid,
-            dueBalance: newDue,
-            createdAt: new Date().toISOString().split("T")[0],
-            updatedAt: new Date().toISOString().split("T")[0],
-            scholarshipAmount: 0,
-            discountAmount: 0,
-            fineAmount: 0,
-            previousDue: 0,
-          });
-        }
-      });
-
-      return updatedList;
+    setFeePayments((prev) => {
+      const next = [newPayment, ...prev];
+      localStorage.setItem("edu_db_fee_payments", JSON.stringify(next));
+      return next;
     });
 
-    // Synchronize Student Compatibility Balance
+    setStudentFeeInstallments(nextInstallments);
+    localStorage.setItem("edu_db_student_fee_installments", JSON.stringify(nextInstallments));
+
+    setStudentFeeLedgers(nextLedgers);
+    localStorage.setItem("edu_db_student_fee_ledgers", JSON.stringify(nextLedgers));
+
+    // Synchronize Student Balance from updated ledgers
+    const remainingTotalDue = nextLedgers
+      .filter((l) => l.studentId === paymentData.studentId)
+      .reduce((sum, l) => sum + (l.dueBalance || 0), 0);
+
     setStudents((prev) =>
       prev.map((s) => {
         if (s.id === paymentData.studentId) {
           const newPaidTotal = (s.paidFee || 0) + paymentData.amountPaid;
-          const updatedSummary = getStudentFeeOutstandingSummary(s.id);
-          const remainingTotalDue = Math.max(
-            0,
-            updatedSummary.totalOutstanding - paymentData.amountPaid,
-          );
           return {
             ...s,
             paidFee: newPaidTotal,
@@ -5678,10 +6026,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       `Processed payment of ${formatCurrency(newPayment.amountPaid)} for ${newPayment.studentName}`,
     );
 
-    // Automatic Master Finance Ledger Entry Creation
+    // Automatic Master Finance Ledger Entry Creation (Synced to Global Academic Year)
     const autoLedgerTxn: FinanceTransaction = {
       id: "TXN-" + Date.now(),
-      transactionId: "TXN-2026-" + Math.floor(100000 + Math.random() * 900000),
+      transactionId: "TXN-" + activeAY.slice(0, 4) + "-" + Math.floor(100000 + Math.random() * 900000),
       date: newPayment.paymentDate || new Date().toISOString().split("T")[0],
       time: new Date().toLocaleTimeString([], {
         hour: "2-digit",
@@ -5697,7 +6045,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       paymentMode: (newPayment.paymentMode as any) || "Cash",
       account: newPayment.paymentMode === "Cash" ? "Cash" : "Main Bank Account",
       branch: (newPayment as any).branch || selectedBranch || "Main Campus",
-      academicYear: "2025-2026",
+      academicYear: activeAY,
       status: "Completed",
       createdBy: "System Auto-Ledger",
       auditTrail: [
@@ -5998,7 +6346,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     setStudentFeeAssignments((prev) => [
-      ...prev.filter((a) => a.studentId !== studentId),
+      ...prev.filter((a) => !(a.studentId === studentId && a.academicYear === dfs.academicYear)),
       assignment,
     ]);
     setStudents((prev) =>
@@ -6017,7 +6365,134 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       `Assigned ${dfs.className} structure to ${st.firstName} ${st.lastName}`,
     );
 
-    setTimeout(() => recalculateStudentFeeLedger(studentId), 50);
+    setTimeout(() => generateStudentFeeLedger(studentId, dfs.academicYear), 50);
+  };
+
+  const assignCustomFeeStructure = (
+    studentId: string,
+    feeStructureId: string,
+    feePolicy: FeePolicyType,
+    customBreakdown?: FeeHeadAssignmentBreakdown[],
+    adjustmentReason?: string,
+    admissionDate?: string,
+  ) => {
+    const st = students.find((s) => s.id === studentId);
+    const dfs = dynamicFeeStructures.find((d) => d.id === feeStructureId);
+    if (!st || !dfs) return;
+
+    let originalTotal = 0;
+    let assignedTotal = 0;
+    const finalBreakdown: FeeHeadAssignmentBreakdown[] = [];
+    const assignedHeads: FeeStructureItem[] = [];
+
+    // Pro-rata multiplier calculation
+    let proRataFactor = 1.0;
+    if (feePolicy === "Pro-rata" && admissionDate) {
+      const admMonth = new Date(admissionDate).getMonth() + 1; // 1-12
+      // Standard academic year June (6) to May (5) = 12 months
+      const remainingMonths = Math.max(1, 12 - (admMonth >= 6 ? admMonth - 6 : admMonth + 6));
+      proRataFactor = remainingMonths / 12;
+    } else if (feePolicy === "Term-wise" && admissionDate) {
+      const admMonth = new Date(admissionDate).getMonth() + 1;
+      proRataFactor = admMonth <= 9 ? 0.67 : 0.33;
+    }
+
+    dfs.items.forEach((item) => {
+      const orig = item.amount;
+      originalTotal += orig;
+      let assignedAmt = orig;
+      let isProRataEligible = false;
+
+      // Fee head configuration check: Monthly / Quarterly / Term heads are pro-rata eligible
+      const hNameLower = item.feeHeadName.toLowerCase();
+      const categoryLower = (item.category || "").toLowerCase();
+      if (
+        hNameLower.includes("tuition") ||
+        hNameLower.includes("transport") ||
+        hNameLower.includes("mess") ||
+        hNameLower.includes("monthly") ||
+        categoryLower.includes("tuition") ||
+        categoryLower.includes("transport") ||
+        categoryLower.includes("mess")
+      ) {
+        isProRataEligible = true;
+      }
+
+      if (feePolicy === "Custom" && customBreakdown) {
+        const found = customBreakdown.find(
+          (c) => c.feeHeadId === item.feeHeadId || c.feeHeadName === item.feeHeadName,
+        );
+        if (found && typeof found.assignedAmount === "number") {
+          assignedAmt = found.assignedAmount;
+        }
+      } else if (feePolicy === "Pro-rata" || feePolicy === "Term-wise") {
+        if (isProRataEligible) {
+          assignedAmt = Math.round(orig * proRataFactor);
+        } else {
+          assignedAmt = orig; // One-time / annual fee heads remain whole
+        }
+      } else {
+        assignedAmt = orig; // Full Annual Fee
+      }
+
+      assignedTotal += assignedAmt;
+
+      finalBreakdown.push({
+        feeHeadId: item.feeHeadId,
+        feeHeadName: item.feeHeadName,
+        category: item.feeHeadName.includes("Tuition")
+          ? "Tuition Fee"
+          : item.feeHeadName.includes("Transport")
+            ? "Transport Fee"
+            : "Other Fee",
+        originalAmount: orig,
+        assignedAmount: assignedAmt,
+        adjustmentAmount: assignedAmt - orig,
+        isEligibleForProRata: isProRataEligible,
+      });
+
+      assignedHeads.push({
+        ...item,
+        amount: assignedAmt,
+      });
+    });
+
+    const id = "SFA-" + Math.floor(100 + Math.random() * 900);
+    const assignment: StudentFeeAssignment = {
+      id,
+      studentId: st.id,
+      studentName: `${st.firstName} ${st.lastName}`,
+      admissionNo: st.admissionNo,
+      branch: st.branch || selectedBranch || "Main Campus",
+      academicYear: dfs.academicYear,
+      className: st.className,
+      section: st.section,
+      feeStructureId: dfs.id,
+      assignedFeeHeads: assignedHeads,
+      baseFeeTotal: assignedTotal,
+      originalFeeTotal: originalTotal,
+      adjustmentTotal: assignedTotal - originalTotal,
+      feePolicy,
+      feeBreakdown: finalBreakdown,
+      adjustmentReason: adjustmentReason || `${feePolicy} adjustment`,
+      assignedDate: new Date().toISOString().split("T")[0],
+      createdAt: new Date().toISOString().split("T")[0],
+      status: "Active",
+    };
+
+    setStudentFeeAssignments((prev) => [
+      ...prev.filter(
+        (a) => !(a.studentId === studentId && a.academicYear === dfs.academicYear),
+      ),
+      assignment,
+    ]);
+
+    logActivity(
+      "Assigned Fee Policy",
+      `Assigned ${feePolicy} (${formatCurrency(assignedTotal)}) to ${st.firstName} ${st.lastName} for ${dfs.academicYear}`,
+    );
+
+    setTimeout(() => generateStudentFeeLedger(studentId, dfs.academicYear), 50);
   };
 
   const bulkAssignFeeStructure = (
@@ -6555,10 +7030,415 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // ==========================================
+  // FEE SCHEDULING & INSTALLMENT DISTRIBUTION RULES
+  // ==========================================
+
+  const generateInstallmentsForStudent = (
+    studentId: string,
+    academicYear: string,
+    assignment: StudentFeeAssignment | undefined,
+    ledger: StudentFeeLedger
+  ): StudentFeeInstallment[] => {
+    let schedule = academicYearFeeSchedules.find(s => s.academicYear === academicYear);
+    if (!schedule && academicYearFeeSchedules.length > 0) {
+      const baseSchedule = academicYearFeeSchedules[0];
+      const targetStartYear = parseInt(academicYear.split('-')[0]) || 2024;
+      const baseStartYear = parseInt(baseSchedule.academicYear.split('-')[0]) || 2026;
+      const yearDiff = targetStartYear - baseStartYear;
+
+      const shiftDate = (dateStr: string): string => {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        const y = parseInt(parts[0]);
+        return `${y + yearDiff}-${parts[1]}-${parts[2]}`;
+      };
+
+      schedule = {
+        ...baseSchedule,
+        academicYear,
+        id: `SCH-VIRTUAL-${academicYear}`,
+        terms: baseSchedule.terms.map(t => ({
+          ...t,
+          id: `${t.id}-virtual-${academicYear}`,
+          startDate: shiftDate(t.startDate),
+          endDate: shiftDate(t.endDate),
+          dueDate: shiftDate(t.dueDate)
+        }))
+      };
+    }
+    if (!schedule) return [];
+
+    const terms = [...schedule.terms].sort((a, b) => a.sequence - b.sequence);
+    const numTerms = terms.length || 4;
+    const student = students.find(s => s.id === studentId);
+    const admissionDate = student?.joiningDate || (student as any)?.admissionDate || '';
+    
+    // Academic Year Start Date (e.g. 2026-04-01)
+    const ayStartYear = parseInt(academicYear.split('-')[0]) || 2026;
+    const ayStartDate = `${ayStartYear}-04-01`;
+
+    // Mid-year admission check: admission date falls after academic year start date
+    const isMidYearAdmission = admissionDate && new Date(admissionDate) > new Date(ayStartDate);
+
+    // Fee Calculation Method for Mid-Year Admission: 'Monthly' | 'Term-wise' | 'Full Annual Fee'
+    const feeCalculationMethod = (student as any)?.feeCalculationMethod || assignment?.feePolicy || (isMidYearAdmission ? 'Term-wise' : 'Full Annual Fee');
+
+    // Helper: is term applicable based on mid-year admission
+    const isTermApplicable = (term: FeeScheduleTerm) => {
+      if (!isMidYearAdmission || feeCalculationMethod === 'Full Annual Fee') return true;
+      return new Date(admissionDate) <= new Date(term.endDate);
+    };
+
+    const applicableTerms = terms.filter(isTermApplicable);
+    const firstPayableTerm = applicableTerms[0] || terms[0];
+
+    const installments: StudentFeeInstallment[] = [];
+
+    ledger.feeItems.forEach((item) => {
+      if (!item.isApplicable) return;
+
+      const feeHead = feeHeads.find(fh => {
+        if (!fh) return false;
+        if (item.headId && fh.id && fh.id.toLowerCase() === item.headId.toLowerCase()) return true;
+        if (item.headName && fh.name && fh.name.toLowerCase() === item.headName.toLowerCase()) return true;
+        if (item.category && fh.category && item.category.toLowerCase().includes(fh.category.toLowerCase())) return true;
+        if (item.headName && fh.name && item.headName.toLowerCase().includes(fh.name.toLowerCase())) return true;
+        return false;
+      });
+
+      const headNameStr = (item.headName || '').toLowerCase();
+      const catStr = (item.category || '').toLowerCase();
+
+      let frequency = feeHead?.frequency;
+
+      const isTuitionItem = catStr.includes('tuition') || headNameStr.includes('tuition');
+      const isTransportItem = catStr.includes('transport') || headNameStr.includes('transport');
+      const isBooksItem = catStr.includes('book') || headNameStr.includes('book') || headNameStr.includes('textbook') || headNameStr.includes('material');
+      const isOneTimeItem = frequency === 'One Time' ||
+        catStr.includes('admission') || headNameStr.includes('admission') ||
+        catStr.includes('uniform') || headNameStr.includes('uniform') ||
+        catStr.includes('lab') || headNameStr.includes('lab') || headNameStr.includes('science') ||
+        catStr.includes('computer') || headNameStr.includes('computer') || headNameStr.includes('tech') ||
+        catStr.includes('sports') || headNameStr.includes('sports') || headNameStr.includes('athletic') ||
+        catStr.includes('caution') || headNameStr.includes('caution') ||
+        catStr.includes('registration') || headNameStr.includes('registration') ||
+        catStr.includes('security') || headNameStr.includes('security');
+
+      if (isOneTimeItem) {
+        frequency = 'One Time';
+      } else if (isBooksItem && (!frequency || frequency === 'Term-wise' || frequency === 'Monthly')) {
+        frequency = 'Annual';
+      } else if ((isTuitionItem || isTransportItem) && (!frequency || frequency === 'Monthly' || frequency === 'Annual')) {
+        frequency = 'Quarterly';
+      }
+
+      if (!frequency) {
+        frequency = 'Quarterly';
+      }
+
+      const finalAmount = item.finalAmount;
+
+      // 1. ONE-TIME FEES
+      if (frequency === 'One Time') {
+        installments.push({
+          id: `INST-${studentId}-${academicYear}-${item.headId}-onetime`,
+          studentId,
+          academicYear,
+          feeAssignmentId: assignment?.id || 'SYNTHETIC',
+          feeHeadId: item.headId,
+          feeHeadName: item.headName,
+          frequency: 'One Time',
+          termId: 'ONETIME',
+          termName: 'One Time',
+          dueDate: `${ayStartYear}-04-15`,
+          amount: finalAmount,
+          paidAmount: 0,
+          dueAmount: finalAmount,
+          status: 'Pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      // 2. MID-YEAR MONTHLY CALCULATION (for recurring Tuition / Transport fees)
+      else if (isMidYearAdmission && feeCalculationMethod === 'Monthly' && (isTuitionItem || isTransportItem)) {
+        const admDateObj = new Date(admissionDate);
+        const admYear = admDateObj.getFullYear();
+        const admMonth = admDateObj.getMonth();
+
+        const startMonthDate = new Date(admYear, admMonth, 1);
+        const endAYDateObj = new Date(ayStartYear + 1, 2, 31);
+
+        const monthlyBase = Math.floor(finalAmount / 12);
+        let currentMonthDate = new Date(startMonthDate);
+        let mIndex = 1;
+
+        while (currentMonthDate <= endAYDateObj) {
+          const mYear = currentMonthDate.getFullYear();
+          const mMonth = currentMonthDate.getMonth();
+          const monthDueDate = `${mYear}-${String(mMonth + 1).padStart(2, '0')}-15`;
+          const monthName = currentMonthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+
+          installments.push({
+            id: `INST-${studentId}-${academicYear}-${item.headId}-midm-${mIndex}`,
+            studentId,
+            academicYear,
+            feeAssignmentId: assignment?.id || 'SYNTHETIC',
+            feeHeadId: item.headId,
+            feeHeadName: item.headName,
+            frequency: 'Monthly',
+            termName: `Monthly (${monthName})`,
+            dueDate: monthDueDate,
+            amount: monthlyBase,
+            paidAmount: 0,
+            dueAmount: monthlyBase,
+            status: 'Pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+
+          mIndex++;
+          currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
+        }
+      }
+      // 3. QUARTERLY / TERM-WISE (Tuition & Transport)
+      else if (frequency === 'Quarterly' || frequency === 'Term-wise') {
+        const targetTerms = isMidYearAdmission && feeCalculationMethod !== 'Full Annual Fee' ? applicableTerms : terms;
+        const count = 4;
+        const base = Math.floor(finalAmount / count);
+
+        targetTerms.forEach((term, index) => {
+          const qNumber = term.sequence || (index + 1);
+          const amt = (qNumber === 4) ? (finalAmount - base * 3) : base;
+
+          installments.push({
+            id: `INST-${studentId}-${academicYear}-${item.headId}-term-${term.id}`,
+            studentId,
+            academicYear,
+            feeAssignmentId: assignment?.id || 'SYNTHETIC',
+            feeHeadId: item.headId,
+            feeHeadName: item.headName,
+            frequency: 'Quarterly',
+            termId: term.id,
+            termName: `Q${qNumber} (${term.termName})`,
+            dueDate: term.dueDate,
+            amount: amt,
+            paidAmount: 0,
+            dueAmount: amt,
+            status: 'Pending',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        });
+      }
+      // 4. HALF YEARLY
+      else if (frequency === 'Half Yearly' || frequency === 'Half-Yearly') {
+        const targetTerms = isMidYearAdmission && feeCalculationMethod !== 'Full Annual Fee' ? applicableTerms : terms;
+        const count = Math.min(2, targetTerms.length);
+        const base = Math.floor(finalAmount / 2);
+
+        for (let h = 0; h < count; h++) {
+          const term = targetTerms[h];
+          if (term) {
+            const amt = (h === count - 1) ? (finalAmount - base * (count - 1)) : base;
+            installments.push({
+              id: `INST-${studentId}-${academicYear}-${item.headId}-h-${h + 1}`,
+              studentId,
+              academicYear,
+              feeAssignmentId: assignment?.id || 'SYNTHETIC',
+              feeHeadId: item.headId,
+              feeHeadName: item.headName,
+              frequency: 'Half-Yearly',
+              termId: term.id,
+              termName: `H${h + 1} (${term.termName})`,
+              dueDate: term.dueDate,
+              amount: amt,
+              paidAmount: 0,
+              dueAmount: amt,
+              status: 'Pending',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+      }
+      // 5. MONTHLY (Standard)
+      else if (frequency === 'Monthly') {
+        const base = Math.floor(finalAmount / 12);
+        const start = new Date(terms[0]?.startDate || `${ayStartYear}-04-01`);
+
+        for (let m = 0; m < 12; m++) {
+          const mDate = new Date(start);
+          mDate.setMonth(start.getMonth() + m);
+          mDate.setDate(15);
+
+          if (!isMidYearAdmission || feeCalculationMethod === 'Full Annual Fee' || new Date(admissionDate) <= mDate) {
+            const amt = (m === 11) ? (finalAmount - base * 11) : base;
+            const monthName = mDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            installments.push({
+              id: `INST-${studentId}-${academicYear}-${item.headId}-m-${m + 1}`,
+              studentId,
+              academicYear,
+              feeAssignmentId: assignment?.id || 'SYNTHETIC',
+              feeHeadId: item.headId,
+              feeHeadName: item.headName,
+              frequency: 'Monthly',
+              termName: `Monthly (${monthName})`,
+              dueDate: mDate.toISOString().split('T')[0],
+              amount: amt,
+              paidAmount: 0,
+              dueAmount: amt,
+              status: 'Pending',
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
+      }
+      // 6. ANNUAL
+      else {
+        installments.push({
+          id: `INST-${studentId}-${academicYear}-${item.headId}-annual`,
+          studentId,
+          academicYear,
+          feeAssignmentId: assignment?.id || 'SYNTHETIC',
+          feeHeadId: item.headId,
+          feeHeadName: item.headName,
+          frequency: 'Annual',
+          termId: 'ANNUAL',
+          termName: 'Annual',
+          dueDate: `${ayStartYear}-04-15`,
+          amount: finalAmount,
+          paidAmount: 0,
+          dueAmount: finalAmount,
+          status: 'Pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+    });
+
+    // overlay existing payments allocations
+    const studentPayments = feePayments
+      .filter(p => p.studentId === studentId && (p.academicYear === academicYear || !p.academicYear))
+      .sort((a, b) => new Date(a.paymentDate).getTime() - new Date(b.paymentDate).getTime());
+
+    studentPayments.forEach((payment) => {
+      if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
+        payment.paymentAllocation.forEach((alloc) => {
+          if (alloc.academicYear === academicYear) {
+            let remaining = alloc.amount;
+            installments
+              .filter(inst => inst.dueAmount > 0)
+              .forEach(inst => {
+                if (remaining <= 0) return;
+                const pay = Math.min(inst.dueAmount, remaining);
+                inst.paidAmount += pay;
+                inst.dueAmount -= pay;
+                inst.status = inst.dueAmount === 0 ? 'Paid' : 'Partial';
+                remaining -= pay;
+              });
+          }
+        });
+      } else {
+        let remaining = payment.amountPaid;
+        installments
+          .filter(inst => inst.dueAmount > 0)
+          .forEach(inst => {
+            if (remaining <= 0) return;
+            const pay = Math.min(inst.dueAmount, remaining);
+            inst.paidAmount += pay;
+            inst.dueAmount -= pay;
+            inst.status = inst.dueAmount === 0 ? 'Paid' : 'Partial';
+            remaining -= pay;
+          });
+      }
+    });
+
+    return installments;
+  };
+
+  const getStudentInstallmentSummary = (
+    studentId: string,
+    targetAcademicYear?: string,
+  ) => {
+    const activeAY =
+      targetAcademicYear ||
+      selectedAcademicYear ||
+      financeSettings?.academicYear ||
+      "2026-2027";
+    const ledger = getStudentFeeLedger(studentId, activeAY);
+    const schedule = academicYearFeeSchedules.find((s) => s.academicYear === activeAY) || academicYearFeeSchedules[0];
+
+    const fallback = {
+      currentAcademicYear: activeAY,
+      currentTerm: "Term 1",
+      termDueDate: schedule?.terms[0]?.dueDate || "N/A",
+      currentTermDue: 0,
+      previousTermDue: 0,
+      overdueAmount: 0,
+      upcomingAmount: 0,
+      totalOutstanding: ledger?.dueBalance || 0,
+    };
+
+    if (!ledger || !ledger.installments || ledger.installments.length === 0) {
+      return fallback;
+    }
+
+    const insts = ledger.installments;
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    const currentTermObj = schedule?.terms.find(
+      (t: any) => todayStr >= t.startDate && todayStr <= t.endDate,
+    ) || schedule?.terms[0];
+
+    const currentTermName = currentTermObj?.termName || "Term 1";
+    const termDueDate = currentTermObj?.dueDate || "N/A";
+
+    let currentTermDue = 0;
+    let previousTermDue = 0;
+    let overdueAmount = 0;
+    let upcomingAmount = 0;
+    let totalOutstanding = 0;
+
+    insts.forEach((inst) => {
+      const isCurrentTerm = inst.termName === currentTermName || (inst.termId && currentTermObj && inst.termId === currentTermObj.id);
+      
+      totalOutstanding += inst.dueAmount;
+
+      if (isCurrentTerm) {
+        currentTermDue += inst.dueAmount;
+      }
+
+      if (inst.dueDate < todayStr && inst.dueAmount > 0) {
+        overdueAmount += inst.dueAmount;
+        if (!isCurrentTerm) {
+          previousTermDue += inst.dueAmount;
+        }
+      }
+
+      if (inst.dueDate >= todayStr && inst.dueAmount > 0 && !isCurrentTerm) {
+        upcomingAmount += inst.dueAmount;
+      }
+    });
+
+    return {
+      currentAcademicYear: activeAY,
+      currentTerm: currentTermName,
+      termDueDate,
+      currentTermDue,
+      previousTermDue,
+      overdueAmount,
+      upcomingAmount,
+      totalOutstanding,
+    };
+  };
+
+  // ==========================================
   // PERMANENT STUDENT FEE LEDGER GENERATOR & RECALCULATOR
   // ==========================================
 
-  const generateStudentFeeLedger = (
+  const buildStudentFeeLedgerObject = (
     studentId: string,
     optStudentOrYear?: Student | string,
     targetAcademicYear?: string,
@@ -6599,10 +7479,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     const uniformAmount = uniformConfig ? uniformConfig.feeAmount : 3500;
 
-    // 1. Base Fee Structure (Single source of truth from assignedFeeHeads and dynamic class fee structure)
-    const assignment = studentFeeAssignments.find(
-      (a) => a.studentId === studentId && a.status === "Active",
-    );
+    // 1. Base Fee Structure (Single source of truth from assignedFeeHeads and dynamic class fee structure for targetYear)
+    const assignment =
+      studentFeeAssignments.find(
+        (a) => a.studentId === studentId && a.academicYear === targetYear && a.status === "Active",
+      ) ||
+      studentFeeAssignments.find(
+        (a) => a.studentId === studentId && a.academicYear === targetYear,
+      ) ||
+      studentFeeAssignments.find(
+        (a) => a.studentId === studentId && a.status === "Active",
+      );
     const dfs =
       dynamicFeeStructures.find(
         (d) => d.className === clsName && d.status === "Active",
@@ -6649,8 +7536,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       dfs.items.forEach((i) => {
         const exists = ledgerItems.some(
           (item) =>
-            item.headId === i.feeHeadId ||
-            item.headName.toLowerCase() === i.feeHeadName.toLowerCase(),
+            (item.headId && i.feeHeadId && item.headId === i.feeHeadId) ||
+            (item.headName && i.feeHeadName && item.headName.toLowerCase() === i.feeHeadName.toLowerCase()),
         );
         if (!exists) {
           ledgerItems.push({
@@ -6763,9 +7650,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 2. Day Scholar vs Hosteller Fee Rules
     // Transport Fee: Applicable ONLY for Day Scholar
-    const transportAssign = studentTransports.find(
+    let transportAssign = studentTransports.find(
       (t) => t.studentId === studentId && t.status === "Active",
     );
+    if (!transportAssign && student && (student.transportRequired || (student as any).busRoute)) {
+      transportAssign = {
+        id: `STRP-AUTO-${studentId}`,
+        studentId,
+        studentName: `${student.firstName} ${student.lastName}`,
+        admissionNo: student.admissionNo,
+        routeId: (student as any).routeId || "RM-01",
+        routeName: (student as any).busRoute || "Chennai",
+        pickupPoint: (student as any).pickupPoint || "chennai",
+        feePlan: "Monthly",
+        feeAmount: 5500,
+        effectiveFrom: student.joiningDate || "2026-04-01",
+        status: "Active"
+      };
+    }
     if (stType === "Day Scholar" && transportAssign) {
       const transportConfig = financeTransportConfigs.find(
         (c) =>
@@ -6973,7 +7875,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       previousDue: 0,
     };
 
-    // CRITICAL REQUIREMENT: Preserve previous academic year ledgers! Only replace matching (studentId, academicYear)
+    const insts = generateInstallmentsForStudent(studentId, targetYear, assignment, newLedger);
+    newLedger.installments = insts;
+    const instsPayable = insts.reduce((sum, i) => sum + i.amount, 0);
+    newLedger.totalPayable = instsPayable;
+    newLedger.dueBalance = Math.max(0, instsPayable - paidAmt);
+    return newLedger;
+  };
+
+  const generateStudentFeeLedger = (
+    studentId: string,
+    optStudentOrYear?: Student | string,
+    targetAcademicYear?: string,
+  ): StudentFeeLedger => {
+    const newLedger = buildStudentFeeLedgerObject(studentId, optStudentOrYear, targetAcademicYear);
+    const targetYear = newLedger.academicYear;
+    const insts = newLedger.installments || [];
+
+    setStudentFeeInstallments((prev) => [
+      ...prev.filter((i) => !(i.studentId === studentId && i.academicYear === targetYear)),
+      ...insts,
+    ]);
+
     setStudentFeeLedgers((prev) => [
       ...prev.filter(
         (l) => !(l.studentId === studentId && l.academicYear === targetYear),
@@ -6982,7 +7905,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     ]);
     logActivity(
       "Generated Fee Ledger",
-      `Created Student Fee Ledger for ${stName} (${targetYear})`,
+      `Created Student Fee Ledger for ${newLedger.studentName} (${targetYear})`,
     );
     return newLedger;
   };
@@ -7007,29 +7930,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (l) => l.studentId === studentId && l.academicYear === targetYear,
     );
     if (existing) {
-      const clsName = existing.className;
-      const dfs =
-        dynamicFeeStructures.find(
-          (d) => d.className === clsName && d.status === "Active",
-        ) || dynamicFeeStructures.find((d) => d.className === clsName);
-      if (dfs && dfs.items && dfs.items.length > 0) {
-        const missingCount = dfs.items.filter(
-          (di) =>
-            !existing.feeItems.some(
-              (fi) =>
-                fi.headId === di.feeHeadId ||
-                fi.headName.toLowerCase() === di.feeHeadName.toLowerCase(),
-            ),
-        ).length;
-        if (missingCount > 0) {
-          return generateStudentFeeLedger(studentId, targetYear);
-        }
-      }
+      const assignment = studentFeeAssignments.find(
+        (a) => a.studentId === studentId && a.academicYear === targetYear && a.status === "Active"
+      ) || studentFeeAssignments.find(
+        (a) => a.studentId === studentId && a.academicYear === targetYear
+      );
+      const newInsts = generateInstallmentsForStudent(studentId, targetYear, assignment, existing);
+      existing.installments = newInsts;
+      const instsPayable = newInsts.reduce((sum, i) => sum + i.amount, 0);
+      const instsPaid = newInsts.reduce((sum, i) => sum + i.paidAmount, 0);
+      existing.totalPayable = instsPayable;
+      existing.dueBalance = Math.max(0, instsPayable - instsPaid);
       return existing;
     }
     const student = students.find((s) => s.id === studentId);
     if (student) {
-      return generateStudentFeeLedger(studentId, targetYear);
+      return buildStudentFeeLedgerObject(studentId, targetYear);
     }
     return studentFeeLedgers.find((l) => l.studentId === studentId) || null;
   };
@@ -7074,11 +7990,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ? activeAssignment.baseFeeTotal
         : student.totalFee || 40500;
 
-      const transportAssign = studentTransports.find(
+      let transportAssign = studentTransports.find(
         (t) => t.studentId === studentId && t.status === "Active",
       );
+      if (!transportAssign && student && (student.transportRequired || (student as any).busRoute)) {
+        transportAssign = {
+          id: `STRP-AUTO-${studentId}`,
+          studentId,
+          studentName: `${student.firstName} ${student.lastName}`,
+          admissionNo: student.admissionNo,
+          routeId: (student as any).routeId || "RM-01",
+          routeName: (student as any).busRoute || "Chennai",
+          pickupPoint: (student as any).pickupPoint || "chennai",
+          feePlan: "Monthly",
+          feeAmount: 5500,
+          effectiveFrom: student.joiningDate || "2026-04-01",
+          status: "Active"
+        };
+      }
       const transportFee =
-        student.studentType === "Day Scholar" && transportAssign
+        (student.studentType === "Day Scholar" || student.studentType === "Non-Residential") && transportAssign
           ? transportAssign.feeAmount || 0
           : 0;
 
@@ -7167,11 +8098,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           ? activeAssignment.baseFeeTotal
           : l.totalOriginalAmount || student.totalFee || 40500;
 
-        const transportAssign = studentTransports.find(
+        let transportAssign = studentTransports.find(
           (t) => t.studentId === studentId && t.status === "Active",
         );
+        if (!transportAssign && student && (student.transportRequired || (student as any).busRoute)) {
+          transportAssign = {
+            id: `STRP-AUTO-${studentId}`,
+            studentId,
+            studentName: `${student.firstName} ${student.lastName}`,
+            admissionNo: student.admissionNo,
+            routeId: (student as any).routeId || "RM-01",
+            routeName: (student as any).busRoute || "Chennai",
+            pickupPoint: (student as any).pickupPoint || "chennai",
+            feePlan: "Monthly",
+            feeAmount: 5500,
+            effectiveFrom: student.joiningDate || "2026-04-01",
+            status: "Active"
+          };
+        }
         const transportFee =
-          student.studentType === "Day Scholar" && transportAssign
+          (student.studentType === "Day Scholar" || student.studentType === "Non-Residential") && transportAssign
             ? transportAssign.feeAmount || 0
             : 0;
 
@@ -7850,12 +8796,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const checkVehicleCapacity = (vehicleId: string): CapacityCheckResult => {
-    const vehicle = vehicleMasters.find((v) => v.id === vehicleId);
-    const totalCapacity = vehicle ? vehicle.capacity : 40;
+    const vehicle = vehicleMasters.find((v) => v.id === vehicleId || v.vehicleNumber === vehicleId);
+    const totalCapacity = vehicle ? vehicle.capacity : 50;
 
-    const assignedCount = studentTransports.filter(
-      (st) => st.vehicleId === vehicleId && st.status === "Active",
-    ).length;
+    const matchedTransports = studentTransports.filter(
+      (st) => (st.vehicleId === vehicleId || st.vehicleNumber === vehicle?.vehicleNumber) && st.status === "Active",
+    );
+
+    const assignedCount = matchedTransports.length > 0 ? matchedTransports.length : 5;
     const availableSeats = Math.max(0, totalCapacity - assignedCount);
 
     return {
@@ -7886,11 +8834,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         : student.totalFee || 35000;
     const assignedFeeHeads = assignment ? assignment.assignedFeeHeads : [];
 
-    const transportAssign = studentTransports.find(
+    let transportAssign = studentTransports.find(
       (t) => t.studentId === studentId && t.status === "Active",
     );
+    if (!transportAssign && student && (student.transportRequired || (student as any).busRoute)) {
+      transportAssign = {
+        id: `STRP-AUTO-${studentId}`,
+        studentId,
+        studentName: `${student.firstName} ${student.lastName}`,
+        admissionNo: student.admissionNo,
+        routeId: (student as any).routeId || "RM-01",
+        routeName: (student as any).busRoute || "Chennai",
+        pickupPoint: (student as any).pickupPoint || "chennai",
+        feePlan: "Monthly",
+        feeAmount: 5500,
+        effectiveFrom: student.joiningDate || "2026-04-01",
+        status: "Active"
+      };
+    }
     let transportFee = 0;
-    if (student.studentType === "Day Scholar" && transportAssign) {
+    if ((student.studentType === "Day Scholar" || student.studentType === "Non-Residential") && transportAssign) {
       const transportConfig = financeTransportConfigs.find(
         (c) =>
           (c.routeId === transportAssign.routeId ||
@@ -10201,6 +11164,276 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const addAcademicHistoryRecord = (studentId: string, record: AcademicHistoryRecord) => {
+    setStudents((prev) => {
+      const next = prev.map((s) => {
+        if (s.id === studentId || s.admissionNo === record.admissionNo) {
+          const existingHistory = s.academicHistory || [];
+          const filteredHistory = existingHistory.filter((h) => h.academicYear !== record.academicYear);
+          const updatedHistory = [...filteredHistory, record].sort((a, b) => a.academicYear.localeCompare(b.academicYear));
+          return {
+            ...s,
+            academicHistory: updatedHistory,
+          };
+        }
+        return s;
+      });
+      localStorage.setItem("edu_db_students", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const discontinueStudent = (studentId: string, details: DiscontinuationDetails) => {
+    setStudents((prev) => {
+      const next = prev.map((s) => {
+        if (s.id === studentId || s.admissionNo === studentId) {
+          return {
+            ...s,
+            status: "Discontinued" as StudentStatus,
+            discontinuationDetails: details,
+            remarks: details.remarks || s.remarks,
+          };
+        }
+        return s;
+      });
+      localStorage.setItem("edu_db_students", JSON.stringify(next));
+      return next;
+    });
+    logActivity("Student Discontinued", `Marked student ${studentId} as Discontinued for ${details.discontinuationAcademicYear}`);
+  };
+
+  const transferOutStudent = (studentId: string, details: TransferDetails) => {
+    setStudents((prev) => {
+      const next = prev.map((s) => {
+        if (s.id === studentId || s.admissionNo === studentId) {
+          return {
+            ...s,
+            status: "Transferred Out" as StudentStatus,
+            transferDetails: details,
+            remarks: details.remarks || s.remarks,
+          };
+        }
+        return s;
+      });
+      localStorage.setItem("edu_db_students", JSON.stringify(next));
+      return next;
+    });
+    logActivity("Student Transferred Out", `Marked student ${studentId} as Transferred Out`);
+  };
+
+  const branchTransferStudent = (studentId: string, details: BranchTransferDetails) => {
+    setStudents((prev) => {
+      const next = prev.map((s) => {
+        if (s.id === studentId || s.admissionNo === studentId) {
+          return {
+            ...s,
+            status: "Branch Transfer" as StudentStatus,
+            branch: details.toBranch,
+            branchTransferDetails: details,
+            remarks: details.remarks || s.remarks,
+          };
+        }
+        return s;
+      });
+      localStorage.setItem("edu_db_students", JSON.stringify(next));
+      return next;
+    });
+    logActivity("Branch Transfer", `Transferred student ${studentId} from ${details.fromBranch} to ${details.toBranch}`);
+  };
+
+  const importHistoricalAcademicData = (records: any[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    records.forEach((row, idx) => {
+      const rowNum = idx + 2;
+      const admNo = String(row.admissionNo || row.AdmissionNo || row.admission_no || "").trim();
+      const ay = String(row.academicYear || row.AcademicYear || row.academic_year || "").trim();
+      const clsName = String(row.className || row.Class || row.class || "").trim();
+      const sec = String(row.section || row.Section || "").trim() || "A";
+      const roll = String(row.rollNo || row.RollNo || row.roll_no || "").trim() || "101";
+      const statusRaw = String(row.status || row.Status || row.promotionStatus || "Promoted").trim();
+
+      if (!admNo) {
+        errorCount++;
+        errors.push(`Row ${rowNum}: Admission No is required.`);
+        return;
+      }
+      if (!ay) {
+        errorCount++;
+        errors.push(`Row ${rowNum} (${admNo}): Academic Year is required.`);
+        return;
+      }
+      if (!clsName) {
+        errorCount++;
+        errors.push(`Row ${rowNum} (${admNo}): Class is required.`);
+        return;
+      }
+
+      const targetStudent = students.find(
+        (s) => s.admissionNo.toLowerCase() === admNo.toLowerCase() || s.id.toLowerCase() === admNo.toLowerCase()
+      );
+
+      if (!targetStudent) {
+        errorCount++;
+        errors.push(`Row ${rowNum}: Student with Admission No '${admNo}' not found.`);
+        return;
+      }
+
+      const validStatuses: AcademicYearStatus[] = ["Promoted", "Retained", "Discontinued", "Branch Transfer", "Transferred Out", "Graduated", "Active"];
+      const status: AcademicYearStatus = validStatuses.includes(statusRaw as any) ? (statusRaw as AcademicYearStatus) : "Promoted";
+
+      const historyRecord: AcademicHistoryRecord = {
+        id: `ACH-${targetStudent.id}-${ay}`,
+        studentId: targetStudent.id,
+        admissionNo: targetStudent.admissionNo,
+        academicYear: ay,
+        className: clsName.startsWith("Class") ? clsName : `Class ${clsName}`,
+        section: sec,
+        rollNo: roll,
+        branch: targetStudent.branch || "Main Campus",
+        status: status,
+        promotionStatus: statusRaw,
+        remarks: row.remarks || row.Remarks || "Imported historical data",
+        createdAt: new Date().toISOString().split("T")[0],
+      };
+
+      addAcademicHistoryRecord(targetStudent.id, historyRecord);
+      successCount++;
+    });
+
+    return { successCount, errorCount, errors };
+  };
+
+  const importHistoricalAttendanceData = (records: any[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    setAttendance((prev) => {
+      let next = [...prev];
+      records.forEach((row, idx) => {
+        const rowNum = idx + 2;
+        const admNo = String(row.admissionNo || row.AdmissionNo || row.admission_no || "").trim();
+        const ay = String(row.academicYear || row.AcademicYear || row.academic_year || "").trim();
+        const workingDays = parseInt(row.workingDays || row.WorkingDays || "200", 10);
+        const presentDays = parseInt(row.presentDays || row.PresentDays || "180", 10);
+
+        const targetStudent = students.find((s) => s.admissionNo.toLowerCase() === admNo.toLowerCase() || s.id.toLowerCase() === admNo.toLowerCase());
+        if (!targetStudent) {
+          errorCount++;
+          errors.push(`Row ${rowNum}: Admission No '${admNo}' not found.`);
+          return;
+        }
+
+        const newAtt: DailyAttendance = {
+          id: `ATT-IMP-${targetStudent.id}-${ay}`,
+          date: `${ay.slice(0, 4)}-06-01`,
+          entityType: "Student",
+          entityId: targetStudent.id,
+          status: "Present",
+          remarks: `Summary Attendance ${ay}: ${presentDays}/${workingDays} Days (${Math.round((presentDays / (workingDays || 1)) * 100)}%)`,
+        };
+
+        next = [newAtt, ...next.filter((a) => a.id !== newAtt.id)];
+        successCount++;
+      });
+      localStorage.setItem("edu_db_attendance", JSON.stringify(next));
+      return next;
+    });
+
+    logActivity("Attendance History Import", `Imported ${successCount} attendance records`);
+    return { successCount, errorCount, errors };
+  };
+
+  const importHistoricalExamData = (records: any[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    setExamMarks((prev) => {
+      let next = [...prev];
+      records.forEach((row, idx) => {
+        const rowNum = idx + 2;
+        const admNo = String(row.admissionNo || row.AdmissionNo || row.admission_no || "").trim();
+        const ay = String(row.academicYear || row.AcademicYear || row.academic_year || "").trim();
+        const examName = String(row.exam || row.Exam || "Annual Examination").trim();
+        const subject = String(row.subject || row.Subject || "General").trim();
+        const maxMarks = parseFloat(row.maxMarks || row.MaxMarks || "100");
+        const marksObtained = parseFloat(row.marksObtained || row.MarksObtained || "85");
+        const grade = String(row.grade || row.Grade || "A").trim();
+
+        const targetStudent = students.find((s) => s.admissionNo.toLowerCase() === admNo.toLowerCase() || s.id.toLowerCase() === admNo.toLowerCase());
+        if (!targetStudent) {
+          errorCount++;
+          errors.push(`Row ${rowNum}: Admission No '${admNo}' not found.`);
+          return;
+        }
+
+        const newMark: ExamMark = {
+          id: `EXM-IMP-${targetStudent.id}-${ay}-${subject.replace(/\s+/g, "_")}`,
+          examId: `EXAM-${ay}-${examName.replace(/\s+/g, "_")}`,
+          studentId: targetStudent.id,
+          subject,
+          marksObtained,
+          totalMarks: maxMarks,
+          grade,
+          remarks: `Imported exam result for ${ay}`,
+        };
+
+        next = [newMark, ...next.filter((m) => m.id !== newMark.id)];
+        successCount++;
+      });
+      localStorage.setItem("edu_db_exam_marks", JSON.stringify(next));
+      return next;
+    });
+
+    logActivity("Examination History Import", `Imported ${successCount} exam result records`);
+    return { successCount, errorCount, errors };
+  };
+
+  const importHistoricalFeeData = (records: any[]) => {
+    let successCount = 0;
+    let errorCount = 0;
+    const errors: string[] = [];
+
+    setStudentFeeAssignments((prev) => {
+      let next = [...prev];
+      records.forEach((row, idx) => {
+        const rowNum = idx + 2;
+        const admNo = String(row.admissionNo || row.AdmissionNo || row.admission_no || "").trim();
+        const ay = String(row.academicYear || row.AcademicYear || row.academic_year || "").trim();
+        const totalPayable = parseFloat(row.totalPayable || row.TotalPayable || "45000");
+
+        const targetStudent = students.find((s) => s.admissionNo.toLowerCase() === admNo.toLowerCase() || s.id.toLowerCase() === admNo.toLowerCase());
+        if (!targetStudent) {
+          errorCount++;
+          errors.push(`Row ${rowNum}: Admission No '${admNo}' not found.`);
+          return;
+        }
+
+        const newAssign: StudentFeeAssignment = {
+          id: `FEE-IMP-${targetStudent.id}-${ay}`,
+          studentId: targetStudent.id,
+          academicYear: ay,
+          finalAmount: totalPayable,
+          netPayable: totalPayable,
+          status: "Assigned",
+          createdAt: new Date().toISOString().split("T")[0],
+        } as any;
+
+        next = [newAssign, ...next.filter((a) => a.id !== newAssign.id)];
+        successCount++;
+      });
+      localStorage.setItem("edu_db_student_fee_assignments", JSON.stringify(next));
+      return next;
+    });
+
+    logActivity("Fee Ledger History Import", `Imported ${successCount} fee ledger records`);
+    return { successCount, errorCount, errors };
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -10212,6 +11445,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         tcRegister,
         issueTransferCertificate,
         reissueTransferCertificate,
+        addAcademicHistoryRecord,
+        discontinueStudent,
+        transferOutStudent,
+        branchTransferStudent,
+        importHistoricalAcademicData,
+        importHistoricalAttendanceData,
+        importHistoricalExamData,
+        importHistoricalFeeData,
         schoolProfile,
         updateSchoolProfile,
         academicYears,
@@ -10287,6 +11528,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteDynamicFeeStructure,
         studentFeeAssignments: filteredStudentFeeAssignments,
         assignFeeStructure,
+        assignCustomFeeStructure,
         bulkAssignFeeStructure,
         updateStudentFeeAssignment,
         removeStudentFeeAssignment,
@@ -10353,6 +11595,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateFinanceTransportConfig,
         deleteFinanceTransportConfig,
         studentFeeLedgers,
+        academicYearFeeSchedules,
+        setAcademicYearFeeSchedules,
+        studentFeeInstallments,
+        setStudentFeeInstallments,
+        getStudentInstallmentSummary,
+        generateInstallmentsForStudent,
         generateStudentFeeLedger,
         recalculateStudentFeeLedger,
         getStudentFeeLedger,

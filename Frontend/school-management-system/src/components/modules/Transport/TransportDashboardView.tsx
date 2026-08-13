@@ -86,7 +86,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
       {/* 8 EXACT ENTERPRISE SUMMARY CARDS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Vehicles */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Vehicles</span>
             <Bus className="w-5 h-5 text-sky-500" />
@@ -95,7 +95,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 2: Active Routes */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-emerald-500 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-emerald-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Active Routes</span>
             <RouteIcon className="w-5 h-5 text-emerald-500" />
@@ -104,7 +104,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 3: Total Drivers */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Drivers</span>
             <Users className="w-5 h-5 text-sky-500" />
@@ -113,7 +113,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 4: Total Bus Attendants */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Total Bus Attendants</span>
             <UserCheck className="w-5 h-5 text-sky-500" />
@@ -122,7 +122,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 5: Students Using Transport */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-600 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-600 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Students Using Transport</span>
             <CheckCircle className="w-5 h-5 text-sky-600" />
@@ -131,7 +131,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 6: Vehicles Under Maintenance */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-amber-500 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-amber-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Vehicles Under Maintenance</span>
             <Wrench className="w-5 h-5 text-amber-500" />
@@ -140,7 +140,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 7: Expiring Vehicle Documents */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-500 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-rose-500 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Expiring Vehicle Documents</span>
             <FileText className="w-5 h-5 text-rose-500" />
@@ -149,7 +149,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Card 8: Expiring Driver Licenses */}
-        <div className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-600 flex flex-col justify-between">
+        <div className="glass-card p-5 rounded-3xl space-y-2 border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-rose-600 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-500 uppercase">Expiring Driver Licenses</span>
             <AlertCircle className="w-5 h-5 text-rose-600" />
@@ -165,7 +165,6 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
               <Navigation className="w-5 h-5 text-sky-500" /> Today's Transport Operations Status
             </h3>
-            <p className="text-xs text-slate-400">Live operational overview of today's morning & evening school transit runs</p>
           </div>
 
           {onNavigateToSection && (
@@ -241,7 +240,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
       {/* Visual Graphs & Occupancy Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Vehicle Occupancy Progress */}
-        <div className="glass-card p-6 rounded-3xl space-y-4">
+        <div className="glass-card p-6 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
             <BarChart2 className="w-5 h-5 text-sky-500" /> Vehicle Seat Occupancy Matrix
           </h3>
@@ -269,7 +268,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         </div>
 
         {/* Route-wise Student Distribution */}
-        <div className="glass-card p-6 rounded-3xl space-y-4">
+        <div className="glass-card p-6 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800">
           <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
             <PieChart className="w-5 h-5 text-sky-500" /> Route-wise Student Distribution
           </h3>

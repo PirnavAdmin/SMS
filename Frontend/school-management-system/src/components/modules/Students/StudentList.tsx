@@ -147,9 +147,27 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     return 999;
   };
 
+  // Dynamically map student record overlay for selected Academic Year without mutating master profile
+  const displayStudents = useMemo(() => {
+    return students.map((s) => {
+      if (!selectedAcademicYear || selectedAcademicYear === 'All') return s;
+      const historyItem = s.academicHistory?.find((h) => h.academicYear === selectedAcademicYear);
+      if (historyItem) {
+        return {
+          ...s,
+          className: historyItem.className,
+          section: historyItem.section,
+          rollNo: historyItem.rollNo || s.rollNo,
+          status: historyItem.status as any,
+        };
+      }
+      return s;
+    });
+  }, [students, selectedAcademicYear]);
+
   // Overall Class Overview dataset dynamically computed from Class Management module & sorted in ascending order
   const classOverviewList = useMemo(() => {
-    const activeApiStudents = apiStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
+    const activeApiStudents = displayStudents.filter(s => s.status !== 'Completed' && s.status !== 'Alumni');
     const branchFilteredStudents = (selectedBranch && selectedBranch !== 'All Branches')
       ? activeApiStudents.filter(s => !s.branch || s.branch === selectedBranch)
       : activeApiStudents;

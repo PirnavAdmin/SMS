@@ -74,7 +74,7 @@ export const VehicleMaintenanceView: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
+      <div className="glass-card p-4 rounded-2xl flex items-center justify-between border border-slate-200/80 dark:border-slate-800">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -93,14 +93,14 @@ export const VehicleMaintenanceView: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Vehicle Number</th>
-                <th className="py-3.5 px-4">Service Type</th>
-                <th className="py-3.5 px-4">Service Date</th>
-                <th className="py-3.5 px-4">Vendor</th>
-                <th className="py-3.5 px-4">Cost (₹)</th>
-                <th className="py-3.5 px-4">Next Service Due</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 text-center">Vehicle Number</th>
+                <th className="py-3.5 px-4 text-center">Service Type</th>
+                <th className="py-3.5 px-4 text-center">Service Date</th>
+                <th className="py-3.5 px-4 text-center">Vendor</th>
+                <th className="py-3.5 px-4 text-center">Cost (₹)</th>
+                <th className="py-3.5 px-4 text-center">Next Service Due</th>
+                <th className="py-3.5 px-4 text-center">Status</th>
+                <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">

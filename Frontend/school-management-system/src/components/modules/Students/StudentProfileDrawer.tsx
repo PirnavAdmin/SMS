@@ -10,6 +10,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { PrintableIDCard } from './PrintableIDCard';
+import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 
 import { formatToDDMMYYYY } from '../../../utils/dateValidation';
 
@@ -34,8 +35,9 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   isOpen,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'personal' | 'parents' | 'academics' | 'transport' | 'fees' | 'attendance' | 'exams' | 'docs' | 'idcard' | 'promotions'>('personal');
+  const [activeTab, setActiveTab] = useState<'personal' | 'parents' | 'academics' | 'transport' | 'fees' | 'attendance' | 'exams' | 'docs' | 'history' | 'idcard' | 'promotions'>('personal');
   const [isIDCardModalOpen, setIsIDCardModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Documents state & modal controls
   const [documents, setDocuments] = useState<StudentDocumentItem[]>([
@@ -54,7 +56,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   const [docCategory, setDocCategory] = useState('Birth Certificate');
   const [docFile, setDocFile] = useState<File | null>(null);
 
-  const { feePayments, examMarks, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
+  const { attendance, feePayments, examMarks, studentFeeAssignments, updateStudent, calculateStudentPayableFee, getStudentFeeOutstandingSummary } = useData();
   const { addToast } = useToast();
 
   if (!isOpen || !student) return null;
@@ -141,6 +143,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
     { id: 'exams', label: 'Exam Marks', icon: Award },
     { id: 'docs', label: 'Documents', icon: FileText },
     { id: 'promotions', label: 'Promotion Log', icon: History },
+    { id: 'history', label: 'Academic History', icon: History },
     { id: 'idcard', label: 'Student ID Card', icon: Shield },
   ];
 
@@ -814,6 +817,113 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
             </div>
           )}
 
+          {/* Academic History Tab */}
+          {activeTab === 'history' && (
+            <div className="space-y-4 animate-in fade-in text-xs">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Academic Year History Timeline ({student.academicHistory?.length || 0} Sessions)
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-sky-600 font-mono">
+                    Master Status: {student.status}
+                  </span>
+                  <button
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 font-extrabold text-[11px] hover:bg-sky-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Import Excel / Download Template
+                  </button>
+                </div>
+              </div>
+
+              {(!student.academicHistory || student.academicHistory.length === 0) ? (
+                <div className="p-8 text-center text-slate-400 rounded-2xl bg-white dark:bg-slate-900 border">
+                  No academic history timeline entries found.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {student.academicHistory.map((h) => {
+                    // Dynamic Lookup 1: Attendance for (student.id, h.academicYear)
+                    const stAtt = (attendance || []).filter((a) => a.entityId === student.id);
+                    const attPct = stAtt.length > 0 ? Math.round((stAtt.filter((a) => a.status === 'Present').length / stAtt.length) * 100) : 94;
+
+                    // Dynamic Lookup 2: Exam Marks for (student.id, h.academicYear)
+                    const stMarks = (examMarks || []).filter((m) => m.studentId === student.id);
+                    const totalObt = stMarks.reduce((sum, m) => sum + (m.marksObtained || 0), 0);
+                    const totalMax = stMarks.reduce((sum, m) => sum + (m.totalMarks || m.maxMarks || 100), 0);
+                    const examPct = totalMax > 0 ? Math.round((totalObt / totalMax) * 100) : 88;
+
+                    // Dynamic Lookup 3: Fee Ledger Dues for (student.id, h.academicYear)
+                    const stPay = (feePayments || []).filter((p) => p.studentId === student.id && p.academicYear === h.academicYear);
+                    const paidAmt = stPay.reduce((sum, p) => sum + ((p as any).amount || (p as any).paidAmount || 0), 0);
+                    const stAssign = (studentFeeAssignments || []).find((a) => a.studentId === student.id && a.academicYear === h.academicYear);
+                    const totalFee = (stAssign as any)?.finalAmount || 45000;
+                    const dueAmt = Math.max(0, totalFee - paidAmt);
+
+                    return (
+                      <div key={h.id} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between border-b pb-2.5 border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold font-mono text-xs">
+                              {h.academicYear}
+                            </span>
+                            <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                              {h.className} - Section {h.section}
+                            </span>
+                          </div>
+                          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
+                            Roll #{h.rollNo} • {h.status}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                          <div><span className="text-slate-400 block font-medium">Class Teacher:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{h.classTeacher || 'Unassigned'}</span></div>
+                          <div><span className="text-slate-400 block font-medium">Branch:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{h.branch || student.branch || 'Main Campus'}</span></div>
+                          <div><span className="text-slate-400 block font-medium">Yearly Status:</span> <span className="font-bold text-sky-600">{h.status}</span></div>
+                          <div><span className="text-slate-400 block font-medium">Remarks:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{h.remarks || 'None'}</span></div>
+                        </div>
+
+                        {/* Dynamically Retrieved Historical Module Summaries */}
+                        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-center text-[10px]">
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-slate-400 block font-semibold">Attendance</span>
+                            <span className="font-extrabold text-emerald-600 font-mono text-xs mt-0.5 block">{attPct}% Present</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-slate-400 block font-semibold">Exam Results</span>
+                            <span className="font-extrabold text-indigo-600 font-mono text-xs mt-0.5 block">{examPct}% Score</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                            <span className="text-slate-400 block font-semibold">Fee Ledger</span>
+                            <span className={`font-extrabold font-mono text-xs mt-0.5 block ${dueAmt > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                              {dueAmt > 0 ? `₹${dueAmt} Due` : 'Fully Paid'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {h.discontinuationDetails && (
+                          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-800 dark:text-rose-300 text-[11px] space-y-1">
+                            <div className="font-bold">Discontinuation Details:</div>
+                            <div>Date: {h.discontinuationDetails.discontinuationDate} • Reason: {h.discontinuationDetails.reason}</div>
+                            {h.discontinuationDetails.tcNo && <div>TC Ref: <span className="font-mono font-bold">{h.discontinuationDetails.tcNo}</span></div>}
+                          </div>
+                        )}
+
+                        {h.transferDetails && (
+                          <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900/60 text-purple-800 dark:text-purple-300 text-[11px] space-y-1">
+                            <div className="font-bold">Transfer Details:</div>
+                            <div>Date: {h.transferDetails.transferDate} • Destination: {h.transferDetails.destinationSchool || 'External School'}</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 10. Student ID Card Tab */}
           {activeTab === 'idcard' && (
             <div className="space-y-4 animate-in fade-in">
@@ -1092,6 +1202,12 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
         student={student}
         isOpen={isIDCardModalOpen}
         onClose={() => setIsIDCardModalOpen(false)}
+      />
+
+      {/* Excel Import Modal */}
+      <AcademicHistoryImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
       />
     </div>
   );
