@@ -28,7 +28,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
 
   // Filters State
   const [prevYearFilter, setPrevYearFilter] = useState<string>("All");
-  const [currYearFilter, setCurrYearFilter] = useState<string>("All");
   const [classFilter, setClassFilter] = useState<string>("All");
   const [sectionFilter, setSectionFilter] = useState<string>("All");
   const [statusFilter, setStatusFilter] = useState<string>("All");
@@ -49,14 +48,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
     const years = new Set<string>();
     allPromotedWithDues.forEach((p) => {
       p.previousAcademicYears.forEach((y) => years.add(y));
-    });
-    return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [allPromotedWithDues]);
-
-  const allCurrYearsOptions = useMemo(() => {
-    const years = new Set<string>();
-    allPromotedWithDues.forEach((p) => {
-      if (p.currentAcademicYear) years.add(p.currentAcademicYear);
     });
     return Array.from(years).sort((a, b) => b.localeCompare(a));
   }, [allPromotedWithDues]);
@@ -82,13 +73,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
       // Previous Academic Year filter
       if (prevYearFilter !== "All") {
         if (!previousAcademicYears.includes(prevYearFilter)) {
-          return false;
-        }
-      }
-
-      // Current Academic Year filter
-      if (currYearFilter !== "All") {
-        if (item.currentAcademicYear !== currYearFilter) {
           return false;
         }
       }
@@ -120,7 +104,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
     allPromotedWithDues,
     searchQuery,
     prevYearFilter,
-    currYearFilter,
     classFilter,
     sectionFilter,
     statusFilter,
@@ -147,7 +130,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
 
   const handleResetFilters = () => {
     setPrevYearFilter("All");
-    setCurrYearFilter("All");
     setClassFilter("All");
     setSectionFilter("All");
     setStatusFilter("All");
@@ -156,7 +138,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
 
   const isFilterActive =
     prevYearFilter !== "All" ||
-    currYearFilter !== "All" ||
     classFilter !== "All" ||
     sectionFilter !== "All" ||
     statusFilter !== "All" ||
@@ -166,17 +147,17 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
     <div className="space-y-6 animate-in fade-in">
       {/* Top Summary Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="glass-card p-5 rounded-3xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/70 via-white to-amber-50/30 dark:from-slate-900 dark:to-slate-800/80 flex items-center justify-between shadow-xs">
+        <div className="glass-card p-5 rounded-3xl border border-sky-200/80 dark:border-sky-900/60 bg-gradient-to-br from-sky-50/70 via-white to-sky-50/30 dark:from-slate-900 dark:to-slate-800/80 flex items-center justify-between shadow-xs">
           <div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-sky-700 dark:text-sky-400 uppercase tracking-wide">
               <UserCheck className="w-4 h-4" />
               Promoted Students with Previous Dues
             </div>
-            <h3 className="text-3xl font-black text-amber-900 dark:text-amber-100 mt-1 font-mono">
+            <h3 className="text-3xl font-black text-sky-900 dark:text-sky-100 mt-1 font-mono">
               {totalPromotedCount}
             </h3>
           </div>
-          <div className="p-3.5 rounded-2xl bg-amber-500 text-white shadow-lg shadow-amber-500/20">
+          <div className="p-3.5 rounded-2xl bg-sky-600 text-white shadow-lg shadow-sky-600/20">
             <Clock className="w-7 h-7" />
           </div>
         </div>
@@ -233,7 +214,7 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
         </div>
 
         {/* Filter Dropdowns Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search Input */}
           <div className="lg:col-span-2 relative">
             <label className="block text-[11px] font-bold text-slate-500 mb-1">
@@ -263,25 +244,6 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
             >
               <option value="All">All Previous Years</option>
               {allPrevYearsOptions.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Current Academic Year Filter */}
-          <div>
-            <label className="block text-[11px] font-bold text-slate-500 mb-1">
-              Current Academic Year
-            </label>
-            <select
-              value={currYearFilter}
-              onChange={(e) => setCurrYearFilter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              <option value="All">All Current Years</option>
-              {allCurrYearsOptions.map((y) => (
                 <option key={y} value={y}>
                   {y}
                 </option>

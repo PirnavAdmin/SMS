@@ -108,18 +108,20 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
               onClick={() => setActiveSubTab(tab.id as any)}
               className={`px-4.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all cursor-pointer ${
                 isActive
-                  ? tab.id === 'promoted_dues'
-                    ? 'bg-amber-600 text-white shadow-md shadow-amber-500/20 font-black'
-                    : 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
+                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
               {tab.count !== undefined && tab.count > 0 && (
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-amber-500 text-white'
-                }`}>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold font-mono ${
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300'
+                  }`}
+                >
                   {tab.count}
                 </span>
               )}
