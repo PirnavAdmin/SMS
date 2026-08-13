@@ -3879,40 +3879,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const response: any = await fetchStudentsApi();
       const items = Array.isArray(response)
         ? response
-        : response?.data?.items || response?.data || [];
+        : response?.items || response?.Items || response?.data?.items || response?.data || [];
       if (Array.isArray(items)) {
-        const mapped = items.map((s: any) => ({
-          id: s.studentId?.toString() || s.id?.toString() || "",
-          admissionNo: s.admissionNo || "",
-          registrationNumber: s.registrationNumber || s.admissionNo || "",
-          firstName: s.firstName || "",
-          middleName: s.middleName || "",
-          lastName: s.lastName || "",
-          email: s.email || "",
-          phone: s.phone || s.contactNumber || "",
-          gender: s.gender || "Male",
-          dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
-          className: s.className || s.class || "",
-          section: s.sectionName || s.section || "",
-          academicYear: s.academicYear || "",
-          branch: s.branch || "Main Campus",
-          status: s.status || "Active",
-          studentType: s.studentType || "Day Scholar",
-          parentName: s.parentName || s.fatherName || "",
-          parentPhone: s.parentPhone || s.fatherContact || "",
-          address: s.address || "",
-          promotionHistory: [],
-          rollNo: s.rollNo || "",
-          bloodGroup: s.bloodGroup || "",
-          category: s.category || "",
-          avatar: s.avatar || "",
-          joiningDate: s.joiningDate || "",
-          fatherName: s.fatherName || "",
-          fatherPhone: s.fatherPhone || "",
-          fatherOccupation: s.fatherOccupation || "",
-          motherName: s.motherName || "",
-          motherPhone: s.motherPhone || ""
-        } as any)) as Student[];
+        const mapped = items.map((s: any) => {
+          const nameParts = (s.studentName || s.name || "").trim().split(" ");
+          const firstName = s.firstName || nameParts[0] || "";
+          const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
+          
+          return {
+            id: s.studentId?.toString() || s.id?.toString() || "",
+            admissionNo: s.admissionNumber || s.admissionNo || "",
+            registrationNumber: s.registrationNumber || s.admissionNumber || s.admissionNo || "",
+            firstName,
+            middleName: s.middleName || "",
+            lastName,
+            email: s.email || "",
+            phone: s.phone || s.contactNumber || s.mobileNumber || "",
+            gender: s.gender || "Male",
+            dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
+            className: s.className || s.class || "",
+            section: s.sectionName || s.section || "",
+            academicYear: s.academicYearName || s.academicYear || "",
+            branch: s.branchName || s.branch || "Main Campus",
+            status: s.status || "Active",
+            studentType: s.studentType || "Day Scholar",
+            parentName: s.parentName || s.fatherName || "",
+            parentPhone: s.parentPhone || s.fatherMobile || s.fatherContact || "",
+            address: s.address || "",
+            promotionHistory: [],
+            rollNo: s.rollNumber || s.rollNo || "",
+            bloodGroup: s.bloodGroup || "",
+            category: s.category || "",
+            avatar: s.avatar || "",
+            joiningDate: s.joiningDate || "",
+            fatherName: s.fatherName || "",
+            fatherPhone: s.fatherMobile || s.fatherPhone || "",
+            fatherOccupation: s.fatherOccupation || "",
+            motherName: s.motherName || "",
+            motherPhone: s.motherMobile || s.motherPhone || ""
+          };
+        }) as any as Student[];
         setStudents(mapped);
       }
     } catch (err) {
@@ -4125,6 +4131,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Communication (replaces initialAnnouncements / initialMeetings mock data)
       fetchAnnouncementsData();
       fetchMeetingsData();
+      // Today's Staff Attendance for Dashboard stats
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      fetchDailyAttendance(todayStr);
     }
     const allowedAdmissionsRoles = [
       "Super Admin",

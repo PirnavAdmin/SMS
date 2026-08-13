@@ -7,8 +7,42 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
+const convertTo24Hour = (timeStr: string): string => {
+  if (!timeStr) return '';
+  if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+  
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return timeStr;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = match[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours < 12) hours += 12;
+  if (ampm === 'AM' && hours === 12) hours = 0;
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
+};
+
+const convertTo12Hour = (timeStr: string): string => {
+  if (!timeStr) return '';
+  if (/AM|PM/i.test(timeStr)) return timeStr;
+  
+  const match = timeStr.match(/^(\d{2}):(\d{2})$/);
+  if (!match) return timeStr;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = match[2];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+  
+  return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+};
+
 export const PickupPointsView: React.FC = () => {
-  const { pickupPoints, routeMasters, addPickupPoint, updatePickupPoint, deletePickupPoint } = useData();
+  const { pickupPoints, routeMasters, vehicleMasters, vehicleAssignments, addPickupPoint, updatePickupPoint, deletePickupPoint } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -22,11 +56,27 @@ export const PickupPointsView: React.FC = () => {
     sessionStorage.setItem('tm_pickup_route_filter', val);
   };
 
-  const calculateFeeForDistance = (routeId?: string, distanceKm: number = 0) => {
-    const r = routeMasters.find(rt => rt.id === routeId);
+  const calculateFeeForDistance = (routeId?: string | number, distanceKm: number = 0) => {
+    const r = routeMasters.find(rt => rt.id == routeId);
     const minKm = r?.minDistanceKm ?? 5;
-    const baseFare = r?.minBaseFare ?? 1000;
-    const rateKm = r?.ratePerKm ?? 100;
+    
+    // Find the assigned vehicle via vehicleAssignments
+    const activeAssignment = vehicleAssignments.find(va => va.routeId == routeId && (va.status === 'Active' || (va as any).status === true))
+      || vehicleAssignments.find(va => va.routeId == routeId);
+    const assignedBus = activeAssignment?.vehicleNumber;
+    
+    // Check if the assigned vehicle is AC
+    const vehicle = vehicleMasters.find(v => v.vehicleNumber === assignedBus);
+    const isACVehicle = vehicle?.isAC === true;
+    
+    const baseFare = isACVehicle 
+      ? (r?.acMinBaseFare ?? 1200) 
+      : (r?.minBaseFare ?? 1000);
+      
+    const rateKm = isACVehicle 
+      ? (r?.acRatePerKm ?? 150) 
+      : (r?.ratePerKm ?? 100);
+      
     const additionalKm = Math.max(0, distanceKm - minKm);
     return Math.round(baseFare + (additionalKm * rateKm));
   };
@@ -46,7 +96,7 @@ export const PickupPointsView: React.FC = () => {
 
   const filteredPoints = pickupPoints.filter(p => {
     const matchesQuery = p.pickupName.toLowerCase().includes(query.toLowerCase()) || p.routeName.toLowerCase().includes(query.toLowerCase());
-    const matchesRoute = selectedRouteFilter === 'All' || p.routeId === selectedRouteFilter;
+    const matchesRoute = selectedRouteFilter === 'All' || p.routeId == selectedRouteFilter;
     return matchesQuery && matchesRoute;
   }).sort((a, b) => {
     const routeCompare = a.routeName.localeCompare(b.routeName);
@@ -56,7 +106,7 @@ export const PickupPointsView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingPoint(null);
     const defaultRoute = (selectedRouteFilter && selectedRouteFilter !== 'All')
-      ? routeMasters.find(r => r.id === selectedRouteFilter)
+      ? routeMasters.find(r => r.id == selectedRouteFilter)
       : null;
     setForm({
       routeId: defaultRoute?.id || '',
@@ -75,10 +125,12 @@ export const PickupPointsView: React.FC = () => {
 
   const handleOpenEdit = (p: PickupPoint) => {
     setEditingPoint(p);
+    const isAct = (p.status as any) === true || p.status === 'Active';
     setForm({
       ...p,
       morningPickupTime: p.morningPickupTime || p.arrivalTime || '',
       eveningDropTime: p.eveningDropTime || '',
+      status: isAct ? 'Active' : 'Inactive'
     });
     setIsModalOpen(true);
   };
@@ -87,7 +139,7 @@ export const PickupPointsView: React.FC = () => {
     e.preventDefault();
     if (!form.pickupName || !form.routeId) return;
 
-    const r = routeMasters.find(rt => rt.id === form.routeId);
+    const r = routeMasters.find(rt => rt.id == form.routeId);
     const routeName = r ? r.routeName : form.routeName || '';
     const seqNum = Number(form.sequenceNumber) || 1;
     const distKm = Number(form.distanceFromSchoolKm) || 0;
@@ -140,7 +192,7 @@ export const PickupPointsView: React.FC = () => {
           <ExportButton 
             data={filteredPoints} 
             filename={selectedRouteFilter !== 'All' 
-              ? `pickup_points_${routeMasters.find(r => r.id === selectedRouteFilter)?.routeCode || 'filtered'}` 
+              ? `pickup_points_${routeMasters.find(r => r.id == selectedRouteFilter)?.routeCode || 'filtered'}` 
               : 'pickup_points'} 
           />
         </div>
@@ -213,38 +265,42 @@ export const PickupPointsView: React.FC = () => {
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                   <th className="py-3.5 px-4 text-center">Seq #</th>
-                  <th className="py-3.5 px-4 text-center">Route</th>
-                  <th className="py-3.5 px-4 text-center">Pickup Point Name</th>
+                  <th className="py-3.5 px-4 text-left">Route</th>
+                  <th className="py-3.5 px-4 text-left">Pickup Point Name</th>
                   <th className="py-3.5 px-4 text-center">Distance (KM)</th>
                   <th className="py-3.5 px-4 text-center">Morning Pickup</th>
                   <th className="py-3.5 px-4 text-center">Evening Drop</th>
                   <th className="py-3.5 px-4 text-center">Monthly Fee</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
-                  <th className="py-3.5 px-4 text-center">Actions</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
                 {filteredPoints.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4">
-                      <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-black text-[11px] flex items-center justify-center">
+                    <td className="py-3 px-4 text-center">
+                      <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-black text-[11px] flex items-center justify-center mx-auto">
                         {p.sequenceNumber}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{p.routeName}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{p.pickupName}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">{p.distanceFromSchoolKm} KM</td>
-                    <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime || '07:30 AM'}
+                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300 text-left">{p.routeName}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white text-left">{p.pickupName}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{p.distanceFromSchoolKm} KM</td>
+                    <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400 text-center">
+                      <div className="flex items-center justify-center gap-1">
+                        <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime || '07:30 AM'}
+                      </div>
                     </td>
-                    <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">
+                    <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400 text-center">
                       {p.eveningDropTime || '04:15 PM'}
                     </td>
-                    <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                    <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-center">
                       ₹{p.monthlyFee || calculateFeeForDistance(p.routeId, p.distanceFromSchoolKm)}/mo
                     </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={p.status === 'Active' ? 'success' : 'neutral'}>{p.status}</Badge>
+                    <td className="py-3 px-4 text-center">
+                      <Badge variant={((p.status as any) === true || p.status === 'Active') ? 'success' : 'neutral'}>
+                        {((p.status as any) === true || p.status === 'Active') ? 'Active' : 'Inactive'}
+                      </Badge>
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -278,7 +334,7 @@ export const PickupPointsView: React.FC = () => {
                   required
                   value={form.routeId || ''}
                   onChange={e => {
-                    const r = routeMasters.find(rt => rt.id === e.target.value);
+                    const r = routeMasters.find(rt => rt.id == e.target.value);
                     const autoFee = (form.distanceFromSchoolKm !== undefined && form.distanceFromSchoolKm !== null && (form.distanceFromSchoolKm as any) !== '')
                       ? calculateFeeForDistance(e.target.value, Number(form.distanceFromSchoolKm))
                       : undefined;
@@ -370,20 +426,21 @@ export const PickupPointsView: React.FC = () => {
                 <div>
                   <label className="block font-semibold mb-1">Morning Pickup Time</label>
                   <input
-                    type="text"
-                    placeholder="e.g. 07:30 AM"
-                    value={form.morningPickupTime || ''}
-                    onChange={e => setForm({ ...form, morningPickupTime: e.target.value, arrivalTime: e.target.value })}
+                    type="time"
+                    value={convertTo24Hour(form.morningPickupTime || '')}
+                    onChange={e => {
+                      const val12h = convertTo12Hour(e.target.value);
+                      setForm({ ...form, morningPickupTime: val12h, arrivalTime: val12h });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
                   />
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Evening Drop Time</label>
                   <input
-                    type="text"
-                    placeholder="e.g. 04:00 PM"
-                    value={form.eveningDropTime || ''}
-                    onChange={e => setForm({ ...form, eveningDropTime: e.target.value })}
+                    type="time"
+                    value={convertTo24Hour(form.eveningDropTime || '')}
+                    onChange={e => setForm({ ...form, eveningDropTime: convertTo12Hour(e.target.value) })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
                   />
                 </div>
