@@ -7,28 +7,14 @@ import { WardenMasterView } from './WardenMasterView';
 
 export const HostelMastersView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>('blocks');
+  const [sharedHostelFilter, setSharedHostelFilter] = useState('');
 
   const subTabs = [
-    { id: 'blocks', label: 'Hostel Master', icon: Building2 },
+    { id: 'blocks', label: 'Hostel Blocks', icon: Building2 },
     { id: 'room-types', label: 'Room Categories', icon: Layers },
-    { id: 'rooms', label: 'Room Management', icon: Home },
-    { id: 'wardens', label: 'Warden Management', icon: Users }
+    { id: 'rooms', label: 'Rooms & Bed Allocation', icon: Home },
+    { id: 'wardens', label: 'Warden Allocation', icon: Users }
   ] as const;
-
-  const renderSubTabContent = () => {
-    switch (activeSubTab) {
-      case 'blocks':
-        return <HostelMasterView />;
-      case 'room-types':
-        return <RoomTypeMasterView />;
-      case 'rooms':
-        return <RoomMasterView />;
-      case 'wardens':
-        return <WardenMasterView />;
-      default:
-        return <HostelMasterView />;
-    }
-  };
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -54,9 +40,26 @@ export const HostelMastersView: React.FC = () => {
         })}
       </div>
 
-      {/* Render Active View */}
+      {/* Render Active View while preserving state */}
       <div>
-        {renderSubTabContent()}
+        <div className={activeSubTab === 'blocks' ? 'block' : 'hidden'}>
+          <HostelMasterView />
+        </div>
+
+        <div className={activeSubTab === 'room-types' ? 'block' : 'hidden'}>
+          <RoomTypeMasterView />
+        </div>
+
+        <div className={activeSubTab === 'rooms' ? 'block' : 'hidden'}>
+          <RoomMasterView
+            selectedHostelFilter={sharedHostelFilter}
+            onHostelFilterChange={setSharedHostelFilter}
+          />
+        </div>
+
+        <div className={activeSubTab === 'wardens' ? 'block' : 'hidden'}>
+          <WardenMasterView />
+        </div>
       </div>
     </div>
   );
