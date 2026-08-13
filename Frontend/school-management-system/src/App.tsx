@@ -276,7 +276,10 @@ const MainLayout: React.FC = () => {
       case 'transport':
         return userRole === 'parent' || userRole === 'student' ? <ParentBusInfoView /> : <TransportContainerView initialTab="transport-dashboard" onTabChange={setActiveModule} />;
       case 'hostel':
-        return userRole === 'parent' || userRole === 'student' ? <ParentHostelView /> : <HostelContainerView initialTab="hostel-dashboard" onTabChange={setActiveModule} />;
+      case 'hostel-room-allocation':
+      case 'room-allocation':
+      case 'student-hostel':
+        return userRole === 'parent' || userRole === 'student' ? <ParentHostelView /> : <HostelContainerView initialTab="hostel-student-hostel" onTabChange={setActiveModule} />;
       case 'inventory':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <InventoryView />;
       case 'communication':

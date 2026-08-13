@@ -2,9 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 import { getRooms, createRoom, updateRoom, deleteRoom, getHostelBlocks, getRoomTypes, HostelRoom, HostelBlock, RoomType } from '../../../api/hostel';
 
-export const RoomMasterView: React.FC = () => {
+interface RoomMasterViewProps {
+  selectedHostelFilter?: string;
+  onHostelFilterChange?: (hostelId: string) => void;
+}
+
+export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFilter, onHostelFilterChange }) => {
   const { addToast } = useToast();
 
   const [rooms, setRooms] = useState<HostelRoom[]>([]);
@@ -14,7 +20,13 @@ export const RoomMasterView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterHostel, setFilterHostel] = useState('All');
+  const [filterHostelState, setFilterHostelState] = useState('');
+  const filterHostel = selectedHostelFilter !== undefined ? selectedHostelFilter : filterHostelState;
+  const setFilterHostel = onHostelFilterChange || setFilterHostelState;
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,10 +50,6 @@ export const RoomMasterView: React.FC = () => {
       setRooms(roomsData);
       setBlocks(blocksData);
       setRoomTypes(rtsData);
-
-      if (blocksData.length > 0) setFormHostelId(blocksData[0].hostelId.toString());
-      if (rtsData.length > 0) setFormRoomTypeId(rtsData[0].roomTypeId.toString());
-      
     } catch (error: any) {
       addToast('error', 'Failed to load room data', error.message);
     } finally {
@@ -55,13 +63,11 @@ export const RoomMasterView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setEditingRoom(null);
-    setFormRoomNumber('101');
-    setFormFloorLevel('1st Floor');
+    setFormHostelId('');
+    setFormFloorLevel('');
+    setFormRoomNumber('');
+    setFormRoomTypeId('');
     setFormStatus('Active');
-    
-    if (blocks.length > 0) setFormHostelId(blocks[0].hostelId.toString());
-    if (roomTypes.length > 0) setFormRoomTypeId(roomTypes[0].roomTypeId.toString());
-    
     setIsModalOpen(true);
   };
 
@@ -100,9 +106,9 @@ export const RoomMasterView: React.FC = () => {
         addToast('success', 'Room Created', `Room ${formRoomNumber} created successfully.`);
       }
       setIsModalOpen(false);
-      fetchData(); // refresh grid
+      fetchData();
     } catch (error: any) {
-      addToast('error', editingRoom ? 'Update Failed' : 'Creation Failed', error.message);
+      addToast('error', 'Operation Failed', error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -123,21 +129,28 @@ export const RoomMasterView: React.FC = () => {
   };
 
   const filteredRooms = rooms.filter(rm => {
-    const matchQuery = rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchQuery = !searchQuery.trim() ||
+                       rm.roomNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                        rm.hostelName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                        rm.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchHostel = filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
+    const matchHostel = !filterHostel || filterHostel === 'All' || rm.hostelId.toString() === filterHostel;
     return matchQuery && matchHostel;
   });
+
+  const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
+  const paginatedRooms = filteredRooms.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="space-y-6 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Home className="w-6 h-6 text-sky-500" /> Rooms
+            <Home className="w-6 h-6 text-sky-500" /> Rooms & Bed Allocation
           </h2>
-          </div>
+        </div>
 
         <button
           onClick={handleOpenAdd}
@@ -147,60 +160,84 @@ export const RoomMasterView: React.FC = () => {
         </button>
       </div>
 
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
             placeholder="Search room number, hostel..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
           <select
             value={filterHostel}
-            onChange={e => setFilterHostel(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+            onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
           >
+            <option value="">Select Hostel...</option>
             <option value="All">All Hostels</option>
             {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
           </select>
         </div>
       </div>
 
-      {loading ? (
+      {!filterHostel && !searchQuery.trim() ? (
+        <div className="py-16 px-6 glass-card rounded-3xl border border-sky-200/80 dark:border-sky-900/50 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-500 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto shadow-inner">
+            <Home className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select a Hostel</h3>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Please select a hostel option from the filter dropdown above to view room allocations.
+            </p>
+          </div>
+        </div>
+      ) : loading ? (
         <div className="py-12 text-center text-slate-400 font-bold">Loading rooms...</div>
       ) : filteredRooms.length === 0 ? (
         <div className="py-12 text-center text-slate-400 font-bold">No rooms found.</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredRooms.map(rm => (
-            <div key={rm.roomId} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
-              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                <div>
-                  <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">Room #{rm.roomNumber}</span>
-                  <h3 className="font-black text-base text-slate-900 dark:text-white">{rm.hostelName}</h3>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {paginatedRooms.map(rm => (
+              <div key={rm.roomId} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div>
+                    <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">Room #{rm.roomNumber}</span>
+                    <h3 className="font-black text-base text-slate-900 dark:text-white">{rm.hostelName}</h3>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
+                    {rm.roomTypeSpecification || 'Standard Room'}
+                  </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
-                  {rm.roomTypeSpecification || 'Standard Room'}
-                </span>
-              </div>
 
-              <div className="space-y-1.5 text-xs">
-                <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{rm.hostelName} → {rm.floorLevel}</strong></p>
-                <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{rm.occupiedBeds || 0} / {rm.bedCapacity} Beds Occupied</strong></p>
-                <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
-              </div>
+                <div className="space-y-1.5 text-xs">
+                  <p className="text-slate-500">Hierarchy: <strong className="text-slate-900 dark:text-white font-bold">{rm.hostelName} → {rm.floorLevel}</strong></p>
+                  <p className="text-slate-500">Capacity: <strong className="text-emerald-600 font-mono font-bold">{rm.occupiedBeds || 0} / {rm.bedCapacity} Beds Occupied</strong></p>
+                  <p className="text-slate-500">Vacant: <strong className="text-amber-600 font-mono font-bold">{rm.vacantBeds} Beds Vacant</strong></p>
+                </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-                <button onClick={() => handleOpenEdit(rm)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
-                <button onClick={() => setDeletingRoom(rm)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                  <button onClick={() => handleOpenEdit(rm)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => setDeletingRoom(rm)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
         </div>
       )}
 
@@ -208,33 +245,35 @@ export const RoomMasterView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingRoom ? 'Edit Room' : 'Create Room'}</h3>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingRoom ? 'Edit Room' : 'Add New Room'}</h3>
               <button onClick={() => !isSubmitting && setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Hostel Block *</label>
+                <label className="block font-semibold mb-1">Select Hostel Block <span className="text-rose-500">*</span></label>
                 <select
                   value={formHostelId}
                   onChange={e => setFormHostelId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                   disabled={isSubmitting}
                   required
                 >
-                  <option value="" disabled>Select Hostel Block</option>
+                  <option value="" disabled>Select Hostel Block...</option>
                   {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Floor Level *</label>
+                <label className="block font-semibold mb-1">Floor Level <span className="text-rose-500">*</span></label>
                 <select 
                   value={formFloorLevel} 
                   onChange={e => setFormFloorLevel(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                   disabled={isSubmitting}
+                  required
                 >
+                  <option value="" disabled>Select Floor Level...</option>
                   <option value="Ground Floor">Ground Floor</option>
                   <option value="1st Floor">1st Floor</option>
                   <option value="2nd Floor">2nd Floor</option>
@@ -246,27 +285,39 @@ export const RoomMasterView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Room Number *</label>
+                  <label className="block font-semibold mb-1">Room Number <span className="text-rose-500">*</span></label>
                   <input
                     type="text"
                     required
+                    placeholder="e.g. 101"
                     value={formRoomNumber}
                     onChange={e => setFormRoomNumber(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
                     disabled={isSubmitting}
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Room Category *</label>
+                  <label className="block font-semibold mb-1">Assigned Room Sharing <span className="text-rose-500">*</span></label>
                   <select 
                     value={formRoomTypeId} 
                     onChange={e => setFormRoomTypeId(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" disabled>Select Type</option>
-                    {roomTypes.map(rt => <option key={rt.roomTypeId} value={rt.roomTypeId.toString()}>{rt.roomTypeSpecification} (Cap: {rt.bedCapacity})</option>)}
+                    <option value="" disabled>Select room sharing...</option>
+                    {Array.from(
+                      new Map(
+                        (roomTypes || []).map(rt => [
+                          `${(rt.roomTypeSpecification || '').toLowerCase().trim()}-${rt.acType}-${rt.bedCapacity}`,
+                          rt
+                        ])
+                      ).values()
+                    ).map(rt => (
+                      <option key={rt.roomTypeId} value={rt.roomTypeId.toString()}>
+                        {rt.roomTypeSpecification} (Cap: {rt.bedCapacity})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -285,10 +336,10 @@ export const RoomMasterView: React.FC = () => {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 disabled:opacity-50">
-                  {isSubmitting ? 'Saving...' : (editingRoom ? 'Update Room' : 'Save Room')}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 disabled:opacity-50">
+                  {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>

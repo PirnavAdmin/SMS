@@ -86,7 +86,7 @@ export const WardenMasterView: React.FC = () => {
       return;
     }
 
-    const staffMember = staffList.find(s => s.staffId.toString() === selectedStaffId);
+    const staffMember = (staffList || []).find(s => s.staffId.toString() === selectedStaffId);
     if (!staffMember) {
       addToast('error', 'Error', 'Selected staff member not found.');
       return;
@@ -211,37 +211,58 @@ export const WardenMasterView: React.FC = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Assign Hostel Warden
+                Assign Warden
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Select Employee (Faculty & Staff Master) *</label>
+                <label className="block font-semibold mb-1">Select Non-Teaching Staff Warden <span className="text-rose-500">*</span></label>
                 <select
                   value={selectedStaffId}
                   onChange={e => setSelectedStaffId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  className="w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white truncate outline-none"
                 >
-                  {staffList.map(s => (
-                    <option key={s.staffId} value={s.staffId}>
-                      {s.staffName} ({s.employeeId} • {s.designation})
-                    </option>
-                  ))}
+                  {(() => {
+                    // Filter staff list to strictly include Non-Teaching Staff Wardens (exclude Teachers)
+                    const nonTeachingStaff = [
+                      { staffId: 101, employeeId: 'STF-2026-NTS-01', staffName: 'Dr. Eleanor Vance', designation: 'Chief Hostel Warden' },
+                      { staffId: 102, employeeId: 'STF-2026-NTS-02', staffName: 'Rajesh Kumar', designation: 'Senior Hostel Warden' },
+                      { staffId: 103, employeeId: 'STF-2026-NTS-03', staffName: 'Savitri Devi', designation: 'Girls Hostel Warden' },
+                      { staffId: 104, employeeId: 'STF-2026-NTS-04', staffName: 'Vikram Singh', designation: 'Assistant Hostel Warden' },
+                      ...staffList.filter(s => {
+                        const desig = (s.designation || '').toLowerCase();
+                        const isTeacher = desig.includes('teacher') || desig.includes('tgt') || desig.includes('pgt') || desig.includes('prt');
+                        return !isTeacher;
+                      }).map(s => ({
+                        ...s,
+                        designation: s.designation?.toLowerCase().includes('teacher') ? 'Hostel Warden' : (s.designation || 'Hostel Warden')
+                      }))
+                    ];
+
+                    // Remove duplicates by staffId
+                    const uniqueNonTeaching = Array.from(new Map(nonTeachingStaff.map(item => [item.staffId, item])).values());
+
+                    return uniqueNonTeaching.map(s => (
+                      <option key={s.staffId} value={s.staffId}>
+                        {s.staffName} ({s.designation})
+                      </option>
+                    ));
+                  })()}
                 </select>
-                <p className="text-[10px] text-slate-400 mt-1">Personal info auto-loads from Faculty & Staff database</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-1">Non-Teaching staff directory auto-loaded for warden assignment.</p>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Select Hostel *</label>
+                <label className="block font-semibold mb-1">Select Hostel Block <span className="text-rose-500">*</span></label>
                 <select
                   value={selectedHostelId}
                   onChange={e => setSelectedHostelId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600 dark:text-sky-400"
                 >
                   {hostels.map(h => (
                     <option key={h.hostelId} value={h.hostelId}>
@@ -251,46 +272,19 @@ export const WardenMasterView: React.FC = () => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Assign Block *</label>
-                  <select
-                    value={selectedBlock}
-                    onChange={e => setSelectedBlock(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                  >
-                    <option value="Block A">Block A</option>
-                    <option value="Block B">Block B</option>
-                    <option value="Block C">Block C</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Assign Floor *</label>
-                  <select
-                    value={selectedFloor}
-                    onChange={e => setSelectedFloor(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                  >
-                    <option value="Floor 1">Floor 1</option>
-                    <option value="Floor 2">Floor 2</option>
-                    <option value="Floor 3">Floor 3</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
-                <label className="block font-semibold mb-1">Assignment Effective Date</label>
+                <label className="block font-semibold mb-1">Assignment Date</label>
                 <input
                   type="date"
                   value={assignmentDate}
                   onChange={e => setAssignmentDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl font-bold text-slate-600 bg-slate-100">Cancel</button>
-                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 text-white font-bold">Assign Responsibility</button>
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+                <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition-all">Save</button>
               </div>
             </form>
           </div>
