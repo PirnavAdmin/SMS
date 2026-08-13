@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Check, X, AlertCircle, Save, FileSpreadsheet, 
   Search, Filter, ChevronDown, Clock, CalendarCheck, User, Plus, Edit2, FileText, Loader2
 } from 'lucide-react';
+import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../context/DataContext';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -53,6 +55,85 @@ const getLocalDateString = (d: Date) => {
 };
 
 export const AttendanceView = () => {
+  const { user, role } = useAuth();
+  const { staff, students, academicClasses } = useData();
+
+  const userRole = (role || user?.role || '').toLowerCase();
+  const isTeacher = userRole === 'teacher';
+
+  // Find teacher record in staff list
+  const dbTeacher = useMemo(() => {
+    return staff.find(s => 
+      (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+      (s.firstName && user?.name && s.firstName.toLowerCase() === user.name.split(' ')[0]?.toLowerCase())
+    ) || staff.find(s => s.employeeCategory === 'Teacher' || s.role === 'Teacher') || staff[0];
+  }, [staff, user]);
+
+  // Extract assigned classes/sections for teacher
+  const teacherClasses = useMemo(() => {
+    if (!dbTeacher || !dbTeacher.assignedClasses || !Array.isArray(dbTeacher.assignedClasses) || dbTeacher.assignedClasses.length === 0) {
+      // Static fallback data so there is ALWAYS something to test with if DB is empty or unassigned!
+      return [
+        { className: 'Class 1', section: 'A' },
+        { className: 'Class 2', section: 'B' }
+      ];
+    }
+    return dbTeacher.assignedClasses.map((c: any) => {
+      if (typeof c === 'object' && c !== null) {
+        return {
+          className: c.class || c.className || '',
+          section: c.section || ''
+        };
+      }
+      if (typeof c === 'string') {
+        const parts = c.split('-');
+        if (parts.length > 1) {
+          return {
+            className: parts[0]?.trim() || '',
+            section: parts[1]?.trim() || ''
+          };
+        }
+        // Maybe it's like "Class 1 A"
+        const spaceParts = c.split(' ');
+        if (spaceParts.length > 1) {
+          const sec = spaceParts[spaceParts.length - 1];
+          const cls = spaceParts.slice(0, spaceParts.length - 1).join(' ');
+          if (sec.length === 1) { // Single character section
+            return { className: cls, section: sec };
+          }
+        }
+        return {
+          className: c,
+          section: 'A'
+        };
+      }
+      return { className: '', section: '' };
+    }).filter((c: any) => c.className !== '');
+  }, [dbTeacher]);
+
+  const allStudents = useMemo(() => {
+    return students && students.length > 0 ? students : mockStudents;
+  }, [students]);
+
+  // Strictly filter student records to only teacher's assigned classes/sections
+  const teacherFilteredStudents = useMemo(() => {
+    if (!isTeacher) return allStudents;
+    return allStudents.filter(s => 
+      teacherClasses.some(tc => tc.className === s.className && tc.section === s.section)
+    );
+  }, [allStudents, isTeacher, teacherClasses]);
+
+  const classList = useMemo(() => {
+    if (isTeacher) {
+      const names = teacherClasses.map(c => c.className);
+      return Array.from(new Set(names));
+    } else {
+      const dbClasses = academicClasses.map(c => c.name).filter(Boolean) as string[];
+      if (dbClasses.length > 0) return dbClasses;
+      return Array.from(new Set(allStudents.map(s => s.className)));
+    }
+  }, [isTeacher, teacherClasses, academicClasses, allStudents]);
+
   // Global View State
   const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range'>('Daily');
   const [date, setDate] = useState<string>(getLocalDateString(new Date()));
@@ -63,15 +144,28 @@ export const AttendanceView = () => {
   });
   const [endDate, setEndDate] = useState<string>(() => getLocalDateString(new Date()));
 
-  const [teacher] = useState(mockTeacher);
-  const teacherFullName = `${teacher.firstName} ${teacher.lastName}`;
-  
+  const teacherFullName = dbTeacher ? `${dbTeacher.firstName} ${dbTeacher.lastName}` : 'Class Teacher';
+
   // Context Selection State
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [selectedSection, setSelectedSection] = useState('All Sections');
-  const [selectedSubject, setSelectedSubject] = useState(teacher.assignedSubjects?.[0] || 'Mathematics');
+  const [selectedSubject, setSelectedSubject] = useState('Mathematics');
   const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
-  
+
+  // Sync state on mount/assignment change
+  useEffect(() => {
+    if (isTeacher && teacherClasses.length > 0) {
+      const isAssigned = teacherClasses.some(c => c.className === selectedClass && c.section === selectedSection);
+      if (!isAssigned) {
+        setSelectedClass(teacherClasses[0].className);
+        setSelectedSection(teacherClasses[0].section);
+      }
+    } else if (!isTeacher) {
+      setSelectedClass('All Classes');
+      setSelectedSection('All Sections');
+    }
+  }, [isTeacher, teacherClasses]);
+
   const [filterStatus, setFilterStatus] = useState<'All' | AttendanceStatus>('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -81,11 +175,14 @@ export const AttendanceView = () => {
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // Restrict edit toggles to teachers only and when a specific class/section is selected
+  const canEdit = isTeacher && !isAggregatedView;
+
   useEffect(() => {
-    if (isAggregatedView && isEditable) {
+    if ((isAggregatedView || !isTeacher) && isEditable) {
       setIsEditable(false);
     }
-  }, [isAggregatedView, isEditable]);
+  }, [isAggregatedView, isTeacher, isEditable]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -107,15 +204,28 @@ export const AttendanceView = () => {
     const saved = localStorage.getItem('sms_attendance_registry');
     return saved ? JSON.parse(saved) : {};
   });
-  
-  const classStudents = React.useMemo(() => {
-    return mockStudents.filter(s => {
+
+  const sectionList = useMemo(() => {
+    if (isTeacher) {
+      return teacherClasses
+        .filter(c => c.className === selectedClass)
+        .map(c => c.section);
+    } else {
+      if (selectedClass === 'All Classes') {
+        return Array.from(new Set(allStudents.map(s => s.section)));
+      }
+      return Array.from(new Set(allStudents.filter(s => s.className === selectedClass).map(s => s.section)));
+    }
+  }, [isTeacher, teacherClasses, selectedClass, allStudents]);
+
+  const classStudents = useMemo(() => {
+    return teacherFilteredStudents.filter(s => {
       const classMatch = selectedClass === 'All Classes' || s.className === selectedClass;
       const sectionMatch = selectedSection === 'All Sections' || s.section === selectedSection;
       return classMatch && sectionMatch;
     });
-  }, [selectedClass, selectedSection]);
-  
+  }, [selectedClass, selectedSection, teacherFilteredStudents]);
+
   // Unique key for the current register
   const registerKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
   
@@ -131,7 +241,7 @@ export const AttendanceView = () => {
   };
 
   // Generate date array for Matrix View
-  const matrixDates = React.useMemo(() => {
+  const matrixDates = useMemo(() => {
     if (dateMode === 'Daily') return [];
     
     let start = new Date();
@@ -169,7 +279,7 @@ export const AttendanceView = () => {
     return attendanceRegistry[specificKey]?.[student.id] || null;
   };
 
-  const filteredStudents = React.useMemo(() => {
+  const filteredStudents = useMemo(() => {
     let result = classStudents;
     if (filterStatus !== 'All') {
       result = result.filter(st => getAttendanceStatus(st) === filterStatus);
@@ -182,7 +292,7 @@ export const AttendanceView = () => {
   }, [classStudents, currentAttendance, filterStatus]);
 
   const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginatedStudents = React.useMemo(() => {
+  const paginatedStudents = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredStudents.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredStudents, currentPage]);
@@ -373,21 +483,21 @@ export const AttendanceView = () => {
         </div>
 
         <button 
-          disabled={isAggregatedView}
+          disabled={!canEdit}
           onClick={() => {
-            if (isAggregatedView) return;
+            if (!canEdit) return;
             setIsEditable(!isEditable);
             if (!isEditable) addToast('info', 'Edit Mode Active', 'You can now change records for the selected date. Hover or check the banner below for instructions.');
           }}
           className={`font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-80 rounded-full ${
-            isAggregatedView 
+            !canEdit
               ? 'px-3 py-1 bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400' 
               : isEditable 
                 ? 'px-4 py-1.5 bg-amber-100 text-amber-800 dark:bg-amber-955/40 dark:text-amber-300 ring-2 ring-amber-450/30' 
                 : 'px-2 py-0.5 bg-slate-100 text-slate-650 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
           }`}
         >
-          {isAggregatedView ? '🚫 Read Only' : isEditable ? '✏️ Edit Mode Active' : '🔒 Edit'}
+          {!isTeacher ? '🚫 Read Only' : isAggregatedView ? '🚫 Select Class & Section' : isEditable ? '✏️ Edit Mode Active' : '🔒 Edit'}
         </button>
       </div>
 
@@ -396,15 +506,18 @@ export const AttendanceView = () => {
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3`}>
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
-            <select
-              value={dateMode}
-              onChange={e => setDateMode(e.target.value as any)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
-            >
-              <option value="Daily">Daily</option>
-              <option value="Monthly">Month-wise</option>
-              <option value="Custom Range">Custom Range</option>
-            </select>
+            <div className="relative">
+              <select
+                value={dateMode}
+                onChange={e => setDateMode(e.target.value as any)}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              >
+                <option value="Daily">Daily</option>
+                <option value="Monthly">Month-wise</option>
+                <option value="Custom Range">Custom Range</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
           <div className={`space-y-1 ${dateMode === 'Custom Range' ? 'lg:col-span-2' : ''}`}>
@@ -426,45 +539,54 @@ export const AttendanceView = () => {
 
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
-            <select
-              value={selectedClass}
-              onChange={e => setSelectedClass(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
-            >
-              <option value="All Classes">All Classes</option>
-              <option value="Class 1">Class 1</option>
-              <option value="Class 2">Class 2</option>
-              <option value="Class 3">Class 3</option>
-            </select>
+            <div className="relative">
+              <select
+                value={selectedClass}
+                onChange={e => setSelectedClass(e.target.value)}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+              >
+                {!isTeacher && <option value="All Classes">All Classes</option>}
+                {classList.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
-            <select
-              value={selectedSection}
-              onChange={e => setSelectedSection(e.target.value)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
-            >
-              <option value="All Sections">All Sections</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-            </select>
+            <div className="relative">
+              <select
+                value={selectedSection}
+                onChange={e => setSelectedSection(e.target.value)}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+              >
+                {!isTeacher && <option value="All Sections">All Sections</option>}
+                {sectionList.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
 
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Status</label>
-            <select
-              value={filterStatus || 'All'}
-              onChange={e => setFilterStatus(e.target.value as any)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Present">Present</option>
-              <option value="Absent">Absent</option>
-              <option value="HalfDay">Half Day</option>
-              <option value="Late">Late</option>
-            </select>
+            <div className="relative">
+              <select
+                value={filterStatus || 'All'}
+                onChange={e => setFilterStatus(e.target.value as any)}
+                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Present">Present</option>
+                <option value="Absent">Absent</option>
+                <option value="HalfDay">Half Day</option>
+                <option value="Late">Late</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
@@ -514,16 +636,18 @@ export const AttendanceView = () => {
                 </span>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => markAllClass('Present')}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350 font-bold transition-colors"
-                  >
-                    Mark All Present
-                  </button>
+                  {isTeacher && isEditable && (
+                    <button
+                      onClick={() => markAllClass('Present')}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-350 font-bold transition-colors cursor-pointer"
+                    >
+                      Mark All Present
+                    </button>
+                  )}
                   <button
                     onClick={handleExportCSV}
                     disabled={isDownloading}
-                    className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-955/40 dark:text-sky-350 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                    className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-955/40 dark:text-sky-350 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     {isDownloading ? (
                       <Loader2 className="w-4 h-4 animate-spin text-sky-600 dark:text-sky-400" />
@@ -532,63 +656,41 @@ export const AttendanceView = () => {
                     )}
                     {isDownloading ? 'Downloading...' : 'Download'}
                   </button>
-                  <button
-                    onClick={handleSaveAttendance}
-                    className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-[10.5px] font-black"
-                  >
-                    <Save className="w-4 h-4" /> Save Attendance
-                  </button>
+                  {isTeacher && isEditable && (
+                    <button
+                      onClick={handleSaveAttendance}
+                      className="bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-md transition-colors py-1.5 px-4 flex items-center gap-1.5 text-[10.5px] font-black cursor-pointer"
+                    >
+                      <Save className="w-4 h-4" /> Save Attendance
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {isAggregatedView ? (
+              {!isTeacher ? (
+                <div className="p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all bg-indigo-50/50 dark:bg-indigo-955/10 border-indigo-200/50 dark:border-indigo-900/30 text-indigo-800 dark:text-indigo-300">
+                  <AlertCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5 sm:mt-0" />
+                  <span>
+                    <strong className="font-extrabold text-indigo-900 dark:text-indigo-200">Read-Only View:</strong> Admin and management roles have view-only access to student attendance. Only the assigned teacher of a class can mark and modify records.
+                  </span>
+                </div>
+              ) : isAggregatedView ? (
                 <div className="p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all bg-indigo-50/50 dark:bg-indigo-955/10 border-indigo-200/50 dark:border-indigo-900/30 text-indigo-800 dark:text-indigo-300">
                   <AlertCircle className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5 sm:mt-0" />
                   <span>
                     <strong className="font-extrabold text-indigo-900 dark:text-indigo-200">Read-Only View:</strong> Marking attendance is disabled because you are viewing multiple classes/sections. To enable marking, please select a specific <strong>Class</strong> and <strong>Section</strong>.
                   </span>
                 </div>
-              ) : (
-                <div className={`p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all ${
-                  isEditable 
-                    ? 'bg-amber-50/50 dark:bg-amber-955/15 border-amber-250/70 dark:border-amber-900/40 text-amber-800 dark:text-amber-300' 
-                    : 'bg-slate-50/60 dark:bg-slate-800/30 border-slate-200/60 dark:border-slate-750/50 text-slate-650 dark:text-slate-400'
-                }`}>
-                  {isEditable ? (
-                    <>
-                      <Edit2 className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5 sm:mt-0 animate-pulse" />
-                      <span>
-                        <strong className="font-extrabold text-amber-900 dark:text-amber-200">
-                          {dateMode === 'Daily' ? 'Edit Mode Enabled:' : 'Monthly Edit Mode Enabled:'}
-                        </strong>{' '}
-                        {dateMode === 'Daily' ? (
-                          <>
-                            Click on{' '}
-                            <span className="mx-1 px-1.5 py-0.5 rounded bg-emerald-500 text-white font-bold text-[9px] uppercase">Present</span>,{' '}
-                            <span className="mx-1 px-1.5 py-0.5 rounded bg-rose-600 text-white font-bold text-[9px] uppercase">Absent</span>,{' '}
-                            <span className="mx-1 px-1.5 py-0.5 rounded bg-amber-400 text-amber-955 font-bold text-[9px] uppercase">Half Day</span>, or{' '}
-                            <span className="mx-1 px-1.5 py-0.5 rounded bg-amber-500 text-white font-bold text-[9px] uppercase">Late</span>{' '}
-                            to update any student's record. Click <strong>Save Attendance</strong> at the top right when you are finished.
-                          </>
-                        ) : (
-                          <>
-                            Click directly on any cell in the grid to cycle through student attendance statuses (<strong>P</strong> → <strong>HD</strong> → <strong>L</strong> → <strong>A</strong> → <strong>-</strong>). Click <strong>Save Attendance</strong> at the top right when you are finished.
-                          </>
-                        )}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Clock className="w-3.5 h-3.5 text-slate-450 shrink-0 mt-0.5 sm:mt-0" />
-                      <span>
-                        <strong className="font-extrabold text-slate-700 dark:text-slate-350">Read-Only Mode:</strong> Records are locked to prevent accidental modifications. Click the 
-                        <span className="mx-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-[9px] uppercase">🔒 Edit</span> 
-                        button in the top header if you need to modify attendance entries.
-                      </span>
-                    </>
-                  )}
+              ) : !isEditable ? (
+                <div className="p-3 rounded-2xl border text-[11px] font-semibold flex items-start sm:items-center gap-2.5 transition-all bg-slate-50/60 dark:bg-slate-800/30 border-slate-200/60 dark:border-slate-750/50 text-slate-650 dark:text-slate-400">
+                  <Clock className="w-3.5 h-3.5 text-slate-450 shrink-0 mt-0.5 sm:mt-0" />
+                  <span>
+                    <strong className="font-extrabold text-slate-700 dark:text-slate-350">Read-Only Mode:</strong> Records are locked to prevent accidental modifications. Click the 
+                    <span className="mx-1.5 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-bold text-[9px] uppercase">🔒 Edit</span> 
+                    button in the top header if you need to modify attendance entries.
+                  </span>
                 </div>
-              )}
+              ) : null}
             </div>
 
             {/* Table View Toggle */}

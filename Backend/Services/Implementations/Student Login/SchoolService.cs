@@ -703,21 +703,25 @@ public class SchoolService : ISchoolService
 	public async Task<AdmissionApplicationResponseDto> SubmitApplicationAsync(SubmitAdmissionDto dto)
 	{
 		int targetClassId = dto.AppliedClassId;
+		var allClasses = await _schoolRepository.GetAllClassGradesAsync();
+
 		if (targetClassId > 0)
 		{
 			var existingClass = await _schoolRepository.GetClassGradeByIdAsync(targetClassId);
-			if (existingClass == null)
-			{
-				var allClasses = await _schoolRepository.GetAllClassGradesAsync();
-				if (allClasses != null && allClasses.Any())
-					targetClassId = allClasses.First().ClassId;
-			}
+			if (existingClass == null && allClasses != null && allClasses.Any())
+				targetClassId = allClasses.First().ClassId;
 		}
 		else
 		{
-			var allClasses = await _schoolRepository.GetAllClassGradesAsync();
-			if (allClasses != null && allClasses.Any())
-				targetClassId = allClasses.First().ClassId;
+			if (!string.IsNullOrWhiteSpace(dto.AppliedClass) && allClasses != null)
+			{
+				var matchedClass = allClasses.FirstOrDefault(c => c.ClassName != null && c.ClassName.Trim().Equals(dto.AppliedClass.Trim(), StringComparison.OrdinalIgnoreCase));
+				targetClassId = matchedClass != null ? matchedClass.ClassId : (allClasses.FirstOrDefault()?.ClassId ?? 1);
+			}
+			else
+			{
+				targetClassId = allClasses?.FirstOrDefault()?.ClassId ?? 1;
+			}
 		}
 
 		// Generate sequential registration number (e.g. REG-1001, REG-1002, ...)
@@ -802,7 +806,19 @@ public class SchoolService : ISchoolService
 		app.FirstName = dto.FirstName ?? app.FirstName;
 		app.LastName = dto.LastName ?? app.LastName;
 		app.Gender = dto.Gender;
-		if (dto.AppliedClassId > 0) app.AppliedClassId = dto.AppliedClassId;
+		if (dto.AppliedClassId > 0)
+		{
+			app.AppliedClassId = dto.AppliedClassId;
+		}
+		else if (!string.IsNullOrWhiteSpace(dto.AppliedClass))
+		{
+			var allClasses = await _schoolRepository.GetAllClassGradesAsync();
+			var matchedClass = allClasses.FirstOrDefault(c => c.ClassName != null && c.ClassName.Trim().Equals(dto.AppliedClass.Trim(), StringComparison.OrdinalIgnoreCase));
+			if (matchedClass != null)
+			{
+				app.AppliedClassId = matchedClass.ClassId;
+			}
+		}
 		app.BranchName = dto.BranchName;
 		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
 		app.BloodGroup = dto.BloodGroup;

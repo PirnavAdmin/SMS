@@ -219,6 +219,14 @@ export interface PromotionHistoryItem {
   remarks?: string;
 }
 
+export interface SiblingDetail {
+  id?: string;
+  name: string;
+  isExisting: boolean;
+  studentId?: string;
+  admissionNo?: string;
+}
+
 export interface Student {
   id: string;
   admissionNo: string;
@@ -275,9 +283,12 @@ export interface Student {
   email: string;
   phone: string;
   alternatePhone?: string;
-  address: string;
-
+  address?: string;
+  hasSiblings?: boolean;
   siblingsCount?: number;
+  siblingDetails?: SiblingDetail[];
+  siblingStudentId?: string;
+  siblingStudentIds?: string[];
   transportRequired?: boolean;
   routeId?: string;
   pickupPointId?: string;
@@ -488,7 +499,9 @@ export interface AdmissionApplication {
   addressDistrict?: string;
   addressState?: string;
   addressPinCode?: string;
+  hasSiblings?: boolean;
   siblingsCount?: number;
+  siblingDetails?: SiblingDetail[];
   siblingStudentId?: string;
   siblingStudentIds?: string[];
   // Student type & transport/hostel fields

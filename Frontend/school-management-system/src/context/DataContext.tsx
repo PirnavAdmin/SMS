@@ -3903,11 +3903,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           address: s.address || "",
           promotionHistory: [],
           rollNo: s.rollNo || "",
-          bloodGroup: s.bloodGroup || "O+",
-          category: s.category || "General",
+          bloodGroup: s.bloodGroup || "",
+          category: s.category || "",
           avatar: s.avatar || "",
-          joiningDate: s.joiningDate || new Date().toISOString().split("T")[0]
-        } as unknown as Student));
+          joiningDate: s.joiningDate || "",
+          fatherName: s.fatherName || "",
+          fatherPhone: s.fatherPhone || "",
+          fatherOccupation: s.fatherOccupation || "",
+          motherName: s.motherName || "",
+          motherPhone: s.motherPhone || ""
+        } as any)) as Student[];
         setStudents(mapped);
       }
     } catch (err) {
