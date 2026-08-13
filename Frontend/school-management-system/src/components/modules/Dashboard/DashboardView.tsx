@@ -64,15 +64,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         else if (a.status === 'HalfDay') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
-    } else {
-       // Mock data if no attendance found for today
-       present = Math.floor(students.length * 0.85);
-       late = Math.floor(students.length * 0.05);
-       halfDay = Math.floor(students.length * 0.02);
-       absent = students.length - present - late - halfDay;
     }
-    const total = present + absent + late + halfDay || 1;
-    return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
+    const totalRecorded = present + absent + late + halfDay;
+    const total = students.length || totalRecorded;
+    const presentPct = totalRecorded > 0 ? Math.round((present / totalRecorded) * 100) : 0;
+    return { present, absent, late, halfDay, total, presentPct };
   }, [attendance, students.length]);
 
   // Pie chart calculation (Teaching Staff Attendance)
@@ -90,15 +86,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         else if (a.status === 'HalfDay') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
-    } else {
-       // Mock data if no attendance found for today
-       present = Math.floor(teachingStaff.length * 0.90);
-       late = Math.floor(teachingStaff.length * 0.03);
-       halfDay = Math.floor(teachingStaff.length * 0.02);
-       absent = teachingStaff.length - present - late - halfDay;
     }
-    const total = present + absent + late + halfDay || 1;
-    return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
+    const total = present + absent + late + halfDay;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { present, absent, late, halfDay, total, presentPct };
   }, [attendance, teachingStaff]);
 
   // Section 2: Non-Teaching Staff Attendance calculation
@@ -114,15 +105,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         else if (a.status === 'HalfDay') halfDay++;
         else if (a.status === 'Absent' || a.status === 'Leave') absent++;
       });
-    } else {
-       // Mock data if no attendance found for today
-       present = Math.floor(nonTeachingStaff.length * 0.92);
-       late = Math.floor(nonTeachingStaff.length * 0.04);
-       halfDay = Math.floor(nonTeachingStaff.length * 0.01);
-       absent = nonTeachingStaff.length - present - late - halfDay;
     }
-    const total = present + absent + late + halfDay || 1;
-    return { present, absent, late, halfDay, total, presentPct: Math.round((present / total) * 100) };
+    const total = present + absent + late + halfDay;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    return { present, absent, late, halfDay, total, presentPct };
   }, [attendance, nonTeachingStaff]);
 
   // Class wise strength calculation
@@ -207,18 +193,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Upcoming Teacher Birthdays
   const upcomingBirthdays = useMemo(() => {
-    const staffBdays = (birthdays || []).filter(b => b.role === 'Staff');
-    if (staffBdays.length > 0) return staffBdays.slice(0, 5);
-
-    // Fallback: derive from teaching staff records
-    return teachingStaff.slice(0, 4).map((s, idx) => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`.trim(),
-      role: s.designation || 'Teacher',
-      dob: s.dob || (idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : '15 Aug'),
-      avatar: s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.firstName + ' ' + s.lastName)}`
-    }));
-  }, [birthdays, teachingStaff]);
+    return (birthdays || []).filter(b => b.role === 'Staff').slice(0, 5);
+  }, [birthdays]);
   
   return (
     <div className="space-y-6 animate-in fade-in">

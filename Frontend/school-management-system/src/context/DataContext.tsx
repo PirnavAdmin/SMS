@@ -2331,21 +2331,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("tc_register", []),
   );
   const [students, setStudents] = useState<Student[]>(() => {
-    const stored = getStored("students", initialStudents);
-    const version = localStorage.getItem("edu_db_full_data_v60");
-    if (!version || stored.length < initialStudents.length) {
-      localStorage.setItem("edu_db_full_data_v60", "true");
-      localStorage.setItem("edu_db_students", JSON.stringify(initialStudents));
-      localStorage.setItem("students", JSON.stringify(initialStudents));
-      return initialStudents;
+    const version = localStorage.getItem("edu_db_students_clean_v1");
+    if (!version) {
+      localStorage.setItem("edu_db_students_clean_v1", "true");
+      localStorage.removeItem("students");
+      localStorage.removeItem("edu_db_students");
+      localStorage.removeItem("admissions");
+      return [];
     }
-    return stored;
+    return getStored("students", []);
   });
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() =>
-    getStored("admissions", initialAdmissions),
+    getStored("admissions", []),
   );
   const [rawClasses, setRawClasses] = useState<any[]>([]);
   const [academicClasses, setAcademicClasses] = useState<AcademicClass[]>(
