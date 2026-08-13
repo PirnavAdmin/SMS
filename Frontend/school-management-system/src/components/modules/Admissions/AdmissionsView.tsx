@@ -233,6 +233,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<number | null>(null);
   const [siblingSearchQuery, setSiblingSearchQuery] = useState("");
 
+  const isSiblingConcession = (name?: string, category?: string) => {
+    if (!name) return false;
+    const n = name.toLowerCase();
+    const c = (category || "").toLowerCase();
+    return n.includes("sibling") || c.includes("sibling");
+  };
+
+  const hasExistingEnrolledSibling = Boolean(
+    hasSiblings && siblingDetails.some((d) => d.isExisting && Boolean(d.studentId))
+  );
+
   const handleHasSiblingsChange = (val: boolean) => {
     setHasSiblings(val);
     if (val) {
@@ -258,14 +269,29 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       setSiblingDetails([]);
       setSiblingStudentIds([]);
       setActiveSiblingDropdownIdx(null);
-      setFormData((prev) => ({
-        ...prev,
-        hasSiblings: false,
-        siblingsCount: 0,
-        siblingDetails: [],
-        siblingStudentId: "",
-        siblingStudentIds: [],
-      }));
+      setFormData((prev) => {
+        const next = {
+          ...prev,
+          hasSiblings: false,
+          siblingsCount: 0,
+          siblingDetails: [],
+          siblingStudentId: "",
+          siblingStudentIds: [],
+        };
+        if (prev.discountId) {
+          const selD = discounts.find((d) => d.id === prev.discountId);
+          if (selD && isSiblingConcession(selD.name)) {
+            next.discountId = undefined;
+          }
+        }
+        if (prev.scholarshipId) {
+          const selS = scholarships.find((s) => s.id === prev.scholarshipId);
+          if (selS && isSiblingConcession(selS.name)) {
+            next.scholarshipId = undefined;
+          }
+        }
+        return next;
+      });
     }
   };
 
@@ -316,6 +342,28 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           isExisting: true,
         };
       }
+
+      // Check if any existing enrolled sibling remains
+      const anyExistingRemains = next.some((d) => d.isExisting && Boolean(d.studentId));
+      if (!anyExistingRemains) {
+        setFormData((fPrev) => {
+          const fNext = { ...fPrev };
+          if (fPrev.discountId) {
+            const selD = discounts.find((d) => d.id === fPrev.discountId);
+            if (selD && isSiblingConcession(selD.name)) {
+              fNext.discountId = undefined;
+            }
+          }
+          if (fPrev.scholarshipId) {
+            const selS = scholarships.find((s) => s.id === fPrev.scholarshipId);
+            if (selS && isSiblingConcession(selS.name)) {
+              fNext.scholarshipId = undefined;
+            }
+          }
+          return fNext;
+        });
+      }
+
       return next;
     });
   };
@@ -363,6 +411,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     });
     setActiveSiblingDropdownIdx(null);
     setSiblingSearchQuery("");
+
+    // Auto-apply Sibling Concession if available and no discount selected yet
+    const sibDiscount = discounts.find((d) => isSiblingConcession(d.name));
+    if (sibDiscount && !formData.discountId) {
+      setFormData((prev) => ({ ...prev, discountId: sibDiscount.id }));
+      addToast("info", "Concession Applied", `Sibling Concession (${sibDiscount.name}) auto-applied for existing sibling.`);
+    }
   };
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
@@ -717,6 +772,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             return;
           }
         }
+      }
+    }
+
+    if (formData.discountId) {
+      const selDisc = discounts.find((d) => d.id === formData.discountId);
+      if (selDisc && isSiblingConcession(selDisc.name) && !hasExistingEnrolledSibling) {
+        addToast("error", "Validation Error", "Sibling Concession can only be applied if an existing enrolled sibling is selected.");
+        return;
+      }
+    }
+
+    if (formData.scholarshipId) {
+      const selSch = scholarships.find((s) => s.id === formData.scholarshipId);
+      if (selSch && isSiblingConcession(selSch.name) && !hasExistingEnrolledSibling) {
+        addToast("error", "Validation Error", "Sibling Concession can only be applied if an existing enrolled sibling is selected.");
+        return;
       }
     }
 
@@ -2354,53 +2425,75 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <div className="relative">
                         <select
                           value={formData.scholarshipId || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const selSch = scholarships.find((s) => s.id === val);
+                            if (selSch && isSiblingConcession(selSch.name) && !hasExistingEnrolledSibling) {
+                              addToast("warning", "Requirement Not Met", "Sibling Concession is only applicable when an existing enrolled sibling is selected.");
+                              return;
+                            }
                             setFormData({
                               ...formData,
-                              scholarshipId: e.target.value || undefined,
-                            })
-                          }
+                              scholarshipId: val || undefined,
+                            });
+                          }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                         >
                           <option value="">None</option>
-                          {scholarships.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} (
-                              {s.discountType === "Percentage"
-                                ? `${s.percentage}%`
-                                : formatCurrency(s.fixedAmount || 0)}
-                              )
-                            </option>
-                          ))}
+                          {scholarships.map((s) => {
+                            const isSib = isSiblingConcession(s.name);
+                            const isDisabled = isSib && !hasExistingEnrolledSibling;
+                            return (
+                              <option key={s.id} value={s.id} disabled={isDisabled}>
+                                {s.name} (
+                                {s.discountType === "Percentage"
+                                  ? `${s.percentage}%`
+                                  : formatCurrency(s.fixedAmount || 0)}
+                                )
+                                {isDisabled ? " — [Requires Existing Enrolled Sibling]" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
                     <div>
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Discount
+                        Discount / Concession
                       </label>
                       <div className="relative">
                         <select
                           value={formData.discountId || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const selDisc = discounts.find((d) => d.id === val);
+                            if (selDisc && isSiblingConcession(selDisc.name) && !hasExistingEnrolledSibling) {
+                              addToast("warning", "Requirement Not Met", "Sibling Concession is only applicable when an existing enrolled sibling is selected.");
+                              return;
+                            }
                             setFormData({
                               ...formData,
-                              discountId: e.target.value || undefined,
-                            })
-                          }
+                              discountId: val || undefined,
+                            });
+                          }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                         >
                           <option value="">None</option>
-                          {discounts.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name} (
-                              {d.mode === "Percentage"
-                                ? `${d.value}%`
-                                : formatCurrency(d.value)}
-                              )
-                            </option>
-                          ))}
+                          {discounts.map((d) => {
+                            const isSib = isSiblingConcession(d.name);
+                            const isDisabled = isSib && !hasExistingEnrolledSibling;
+                            return (
+                              <option key={d.id} value={d.id} disabled={isDisabled}>
+                                {d.name} (
+                                {d.mode === "Percentage"
+                                  ? `${d.value}%`
+                                  : formatCurrency(d.value)}
+                                )
+                                {isDisabled ? " — [Requires Existing Enrolled Sibling]" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>

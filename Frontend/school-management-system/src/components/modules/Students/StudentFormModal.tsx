@@ -83,6 +83,10 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
   const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<number | null>(null);
   const [siblingSearchQuery, setSiblingSearchQuery] = useState<string>('');
 
+  const hasExistingEnrolledSibling = Boolean(
+    hasSiblings && siblingDetails.some((d) => d.isExisting && Boolean(d.studentId))
+  );
+
   const handleHasSiblingsChange = (val: boolean) => {
     setHasSiblings(val);
     if (val) {
