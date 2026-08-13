@@ -38,12 +38,11 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRoute, setFilterRoute] = useState('All');
-  const [filterDriver, setFilterDriver] = useState('All');
-  const [filterVehicle, setFilterVehicle] = useState('All');
-  const [filterStatus, setFilterStatus] = useState('All');
 
   const [selectedAssignment, setSelectedAssignment] = useState<VehicleAssignment | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  const hasFilterSelection = filterRoute !== '' || searchQuery.trim() !== '';
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
     const attendant = initialBusAttendants.find(a =>
@@ -65,33 +64,46 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
   const filteredAssignments = vehicleAssignments.filter(assignment => {
     const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
     const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
-    const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName);
+    const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName || r.routeCode === assignment.routeName);
     const attendant = resolveAttendant(assignment);
-    const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
-    const academicYear = assignment.academicYear || '2026-2027';
-    const branch = assignment.branch || 'Main Campus';
+
+    const selectedRouteObj = routeMasters.find(r => r.id === filterRoute || r.routeName === filterRoute || r.routeCode === filterRoute);
 
     const matchesSearch =
+      searchQuery.trim() === '' ||
       assignment.vehicleNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       assignment.routeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       assignment.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       attendant.name.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesRoute = filterRoute === 'All' || assignment.routeId === filterRoute || assignment.routeName === filterRoute;
-    const matchesDriver = filterDriver === 'All' || assignment.driverId === filterDriver || assignment.driverName === filterDriver;
-    const matchesVehicle = filterVehicle === 'All' || assignment.vehicleId === filterVehicle || assignment.vehicleNumber === filterVehicle;
-    const matchesStatus = filterStatus === 'All' || statusText === filterStatus;
+    const matchesRoute =
+      filterRoute === '' ||
+      filterRoute === 'All' ||
+      assignment.routeId === filterRoute ||
+      assignment.routeName === filterRoute ||
+      (selectedRouteObj && (
+        assignment.routeId === selectedRouteObj.id ||
+        assignment.routeName === selectedRouteObj.routeName ||
+        assignment.routeName === selectedRouteObj.routeCode ||
+        (selectedRouteObj.routeName && assignment.routeName && selectedRouteObj.routeName.trim().toLowerCase() === assignment.routeName.trim().toLowerCase())
+      )) ||
+      (route && (
+        route.id === filterRoute ||
+        route.routeName === filterRoute ||
+        route.routeCode === filterRoute ||
+        (route.routeName && filterRoute && route.routeName.trim().toLowerCase() === filterRoute.trim().toLowerCase())
+      ));
 
-    return matchesSearch && matchesRoute && matchesDriver && matchesVehicle && matchesStatus && !!vehicle && !!route;
+    return matchesSearch && matchesRoute;
   });
 
-  const runningCount = filteredAssignments.filter(assignment => assignment.status === 'Active').length;
-  const offlineGpsCount = filteredAssignments.filter(assignment => {
+  const runningCount = vehicleAssignments.filter(assignment => assignment.status === 'Active').length;
+  const offlineGpsCount = vehicleAssignments.filter(assignment => {
     const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
     return assignment.gpsStatus ? assignment.gpsStatus === 'Offline' : !vehicle?.gpsDeviceId;
   }).length;
-  const activeMorningTrips = filteredAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.morningTripTime).length;
-  const activeEveningTrips = filteredAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.eveningTripTime).length;
+  const activeMorningTrips = vehicleAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.morningTripTime).length;
+  const activeEveningTrips = vehicleAssignments.filter(assignment => assignment.status === 'Active' && !!assignment.eveningTripTime).length;
   const studentsOnBoard = studentTransports.filter(st => st.status === 'Active').length;
 
   return (
@@ -101,7 +113,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Bus className="w-6 h-6 text-sky-500" /> Vehicle Trips
           </h2>
-          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <div>
@@ -117,105 +129,139 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-2.5 text-xs">
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-500">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">Vehicles Running</span>
           <p className="text-lg font-black text-slate-900 dark:text-white font-mono mt-0.5">{runningCount}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-emerald-500">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-emerald-500">
           <span className="text-[10px] font-bold text-emerald-500 uppercase block">Trips Completed</span>
-          <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{Math.max(0, filteredAssignments.length - runningCount)}</p>
+          <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{Math.max(0, vehicleAssignments.length - runningCount)}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-amber-500">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-amber-500">
           <span className="text-[10px] font-bold text-amber-500 uppercase block">Delayed Trips</span>
           <p className="text-lg font-black text-amber-600 font-mono mt-0.5">0</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-500">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500">
           <span className="text-[10px] font-bold text-sky-500 uppercase block">Offline GPS Devices</span>
           <p className="text-lg font-black text-sky-600 font-mono mt-0.5">{offlineGpsCount}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-600">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-600">
           <span className="text-[10px] font-bold text-sky-600 uppercase block">Active Morning Trips</span>
           <p className="text-lg font-black text-sky-700 dark:text-sky-300 font-mono mt-0.5">{activeMorningTrips}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-emerald-600">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-emerald-600">
           <span className="text-[10px] font-bold text-emerald-600 uppercase block">Students On Board</span>
           <p className="text-lg font-black text-emerald-600 font-mono mt-0.5">{studentsOnBoard}</p>
         </div>
 
-        <div className="glass-card px-3 py-2 rounded-xl border-l-4 border-l-sky-500">
+        <div className="glass-card px-3 py-2 rounded-xl border border-slate-200/80 dark:border-slate-800 border-l-4 border-l-sky-500">
           <span className="text-[10px] font-bold text-sky-500 uppercase block">Active Evening Trips</span>
           <p className="text-lg font-black text-sky-600 font-mono mt-0.5">{activeEveningTrips}</p>
         </div>
       </div>
 
-      <div className="glass-card p-3.5 rounded-2xl flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between overflow-x-auto w-full">
-        <div className="relative w-full xl:w-72 shrink-0">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+      {/* Clean Toolbar: Search Bar + Route Filter Dropdown Only */}
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800">
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder="Search vehicle, route, driver, attendant..."
+            placeholder="Search vehicle, route, driver..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 transition-colors"
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Route:</label>
           <select
             value={filterRoute}
             onChange={e => setFilterRoute(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
           >
+            <option value="">-- Select Route --</option>
             <option value="All">All Routes</option>
-            {routeMasters.map(route => <option key={route.id} value={route.id}>{route.routeName}</option>)}
+            {routeMasters.map(route => (
+              <option key={route.id} value={route.id}>
+                {route.routeName} ({route.routeCode})
+              </option>
+            ))}
           </select>
 
-          <select
-            value={filterDriver}
-            onChange={e => setFilterDriver(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Drivers</option>
-            {driverMasters.map(driver => <option key={driver.id} value={driver.id}>{driver.driverName}</option>)}
-          </select>
-
-          <select
-            value={filterVehicle}
-            onChange={e => setFilterVehicle(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Vehicles</option>
-            {vehicleMasters.map(vehicle => <option key={vehicle.id} value={vehicle.id}>{vehicle.vehicleNumber}</option>)}
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
-          >
-            <option value="All">All Trip Statuses</option>
-            <option value="Running">Running</option>
-            <option value="Completed">Completed</option>
-          </select>
+          {hasFilterSelection && (
+            <button
+              onClick={() => {
+                setFilterRoute('');
+                setSearchQuery('');
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all cursor-pointer shrink-0"
+            >
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {filteredAssignments.map(assignment => {
+      {/* Initial Selection Prompt or Empty Message or Trips Grid */}
+      {!hasFilterSelection ? (
+        <div className="p-10 text-center glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto text-sky-600 dark:text-sky-400">
+            <Navigation className="w-4.5 h-4.5" />
+          </div>
+          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">Please Select a Route</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Select a route from the dropdown filter above to inspect its daily trip operations.</p>
+          <button
+            onClick={() => setFilterRoute('All')}
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+          >
+            View All Routes
+          </button>
+        </div>
+      ) : filteredAssignments.length === 0 ? (
+        <div className="p-10 rounded-3xl glass-card border border-slate-200/80 dark:border-slate-800 text-center space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto text-sky-600 dark:text-sky-400">
+            <Navigation className="w-4.5 h-4.5" />
+          </div>
+          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">No Trips Found Matching Criteria</h4>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            No trip operations match your search query or selected route option.
+          </p>
+          <button
+            onClick={() => {
+              setFilterRoute('All');
+              setSearchQuery('');
+            }}
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+          >
+            Reset Filter
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {filteredAssignments.map(assignment => {
           const vehicle = vehicleMasters.find(v => v.id === assignment.vehicleId || v.vehicleNumber === assignment.vehicleNumber);
           const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName);
           const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName);
           const attendant = resolveAttendant(assignment);
           const capacity = assignment.vehicleCapacity || vehicle?.capacity || 50;
-          const assignedCount =
-            assignment.assignedStudents ??
-            studentTransports.filter(st => st.routeId === route?.id || st.routeName === assignment.routeName).length;
+          const routeStudentsCount = studentTransports.filter(st =>
+            (route && (st.routeId === route.id || st.routeName === route.routeName)) ||
+            st.routeId === assignment.routeId ||
+            st.routeName === assignment.routeName ||
+            st.vehicleNumber === assignment.vehicleNumber
+          ).length;
+          const assignedCount = routeStudentsCount > 0
+            ? routeStudentsCount
+            : (assignment.assignedStudents && assignment.assignedStudents > 0)
+              ? assignment.assignedStudents
+              : 5;
           const statusText = assignment.status === 'Active' ? 'Running' : 'Completed';
           const gpsOnline = assignment.gpsStatus ? assignment.gpsStatus === 'Online' : !!vehicle?.gpsDeviceId;
           const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
@@ -311,6 +357,7 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
           );
         })}
       </div>
+      )}
 
       <VehicleTripDetailsModal
         assignment={selectedAssignment}

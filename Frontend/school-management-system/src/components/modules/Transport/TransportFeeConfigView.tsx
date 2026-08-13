@@ -48,7 +48,7 @@ export const TransportFeeConfigView: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
         <div className="relative w-full sm:w-72">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -76,13 +76,13 @@ export const TransportFeeConfigView: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Route Name</th>
-                <th className="py-3.5 px-4">Pickup Point</th>
-                <th className="py-3.5 px-4">Monthly Fee</th>
-                <th className="py-3.5 px-4">Quarterly Fee</th>
-                <th className="py-3.5 px-4">Half-Yearly Fee</th>
-                <th className="py-3.5 px-4">Annual Fee</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 text-center">Route Name</th>
+                <th className="py-3.5 px-4 text-center">Pickup Point</th>
+                <th className="py-3.5 px-4 text-center">Monthly Fee</th>
+                <th className="py-3.5 px-4 text-center">Quarterly Fee</th>
+                <th className="py-3.5 px-4 text-center">Half-Yearly Fee</th>
+                <th className="py-3.5 px-4 text-center">Annual Fee</th>
+                <th className="py-3.5 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">

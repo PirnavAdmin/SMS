@@ -50,6 +50,10 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
       case 'fee-receipts':
       case 'due-fees':
         return <FeeCollectionContainerView onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
+      case 'promoted-dues':
+      case 'promoted_dues':
+      case 'promoted-students-dues':
+        return <FeeCollectionContainerView initialSubTab="promoted_dues" onPrintReceipt={(payment) => setReceiptToPrint(payment)} />;
       case 'reports':
         return <FinanceReportsView />;
       default:

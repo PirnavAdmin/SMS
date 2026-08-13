@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
     try {
       const response = await loginApi(emailOrPhone, password);
-      
+
       const realToken = response?.token;
       if (!realToken) {
         throw new Error('No authentication token received.');
@@ -106,6 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const resolvedRole = priorityRoles.find(role => roles.includes(role));
         if (resolvedRole) {
           mappedRole = resolvedRole;
+
         }
       }
 
@@ -131,10 +132,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
       localStorage.setItem('auth_token', realToken);
-      
+
       // Store roles specifically to mirror backend logic in App
       localStorage.setItem('roles', JSON.stringify(roles));
-      
+
       return true;
     } catch (err: any) {
       console.error('Login error:', err);
@@ -208,3 +209,4 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
+

@@ -58,23 +58,6 @@ export const TransportMastersView: React.FC<TransportMastersViewProps> = ({ init
     setActiveSubTab(normalizeSetupTab(initialTab));
   }, [initialTab]);
 
-  const renderSubTabContent = () => {
-    switch (activeSubTab) {
-      case 'routes':
-        return <RouteMasterView />;
-      case 'pickups':
-        return <PickupPointsView />;
-      case 'vehicles':
-        return <VehicleMasterView />;
-      case 'drivers':
-        return <DriverMasterView />;
-      case 'attendants':
-        return <BusAttendantMasterView />;
-      default:
-        return <RouteMasterView />;
-    }
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in">
       <TransportScrollableTabs
@@ -84,7 +67,23 @@ export const TransportMastersView: React.FC<TransportMastersViewProps> = ({ init
         sticky={false}
       />
 
-      <div>{renderSubTabContent()}</div>
+      <div>
+        <div className={activeSubTab === 'routes' ? 'block' : 'hidden'}>
+          <RouteMasterView />
+        </div>
+        <div className={activeSubTab === 'pickups' ? 'block' : 'hidden'}>
+          <PickupPointsView />
+        </div>
+        <div className={activeSubTab === 'vehicles' ? 'block' : 'hidden'}>
+          <VehicleMasterView />
+        </div>
+        <div className={activeSubTab === 'drivers' ? 'block' : 'hidden'}>
+          <DriverMasterView />
+        </div>
+        <div className={activeSubTab === 'attendants' ? 'block' : 'hidden'}>
+          <BusAttendantMasterView />
+        </div>
+      </div>
     </div>
   );
 };

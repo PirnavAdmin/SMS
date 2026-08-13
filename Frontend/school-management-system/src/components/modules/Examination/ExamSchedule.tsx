@@ -191,8 +191,6 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
           return true;
         });
 
-        console.log(`📅 [ExamSchedule] Resolved activeSubjects for ${selectedClass} (${activeSubjects.length}):`, activeSubjects);
-
         const merged: any[] = [];
         // Add all active subjects
         activeSubjects.forEach(subjectName => {

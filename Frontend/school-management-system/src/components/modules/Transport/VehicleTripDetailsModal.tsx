@@ -83,26 +83,71 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   const morningTripTime = formatTripTime(assignment.morningTripTime || '07:00');
   const eveningTripTime = formatTripTime(assignment.eveningTripTime || '15:45');
 
-  const routeStops = pickupPoints
-    .filter((point: PickupPoint) => point.routeId === route?.id || point.routeName === route?.routeName)
-    .sort((a, b) => a.sequenceNumber - b.sequenceNumber)
-    .map<TripStopView>(point => ({
-      id: point.id,
-      label: point.pickupName,
-      order: point.sequenceNumber,
-      time: point.arrivalTime,
-      distanceKm: point.distanceFromSchoolKm,
-      status: point.status
-    }));
+  const configuredStops = pickupPoints
+    .filter((point: PickupPoint) => 
+      (point.routeId && route?.id && point.routeId.toString() === route.id.toString()) ||
+      (point.routeName && route?.routeName && point.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase())
+    )
+    .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0));
 
-  const fallbackStops: TripStopView[] = [
-    { id: 'st-1', label: 'School Campus', order: 1, time: morningTripTime, distanceKm: 0, status: 'Active' },
-    { id: 'st-2', label: 'Temple Road', order: 2, time: morningTripTime, distanceKm: 3.5, status: 'Active' },
-    { id: 'st-3', label: 'Bus Stand', order: 3, time: morningTripTime, distanceKm: 7.2, status: 'Active' },
-    { id: 'st-4', label: 'Lakshmi Nagar', order: 4, time: morningTripTime, distanceKm: 12.0, status: 'Active' }
-  ];
+  let displayStops: TripStopView[] = [];
 
-  const displayStops = routeStops.length > 0 ? routeStops : fallbackStops;
+  if (route) {
+    const originName = route.routeStart?.trim() || 'Route Start';
+    const destinationName = route.routeEnd?.trim() || 'School Campus';
+
+    if (configuredStops.length > 0) {
+      const hasOrigin = configuredStops.some(p => p.pickupName.toLowerCase() === originName.toLowerCase());
+      const hasDest = configuredStops.some(p => p.pickupName.toLowerCase() === destinationName.toLowerCase());
+
+      let seq = 1;
+      if (!hasOrigin) {
+        displayStops.push({
+          id: `origin-${route.id}`,
+          label: originName,
+          order: seq++,
+          time: morningTripTime,
+          distanceKm: 0,
+          status: 'Active'
+        });
+      }
+
+      configuredStops.forEach(p => {
+        displayStops.push({
+          id: p.id,
+          label: p.pickupName,
+          order: seq++,
+          time: formatTripTime(p.morningPickupTime || p.arrivalTime || morningTripTime),
+          distanceKm: p.distanceFromSchoolKm || 5,
+          status: p.status || 'Active'
+        });
+      });
+
+      if (!hasDest) {
+        displayStops.push({
+          id: `dest-${route.id}`,
+          label: destinationName,
+          order: seq++,
+          time: '08:15 AM',
+          distanceKm: route.totalDistanceKm || 15,
+          status: 'Active'
+        });
+      }
+    } else {
+      displayStops = [
+        { id: `origin-${route.id}`, label: originName, order: 1, time: morningTripTime, distanceKm: 0, status: 'Active' },
+        { id: `mid-${route.id}`, label: `${route.routeName} (Waypoint)`, order: 2, time: '07:40 AM', distanceKm: Math.round((route.totalDistanceKm || 10) / 2), status: 'Active' },
+        { id: `dest-${route.id}`, label: destinationName, order: 3, time: '08:15 AM', distanceKm: route.totalDistanceKm || 15, status: 'Active' }
+      ];
+    }
+  } else {
+    displayStops = [
+      { id: 'st-1', label: 'School Campus', order: 1, time: morningTripTime, distanceKm: 0, status: 'Active' },
+      { id: 'st-2', label: 'Temple Road', order: 2, time: morningTripTime, distanceKm: 3.5, status: 'Active' },
+      { id: 'st-3', label: 'Bus Stand', order: 3, time: morningTripTime, distanceKm: 7.2, status: 'Active' },
+      { id: 'st-4', label: 'Lakshmi Nagar', order: 4, time: morningTripTime, distanceKm: 12.0, status: 'Active' }
+    ];
+  }
   const routeStudents = studentTransports.filter(st => st.routeId === route?.id || st.routeName === route?.routeName);
 
   const assignedStudentsList = routeStudents.map(st => {

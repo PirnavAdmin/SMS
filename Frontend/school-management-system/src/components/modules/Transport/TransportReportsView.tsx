@@ -11,7 +11,6 @@ import {
   Printer,
   FileText,
   Search,
-  Filter,
   RefreshCw
 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
@@ -320,26 +319,26 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
         sticky={false}
       />
 
-      <div className="glass-card p-4 rounded-2xl flex flex-wrap items-end gap-3 lg:gap-4">
-        <div className="relative w-full max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800">
+        <div className="relative w-full sm:w-64">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search report rows..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
 
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3 ml-auto">
           {showRouteFilter && (
-            <div>
-              <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Route Filter</label>
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Route Filter</label>
               <select
                 value={filterRoute}
                 onChange={e => setFilterRoute(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+                className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
               >
                 <option value="All">All Routes</option>
                 {routeMasters.map(route => (
@@ -350,12 +349,12 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
           )}
 
           {showVehicleFilter && (
-            <div>
-              <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Vehicle Filter</label>
+            <div className="flex items-center gap-2">
+              <label className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Vehicle Filter</label>
               <select
                 value={filterVehicle}
                 onChange={e => setFilterVehicle(e.target.value)}
-                className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+                className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
               >
                 <option value="All">All Vehicles</option>
                 {vehicleMasters.map(vehicle => (
@@ -365,12 +364,12 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
             </div>
           )}
 
-          <div>
-            <label className="block text-[9px] uppercase font-bold text-slate-400 mb-1">Status Filter</label>
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Status Filter</label>
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+              className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">All Statuses</option>
               <option value="Active">Active</option>
@@ -379,11 +378,6 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
               <option value="Scheduled">Scheduled</option>
               <option value="Completed">Completed</option>
             </select>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-[11px] font-bold text-slate-500">
-            <Filter className="w-3.5 h-3.5 text-sky-500" />
-            {filteredRows.length} matching rows
           </div>
         </div>
       </div>
@@ -419,7 +413,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                   {Object.keys(filteredRows[0] || {}).map(key => (
-                    <th key={key} className="py-3 px-4">{key}</th>
+                    <th key={key} className="py-3 px-4 text-center">{key}</th>
                   ))}
                 </tr>
               </thead>

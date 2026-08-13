@@ -31,11 +31,17 @@ export const VehicleMasterView: React.FC = () => {
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [selectedVehicleFilter, setSelectedVehicleFilter] = useState(() => sessionStorage.getItem('tm_vehicle_filter') || '');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<VehicleMaster | null>(null);
   const [deletingVehicle, setDeletingVehicle] = useState<VehicleMaster | null>(null);
 
-  // Vehicle Documents Modal & State
+  const handleVehicleFilterChange = (val: string) => {
+    setSelectedVehicleFilter(val);
+    sessionStorage.setItem('tm_vehicle_filter', val);
+  };
+
+  // Document Management Modal State
   const [vehicleDocs, setVehicleDocs] = useState<VehicleDocumentItem[]>(initialVehicleDocs);
   const [docModalVehicle, setDocModalVehicle] = useState<VehicleMaster | null>(null);
   const [docForm, setDocForm] = useState<Partial<VehicleDocumentItem>>({
@@ -47,24 +53,26 @@ export const VehicleMasterView: React.FC = () => {
   });
 
   const [form, setForm] = useState<Partial<VehicleMaster>>({
-    vehicleNumber: 'BUS-103',
-    registrationNumber: 'NY-99-AB-1003',
+    vehicleNumber: '',
+    registrationNumber: '',
     vehicleType: 'Bus',
-    capacity: 40,
-    isAC: true,
-    chassisNumber: 'CH-88219-Z3',
-    engineNumber: 'ENG-44102-M',
-    insuranceExpiry: '2026-12-31',
-    pollutionExpiry: '2026-11-30',
-    fitnessExpiry: '2027-03-31',
-    gpsDeviceId: 'GPS-DEV-9003',
+    capacity: undefined,
+    isAC: false,
+    chassisNumber: '',
+    engineNumber: '',
+    insuranceExpiry: '',
+    pollutionExpiry: '',
+    fitnessExpiry: '',
+    gpsDeviceId: '',
     status: 'Active'
   });
 
-  const filteredVehicles = vehicleMasters.filter(v =>
-    v.vehicleNumber.toLowerCase().includes(query.toLowerCase()) ||
-    v.registrationNumber.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredVehicles = vehicleMasters.filter(v => {
+    const matchesQuery = v.vehicleNumber.toLowerCase().includes(query.toLowerCase()) ||
+                         v.registrationNumber.toLowerCase().includes(query.toLowerCase());
+    const matchesVehicle = selectedVehicleFilter === 'ALL' || v.id === selectedVehicleFilter;
+    return matchesQuery && matchesVehicle;
+  });
 
   const handleOpenAdd = () => {
     setEditingVehicle(null);
@@ -72,7 +80,7 @@ export const VehicleMasterView: React.FC = () => {
       vehicleNumber: '',
       registrationNumber: '',
       vehicleType: 'Bus',
-      capacity: 50,
+      capacity: undefined,
       isAC: false,
       chassisNumber: '',
       engineNumber: '',
@@ -142,6 +150,11 @@ export const VehicleMasterView: React.FC = () => {
     });
   };
 
+  const handleDeleteDocument = (docId: string) => {
+    setVehicleDocs(prev => prev.filter(d => d.id !== docId));
+    addToast('info', 'Document Removed');
+  };
+
   const checkDocExpiryStatus = (expiryDateStr?: string) => {
     if (!expiryDateStr) return { isExpired: false, isExpiringSoon: false, daysLeft: 999 };
     const exp = new Date(expiryDateStr).getTime();
@@ -173,15 +186,20 @@ export const VehicleMasterView: React.FC = () => {
             onClick={handleOpenAdd}
             className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
           >
-            <Plus className="w-4 h-4" /> Add
+            <Plus className="w-4 h-4" /> Add Vehicle
           </button>
-          <ExportButton data={vehicleMasters} filename="vehicle_masters" />
+          <ExportButton 
+            data={filteredVehicles} 
+            filename={selectedVehicleFilter && selectedVehicleFilter !== 'ALL' 
+              ? `vehicle_${vehicleMasters.find(v => v.id === selectedVehicleFilter)?.vehicleNumber || 'filtered'}` 
+              : 'vehicle_masters'} 
+          />
         </div>
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
-        <div className="relative w-full sm:w-72">
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 border border-slate-200/80 dark:border-slate-800">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
@@ -191,10 +209,56 @@ export const VehicleMasterView: React.FC = () => {
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
           />
         </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-bold text-slate-500 shrink-0">Filter by Vehicle:</label>
+          <select
+            value={selectedVehicleFilter}
+            onChange={e => handleVehicleFilterChange(e.target.value)}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+          >
+            <option value="">-- Select Vehicle --</option>
+            <option value="ALL">All Vehicles</option>
+            {vehicleMasters.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.vehicleNumber} ({v.registrationNumber})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      {/* Vehicle Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {selectedVehicleFilter === '' ? (
+        <div className="glass-card p-10 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+          <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto shadow-sm">
+            <Bus className="w-4.5 h-4.5" />
+          </div>
+          <h3 className="text-base font-black text-slate-900 dark:text-white">Please Select a Vehicle</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Select a vehicle from the dropdown above or click below to view all vehicles.
+          </p>
+          <div className="pt-2">
+            <button
+              onClick={() => handleVehicleFilterChange('ALL')}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 inline-flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              View All Vehicles
+            </button>
+          </div>
+        </div>
+      ) : filteredVehicles.length === 0 ? (
+        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
+          <p className="text-slate-400 text-xs font-bold">No vehicles found matching your filter or search query.</p>
+          <button
+            onClick={() => { handleVehicleFilterChange('ALL'); setQuery(''); }}
+            className="text-xs text-sky-600 font-bold hover:underline"
+          >
+            Reset Filters
+          </button>
+        </div>
+      ) : (
+        /* Vehicle Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredVehicles.map(v => {
           const cap = checkVehicleCapacity(v.id);
           const docsForV = vehicleDocs.filter(d => d.vehicleId === v.id);
@@ -278,7 +342,8 @@ export const VehicleMasterView: React.FC = () => {
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
 
       {/* Edit/Add Vehicle Modal */}
       {isModalOpen && (
@@ -291,50 +356,152 @@ export const VehicleMasterView: React.FC = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Vehicle Number *</label><input type="text" required value={form.vehicleNumber} onChange={e => setForm({ ...form, vehicleNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" /></div>
-                <div><label className="block font-semibold mb-1">Reg Number *</label><input type="text" required value={form.registrationNumber} onChange={e => setForm({ ...form, registrationNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
+            <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Vehicle Number *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. AP05DC0527"
+                    value={form.vehicleNumber || ''}
+                    onChange={e => setForm({ ...form, vehicleNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Reg Number *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. REG-SC-2026-213243"
+                    value={form.registrationNumber || ''}
+                    onChange={e => setForm({ ...form, registrationNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-semibold mb-1">Vehicle Type</label>
-                  <select value={form.vehicleType} onChange={e => setForm({ ...form, vehicleType: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Vehicle Type</label>
+                  <select
+                    value={form.vehicleType || 'Bus'}
+                    onChange={e => setForm({ ...form, vehicleType: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  >
                     <option value="Bus">Bus</option>
                     <option value="Van">Van</option>
                   </select>
                 </div>
-                <div><label className="block font-semibold mb-1">Seating Capacity</label><input type="number" required value={form.capacity} onChange={e => setForm({ ...form, capacity: Number(e.target.value) })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-emerald-600" /></div>
                 <div>
-                  <label className="block font-semibold mb-1">AC Specification</label>
-                  <select value={form.isAC ? 'AC' : 'Non-AC'} onChange={e => setForm({ ...form, isAC: e.target.value === 'AC' })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
-                    <option value="AC">Air Conditioned (AC)</option>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">AC Specification</label>
+                  <select
+                    value={form.isAC ? 'AC' : 'Non-AC'}
+                    onChange={e => setForm({ ...form, isAC: e.target.value === 'AC' })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  >
                     <option value="Non-AC">Non-AC</option>
+                    <option value="AC">Air Conditioned (AC)</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">Chassis Number</label><input type="text" value={form.chassisNumber} onChange={e => setForm({ ...form, chassisNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-                <div><label className="block font-semibold mb-1">Engine Number</label><input type="text" value={form.engineNumber} onChange={e => setForm({ ...form, engineNumber: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" /></div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div><label className="block font-semibold mb-1">Insurance Expiry</label><input type="date" value={form.insuranceExpiry?.split('T')[0] || ''} onChange={e => setForm({ ...form, insuranceExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Pollution Expiry</label><input type="date" value={form.pollutionExpiry?.split('T')[0] || ''} onChange={e => setForm({ ...form, pollutionExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-                <div><label className="block font-semibold mb-1">Fitness Expiry</label><input type="date" value={form.fitnessExpiry?.split('T')[0] || ''} onChange={e => setForm({ ...form, fitnessExpiry: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" /></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="block font-semibold mb-1">GPS Device ID</label><input type="text" value={form.gpsDeviceId} onChange={e => setForm({ ...form, gpsDeviceId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-sky-600" /></div>
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block font-semibold mb-1">Status</label>
-                  <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Seating Capacity *</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    required
+                    placeholder="e.g. 40"
+                    value={form.capacity !== undefined && form.capacity !== null ? form.capacity : ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d*$/.test(val)) {
+                        setForm({ ...form, capacity: val === '' ? undefined : Number(val) });
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-emerald-600 dark:text-emerald-400"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Status</label>
+                  <select
+                    value={form.status || 'Active'}
+                    onChange={e => setForm({ ...form, status: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  >
                     <option value="Active">Active</option>
                     <option value="Maintenance">Maintenance</option>
                     <option value="Inactive">Inactive</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Chassis Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CH-88219-Z3"
+                    value={form.chassisNumber || ''}
+                    onChange={e => setForm({ ...form, chassisNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Engine Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. ENG-44102-M"
+                    value={form.engineNumber || ''}
+                    onChange={e => setForm({ ...form, engineNumber: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">GPS Device ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. GPS-DEV-9003"
+                    value={form.gpsDeviceId || ''}
+                    onChange={e => setForm({ ...form, gpsDeviceId: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-sky-600 dark:text-sky-400"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Insurance Expiry</label>
+                  <input
+                    type="date"
+                    value={form.insuranceExpiry?.split('T')[0] || ''}
+                    onChange={e => setForm({ ...form, insuranceExpiry: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Pollution (PUC) Expiry</label>
+                  <input
+                    type="date"
+                    value={form.pollutionExpiry?.split('T')[0] || ''}
+                    onChange={e => setForm({ ...form, pollutionExpiry: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-slate-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Fitness Expiry</label>
+                  <input
+                    type="date"
+                    value={form.fitnessExpiry?.split('T')[0] || ''}
+                    onChange={e => setForm({ ...form, fitnessExpiry: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-slate-900 dark:text-white"
+                  />
                 </div>
               </div>
 

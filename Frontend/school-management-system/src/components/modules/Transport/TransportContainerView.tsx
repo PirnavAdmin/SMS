@@ -177,10 +177,18 @@ export const TransportContainerView: React.FC<TransportContainerViewProps> = ({ 
             />
 
             <div>
-              {activeOperationTab === 'vehicle-assignment' && <VehicleAssignmentView />}
-              {activeOperationTab === 'vehicle-trips' && <VehicleTripsView onOpenGps={handleOpenGps} />}
-              {activeOperationTab === 'gps-tracking' && <TransportGPSTrackingView initialVehicleId={gpsSeedVehicleId} />}
-              {activeOperationTab === 'maintenance' && <VehicleMaintenanceView />}
+              <div className={activeOperationTab === 'vehicle-assignment' ? 'block' : 'hidden'}>
+                <VehicleAssignmentView />
+              </div>
+              <div className={activeOperationTab === 'vehicle-trips' ? 'block' : 'hidden'}>
+                <VehicleTripsView onOpenGps={handleOpenGps} />
+              </div>
+              <div className={activeOperationTab === 'gps-tracking' ? 'block' : 'hidden'}>
+                <TransportGPSTrackingView initialVehicleId={gpsSeedVehicleId} />
+              </div>
+              <div className={activeOperationTab === 'maintenance' ? 'block' : 'hidden'}>
+                <VehicleMaintenanceView />
+              </div>
             </div>
           </div>
         );
