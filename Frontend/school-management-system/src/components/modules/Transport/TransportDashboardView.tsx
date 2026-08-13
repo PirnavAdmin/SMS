@@ -163,7 +163,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <Navigation className="w-5 h-5 text-sky-500" /> Today's Transport Operations Status
+              <Navigation className="w-5 h-5 text-sky-500" /> Today's Transport Status
             </h3>
           </div>
 

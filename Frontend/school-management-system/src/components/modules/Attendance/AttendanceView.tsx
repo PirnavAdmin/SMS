@@ -5,6 +5,16 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
+import {
+  fetchAttendanceBranchesApi,
+  fetchAttendanceAcademicYearsApi,
+  fetchAttendanceClassesApi,
+  fetchAttendanceSectionsApi,
+  fetchAttendanceSubjectsApi,
+  fetchAttendancePeriodsApi,
+  fetchStudentAttendanceSheetApi,
+  saveStudentAttendanceSheetApi
+} from '../../../api/attendance';
 
 // Types
 type AttendanceStatus = 'Present' | 'Absent' | 'HalfDay' | 'Late' | null;
@@ -55,7 +65,7 @@ const getLocalDateString = (d: Date) => {
 };
 
 export const AttendanceView = () => {
-  const { user, role } = useAuth();
+  const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
   const { staff, students, academicClasses } = useData();
 
   const userRole = (role || user?.role || '').toLowerCase();
@@ -115,6 +125,8 @@ export const AttendanceView = () => {
     return students && students.length > 0 ? students : mockStudents;
   }, [students]);
 
+
+
   // Strictly filter student records to only teacher's assigned classes/sections
   const teacherFilteredStudents = useMemo(() => {
     if (!isTeacher) return allStudents;
@@ -151,6 +163,234 @@ export const AttendanceView = () => {
   const [selectedSection, setSelectedSection] = useState('All Sections');
   const [selectedSubject, setSelectedSubject] = useState('Mathematics');
   const [selectedPeriod, setSelectedPeriod] = useState('Period 1 (09:00 AM - 09:45 AM)');
+
+  const [apiStudents, setApiStudents] = useState<any[]>([]);
+
+  const mappedApiStudents = useMemo(() => {
+    return apiStudents.map(s => {
+      const match = allStudents.find(st => st.id === s.studentId.toString() || st.admissionNo === s.admissionNumber);
+      return {
+        id: s.studentId.toString(),
+        rollNo: s.rollNumber || match?.rollNo || 'N/A',
+        firstName: s.studentName.split(' ')[0] || '',
+        lastName: s.studentName.slice(s.studentName.indexOf(' ') + 1) || '',
+        className: selectedClass,
+        section: selectedSection,
+        admissionNo: s.admissionNumber || match?.admissionNo || 'N/A',
+        avatar: match?.avatar || `https://i.pravatar.cc/150?u=${s.studentId}`
+      };
+    });
+  }, [apiStudents, allStudents, selectedClass, selectedSection]);
+
+  // Dynamic API options (Teacher only)
+  const [branches, setBranches] = useState<Array<{ id: number; name: string }>>([]);
+  const [academicYears, setAcademicYears] = useState<Array<{ id: number; name: string }>>([]);
+  const [apiClasses, setApiClasses] = useState<Array<{ id: number; name: string }>>([]);
+  const [apiSections, setApiSections] = useState<Array<{ id: number; name: string }>>([]);
+  const [apiSubjects, setApiSubjects] = useState<Array<{ id: number; name: string }>>([]);
+  const [apiPeriods, setApiPeriods] = useState<Array<{ periodId: number; periodName: string; startTime?: any; endTime?: any; timetableSlotId?: number | null }>>([]);
+
+  const [selectedBranchId, setSelectedBranchId] = useState<number | null>(null);
+  const [selectedAcademicYearId, setSelectedAcademicYearId] = useState<number | null>(null);
+  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
+  const [selectedSectionId, setSelectedSectionId] = useState<number | null>(null);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<number | null>(null);
+
+  // Active Session details from backend sheet
+  const [attendanceSessionId, setAttendanceSessionId] = useState<number | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isLoadingSheet, setIsLoadingSheet] = useState(false);
+
+  // Load branches and academic years on mount if isTeacher
+  useEffect(() => {
+    if (!isTeacher) return;
+
+    const loadInitialOptions = async () => {
+      try {
+        const [bRes, aRes] = await Promise.all([
+          fetchAttendanceBranchesApi(),
+          fetchAttendanceAcademicYearsApi()
+        ]);
+        
+        const mappedBranches = bRes?.data || bRes || [];
+        const mappedYears = aRes?.data || aRes || [];
+
+        setBranches(mappedBranches);
+        setAcademicYears(mappedYears);
+
+        const matchingBranch = mappedBranches.find((b: any) => 
+          b.name.toLowerCase() === selectedBranch.toLowerCase()
+        );
+        if (matchingBranch) {
+          setSelectedBranchId(matchingBranch.id);
+        } else if (mappedBranches.length > 0) {
+          setSelectedBranchId(mappedBranches[0].id);
+        }
+
+        const matchingYear = mappedYears.find((y: any) => 
+          y.name.toLowerCase() === selectedAcademicYear.toLowerCase() ||
+          y.name.split('-')[0] === selectedAcademicYear.split('-')[0]
+        );
+        if (matchingYear) {
+          setSelectedAcademicYearId(matchingYear.id);
+        } else if (mappedYears.length > 0) {
+          setSelectedAcademicYearId(mappedYears[0].id);
+        }
+      } catch (err) {
+        console.warn("Failed to load attendance initial options, operating in local fallback", err);
+      }
+    };
+
+    loadInitialOptions();
+  }, [isTeacher, selectedBranch, selectedAcademicYear]);
+
+  // Load classes
+  useEffect(() => {
+    if (!isTeacher || !selectedBranchId || !selectedAcademicYearId) return;
+
+    const loadClasses = async () => {
+      try {
+        const res = await fetchAttendanceClassesApi(selectedBranchId, selectedAcademicYearId);
+        const data = res?.data || res || [];
+        setApiClasses(data);
+        if (data.length > 0) {
+          setSelectedClassId(data[0].id);
+          setSelectedClass(data[0].name);
+        } else {
+          setSelectedClassId(null);
+        }
+      } catch (err) {
+        console.warn("Failed to load classes", err);
+      }
+    };
+
+    loadClasses();
+  }, [isTeacher, selectedBranchId, selectedAcademicYearId]);
+
+  // Load sections
+  useEffect(() => {
+    if (!isTeacher || !selectedClassId) return;
+
+    const loadSections = async () => {
+      try {
+        const res = await fetchAttendanceSectionsApi(selectedClassId);
+        const data = res?.data || res || [];
+        setApiSections(data);
+        if (data.length > 0) {
+          setSelectedSectionId(data[0].id);
+          setSelectedSection(data[0].name);
+        } else {
+          setSelectedSectionId(null);
+        }
+      } catch (err) {
+        console.warn("Failed to load sections", err);
+      }
+    };
+
+    loadSections();
+  }, [isTeacher, selectedClassId]);
+
+  // Load subjects
+  useEffect(() => {
+    if (!isTeacher || !selectedClassId || !selectedSectionId) return;
+
+    const loadSubjects = async () => {
+      try {
+        const res = await fetchAttendanceSubjectsApi(selectedClassId, selectedSectionId);
+        const data = res?.data || res || [];
+        setApiSubjects(data);
+        if (data.length > 0) {
+          setSelectedSubjectId(data[0].id);
+          setSelectedSubject(data[0].name);
+        } else {
+          setSelectedSubjectId(null);
+        }
+      } catch (err) {
+        console.warn("Failed to load subjects", err);
+      }
+    };
+
+    loadSubjects();
+  }, [isTeacher, selectedClassId, selectedSectionId]);
+
+  // Load periods
+  useEffect(() => {
+    if (!isTeacher || !selectedClassId || !selectedSectionId || !selectedSubjectId || !date) return;
+
+    const loadPeriods = async () => {
+      try {
+        const res = await fetchAttendancePeriodsApi(date, selectedClassId, selectedSectionId, selectedSubjectId);
+        const data = res?.data || res || [];
+        setApiPeriods(data);
+        if (data.length > 0) {
+          setSelectedPeriodId(data[0].periodId);
+          setSelectedPeriod(data[0].periodName);
+        } else {
+          setSelectedPeriodId(null);
+        }
+      } catch (err) {
+        console.warn("Failed to load periods", err);
+      }
+    };
+
+    loadPeriods();
+  }, [isTeacher, selectedClassId, selectedSectionId, selectedSubjectId, date]);
+
+  // Fetch student attendance sheet
+  const fetchAttendanceSheet = async () => {
+    if (!isTeacher || !selectedBranchId || !selectedAcademicYearId || !selectedClassId || !selectedSectionId || !selectedSubjectId || !selectedPeriodId || !date) return;
+
+    setIsLoadingSheet(true);
+    try {
+      const res = await fetchStudentAttendanceSheetApi({
+        date,
+        branchId: selectedBranchId,
+        academicYearId: selectedAcademicYearId,
+        classId: selectedClassId,
+        sectionId: selectedSectionId,
+        subjectId: selectedSubjectId,
+        periodId: selectedPeriodId
+      });
+      
+      const sheet = res?.data || res;
+
+      if (sheet) {
+        setAttendanceSessionId(sheet.attendanceSessionId || null);
+        setIsLocked(!!sheet.isLocked);
+        setApiStudents(sheet.students || []);
+
+        const tempRegistry: AttendanceState = {};
+        const tempRemarks: RemarksState = {};
+
+        (sheet.students || []).forEach((st: any) => {
+          tempRegistry[st.studentId.toString()] = st.status as AttendanceStatus;
+          if (st.remarks) {
+            tempRemarks[`${date}_${st.studentId}`] = st.remarks;
+          }
+        });
+
+        setAttendanceRegistry(prev => ({
+          ...prev,
+          [registerKey]: tempRegistry
+        }));
+        setRemarksState(prev => ({
+          ...prev,
+          ...tempRemarks
+        }));
+      }
+    } catch (err) {
+      console.warn("Failed to fetch attendance sheet", err);
+    } finally {
+      setIsLoadingSheet(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isTeacher && selectedPeriodId) {
+      fetchAttendanceSheet();
+    }
+  }, [isTeacher, selectedBranchId, selectedAcademicYearId, selectedClassId, selectedSectionId, selectedSubjectId, selectedPeriodId, date]);
 
   // Sync state on mount/assignment change
   useEffect(() => {
@@ -219,12 +459,15 @@ export const AttendanceView = () => {
   }, [isTeacher, teacherClasses, selectedClass, allStudents]);
 
   const classStudents = useMemo(() => {
+    if (isTeacher && apiStudents.length > 0) {
+      return mappedApiStudents;
+    }
     return teacherFilteredStudents.filter(s => {
       const classMatch = selectedClass === 'All Classes' || s.className === selectedClass;
       const sectionMatch = selectedSection === 'All Sections' || s.section === selectedSection;
       return classMatch && sectionMatch;
     });
-  }, [selectedClass, selectedSection, teacherFilteredStudents]);
+  }, [isTeacher, apiStudents, mappedApiStudents, selectedClass, selectedSection, teacherFilteredStudents]);
 
   // Unique key for the current register
   const registerKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${date}`;
@@ -398,9 +641,41 @@ export const AttendanceView = () => {
     }, 3000);
   };
 
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = async () => {
     setIsEditable(false);
-    addToast('success', 'Attendance Register Saved', 'The registers have been written and submitted to the school portal database.');
+
+    if (isTeacher && selectedBranchId && selectedAcademicYearId && selectedClassId && selectedSectionId && selectedSubjectId && selectedPeriodId) {
+      const studentsPayload = classStudents.map(st => ({
+        studentId: parseInt(st.id, 10),
+        status: getAttendanceStatus(st) || 'Present',
+        remarks: remarksState[`${date}_${st.id}`] || null
+      }));
+
+      try {
+        const payload = {
+          date,
+          branchId: selectedBranchId,
+          academicYearId: selectedAcademicYearId,
+          classId: selectedClassId,
+          sectionId: selectedSectionId,
+          subjectId: selectedSubjectId,
+          periodId: selectedPeriodId,
+          students: studentsPayload
+        };
+
+        const res = await saveStudentAttendanceSheetApi(payload);
+        if (res && res.success !== false) {
+          addToast('success', 'Attendance Saved', 'Student attendance sheet has been synced with the database.');
+          fetchAttendanceSheet();
+          return;
+        }
+      } catch (err: any) {
+        console.error("Failed to save student attendance to database", err);
+        addToast('warning', 'Save Failed', 'Could not sync attendance with database. Saved locally.');
+      }
+    }
+
+    addToast('success', 'Attendance Register Saved', 'The registers have been written and saved locally.');
   };
 
   // CSV Exporter
@@ -503,7 +778,7 @@ export const AttendanceView = () => {
 
       {/* Control Filters Row */}
       <div className="glass-card p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 space-y-4">
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${dateMode === 'Custom Range' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-3`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Date Mode</label>
             <div className="relative">
@@ -540,16 +815,33 @@ export const AttendanceView = () => {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Class</label>
             <div className="relative">
-              <select
-                value={selectedClass}
-                onChange={e => setSelectedClass(e.target.value)}
-                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-              >
-                {!isTeacher && <option value="All Classes">All Classes</option>}
-                {classList.map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              {isTeacher && branches.length > 0 ? (
+                <select
+                  value={selectedClassId || ""}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    setSelectedClassId(val);
+                    const matched = apiClasses.find(c => c.id === val);
+                    if (matched) setSelectedClass(matched.name);
+                  }}
+                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+                >
+                  {apiClasses.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  value={selectedClass}
+                  onChange={e => setSelectedClass(e.target.value)}
+                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+                >
+                  {!isTeacher && <option value="All Classes">All Classes</option>}
+                  {classList.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              )}
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
@@ -557,19 +849,84 @@ export const AttendanceView = () => {
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Section</label>
             <div className="relative">
-              <select
-                value={selectedSection}
-                onChange={e => setSelectedSection(e.target.value)}
-                className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
-              >
-                {!isTeacher && <option value="All Sections">All Sections</option>}
-                {sectionList.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              {isTeacher && branches.length > 0 ? (
+                <select
+                  value={selectedSectionId || ""}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    setSelectedSectionId(val);
+                    const matched = apiSections.find(s => s.id === val);
+                    if (matched) setSelectedSection(matched.name);
+                  }}
+                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+                >
+                  {apiSections.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  value={selectedSection}
+                  onChange={e => setSelectedSection(e.target.value)}
+                  className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+                >
+                  {!isTeacher && <option value="All Sections">All Sections</option>}
+                  {sectionList.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              )}
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
+
+          {isTeacher && branches.length > 0 && (
+            <>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400">Subject</label>
+                <div className="relative">
+                  <select
+                    value={selectedSubjectId || ""}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setSelectedSubjectId(val);
+                      const matched = apiSubjects.find(s => s.id === val);
+                      if (matched) setSelectedSubject(matched.name);
+                    }}
+                    className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+                  >
+                    {apiSubjects.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-slate-400">Period</label>
+                <div className="relative">
+                  <select
+                    value={selectedPeriodId || ""}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setSelectedPeriodId(val);
+                      const matched = apiPeriods.find(p => p.periodId === val);
+                      if (matched) setSelectedPeriod(matched.periodName);
+                    }}
+                    className="appearance-none w-full pl-2.5 pr-8 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-550 transition-colors cursor-pointer"
+                  >
+                    {apiPeriods.map(p => (
+                      <option key={p.periodId} value={p.periodId}>
+                        {p.periodName} {p.startTime ? `(${p.startTime.slice(0, 5)} - ${p.endTime ? p.endTime.slice(0, 5) : ''})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="space-y-1">
             <label className="text-[10px] font-black uppercase text-slate-400">Status</label>

@@ -54,7 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Pie chart calculation (Student Attendance)
   const attendanceStats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const todayAttendance = attendance.filter(a => a.entityType === 'Student' && a.date === todayStr);
     let present = 0; let absent = 0; let late = 0; let halfDay = 0;
     if (todayAttendance.length > 0) {
@@ -92,7 +92,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
   
   const teacherAttendanceStats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const teachingStaffIds = new Set(teachingStaff.map(s => s.id));
     const todayAttendance = attendance.filter(a => a.entityType === 'Staff' && a.date === todayStr && teachingStaffIds.has(a.entityId));
     let present = 0; let absent = 0; let late = 0; let halfDay = 0;
@@ -129,7 +129,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Section 2: Non-Teaching Staff Attendance calculation
   const nonTeachingAttendanceStats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA');
     const nonTeachingStaffIds = new Set(nonTeachingStaff.map(s => s.id));
     const todayAttendance = attendance.filter(a => a.entityType === 'Staff' && a.date === todayStr && nonTeachingStaffIds.has(a.entityId));
     let present = 0; let absent = 0; let late = 0; let halfDay = 0;

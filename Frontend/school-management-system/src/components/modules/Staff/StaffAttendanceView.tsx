@@ -1536,6 +1536,10 @@ export const StaffAttendanceView: React.FC = () => {
         "Attendance Saved Successfully",
         `Saved daily attendance logs for ${recordsToSave.length} ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff members on ${attendanceDate}.`,
       );
+      if (fetchDailyAttendance) {
+        const activeDept = activeTab === "teaching" ? teachingDept : nonTeachingDept;
+        fetchDailyAttendance(attendanceDate, activeDept);
+      }
     }
   };
 
