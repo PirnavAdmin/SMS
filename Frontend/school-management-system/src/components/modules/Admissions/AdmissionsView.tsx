@@ -31,7 +31,7 @@ import {
   Upload,
   ChevronDown,
 } from "lucide-react";
-import { AdmissionApplication, StudentType, Student } from "../../../types";
+import { AdmissionApplication, StudentType, Student, SiblingDetail } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -225,50 +225,199 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [avatar, setAvatar] = useState("");
-  const [siblingSearchQuery, setSiblingSearchQuery] = useState("");
-  const [isSiblingDropdownOpen, setIsSiblingDropdownOpen] = useState(false);
   const [isCustomCasteCategory, setIsCustomCasteCategory] = useState(false);
-  const [hasSiblings, setHasSiblings] = useState(false);
+  const [hasSiblings, setHasSiblings] = useState<boolean>(false);
+  const [siblingsCount, setSiblingsCount] = useState<number>(1);
+  const [siblingDetails, setSiblingDetails] = useState<SiblingDetail[]>([]);
   const [siblingStudentIds, setSiblingStudentIds] = useState<string[]>([]);
+  const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<number | null>(null);
+  const [siblingSearchQuery, setSiblingSearchQuery] = useState("");
 
-  const handleToggleSibling = (studentId: string) => {
-    setSiblingStudentIds((prev) => {
-      const isPresent = prev.includes(studentId);
-      const next = isPresent
-        ? prev.filter((id) => id !== studentId)
-        : [...prev, studentId];
-      setFormData((f) => ({
-        ...f,
-        siblingStudentId: next[0] || "",
-        siblingStudentIds: next,
-        siblingsCount: Math.max(f.siblingsCount || 1, next.length),
+  const isSiblingConcession = (name?: string, category?: string) => {
+    if (!name) return false;
+    const n = name.toLowerCase();
+    const c = (category || "").toLowerCase();
+    return n.includes("sibling") || c.includes("sibling");
+  };
+
+  const hasExistingEnrolledSibling = Boolean(
+    hasSiblings && siblingDetails.some((d) => d.isExisting && Boolean(d.studentId))
+  );
+
+  const handleHasSiblingsChange = (val: boolean) => {
+    setHasSiblings(val);
+    if (val) {
+      const count = siblingsCount >= 1 ? siblingsCount : 1;
+      setSiblingsCount(count);
+      setSiblingDetails((prev) => {
+        if (prev.length >= count) {
+          return prev.slice(0, count);
+        }
+        const newEntries = [...prev];
+        while (newEntries.length < count) {
+          newEntries.push({ name: "", isExisting: false });
+        }
+        return newEntries;
+      });
+      setFormData((prev) => ({
+        ...prev,
+        hasSiblings: true,
+        siblingsCount: count,
       }));
+    } else {
+      setSiblingsCount(0);
+      setSiblingDetails([]);
+      setSiblingStudentIds([]);
+      setActiveSiblingDropdownIdx(null);
+      setFormData((prev) => {
+        const next = {
+          ...prev,
+          hasSiblings: false,
+          siblingsCount: 0,
+          siblingDetails: [],
+          siblingStudentId: "",
+          siblingStudentIds: [],
+        };
+        if (prev.discountId) {
+          const selD = discounts.find((d) => d.id === prev.discountId);
+          if (selD && isSiblingConcession(selD.name)) {
+            next.discountId = undefined;
+          }
+        }
+        if (prev.scholarshipId) {
+          const selS = scholarships.find((s) => s.id === prev.scholarshipId);
+          if (selS && isSiblingConcession(selS.name)) {
+            next.scholarshipId = undefined;
+          }
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleSiblingsCountChange = (valStr: string) => {
+    if (valStr === "") {
+      setSiblingsCount(0);
+      return;
+    }
+    let num = parseInt(valStr, 10);
+    if (isNaN(num) || num < 0) {
+      num = 0;
+    }
+    setSiblingsCount(num);
+    if (num > 0) {
+      setSiblingDetails((prev) => {
+        if (prev.length === num) return prev;
+        if (prev.length > num) {
+          return prev.slice(0, num);
+        }
+        const newEntries = [...prev];
+        while (newEntries.length < num) {
+          newEntries.push({ name: "", isExisting: false });
+        }
+        return newEntries;
+      });
+      setFormData((prev) => ({
+        ...prev,
+        siblingsCount: num,
+      }));
+    }
+  };
+
+  const handleSiblingIsExistingChange = (idx: number, isExisting: boolean) => {
+    setSiblingDetails((prev) => {
+      const next = [...prev];
+      const curr = next[idx] || { name: "", isExisting: false };
+      if (!isExisting) {
+        next[idx] = {
+          ...curr,
+          isExisting: false,
+          studentId: undefined,
+          admissionNo: undefined,
+          name: curr.studentId ? "" : curr.name,
+        };
+      } else {
+        next[idx] = {
+          ...curr,
+          isExisting: true,
+        };
+      }
+
+      // Check if any existing enrolled sibling remains
+      const anyExistingRemains = next.some((d) => d.isExisting && Boolean(d.studentId));
+      if (!anyExistingRemains) {
+        setFormData((fPrev) => {
+          const fNext = { ...fPrev };
+          if (fPrev.discountId) {
+            const selD = discounts.find((d) => d.id === fPrev.discountId);
+            if (selD && isSiblingConcession(selD.name)) {
+              fNext.discountId = undefined;
+            }
+          }
+          if (fPrev.scholarshipId) {
+            const selS = scholarships.find((s) => s.id === fPrev.scholarshipId);
+            if (selS && isSiblingConcession(selS.name)) {
+              fNext.scholarshipId = undefined;
+            }
+          }
+          return fNext;
+        });
+      }
+
       return next;
     });
   };
 
-  const getSiblingTriggerText = () => {
-    if (siblingStudentIds.length === 0) {
-      if (formData.siblingStudentId) {
-        const s = students.find((x) => x.id === formData.siblingStudentId);
-        return s
-          ? `${s.firstName} ${s.lastName} (${s.className})`
-          : "Select Sibling";
-      }
-      return "Select Sibling";
+  const handleSiblingNameChange = (idx: number, nameVal: string) => {
+    setSiblingDetails((prev) => {
+      const next = [...prev];
+      next[idx] = {
+        ...(next[idx] || { isExisting: false }),
+        name: nameVal,
+      };
+      return next;
+    });
+  };
+
+  const handleSelectExistingStudent = (idx: number, selectedStudent: Student) => {
+    const isAlreadyChosen = siblingDetails.some(
+      (item, i) => i !== idx && item.studentId === selectedStudent.id
+    );
+    if (isAlreadyChosen) {
+      addToast("warning", "Already Selected", `${selectedStudent.firstName} ${selectedStudent.lastName} is already selected as a sibling.`);
+      return;
     }
-    if (siblingStudentIds.length === 1) {
-      const s = students.find((x) => x.id === siblingStudentIds[0]);
-      return s
-        ? `${s.firstName} ${s.lastName} (${s.className})`
-        : "1 Sibling Selected";
+
+    const existingCountOtherSlots = siblingDetails.filter(
+      (item, i) => i !== idx && item.isExisting && item.studentId
+    ).length;
+
+    if (existingCountOtherSlots + 1 > siblingsCount) {
+      addToast("warning", "Limit Reached", `You can select a maximum of ${siblingsCount} siblings.`);
+      return;
     }
-    const selectedNames = siblingStudentIds
-      .map((id) => students.find((x) => x.id === id))
-      .filter(Boolean)
-      .map((s) => `${s?.firstName} ${s?.lastName}`)
-      .join(", ");
-    return `${siblingStudentIds.length} Siblings Selected (${selectedNames})`;
+
+    const sName = `${selectedStudent.firstName} ${selectedStudent.lastName}`;
+    setSiblingDetails((prev) => {
+      const next = [...prev];
+      next[idx] = {
+        id: selectedStudent.id,
+        name: sName,
+        isExisting: true,
+        studentId: selectedStudent.id,
+        admissionNo: selectedStudent.admissionNo,
+      };
+      return next;
+    });
+    setActiveSiblingDropdownIdx(null);
+    setSiblingSearchQuery("");
+
+    // Auto-apply Sibling Concession if available and no discount selected yet
+    const sibDiscount = discounts.find((d) => isSiblingConcession(d.name));
+    if (sibDiscount && !formData.discountId) {
+      setFormData((prev) => ({ ...prev, discountId: sibDiscount.id }));
+      addToast("info", "Concession Applied", `Sibling Concession (${sibDiscount.name}) auto-applied for existing sibling.`);
+    }
   };
 
   const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
@@ -418,9 +567,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setLastName("");
     setAvatar("");
     setSiblingSearchQuery("");
-    setIsSiblingDropdownOpen(false);
+    setActiveSiblingDropdownIdx(null);
     setIsCustomCasteCategory(false);
     setHasSiblings(false);
+    setSiblingsCount(1);
+    setSiblingDetails([]);
     setSiblingStudentIds([]);
     setFormData({
       appliedClass: "",
@@ -440,8 +591,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       addressDistrict: "",
       addressState: "",
       addressPinCode: "",
+      hasSiblings: false,
       siblingsCount: 0,
+      siblingDetails: [],
       siblingStudentId: "",
+      siblingStudentIds: [],
       studentType: "" as any,
       transportRequired: false,
       transportType: "" as any,
@@ -483,9 +637,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
 
     setFormData({ ...app, dob: formattedDob });
-    setHasSiblings(
-      (app.siblingsCount && app.siblingsCount > 0) || !!app.siblingStudentId,
-    );
+    const hasSib = app.hasSiblings ?? ((app.siblingsCount && app.siblingsCount > 0) || !!app.siblingStudentId || (app.siblingDetails && app.siblingDetails.length > 0));
+    setHasSiblings(!!hasSib);
+    const count = app.siblingsCount && app.siblingsCount > 0 ? app.siblingsCount : (app.siblingDetails?.length || 1);
+    setSiblingsCount(count);
+
+    if (app.siblingDetails && app.siblingDetails.length > 0) {
+      setSiblingDetails(app.siblingDetails);
+    } else if (hasSib) {
+      const sIds = app.siblingStudentIds || (app.siblingStudentId ? [app.siblingStudentId] : []);
+      const reconstructed: SiblingDetail[] = [];
+      for (let i = 0; i < count; i++) {
+        const sId = sIds[i];
+        if (sId) {
+          const matchedSt = students.find((s) => s.id === sId);
+          reconstructed.push({
+            id: sId,
+            name: matchedSt ? `${matchedSt.firstName} ${matchedSt.lastName}` : "Existing Student",
+            isExisting: true,
+            studentId: sId,
+            admissionNo: matchedSt?.admissionNo,
+          });
+        } else {
+          reconstructed.push({ name: "", isExisting: false });
+        }
+      }
+      setSiblingDetails(reconstructed);
+    } else {
+      setSiblingDetails([]);
+    }
     setSiblingStudentIds(
       app.siblingStudentIds ||
         (app.siblingStudentId ? [app.siblingStudentId] : []),
@@ -574,6 +754,47 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return;
     }
 
+    if (hasSiblings) {
+      if (!siblingsCount || siblingsCount < 1) {
+        addToast("error", "Validation Error", "Number of siblings must be at least 1.");
+        return;
+      }
+      for (let i = 0; i < siblingDetails.length; i++) {
+        const entry = siblingDetails[i];
+        if (entry.isExisting) {
+          if (!entry.studentId) {
+            addToast("error", "Validation Error", `Please select an existing student for Sibling ${i + 1}.`);
+            return;
+          }
+        } else {
+          if (!entry.name || !entry.name.trim()) {
+            addToast("error", "Validation Error", `Please enter a name for Sibling ${i + 1}.`);
+            return;
+          }
+        }
+      }
+    }
+
+    if (formData.discountId) {
+      const selDisc = discounts.find((d) => d.id === formData.discountId);
+      if (selDisc && isSiblingConcession(selDisc.name) && !hasExistingEnrolledSibling) {
+        addToast("error", "Validation Error", "Sibling Concession can only be applied if an existing enrolled sibling is selected.");
+        return;
+      }
+    }
+
+    if (formData.scholarshipId) {
+      const selSch = scholarships.find((s) => s.id === formData.scholarshipId);
+      if (selSch && isSiblingConcession(selSch.name) && !hasExistingEnrolledSibling) {
+        addToast("error", "Validation Error", "Sibling Concession can only be applied if an existing enrolled sibling is selected.");
+        return;
+      }
+    }
+
+    const selectedStudentIds = hasSiblings
+      ? (siblingDetails.map((d) => d.studentId).filter(Boolean) as string[])
+      : [];
+
     const fullApplicantName = `${firstName.trim()} ${lastName.trim()}`;
 
     if (editingApp) {
@@ -582,6 +803,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         dob: finalDob,
         applicantName: fullApplicantName,
         avatar,
+        hasSiblings,
+        siblingsCount: hasSiblings ? siblingsCount : 0,
+        siblingDetails: hasSiblings ? siblingDetails : [],
+        siblingStudentId: selectedStudentIds[0] || "",
+        siblingStudentIds: selectedStudentIds,
       });
       addToast(
         "success",
@@ -611,8 +837,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         addressDistrict: formData.addressDistrict,
         addressState: formData.addressState,
         addressPinCode: formData.addressPinCode,
-        siblingsCount: formData.siblingsCount || 0,
-        siblingStudentId: formData.siblingStudentId,
+        hasSiblings,
+        siblingsCount: hasSiblings ? siblingsCount : 0,
+        siblingDetails: hasSiblings ? siblingDetails : [],
+        siblingStudentId: selectedStudentIds[0] || "",
+        siblingStudentIds: selectedStudentIds,
         studentType: formData.studentType as StudentType,
         transportRequired: formData.transportRequired,
         transportType: formData.transportType,
@@ -1296,17 +1525,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setIsMidYearFeeModalOpen(true)}
-                        className="w-full p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 flex items-center justify-between hover:bg-amber-100/70 transition-all cursor-pointer shadow-xs"
+                        className="w-full p-2.5 rounded-xl bg-sky-50/80 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 flex items-center justify-between hover:bg-sky-100/70 dark:hover:bg-sky-900/50 transition-all cursor-pointer shadow-xs"
                       >
                         <div className="text-left">
-                          <span className="block font-extrabold text-amber-900 dark:text-amber-200 text-xs">
+                          <span className="block font-extrabold text-sky-900 dark:text-sky-200 text-xs">
                             Fee Calculation Method (Late Admission) *
                           </span>
-                          <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400">
+                          <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
                             {formData.feeCalculationMethod || "Term-wise"}
                           </span>
                         </div>
-                        <span className="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] transition-colors">
+                        <span className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-[11px] transition-colors shadow-xs">
                           Configure
                         </span>
                       </button>
@@ -1316,52 +1545,69 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                 {/* Popup Modal for Late Admission Fee Calculation */}
                 {isMidYearFeeModalOpen && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-                    <div className="w-full max-w-lg bg-amber-50/95 dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-                      <div className="flex items-center justify-between pb-3 border-b border-amber-200/80 dark:border-amber-800">
-                        <h3 className="font-extrabold text-amber-900 dark:text-amber-200 text-base">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+                    <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95 text-slate-900 dark:text-white">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                        <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                           Fee Calculation Method (Late Admission) *
                         </h3>
-                        <span className="text-xs font-bold px-3 py-1 rounded-xl bg-amber-200/80 dark:bg-amber-900 text-amber-900 dark:text-amber-200 font-mono shadow-xs">
-                          Date: {formatToDDMMYYYY(formData.joiningDate || formData.admissionDate || "", "-")}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsMidYearFeeModalOpen(false)}
+                          className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors rounded-lg cursor-pointer"
+                          title="Close"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
                       </div>
 
-                      <div className="space-y-4 pt-1">
-                        <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800 border-amber-200 hover:border-amber-400">
+                      <div className="space-y-3.5 pt-1">
+                        <label
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                            formData.feeCalculationMethod === "Monthly"
+                              ? "bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs"
+                              : "bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300"
+                          }`}
+                        >
                           <input
                             type="radio"
                             name="popupMidYearMethod"
                             value="Monthly"
                             checked={formData.feeCalculationMethod === "Monthly"}
                             onChange={() => setFormData({ ...formData, feeCalculationMethod: "Monthly" })}
-                            className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                            className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
-                          <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                          <span className="font-extrabold text-xs">
                             Monthly (Calculate from admission month to year-end)
                           </span>
                         </label>
 
-                        <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800 border-amber-200 hover:border-amber-400">
+                        <label
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
+                            formData.feeCalculationMethod === "Term-wise" || !formData.feeCalculationMethod
+                              ? "bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs"
+                              : "bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300"
+                          }`}
+                        >
                           <input
                             type="radio"
                             name="popupMidYearMethod"
                             value="Term-wise"
                             checked={formData.feeCalculationMethod === "Term-wise" || !formData.feeCalculationMethod}
                             onChange={() => setFormData({ ...formData, feeCalculationMethod: "Term-wise" })}
-                            className="w-4 h-4 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                            className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
-                          <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                          <span className="font-extrabold text-xs">
                             Term-wise (Calculate from applicable term/quarter)
                           </span>
                         </label>
                       </div>
 
-                      <div className="flex justify-end pt-2">
+                      <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
                         <button
                           type="button"
                           onClick={() => setIsMidYearFeeModalOpen(false)}
-                          className="px-6 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-lg shadow-amber-600/20 transition-all cursor-pointer"
+                          className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 transition-all cursor-pointer"
                         >
                           Confirm & Apply Method
                         </button>
@@ -1614,214 +1860,207 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   <Users className="w-4 h-4" /> 4. Sibling Information
                 </h4>
 
-                <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
+                <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-4 animate-in fade-in">
+                  {/* 1. First Question */}
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs">
-                      Existing Sibling(s) Enrolled in School?
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                      Any siblings?
                     </span>
-                    <div className="flex gap-4 font-bold text-xs text-slate-900 dark:text-white">
-                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                    <div className="flex gap-5 font-bold text-xs text-slate-900 dark:text-white">
+                      <label className="flex items-center gap-2 cursor-pointer hover:text-sky-600 transition-colors">
                         <input
                           type="radio"
                           name="hasSiblingsRadio"
                           checked={hasSiblings === true}
-                          onChange={() => {
-                            setHasSiblings(true);
-                            if (!formData.siblingsCount) {
-                              setFormData((prev) => ({
-                                ...prev,
-                                siblingsCount: 1,
-                              }));
-                            }
-                          }}
-                          className="w-4 h-4 text-sky-600 focus:ring-sky-500"
+                          onChange={() => handleHasSiblingsChange(true)}
+                          className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                         />
                         Yes
                       </label>
-                      <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                      <label className="flex items-center gap-2 cursor-pointer hover:text-sky-600 transition-colors">
                         <input
                           type="radio"
                           name="hasSiblingsRadio"
                           checked={hasSiblings === false}
-                          onChange={() => {
-                            setHasSiblings(false);
-                            setFormData((prev) => ({
-                              ...prev,
-                              siblingsCount: 0,
-                              siblingStudentId: "",
-                            }));
-                            setSiblingSearchQuery("");
-                            setIsSiblingDropdownOpen(false);
-                          }}
-                          className="w-4 h-4 text-sky-600 focus:ring-sky-500"
+                          onChange={() => handleHasSiblingsChange(false)}
+                          className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                         />
                         No
                       </label>
                     </div>
                   </div>
 
+                  {/* 2 & 3. Display when Yes is selected */}
                   {hasSiblings && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-sky-100 dark:border-sky-900/40">
-                      <div>
-                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Number of Siblings
+                    <div className="space-y-4 pt-3 border-t border-sky-100 dark:border-sky-900/40">
+                      <div className="max-w-xs">
+                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                          Number of Siblings *
                         </label>
                         <input
                           type="number"
-                          min={0}
-                          placeholder="e.g. 1"
-                          value={
-                            formData.siblingsCount === undefined ||
-                            formData.siblingsCount === 0
-                              ? ""
-                              : formData.siblingsCount
-                          }
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === "") {
-                              setFormData((prev) => ({
-                                ...prev,
-                                siblingsCount: 0,
-                              }));
-                            } else {
-                              const parsed = parseInt(val, 10);
-                              setFormData((prev) => ({
-                                ...prev,
-                                siblingsCount: isNaN(parsed)
-                                  ? 0
-                                  : Math.max(0, parsed),
-                              }));
+                          min={1}
+                          value={siblingsCount === 0 ? "" : siblingsCount}
+                          onChange={(e) => handleSiblingsCountChange(e.target.value)}
+                          onBlur={() => {
+                            if (!siblingsCount || siblingsCount < 1) {
+                              handleSiblingsCountChange("1");
                             }
                           }}
-                          className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+                          placeholder="e.g. 1"
+                          className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-sky-500"
                         />
                       </div>
-                      <div>
-                        <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Existing Student Sibling (Optional)
-                        </label>
-                        <div className="relative">
-                          {/* Trigger Button */}
+
+                      {/* Dynamic Sibling Cards */}
+                      <div className="space-y-3 pt-1">
+                        {siblingDetails.map((entry, idx) => (
                           <div
-                            onClick={() =>
-                              setIsSiblingDropdownOpen(!isSiblingDropdownOpen)
-                            }
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none text-xs cursor-pointer flex justify-between items-center pr-10"
+                            key={idx}
+                            className="p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs"
                           >
-                            <span className="truncate">
-                              {getSiblingTriggerText()}
-                            </span>
-                          </div>
-                          {siblingStudentIds.length > 0 ||
-                          formData.siblingStudentId ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSiblingStudentIds([]);
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  siblingStudentId: "",
-                                  siblingStudentIds: [],
-                                }));
-                                setSiblingSearchQuery("");
-                                setIsSiblingDropdownOpen(false);
-                              }}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer z-10"
-                              title="Clear Sibling Selection"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                          )}
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                              <span className="font-extrabold text-xs text-sky-700 dark:text-sky-400">
+                                Sibling {idx + 1}
+                              </span>
+                            </div>
 
-                          {/* Dropdown Card */}
-                          {isSiblingDropdownOpen && (
-                            <>
-                              {/* Click away backdrop */}
-                              <div
-                                className="fixed inset-0 z-40"
-                                onClick={() => setIsSiblingDropdownOpen(false)}
-                              />
-
-                              <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 space-y-2">
-                                {/* Search bar inside the dropdown */}
-                                <div className="relative">
-                                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                            {/* Is already enrolled? */}
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300 text-xs">
+                                Is this sibling already enrolled in this school?
+                              </span>
+                              <div className="flex gap-4 font-bold text-xs text-slate-900 dark:text-white">
+                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
                                   <input
-                                    type="text"
-                                    autoFocus
-                                    placeholder="Type student name to search..."
-                                    value={siblingSearchQuery}
-                                    onChange={(e) =>
-                                      setSiblingSearchQuery(e.target.value)
-                                    }
-                                    className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-brand-500 font-medium"
+                                    type="radio"
+                                    name={`siblingIsExisting_${idx}`}
+                                    checked={entry.isExisting === true}
+                                    onChange={() => handleSiblingIsExistingChange(idx, true)}
+                                    className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                                   />
-                                </div>
+                                  Yes
+                                </label>
+                                <label className="flex items-center gap-1.5 cursor-pointer hover:text-sky-600 transition-colors">
+                                  <input
+                                    type="radio"
+                                    name={`siblingIsExisting_${idx}`}
+                                    checked={entry.isExisting === false}
+                                    onChange={() => handleSiblingIsExistingChange(idx, false)}
+                                    className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                  />
+                                  No
+                                </label>
+                              </div>
+                            </div>
 
-                                {/* Filtered list with checkboxes */}
-                                <div className="max-h-48 overflow-y-auto space-y-1">
-                                  <div
+                            {/* If Existing = Yes: Searchable Existing Student Dropdown */}
+                            {entry.isExisting ? (
+                              <div>
+                                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                                  Select Existing Student *
+                                </label>
+                                <div className="relative">
+                                  <button
+                                    type="button"
                                     onClick={() => {
-                                      setSiblingStudentIds([]);
-                                      setFormData((prev) => ({
-                                        ...prev,
-                                        siblingStudentId: "",
-                                        siblingStudentIds: [],
-                                      }));
-                                      setIsSiblingDropdownOpen(false);
+                                      setActiveSiblingDropdownIdx(
+                                        activeSiblingDropdownIdx === idx ? null : idx
+                                      );
                                       setSiblingSearchQuery("");
                                     }}
-                                    className="px-2.5 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-md text-slate-500 font-bold text-xs"
+                                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs cursor-pointer flex justify-between items-center pr-10 font-bold text-left"
                                   >
-                                    Clear Selection
-                                  </div>
-                                  {filteredSiblingStudents.map((s) => {
-                                    const isChecked =
-                                      siblingStudentIds.includes(s.id) ||
-                                      formData.siblingStudentId === s.id;
-                                    return (
+                                    <span className="truncate">
+                                      {entry.studentId
+                                        ? `${entry.name} — ${entry.admissionNo || "Enrolled"}`
+                                        : "Search student name or admission no..."}
+                                    </span>
+                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                  </button>
+
+                                  {activeSiblingDropdownIdx === idx && (
+                                    <>
                                       <div
-                                        key={s.id}
-                                        onClick={() =>
-                                          handleToggleSibling(s.id)
-                                        }
-                                        className={`px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-lg text-xs font-bold flex items-center gap-2.5 transition-colors ${
-                                          isChecked
-                                            ? "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300"
-                                            : "text-slate-800 dark:text-slate-200"
-                                        }`}
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={isChecked}
-                                          onChange={() => {}}
-                                          className="w-4 h-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500 cursor-pointer shrink-0"
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                          <span className="truncate block font-bold">
-                                            {s.firstName} {s.lastName}
-                                          </span>
-                                          <span className="text-[10px] text-slate-400 font-normal">
-                                            Class {s.className} • Reg:{" "}
-                                            {s.admissionNo || "Enrolled"}
-                                          </span>
+                                        className="fixed inset-0 z-40"
+                                        onClick={() => setActiveSiblingDropdownIdx(null)}
+                                      />
+                                      <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 space-y-2">
+                                        <div className="relative">
+                                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                          <input
+                                            type="text"
+                                            autoFocus
+                                            placeholder="Search student name or admission no..."
+                                            value={siblingSearchQuery}
+                                            onChange={(e) => setSiblingSearchQuery(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 font-medium"
+                                          />
+                                        </div>
+
+                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                          {students
+                                            .filter((s) => {
+                                              if (!siblingSearchQuery.trim()) return true;
+                                              const q = siblingSearchQuery.toLowerCase();
+                                              return (
+                                                `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+                                                (s.admissionNo && s.admissionNo.toLowerCase().includes(q))
+                                              );
+                                            })
+                                            .map((s) => {
+                                              const isSelected = entry.studentId === s.id;
+                                              return (
+                                                <div
+                                                  key={s.id}
+                                                  onClick={() => handleSelectExistingStudent(idx, s)}
+                                                  className={`px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-lg text-xs font-bold flex items-center gap-2.5 transition-colors ${
+                                                    isSelected
+                                                      ? "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300"
+                                                      : "text-slate-800 dark:text-slate-200"
+                                                  }`}
+                                                >
+                                                  <input
+                                                    type="radio"
+                                                    name={`studentSelectRadio_${idx}`}
+                                                    checked={isSelected}
+                                                    onChange={() => {}}
+                                                    className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer shrink-0"
+                                                  />
+                                                  <div className="flex-1 min-w-0">
+                                                    <span className="truncate block font-bold">
+                                                      {s.firstName} {s.lastName} — {s.admissionNo || "ADM-N/A"}
+                                                    </span>
+                                                    <span className="text-[10px] text-slate-400 font-normal">
+                                                      Class {s.className} {s.section ? `(${s.section})` : ""}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
                                         </div>
                                       </div>
-                                    );
-                                  })}
-                                  {filteredSiblingStudents.length === 0 && (
-                                    <div className="px-2.5 py-2.5 text-slate-500 text-center text-xs font-medium">
-                                      No matching students found
-                                    </div>
+                                    </>
                                   )}
                                 </div>
                               </div>
-                            </>
-                          )}
-                        </div>
+                            ) : (
+                              /* If Existing = No: Manual Name Input */
+                              <div>
+                                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300 text-xs">
+                                  Sibling Name *
+                                </label>
+                                <input
+                                  type="text"
+                                  placeholder="Enter sibling name"
+                                  value={entry.name || ""}
+                                  onChange={(e) => handleSiblingNameChange(idx, e.target.value)}
+                                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -2186,53 +2425,75 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <div className="relative">
                         <select
                           value={formData.scholarshipId || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const selSch = scholarships.find((s) => s.id === val);
+                            if (selSch && isSiblingConcession(selSch.name) && !hasExistingEnrolledSibling) {
+                              addToast("warning", "Requirement Not Met", "Sibling Concession is only applicable when an existing enrolled sibling is selected.");
+                              return;
+                            }
                             setFormData({
                               ...formData,
-                              scholarshipId: e.target.value || undefined,
-                            })
-                          }
+                              scholarshipId: val || undefined,
+                            });
+                          }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                         >
                           <option value="">None</option>
-                          {scholarships.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name} (
-                              {s.discountType === "Percentage"
-                                ? `${s.percentage}%`
-                                : formatCurrency(s.fixedAmount || 0)}
-                              )
-                            </option>
-                          ))}
+                          {scholarships.map((s) => {
+                            const isSib = isSiblingConcession(s.name);
+                            const isDisabled = isSib && !hasExistingEnrolledSibling;
+                            return (
+                              <option key={s.id} value={s.id} disabled={isDisabled}>
+                                {s.name} (
+                                {s.discountType === "Percentage"
+                                  ? `${s.percentage}%`
+                                  : formatCurrency(s.fixedAmount || 0)}
+                                )
+                                {isDisabled ? " — [Requires Existing Enrolled Sibling]" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                     </div>
                     <div>
                       <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                        Discount
+                        Discount / Concession
                       </label>
                       <div className="relative">
                         <select
                           value={formData.discountId || ""}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const selDisc = discounts.find((d) => d.id === val);
+                            if (selDisc && isSiblingConcession(selDisc.name) && !hasExistingEnrolledSibling) {
+                              addToast("warning", "Requirement Not Met", "Sibling Concession is only applicable when an existing enrolled sibling is selected.");
+                              return;
+                            }
                             setFormData({
                               ...formData,
-                              discountId: e.target.value || undefined,
-                            })
-                          }
+                              discountId: val || undefined,
+                            });
+                          }}
                           className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
                         >
                           <option value="">None</option>
-                          {discounts.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.name} (
-                              {d.mode === "Percentage"
-                                ? `${d.value}%`
-                                : formatCurrency(d.value)}
-                              )
-                            </option>
-                          ))}
+                          {discounts.map((d) => {
+                            const isSib = isSiblingConcession(d.name);
+                            const isDisabled = isSib && !hasExistingEnrolledSibling;
+                            return (
+                              <option key={d.id} value={d.id} disabled={isDisabled}>
+                                {d.name} (
+                                {d.mode === "Percentage"
+                                  ? `${d.value}%`
+                                  : formatCurrency(d.value)}
+                                )
+                                {isDisabled ? " — [Requires Existing Enrolled Sibling]" : ""}
+                              </option>
+                            );
+                          })}
                         </select>
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>

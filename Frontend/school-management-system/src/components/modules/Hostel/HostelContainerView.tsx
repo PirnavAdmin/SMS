@@ -10,19 +10,31 @@ interface HostelContainerViewProps {
   onTabChange?: (tab: string) => void;
 }
 
-export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard' }) => {
-  const normalizedTab = initialTab.startsWith('hostel-') ? initialTab.replace('hostel-', '') : initialTab;
-  const [activeTab, setActiveTab] = useState(normalizedTab);
+export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
+  const getCleanTab = (tab: string) => {
+    let clean = tab.startsWith('hostel-') ? tab.replace('hostel-', '') : tab;
+    if (clean === 'room-allocation' || clean === 'room-allocations' || clean === 'allocation' || clean === 'allocations' || clean === 'student-room-allocation') {
+      return 'student-hostel';
+    }
+    return clean;
+  };
+
+  const [activeTab, setActiveTab] = useState(() => getCleanTab(initialTab));
 
   useEffect(() => {
-    const cleanTab = initialTab.startsWith('hostel-') ? initialTab.replace('hostel-', '') : initialTab;
-    setActiveTab(cleanTab);
+    setActiveTab(getCleanTab(initialTab));
   }, [initialTab]);
+
+  const handleNavigate = (tab: string) => {
+    const clean = getCleanTab(tab);
+    setActiveTab(clean);
+    if (onTabChange) onTabChange(tab);
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <HostelDashboardView />;
+        return <HostelDashboardView onNavigate={handleNavigate} />;
       case 'masters':
       case 'master':
       case 'blocks':
@@ -34,11 +46,16 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
       case 'student-assignment':
       case 'beds':
       case 'attendance':
+      case 'room-allocation':
+      case 'room-allocations':
+      case 'allocation':
+      case 'allocations':
+      case 'student-room-allocation':
         return <StudentHostelContainerView />;
       case 'reports':
         return <HostelReportsView />;
       default:
-        return <HostelDashboardView />;
+        return <HostelDashboardView onNavigate={handleNavigate} />;
     }
   };
 

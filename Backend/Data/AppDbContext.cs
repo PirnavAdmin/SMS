@@ -488,7 +488,7 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("id")
+                    .HasColumnName("ClassId")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
@@ -509,19 +509,19 @@ namespace SMS.Api.Data
                     .HasColumnName("DisplayOrder");
 
                 entity.Property(x => x.Status)
-                    .HasColumnName("status")
+                    .HasColumnName("Status")
                     .HasMaxLength(20)
                     .HasDefaultValue("Active");
 
                 entity.Property(x => x.Remarks)
-                    .HasColumnName("remarks");
+                    .HasColumnName("Remarks");
 
                 entity.Property(x => x.CreatedAt)
                     .HasColumnName("CreatedAt")
                     .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                 entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("updated_at");
+                    .HasColumnName("UpdatedAt");
             });
         }
 

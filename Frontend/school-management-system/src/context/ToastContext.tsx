@@ -12,7 +12,7 @@ interface Toast {
 }
 
 interface ToastContextType {
-  addToast: (type: ToastType, title: string, message?: string) => void;
+  addToast: (typeOrTitle: any, titleOrMessage?: any, message?: string) => void;
   removeToast: (id: string) => void;
 }
 
@@ -25,8 +25,26 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  const addToast = useCallback((type: ToastType, title: string, message?: string) => {
+  const addToast = useCallback((arg1: any, arg2?: any, arg3?: string) => {
     const id = Math.random().toString(36).substring(2, 9);
+    
+    let type: ToastType = 'info';
+    let title = '';
+    let message = arg3;
+
+    const validTypes: ToastType[] = ['success', 'error', 'warning', 'info'];
+
+    if (validTypes.includes(arg1 as ToastType)) {
+      type = arg1 as ToastType;
+      title = String(arg2 || '');
+    } else if (validTypes.includes(arg2 as ToastType)) {
+      type = arg2 as ToastType;
+      title = String(arg1 || '');
+    } else {
+      title = String(arg1 || '');
+      message = arg2 ? String(arg2) : undefined;
+    }
+
     setToasts(prev => [...prev, { id, type, title, message }]);
 
     setTimeout(() => {
@@ -41,24 +59,25 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
         {toasts.map(toast => {
-          const bgColors = {
+          const bgColors: Record<ToastType, string> = {
             success: 'bg-emerald-500 text-white',
             error: 'bg-rose-500 text-white',
             warning: 'bg-amber-500 text-white',
             info: 'bg-blue-500 text-white'
           };
-          const Icons = {
+          const Icons: Record<ToastType, React.FC<any>> = {
             success: CheckCircle2,
             error: XCircle,
             warning: AlertTriangle,
             info: Info
           };
-          const IconComponent = Icons[toast.type];
+          const IconComponent = Icons[toast.type] || Info;
+          const bgStyle = bgColors[toast.type] || 'bg-blue-500 text-white';
 
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl transition-all duration-300 animate-in slide-in-from-right ${bgColors[toast.type]}`}
+              className={`pointer-events-auto flex items-start gap-3 p-4 rounded-xl shadow-xl transition-all duration-300 animate-in slide-in-from-right ${bgStyle}`}
             >
               <IconComponent className="w-5 h-5 mt-0.5 shrink-0" />
               <div className="flex-1 text-sm">

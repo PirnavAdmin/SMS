@@ -58,6 +58,8 @@ export const RouteMasterView: React.FC = () => {
     minDistanceKm: undefined,
     minBaseFare: undefined,
     ratePerKm: undefined,
+    acMinBaseFare: undefined,
+    acRatePerKm: undefined,
     description: '',
     status: 'Active'
   });
@@ -81,6 +83,8 @@ export const RouteMasterView: React.FC = () => {
       minDistanceKm: undefined,
       minBaseFare: undefined,
       ratePerKm: undefined,
+      acMinBaseFare: undefined,
+      acRatePerKm: undefined,
       description: '',
       status: 'Active'
     });
@@ -94,6 +98,8 @@ export const RouteMasterView: React.FC = () => {
       minDistanceKm: r.minDistanceKm ?? 5,
       minBaseFare: r.minBaseFare ?? 1000,
       ratePerKm: r.ratePerKm ?? 100,
+      acMinBaseFare: r.acMinBaseFare ?? 1200,
+      acRatePerKm: r.acRatePerKm ?? 150,
     });
     setIsModalOpen(true);
   };
@@ -115,6 +121,8 @@ export const RouteMasterView: React.FC = () => {
       minDistanceKm: Number(form.minDistanceKm) || 5,
       minBaseFare: Number(form.minBaseFare) || 1000,
       ratePerKm: Number(form.ratePerKm) || 100,
+      acMinBaseFare: Number(form.acMinBaseFare) || 1200,
+      acRatePerKm: Number(form.acRatePerKm) || 150,
     };
 
     if (editingRoute) {
@@ -245,11 +253,18 @@ export const RouteMasterView: React.FC = () => {
                     <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><MapPin className="w-3 h-3 text-rose-500" /> Destination:</span> <span className="font-semibold text-slate-900 dark:text-white">{r.routeEnd}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-400">Total Distance:</span> <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{r.totalDistanceKm} KM</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-400 flex items-center gap-1"><Clock className="w-3 h-3" /> Est. Duration:</span> <span className="font-bold text-emerald-600 dark:text-emerald-400">{r.estimatedTimeMinutes} Mins</span></div>
-                    <div className="flex items-center justify-between p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60">
-                      <span className="text-[11px] font-bold text-sky-700 dark:text-sky-300">Rate Structure:</span>
-                      <span className="text-[11px] font-mono font-black text-sky-800 dark:text-sky-200">
-                        ₹{r.minBaseFare || 1000} (0-{r.minDistanceKm || 5} km) + ₹{r.ratePerKm || 100}/km
-                      </span>
+                    <div className="flex flex-col gap-1 p-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 text-[11px]">
+                      <div className="flex items-center justify-between font-bold text-sky-700 dark:text-sky-300">
+                        <span>Rate Structure (0-{r.minDistanceKm || 5} km):</span>
+                      </div>
+                      <div className="flex justify-between font-mono font-semibold text-sky-800 dark:text-sky-200">
+                        <span>Non-AC:</span>
+                        <span>₹{r.minBaseFare || 1000} + ₹{r.ratePerKm || 100}/km</span>
+                      </div>
+                      <div className="flex justify-between font-mono font-semibold text-sky-800 dark:text-sky-200">
+                        <span>AC:</span>
+                        <span>₹{r.acMinBaseFare || 1200} + ₹{r.acRatePerKm || 150}/km</span>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between"><span className="text-slate-400">Total Pickup Points:</span> <span className="font-bold text-sky-600 dark:text-sky-400">{routePickupPoints.length}</span></div>
                     <div className="flex items-center justify-between"><span className="text-slate-400">Assigned Bus:</span> <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{assignedBus}</span></div>
@@ -287,173 +302,210 @@ export const RouteMasterView: React.FC = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[90vh] space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {editingRoute ? 'Edit Route' : 'Create Route'}
               </h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400"><X className="w-5 h-5" /></button>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+ 
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 space-y-4 text-xs">
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">Route Code (Unique) *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. R-NORTH-101"
+                      value={form.routeCode || ''}
+                      onChange={e => setForm({ ...form, routeCode: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">Status</label>
+                    <select value={form.status || 'Active'} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white cursor-pointer">
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+ 
                 <div>
-                  <label className="block font-semibold mb-1">Route Code (Unique) *</label>
+                  <label className="block font-semibold mb-1">Route Name *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. R-NORTH-101"
-                    value={form.routeCode || ''}
-                    onChange={e => setForm({ ...form, routeCode: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white"
+                    placeholder="Enter route name..."
+                    value={form.routeName || ''}
+                    onChange={e => setForm({ ...form, routeName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                   />
                 </div>
-                <div>
-                  <label className="block font-semibold mb-1">Status</label>
-                  <select value={form.status || 'Active'} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white cursor-pointer">
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Route Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter route name..."
-                  value={form.routeName || ''}
-                  onChange={e => setForm({ ...form, routeName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Route Start</label>
-                  <input
-                    type="text"
-                    placeholder="Enter route start location..."
-                    value={form.routeStart || ''}
-                    onChange={e => setForm({ ...form, routeStart: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Route End</label>
-                  <input
-                    type="text"
-                    placeholder="Enter route end location..."
-                    value={form.routeEnd || ''}
-                    onChange={e => setForm({ ...form, routeEnd: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Total Distance (KM)</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="e.g. 18.5"
-                    value={form.totalDistanceKm !== undefined && form.totalDistanceKm !== null ? form.totalDistanceKm : ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                        setForm({ ...form, totalDistanceKm: val as any });
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Est Time (Minutes)</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="e.g. 45"
-                    value={form.estimatedTimeMinutes !== undefined && form.estimatedTimeMinutes !== null ? form.estimatedTimeMinutes : ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '' || /^\d*$/.test(val)) {
-                        setForm({ ...form, estimatedTimeMinutes: val as any });
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Distance-based Pricing Configuration */}
-              <div className="p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/60 space-y-2">
-                <p className="text-[11px] font-extrabold uppercase text-sky-700 dark:text-sky-300">Distance & Slab Rate Configuration</p>
-                <div className="grid grid-cols-3 gap-2">
+ 
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Min Range (KM)</label>
+                    <label className="block font-semibold mb-1">Route Start</label>
+                    <input
+                      type="text"
+                      placeholder="Enter route start location..."
+                      value={form.routeStart || ''}
+                      onChange={e => setForm({ ...form, routeStart: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1">Route End</label>
+                    <input
+                      type="text"
+                      placeholder="Enter route end location..."
+                      value={form.routeEnd || ''}
+                      onChange={e => setForm({ ...form, routeEnd: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+ 
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold mb-1">Total Distance (KM)</label>
                     <input
                       type="text"
                       inputMode="decimal"
-                      placeholder="e.g. 5"
-                      value={form.minDistanceKm !== undefined && form.minDistanceKm !== null ? form.minDistanceKm : ''}
+                      placeholder="e.g. 18.5"
+                      value={form.totalDistanceKm !== undefined && form.totalDistanceKm !== null ? form.totalDistanceKm : ''}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                          setForm({ ...form, minDistanceKm: val as any });
+                          setForm({ ...form, totalDistanceKm: val as any });
                         }
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Base Min Fare (₹)</label>
+                    <label className="block font-semibold mb-1">Est Time (Minutes)</label>
                     <input
                       type="text"
                       inputMode="numeric"
-                      placeholder="e.g. 1000"
-                      value={form.minBaseFare !== undefined && form.minBaseFare !== null ? form.minBaseFare : ''}
+                      placeholder="e.g. 45"
+                      value={form.estimatedTimeMinutes !== undefined && form.estimatedTimeMinutes !== null ? form.estimatedTimeMinutes : ''}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === '' || /^\d*$/.test(val)) {
-                          setForm({ ...form, minBaseFare: val as any });
+                          setForm({ ...form, estimatedTimeMinutes: val as any });
                         }
                       }}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Rate / Addl KM (₹)</label>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="e.g. 100"
-                      value={form.ratePerKm !== undefined && form.ratePerKm !== null ? form.ratePerKm : ''}
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === '' || /^\d*$/.test(val)) {
-                          setForm({ ...form, ratePerKm: val as any });
-                        }
-                      }}
-                      className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-sky-600 dark:text-sky-400"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono"
                     />
                   </div>
                 </div>
+ 
+                {/* Distance-based Pricing Configuration */}
+                <div className="p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/60 space-y-2">
+                  <p className="text-[11px] font-extrabold uppercase text-sky-700 dark:text-sky-300">Distance & Slab Rate Configuration</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Min Range (KM)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="e.g. 5"
+                        value={form.minDistanceKm !== undefined && form.minDistanceKm !== null ? form.minDistanceKm : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                            setForm({ ...form, minDistanceKm: val as any });
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Non-AC Base Fare (₹)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="e.g. 1000"
+                        value={form.minBaseFare !== undefined && form.minBaseFare !== null ? form.minBaseFare : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setForm({ ...form, minBaseFare: val as any });
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Non-AC Rate/Addl KM</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="e.g. 100"
+                        value={form.ratePerKm !== undefined && form.ratePerKm !== null ? form.ratePerKm : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setForm({ ...form, ratePerKm: val as any });
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-sky-600 dark:text-sky-400"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-sky-100/50 dark:border-sky-900/30">
+                    <div className="invisible"></div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">AC Base Fare (₹)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="e.g. 1200"
+                        value={form.acMinBaseFare !== undefined && form.acMinBaseFare !== null ? form.acMinBaseFare : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setForm({ ...form, acMinBaseFare: val as any });
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">AC Rate/Addl KM (₹)</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="e.g. 150"
+                        value={form.acRatePerKm !== undefined && form.acRatePerKm !== null ? form.acRatePerKm : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setForm({ ...form, acRatePerKm: val as any });
+                          }
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border text-xs font-mono font-bold text-sky-600 dark:text-sky-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+ 
+                <div>
+                  <label className="block font-semibold mb-1">Description</label>
+                  <input
+                    type="text"
+                    placeholder="Enter route description..."
+                    value={form.description || ''}
+                    onChange={e => setForm({ ...form, description: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Description</label>
-                <input
-                  type="text"
-                  placeholder="Enter route description..."
-                  value={form.description || ''}
-                  onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+ 
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
                 <button type="submit" className="px-5 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer">Save</button>
               </div>

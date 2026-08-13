@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers, Plus, Search, Trash2, Edit, X, ArrowRight, UserCheck, Users,
   Bus, Route, History, Eye
@@ -110,7 +110,7 @@ export const VehicleAssignmentView: React.FC = () => {
     removeVehicleAssignment,
     updateVehicleAssignment
   } = useData();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
@@ -128,8 +128,8 @@ export const VehicleAssignmentView: React.FC = () => {
   const [assignmentLogs, setAssignmentLogs] = useState<VehicleAssignmentLogItem[]>(initialAssignmentLogs);
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [form, setForm] = useState<AssignmentFormState>({
-    branch: selectedBranch || 'Main Campus',
-    academicYear: getCurrentAcademicYear(),
+    branch: (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus',
+    academicYear: selectedAcademicYear || getCurrentAcademicYear(),
     vehicleId: '',
     routeId: '',
     driverId: '',
@@ -139,6 +139,18 @@ export const VehicleAssignmentView: React.FC = () => {
     effectiveFrom: new Date().toISOString().split('T')[0],
     status: 'Active'
   });
+
+  useEffect(() => {
+    if (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') {
+      setForm(prev => ({ ...prev, branch: selectedBranch }));
+    }
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    if (selectedAcademicYear) {
+      setForm(prev => ({ ...prev, academicYear: selectedAcademicYear }));
+    }
+  }, [selectedAcademicYear]);
 
   const hasFilterSelection = routeFilter !== '' || query.trim() !== '';
 
@@ -336,9 +348,12 @@ export const VehicleAssignmentView: React.FC = () => {
     const assignedStudents = studentTransports.filter(st => st.routeId === route.id || st.routeName === route.routeName).length;
     const gpsStatus: 'Online' | 'Offline' = vehicle.gpsDeviceId ? 'Online' : 'Offline';
 
+    const activeBranch = (selectedBranch && selectedBranch !== 'All Branches' && selectedBranch !== 'All Campuses') ? selectedBranch : 'Main Campus';
+    const activeAY = selectedAcademicYear || getCurrentAcademicYear();
+
     const payload: Omit<VehicleAssignment, 'id'> = {
-      branch: form.branch,
-      academicYear: form.academicYear,
+      branch: activeBranch,
+      academicYear: activeAY,
       vehicleId: vehicle.id,
       vehicleNumber: vehicle.vehicleNumber,
       routeId: route.id,
@@ -369,8 +384,8 @@ export const VehicleAssignmentView: React.FC = () => {
           driverName: driver.driverName,
           attendantName,
           routeName: route.routeName,
-          branch: form.branch,
-          academicYear: form.academicYear,
+          branch: activeBranch,
+          academicYear: activeAY,
           effectiveFrom: form.effectiveFrom,
           status: 'Active' as const
         },
@@ -400,8 +415,8 @@ export const VehicleAssignmentView: React.FC = () => {
           driverName: driver.driverName,
           attendantName,
           routeName: route.routeName,
-          branch: form.branch,
-          academicYear: form.academicYear,
+          branch: activeBranch,
+          academicYear: activeAY,
           effectiveFrom: form.effectiveFrom,
           status: 'Active' as const
         }
@@ -419,8 +434,8 @@ export const VehicleAssignmentView: React.FC = () => {
         driverName: driver.driverName,
         attendantName,
         routeName: route.routeName,
-        branch: form.branch,
-        academicYear: form.academicYear,
+        branch: activeBranch,
+        academicYear: activeAY,
         effectiveFrom: form.effectiveFrom,
         status: 'Active' as const
       },
@@ -761,9 +776,7 @@ export const VehicleAssignmentView: React.FC = () => {
                   {modalMode === 'edit' && 'Edit Vehicle Assignment'}
                   {modalMode === 'reassign' && 'Reassign Vehicle'}
                 </h3>
-                <p className="text-[11px] text-slate-500">
-                  Assign branch, route, bus, driver, attendant, and trip timings in one place.
-                </p>
+                
               </div>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">
                 <X className="w-5 h-5" />
@@ -771,27 +784,6 @@ export const VehicleAssignmentView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-              <div>
-                <label className="block font-semibold mb-1">Branch *</label>
-                <select
-                  value={form.branch}
-                  onChange={e => setForm(prev => ({ ...prev, branch: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                >
-                  {branchOptions.map(branch => <option key={branch} value={branch}>{branch}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Academic Year *</label>
-                <select
-                  value={form.academicYear}
-                  onChange={e => setForm(prev => ({ ...prev, academicYear: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                >
-                  {academicYearOptions.map(year => <option key={year} value={year}>{year}</option>)}
-                </select>
-              </div>
 
               <div>
                 <label className="block font-semibold mb-1">Select Route *</label>
