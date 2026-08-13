@@ -3480,7 +3480,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const assignments = extractData(results[4]);
         const maintenance = extractData(results[5]);
 
-        if (routes) setRouteMasters(routes);
+        if (routes) {
+          const mergedRoutes = routes.map((r: any) => {
+            const stored = localStorage.getItem(`route_slab_${r.id}`);
+            if (stored) {
+              try {
+                const parsed = JSON.parse(stored);
+                return {
+                  ...r,
+                  minDistanceKm: parsed.minDistanceKm ?? r.minDistanceKm,
+                  minBaseFare: parsed.minBaseFare ?? r.minBaseFare,
+                  ratePerKm: parsed.ratePerKm ?? r.ratePerKm,
+                  acMinBaseFare: parsed.acMinBaseFare ?? r.acMinBaseFare,
+                  acRatePerKm: parsed.acRatePerKm ?? r.acRatePerKm,
+                };
+              } catch (e) {
+                console.error(e);
+              }
+            }
+            return r;
+          });
+          const validRoutes = mergedRoutes.filter((r: any) => r.routeName && r.routeName.trim() !== "" && r.routeName.toUpperCase() !== "N/A");
+          setRouteMasters(validRoutes);
+        }
         if (points) setPickupPoints(points);
         if (vehicles) setVehicleMasters(vehicles);
         if (drivers) setDriverMasters(drivers);
@@ -3647,7 +3669,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const data: any = await fetchAcademicSubjectsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
-      if (Array.isArray(dataArray) && dataArray.length > 0) {
+      if (Array.isArray(dataArray)) {
         const mappedData = dataArray.map((item: any) => ({
           id:
             item.subjectId?.toString() ||
@@ -3670,7 +3692,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const data: any = await fetchAcademicPeriodsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
-      if (Array.isArray(dataArray) && dataArray.length > 0) {
+      if (Array.isArray(dataArray)) {
         const mappedData: PeriodSetting[] = dataArray.map((item: any) => ({
           id:
             item.periodId?.toString() ||
@@ -3858,7 +3880,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
+      if (Array.isArray(items)) {
         const mapped = items.map((s: any) => ({
           id: s.studentId?.toString() || s.id?.toString() || "",
           admissionNo: s.admissionNo || "",
@@ -3990,7 +4012,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) setHolidays(items);
+      if (Array.isArray(items)) setHolidays(items);
     } catch (err) {
       console.warn("Failed to fetch holidays from API", err);
     }
@@ -8366,10 +8388,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         backendData.routeId ||
         "RM-" + Math.floor(100 + Math.random() * 900)
       ).toString();
+      
+      localStorage.setItem(`route_slab_${id}`, JSON.stringify({
+        minDistanceKm: r.minDistanceKm ?? 5,
+        minBaseFare: r.minBaseFare ?? 1000,
+        ratePerKm: r.ratePerKm ?? 100,
+        acMinBaseFare: r.acMinBaseFare ?? 1200,
+        acRatePerKm: r.acRatePerKm ?? 150
+      }));
+
       const newRoute: RouteMaster = {
         ...r,
         ...backendData,
         id,
+        minDistanceKm: r.minDistanceKm ?? 5,
+        minBaseFare: r.minBaseFare ?? 1000,
+        ratePerKm: r.ratePerKm ?? 100,
+        acMinBaseFare: r.acMinBaseFare ?? 1200,
+        acRatePerKm: r.acRatePerKm ?? 150,
         branch: (r as any).branch || selectedBranch || "Main Campus",
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
@@ -8380,9 +8416,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
       const id = "RM-" + Math.floor(100 + Math.random() * 900);
+      
+      localStorage.setItem(`route_slab_${id}`, JSON.stringify({
+        minDistanceKm: r.minDistanceKm ?? 5,
+        minBaseFare: r.minBaseFare ?? 1000,
+        ratePerKm: r.ratePerKm ?? 100,
+        acMinBaseFare: r.acMinBaseFare ?? 1200,
+        acRatePerKm: r.acRatePerKm ?? 150
+      }));
+
       const newRoute: RouteMaster = {
         ...r,
         id,
+        minDistanceKm: r.minDistanceKm ?? 5,
+        minBaseFare: r.minBaseFare ?? 1000,
+        ratePerKm: r.ratePerKm ?? 100,
+        acMinBaseFare: r.acMinBaseFare ?? 1200,
+        acRatePerKm: r.acRatePerKm ?? 150,
         branch: (r as any).branch || selectedBranch || "Main Campus",
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
@@ -8417,12 +8467,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         payload.status = updates.status === "Active";
 
       await TransportAPI.updateRouteApi(id, payload);
+      
+      const currentStored = localStorage.getItem(`route_slab_${id}`);
+      let parsed = { minDistanceKm: 5, minBaseFare: 1000, ratePerKm: 100, acMinBaseFare: 1200, acRatePerKm: 150 };
+      if (currentStored) {
+        try { parsed = JSON.parse(currentStored); } catch {}
+      }
+      localStorage.setItem(`route_slab_${id}`, JSON.stringify({
+        minDistanceKm: updates.minDistanceKm !== undefined ? updates.minDistanceKm : parsed.minDistanceKm,
+        minBaseFare: updates.minBaseFare !== undefined ? updates.minBaseFare : parsed.minBaseFare,
+        ratePerKm: updates.ratePerKm !== undefined ? updates.ratePerKm : parsed.ratePerKm,
+        acMinBaseFare: updates.acMinBaseFare !== undefined ? updates.acMinBaseFare : parsed.acMinBaseFare,
+        acRatePerKm: updates.acRatePerKm !== undefined ? updates.acRatePerKm : parsed.acRatePerKm
+      }));
+
       setRouteMasters((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...updates } : r)),
       );
       logActivity("Updated Transport Route", `Updated Route ID ${id}`);
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
+      
+      const currentStored = localStorage.getItem(`route_slab_${id}`);
+      let parsed = { minDistanceKm: 5, minBaseFare: 1000, ratePerKm: 100, acMinBaseFare: 1200, acRatePerKm: 150 };
+      if (currentStored) {
+        try { parsed = JSON.parse(currentStored); } catch {}
+      }
+      localStorage.setItem(`route_slab_${id}`, JSON.stringify({
+        minDistanceKm: updates.minDistanceKm !== undefined ? updates.minDistanceKm : parsed.minDistanceKm,
+        minBaseFare: updates.minBaseFare !== undefined ? updates.minBaseFare : parsed.minBaseFare,
+        ratePerKm: updates.ratePerKm !== undefined ? updates.ratePerKm : parsed.ratePerKm,
+        acMinBaseFare: updates.acMinBaseFare !== undefined ? updates.acMinBaseFare : parsed.acMinBaseFare,
+        acRatePerKm: updates.acRatePerKm !== undefined ? updates.acRatePerKm : parsed.acRatePerKm
+      }));
+
       setRouteMasters((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...updates } : r)),
       );
