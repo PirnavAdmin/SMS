@@ -957,6 +957,8 @@ interface DataContextType {
     year: number,
     department?: string,
   ) => Promise<void>;
+  lastAttendancePayload?: any;
+  lastAttendanceResponse?: any;
 
   exams: ExamSetup[];
   examMarks: ExamMark[];
@@ -2445,6 +2447,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [attendance, setAttendance] = useState<DailyAttendance[]>(() =>
     getStored("attendance", []),
   );
+  const [lastAttendancePayload, setLastAttendancePayload] = useState<any>(null);
+  const [lastAttendanceResponse, setLastAttendanceResponse] = useState<any>(null);
   const [exams, setExams] = useState<ExamSetup[]>(() => {
     const stored = getStored<ExamSetup[]>("exams", initialExamSetups);
     return stored.length === 0 ? initialExamSetups : stored;
@@ -3020,6 +3024,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       JSON.stringify(academicClasses),
     );
   }, [academicClasses]);
+  useEffect(() => {
+    localStorage.setItem("edu_db_attendance", JSON.stringify(attendance));
+  }, [attendance]);
   useEffect(() => {
     localStorage.setItem("edu_db_subjects", JSON.stringify(subjects));
   }, [subjects]);
@@ -3681,7 +3688,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               sections: c.sections?.map((s: any) => s.sectionName || s) || [],
               sectionTeachers: localCls?.sectionTeachers || c.sectionTeachers || {},
               teacher: localCls?.teacher || c.teacher || "Unassigned",
-              subjects: c.subjects || [],
+              subjects: c.curriculumSubjects || c.subjects || [],
               weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
               sectionDetails: localCls?.sectionDetails || c.sectionDetails || {},
             };
@@ -3874,6 +3881,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const response = await fetchStaffApi();
       if (response && response.success && response.data) {
+        console.log("DEBUG: fetchStaff response data:", response.data);
         const mappedStaff: Staff[] = response.data.map((item: any) => {
           const cat = (item.employeeCategory || "").toLowerCase();
           const isTeaching =
@@ -3882,8 +3890,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             cat.includes("faculty") ||
             cat.includes("professor");
           return {
-            id: item.staffId.toString(),
-            empId: item.employeeId,
+            id: item.staffId?.toString() || item.id?.toString() || "",
+            empId: item.empId || item.employeeId || "",
             employeeCategory: isTeaching ? "Teacher" : "Staff",
             firstName: item.firstName,
             middleName: item.middleName || "",
@@ -4544,7 +4552,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setStaff((prev) =>
             prev.map((s) =>
               s.empId === newStaff.empId
-                ? { ...s, id: response.data.staffId.toString() }
+                ? { ...s, id: response.data.staffId?.toString() || s.id }
                 : s,
             ),
           );
@@ -9983,12 +9991,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const response = await fetchDailyStaffAttendanceApi(date, department);
         if (response && response.success && response.data) {
+          console.log("DEBUG: fetchDailyAttendance response data:", response.data);
           const mappedRecords: DailyAttendance[] = response.data.map(
             (item: any) => ({
-              id: item.staffAttendanceId.toString(),
+              id: item.staffAttendanceId?.toString() || item.id?.toString() || Math.random().toString(),
               date: item.date,
               entityType: "Staff",
-              entityId: item.staffId.toString(),
+              entityId: item.staffId?.toString() || item.id?.toString() || "",
               status: item.status,
               remarks: item.remarks || "",
               inTime: item.inTime || "",
@@ -10022,10 +10031,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (response && response.success && response.data) {
           const mappedRecords: DailyAttendance[] = response.data.map(
             (item: any) => ({
-              id: item.staffAttendanceId.toString(),
+              id: item.staffAttendanceId?.toString() || item.id?.toString() || Math.random().toString(),
               date: item.date,
               entityType: "Staff",
-              entityId: item.staffId.toString(),
+              entityId: item.staffId?.toString() || item.id?.toString() || "",
               status: item.status,
               remarks: item.remarks || "",
               inTime: item.inTime || "",
@@ -10069,21 +10078,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const date = records[0]?.date;
       if (!date) return false;
 
-      const payload = {
-        date: date,
-        academicYear: selectedAcademicYear || "2026-2027",
-        branch: selectedBranch || "Main Campus",
-        department: records[0]?.department || "",
-        records: records.map((r) => ({
-          staffId: parseInt(r.entityId),
-          status: r.status,
-          remarks: r.remarks || "",
-          inTime: r.inTime || "",
-          outTime: r.outTime || "",
-        })),
-      };
+      if (records[0]?.entityType === "Staff") {
+        const recordsByDept: Record<string, DailyAttendance[]> = {};
+        records.forEach((r) => {
+          const dept = r.department || "General";
+          if (!recordsByDept[dept]) {
+            recordsByDept[dept] = [];
+          }
+          recordsByDept[dept].push(r);
+        });
 
-      await markBulkStaffAttendanceApi(payload);
+        console.log("DEBUG: markAttendance records input:", records);
+        setLastAttendancePayload(recordsByDept);
+
+        const savePromises = Object.entries(recordsByDept).map(async ([dept, deptRecords]) => {
+          const payload = {
+            date: date,
+            academicYear: selectedAcademicYear || "2026-2027",
+            branch: selectedBranch || "Main Campus",
+            department: dept,
+            records: deptRecords.map((r) => ({
+              staffId: parseInt(r.entityId),
+              status: r.status,
+              remarks: r.remarks || "",
+              inTime: r.inTime || "",
+              outTime: r.outTime || "",
+            })),
+          };
+          console.log(`DEBUG: markAttendance payload for department ${dept}:`, payload);
+          const res = await markBulkStaffAttendanceApi(payload);
+          console.log(`DEBUG: response for department ${dept}:`, res);
+          return res;
+        });
+
+        const responses = await Promise.all(savePromises);
+        setLastAttendanceResponse(responses);
+      }
       return true;
     } catch (err: any) {
       console.error("Error saving staff attendance to server:", err);
@@ -11091,10 +11121,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await fetchLeaveApplicationsApi();
       if (response && response.success && response.data) {
         const mapped: LeaveApplication[] = response.data.map((item: any) => ({
-          id: item.leaveApplicationId.toString(),
-          employeeId: item.staffId.toString(),
+          id: item.leaveApplicationId?.toString() || item.id?.toString() || "",
+          employeeId: item.staffId?.toString() || item.id?.toString() || "",
           employeeName: item.staffName,
-          empId: item.employeeId,
+          empId: item.empId || item.employeeId,
           department: item.department || "Administration",
           designation: item.designation || "Staff",
           branch: item.branch || "Main Campus",
@@ -11127,7 +11157,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         setStaff((prevStaff) =>
           prevStaff.map((s) => {
             const bal = response.data.find(
-              (item: any) => item.staffId.toString() === s.id,
+              (item: any) => item.staffId?.toString() === s.id,
             );
             if (bal) {
               return {
@@ -12520,6 +12550,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         markAttendance,
         fetchDailyAttendance,
         fetchMonthlyAttendance,
+        lastAttendancePayload,
+        lastAttendanceResponse,
         exams: filteredExams,
         examMarks,
         addExam,

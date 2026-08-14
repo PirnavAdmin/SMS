@@ -54,6 +54,8 @@ export const StaffAttendanceView: React.FC = () => {
     schoolProfile,
     fetchDailyAttendance,
     fetchMonthlyAttendance,
+    lastAttendancePayload,
+    lastAttendanceResponse,
   } = useData();
   const { addToast } = useToast();
   const { user, role } = useAuth();
@@ -70,7 +72,7 @@ export const StaffAttendanceView: React.FC = () => {
     userRole,
   );
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Date().toLocaleDateString('en-CA');
 
   const isPersonalView =
     userRole === "teacher" ||
@@ -1247,6 +1249,14 @@ export const StaffAttendanceView: React.FC = () => {
     fetchMonthlyAttendance,
   ]);
 
+  // Stable hash representation of relevant recorded attendance items to prevent unnecessary reset of edited state maps
+  const attendanceHash = useMemo(() => {
+    const relevant = (attendance || []).filter(
+      (r) => r.entityType === "Staff" && r.date === attendanceDate,
+    );
+    return JSON.stringify(relevant);
+  }, [attendance, attendanceDate]);
+
   // Populate / Sync local attendance maps whenever attendanceDate or staff changes
   useEffect(() => {
     const newStatusMap: typeof attendanceMap = {};
@@ -1298,7 +1308,7 @@ export const StaffAttendanceView: React.FC = () => {
     setOutTimeMap(newOutTimeMap);
     setRemarksMap(newRemarksMap);
     setOverrideLeaveSet(new Set());
-  }, [attendanceDate, staff, attendance, leaveApplications]);
+  }, [attendanceDate, staff, attendanceHash, leaveApplications]);
 
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
@@ -1517,7 +1527,13 @@ export const StaffAttendanceView: React.FC = () => {
       if (!confirmOverwrite) return;
     }
 
-    const recordsToSave: DailyAttendance[] = currentTabStaffList.map((s) => ({
+    const activeStaffCategoryList = staff.filter((s) => {
+      const isTeacher = isTeachingStaff(s);
+      const isCorrectCategory = activeTab === "teaching" ? isTeacher : !isTeacher;
+      return isCorrectCategory && s.status !== "Inactive";
+    });
+
+    const recordsToSave: DailyAttendance[] = activeStaffCategoryList.map((s) => ({
       date: attendanceDate,
       entityType: "Staff",
       entityId: s.id,
@@ -2583,6 +2599,8 @@ export const StaffAttendanceView: React.FC = () => {
             </div>
           </div>
         )}
+
+
     </div>
   );
 };

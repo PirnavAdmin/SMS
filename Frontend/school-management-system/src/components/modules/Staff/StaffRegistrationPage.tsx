@@ -84,7 +84,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     }
 
     // Duplicate Staff ID Check
-    if (form.empId && staff.some(s => s.empId.toLowerCase() === form.empId.toLowerCase())) {
+    if (form.empId && staff.some(s => s.empId && s.empId.toLowerCase() === form.empId.toLowerCase())) {
       nextErrors.empId = 'Staff ID already exists.';
     }
 
