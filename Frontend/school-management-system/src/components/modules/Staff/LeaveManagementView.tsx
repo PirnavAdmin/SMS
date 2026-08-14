@@ -411,21 +411,23 @@ export const LeaveManagementView: React.FC = () => {
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setEditingApplication(null);
-              resetApplyForm();
-              if (isTeacher && teacherStaffMember) {
-                setApplyForm(prev => ({ ...prev, employeeId: teacherStaffMember.id }));
-              }
-              setIsApplyOpen(true);
-            }}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> Apply for Leave
-          </button>
-        </div>
+        {userRole !== 'admin' && userRole !== 'superadmin' && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setEditingApplication(null);
+                resetApplyForm();
+                if (isTeacher && teacherStaffMember) {
+                  setApplyForm(prev => ({ ...prev, employeeId: teacherStaffMember.id }));
+                }
+                setIsApplyOpen(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Apply for Leave
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Dashboard Summary Cards */}

@@ -344,10 +344,15 @@ export const fetchDesignationsApi = async (search?: string) => {
 
 export const createDesignationApi = async (payload: {
   designationName: string;
+  employeeCategory?: string;
   status: string;
   [key: string]: any;
 }) => {
-  const p = { designationName: payload.designationName, status: payload.status };
+  const p = { 
+    designationName: payload.designationName, 
+    employeeCategory: payload.employeeCategory || "Both", 
+    status: payload.status 
+  };
   return apiClient('/api/designations', {
     method: 'POST',
     body: JSON.stringify(p)
@@ -356,10 +361,15 @@ export const createDesignationApi = async (payload: {
 
 export const updateDesignationApi = async (id: number | string, payload: {
   designationName: string;
+  employeeCategory?: string;
   status: string;
   [key: string]: any;
 }) => {
-  const p = { designationName: payload.designationName, status: payload.status };
+  const p = { 
+    designationName: payload.designationName, 
+    employeeCategory: payload.employeeCategory || "Both", 
+    status: payload.status 
+  };
   return apiClient(`/api/designations/${id}`, {
     method: 'PUT',
     body: JSON.stringify(p)

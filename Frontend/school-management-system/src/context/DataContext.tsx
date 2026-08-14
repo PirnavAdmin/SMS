@@ -253,6 +253,7 @@ import {
   fetchDailyStaffAttendanceApi,
   fetchMonthlyStaffAttendanceApi,
   markBulkStaffAttendanceApi,
+  fetchStudentAttendanceRegisterApi,
 } from "../api/attendance";
 import {
   fetchBooksApi,
@@ -961,6 +962,8 @@ interface DataContextType {
   ) => Promise<void>;
   lastAttendancePayload?: any;
   lastAttendanceResponse?: any;
+  todayStudentAttendanceSummary: any;
+  fetchTodayStudentAttendanceSummary: () => Promise<void>;
 
   exams: ExamSetup[];
   examMarks: ExamMark[];
@@ -2492,6 +2495,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentAttendance, setStudentAttendance] = useState<any[]>(() =>
     getStored("student_attendance", []),
   );
+  const [todayStudentAttendanceSummary, setTodayStudentAttendanceSummary] = useState<any>(null);
   const [coScholasticAssessments, setCoScholasticAssessments] = useState<any[]>(
     () => getStored("co_scholastic_assessments", []),
   );
@@ -10066,6 +10070,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     [],
   );
 
+  const fetchTodayStudentAttendanceSummary = useCallback(async () => {
+    try {
+      const todayStr = new Date().toLocaleDateString("en-CA");
+      const response = await fetchStudentAttendanceRegisterApi({
+        filterType: "day",
+        date: todayStr
+      });
+      if (response && response.success && response.data && response.data.summary) {
+        setTodayStudentAttendanceSummary(response.data.summary);
+      }
+    } catch (err) {
+      console.error("Error fetching today student attendance:", err);
+    }
+  }, []);
+
   const markAttendance = async (records: DailyAttendance[]) => {
     setAttendance((prev) => {
       const filterDates = records.map((r) => `${r.entityId}_${r.date}`);
@@ -12574,6 +12593,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchMonthlyAttendance,
         lastAttendancePayload,
         lastAttendanceResponse,
+        todayStudentAttendanceSummary,
+        fetchTodayStudentAttendanceSummary,
         exams: filteredExams,
         examMarks,
         addExam,

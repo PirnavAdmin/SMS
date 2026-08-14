@@ -22,7 +22,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     schoolProfile, admissions, leaveApplications, attendance,
     academicClasses, departments, birthdays, exams,
     fetchStudents, fetchStaff, fetchAdmissions, fetchAcademicClasses,
-    totalStudentCount
+    totalStudentCount, todayStudentAttendanceSummary, fetchTodayStudentAttendanceSummary
   } = useData();
 
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           fetchStudents(),
           fetchStaff(),
           fetchAdmissions(),
-          fetchAcademicClasses()
+          fetchAcademicClasses(),
+          fetchTodayStudentAttendanceSummary()
         ]);
       } catch (err) {
         console.error("Error loading dashboard data:", err);
@@ -77,18 +78,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Pie chart calculation (Student Attendance)
   const attendanceStats = useMemo(() => {
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    const todayAttendance = attendance.filter(a => a.entityType === 'Student' && a.date === todayStr);
     let present = 0; let absent = 0; let late = 0; let halfDay = 0;
-    if (todayAttendance.length > 0) {
-      todayAttendance.forEach(a => {
-        if (a.status === 'Present') present++;
-        else if (a.status === 'Late') late++;
-        else if (a.status === 'HalfDay') halfDay++;
-        else if (a.status === 'Absent' || a.status === 'Leave') absent++;
-      });
+    
+    if (todayStudentAttendanceSummary && todayStudentAttendanceSummary.totalDays > 0) {
+      present = todayStudentAttendanceSummary.present;
+      absent = todayStudentAttendanceSummary.absent;
+      late = todayStudentAttendanceSummary.late;
+      halfDay = todayStudentAttendanceSummary.halfDay;
     } else {
-       // Mock data if no attendance found for today
+       // Mock fallback mapped to real student count
        present = Math.floor(students.length * 0.85);
        late = Math.floor(students.length * 0.05);
        halfDay = Math.floor(students.length * 0.02);
@@ -109,7 +107,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       presentPct, latePct, halfDayPct, absentPct,
       pEnd, lEnd, hdEnd
     };
-  }, [attendance, students.length]);
+  }, [todayStudentAttendanceSummary, students.length]);
 
   // Pie chart calculation (Teaching Staff Attendance)
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
@@ -271,18 +269,68 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Upcoming Teacher Birthdays
   const upcomingBirthdays = useMemo(() => {
-    const staffBdays = (birthdays || []).filter(b => b.role === 'Staff');
-    if (staffBdays.length > 0) return staffBdays.slice(0, 5);
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    
+    const results: Array<{
+      id: string | number;
+      name: string;
+      role: string;
+      dob: string;
+      avatar?: string;
+      daysUntil: number;
+    }> = [];
 
-    // Fallback: derive from teaching staff records
-    return teachingStaff.slice(0, 4).map((s, idx) => ({
-      id: s.id,
-      name: `${s.firstName} ${s.lastName}`.trim(),
-      role: s.designation || 'Teacher',
-      dob: s.dob || (idx === 0 ? 'Today' : idx === 1 ? 'Tomorrow' : '15 Aug'),
-      avatar: s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.firstName + ' ' + s.lastName)}`
-    }));
-  }, [birthdays, teachingStaff]);
+    staff.forEach(s => {
+      if (!s.dob) return;
+      
+      // Parse dob string (expected YYYY-MM-DD or DD/MM/YYYY)
+      let birthDate: Date;
+      if (s.dob.includes('-')) {
+        birthDate = new Date(s.dob);
+      } else if (s.dob.includes('/')) {
+        const [d, m, y] = s.dob.split('/');
+        birthDate = new Date(Number(y), Number(m) - 1, Number(d));
+      } else {
+        return;
+      }
+
+      if (isNaN(birthDate.getTime())) return;
+
+      // Calculate next occurrence of this birthday
+      let nextBday = new Date(currentYear, birthDate.getMonth(), birthDate.getDate());
+      
+      // If birthday already passed this year, look at next year
+      if (nextBday < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+        nextBday.setFullYear(currentYear + 1);
+      }
+
+      // Calculate difference in days
+      const diffTime = nextBday.getTime() - new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // Show birthday if it's within the next 365 days, sorted by proximity
+      const formattedDay = nextBday.toLocaleDateString('en-US', { day: '2-digit', month: 'short' });
+      const dobLabel = diffDays === 0 
+        ? 'Today' 
+        : diffDays === 1 
+          ? 'Tomorrow' 
+          : formattedDay;
+
+      results.push({
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`.trim(),
+        role: s.designation || 'Teacher',
+        dob: dobLabel,
+        avatar: s.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(s.firstName + ' ' + (s.lastName || ''))}`,
+        daysUntil: diffDays
+      });
+    });
+
+    // Sort by days until birthday
+    results.sort((a, b) => a.daysUntil - b.daysUntil);
+    return results;
+  }, [staff]);
   
   if (loading) {
     return (
@@ -516,14 +564,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         {/* Bottom Row: Pending Approvals, Examinations & Birthdays */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Pending Approvals */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4">
-            <div className="flex items-center gap-2">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 flex flex-col h-[250px]">
+            <div className="flex items-center gap-2 shrink-0">
               <Bell className="w-5 h-5 text-amber-500" />
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">Pending Approvals</h3>
               </div>
             </div>
-            <div className="flex flex-col gap-3 pt-2">
+            <div className="flex-1 overflow-y-auto flex flex-col gap-3 pt-2 pr-1">
               <button onClick={() => onNavigate('staff-leave')} className="w-full flex items-center justify-between p-3.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 transition-colors border border-slate-200 dark:border-slate-800">
                 <div className="flex flex-col items-start text-xs">
                   <span className="font-bold text-slate-900 dark:text-white">Leave Requests</span>
@@ -542,15 +590,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Examinations info container */}
-          <div onClick={() => onNavigate('examination')} className="lg:col-span-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[230px] lg:h-auto">
-            <div className="flex items-center gap-2">
+          <div onClick={() => onNavigate('examination')} className="lg:col-span-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[250px]">
+            <div className="flex items-center gap-2 shrink-0">
               <ClipboardList className="w-5 h-5 text-indigo-500" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Examinations</h3>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
               {validExams.length === 0 ? (
                 <p className="text-xs text-slate-500 py-4 text-center">No exams scheduled.</p>
-              ) : validExams.slice(0, 3).map(ex => {
+              ) : validExams.map(ex => {
                 const classLabel = (ex.applicableClasses && ex.applicableClasses.length > 0)
                   ? ex.applicableClasses.join(', ')
                   : (ex.className || 'All Classes');
@@ -570,15 +618,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Teacher Birthdays */}
-          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 transition-colors">
-            <div className="flex items-center gap-2">
+          <div className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 transition-colors flex flex-col h-[250px]">
+            <div className="flex items-center gap-2 shrink-0">
               <Cake className="w-5 h-5 text-rose-500" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Teacher Birthdays</h3>
             </div>
-            <div className="space-y-2.5 max-h-[160px] overflow-y-auto pr-1">
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
               {upcomingBirthdays.length === 0 ? (
                  <p className="text-xs text-slate-500 py-4 text-center">No upcoming birthdays.</p>
-              ) : upcomingBirthdays.slice(0, 3).map(b => (
+              ) : upcomingBirthdays.map(b => (
                 <div key={b.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-rose-50/40 dark:bg-rose-950/20 text-xs border border-rose-100/50 dark:border-rose-950">
                   <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-7 h-7 rounded-full object-cover shrink-0" />
                   <div className="flex-1 min-w-0">
