@@ -114,3 +114,28 @@ export const lockStudentAttendanceSheetApi = async (attendanceSessionId: number)
 export const unlockStudentAttendanceSheetApi = async (attendanceSessionId: number) => {
   return apiClient(`/api/teacher/student-attendance/sheet/${attendanceSessionId}/unlock`, { method: 'PUT' });
 };
+
+export const fetchStudentAttendanceRegisterApi = async (query: {
+  studentId?: number;
+  filterType?: string;
+  month?: number;
+  year?: number;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  statusFilter?: string;
+}) => {
+  const params = new URLSearchParams();
+  if (query.studentId) params.append('studentId', query.studentId.toString());
+  if (query.filterType) params.append('filterType', query.filterType);
+  if (query.month) params.append('month', query.month.toString());
+  if (query.year) params.append('year', query.year.toString());
+  if (query.date) params.append('date', query.date);
+  if (query.startDate) params.append('startDate', query.startDate);
+  if (query.endDate) params.append('endDate', query.endDate);
+  if (query.statusFilter) params.append('statusFilter', query.statusFilter);
+
+  return apiClient(`/api/attendance/student/register?${params.toString()}`, {
+    method: 'GET'
+  });
+};

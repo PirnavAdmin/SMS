@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   BookOpen, Plus, Edit, Trash2, Search, X, Loader2, Building2, Layers, Briefcase, 
   AlertCircle, CheckCircle2, ShieldAlert, FolderPlus, Eye, Users, UserCheck 
@@ -12,6 +12,7 @@ import {
   fetchDepartmentsApi, createDepartmentApi, updateDepartmentApi, deleteDepartmentApi,
   fetchDesignationsApi, createDesignationApi, updateDesignationApi, deleteDesignationApi
 } from '../../../api/academic';
+import { teachingDesignationNames } from '../Staff/staffFlowOptions';
 
 export const SubjectsView: React.FC = () => {
   const { 
@@ -101,7 +102,35 @@ export const SubjectsView: React.FC = () => {
   const [desigQuery, setDesigQuery] = useState('');
   const [desigCategoryFilter, setDesigCategoryFilter] = useState<'All' | 'Teaching' | 'Non-Teaching'>('All');
   
-  const filteredDesignations = designations.filter(d => {
+  const allDesignations = useMemo(() => {
+    const list = [...designations];
+    const existingNames = new Set(list.map(d => (d.designationName || '').toLowerCase().trim()));
+    
+    // Find all unique designations from staff
+    const staffDesignations = new Set(
+      (contextStaff || [])
+        .map(st => (st.designation || '').trim())
+        .filter(Boolean)
+    );
+
+    staffDesignations.forEach(name => {
+      if (!existingNames.has(name.toLowerCase())) {
+        const isTeaching = teachingDesignationNames.has(name) || name.toLowerCase().includes('teacher');
+        list.push({
+          id: `static-${name.toLowerCase().replace(/\s+/g, '-')}`,
+          designationName: name,
+          designationCode: name.slice(0, 4).toUpperCase(),
+          description: name + " Designation (Auto-detected)",
+          employeeCategory: isTeaching ? 'Teaching' : 'Non-Teaching',
+          status: 'Active'
+        });
+      }
+    });
+
+    return list;
+  }, [designations, contextStaff]);
+
+  const filteredDesignations = allDesignations.filter(d => {
     const q = desigQuery.toLowerCase();
     const matchesSearch = d.designationName.toLowerCase().includes(q) ||
                           d.employeeCategory.toLowerCase().includes(q);
@@ -185,10 +214,11 @@ export const SubjectsView: React.FC = () => {
       const res = await fetchDesignationsApi();
       if (res && res.success && Array.isArray(res.data)) {
         const mapped = res.data.map((d: any) => ({
-          id: d.designationId.toString(),
+          id: d.designationId?.toString() || d.id?.toString() || Math.random().toString(),
           designationName: d.designationName,
           designationCode: d.designationCode || '',
           description: d.description || '',
+          employeeCategory: d.employeeCategory || 'Both',
           status: d.status || 'Active'
         }));
         setDesignations(mapped);
@@ -205,6 +235,13 @@ export const SubjectsView: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Fetch all lists on mount so counts in the header tabs are correct immediately
+  useEffect(() => {
+    loadSubjects();
+    loadDepartments();
+    loadDesignations();
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'subjects') {
@@ -376,6 +413,7 @@ export const SubjectsView: React.FC = () => {
           designationName: desigFormData.designationName,
           designationCode: desigFormData.designationName.slice(0, 4).toUpperCase(),
           description: desigFormData.employeeCategory + " Designation",
+          employeeCategory: desigFormData.employeeCategory,
           status: desigFormData.status
         });
         if (res && res.success) {
@@ -396,6 +434,7 @@ export const SubjectsView: React.FC = () => {
           designationName: desigFormData.designationName,
           designationCode: desigFormData.designationName.slice(0, 4).toUpperCase(),
           description: desigFormData.employeeCategory + " Designation",
+          employeeCategory: desigFormData.employeeCategory,
           status: desigFormData.status
         });
         if (res && res.success) {
@@ -620,7 +659,7 @@ export const SubjectsView: React.FC = () => {
             }`}
           >
             <Briefcase className="w-3.5 h-3.5" />
-            Designations ({designations.length})
+            Designations ({allDesignations.length})
           </button>
         </div>
       </div>
