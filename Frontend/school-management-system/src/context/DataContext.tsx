@@ -5,6 +5,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useMemo,
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { getUniformPackageFeeByClass } from "../utils/uniformUtils";
@@ -533,6 +534,7 @@ interface DataContextType {
   deleteAcademicYear: (id: string) => void;
   setCurrentAcademicYear: (id: string) => void;
   students: Student[];
+  totalStudentCount: number;
   addStudent: (student: Omit<Student, "id">) => Student;
   updateStudent: (id: string, updates: Partial<Student>) => void;
   deleteStudent: (id: string) => void;
@@ -2364,6 +2366,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     return stored && stored.length > 0 ? stored : initialStudents;
   });
+  const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
   const [staff, setStaff] = useState<Staff[]>(() =>
     getStored("staff", initialStaff),
   );
@@ -3936,6 +3939,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.items || response?.data?.items || response?.data || [];
+      const totalRecs = response?.totalRecords ?? response?.TotalRecords ?? response?.data?.totalRecords ?? response?.data?.TotalRecords ?? items.length;
+      setTotalStudentCount(totalRecs);
       if (Array.isArray(items)) {
         const mapped = items.map((s: any) => {
           const nameParts = (s.studentName || s.name || "").trim().split(/\s+/);
@@ -11927,7 +11932,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
-  const filteredStudents = filterByBranch(students);
+  const filteredStudents = useMemo(() => {
+    const branchFiltered = filterByBranch(students);
+    const enrolledRegNos = new Set(
+      admissions
+        .filter(a => a.status === 'Enrolled' || a.status === 'enrolled')
+        .map(a => (a.registrationNo || a.applicationNo || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+    if (admissions.length > 0) {
+      return branchFiltered.filter(s => enrolledRegNos.has((s.admissionNo || '').trim().toLowerCase()));
+    }
+    return branchFiltered;
+  }, [students, admissions, selectedBranch]);
+
+  useEffect(() => {
+    setTotalStudentCount(filteredStudents.length);
+  }, [filteredStudents]);
   const filteredStaff = filterByBranch(staff);
   const filteredAdmissions = filterByBranch(admissions);
   const filteredClasses = filterByBranch(academicClasses);
@@ -12365,6 +12386,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         deleteAcademicYear,
         setCurrentAcademicYear,
         students: filteredStudents,
+        totalStudentCount,
         addStudent,
         updateStudent,
         deleteStudent,

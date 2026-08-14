@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   UserCheck, Users, Calendar, Cake, ArrowRight, Sparkles, 
   WalletCards, ClipboardList, CheckSquare, Bell, BookOpen, Building, Sun, Moon
@@ -20,8 +20,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const {
     students, staff, announcements, holidays, schoolEvents,
     schoolProfile, admissions, leaveApplications, attendance,
-    academicClasses, departments, birthdays, exams
+    academicClasses, departments, birthdays, exams,
+    fetchStudents, fetchStaff, fetchAdmissions, fetchAcademicClasses,
+    totalStudentCount
   } = useData();
+
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([
+          fetchStudents(),
+          fetchStaff(),
+          fetchAdmissions(),
+          fetchAcademicClasses()
+        ]);
+      } catch (err) {
+        console.error("Error loading dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadDashboardData();
+  }, []);
 
   const userRole = user?.role?.toLowerCase() || '';
 
@@ -261,6 +284,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     }));
   }, [birthdays, teachingStaff]);
   
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+        <div className="w-10 h-10 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+        <span className="text-sm font-bold text-slate-500">Loading Dashboard Statistics...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Welcome Banner */}
@@ -294,7 +326,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </div>
             <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">Total Students</span>
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">{students.length.toLocaleString()}</p>
+          <p className="text-2xl font-black text-slate-900 dark:text-white">{(totalStudentCount || students.length).toLocaleString()}</p>
         </div>
         
         {/* Total Teaching Staff */}
