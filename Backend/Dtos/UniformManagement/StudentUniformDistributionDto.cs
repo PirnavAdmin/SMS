@@ -147,11 +147,11 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("quantity")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int Quantity { get; set; } = 1;
 
         [JsonPropertyName("qty")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int QtyAlias
         {
             get => Quantity;

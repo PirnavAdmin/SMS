@@ -421,6 +421,12 @@ namespace SMS.Api.Services.Implementations
             return list.Select(MapToDistributionDto).ToList();
         }
 
+        public async Task<StudentUniformDistributionDto?> GetDistributionByIdAsync(int id)
+        {
+            var dist = await _uniformRepo.GetDistributionByIdAsync(id);
+            return dist != null ? MapToDistributionDto(dist) : null;
+        }
+
         public async Task<StudentUniformDistributionDto> IssueUniformAsync(CreateStudentUniformDistributionDto dto)
         {
             UniformType? item = null;

@@ -136,6 +136,17 @@ namespace SMS.Api.Controllers
             });
         }
 
+        [HttpGet("categories/{id}")]
+        public async Task<IActionResult> GetCategoryById(int id)
+        {
+            var category = await _uniformService.GetCategoryByIdAsync(id);
+            return Ok(new
+            {
+                success = true,
+                data = category
+            });
+        }
+
         [HttpPost("categories")]
         public async Task<IActionResult> CreateCategory([FromBody] CreateUniformCategoryDto dto)
         {
@@ -186,6 +197,17 @@ namespace SMS.Api.Controllers
                 success = true,
                 data = sizes,
                 totalCount = sizes.Count
+            });
+        }
+
+        [HttpGet("sizes/{id}")]
+        public async Task<IActionResult> GetSizeById(int id)
+        {
+            var size = await _uniformService.GetSizeByIdAsync(id);
+            return Ok(new
+            {
+                success = true,
+                data = size
             });
         }
 
@@ -242,6 +264,17 @@ namespace SMS.Api.Controllers
             });
         }
 
+        [HttpGet("suppliers/{id}")]
+        public async Task<IActionResult> GetSupplierById(int id)
+        {
+            var supplier = await _uniformService.GetSupplierByIdAsync(id);
+            return Ok(new
+            {
+                success = true,
+                data = supplier
+            });
+        }
+
         [HttpPost("suppliers")]
         public async Task<IActionResult> CreateSupplier([FromBody] CreateUniformSupplierDto dto)
         {
@@ -292,6 +325,17 @@ namespace SMS.Api.Controllers
                 success = true,
                 data = distributions,
                 totalCount = distributions.Count
+            });
+        }
+
+        [HttpGet("distributions/{id}")]
+        public async Task<IActionResult> GetDistributionById(int id)
+        {
+            var distribution = await _uniformService.GetDistributionByIdAsync(id);
+            return Ok(new
+            {
+                success = true,
+                data = distribution
             });
         }
 

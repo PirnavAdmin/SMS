@@ -38,6 +38,7 @@ namespace SMS.Api.Services.Interfaces
 
         // Student Uniform Distribution
         Task<List<StudentUniformDistributionDto>> GetAllDistributionsAsync(string? search, int? studentId);
+        Task<StudentUniformDistributionDto?> GetDistributionByIdAsync(int id);
         Task<StudentUniformDistributionDto> IssueUniformAsync(CreateStudentUniformDistributionDto dto);
         Task<bool> DeleteDistributionAsync(int id);
 
