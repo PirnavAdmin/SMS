@@ -1,4 +1,4 @@
-namespace SMS.Api.Models.StaffManagement;
+namespace SMS.Api.Models;
 
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -36,4 +36,3 @@ public class StaffAttendance
 
     public string? OutTime { get; set; }
 }
-

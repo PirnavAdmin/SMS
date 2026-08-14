@@ -160,12 +160,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       });
     }
 
-    // Collect any extra classes present in active student records
+    // Only update section lists for configured classes
     branchFilteredStudents.forEach(s => {
-      if (s.className) {
-        if (!classMap.has(s.className)) {
-          classMap.set(s.className, { className: s.className, sections: ['A', 'B'] });
-        }
+      if (s.className && classMap.has(s.className)) {
         if (s.section) {
           const entry = classMap.get(s.className);
           if (entry && !entry.sections.includes(s.section)) {

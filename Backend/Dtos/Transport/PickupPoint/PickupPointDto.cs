@@ -37,11 +37,38 @@ namespace SMS.Api.Dtos.Transport.PickupPoint
         [JsonPropertyName("arrivalTime")]
         public string ArrivalTime => PickupTime.ToString(@"hh\:mm");
 
+        [JsonPropertyName("morningPickupTime")]
+        public string MorningPickupTime => PickupTime != TimeSpan.Zero ? DateTime.Today.Add(PickupTime).ToString("hh:mm tt") : "00:00";
+
+        [JsonPropertyName("morningPickup")]
+        public string MorningPickup => MorningPickupTime;
+
+        [JsonPropertyName("dropTime")]
+        public TimeSpan DropTime { get; set; } = new TimeSpan(16, 15, 0);
+
+        [JsonPropertyName("eveningDropTime")]
+        public string EveningDropTime => DropTime != TimeSpan.Zero ? DateTime.Today.Add(DropTime).ToString("hh:mm tt") : "04:15 PM";
+
+        [JsonPropertyName("eveningDrop")]
+        public string EveningDrop => EveningDropTime;
+
         [JsonPropertyName("distanceFromStart")]
         public decimal DistanceFromStart { get; set; }
 
         [JsonPropertyName("distanceFromSchoolKm")]
         public decimal DistanceFromSchoolKm => DistanceFromStart;
+
+        [JsonPropertyName("distanceKm")]
+        public string DistanceKm => $"{DistanceFromStart} KM";
+
+        [JsonPropertyName("monthlyFee")]
+        public decimal MonthlyFee { get; set; } = 1200;
+
+        [JsonPropertyName("monthlyFare")]
+        public decimal MonthlyFare => MonthlyFee;
+
+        [JsonPropertyName("monthlyFeeText")]
+        public string MonthlyFeeText => $"₹{MonthlyFee}/mo";
 
         [JsonPropertyName("status")]
         public bool Status { get; set; }

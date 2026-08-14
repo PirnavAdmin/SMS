@@ -10,46 +10,86 @@ namespace SMS.Api.Dtos.Transport.Driver
         private string _mobileNumber = string.Empty;
         private string _licenceNumber = string.Empty;
 
+        private string _employeeId = string.Empty;
+
+        [JsonPropertyName("employeeId")]
+        public string EmployeeId
+        {
+            get => !string.IsNullOrWhiteSpace(_employeeId) ? _employeeId : $"DRV-{Random.Shared.Next(1, 99)}";
+            set => _employeeId = value ?? string.Empty;
+        }
+
+        [JsonPropertyName("empId")]
+        public string? EmpId
+        {
+            get => EmployeeId;
+            set { if (!string.IsNullOrWhiteSpace(value)) EmployeeId = value; }
+        }
+
         [JsonPropertyName("driverName")]
         public string DriverName
         {
             get => !string.IsNullOrWhiteSpace(_driverName) ? _driverName : "Driver";
-            set => _driverName = value ?? string.Empty;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _driverName = value;
+            }
         }
 
         [JsonPropertyName("driverFullName")]
         public string? DriverFullName
         {
             get => DriverName;
-            set { if (!string.IsNullOrWhiteSpace(value)) DriverName = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_driverName))
+                    _driverName = value;
+            }
         }
 
         [JsonPropertyName("fullName")]
         public string? FullName
         {
             get => DriverName;
-            set { if (!string.IsNullOrWhiteSpace(value)) DriverName = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_driverName))
+                    _driverName = value;
+            }
         }
 
         [JsonPropertyName("name")]
         public string? Name
         {
             get => DriverName;
-            set { if (!string.IsNullOrWhiteSpace(value)) DriverName = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_driverName))
+                    _driverName = value;
+            }
         }
 
         [JsonPropertyName("mobileNumber")]
         public string MobileNumber
         {
             get => !string.IsNullOrWhiteSpace(_mobileNumber) ? _mobileNumber : "0000000000";
-            set => _mobileNumber = value ?? string.Empty;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _mobileNumber = value;
+            }
         }
 
         [JsonPropertyName("phone")]
         public string? Phone
         {
             get => MobileNumber;
-            set { if (!string.IsNullOrWhiteSpace(value)) MobileNumber = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_mobileNumber))
+                    _mobileNumber = value;
+            }
         }
 
         [JsonPropertyName("alternateMobileNumber")]
@@ -62,24 +102,37 @@ namespace SMS.Api.Dtos.Transport.Driver
         public string LicenceNumber
         {
             get => !string.IsNullOrWhiteSpace(_licenceNumber) ? _licenceNumber : $"LIC-{Random.Shared.Next(1000, 9999)}";
-            set => _licenceNumber = value ?? string.Empty;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _licenceNumber = value;
+            }
         }
 
         [JsonPropertyName("licenseNumber")]
         public string? LicenseNumber
         {
             get => LicenceNumber;
-            set { if (!string.IsNullOrWhiteSpace(value)) LicenceNumber = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_licenceNumber))
+                    _licenceNumber = value;
+            }
         }
 
         [JsonPropertyName("commercialLicenseNo")]
         public string? CommercialLicenseNo
         {
             get => LicenceNumber;
-            set { if (!string.IsNullOrWhiteSpace(value)) LicenceNumber = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_licenceNumber))
+                    _licenceNumber = value;
+            }
         }
 
         [JsonPropertyName("licenceExpiry")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? LicenceExpiry { get; set; }
 
         [JsonPropertyName("licenseExpiryDate")]

@@ -67,6 +67,30 @@ namespace SMS.Api.Dtos.Transport
         [JsonPropertyName("pickupPointSequenceText")]
         public string PickupPointSequenceText { get; set; } = string.Empty;
 
+        [JsonPropertyName("minRangeKm")]
+        public decimal MinRangeKm { get; set; } = 5;
+
+        [JsonPropertyName("minRange")]
+        public decimal MinRange => MinRangeKm;
+
+        [JsonPropertyName("nonAcBaseFare")]
+        public decimal NonAcBaseFare { get; set; } = 1000;
+
+        [JsonPropertyName("nonAcRateAddlKm")]
+        public decimal NonAcRateAddlKm { get; set; } = 100;
+
+        [JsonPropertyName("nonAcRatePerKm")]
+        public decimal NonAcRatePerKm => NonAcRateAddlKm;
+
+        [JsonPropertyName("acBaseFare")]
+        public decimal AcBaseFare { get; set; } = 1200;
+
+        [JsonPropertyName("acRateAddlKm")]
+        public decimal AcRateAddlKm { get; set; } = 150;
+
+        [JsonPropertyName("acRatePerKm")]
+        public decimal AcRatePerKm => AcRateAddlKm;
+
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
 

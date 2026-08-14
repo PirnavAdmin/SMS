@@ -36,8 +36,6 @@ public class StudentDto
     public decimal? AttendancePercentage { get; set; }
 
     public string? Performance { get; set; }
-
-    public string? Avatar { get; set; }
 }
 
 // Used when viewing one student's complete details
@@ -90,8 +88,6 @@ public class StudentDetailsDto
     public decimal? AttendancePercentage { get; set; }
 
     public string? Performance { get; set; }
-
-    public string? Avatar { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -152,8 +148,6 @@ public class CreateStudentDto
     [Range(1, int.MaxValue)]
     public int SectionId { get; set; }
 
-    public string? Avatar { get; set; }
-
     [Required]
     [MaxLength(20)]
     public string Status { get; set; } = "Active";
@@ -212,8 +206,6 @@ public class UpdateStudentDto
 
     [Range(1, int.MaxValue)]
     public int SectionId { get; set; }
-
-    public string? Avatar { get; set; }
 
     [Required]
     [MaxLength(20)]

@@ -1,7 +1,6 @@
 namespace SMS.Api.Repositories.Implementations;
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
@@ -389,11 +388,8 @@ public class SchoolRepository : ISchoolRepository
             query = query.Where(s => s.Status == status);
         }
 
-        // Null-safe sort: default to "studentname" asc if filter values are null/empty
-        var sortOrder = filter.SortOrder ?? "asc";
-        var sortBy = filter.SortBy?.Trim().ToLowerInvariant() ?? "studentname";
-        var descending = sortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        query = sortBy switch
+        var descending = filter.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
+        query = filter.SortBy.Trim().ToLowerInvariant() switch
         {
             "admissionnumber" => descending
                 ? query.OrderByDescending(s => s.AdmissionNumber)
@@ -402,11 +398,11 @@ public class SchoolRepository : ISchoolRepository
                 ? query.OrderByDescending(s => s.RollNumber)
                 : query.OrderBy(s => s.RollNumber),
             "classname" => descending
-                ? query.OrderByDescending(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "")
-                : query.OrderBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : ""),
+                ? query.OrderByDescending(s => s.ClassGrade.ClassName)
+                : query.OrderBy(s => s.ClassGrade.ClassName),
             "sectionname" => descending
-                ? query.OrderByDescending(s => s.ClassSection != null ? s.ClassSection.SectionName : "")
-                : query.OrderBy(s => s.ClassSection != null ? s.ClassSection.SectionName : ""),
+                ? query.OrderByDescending(s => s.ClassSection.SectionName)
+                : query.OrderBy(s => s.ClassSection.SectionName),
             "status" => descending
                 ? query.OrderByDescending(s => s.Status)
                 : query.OrderBy(s => s.Status),
@@ -426,18 +422,16 @@ public class SchoolRepository : ISchoolRepository
                 RollNumber = s.RollNumber,
                 StudentName = s.StudentName,
                 BranchId = s.BranchId,
-                // Null-safe: student may not have a Branch/AcademicYear/Section linked
-                BranchName = s.Branch != null ? s.Branch.BranchName : "",
+                BranchName = s.Branch.BranchName,
                 AcademicYearId = s.AcademicYearId,
-                AcademicYearName = s.AcademicYear != null ? s.AcademicYear.AcademicYearName : "",
+                AcademicYearName = s.AcademicYear.AcademicYearName,
                 ClassId = s.ClassId,
-                ClassName = s.ClassGrade != null ? s.ClassGrade.ClassName ?? "" : "",
+                ClassName = s.ClassGrade.ClassName ?? "",
                 SectionId = s.SectionId,
-                SectionName = s.ClassSection != null ? s.ClassSection.SectionName : "",
+                SectionName = s.ClassSection.SectionName,
                 Status = s.Status,
                 AttendancePercentage = null,
-                Performance = null,
-                Avatar = s.Avatar
+                Performance = null
             })
             .ToListAsync();
 
@@ -481,7 +475,6 @@ public class SchoolRepository : ISchoolRepository
                 Status = s.Status,
                 AttendancePercentage = null,
                 Performance = null,
-                Avatar = s.Avatar,
                 CreatedAt = s.CreatedAt,
                 UpdatedAt = s.UpdatedAt
             })
@@ -587,30 +580,6 @@ public class SchoolRepository : ISchoolRepository
             })
             .ToListAsync();
     }
-
-    public async Task<IDbContextTransaction> BeginTransactionAsync() =>
-        await _context.Database.BeginTransactionAsync();
-
-    public async Task<ClassSection?> GetFirstSectionByClassIdAsync(int classId) =>
-        await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classId);
-
-    public async Task AddClassSectionAsync(ClassSection section) =>
-        await _context.ClassSections.AddAsync(section);
-
-    public async Task<Branch?> GetDefaultBranchAsync() =>
-        await _context.Branches.FirstOrDefaultAsync();
-
-    public async Task AddBranchAsync(Branch branch) =>
-        await _context.Branches.AddAsync(branch);
-
-    public async Task<AcademicYear?> GetDefaultAcademicYearAsync() =>
-        await _context.AcademicYears.FirstOrDefaultAsync();
-
-    public async Task AddAcademicYearAsync(AcademicYear academicYear) =>
-        await _context.AcademicYears.AddAsync(academicYear);
-
-    public async Task<int> CountStudentsInClassSectionAsync(int academicYearId, int classId, int sectionId) =>
-        await _context.Students.CountAsync(s => s.AcademicYearId == academicYearId && s.ClassId == classId && s.SectionId == sectionId);
 
     public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 }

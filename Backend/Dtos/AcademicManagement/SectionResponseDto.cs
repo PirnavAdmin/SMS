@@ -23,9 +23,6 @@ public class SectionResponseDto
 
 	public string? EmployeeId { get; set; }
 
-	[JsonPropertyName("roomNo")]
-	public string? RoomNo { get; set; }
-
 	[JsonPropertyName("teacherLabel")]
 	public string TeacherLabel => !string.IsNullOrEmpty(ClassTeacherName)
 		? (!string.IsNullOrEmpty(EmployeeId) ? $"{ClassTeacherName} ({EmployeeId})" : ClassTeacherName)

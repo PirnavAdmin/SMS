@@ -89,12 +89,15 @@ namespace SMS.Api.Dtos.Transport.Vehicle
         public string? InsuranceNumber { get; set; }
 
         [JsonPropertyName("insuranceExpiry")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? InsuranceExpiry { get; set; }
 
         [JsonPropertyName("pollutionExpiry")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? PollutionExpiry { get; set; }
 
         [JsonPropertyName("fitnessExpiry")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? FitnessExpiry { get; set; }
 
         [JsonPropertyName("status")]

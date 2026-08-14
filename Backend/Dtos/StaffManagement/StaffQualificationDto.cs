@@ -1,4 +1,4 @@
-namespace SMS.Api.Dtos.StaffManagement;
+namespace SMS.Api.Dtos;
 
 public class StaffQualificationDto
 {
@@ -10,4 +10,3 @@ public class StaffQualificationDto
     public string? PassingYear { get; set; }
     public string? PercentageCgpa { get; set; }
 }
-

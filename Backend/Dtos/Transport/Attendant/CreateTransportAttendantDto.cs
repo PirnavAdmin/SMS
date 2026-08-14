@@ -23,42 +23,66 @@ namespace SMS.Api.Dtos.Transport.Attendant
         public string AttendantName
         {
             get => !string.IsNullOrWhiteSpace(_attendantName) ? _attendantName : "Bus Attendant";
-            set => _attendantName = value ?? string.Empty;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _attendantName = value;
+            }
         }
 
         [JsonPropertyName("attendantFullName")]
         public string? AttendantFullName
         {
             get => AttendantName;
-            set { if (!string.IsNullOrWhiteSpace(value)) AttendantName = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_attendantName))
+                    _attendantName = value;
+            }
         }
 
         [JsonPropertyName("fullName")]
         public string? FullName
         {
             get => AttendantName;
-            set { if (!string.IsNullOrWhiteSpace(value)) AttendantName = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_attendantName))
+                    _attendantName = value;
+            }
         }
 
         [JsonPropertyName("name")]
         public string? Name
         {
             get => AttendantName;
-            set { if (!string.IsNullOrWhiteSpace(value)) AttendantName = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_attendantName))
+                    _attendantName = value;
+            }
         }
 
         [JsonPropertyName("mobileNumber")]
         public string MobileNumber
         {
             get => !string.IsNullOrWhiteSpace(_mobileNumber) ? _mobileNumber : "0000000000";
-            set => _mobileNumber = value ?? string.Empty;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                    _mobileNumber = value;
+            }
         }
 
         [JsonPropertyName("phone")]
         public string? Phone
         {
             get => MobileNumber;
-            set { if (!string.IsNullOrWhiteSpace(value)) MobileNumber = value; }
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && string.IsNullOrWhiteSpace(_mobileNumber))
+                    _mobileNumber = value;
+            }
         }
 
         [JsonPropertyName("gender")]

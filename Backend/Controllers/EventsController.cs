@@ -674,7 +674,7 @@ public class EventsController : ControllerBase
         });
     }
 
-    [HttpGet("holidays/{id}")]
+    [HttpGet("/api/holidays/{id}")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetHolidayById(int id)
     {
@@ -737,7 +737,7 @@ public class EventsController : ControllerBase
         });
     }
 
-    [HttpPut("holidays/{id}")]
+    [HttpPut("/api/holidays/{id}")]
     [Authorize(Roles = "Admin,Teacher,Staff")]
     public async Task<IActionResult> UpdateHoliday(int id, [FromBody] CreateHolidayDto dto)
     {
@@ -772,7 +772,7 @@ public class EventsController : ControllerBase
         return Ok(new { success = true, message = "Holiday updated successfully.", data = sample });
     }
 
-    [HttpDelete("holidays/{id}")]
+    [HttpDelete("/api/holidays/{id}")]
     [Authorize(Roles = "Admin,Teacher,Staff")]
     public async Task<IActionResult> DeleteHoliday(int id)
     {

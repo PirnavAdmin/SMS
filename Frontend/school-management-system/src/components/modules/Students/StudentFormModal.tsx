@@ -28,7 +28,7 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
     bloodGroup: 'O+',
     religion: 'General',
     casteCategory: 'General',
-    className: academicClasses[0]?.name || 'Class 9',
+    className: academicClasses[0]?.name || '',
     section: '',
     category: 'General',
     status: 'Active',

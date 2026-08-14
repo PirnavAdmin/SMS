@@ -13,6 +13,12 @@ namespace SMS.Api.Dtos.Transport.Driver
         [JsonPropertyName("driverName")]
         public string DriverName { get; set; } = string.Empty;
 
+        [JsonPropertyName("employeeId")]
+        public string EmployeeId { get; set; } = "DRV-1";
+
+        [JsonPropertyName("empId")]
+        public string EmpId => EmployeeId;
+
         [JsonPropertyName("driverFullName")]
         public string DriverFullName => DriverName;
 
