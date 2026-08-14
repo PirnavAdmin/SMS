@@ -3,6 +3,7 @@ import { UserPlus, Plus, Search, Shield, User, Edit, Trash2 } from 'lucide-react
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 import { getAllocations, createAllocation, vacateAllocation, getRooms, getHostelBlocks, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
 
 export const StudentHostelAssignmentView: React.FC = () => {
@@ -18,20 +19,33 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHostel, setFilterHostel] = useState('');
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const hostellerStudents = (students || []).filter(s =>
-    s && (
-      s.studentType === 'Hosteller' ||
-      s.studentType === 'Residential' ||
-      (s.studentType as any) === 'Boarder' ||
+  const displayHostellers = (students || []).filter(s => {
+    if (!s) return false;
+    const sType = String(s.studentType || '').toLowerCase().trim();
+    const fOpted = String((s as any).facilityOpted || '').toLowerCase().trim();
+    const rType = String((s as any).residenceType || '').toLowerCase().trim();
+
+    return (
+      sType === 'hosteller' ||
+      sType === 'residential' ||
+      sType === 'boarder' ||
+      sType === 'hostel' ||
+      fOpted === 'hostel' ||
+      fOpted === 'residential' ||
+      rType === 'residential' ||
+      rType === 'hostel' ||
       (s as any).isHostelRequired === true ||
-      (s as any).facilityOpted === 'Hostel' ||
-      (s as any).hostelFacility === true
-    )
-  );
-  const displayHostellers = hostellerStudents;
+      (s as any).hostelFacility === true ||
+      (s as any).optedResidential === true
+    );
+  });
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedHostelId, setSelectedHostelId] = useState('');
@@ -88,10 +102,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      const numericStudentId = parseInt(selectedStudentId.replace(/\D/g, ''), 10) || 0;
-
       const payload = {
-        studentId: numericStudentId,
+        studentId: String(selectedStudentId),
         hostelId: Number(selectedHostelId),
         roomId: Number(selectedRoomId),
         bedNumber: selectedBedNo,
@@ -163,6 +175,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
     }))
   ];
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterHostel]);
+
   const filteredAssignments = combinedAssignmentsList.filter(a => {
     const matchQuery = (a.studentName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                        (a.admissionNo || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -170,6 +186,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
     const matchHostel = filterHostel === 'All' || !filterHostel || (a.hostelId && a.hostelId.toString() === filterHostel) || a.isPendingAdmitted;
     return matchQuery && matchHostel;
   });
+
+  const paginatedAssignments = filteredAssignments.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const safeRooms = Array.isArray(rooms) ? rooms : [];
   const safeBlocks = Array.isArray(blocks) ? blocks : [];
@@ -213,13 +234,28 @@ export const StudentHostelAssignmentView: React.FC = () => {
             onChange={e => setFilterHostel(e.target.value)}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
           >
+            <option value="">Select Hostel...</option>
             <option value="All">All Hostels</option>
             {blocks.map(b => <option key={b.hostelId} value={b.hostelId.toString()}>{b.hostelName}</option>)}
           </select>
         </div>
       </div>
 
-      {/* Allocations Table */}
+      {!filterHostel && !searchQuery.trim() ? (
+        <div className="py-16 px-6 glass-card rounded-3xl border border-sky-200/80 dark:border-sky-900/50 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-500 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto shadow-inner">
+            <UserPlus className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select a Hostel</h3>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Please select a hostel option from the filter dropdown above to view student room allocations.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Allocations Table */}
       <div className="glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
@@ -240,7 +276,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
               ) : filteredAssignments.length === 0 ? (
                 <tr><td colSpan={7} className="py-8 text-center text-slate-400 font-semibold">No room allocations found matching filter.</td></tr>
               ) : (
-                filteredAssignments.map(a => (
+                paginatedAssignments.map(a => (
                   <tr key={a.allocationId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td
                       onClick={() => setViewStudentModal(a as any)}
@@ -298,6 +334,15 @@ export const StudentHostelAssignmentView: React.FC = () => {
         </div>
       </div>
 
+      <Pagination
+        currentPage={currentPage}
+        totalItems={filteredAssignments.length}
+        itemsPerPage={itemsPerPage}
+        onPageChange={setCurrentPage}
+      />
+        </>
+      )}
+
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -311,9 +356,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 <label className="block font-semibold mb-1">Select Student <span className="text-rose-500">*</span></label>
                 <select value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" disabled={isSubmitting}>
                   <option value="" disabled>Select Student...</option>
-                  {displayHostellers.map(st => (
-                    <option key={st.id} value={st.id}>{st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo})</option>
-                  ))}
+                  {displayHostellers.length === 0 ? (
+                    <option value="" disabled>No Residential / Hosteller students found</option>
+                  ) : (
+                    displayHostellers.map(st => (
+                      <option key={st.id} value={st.id}>{st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo})</option>
+                    ))
+                  )}
                 </select>
               </div>
 

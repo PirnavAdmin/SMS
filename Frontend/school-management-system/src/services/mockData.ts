@@ -18,12 +18,12 @@ import {
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
-  name: "Pirnav International Schools",
+  name: "Pirnav Educational Institutions",
   tagline: "Empowering Minds, Shaping Tomorrow",
-  address: "Knowledge Campus, Sector 12, Main City Road",
-  phone: "+91 98765 43210",
-  email: "admin@pirnavschools.com",
-  website: "https://pirnavschools.com",
+  address: "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
+  phone: "+91 9123456789",
+  email: "contact@pirnavschools.edu",
+  website: "https://pirnavschools.edu",
   principalName: "Dr. Eleanor Vance",
   academicYear: "2026-2027",
   logoUrl: ""

@@ -133,8 +133,8 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </div>
           )}
           <div className="text-left">
-            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{schoolProfile.name || 'Central School ERP'}</h1>
-            <p className="text-xs text-slate-500 font-bold">{schoolProfile.address || 'Campus Address'} • Ph: {schoolProfile.phone || 'Phone'} • Email: {schoolProfile.email || 'school@domain.com'}</p>
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{schoolProfile.name || 'Pirnav Educational Institutions'}</h1>
+            <p className="text-xs text-slate-500 font-bold">{schoolProfile.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081'} • Ph: {schoolProfile.phone || '+91 9123456789'} • Email: {schoolProfile.email || 'contact@pirnavschools.edu'}</p>
           </div>
         </div>
 
