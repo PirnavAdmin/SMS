@@ -46,6 +46,11 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+  // Persistent selection state for Marks Entry tab
+  const [selectedClass, setSelectedClass] = useState<string>('');
+  const [selectedSection, setSelectedSection] = useState<string>('');
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+
   const loadOptions = async (showProgress = true) => {
     if (showProgress) setLoading(true);
     try {
@@ -105,7 +110,7 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             const subMap: Record<string, { maxMarks: number; passMarks: number; subjectCode?: string; isActive?: boolean }> = {};
             if (res && res.success && res.data?.subjects) {
               res.data.subjects.forEach((s: any) => {
-                if (s.isExamSubject === true || s.selected === true || (res.data?.isConfigured === true && s.isActive === true)) {
+                if (s.isExamSubject === true || s.selected === true || s.isActive === true || s.isActive === undefined) {
                   const conf = { 
                     maxMarks: s.maxMarks || 100, 
                     passMarks: s.passMarks || 35,
@@ -374,6 +379,12 @@ export const ExaminationView: React.FC<ExaminationViewProps> = ({ initialTab = '
             addToast={addToast}
             onGotoSetup={() => setActiveTab('setup')}
             onProceedToResults={() => setActiveTab('results-reports')}
+            selectedClass={selectedClass}
+            setSelectedClass={setSelectedClass}
+            selectedSection={selectedSection}
+            setSelectedSection={setSelectedSection}
+            selectedSubject={selectedSubject}
+            setSelectedSubject={setSelectedSubject}
           />
         )}
 

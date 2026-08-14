@@ -150,7 +150,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
         // Merge with all configured class subjects
         const matchedClass = academicClasses.find(c => c.name === selectedClass);
         const classSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
-          ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+          ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
           : [];
 
         // Check if API has saved subject configurations

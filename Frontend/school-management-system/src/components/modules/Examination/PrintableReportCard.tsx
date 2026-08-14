@@ -121,9 +121,17 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       {/* School Header & Crest */}
       <div className="text-center space-y-2 border-b-2 border-slate-900 dark:border-slate-100 pb-5">
         <div className="flex items-center justify-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white font-black text-xl flex items-center justify-center shadow-lg uppercase">
-            {schoolProfile.name ? schoolProfile.name.substring(0, 2) : 'SMS'}
-          </div>
+          {schoolProfile.logoUrl ? (
+            <img 
+              src={schoolProfile.logoUrl} 
+              alt="School Logo" 
+              className="w-12 h-12 rounded-2xl object-contain shadow-lg"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-2xl bg-sky-600 text-white font-black text-xl flex items-center justify-center shadow-lg uppercase">
+              {schoolProfile.name ? schoolProfile.name.substring(0, 2) : 'SMS'}
+            </div>
+          )}
           <div className="text-left">
             <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">{schoolProfile.name || 'Central School ERP'}</h1>
             <p className="text-xs text-slate-500 font-bold">{schoolProfile.address || 'Campus Address'} • Ph: {schoolProfile.phone || 'Phone'} • Email: {schoolProfile.email || 'school@domain.com'}</p>

@@ -54,7 +54,7 @@ export function useMarksEntry() {
     if (isUserAdmin) {
       const clsObj = academicClasses.find(c => c.name === className);
       if (clsObj && clsObj.subjects && clsObj.subjects.length > 0) {
-        return clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.name || s.code || ''));
+        return clsObj.subjects.map((s: any) => typeof s === 'string' ? s : (s.subjectName || s.name || s.subjectCode || s.code || ''));
       }
       return [];
     }
@@ -138,6 +138,8 @@ export function useMarksEntry() {
       return {
         examId,
         studentId,
+        className,
+        section,
         subject,
         marksObtained: isAbsent ? 0 : Number(state.marks) || 0,
         totalMarks: maxMarks,

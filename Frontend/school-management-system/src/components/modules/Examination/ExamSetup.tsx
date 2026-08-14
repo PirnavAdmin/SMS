@@ -82,7 +82,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         await Promise.all(appClasses.map(async (cls: string) => {
           const matchedClass = academicClasses.find(c => c.name === cls);
           let rawSubs = matchedClass?.subjects && matchedClass.subjects.length > 0
-            ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+            ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
             : [];
           if (rawSubs.length === 0) {
             rawSubs = (subjects || []).map(s => s.name);
@@ -254,7 +254,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
             if (!nextOrig[cls]) {
               const matchedClass = academicClasses.find(c => c.name === cls);
               let raw = matchedClass?.subjects && matchedClass.subjects.length > 0
-                ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+                ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
                 : (subjects || []).map(s => s.name);
               const seen = new Set<string>();
               const valid = raw.filter(name => {
@@ -525,7 +525,7 @@ export const ExamSetup: React.FC<ExamSetupProps> = ({
         // Find matched class subjects or all global subjects
         const matchedClass = academicClasses.find(c => c.name === cls);
         let defaultSubNames = matchedClass?.subjects && matchedClass.subjects.length > 0
-          ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+          ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
           : [];
         if (defaultSubNames.length === 0) {
           defaultSubNames = (subjects || []).map(s => s.name);
