@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { formatCurrency } from "../../../utils/currency";
+import { getUniformPackageFeeByClass } from "../../../utils/uniformUtils";
 import {
   IndianRupee,
   Search,
@@ -531,10 +532,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     // 3. Fallback: If still empty, build default fee structure installments for the student's class
     if (combined.length === 0 && selectedStudent) {
       const clsLower = (selectedStudent.className || '').toLowerCase();
+      const uniFee = getUniformPackageFeeByClass(selectedStudent.className);
       let defaultHeads = [
         { id: 'FH-01', name: 'Tuition Fee', amount: 77000 },
         { id: 'FH-02', name: 'Admission Fee', amount: 3000 },
         { id: 'FH-03', name: 'Textbook & Material Fee', amount: 3000 },
+        { id: 'FH-04', name: 'Uniform & Sports Kit Fee', amount: uniFee },
       ];
 
       if (clsLower.includes('lkg') || clsLower.includes('ukg') || clsLower.includes('nursery') || clsLower.includes('pkg')) {
