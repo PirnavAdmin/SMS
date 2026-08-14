@@ -18,8 +18,19 @@ using SMS.Api.Repositories.Interfaces.Examination;
 using SMS.Api.Repositories.Implementations.Examination;
 using SMS.Api.Services.Interfaces.Examination;
 using SMS.Api.Services.Implementations.Examination;
+using SMS.Api.Services.Implementations.AcademicManagement;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 // =========================================================
 // 1. DATABASE CONNECTION
@@ -137,6 +148,10 @@ builder.Services.AddScoped<IHostelService, HostelService>();
 // Uniform Management Module
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IUniformRepository, SMS.Api.Repositories.Implementations.UniformRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.IUniformService, SMS.Api.Services.Implementations.UniformService>();
+
+// Finance Management Module
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.FinanceManagement.IFinanceRepository, SMS.Api.Repositories.Implementations.FinanceManagement.FinanceRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.FinanceManagement.IFinanceService, SMS.Api.Services.Implementations.FinanceManagement.FinanceService>();
 
 // Class Timetable Module
 builder.Services.AddScoped<ITimetableRepository, TimetableRepository>();
@@ -257,6 +272,8 @@ var app = builder.Build();
 // =========================================================
 
 app.UseMiddleware<ExceptionMiddleware>();
+
+app.UseCors();
 
 // Enable Swagger UI unconditionally
 app.UseSwagger();
@@ -1148,18 +1165,9 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("transport_drivers", "EmergencyContactNumber", "varchar(20) NULL");
         EnsureColumnExists("transport_drivers", "AssignedVehicleId", "bigint NULL");
         EnsureColumnExists("transport_drivers", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
-
 // =========================================================
 // FINANCE MANAGEMENT
 // =========================================================
-
-builder.Services.AddScoped<
-    SMS.Api.Repositories.Interfaces.FinanceManagement.IFinanceRepository,
-    SMS.Api.Repositories.Implementations.FinanceManagement.FinanceRepository>();
-
-builder.Services.AddScoped<
-    SMS.Api.Services.Interfaces.FinanceManagement.IFinanceService,
-    SMS.Api.Services.Implementations.FinanceManagement.FinanceService>();
 
         EnsureColumnExists("transport_attendants", "EmployeeId", "varchar(50) NULL");
         EnsureColumnExists("transport_attendants", "Gender", "varchar(20) NULL");

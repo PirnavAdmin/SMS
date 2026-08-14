@@ -619,6 +619,7 @@ interface DataContextType {
   ) => Promise<string | null>;
   fetchAdmissions: () => Promise<void>;
   fetchStudents: () => Promise<void>;
+  fetchStaff: () => Promise<void>;
   fetchAcademicClasses: (force?: boolean) => Promise<void>;
   fetchSubjects: (force?: boolean) => Promise<void>;
   fetchPeriods: (force?: boolean) => Promise<void>;
@@ -2373,7 +2374,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   const [totalStudentCount, setTotalStudentCount] = useState<number>(0);
   const [staff, setStaff] = useState<Staff[]>(() =>
-    getStored("staff", initialStaff),
+    getStored("edu_db_staff", initialStaff),
   );
   const [admissions, setAdmissions] = useState<AdmissionApplication[]>(() => {
     const hasSyncedOnlyEnrolled = localStorage.getItem("edu_db_admissions_enrolled_only_v8");
@@ -3880,8 +3881,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             cat.includes("faculty") ||
             cat.includes("professor");
           return {
-            id: item.staffId.toString(),
-            empId: item.employeeId,
+            id: (item.staffId !== undefined && item.staffId !== null ? item.staffId : (item.id !== undefined && item.id !== null ? item.id : "")).toString(),
+            empId: item.employeeId || item.empId || "",
             employeeCategory: isTeaching ? "Teacher" : "Staff",
             firstName: item.firstName,
             middleName: item.middleName || "",
@@ -4636,7 +4637,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setStaff((prev) =>
             prev.map((s) =>
               s.empId === newStaff.empId
-                ? { ...s, id: response.data.staffId?.toString() || s.id }
+                ? { ...s, id: response.data.staffId?.toString() || response.data.id?.toString() || s.id }
                 : s,
             ),
           );
@@ -12573,6 +12574,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAdmissionStatus,
         fetchAdmissions,
         fetchStudents,
+        fetchStaff,
         fetchAcademicClasses,
         fetchSubjects,
         fetchPeriods,

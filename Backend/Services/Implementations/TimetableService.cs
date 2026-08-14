@@ -13,9 +13,7 @@ using SMS.Api.Exceptions;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Interfaces;
-using SMS.Api.Repositories.Interfaces.AcademicManagement;
 using SMS.Api.Services.Interfaces;
-using SMS.Api.Services.Interfaces.AcademicManagement;
 
 public class TimetableService : ITimetableService
 {
