@@ -1,4 +1,4 @@
-namespace SMS.Api.Models.StaffManagement;
+namespace SMS.Api.Models;
 
 using System;
 using System.Collections.Generic;
@@ -80,7 +80,6 @@ public class Staff
     public string? AcademicYear { get; set; }
     public bool? IsClassTeacherEligible { get; set; } = false;
     public string? BloodGroup { get; set; }
-    public string? ProfilePhoto { get; set; }
 
     // Navigation Properties
     public ICollection<Section> SectionsTaught { get; set; } = new List<Section>();
@@ -94,4 +93,3 @@ public class Staff
     [NotMapped]
     public string DisplayName => $"{FirstName ?? ""} {LastName ?? ""} ({EmployeeId ?? ""})".Trim();
 }
-

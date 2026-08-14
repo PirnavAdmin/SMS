@@ -2,7 +2,6 @@ namespace SMS.Api.Models;
 
 using System;
 using System.Collections.Generic;
-using SMS.Api.Models.AcademicManagement;
 using System.ComponentModel.DataAnnotations;
 
 public class Department

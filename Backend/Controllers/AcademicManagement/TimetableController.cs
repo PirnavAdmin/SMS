@@ -8,10 +8,8 @@ namespace SMS.Api.Controllers.AcademicManagement
     using Microsoft.EntityFrameworkCore;
     using SMS.Api.Data;
     using SMS.Api.Dtos;
-    using SMS.Api.Dtos.AcademicManagement;
     using SMS.Api.Exceptions;
     using SMS.Api.Services.Interfaces;
-    using SMS.Api.Services.Interfaces.AcademicManagement;
 
     [ApiController]
     [Route("api/[controller]")]
@@ -365,46 +363,6 @@ namespace SMS.Api.Controllers.AcademicManagement
             catch (NotFoundException ex)
             {
                 return NotFound(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Automatically generate weekly class timetable slots based on constraints and parameters
-        /// </summary>
-        [HttpPost("/api/academics/timetable/generate")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
-        public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto)
-        {
-            try
-            {
-                var result = await _timetableService.GenerateTimetableAsync(dto);
-                return Ok(new { success = true, message = "Timetable auto-generated and saved as Draft.", data = result });
-            }
-            catch (BadRequestException ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { success = false, message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Validate timetable slots for a class-section for any workload or double-booking conflicts
-        /// </summary>
-        [HttpPost("/api/academics/timetable/validate")]
-        [Authorize(Roles = "SuperAdmin,Admin,Principal,Teacher")]
-        public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string academicYear = "2026-2027")
-        {
-            try
-            {
-                var result = await _timetableService.ValidateTimetableAsync(classId, sectionId, academicYear);
-                return Ok(new { success = true, data = result });
             }
             catch (Exception ex)
             {

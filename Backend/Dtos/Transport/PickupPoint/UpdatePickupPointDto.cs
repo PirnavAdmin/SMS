@@ -59,6 +59,42 @@ namespace SMS.Api.Dtos.Transport.PickupPoint
             }
         }
 
+        private TimeSpan _dropTime = new TimeSpan(16, 15, 0);
+        private decimal _monthlyFee = 1200;
+
+        [JsonPropertyName("dropTime")]
+        public TimeSpan DropTime
+        {
+            get => _dropTime;
+            set => _dropTime = value;
+        }
+
+        [JsonPropertyName("eveningDropTime")]
+        public string? EveningDropTime
+        {
+            get => _dropTime.ToString(@"hh\:mm");
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && TimeSpan.TryParse(value, out var ts))
+                {
+                    _dropTime = ts;
+                }
+            }
+        }
+
+        [JsonPropertyName("morningPickupTime")]
+        public string? MorningPickupTime
+        {
+            get => _pickupTime.ToString(@"hh\:mm");
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && TimeSpan.TryParse(value, out var ts))
+                {
+                    _pickupTime = ts;
+                }
+            }
+        }
+
         [JsonPropertyName("distanceFromStart")]
         public decimal DistanceFromStart { get; set; }
 
@@ -67,6 +103,20 @@ namespace SMS.Api.Dtos.Transport.PickupPoint
         {
             get => DistanceFromStart;
             set { if (value.HasValue) DistanceFromStart = value.Value; }
+        }
+
+        [JsonPropertyName("monthlyFee")]
+        public decimal MonthlyFee
+        {
+            get => _monthlyFee;
+            set => _monthlyFee = value;
+        }
+
+        [JsonPropertyName("monthlyFare")]
+        public decimal? MonthlyFare
+        {
+            get => _monthlyFee;
+            set { if (value.HasValue) _monthlyFee = value.Value; }
         }
 
         [JsonPropertyName("status")]

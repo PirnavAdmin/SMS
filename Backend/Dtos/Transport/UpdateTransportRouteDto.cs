@@ -83,6 +83,42 @@ namespace SMS.Api.Dtos.Transport
             set { if (value.HasValue) _estimatedDurationMinutes = value.Value; }
         }
 
+        [JsonPropertyName("minRangeKm")]
+        public decimal MinRangeKm { get; set; } = 5;
+
+        [JsonPropertyName("minRange")]
+        public decimal? MinRange
+        {
+            get => MinRangeKm;
+            set { if (value.HasValue) MinRangeKm = value.Value; }
+        }
+
+        [JsonPropertyName("nonAcBaseFare")]
+        public decimal NonAcBaseFare { get; set; } = 1000;
+
+        [JsonPropertyName("nonAcRateAddlKm")]
+        public decimal NonAcRateAddlKm { get; set; } = 100;
+
+        [JsonPropertyName("nonAcRatePerKm")]
+        public decimal? NonAcRatePerKm
+        {
+            get => NonAcRateAddlKm;
+            set { if (value.HasValue) NonAcRateAddlKm = value.Value; }
+        }
+
+        [JsonPropertyName("acBaseFare")]
+        public decimal AcBaseFare { get; set; } = 1200;
+
+        [JsonPropertyName("acRateAddlKm")]
+        public decimal AcRateAddlKm { get; set; } = 150;
+
+        [JsonPropertyName("acRatePerKm")]
+        public decimal? AcRatePerKm
+        {
+            get => AcRateAddlKm;
+            set { if (value.HasValue) AcRateAddlKm = value.Value; }
+        }
+
         [JsonPropertyName("description")]
         public string? Description { get; set; }
 

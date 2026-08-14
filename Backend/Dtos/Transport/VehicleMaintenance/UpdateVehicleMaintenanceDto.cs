@@ -63,6 +63,7 @@ namespace SMS.Api.Dtos.Transport.VehicleMaintenance
         }
 
         [JsonPropertyName("nextServiceDue")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? NextServiceDue { get; set; }
 
         [JsonPropertyName("nextServiceDueDate")]

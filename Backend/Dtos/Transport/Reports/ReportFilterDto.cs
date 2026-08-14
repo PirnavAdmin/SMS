@@ -6,9 +6,11 @@ namespace SMS.Api.Dtos.Transport.Reports
     public class ReportFilterDto
     {
         [JsonPropertyName("fromDate")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? FromDate { get; set; }
 
         [JsonPropertyName("toDate")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? ToDate { get; set; }
 
         [JsonPropertyName("routeId")]

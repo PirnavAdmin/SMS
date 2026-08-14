@@ -1,4 +1,4 @@
-namespace SMS.Api.Models.StaffManagement;
+namespace SMS.Api.Models;
 
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -27,4 +27,3 @@ public class StaffDocument
 
     public DateTime? UploadedAt { get; set; }
 }
-

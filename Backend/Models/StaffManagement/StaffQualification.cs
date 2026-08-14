@@ -1,4 +1,4 @@
-namespace SMS.Api.Models.StaffManagement;
+namespace SMS.Api.Models;
 
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -34,4 +34,3 @@ public class StaffQualification
     [MaxLength(20)]
     public string? PercentageCgpa { get; set; }
 }
-

@@ -30,32 +30,36 @@ namespace Backend.Migrations
 
             // 1. Rename remaining snake_case columns on 'classes' table conditionally
             migrationBuilder.Sql(@"
-                SET @exist1 = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'display_order');
-                SET @query1 = IF(@exist1 > 0, 'ALTER TABLE `classes` RENAME COLUMN `display_order` TO `DisplayOrder`', 'SELECT 1');
+                SET @exist1_old = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'display_order');
+                SET @exist1_new = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'DisplayOrder');
+                SET @query1 = IF(@exist1_old > 0 AND @exist1_new = 0, 'ALTER TABLE `classes` RENAME COLUMN `display_order` TO `DisplayOrder`', 'SELECT 1');
                 PREPARE stmt1 FROM @query1;
                 EXECUTE stmt1;
                 DEALLOCATE PREPARE stmt1;
             ");
 
             migrationBuilder.Sql(@"
-                SET @exist2 = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'created_at');
-                SET @query2 = IF(@exist2 > 0, 'ALTER TABLE `classes` RENAME COLUMN `created_at` TO `CreatedAt`', 'SELECT 1');
+                SET @exist2_old = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'created_at');
+                SET @exist2_new = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'CreatedAt');
+                SET @query2 = IF(@exist2_old > 0 AND @exist2_new = 0, 'ALTER TABLE `classes` RENAME COLUMN `created_at` TO `CreatedAt`', 'SELECT 1');
                 PREPARE stmt2 FROM @query2;
                 EXECUTE stmt2;
                 DEALLOCATE PREPARE stmt2;
             ");
 
             migrationBuilder.Sql(@"
-                SET @exist3 = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'campus_location');
-                SET @query3 = IF(@exist3 > 0, 'ALTER TABLE `classes` RENAME COLUMN `campus_location` TO `CampusLocation`', 'SELECT 1');
+                SET @exist3_old = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'campus_location');
+                SET @exist3_new = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'CampusLocation');
+                SET @query3 = IF(@exist3_old > 0 AND @exist3_new = 0, 'ALTER TABLE `classes` RENAME COLUMN `campus_location` TO `CampusLocation`', 'SELECT 1');
                 PREPARE stmt3 FROM @query3;
                 EXECUTE stmt3;
                 DEALLOCATE PREPARE stmt3;
             ");
 
             migrationBuilder.Sql(@"
-                SET @exist4 = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'academic_year');
-                SET @query4 = IF(@exist4 > 0, 'ALTER TABLE `classes` RENAME COLUMN `academic_year` TO `AcademicYear`', 'SELECT 1');
+                SET @exist4_old = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'academic_year');
+                SET @exist4_new = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'AcademicYear');
+                SET @query4 = IF(@exist4_old > 0 AND @exist4_new = 0, 'ALTER TABLE `classes` RENAME COLUMN `academic_year` TO `AcademicYear`', 'SELECT 1');
                 PREPARE stmt4 FROM @query4;
                 EXECUTE stmt4;
                 DEALLOCATE PREPARE stmt4;
@@ -76,8 +80,9 @@ namespace Backend.Migrations
 
             // Rename name to ClassName on classes table conditionally
             migrationBuilder.Sql(@"
-                SET @exist5 = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'name');
-                SET @query5 = IF(@exist5 > 0, 'ALTER TABLE `classes` RENAME COLUMN `name` TO `ClassName`', 'SELECT 1');
+                SET @exist5_old = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'name');
+                SET @exist5_new = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'classes' AND COLUMN_NAME = 'ClassName');
+                SET @query5 = IF(@exist5_old > 0 AND @exist5_new = 0, 'ALTER TABLE `classes` RENAME COLUMN `name` TO `ClassName`', 'SELECT 1');
                 PREPARE stmt5 FROM @query5;
                 EXECUTE stmt5;
                 DEALLOCATE PREPARE stmt5;
@@ -159,8 +164,9 @@ namespace Backend.Migrations
 
             // 8. Re-add the student_attendances FK (now nullable, no cascade) conditionally
             migrationBuilder.Sql(@"
+                SET @col = (SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'students' AND COLUMN_NAME IN ('student_id', 'StudentId', 'Id') LIMIT 1);
                 SET @exist = (SELECT COUNT(*) FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'student_attendances' AND CONSTRAINT_NAME = 'FK_student_attendances_students_StudentId');
-                SET @query = IF(@exist = 0, 'ALTER TABLE `student_attendances` ADD CONSTRAINT `FK_student_attendances_students_StudentId` FOREIGN KEY (`StudentId`) REFERENCES `students` (`student_id`)', 'SELECT 1');
+                SET @query = IF(@exist = 0 AND @col IS NOT NULL, CONCAT('ALTER TABLE `student_attendances` ADD CONSTRAINT `FK_student_attendances_students_StudentId` FOREIGN KEY (`StudentId`) REFERENCES `students` (`', @col, '`)'), 'SELECT 1');
                 PREPARE stmt FROM @query;
                 EXECUTE stmt;
                 DEALLOCATE PREPARE stmt;

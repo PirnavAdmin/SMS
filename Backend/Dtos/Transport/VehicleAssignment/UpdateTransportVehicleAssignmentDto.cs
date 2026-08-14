@@ -108,6 +108,7 @@ namespace SMS.Api.Dtos.Transport.VehicleAssignment
         }
 
         [JsonPropertyName("effectiveTo")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? EffectiveTo { get; set; }
 
         [JsonPropertyName("shift")]

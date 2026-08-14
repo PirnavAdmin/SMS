@@ -1,4 +1,4 @@
-namespace SMS.Api.Dtos.StaffManagement;
+namespace SMS.Api.Dtos;
 
 public class StaffExperienceDto
 {
@@ -10,4 +10,3 @@ public class StaffExperienceDto
     public string? TotalExperience { get; set; }
     public string? ReasonForLeaving { get; set; }
 }
-

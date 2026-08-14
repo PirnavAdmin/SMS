@@ -32,11 +32,8 @@ namespace SMS.Api.Controllers.AcademicManagement
         // =========================================================
 
         // --- GET ALL TEACHER ASSIGNMENTS (for frontend persistence on reload) ---
-        // Accessible at both:
-        //   GET /api/classes/teacher-assignments  (canonical)
-        //   GET /api/teacher-assignments          (alias — frontend compatibility)
+
         [HttpGet("teacher-assignments")]
-        [HttpGet("/api/teacher-assignments")]   // absolute alias — overrides class-level route prefix
         [Authorize(Roles = "SuperAdmin,Admin,Teacher,Principal")]
         public async Task<IActionResult> GetAllTeacherAssignments()
         {
@@ -103,8 +100,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                         ClassTeacherName = classTeacherAssign != null
                             ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
                             : null,
-                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
-                        RoomNo = s.RoomNo
+                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId
                     };
                 }).ToList(),
                 CurriculumSubjects = c.SubjectMappings.Select(sm => new SubjectDto
@@ -155,8 +151,7 @@ namespace SMS.Api.Controllers.AcademicManagement
                         ClassTeacherName = classTeacherAssign != null
                             ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
                             : null,
-                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
-                        RoomNo = s.RoomNo
+                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId
                     };
                 }).ToList(),
                 CurriculumSubjects = classObj.SubjectMappings.Select(sm => new SubjectDto
@@ -175,11 +170,6 @@ namespace SMS.Api.Controllers.AcademicManagement
         [Authorize(Roles = "SuperAdmin,Admin,Principal")]
         public async Task<IActionResult> CreateClassGrade([FromBody] CreateClassGradeDto dto)
         {
-            if (string.IsNullOrEmpty(dto.Name) && string.IsNullOrEmpty(dto.ClassName))
-            {
-                return BadRequest(new { success = false, message = "Class name is required." });
-            }
-
             var campus = Request.Headers["X-Branch-Id"].ToString();
             if (string.IsNullOrEmpty(campus)) campus = "Main Campus";
 
@@ -421,8 +411,7 @@ await transaction.CommitAsync();
                 SectionName = dto.SectionLetter,
                 Capacity = dto.Capacity,
                 Status = dto.Status,
-                Remarks = dto.Remarks,
-                RoomNo = dto.RoomNo
+                Remarks = dto.Remarks
             };
 
             await _context.ClassSections.AddAsync(section);
@@ -447,7 +436,6 @@ await transaction.CommitAsync();
             section.Capacity = dto.Capacity;
             section.Status = dto.Status;
             section.Remarks = dto.Remarks;
-            section.RoomNo = dto.RoomNo;
 
             await _context.SaveChangesAsync();
             await LogAuditActionAsync("Update Section", $"Updated section '{section_letter}' in class ID {id}.");

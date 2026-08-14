@@ -30,6 +30,7 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
         public DateTime EffectiveFrom { get; set; } = DateTime.UtcNow;
 
         [JsonPropertyName("effectiveTo")]
+        [JsonConverter(typeof(FlexibleNullableDateTimeConverter))]
         public DateTime? EffectiveTo { get; set; }
 
         [JsonPropertyName("transportType")]
