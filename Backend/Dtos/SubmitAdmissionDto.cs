@@ -45,7 +45,7 @@ public class SubmitAdmissionDto
 
     public string BranchName { get; set; } = "Main Campus";
 
-    public string StudentType { get; set; } = "Day Scholar";
+    public string StudentType { get; set; } = "Non-Residential";
 
     public string? BloodGroup { get; set; }
     public string? Religion { get; set; }

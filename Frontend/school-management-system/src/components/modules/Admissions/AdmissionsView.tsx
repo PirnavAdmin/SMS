@@ -2078,7 +2078,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Student Type *
                     </label>
-                    <div className="relative">
+                    <div className="relative z-20">
                       <select
                         value={formData.studentType || ""}
                         onChange={(e) =>
@@ -2147,7 +2147,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                         <div>
                           <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                            Bus Route (Transport Master)
+                            Bus Route
                           </label>
                           <div className="relative">
                             <select
@@ -2251,7 +2251,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Select Room
+                          Room
                         </label>
                         <div className="relative">
                           <select
@@ -2340,7 +2340,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                          Select Bed
+                          Bed
                         </label>
                         <div className="relative">
                           <select
@@ -2351,7 +2351,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                 hostelBed: e.target.value,
                               })
                             }
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-emerald-600 dark:text-emerald-400 outline-none animate-in fade-in appearance-none cursor-pointer pr-10"
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none animate-in fade-in appearance-none cursor-pointer pr-10"
                           >
                             <option value="">Select Bed</option>
                             {formData.hostelRoom &&

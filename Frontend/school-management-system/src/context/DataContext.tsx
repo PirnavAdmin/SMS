@@ -211,6 +211,7 @@ import {
   deleteAdmissionApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
+import * as FinanceAPI from "../api/finance";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
 import {
@@ -219,7 +220,11 @@ import {
   updateClassApi,
   deleteClassApi,
   fetchDepartmentsApi,
+  createDepartmentApi,
+  updateDepartmentApi,
   fetchDesignationsApi,
+  createDesignationApi,
+  updateDesignationApi,
   fetchAcademicSubjectsApi,
   fetchAcademicPeriodsApi,
   fetchTimetableForClassSectionApi,
@@ -3738,8 +3743,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const mappedAdmissions: AdmissionApplication[] = json.data.map(
           (item: any) => ({
             id: item.applicationId.toString(),
-            applicationNo: item.registrationNo,
-            registrationNo: item.registrationNo,
+            applicationNo: item.registrationNumber || item.registrationNo,
+            registrationNo: item.registrationNumber || item.registrationNo,
             applicantName: item.applicantFullName,
             appliedClass: item.appliedClass,
             gender: item.gender,
@@ -3750,7 +3755,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             parentName: item.fatherFullName,
             motherName: item.motherFullName,
             phone: item.fatherMobileNo,
-            email: "",
+            email: item.parentEmail || "",
             addressHouseNo: item.houseNo,
             addressStreet: item.street,
             addressArea: item.areaLocality,
@@ -3842,8 +3847,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             cat.includes("faculty") ||
             cat.includes("professor");
           return {
-            id: item.staffId.toString(),
-            empId: item.employeeId,
+            id: (item.id || item.staffId || "").toString(),
+            empId: item.empId || item.employeeId || "",
             employeeCategory: isTeaching ? "Teacher" : "Staff",
             firstName: item.firstName,
             middleName: item.middleName || "",
@@ -3852,9 +3857,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             phone: item.phone || "",
             gender: item.gender || "Male",
             dob: item.dateOfBirth ? item.dateOfBirth.split("T")[0] : "",
+            bloodGroup: item.bloodGroup || "",
+            aadhaarNumber: item.aadhaarNumber || "",
+            panNumber: item.panNumber || "",
             joiningDate: item.joiningDate ? item.joiningDate.split("T")[0] : "",
             qualification: item.qualification || "",
-            experienceYears: 0,
+            experienceYears: item.experienceRecords ? item.experienceRecords.reduce((total: number, rec: any) => total + (rec.yearsOfExperience || 0), 0) : 0,
             salary: item.monthlySalary || 0,
             designation: item.designation || "",
             department: item.department || "",
@@ -4055,8 +4063,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const fetchFinanceData = async () => {
+    try {
+      const [headsRes, structsRes, assignmentsRes, paymentsRes] = await Promise.allSettled([
+        FinanceAPI.fetchFeeHeadsApi(),
+        FinanceAPI.fetchDynamicFeeStructuresApi(),
+        FinanceAPI.fetchStudentFeeAssignmentsApi(),
+        FinanceAPI.fetchFeePaymentsApi()
+      ]);
+      const extract = (r: PromiseSettledResult<any>) =>
+        r.status === "fulfilled"
+          ? Array.isArray(r.value)
+            ? r.value
+            : r.value?.data || []
+          : [];
+      const heads = extract(headsRes);
+      const structs = extract(structsRes);
+      const assignments = extract(assignmentsRes);
+      const payments = extract(paymentsRes);
+      if (heads.length) setFeeHeads(heads);
+      if (structs.length) setDynamicFeeStructures(structs);
+      if (assignments.length) setStudentFeeAssignments(assignments);
+      if (payments.length) setFeePayments(payments);
+    } catch (err) {
+      console.warn("Failed to fetch finance data from API", err);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
+      fetchFinanceData();
       fetchAcademicClasses();
       fetchSubjects();
       fetchPeriods();
@@ -4124,7 +4160,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
   };
 
-  const addStudent = (stData: Omit<Student, "id">): Student => {
+  const addStudent = (stData: Omit<Student, "id">, skipApiCall = false): Student => {
     const id = "STU-" + Math.floor(100 + Math.random() * 900);
     const newStudent: Student = {
       ...stData,
@@ -4133,6 +4169,39 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       studentType: stData.studentType || "Day Scholar",
       promotionHistory: stData.promotionHistory || [],
     };
+    
+    if (!skipApiCall) {
+      createStudentApi({
+        admissionNumber: newStudent.admissionNo || `ADM-${Math.floor(1000 + Math.random() * 9000)}`,
+        rollNumber: newStudent.rollNo || "00",
+        studentName: `${newStudent.firstName || ""} ${newStudent.lastName || ""}`.trim(),
+        dateOfBirth: newStudent.dob || undefined,
+        gender: newStudent.gender || "Male",
+        fatherName: newStudent.parentName || "",
+        fatherMobile: newStudent.parentPhone || "",
+        email: newStudent.email || undefined,
+        mobileNumber: newStudent.parentPhone || "",
+        address: newStudent.address || "",
+        branchId: 1, 
+        academicYearId: 1,
+        classId: 1,
+        sectionId: 1,
+        status: newStudent.status || "Active"
+      })
+        .then((response: any) => {
+          if (response && response.success && response.data) {
+            setStudents((prev) =>
+              prev.map((s) =>
+                s.id === newStudent.id
+                  ? { ...s, id: response.data.studentId.toString() }
+                  : s,
+              ),
+            );
+          }
+        })
+        .catch((err) => console.error("Failed to create student", err));
+    }
+
     setStudents((prev) => [...prev, newStudent]);
     logActivity(
       "Registered Student",
@@ -4145,6 +4214,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
+    const oldStudent = students.find((s) => s.id === id);
+    const numericId = parseInt(id, 10);
+    
+    if (!isNaN(numericId) && oldStudent) {
+      const fullStudent = { ...oldStudent, ...updates };
+      updateStudentApi(numericId, {
+        admissionNumber: fullStudent.admissionNo || "ADM-00",
+        rollNumber: fullStudent.rollNo || "00",
+        studentName: `${fullStudent.firstName || ""} ${fullStudent.lastName || ""}`.trim(),
+        dateOfBirth: fullStudent.dob || undefined,
+        gender: fullStudent.gender || "Male",
+        fatherName: fullStudent.parentName || "",
+        fatherMobile: fullStudent.parentPhone || "",
+        email: fullStudent.email || undefined,
+        mobileNumber: fullStudent.parentPhone || "",
+        address: fullStudent.address || "",
+        branchId: 1,
+        academicYearId: 1,
+        classId: 1,
+        sectionId: 1,
+        status: fullStudent.status || "Active"
+      }).catch((err) => console.error("Failed to update student", err));
+    }
+
     setStudents((prev) =>
       prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     );
@@ -4379,6 +4472,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       joiningDate: staffData.joiningDate,
       qualification: staffData.qualification || "",
       monthlySalary: staffData.salary || 0,
+      dateOfBirth: staffData.dob,
+      bloodGroup: staffData.bloodGroup,
+      aadhaarNumber: staffData.aadhaarNumber,
+      panNumber: staffData.panNumber,
       accountHolderName: staffData.bankDetails?.accountHolderName || "",
       accountNumber: staffData.bankDetails?.accountNumber || "",
       bankName: staffData.bankDetails?.bankName || "",
@@ -4433,6 +4530,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           joiningDate: fullStaff.joiningDate,
           qualification: fullStaff.qualification || "",
           monthlySalary: fullStaff.salary || 0,
+          dateOfBirth: fullStaff.dob,
+          bloodGroup: fullStaff.bloodGroup,
+          aadhaarNumber: fullStaff.aadhaarNumber,
+          panNumber: fullStaff.panNumber,
           accountHolderName: fullStaff.bankDetails?.accountHolderName || "",
           accountNumber: fullStaff.bankDetails?.accountNumber || "",
           bankName: fullStaff.bankDetails?.bankName || "",
@@ -5226,7 +5327,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             dueFee: calculatedTotalFee,
             attendancePct: 100.0,
             gpa: 4.0,
-          });
+          }, true);
 
           enrolledStudentId = newStudent.id;
 
@@ -5854,9 +5955,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // Fee Payments CRUD with Student Fee Ledger Update & FIFO Allocation Engine
-  const addFeePayment = (
+  const addFeePayment = async (
     paymentData: Omit<FeePayment, "id" | "receiptNo">,
-  ): FeePayment => {
+  ): Promise<FeePayment> => {
+    try {
+      await FinanceAPI.createFeePaymentApi(paymentData);
+    } catch (err) {
+      console.warn("Fee payment API failed, continuing with local state", err);
+    }
     const id = "PAY-" + Math.floor(100 + Math.random() * 900);
     const receiptNo =
       financeSettings.receiptPrefix + Math.floor(1000 + Math.random() * 9000);
@@ -6320,18 +6426,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // ==========================================
 
   // 1. Fee Types CRUD
-  const addFeeHead = (head: Omit<FeeHead, "id">) => {
-    const id = "FH-" + Math.floor(100 + Math.random() * 900);
-    const newHead: FeeHead = {
-      ...head,
-      id,
-      applicableBranches:
-        head.applicableBranches && head.applicableBranches.length > 0
-          ? head.applicableBranches
-          : [selectedBranch || "Main Campus"],
-    };
-    setFeeHeads((prev) => [...prev, newHead]);
-    logActivity("Created Fee Head", `Added ${newHead.name} (${newHead.code})`);
+  const addFeeHead = async (head: Omit<FeeHead, "id">) => {
+    try {
+      const response = await FinanceAPI.createFeeHeadApi(head);
+      const newHead: FeeHead = {
+        ...head,
+        id: response?.id || "FH-" + Math.floor(100 + Math.random() * 900),
+        applicableBranches: head.applicableBranches && head.applicableBranches.length > 0 ? head.applicableBranches : [selectedBranch || "Main Campus"],
+      };
+      setFeeHeads((prev) => [...prev, newHead]);
+      logActivity("Created Fee Head", `Added ${newHead.name} (${(newHead as any).code || ""})`);
+    } catch (err) {
+      console.warn("API failed, using local", err);
+      const id = "FH-" + Math.floor(100 + Math.random() * 900);
+      const newHead: FeeHead = {
+        ...head,
+        id,
+        applicableBranches: head.applicableBranches && head.applicableBranches.length > 0 ? head.applicableBranches : [selectedBranch || "Main Campus"],
+      };
+      setFeeHeads((prev) => [...prev, newHead]);
+      logActivity("Created Fee Head", `Added ${newHead.name} (${(newHead as any).code || ""})`);
+    }
   };
 
   const updateFeeHead = (id: string, updates: Partial<FeeHead>) => {
@@ -6357,7 +6472,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // 2. Dynamic Fee Structures CRUD
-  const addDynamicFeeStructure = (dfs: Omit<DynamicFeeStructure, "id">) => {
+  const addDynamicFeeStructure = async (dfs: Omit<DynamicFeeStructure, "id">) => {
+    try {
+      await FinanceAPI.createDynamicFeeStructureApi(dfs);
+    } catch (err) {
+      console.warn("API failed, using local", err);
+    }
     const id = "DFS-" + Math.floor(100 + Math.random() * 900);
     const newDfs: DynamicFeeStructure = {
       ...dfs,
@@ -9863,6 +9983,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...deptData,
       id,
     };
+    
+    createDepartmentApi({
+      departmentName: newDept.departmentName,
+      departmentCode: newDept.departmentCode || "",
+      description: newDept.description || "",
+      status: newDept.status,
+    })
+      .then((response: any) => {
+        if (response && response.success && response.data) {
+          setDepartments((prev) =>
+            prev.map((d) =>
+              d.id === newDept.id
+                ? { ...d, id: response.data.departmentId.toString() }
+                : d,
+            ),
+          );
+        }
+      })
+      .catch((err) => console.error("Failed to create department", err));
+
     setDepartments((prev) => [newDept, ...prev]);
     logActivity(
       "Created Department",
@@ -9874,6 +10014,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateDepartment = (id: string, updates: Partial<Department>) => {
     const oldDept = departments.find((d) => d.id === id);
     const oldName = oldDept?.departmentName;
+
+    const numericId = parseInt(id, 10);
+    if (!isNaN(numericId) && oldDept) {
+      const fullDept = { ...oldDept, ...updates };
+      updateDepartmentApi(numericId, {
+        departmentName: fullDept.departmentName,
+        departmentCode: fullDept.departmentCode || "",
+        description: fullDept.description || "",
+        status: fullDept.status,
+      }).catch((err) => console.error("Failed to update department", err));
+    }
 
     setDepartments((prev) =>
       prev.map((d) => (d.id === id ? { ...d, ...updates } : d)),
@@ -9913,6 +10064,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       ...designationData,
       id,
     };
+    
+    createDesignationApi({
+      designationName: newDesignation.designationName,
+      status: newDesignation.status,
+    })
+      .then((response: any) => {
+        if (response && response.success && response.data) {
+          setDesignations((prev) =>
+            prev.map((d) =>
+              d.id === newDesignation.id
+                ? { ...d, id: response.data.designationId.toString() }
+                : d,
+            ),
+          );
+        }
+      })
+      .catch((err) => console.error("Failed to create designation", err));
+
     setDesignations((prev) => [newDesignation, ...prev]);
     logActivity(
       "Created Designation",
@@ -9925,6 +10094,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<DesignationMaster>,
   ) => {
+    const oldDesig = designations.find((d) => d.id === id);
+    const numericId = parseInt(id, 10);
+    
+    if (!isNaN(numericId) && oldDesig) {
+      const fullDesig = { ...oldDesig, ...updates };
+      updateDesignationApi(numericId, {
+        designationName: fullDesig.designationName,
+        status: fullDesig.status,
+      }).catch((err) => console.error("Failed to update designation", err));
+    }
+
     setDesignations((prev) =>
       prev.map((d) => (d.id === id ? { ...d, ...updates } : d)),
     );

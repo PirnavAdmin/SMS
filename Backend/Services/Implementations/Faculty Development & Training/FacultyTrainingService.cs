@@ -174,7 +174,7 @@ namespace SMS.Api.Services.Implementations
                 AssessmentCategory = dto.AssessmentCategory,
                 TotalMarks = dto.TotalMarks,
                 PassingMarks = dto.PassingMarks,
-                GradingScheme = dto.GradingScheme,
+                GradingScheme = dto.GradingScheme ?? "",
                 Description = dto.Description,
                 AssessmentInstructions = dto.AssessmentInstructions,
                 EmployeeTypeFilter = dto.EmployeeTypeFilter,

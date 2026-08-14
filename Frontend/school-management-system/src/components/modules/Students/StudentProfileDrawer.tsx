@@ -232,7 +232,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 <div><span className="text-slate-400 block font-semibold">Blood Group:</span> <p className="font-bold text-rose-500 mt-1 text-sm">{student.bloodGroup}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Religion:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.religion || 'General'}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Caste Category:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.casteCategory || 'General'}</p></div>
-                <div><span className="text-slate-400 block font-semibold">Student Type:</span> <p className="font-bold text-brand-600 dark:text-brand-400 mt-1 text-sm">{student.studentType || 'Day Scholar'}</p></div>
+                <div><span className="text-slate-400 block font-semibold">Student Type:</span> <p className="font-bold text-brand-600 dark:text-brand-400 mt-1 text-sm">{student.studentType || 'Non-Residential'}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Branch / Campus:</span> <p className="font-bold text-amber-600 dark:text-amber-400 mt-1 text-sm">{student.branch || 'Main Campus'}</p></div>
                 <div><span className="text-slate-400 block font-semibold">Joining Date:</span> <p className="font-bold text-slate-900 dark:text-white mt-1 text-sm">{student.joiningDate}</p></div>
               </div>
@@ -298,7 +298,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
               <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs space-y-4 shadow-sm">
                 <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 font-semibold">Student Category:</span>
-                  <Badge variant={isHosteller ? 'warning' : 'info'}>{student.studentType || (isHosteller ? 'Hosteller' : 'Day Scholar')}</Badge>
+                  <Badge variant={isHosteller ? 'warning' : 'info'}>{student.studentType || (isHosteller ? 'Residential' : 'Non-Residential')}</Badge>
                 </div>
 
                 {isHosteller ? (

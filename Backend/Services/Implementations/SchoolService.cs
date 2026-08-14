@@ -746,6 +746,19 @@ public class SchoolService : ISchoolService
 				}
 			}
 		}
+
+		var allStudents = await _context.Students.AsNoTracking().Select(s => s.AdmissionNumber).ToListAsync();
+		foreach (var admNo in allStudents)
+		{
+			if (!string.IsNullOrWhiteSpace(admNo) && admNo.StartsWith("REG-"))
+			{
+				if (int.TryParse(admNo.Substring(4), out int seqNum) && seqNum > maxSeq)
+				{
+					maxSeq = seqNum;
+				}
+			}
+		}
+
 		string nextRegNo = $"REG-{maxSeq + 1}";
 
 		var app = new AdmissionApplication
@@ -775,7 +788,7 @@ public class SchoolService : ISchoolService
 			PinCode = dto.PinCode,
 			NumberOfSiblings = dto.NumberOfSiblings,
 			ExistingSiblingLookup = dto.ExistingSiblingLookup,
-			StudentType = string.IsNullOrWhiteSpace(dto.StudentType) ? "Day Scholar" : dto.StudentType,
+			StudentType = string.IsNullOrWhiteSpace(dto.StudentType) ? "Non-Residential" : dto.StudentType,
 			TransportRequired = dto.TransportRequired,
 			TransportType = dto.TransportType,
 			BusRoute = dto.BusRoute,
@@ -1161,7 +1174,7 @@ public class SchoolService : ISchoolService
 	{
 		try
 		{
-			if (string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase) ||
+			if (string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
 				!string.IsNullOrWhiteSpace(app.HostelBlock) ||
 				!string.IsNullOrWhiteSpace(app.HostelRoom))
 			{
@@ -1244,7 +1257,7 @@ public class SchoolService : ISchoolService
 		{
 			bool isTransportReq = app.TransportRequired == true || 
 				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
-				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Equals("Day Scholar", StringComparison.OrdinalIgnoreCase) && app.TransportRequired == true) ||
+				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Equals("Non-Residential", StringComparison.OrdinalIgnoreCase) && app.TransportRequired == true) ||
 				!string.IsNullOrWhiteSpace(app.BusRoute) ||
 				!string.IsNullOrWhiteSpace(app.PickupPoint);
 

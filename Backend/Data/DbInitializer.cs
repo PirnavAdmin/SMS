@@ -624,7 +624,9 @@ namespace SMS.Api.Data
 
                 try
                 {
+#pragma warning disable EF1002
                     context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` ADD COLUMN `{column}` {columnDef};");
+#pragma warning restore EF1002
                     logger.LogInformation($"[DbInitializer] Added column `{column}` to table `{table}`.");
                 }
                 catch (Exception ex)
@@ -655,7 +657,7 @@ namespace SMS.Api.Data
             EnsureColumnExists("hostel_wardens", "AlternateMobile", "varchar(20) NULL");
             EnsureColumnExists("hostel_wardens", "Designation", "varchar(50) NOT NULL DEFAULT 'Warden'");
             EnsureColumnExists("hostel_wardens", "CreatedAt", "datetime(6) NULL");
-            EnsureColumnExists("admission_applications", "StudentType", "varchar(50) NOT NULL DEFAULT 'Day Scholar'");
+            EnsureColumnExists("admission_applications", "StudentType", "varchar(50) NOT NULL DEFAULT 'Non-Residential'");
             EnsureColumnExists("admission_applications", "AllocatedBedId", "varchar(50) NULL");
             EnsureColumnExists("admission_applications", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
             EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");

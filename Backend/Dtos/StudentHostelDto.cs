@@ -6,7 +6,7 @@ public class StudentHostelResponseDto
 {
     public int StudentId { get; set; }
     public string StudentName { get; set; } = string.Empty;
-    public string StudentType { get; set; } = "Day Scholar";
+    public string StudentType { get; set; } = "Non-Residential";
     public bool IsHosteller { get; set; } = false;
     public bool IsAssigned { get; set; } = false;
     public string Message { get; set; } = string.Empty;

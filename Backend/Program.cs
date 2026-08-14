@@ -363,6 +363,18 @@ builder.Services.AddScoped<
     ITeacherAttendanceService,
     TeacherAttendanceService>();
 
+// =========================================================
+// FINANCE MANAGEMENT
+// =========================================================
+
+builder.Services.AddScoped<
+    SMS.Api.Repositories.Interfaces.FinanceManagement.IFinanceRepository,
+    SMS.Api.Repositories.Implementations.FinanceManagement.FinanceRepository>();
+
+builder.Services.AddScoped<
+    SMS.Api.Services.Interfaces.FinanceManagement.IFinanceService,
+    SMS.Api.Services.Implementations.FinanceManagement.FinanceService>();
+
 
 // =========================================================
 // 3. JWT AUTHENTICATION

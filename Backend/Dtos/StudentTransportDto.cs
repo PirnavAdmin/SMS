@@ -8,7 +8,7 @@ public class StudentTransportResponseDto
     public string StudentName { get; set; } = string.Empty;
     public string ClassName { get; set; } = "Class 10-A";
     public string AdmissionNo { get; set; } = "ADM2024-001";
-    public string StudentType { get; set; } = "Day Scholar";
+    public string StudentType { get; set; } = "Non-Residential";
     public bool IsHosteller { get; set; } = false;
     public bool HasTransportAccess { get; set; } = true;
     public string Message { get; set; } = string.Empty;

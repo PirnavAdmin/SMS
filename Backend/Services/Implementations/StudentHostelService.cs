@@ -44,7 +44,7 @@ public class StudentHostelService : IStudentHostelService
                 {
                     StudentId = targetStudentId,
                     StudentName = allocation.StudentName ?? "Alexander Wright",
-                    StudentType = "Hosteller",
+                    StudentType = "Residential",
                     IsHosteller = true,
                     IsAssigned = true,
                     Message = "Student is assigned to campus residential facilities.",
@@ -68,7 +68,7 @@ public class StudentHostelService : IStudentHostelService
         {
             StudentId = targetStudentId,
             StudentName = "Alexander",
-            StudentType = "Day Scholar",
+            StudentType = "Non-Residential",
             IsHosteller = false,
             IsAssigned = false,
             Message = "Alexander is registered as a Non-Residential student and is not assigned to any campus residential facilities."

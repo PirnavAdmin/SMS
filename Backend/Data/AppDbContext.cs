@@ -132,6 +132,15 @@ namespace SMS.Api.Data
         public DbSet<TeacherSubjectAssignment> TeacherSubjectAssignments { get; set; } = null!;
         public DbSet<TimetableHeader> TimetableHeaders { get; set; } = null!;
         public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
+        
+        // =====================================================
+        // Finance Management Module
+        // =====================================================
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeHead> FeeHeads { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.DynamicFeeStructure> DynamicFeeStructures { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.StudentFeeAssignment> StudentFeeAssignments { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeePayment> FeePayments { get; set; } = null!;
+
         //student
         public DbSet<Student> Students { get; set; } = null!;
         public DbSet<StudentImage> StudentImages { get; set; } = null!;

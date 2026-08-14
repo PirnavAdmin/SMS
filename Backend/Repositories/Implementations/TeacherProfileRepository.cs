@@ -243,7 +243,7 @@ public class TeacherProfileRepository : ITeacherProfileRepository
                     subjectDict[key] = new TeacherSubjectAssignmentDto
                     {
                         SubjectId = tsa.Subject.SubjectId,
-                        SubjectName = tsa.Subject.SubjectName,
+                        SubjectName = tsa.Subject.SubjectName ?? "",
                         SubjectCode = tsa.Subject.SubjectCode ?? "",
                         ClassName = tsa.ClassGrade?.ClassName ?? ""
                     };

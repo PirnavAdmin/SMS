@@ -755,11 +755,11 @@ public class TimetableService : ITimetableService
             var sectionName = parts[1].Trim();
 
             // Find Class
-            var classGrade = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName.ToLower() == className.ToLower());
+            var classGrade = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == className.ToLower());
             if (classGrade == null) continue;
 
             // Find Section
-            var section = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classGrade.ClassId && s.SectionName.ToLower() == sectionName.ToLower());
+            var section = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == classGrade.ClassId && s.SectionName != null && s.SectionName.ToLower() == sectionName.ToLower());
             if (section == null) continue;
 
             // Get or create Header

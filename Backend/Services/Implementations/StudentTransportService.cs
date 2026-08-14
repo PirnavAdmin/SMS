@@ -51,10 +51,10 @@ public class StudentTransportService : IStudentTransportService
                 StudentName = "Alexander Wright",
                 ClassName = "Class 10-A",
                 AdmissionNo = "ADM2024-001",
-                StudentType = "Hosteller",
+                StudentType = "Residential",
                 IsHosteller = true,
                 HasTransportAccess = false,
-                Message = "Alexander is registered as a Hosteller (Residential) student and does not use school transport facilities."
+                Message = "Alexander is registered as a Residential student and does not use school transport facilities."
             };
         }
 
@@ -65,7 +65,7 @@ public class StudentTransportService : IStudentTransportService
             StudentName = "Alexander Wright",
             ClassName = "Class 10-A",
             AdmissionNo = "ADM2024-001",
-            StudentType = "Day Scholar",
+            StudentType = "Non-Residential",
             IsHosteller = false,
             HasTransportAccess = true,
             Message = "Student is assigned to campus transport facilities.",
