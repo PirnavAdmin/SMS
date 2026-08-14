@@ -54,6 +54,8 @@ export const StaffAttendanceView: React.FC = () => {
     schoolProfile,
     fetchDailyAttendance,
     fetchMonthlyAttendance,
+    lastAttendancePayload,
+    lastAttendanceResponse,
   } = useData();
   const { addToast } = useToast();
   const { user, role } = useAuth();
@@ -70,7 +72,7 @@ export const StaffAttendanceView: React.FC = () => {
     userRole,
   );
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = new Date().toLocaleDateString('en-CA');
 
   const isPersonalView =
     userRole === "teacher" ||
@@ -1247,6 +1249,14 @@ export const StaffAttendanceView: React.FC = () => {
     fetchMonthlyAttendance,
   ]);
 
+  // Stable hash representation of relevant recorded attendance items to prevent unnecessary reset of edited state maps
+  const attendanceHash = useMemo(() => {
+    const relevant = (attendance || []).filter(
+      (r) => r.entityType === "Staff" && r.date === attendanceDate,
+    );
+    return JSON.stringify(relevant);
+  }, [attendance, attendanceDate]);
+
   // Populate / Sync local attendance maps whenever attendanceDate or staff changes
   useEffect(() => {
     const newStatusMap: typeof attendanceMap = {};
@@ -1298,7 +1308,7 @@ export const StaffAttendanceView: React.FC = () => {
     setOutTimeMap(newOutTimeMap);
     setRemarksMap(newRemarksMap);
     setOverrideLeaveSet(new Set());
-  }, [attendanceDate, staff, attendance, leaveApplications]);
+  }, [attendanceDate, staff, attendanceHash, leaveApplications]);
 
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
@@ -1517,7 +1527,13 @@ export const StaffAttendanceView: React.FC = () => {
       if (!confirmOverwrite) return;
     }
 
-    const recordsToSave: DailyAttendance[] = currentTabStaffList.map((s) => ({
+    const activeStaffCategoryList = staff.filter((s) => {
+      const isTeacher = isTeachingStaff(s);
+      const isCorrectCategory = activeTab === "teaching" ? isTeacher : !isTeacher;
+      return isCorrectCategory && s.status !== "Inactive";
+    });
+
+    const recordsToSave: DailyAttendance[] = activeStaffCategoryList.map((s) => ({
       date: attendanceDate,
       entityType: "Staff",
       entityId: s.id,
@@ -1874,150 +1890,6 @@ export const StaffAttendanceView: React.FC = () => {
       {(activeTab === "teaching" || activeTab === "non-teaching") &&
         viewMode === "daily" && (
           <div className="space-y-5">
-            {/* Filters Bar */}
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                {/* Search Input Bar */}
-                <div className="lg:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Search Staff
-                  </label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      placeholder={`Search ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff by name or emp ID...`}
-                      value={
-                        activeTab === "teaching" ? teachingQuery : nonTeachingQuery
-                      }
-                      onChange={(e) =>
-                        activeTab === "teaching"
-                          ? setTeachingQuery(e.target.value)
-                          : setNonTeachingQuery(e.target.value)
-                      }
-                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
-                    />
-                  </div>
-                </div>
-
-                {/* Attendance Date */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Attendance Date *
-                  </label>
-                  <DateInput
-                    value={attendanceDate}
-                    onChange={(e) => setAttendanceDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
-                  />
-                </div>
-
-                {/* Department Select */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Department
-                  </label>
-                  <select
-                    value={
-                      activeTab === "teaching" ? teachingDept : nonTeachingDept
-                    }
-                    onChange={(e) =>
-                      activeTab === "teaching"
-                        ? setTeachingDept(e.target.value)
-                        : setNonTeachingDept(e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                  >
-                    <option value="All">All Departments</option>
-                    {(activeTab === "teaching"
-                      ? teachingDepts
-                      : nonTeachingDepartments
-                    ).map((dept) => (
-                      <option key={dept} value={dept}>
-                        {dept}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Designation Select */}
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                    Designation (Optional)
-                  </label>
-                  <select
-                    value={
-                      activeTab === "teaching"
-                        ? teachingDesignation
-                        : nonTeachingDesignation
-                    }
-                    onChange={(e) =>
-                      activeTab === "teaching"
-                        ? setTeachingDesignation(e.target.value)
-                        : setNonTeachingDesignation(e.target.value)
-                    }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
-                  >
-                    <option value="All">All Designations</option>
-                    {(activeTab === "teaching"
-                      ? teachingDesignations
-                      : nonTeachingDesignations
-                    ).map((des) => (
-                      <option key={des} value={des}>
-                        {des}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            {/* Validation / Alert Status Banners */}
-            {isFutureDate && (
-              <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 text-xs font-bold flex items-center gap-2.5">
-                <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
-                <span>
-                  Future Date Restriction: Attendance cannot be marked or saved
-                  for future dates ({attendanceDate}). Please select today's
-                  date or a past date.
-                </span>
-              </div>
-            )}
-
-            {holidayEvent && (
-              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-xs font-bold flex items-center gap-2.5">
-                <HelpCircle className="w-5 h-5 text-amber-600 shrink-0" />
-                <span>
-                  Holiday Alert: Selected date is configured as a school
-                  holiday: <strong>{holidayEvent.name}</strong> (
-                  {holidayEvent.type} Holiday). Attendance is read-only unless
-                  overridden.
-                </span>
-              </div>
-            )}
-
-            {isWeekend && !holidayEvent && (
-              <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-sky-800 dark:text-sky-300 text-xs font-bold flex items-center gap-2.5">
-                <Info className="w-5 h-5 text-sky-600 shrink-0" />
-                <span>
-                  Weekend Notice: Selected date falls on a weekend (Sunday).
-                </span>
-              </div>
-            )}
-
-            {isExistingAttendanceForDate && !isFutureDate && (
-              <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900 text-sky-800 dark:text-sky-300 text-xs font-bold flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-sky-600" />
-                  Existing Attendance Log Loaded for {attendanceDate} (Edit Mode
-                  Active)
-                </span>
-                <span className="text-[10px] font-mono bg-white dark:bg-slate-900 px-2 py-0.5 rounded-md text-sky-700 dark:text-sky-300">
-                  Logged Records Present
-                </span>
-              </div>
-            )}
-
             {/* Live Attendance Summary Card */}
             <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
@@ -2115,6 +1987,104 @@ export const StaffAttendanceView: React.FC = () => {
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Filters Bar */}
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                {/* Search Input Bar */}
+                <div className="lg:col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                    Search Staff
+                  </label>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder={`Search ${activeTab === "teaching" ? "teaching" : "non-teaching"} staff by name or emp ID...`}
+                      value={
+                        activeTab === "teaching" ? teachingQuery : nonTeachingQuery
+                      }
+                      onChange={(e) =>
+                        activeTab === "teaching"
+                          ? setTeachingQuery(e.target.value)
+                          : setNonTeachingQuery(e.target.value)
+                      }
+                      className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+                    />
+                  </div>
+                </div>
+
+                {/* Attendance Date */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                    Attendance Date *
+                  </label>
+                  <DateInput
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-extrabold text-xs text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                {/* Department Select */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                    Department
+                  </label>
+                  <select
+                    value={
+                      activeTab === "teaching" ? teachingDept : nonTeachingDept
+                    }
+                    onChange={(e) =>
+                      activeTab === "teaching"
+                        ? setTeachingDept(e.target.value)
+                        : setNonTeachingDept(e.target.value)
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                  >
+                    <option value="All">All Departments</option>
+                    {(activeTab === "teaching"
+                      ? teachingDepts
+                      : nonTeachingDepartments
+                    ).map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Designation Select */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">
+                    Designation (Optional)
+                  </label>
+                  <select
+                    value={
+                      activeTab === "teaching"
+                        ? teachingDesignation
+                        : nonTeachingDesignation
+                    }
+                    onChange={(e) =>
+                      activeTab === "teaching"
+                        ? setTeachingDesignation(e.target.value)
+                        : setNonTeachingDesignation(e.target.value)
+                    }
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer"
+                  >
+                    <option value="All">All Designations</option>
+                    {(activeTab === "teaching"
+                      ? teachingDesignations
+                      : nonTeachingDesignations
+                    ).map((des) => (
+                      <option key={des} value={des}>
+                        {des}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Attendance Grid Table */}
@@ -2629,6 +2599,8 @@ export const StaffAttendanceView: React.FC = () => {
             </div>
           </div>
         )}
+
+
     </div>
   );
 };

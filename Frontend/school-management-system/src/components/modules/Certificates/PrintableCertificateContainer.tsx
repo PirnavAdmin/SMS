@@ -54,10 +54,10 @@ export const PrintableCertificateContainer: React.FC<PrintableCertificateContain
   isDraftPreview = false
 }) => {
   const themeColor = template.themeColor || '#1e3a8a';
-  const schoolName = schoolProfile.name || "St. Xavier's International School";
-  const schoolAddress = schoolProfile.address || "Knowledge City, Main Campus, New York 10001";
-  const schoolPhone = schoolProfile.phone || "011-28941000";
-  const schoolEmail = schoolProfile.email || "info@school.edu";
+  const schoolName = schoolProfile.name || "Pirnav Educational Institutions";
+  const schoolAddress = schoolProfile.address || "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
+  const schoolPhone = schoolProfile.phone || "+91 9123456789";
+  const schoolEmail = schoolProfile.email || "contact@pirnavschools.edu";
   const schoolLogoUrl = schoolProfile.logoUrl;
 
   // Header Style Variations

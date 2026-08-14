@@ -15,19 +15,52 @@ namespace SMS.Api.Repositories.Implementations
         }
 
         // Uniform Types
-        public async Task<List<UniformType>> GetAllUniformTypesAsync(string? search, string? gender)
+        public async Task<List<UniformType>> GetAllUniformTypesAsync(string? search, string? gender, string? category = null, string? size = null, string? status = null)
         {
             var query = _context.UniformTypes.AsNoTracking().AsQueryable();
 
-            if (!string.IsNullOrWhiteSpace(gender) && !gender.Equals("All", StringComparison.OrdinalIgnoreCase) && !gender.Equals("Select Gender (All)", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(gender) && !gender.Equals("All", StringComparison.OrdinalIgnoreCase) && !gender.Equals("Select Gender", StringComparison.OrdinalIgnoreCase))
             {
                 query = query.Where(u => u.Gender != null && u.Gender.ToLower() == gender.ToLower());
+            }
+
+            if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All", StringComparison.OrdinalIgnoreCase) && !category.Equals("Select Category", StringComparison.OrdinalIgnoreCase))
+            {
+                string cat = category.Trim().ToLower();
+                query = query.Where(u => (u.CategoryName != null && u.CategoryName.ToLower().Contains(cat)) || (u.ItemName != null && u.ItemName.ToLower().Contains(cat)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(size) && !size.Equals("All", StringComparison.OrdinalIgnoreCase) && !size.Equals("Select Size", StringComparison.OrdinalIgnoreCase))
+            {
+                string sz = size.Trim().ToLower();
+                query = query.Where(u => u.Size != null && (u.Size.ToLower() == sz || u.Size.ToLower().Contains(sz)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase) && !status.Equals("Select Status", StringComparison.OrdinalIgnoreCase))
+            {
+                string st = status.Trim().ToLower();
+                if (st == "in stock")
+                {
+                    query = query.Where(u => u.AvailableStock > u.MinThreshold);
+                }
+                else if (st == "low stock")
+                {
+                    query = query.Where(u => u.AvailableStock > 0 && u.AvailableStock <= u.MinThreshold);
+                }
+                else if (st == "out of stock")
+                {
+                    query = query.Where(u => u.AvailableStock == 0);
+                }
+                else
+                {
+                    query = query.Where(u => u.Status != null && u.Status.ToLower() == st);
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
                 string s = search.Trim().ToLower();
-                query = query.Where(u => u.ItemName.ToLower().Contains(s) || (u.Color != null && u.Color.ToLower().Contains(s)) || (u.SchoolWing != null && u.SchoolWing.ToLower().Contains(s)));
+                query = query.Where(u => u.ItemName.ToLower().Contains(s) || (u.Color != null && u.Color.ToLower().Contains(s)) || (u.SchoolWing != null && u.SchoolWing.ToLower().Contains(s)) || (u.CategoryName != null && u.CategoryName.ToLower().Contains(s)));
             }
 
             return await query.OrderByDescending(u => u.UniformTypeId).ToListAsync();
@@ -112,14 +145,19 @@ namespace SMS.Api.Repositories.Implementations
         }
 
         // Uniform Suppliers
-        public async Task<List<UniformSupplier>> GetAllSuppliersAsync(string? search)
+        public async Task<List<UniformSupplier>> GetAllSuppliersAsync(string? search, string? status = null)
         {
             var query = _context.UniformSuppliers.AsNoTracking().AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All", StringComparison.OrdinalIgnoreCase) && !status.Equals("Select Status", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(sp => sp.Status != null && sp.Status.ToLower() == status.ToLower());
+            }
 
             if (!string.IsNullOrWhiteSpace(search))
             {
                 string s = search.Trim().ToLower();
-                query = query.Where(sp => sp.SupplierName.ToLower().Contains(s) || (sp.ContactPerson != null && sp.ContactPerson.ToLower().Contains(s)));
+                query = query.Where(sp => sp.SupplierName.ToLower().Contains(s) || (sp.ContactPerson != null && sp.ContactPerson.ToLower().Contains(s)) || (sp.GstNumber != null && sp.GstNumber.ToLower().Contains(s)));
             }
 
             return await query.OrderBy(sp => sp.SupplierId).ToListAsync();

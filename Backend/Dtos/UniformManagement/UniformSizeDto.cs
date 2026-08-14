@@ -23,17 +23,26 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("chestWidth")]
         public string ChestWidth => ChestSpec;
 
+        [JsonPropertyName("chest")]
+        public string Chest => ChestSpec;
+
         [JsonPropertyName("waistSpec")]
         public string WaistSpec { get; set; } = string.Empty;
 
         [JsonPropertyName("waistSpecs")]
         public string WaistSpecs => WaistSpec;
 
+        [JsonPropertyName("waist")]
+        public string Waist => WaistSpec;
+
         [JsonPropertyName("heightTarget")]
         public string HeightTarget { get; set; } = string.Empty;
 
         [JsonPropertyName("heightBounds")]
         public string HeightBounds => HeightTarget;
+
+        [JsonPropertyName("height")]
+        public string Height => HeightTarget;
 
         [JsonPropertyName("ageBracket")]
         public string AgeBracket { get; set; } = string.Empty;
@@ -50,15 +59,20 @@ namespace SMS.Api.Dtos
 
     public class CreateUniformSizeDto
     {
-        [Required(ErrorMessage = "Size Code Name is required.")]
+        private string _sizeName = string.Empty;
+
         [JsonPropertyName("sizeName")]
-        public string SizeName { get; set; } = string.Empty;
+        public string SizeName
+        {
+            get => _sizeName;
+            set => _sizeName = value;
+        }
 
         [JsonPropertyName("sizeCodeName")]
         public string? SizeCodeNameAlias
         {
-            get => SizeName;
-            set { if (!string.IsNullOrWhiteSpace(value)) SizeName = value; }
+            get => _sizeName;
+            set { if (!string.IsNullOrWhiteSpace(value)) _sizeName = value; }
         }
 
         [JsonPropertyName("chestSpec")]
@@ -66,6 +80,13 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("chestWidth")]
         public string? ChestWidthAlias
+        {
+            get => ChestSpec;
+            set { if (!string.IsNullOrWhiteSpace(value)) ChestSpec = value; }
+        }
+
+        [JsonPropertyName("chest")]
+        public string? ChestAlias
         {
             get => ChestSpec;
             set { if (!string.IsNullOrWhiteSpace(value)) ChestSpec = value; }
@@ -81,11 +102,25 @@ namespace SMS.Api.Dtos
             set { if (!string.IsNullOrWhiteSpace(value)) WaistSpec = value; }
         }
 
+        [JsonPropertyName("waist")]
+        public string? WaistAlias
+        {
+            get => WaistSpec;
+            set { if (!string.IsNullOrWhiteSpace(value)) WaistSpec = value; }
+        }
+
         [JsonPropertyName("heightTarget")]
         public string? HeightTarget { get; set; }
 
         [JsonPropertyName("heightBounds")]
         public string? HeightBoundsAlias
+        {
+            get => HeightTarget;
+            set { if (!string.IsNullOrWhiteSpace(value)) HeightTarget = value; }
+        }
+
+        [JsonPropertyName("height")]
+        public string? HeightAlias
         {
             get => HeightTarget;
             set { if (!string.IsNullOrWhiteSpace(value)) HeightTarget = value; }

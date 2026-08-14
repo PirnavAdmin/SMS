@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit, Trash2, Users } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, Building2, X, Filter } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformSupplier } from '../../../types';
@@ -8,12 +8,13 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 
 export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
-  const { uniformSuppliers, addUniformSupplier, updateUniformSupplier, deleteUniformSupplier } = useData();
+  const { uniformSuppliers = [], addUniformSupplier, updateUniformSupplier, deleteUniformSupplier } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<UniformSupplier | null>(null);
   const [deletingSupplier, setDeletingSupplier] = useState<UniformSupplier | null>(null);
@@ -28,11 +29,18 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     status: 'Active'
   });
 
-  const filtered = uniformSuppliers.filter(s =>
-    s.supplierName.toLowerCase().includes(query.toLowerCase()) ||
-    s.contactPerson.toLowerCase().includes(query.toLowerCase()) ||
-    (s.gstNumber && s.gstNumber.toLowerCase().includes(query.toLowerCase()))
-  );
+  const isFiltered = Boolean(query.trim() || filterStatus !== '');
+
+  const filtered = !isFiltered ? [] : (uniformSuppliers || []).filter(s => {
+    if (!s) return false;
+    const name = (s.supplierName || (s as any).companyName || '').toLowerCase();
+    const contact = (s.contactPerson || (s as any).contactRepresentative || '').toLowerCase();
+    const gst = (s.gstNumber || (s as any).gstRegistrationNo || '').toLowerCase();
+    const q = (query || '').toLowerCase();
+    const matchQuery = !q || name.includes(q) || contact.includes(q) || gst.includes(q);
+    const matchStatus = !filterStatus || filterStatus === 'All' || s.status === filterStatus;
+    return matchQuery && matchStatus;
+  });
 
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -44,20 +52,39 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
   const handleOpenEdit = (s: UniformSupplier) => {
     setEditingSupplier(s);
-    setForm(s);
+    setForm({
+      ...s,
+      supplierName: s.supplierName || (s as any).companyName || '',
+      contactPerson: s.contactPerson || (s as any).contactRepresentative || '',
+      mobile: s.mobile || s.phone || (s as any).mobileNumber || '',
+      email: s.email || (s as any).emailAddress || '',
+      gstNumber: s.gstNumber || (s as any).gstRegistrationNo || '',
+      address: s.address || (s as any).warehouseAddress || '',
+      status: s.status || 'Active'
+    });
     setIsModalOpen(true);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.supplierName || !form.contactPerson || !form.mobile) return;
+    const sName = form.supplierName?.trim() || (form as any).companyName?.trim();
+    if (!sName || !form.contactPerson || !form.mobile) return;
+
+    const payload = {
+      ...form,
+      supplierName: sName,
+      companyName: sName,
+      mobile: form.mobile,
+      phone: form.mobile,
+      status: form.status || 'Active'
+    };
 
     if (editingSupplier) {
-      updateUniformSupplier(editingSupplier.id, form);
-      addToast('success', 'Supplier Updated', `Updated supplier ${form.supplierName}`);
+      updateUniformSupplier(editingSupplier.id, payload);
+      addToast('success', 'Supplier Updated', `Updated supplier ${sName}`);
     } else {
-      addUniformSupplier(form as Omit<UniformSupplier, 'id'>);
-      addToast('success', 'Supplier Added', `Added supplier ${form.supplierName}`);
+      addUniformSupplier(payload as Omit<UniformSupplier, 'id'>);
+      addToast('success', 'Supplier Added', `Added supplier ${sName}`);
     }
     setIsModalOpen(false);
   };
@@ -80,16 +107,39 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
 
       {tabs}
 
-<div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex gap-3 shadow-sm">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+      <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search suppliers by name, representative, GST number..."
+            placeholder="Search suppliers by name, GST..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span>
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20"
+          >
+            <option value="">Select Status</option>
+            <option value="All">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
       </div>
 
@@ -108,9 +158,18 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {filtered.length === 0 ? (
+              {!isFiltered ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">No active suppliers found. Click "Add Supplier".</td>
+                  <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold">
+                    <div className="flex flex-col items-center gap-2">
+                      <Search className="w-6 h-6 text-sky-500/50" />
+                      <span>Select a status filter or type in the search bar to display suppliers.</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">No suppliers found matching the selected filter.</td>
                 </tr>
               ) : (
                 paginated.map(s => (
@@ -142,6 +201,9 @@ export const UniformSupplierView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
         totalItems={filtered.length}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
+        onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+        itemsPerPageOptions={[10, 25, 50, 100]}
+        label="suppliers"
       />
 
       {isModalOpen && (

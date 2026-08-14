@@ -17,7 +17,17 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
 
   if (!isOpen || !payment) return null;
 
-  const student = students.find(s => s.id === payment.studentId);
+  const student = students.find(s => s.id === payment.studentId || s.admissionNo === payment.studentId || s.admissionNo === (payment as any).admissionNo);
+
+  const studentName = student
+    ? `${student.firstName} ${student.lastName || ''}`.trim()
+    : payment.studentName;
+
+  const className = student
+    ? `${student.className}${student.section ? ` (Section ${student.section})` : ''}`
+    : payment.className;
+
+  const admissionNo = student ? student.admissionNo : ((payment as any).admissionNo || payment.studentId);
   const currentAY = selectedAcademicYear || financeSettings?.academicYear || "2026-2027";
 
   // Compute student's ledgers and installments across all academic years
@@ -89,7 +99,14 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
         {/* Printable Area */}
         <div id="printable-content" className="p-8 space-y-6 text-slate-900 dark:text-slate-100 text-xs bg-white dark:bg-slate-900 overflow-y-auto">
           {/* Header */}
-          <div className="text-center space-y-1 pb-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="text-center space-y-1.5 pb-4 border-b border-slate-200 dark:border-slate-800">
+            {schoolProfile.logoUrl && (
+              <img
+                src={schoolProfile.logoUrl}
+                alt="School Logo"
+                className="w-14 h-14 mx-auto object-contain mb-1"
+              />
+            )}
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">{schoolProfile.name}</h1>
             <p className="text-[10px] text-slate-500">{schoolProfile.address} • Ph: {schoolProfile.phone}</p>
             <span className="inline-block mt-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 font-bold uppercase tracking-wider text-[10px]">
@@ -109,11 +126,11 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
             </div>
             <div>
               <p className="text-slate-400 font-medium">Student Name:</p>
-              <p className="font-bold text-slate-900 dark:text-white text-sm">{payment.studentName}</p>
+              <p className="font-bold text-slate-900 dark:text-white text-sm">{studentName}</p>
             </div>
             <div>
               <p className="text-slate-400 font-medium">Class & Section:</p>
-              <p className="font-bold text-slate-900 dark:text-white">{payment.className}</p>
+              <p className="font-bold text-slate-900 dark:text-white">{className}</p>
             </div>
             <div>
               <p className="text-slate-400 font-medium">Payment Mode:</p>

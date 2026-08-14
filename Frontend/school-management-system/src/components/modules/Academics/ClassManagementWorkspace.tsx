@@ -1378,6 +1378,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         [activeWorkspaceSection]: ''
       };
       updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+      assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+        teacher_id: '',
+        role: "Class Teacher"
+      }).catch(() => {});
       addToast('info', 'Class Teacher Unassigned', `Class Teacher for Section ${activeWorkspaceSection} is now unassigned.`);
       return;
     }
@@ -2177,6 +2181,13 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
                           <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-sky-50 text-sky-700 dark:bg-sky-950/50 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800 shrink-0">
                             {mappedCount} Subjects Allocated
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => onTabChange?.('subjects')}
+                            className="px-3 py-1.5 rounded-xl text-xs font-black bg-sky-600 hover:bg-sky-500 text-white transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Add Subject
+                          </button>
                         </div>
                       </div>
 

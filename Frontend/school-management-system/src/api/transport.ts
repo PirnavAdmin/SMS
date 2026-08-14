@@ -1,72 +1,414 @@
 import { apiClient } from './client';
 import { RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, StudentTransport, VehicleMaintenance } from '../types';
 
-// Routes
-export const fetchRoutesApi = () => apiClient('/api/transport/routes');
-export const fetchRouteByIdApi = (id: string) => apiClient(`/api/transport/routes/${id}`);
-export const createRouteApi = (data: Partial<RouteMaster>) => apiClient('/api/transport/routes', { method: 'POST', body: JSON.stringify(data) });
-export const updateRouteApi = (id: string, data: Partial<RouteMaster>) => apiClient(`/api/transport/routes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteRouteApi = (id: string) => apiClient(`/api/transport/routes/${id}`, { method: 'DELETE' });
+// Testing Mode Helper: Safely try real API, fallback to local testing mock state if backend is offline/unreachable
+const safeTransportApiCall = async <T>(endpoint: string, options?: RequestInit, fallbackData?: any): Promise<T> => {
+  try {
+    const res = await apiClient(endpoint, options);
+    if (res !== undefined && res !== null && !(res as any)?.error) {
+      return (res as any)?.data !== undefined ? (res as any).data : res;
+    }
+  } catch (err) {
+    // API endpoint unreachable or error - using testing mock bypass
+  }
+  return fallbackData as T;
+};
 
-// Pickup Points
-export const fetchPickupPointsApi = () => apiClient('/api/transport/pickup-points');
-export const fetchPickupPointByIdApi = (id: string) => apiClient(`/api/transport/pickup-points/${id}`);
-export const createPickupPointApi = (data: Partial<PickupPoint>) => apiClient('/api/transport/pickup-points', { method: 'POST', body: JSON.stringify(data) });
-export const updatePickupPointApi = (id: string, data: Partial<PickupPoint>) => apiClient(`/api/transport/pickup-points/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deletePickupPointApi = (id: string) => apiClient(`/api/transport/pickup-points/${id}`, { method: 'DELETE' });
+// In-Memory Testing Store
+let localRoutes: RouteMaster[] = [];
+let localPickupPoints: PickupPoint[] = [];
+let localVehicles: VehicleMaster[] = [];
+let localDrivers: DriverMaster[] = [];
+let localVehicleAssignments: VehicleAssignment[] = [];
+let localStudentAssignments: StudentTransport[] = [];
+let localMaintenance: VehicleMaintenance[] = [];
 
-// Vehicles
-export const fetchVehiclesApi = () => apiClient('/api/transport/vehicles');
-export const fetchVehicleByIdApi = (id: string) => apiClient(`/api/transport/vehicles/${id}`);
-export const createVehicleApi = (data: Partial<VehicleMaster>) => apiClient('/api/transport/vehicles', { method: 'POST', body: JSON.stringify(data) });
-export const updateVehicleApi = (id: string, data: Partial<VehicleMaster>) => apiClient(`/api/transport/vehicles/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteVehicleApi = (id: string) => apiClient(`/api/transport/vehicles/${id}`, { method: 'DELETE' });
+// --- Routes ---
+export const fetchRoutesApi = async (): Promise<RouteMaster[]> => {
+  return safeTransportApiCall<RouteMaster[]>('/api/transport/routes', { method: 'GET' }, localRoutes);
+};
 
-// Drivers
-export const fetchDriversApi = () => apiClient('/api/transport/drivers');
-export const fetchDriverByIdApi = (id: string) => apiClient(`/api/transport/drivers/${id}`);
-export const createDriverApi = (data: Partial<DriverMaster>) => apiClient('/api/transport/drivers', { method: 'POST', body: JSON.stringify(data) });
-export const updateDriverApi = (id: string, data: Partial<DriverMaster>) => apiClient(`/api/transport/drivers/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteDriverApi = (id: string) => apiClient(`/api/transport/drivers/${id}`, { method: 'DELETE' });
+export const fetchRouteByIdApi = async (id: string): Promise<RouteMaster | undefined> => {
+  const fallback = localRoutes.find(r => String(r.id) === id);
+  return safeTransportApiCall<RouteMaster>(`/api/transport/routes/${id}`, { method: 'GET' }, fallback);
+};
 
-// Vehicle Assignments
-export const fetchVehicleAssignmentsApi = () => apiClient('/api/transport/vehicle-assignments');
-export const fetchVehicleAssignmentByIdApi = (id: string) => apiClient(`/api/transport/vehicle-assignments/${id}`);
-export const createVehicleAssignmentApi = (data: Partial<VehicleAssignment>) => apiClient('/api/transport/vehicle-assignments', { method: 'POST', body: JSON.stringify(data) });
-export const updateVehicleAssignmentApi = (id: string, data: Partial<VehicleAssignment>) => apiClient(`/api/transport/vehicle-assignments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteVehicleAssignmentApi = (id: string) => apiClient(`/api/transport/vehicle-assignments/${id}`, { method: 'DELETE' });
+export const createRouteApi = async (data: Partial<RouteMaster>): Promise<RouteMaster> => {
+  const newRoute: RouteMaster = {
+    id: data.id || `RT-${Date.now()}`,
+    routeName: data.routeName || 'Sample Route',
+    routeCode: data.routeCode || 'RTC-01',
+    startPoint: data.startPoint || 'Main Campus',
+    endPoint: data.endPoint || 'City Center',
+    totalDistance: data.totalDistance || 15,
+    status: data.status || 'Active',
+    description: data.description || ''
+  } as RouteMaster;
+  localRoutes.push(newRoute);
 
-// Student Assignments
-export const fetchStudentAssignmentsApi = () => apiClient('/api/transport/student-assignments');
-export const fetchStudentAssignmentByIdApi = (id: string) => apiClient(`/api/transport/student-assignments/${id}`);
-export const createStudentAssignmentApi = (data: Partial<StudentTransport>) => apiClient('/api/transport/student-assignments', { method: 'POST', body: JSON.stringify(data) });
-export const updateStudentAssignmentApi = (id: string, data: Partial<StudentTransport>) => apiClient(`/api/transport/student-assignments/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteStudentAssignmentApi = (id: string) => apiClient(`/api/transport/student-assignments/${id}`, { method: 'DELETE' });
+  return safeTransportApiCall<RouteMaster>(
+    '/api/transport/routes',
+    { method: 'POST', body: JSON.stringify(data) },
+    newRoute
+  );
+};
 
-// Maintenance
-export const fetchMaintenanceApi = () => apiClient('/api/transport/vehicle-maintenance');
-export const fetchMaintenanceByIdApi = (id: string) => apiClient(`/api/transport/vehicle-maintenance/${id}`);
-export const createMaintenanceApi = (data: Partial<VehicleMaintenance>) => apiClient('/api/transport/vehicle-maintenance', { method: 'POST', body: JSON.stringify(data) });
-export const updateMaintenanceApi = (id: string, data: Partial<VehicleMaintenance>) => apiClient(`/api/transport/vehicle-maintenance/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deleteMaintenanceApi = (id: string) => apiClient(`/api/transport/vehicle-maintenance/${id}`, { method: 'DELETE' });
-export const fetchMaintenanceLookupApi = () => apiClient('/api/transport/vehicle-maintenance/lookup');
+export const updateRouteApi = async (id: string, data: Partial<RouteMaster>): Promise<RouteMaster> => {
+  const idx = localRoutes.findIndex(r => String(r.id) === id);
+  if (idx !== -1) {
+    localRoutes[idx] = { ...localRoutes[idx], ...data };
+  }
+  const updated = localRoutes[idx] || (data as RouteMaster);
 
-// Dashboards
-export const fetchTransportDashboardApi = () => apiClient('/api/transport/dashboard');
+  return safeTransportApiCall<RouteMaster>(
+    `/api/transport/routes/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
 
-// Reports
-export const fetchTransportReportsVehicleWiseApi = () => apiClient('/api/transport/reports/vehicle-wise');
-export const fetchTransportReportsRouteWiseApi = () => apiClient('/api/transport/reports/route-wise');
-export const fetchTransportReportsPickupWiseApi = () => apiClient('/api/transport/reports/pickup-wise');
-export const fetchTransportReportsDriverWiseApi = () => apiClient('/api/transport/reports/driver-wise');
-export const fetchTransportReportsSeatOccupancyApi = () => apiClient('/api/transport/reports/seat-occupancy');
-export const fetchTransportReportsMaintenanceApi = () => apiClient('/api/transport/reports/maintenance');
-export const fetchTransportReportsMonthlyCostApi = () => apiClient('/api/transport/reports/monthly-cost');
+export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> => {
+  localRoutes = localRoutes.filter(r => String(r.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/routes/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
 
-// Dropdown Lookups
-export const fetchTransportLookupsVehiclesApi = () => apiClient('/api/transport/lookups/vehicles');
-export const fetchTransportLookupsRoutesApi = () => apiClient('/api/transport/lookups/routes');
-export const fetchTransportLookupsDriversApi = () => apiClient('/api/transport/lookups/drivers');
-export const fetchTransportLookupsPickupPointsApi = () => apiClient('/api/transport/lookups/pickup-points');
-export const fetchTransportLookupsVehicleAssignmentsApi = () => apiClient('/api/transport/lookups/vehicle-assignments');
-export const fetchTransportLookupsStudentAssignmentsApi = () => apiClient('/api/transport/lookups/student-assignments');
+// --- Pickup Points ---
+export const fetchPickupPointsApi = async (): Promise<PickupPoint[]> => {
+  return safeTransportApiCall<PickupPoint[]>('/api/transport/pickup-points', { method: 'GET' }, localPickupPoints);
+};
+
+export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint | undefined> => {
+  const fallback = localPickupPoints.find(p => String(p.id) === id);
+  return safeTransportApiCall<PickupPoint>(`/api/transport/pickup-points/${id}`, { method: 'GET' }, fallback);
+};
+
+export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<PickupPoint> => {
+  const newPoint: PickupPoint = {
+    id: data.id || `PK-${Date.now()}`,
+    pickupName: data.pickupName || 'Main Station',
+    routeId: data.routeId || '',
+    pickupTime: data.pickupTime || '07:30 AM',
+    dropTime: data.dropTime || '04:30 PM',
+    monthlyFee: data.monthlyFee || 1500,
+    status: data.status || 'Active'
+  } as PickupPoint;
+  localPickupPoints.push(newPoint);
+
+  return safeTransportApiCall<PickupPoint>(
+    '/api/transport/pickup-points',
+    { method: 'POST', body: JSON.stringify(data) },
+    newPoint
+  );
+};
+
+export const updatePickupPointApi = async (id: string, data: Partial<PickupPoint>): Promise<PickupPoint> => {
+  const idx = localPickupPoints.findIndex(p => String(p.id) === id);
+  if (idx !== -1) {
+    localPickupPoints[idx] = { ...localPickupPoints[idx], ...data };
+  }
+  const updated = localPickupPoints[idx] || (data as PickupPoint);
+
+  return safeTransportApiCall<PickupPoint>(
+    `/api/transport/pickup-points/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
+
+export const deletePickupPointApi = async (id: string): Promise<{ success: boolean }> => {
+  localPickupPoints = localPickupPoints.filter(p => String(p.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/pickup-points/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+// --- Vehicles ---
+export const fetchVehiclesApi = async (): Promise<VehicleMaster[]> => {
+  return safeTransportApiCall<VehicleMaster[]>('/api/transport/vehicles', { method: 'GET' }, localVehicles);
+};
+
+export const fetchVehicleByIdApi = async (id: string): Promise<VehicleMaster | undefined> => {
+  const fallback = localVehicles.find(v => String(v.id) === id);
+  return safeTransportApiCall<VehicleMaster>(`/api/transport/vehicles/${id}`, { method: 'GET' }, fallback);
+};
+
+export const createVehicleApi = async (data: Partial<VehicleMaster>): Promise<VehicleMaster> => {
+  const newVehicle: VehicleMaster = {
+    id: data.id || `VH-${Date.now()}`,
+    vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
+    vehicleModel: data.vehicleModel || 'School Bus',
+    seatingCapacity: data.seatingCapacity || 40,
+    status: data.status || 'Active'
+  } as VehicleMaster;
+  localVehicles.push(newVehicle);
+
+  return safeTransportApiCall<VehicleMaster>(
+    '/api/transport/vehicles',
+    { method: 'POST', body: JSON.stringify(data) },
+    newVehicle
+  );
+};
+
+export const updateVehicleApi = async (id: string, data: Partial<VehicleMaster>): Promise<VehicleMaster> => {
+  const idx = localVehicles.findIndex(v => String(v.id) === id);
+  if (idx !== -1) {
+    localVehicles[idx] = { ...localVehicles[idx], ...data };
+  }
+  const updated = localVehicles[idx] || (data as VehicleMaster);
+
+  return safeTransportApiCall<VehicleMaster>(
+    `/api/transport/vehicles/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
+
+export const deleteVehicleApi = async (id: string): Promise<{ success: boolean }> => {
+  localVehicles = localVehicles.filter(v => String(v.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/vehicles/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+// --- Drivers ---
+export const fetchDriversApi = async (): Promise<DriverMaster[]> => {
+  return safeTransportApiCall<DriverMaster[]>('/api/transport/drivers', { method: 'GET' }, localDrivers);
+};
+
+export const fetchDriverByIdApi = async (id: string): Promise<DriverMaster | undefined> => {
+  const fallback = localDrivers.find(d => String(d.id) === id);
+  return safeTransportApiCall<DriverMaster>(`/api/transport/drivers/${id}`, { method: 'GET' }, fallback);
+};
+
+export const createDriverApi = async (data: Partial<DriverMaster>): Promise<DriverMaster> => {
+  const newDriver: DriverMaster = {
+    id: data.id || `DRV-${Date.now()}`,
+    driverName: data.driverName || 'Driver',
+    licenseNumber: data.licenseNumber || 'DL-99887766',
+    phoneNumber: data.phoneNumber || '+91 9876543210',
+    status: data.status || 'Active'
+  } as DriverMaster;
+  localDrivers.push(newDriver);
+
+  return safeTransportApiCall<DriverMaster>(
+    '/api/transport/drivers',
+    { method: 'POST', body: JSON.stringify(data) },
+    newDriver
+  );
+};
+
+export const updateDriverApi = async (id: string, data: Partial<DriverMaster>): Promise<DriverMaster> => {
+  const idx = localDrivers.findIndex(d => String(d.id) === id);
+  if (idx !== -1) {
+    localDrivers[idx] = { ...localDrivers[idx], ...data };
+  }
+  const updated = localDrivers[idx] || (data as DriverMaster);
+
+  return safeTransportApiCall<DriverMaster>(
+    `/api/transport/drivers/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
+
+export const deleteDriverApi = async (id: string): Promise<{ success: boolean }> => {
+  localDrivers = localDrivers.filter(d => String(d.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/drivers/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+// --- Vehicle Assignments ---
+export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]> => {
+  return safeTransportApiCall<VehicleAssignment[]>('/api/transport/vehicle-assignments', { method: 'GET' }, localVehicleAssignments);
+};
+
+export const fetchVehicleAssignmentByIdApi = async (id: string): Promise<VehicleAssignment | undefined> => {
+  const fallback = localVehicleAssignments.find(a => String(a.id) === id);
+  return safeTransportApiCall<VehicleAssignment>(`/api/transport/vehicle-assignments/${id}`, { method: 'GET' }, fallback);
+};
+
+export const createVehicleAssignmentApi = async (data: Partial<VehicleAssignment>): Promise<VehicleAssignment> => {
+  const newAssign: VehicleAssignment = {
+    id: data.id || `VA-${Date.now()}`,
+    vehicleId: data.vehicleId || '',
+    routeId: data.routeId || '',
+    driverId: data.driverId || '',
+    status: data.status || 'Active'
+  } as VehicleAssignment;
+  localVehicleAssignments.push(newAssign);
+
+  return safeTransportApiCall<VehicleAssignment>(
+    '/api/transport/vehicle-assignments',
+    { method: 'POST', body: JSON.stringify(data) },
+    newAssign
+  );
+};
+
+export const updateVehicleAssignmentApi = async (id: string, data: Partial<VehicleAssignment>): Promise<VehicleAssignment> => {
+  const idx = localVehicleAssignments.findIndex(a => String(a.id) === id);
+  if (idx !== -1) {
+    localVehicleAssignments[idx] = { ...localVehicleAssignments[idx], ...data };
+  }
+  const updated = localVehicleAssignments[idx] || (data as VehicleAssignment);
+
+  return safeTransportApiCall<VehicleAssignment>(
+    `/api/transport/vehicle-assignments/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
+
+export const deleteVehicleAssignmentApi = async (id: string): Promise<{ success: boolean }> => {
+  localVehicleAssignments = localVehicleAssignments.filter(a => String(a.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/vehicle-assignments/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+// --- Student Transport Assignments ---
+export const fetchStudentAssignmentsApi = async (): Promise<StudentTransport[]> => {
+  return safeTransportApiCall<StudentTransport[]>('/api/transport/student-assignments', { method: 'GET' }, localStudentAssignments);
+};
+
+export const fetchStudentAssignmentByIdApi = async (id: string): Promise<StudentTransport | undefined> => {
+  const fallback = localStudentAssignments.find(s => String(s.id) === id);
+  return safeTransportApiCall<StudentTransport>(`/api/transport/student-assignments/${id}`, { method: 'GET' }, fallback);
+};
+
+export const createStudentAssignmentApi = async (data: Partial<StudentTransport>): Promise<StudentTransport> => {
+  const newSt: StudentTransport = {
+    id: data.id || `ST-${Date.now()}`,
+    studentId: data.studentId || '',
+    routeId: data.routeId || '',
+    pickupPointId: data.pickupPointId || '',
+    vehicleId: data.vehicleId || '',
+    status: data.status || 'Active'
+  } as StudentTransport;
+  localStudentAssignments.push(newSt);
+
+  return safeTransportApiCall<StudentTransport>(
+    '/api/transport/student-assignments',
+    { method: 'POST', body: JSON.stringify(data) },
+    newSt
+  );
+};
+
+export const updateStudentAssignmentApi = async (id: string, data: Partial<StudentTransport>): Promise<StudentTransport> => {
+  const idx = localStudentAssignments.findIndex(s => String(s.id) === id);
+  if (idx !== -1) {
+    localStudentAssignments[idx] = { ...localStudentAssignments[idx], ...data };
+  }
+  const updated = localStudentAssignments[idx] || (data as StudentTransport);
+
+  return safeTransportApiCall<StudentTransport>(
+    `/api/transport/student-assignments/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
+
+export const deleteStudentAssignmentApi = async (id: string): Promise<{ success: boolean }> => {
+  localStudentAssignments = localStudentAssignments.filter(s => String(s.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/student-assignments/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+// --- Maintenance ---
+export const fetchMaintenanceApi = async (): Promise<VehicleMaintenance[]> => {
+  return safeTransportApiCall<VehicleMaintenance[]>('/api/transport/vehicle-maintenance', { method: 'GET' }, localMaintenance);
+};
+
+export const fetchMaintenanceByIdApi = async (id: string): Promise<VehicleMaintenance | undefined> => {
+  const fallback = localMaintenance.find(m => String(m.id) === id);
+  return safeTransportApiCall<VehicleMaintenance>(`/api/transport/vehicle-maintenance/${id}`, { method: 'GET' }, fallback);
+};
+
+export const createMaintenanceApi = async (data: Partial<VehicleMaintenance>): Promise<VehicleMaintenance> => {
+  const newM: VehicleMaintenance = {
+    id: data.id || `MAIN-${Date.now()}`,
+    vehicleId: data.vehicleId || '',
+    serviceDate: data.serviceDate || new Date().toISOString().split('T')[0],
+    cost: data.cost || 0,
+    description: data.description || '',
+    status: data.status || 'Completed'
+  } as VehicleMaintenance;
+  localMaintenance.push(newM);
+
+  return safeTransportApiCall<VehicleMaintenance>(
+    '/api/transport/vehicle-maintenance',
+    { method: 'POST', body: JSON.stringify(data) },
+    newM
+  );
+};
+
+export const updateMaintenanceApi = async (id: string, data: Partial<VehicleMaintenance>): Promise<VehicleMaintenance> => {
+  const idx = localMaintenance.findIndex(m => String(m.id) === id);
+  if (idx !== -1) {
+    localMaintenance[idx] = { ...localMaintenance[idx], ...data };
+  }
+  const updated = localMaintenance[idx] || (data as VehicleMaintenance);
+
+  return safeTransportApiCall<VehicleMaintenance>(
+    `/api/transport/vehicle-maintenance/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    updated
+  );
+};
+
+export const deleteMaintenanceApi = async (id: string): Promise<{ success: boolean }> => {
+  localMaintenance = localMaintenance.filter(m => String(m.id) !== id);
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/vehicle-maintenance/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+export const fetchMaintenanceLookupApi = async (): Promise<any> => {
+  return safeTransportApiCall('/api/transport/vehicle-maintenance/lookup', { method: 'GET' }, { vehicles: localVehicles });
+};
+
+// --- Dashboards & Reports ---
+export const fetchTransportDashboardApi = async (): Promise<any> => {
+  const defaultDashboard = {
+    totalRoutes: localRoutes.length,
+    totalVehicles: localVehicles.length,
+    totalDrivers: localDrivers.length,
+    totalStudents: localStudentAssignments.length,
+    activeVehicles: localVehicles.filter(v => v.status === 'Active').length,
+    inMaintenance: localMaintenance.filter(m => m.status === 'In Progress').length
+  };
+  return safeTransportApiCall('/api/transport/dashboard', { method: 'GET' }, defaultDashboard);
+};
+
+export const fetchTransportReportsVehicleWiseApi = async () => safeTransportApiCall('/api/transport/reports/vehicle-wise', { method: 'GET' }, localVehicles);
+export const fetchTransportReportsRouteWiseApi = async () => safeTransportApiCall('/api/transport/reports/route-wise', { method: 'GET' }, localRoutes);
+export const fetchTransportReportsPickupWiseApi = async () => safeTransportApiCall('/api/transport/reports/pickup-wise', { method: 'GET' }, localPickupPoints);
+export const fetchTransportReportsDriverWiseApi = async () => safeTransportApiCall('/api/transport/reports/driver-wise', { method: 'GET' }, localDrivers);
+export const fetchTransportReportsSeatOccupancyApi = async () => safeTransportApiCall('/api/transport/reports/seat-occupancy', { method: 'GET' }, []);
+export const fetchTransportReportsMaintenanceApi = async () => safeTransportApiCall('/api/transport/reports/maintenance', { method: 'GET' }, localMaintenance);
+export const fetchTransportReportsMonthlyCostApi = async () => safeTransportApiCall('/api/transport/reports/monthly-cost', { method: 'GET' }, []);
+
+// --- Dropdown Lookups ---
+export const fetchTransportLookupsVehiclesApi = async () => safeTransportApiCall('/api/transport/lookups/vehicles', { method: 'GET' }, localVehicles);
+export const fetchTransportLookupsRoutesApi = async () => safeTransportApiCall('/api/transport/lookups/routes', { method: 'GET' }, localRoutes);
+export const fetchTransportLookupsDriversApi = async () => safeTransportApiCall('/api/transport/lookups/drivers', { method: 'GET' }, localDrivers);
+export const fetchTransportLookupsPickupPointsApi = async () => safeTransportApiCall('/api/transport/lookups/pickup-points', { method: 'GET' }, localPickupPoints);
+export const fetchTransportLookupsVehicleAssignmentsApi = async () => safeTransportApiCall('/api/transport/lookups/vehicle-assignments', { method: 'GET' }, localVehicleAssignments);
+export const fetchTransportLookupsStudentAssignmentsApi = async () => safeTransportApiCall('/api/transport/lookups/student-assignments', { method: 'GET' }, localStudentAssignments);

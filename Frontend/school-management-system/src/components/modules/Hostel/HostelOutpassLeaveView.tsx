@@ -41,9 +41,9 @@ export const HostelOutpassLeaveView: React.FC = () => {
   const hostellers = (students || []).filter(s =>
     s && (
       s.studentType === 'Hosteller' ||
-      s.studentType === 'Residential' ||
-      s.studentType === 'Boarder' ||
-      s.studentType === 'Hostel' ||
+      (s.studentType as any) === 'Residential' ||
+      (s.studentType as any) === 'Boarder' ||
+      (s.studentType as any) === 'Hostel' ||
       (s as any).isHostelRequired === true ||
       (s as any).facilityOpted === 'Hostel' ||
       Boolean((s as any).hostelName)

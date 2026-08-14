@@ -1,73 +1,96 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 
 interface PaginationProps {
   currentPage: number;
-  totalItems: number;
-  itemsPerPage: number;
+  totalItems?: number;
+  totalPages?: number;
+  itemsPerPage?: number;
   onPageChange: (page: number) => void;
+  onItemsPerPageChange?: (perPage: number) => void;
+  itemsPerPageOptions?: number[];
+  label?: string;
 }
 
 export const Pagination: React.FC<PaginationProps> = ({
   currentPage,
-  totalItems,
-  itemsPerPage,
+  totalItems = 0,
+  totalPages: propTotalPages,
+  itemsPerPage = 10,
   onPageChange,
+  onItemsPerPageChange,
+  itemsPerPageOptions = [10, 25, 50, 100],
+  label = 'records',
 }) => {
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const totalPages = propTotalPages || Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const page = Math.min(Math.max(1, currentPage), totalPages);
 
-  const getPageNumbers = (): (number | '...')[] => {
-    if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
-    }
-    const pages: (number | '...')[] = [1];
-    if (page > 3) pages.push('...');
-    const start = Math.max(2, page - 1);
-    const end = Math.min(totalPages - 1, page + 1);
-    for (let i = start; i <= end; i++) pages.push(i);
-    if (page < totalPages - 2) pages.push('...');
-    pages.push(totalPages);
-    return pages;
-  };
+  const currentCount = Math.min(itemsPerPage, totalItems - (page - 1) * itemsPerPage);
+  const displayCount = totalItems === 0 ? 0 : Math.max(0, currentCount);
 
-  if (totalItems === 0 || totalPages <= 1) return null;
+  if (totalItems === 0) return null;
 
   return (
-    <div className="flex items-center justify-end gap-1 pt-3 mt-1">
-      <button
-        onClick={() => onPageChange(page - 1)}
-        disabled={page === 1}
-        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-      >
-        <ChevronLeft className="w-3.5 h-3.5" />
-      </button>
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 mt-2 select-none border-t border-slate-100 dark:border-slate-800/80">
+      {/* Left side: Showing X of Y records */}
+      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+        Showing <span className="font-extrabold text-slate-700 dark:text-slate-200">{displayCount}</span> of{' '}
+        <span className="font-extrabold text-slate-700 dark:text-slate-200">{totalItems}</span> {label}
+      </div>
 
-      {getPageNumbers().map((p, idx) =>
-        p === '...' ? (
-          <span key={`ellipsis-${idx}`} className="px-1 text-xs text-slate-400 font-bold">…</span>
-        ) : (
+      {/* Right side: Show: [dropdown]  Previous  Page X of Y  Next */}
+      <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+        {onItemsPerPageChange && (
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-semibold">
+            <span>Show:</span>
+            <div className="relative">
+              <select
+                value={itemsPerPage}
+                onChange={e => {
+                  onItemsPerPageChange(Number(e.target.value));
+                  onPageChange(1);
+                }}
+                style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
+                className="appearance-none pl-3 pr-7 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors focus:ring-2 focus:ring-sky-500/20"
+              >
+                {itemsPerPageOptions.map(opt => (
+                  <option key={opt} value={opt}>
+                    {opt} {label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          {/* Previous Button */}
           <button
-            key={p}
-            onClick={() => onPageChange(p)}
-            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-              page === p
-                ? 'bg-sky-600 text-white shadow-sm shadow-sky-500/25'
-                : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
+            type="button"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 1}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:bg-slate-50 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed"
           >
-            {p}
+            Previous
           </button>
-        )
-      )}
 
-      <button
-        onClick={() => onPageChange(page + 1)}
-        disabled={page === totalPages}
-        className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-      >
-        <ChevronRight className="w-3.5 h-3.5" />
-      </button>
+          {/* Page X of Y */}
+          <span className="text-xs font-bold text-slate-700 dark:text-slate-200 px-1 whitespace-nowrap">
+            Page {page} of {totalPages}
+          </span>
+
+          {/* Next Button */}
+          <button
+            type="button"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-40 disabled:bg-slate-50 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

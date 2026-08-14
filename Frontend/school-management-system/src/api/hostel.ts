@@ -23,6 +23,7 @@ export interface HostelBlock {
   totalRooms: number;
   occupiedBeds: number;
   totalCapacity: number;
+  totalFloors?: number;
 }
 
 export interface RoomType {
@@ -33,6 +34,8 @@ export interface RoomType {
   status: string;
   description: string;
   createdAt: string;
+  hostelId?: number | string;
+  floorLevel?: string;
 }
 
 export interface HostelRoom {
@@ -43,6 +46,8 @@ export interface HostelRoom {
   roomTypeId: number;
   roomTypeSpecification: string;
   bedCapacity: number;
+  capacity?: number;
+  monthlyFee?: number;
   floorLevel: string;
   roomNumber: string;
   status: string;
@@ -62,8 +67,8 @@ export interface StaffCandidate {
 }
 
 export interface BedAllocation {
-  allocationId: number;
-  studentId: number;
+  allocationId: number | string;
+  studentId: number | string;
   studentName: string;
   admissionNo: string;
   hostelId: number;
@@ -73,6 +78,7 @@ export interface BedAllocation {
   bedNumber: string;
   joiningDate: string;
   status: string;
+  isPendingAdmitted?: boolean;
 }
 
 export interface NightAttendanceRecord {

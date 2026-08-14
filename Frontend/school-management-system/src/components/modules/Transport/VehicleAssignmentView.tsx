@@ -486,12 +486,14 @@ export const VehicleAssignmentView: React.FC = () => {
           </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
-          >
-            <Plus className="w-4 h-4" /> Add
-          </button>
+          {activeTab !== 'history' && (
+            <button
+              onClick={openCreateModal}
+              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            >
+              <Plus className="w-4 h-4" /> Add
+            </button>
+          )}
           <ExportButton data={filteredAssignments} filename="vehicle_assignments" />
         </div>
       </div>

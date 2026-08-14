@@ -66,7 +66,7 @@ const getLocalDateString = (d: Date) => {
 
 export const AttendanceView = () => {
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
-  const { staff, students, academicClasses } = useData();
+  const { staff, students, academicClasses, markAttendance } = useData();
 
   const userRole = (role || user?.role || '').toLowerCase();
   const isTeacher = userRole === 'teacher';
@@ -644,6 +644,15 @@ export const AttendanceView = () => {
   const handleSaveAttendance = async () => {
     setIsEditable(false);
 
+    const globalRecords = classStudents.map(st => ({
+      id: `ATT-STU-${st.id}-${date}`,
+      date: date,
+      entityType: 'Student' as const,
+      entityId: st.id,
+      status: getAttendanceStatus(st) || 'Present',
+      remarks: remarksState[`${date}_${st.id}`] || ''
+    }));
+
     if (isTeacher && selectedBranchId && selectedAcademicYearId && selectedClassId && selectedSectionId && selectedSubjectId && selectedPeriodId) {
       const studentsPayload = classStudents.map(st => ({
         studentId: parseInt(st.id, 10),
@@ -666,6 +675,7 @@ export const AttendanceView = () => {
         const res = await saveStudentAttendanceSheetApi(payload);
         if (res && res.success !== false) {
           addToast('success', 'Attendance Saved', 'Student attendance sheet has been synced with the database.');
+          markAttendance(globalRecords);
           fetchAttendanceSheet();
           return;
         }
@@ -675,6 +685,7 @@ export const AttendanceView = () => {
       }
     }
 
+    markAttendance(globalRecords);
     addToast('success', 'Attendance Register Saved', 'The registers have been written and saved locally.');
   };
 

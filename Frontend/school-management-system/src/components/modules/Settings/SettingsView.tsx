@@ -24,9 +24,9 @@ export interface CampusItem {
 }
 
 const defaultCampuses: CampusItem[] = [
-  { id: 'CMP-01', name: 'Main Campus', code: 'MAIN', address: '742 Evergreen Terrace, Knowledge City, NY 10001', phone: '+1 (555) 019-2834', email: 'main@stxaviers.edu', status: 'Active' },
-  { id: 'CMP-02', name: 'North Branch', code: 'NORTH', address: '12 Executive Row, Knowledge City, NY 10002', phone: '+1 (555) 888-001', email: 'north@stxaviers.edu', status: 'Active' },
-  { id: 'CMP-03', name: 'West Campus', code: 'WEST', address: '99 Mission Way, Knowledge Hub, NY 10003', phone: '+1 (555) 333-111', email: 'west@stxaviers.edu', status: 'Active' }
+  { id: 'CMP-01', name: 'Main Campus', code: 'MAIN', address: 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081', phone: '+91 9123456789', email: 'main@pirnavschools.edu', status: 'Active' },
+  { id: 'CMP-02', name: 'North Branch', code: 'NORTH', address: 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081', phone: '+91 9123456789', email: 'north@pirnavschools.edu', status: 'Active' },
+  { id: 'CMP-03', name: 'West Campus', code: 'WEST', address: 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081', phone: '+91 9123456789', email: 'west@pirnavschools.edu', status: 'Active' }
 ];
 
 const defaultCertificateTemplates: CertificateTemplateConfig[] = [

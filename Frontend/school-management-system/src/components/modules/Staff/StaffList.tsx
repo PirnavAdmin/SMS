@@ -215,22 +215,22 @@ export const StaffList: React.FC<{
       const d1 = parseDate(a.joiningDate);
       const d2 = parseDate(b.joiningDate);
       if (d1 !== d2) return d2 - d1;
-      return b.empId.localeCompare(a.empId, undefined, { numeric: true });
+      return (b.empId || "").localeCompare(a.empId || "", undefined, { numeric: true });
     }
     if (sortBy === "oldest") {
       const d1 = parseDate(a.joiningDate);
       const d2 = parseDate(b.joiningDate);
       if (d1 !== d2) return d1 - d2;
-      return a.empId.localeCompare(b.empId, undefined, { numeric: true });
+      return (a.empId || "").localeCompare(b.empId || "", undefined, { numeric: true });
     }
     if (sortBy === "nameAsc") {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      const nameA = `${a.firstName || ""} ${a.lastName || ""}`.trim().toLowerCase();
+      const nameB = `${b.firstName || ""} ${b.lastName || ""}`.trim().toLowerCase();
       return nameA.localeCompare(nameB);
     }
     if (sortBy === "nameDesc") {
-      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
-      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+      const nameA = `${a.firstName || ""} ${a.lastName || ""}`.trim().toLowerCase();
+      const nameB = `${b.firstName || ""} ${b.lastName || ""}`.trim().toLowerCase();
       return nameB.localeCompare(nameA);
     }
     return 0;
@@ -769,7 +769,11 @@ export const StaffList: React.FC<{
                             {st.firstName} {st.lastName}
                           </p>
                           <p className="text-[10px] text-slate-400">
-                            {st.role || "Staff"}
+                            {st.role === "Teacher"
+                              ? "Teacher"
+                              : st.role === "Staff"
+                                ? "Non-Teaching Staff"
+                                : st.role || "Non-Teaching Staff"}
                           </p>
                         </button>
                       </td>

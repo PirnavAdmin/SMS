@@ -486,7 +486,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
                         </button>
                       </td>
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <img src={st.avatar} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                        <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold text-xs shrink-0">
+                          {st.firstName?.[0] || 'S'}
+                        </div>
                         {st.firstName} {st.lastName}
                       </td>
                       <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>

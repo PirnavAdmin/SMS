@@ -5,7 +5,7 @@ namespace SMS.Api.Repositories.Interfaces
     public interface IUniformRepository
     {
         // Uniform Types
-        Task<List<UniformType>> GetAllUniformTypesAsync(string? search, string? gender);
+        Task<List<UniformType>> GetAllUniformTypesAsync(string? search, string? gender, string? category = null, string? size = null, string? status = null);
         Task<UniformType?> GetUniformTypeByIdAsync(int id);
         Task AddUniformTypeAsync(UniformType item);
         void RemoveUniformType(UniformType item);
@@ -23,7 +23,7 @@ namespace SMS.Api.Repositories.Interfaces
         void RemoveSize(UniformSize size);
 
         // Uniform Suppliers
-        Task<List<UniformSupplier>> GetAllSuppliersAsync(string? search);
+        Task<List<UniformSupplier>> GetAllSuppliersAsync(string? search, string? status = null);
         Task<UniformSupplier?> GetSupplierByIdAsync(int id);
         Task AddSupplierAsync(UniformSupplier supplier);
         void RemoveSupplier(UniformSupplier supplier);

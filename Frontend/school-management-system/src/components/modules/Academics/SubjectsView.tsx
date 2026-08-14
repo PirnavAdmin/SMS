@@ -582,7 +582,7 @@ export const SubjectsView: React.FC = () => {
       <div className="glass-card py-3 px-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
         <div className="space-y-1">
           <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Academic & Organizational Structure
+            <BookOpen className="w-5 h-5 text-brand-600 dark:text-brand-400 shrink-0" /> Organization Setup
           </h2>
         </div>
 

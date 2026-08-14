@@ -265,8 +265,8 @@ export const HostelMasterView: React.FC = () => {
         </div>
       </div>
 
-      {/* Empty State Prompt if no filter selected */}
-      {!filterType ? (
+      {/* Empty State Prompt if no filter selected and no search query */}
+      {!filterType && !searchQuery.trim() ? (
         <div className="py-16 px-6 glass-card rounded-3xl border border-sky-200/80 dark:border-sky-900/50 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
           <div className="w-14 h-14 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-500 border border-sky-200 dark:border-sky-800 flex items-center justify-center mx-auto shadow-inner">
             <Building2 className="w-7 h-7" />

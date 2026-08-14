@@ -163,11 +163,17 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
 
           <div className="flex items-center gap-5">
             <div className="relative group flex-shrink-0">
-              <img
-                src={student.avatar}
-                alt=""
-                className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover ring-4 ring-white/30 shadow-lg"
-              />
+              {student.avatar ? (
+                <img
+                  src={student.avatar}
+                  alt=""
+                  className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover ring-4 ring-white/30 shadow-lg"
+                />
+              ) : (
+                <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/30 shadow-lg shrink-0">
+                  <User className="w-10 h-10" />
+                </div>
+              )}
               <div className="absolute inset-0 bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
                 <label className="p-1.5 rounded-lg bg-white/30 hover:bg-white/50 text-white cursor-pointer" title="Replace Photo">
                   <Camera className="w-4 h-4" />
@@ -948,7 +954,13 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3.5">
-                  <img src={student.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-2 ring-brand-500" />
+                  {student.avatar ? (
+                    <img src={student.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-2 ring-brand-500" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700 ring-2 ring-brand-500 shrink-0">
+                      <User className="w-8 h-8" />
+                    </div>
+                  )}
                   <div className="space-y-1">
                     <h3 className="font-bold text-sm">{student.firstName} {student.lastName}</h3>
                     <p className="text-[10px] text-slate-300">Class: <strong className="text-white">{student.className}-{student.section}</strong></p>
