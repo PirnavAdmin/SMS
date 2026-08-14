@@ -29,6 +29,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("mobileNumber")]
         public string MobileNumber => Phone;
 
+        [JsonPropertyName("mobile")]
+        public string Mobile => Phone;
+
         [JsonPropertyName("email")]
         public string Email { get; set; } = string.Empty;
 
@@ -82,6 +85,13 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("mobileNumber")]
         public string? MobileNumberAlias
+        {
+            get => Phone;
+            set { if (!string.IsNullOrWhiteSpace(value)) Phone = value; }
+        }
+
+        [JsonPropertyName("mobile")]
+        public string? MobileAlias
         {
             get => Phone;
             set { if (!string.IsNullOrWhiteSpace(value)) Phone = value; }
