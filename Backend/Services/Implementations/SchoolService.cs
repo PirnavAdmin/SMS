@@ -1650,7 +1650,7 @@ public class SchoolService : ISchoolService
 	{
 		filter ??= new StudentFilterDto();
 		filter.PageNumber = filter.PageNumber < 1 ? 1 : filter.PageNumber;
-		filter.PageSize = filter.PageSize is < 1 or > 100 ? 10 : filter.PageSize;
+		filter.PageSize = filter.PageSize is < 1 or > 10000 ? 10000 : filter.PageSize;
 
 		return await _schoolRepository.GetAllStudentsAsync(filter);
 	}

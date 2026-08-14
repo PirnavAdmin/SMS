@@ -348,7 +348,7 @@ public class SchoolRepository : ISchoolRepository
     public async Task<PagedStudentResponseDto> GetAllStudentsAsync(StudentFilterDto filter)
     {
         var pageNumber = filter.PageNumber < 1 ? 1 : filter.PageNumber;
-        var pageSize = filter.PageSize < 1 ? 10 : Math.Min(filter.PageSize, 100);
+        var pageSize = filter.PageSize < 1 ? 10000 : Math.Min(filter.PageSize, 10000);
 
         var query = _context.Students
             .AsNoTracking()
