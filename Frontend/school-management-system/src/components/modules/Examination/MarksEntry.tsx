@@ -16,6 +16,13 @@ interface MarksEntryProps {
   addToast: (type: 'success' | 'info' | 'warning' | 'error', title: string, message: string) => void;
   onGotoSetup?: () => void;
   onProceedToResults?: () => void;
+
+  selectedClass?: string;
+  setSelectedClass?: (cls: string) => void;
+  selectedSection?: string;
+  setSelectedSection?: (sec: string) => void;
+  selectedSubject?: string;
+  setSelectedSubject?: (sub: string) => void;
 }
 
 export const MarksEntry: React.FC<MarksEntryProps> = ({
@@ -26,15 +33,30 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
   gradeRules,
   addToast,
   onGotoSetup,
-  onProceedToResults
+  onProceedToResults,
+  selectedClass: propClass,
+  setSelectedClass: propSetClass,
+  selectedSection: propSection,
+  setSelectedSection: propSetSection,
+  selectedSubject: propSubject,
+  setSelectedSubject: propSetSubject,
 }) => {
   const { isUserAdmin, allowedClasses, getAllowedSections, getAllowedSubjects, loadRosterMarks, saveRosterMarksDraft, submitRosterMarks } = useMarksEntry();
-  const { studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment, saveMarks, examMarks, academicClasses } = useData();
+  const { studentAttendance, saveStudentAttendance, coScholasticAssessments, saveCoScholasticAssessment, saveMarks, examMarks, academicClasses, examSchedules = [] } = useData();
 
-  // dropdown states - starts clean with prompts
-  const [selectedClass, setSelectedClass] = useState<string>('');
-  const [selectedSection, setSelectedSection] = useState<string>('');
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  // dropdown states - starts clean with prompts fallback to local state
+  const [localClass, setLocalClass] = useState<string>('');
+  const [localSection, setLocalSection] = useState<string>('');
+  const [localSubject, setLocalSubject] = useState<string>('');
+
+  const selectedClass = propClass !== undefined ? propClass : localClass;
+  const setSelectedClass = propSetClass !== undefined ? propSetClass : setLocalClass;
+
+  const selectedSection = propSection !== undefined ? propSection : localSection;
+  const setSelectedSection = propSetSection !== undefined ? propSetSection : setLocalSection;
+
+  const selectedSubject = propSubject !== undefined ? propSubject : localSubject;
+  const setSelectedSubject = propSetSubject !== undefined ? propSetSubject : setLocalSubject;
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showVerifyModal, setShowVerifyModal] = useState<boolean>(false);
 
@@ -106,7 +128,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       const matchedClass = academicClasses.find(c => c.name === selectedClass);
       if (matchedClass && matchedClass.subjects && matchedClass.subjects.length > 0) {
         targetNames = matchedClass.subjects
-          .map((sub: any) => (typeof sub === 'string' ? sub : (sub.name || '')))
+          .map((sub: any) => (typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')))
           .filter(Boolean);
       }
       
@@ -115,6 +137,16 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
         const allowed = selectedSection ? getAllowedSubjects(selectedClass, selectedSection) : [];
         targetNames = allowed.length > 0 ? allowed : Object.keys(exam.marksConfig?.subjectWiseConfig || {});
       }
+    }
+
+    // 4. Merge with subjects configured in the timetable (examSchedules)
+    const scheduled = (examSchedules || [])
+      .filter(s => s.examId === exam.id && s.className === selectedClass && (!selectedSection || s.section === selectedSection))
+      .map(s => s.subject)
+      .filter(Boolean);
+    
+    if (scheduled.length > 0) {
+      targetNames = [...targetNames, ...scheduled];
     }
 
     // Deduplicate targetNames case-insensitively
@@ -137,7 +169,7 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
         label: `${name} (${code})`
       };
     });
-  }, [exam, selectedClass, selectedSection, subjects, academicClasses, getAllowedSubjects]);
+  }, [exam, selectedClass, selectedSection, subjects, academicClasses, getAllowedSubjects, examSchedules]);
 
   const activeClassStudents = useMemo(() => {
     if (!selectedClass || !selectedSection) return [];
@@ -244,6 +276,8 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       return {
         examId: exam.id,
         studentId,
+        className: selectedClass,
+        section: selectedSection,
         subject: selectedSubject,
         marksObtained: isAbsent ? 0 : Number(state.marks) || 0,
         totalMarks: maxMarks,
@@ -276,6 +310,8 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       return {
         examId: exam.id,
         studentId,
+        className: selectedClass,
+        section: selectedSection,
         subject: selectedSubject,
         marksObtained: isAbsent ? 0 : Number(state.marks) || 0,
         totalMarks: maxMarks,

@@ -14,6 +14,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("categoryName")]
         public string CategoryName { get; set; } = string.Empty;
 
+        [JsonPropertyName("name")]
+        public string Name => CategoryName;
+
         [JsonPropertyName("description")]
         public string Description { get; set; } = string.Empty;
 
@@ -26,9 +29,21 @@ namespace SMS.Api.Dtos
 
     public class CreateUniformCategoryDto
     {
-        [Required(ErrorMessage = "Category Name is required.")]
+        private string _categoryName = string.Empty;
+
         [JsonPropertyName("categoryName")]
-        public string CategoryName { get; set; } = string.Empty;
+        public string CategoryName
+        {
+            get => _categoryName;
+            set => _categoryName = value;
+        }
+
+        [JsonPropertyName("name")]
+        public string NameAlias
+        {
+            get => _categoryName;
+            set { if (!string.IsNullOrWhiteSpace(value)) _categoryName = value; }
+        }
 
         [JsonPropertyName("description")]
         public string? Description { get; set; }
@@ -37,3 +52,4 @@ namespace SMS.Api.Dtos
         public string Status { get; set; } = "Active";
     }
 }
+

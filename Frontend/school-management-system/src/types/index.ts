@@ -45,6 +45,7 @@ export interface User {
 
 export interface SchoolProfile {
   name: string;
+  schoolName?: string;
   tagline: string;
   address: string;
   phone: string;
@@ -231,6 +232,7 @@ export interface Student {
   id: string;
   admissionNo: string;
   rollNo: string;
+  name?: string;
   firstName: string;
   lastName: string;
   gender: 'Male' | 'Female' | 'Other';
@@ -480,6 +482,9 @@ export interface AdmissionApplication {
   lastName?: string;
   avatar?: string;
   appliedClass: string;
+  targetClass?: string;
+  className?: string;
+  section?: string;
   gender: 'Male' | 'Female' | 'Other';
   dob: string;
   bloodGroup: BloodGroup | string;
@@ -489,8 +494,12 @@ export interface AdmissionApplication {
   motherName?: string;
   email: string;
   phone: string; // Father 10-digit phone
+  mobile?: string;
   motherPhone?: string; // Mother 10-digit phone
   alternatePhone?: string; // Optional Alternate 10-digit phone
+  address?: string;
+  academicYear?: string;
+  residentialStatus?: string;
   // Address breakdown
   addressHouseNo?: string;
   addressStreet?: string;
@@ -629,8 +638,8 @@ export interface ExamSetup {
   examType?: string;
   assessmentType?: string;
   term?: string;
-  applicableClasses?: string[];
   classes?: string[];
+  applicableClasses?: string[];
   sections?: string[];
   description?: string;
   publishResult?: boolean;
@@ -775,6 +784,7 @@ export interface HostelBlock {
   name: string;
   wardenName: string;
   wardenPhone: string;
+  totalFloors?: number;
 }
 
 export interface HostelRoom {
@@ -799,6 +809,7 @@ export interface HostelBed {
 
 export interface UniformItem {
   id: string;
+  name?: string;
   category: string;
   gender: 'Male' | 'Female' | 'Unisex';
   className: string;
@@ -1609,11 +1620,15 @@ export interface HostelAssignmentLogItem {
 
 export interface RoomTypeMaster {
   id: string;
-  roomTypeName: string;
+  roomTypeId?: string;
+  roomTypeName?: string;
+  roomTypeSpecification?: string;
+  bedCapacity?: number;
   capacity: number;
   acType: 'AC' | 'Non-AC';
   description: string;
   status: 'Active' | 'Inactive';
+  hostelId?: string;
 }
 
 export interface RoomMaster {
@@ -1694,28 +1709,36 @@ export interface HostelVisitorLog {
 export interface UniformCategory {
   id: string;
   name: string;
+  categoryName?: string;
   description?: string;
+  status?: string;
+  branch?: string;
 }
 
 export interface UniformSize {
   id: string;
   sizeName: string;
+  sizeCodeName?: string;
   chest?: string;
   waist?: string;
   height?: string;
   ageGroup?: string;
   gender: 'Male' | 'Female' | 'Unisex';
+  branch?: string;
 }
 
 export interface UniformSupplier {
   id: string;
   supplierName: string;
+  companyName?: string;
   contactPerson: string;
   mobile: string;
+  phone?: string;
   email?: string;
   gstNumber?: string;
   address: string;
   status: 'Active' | 'Inactive';
+  branch?: string;
 }
 
 export interface UniformInventoryItem {
@@ -1744,12 +1767,18 @@ export interface StudentUniformIssue {
   size: string;
   quantity: number;
   issueDate: string;
-  status: 'Issued' | 'Returned' | 'Replaced';
+  status: 'Issued' | 'Returned' | 'Replaced' | string;
   returnDate?: string;
   replacementDate?: string;
   academicYear: string;
   branch?: string;
   notes?: string;
+  type?: 'Base Package' | 'Additional Purchase';
+  price?: number;
+  transactionType?: string;
+  itemCategory?: string;
+  totalAmount?: number;
+  unitPrice?: number;
 }
 
 export interface FinanceUniformConfig {

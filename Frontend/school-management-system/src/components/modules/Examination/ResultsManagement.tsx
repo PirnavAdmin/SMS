@@ -71,7 +71,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     }
     const matchedClass = academicClasses.find(c => c.name === selectedClass);
     if (matchedClass && matchedClass.subjects && matchedClass.subjects.length > 0) {
-      const names = matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean);
+      const names = matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean);
       if (names.length > 0) return names;
     }
     return Object.keys(exam.marksConfig?.subjectWiseConfig || {});
@@ -86,7 +86,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     activeClassStudents.forEach(student => {
       activeSubjects.forEach(sub => {
         const hasMark = examMarks.some(
-          m => m.examId === exam.id && m.studentId === student.id && m.subject === sub
+          m => m.examId === exam.id && m.studentId === student.id && (m.subject || '').toLowerCase() === sub.toLowerCase()
         );
         if (!hasMark) {
           issues.push(`Marks missing for ${student.firstName} ${student.lastName} in ${sub}.`);
@@ -97,7 +97,10 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
     // Check if marks are locked for all scheduled subjects
     activeSubjects.forEach(sub => {
       const subMarks = examMarks.filter(
-        m => m.examId === exam.id && m.className === selectedClass && m.section === selectedSection && m.subject === sub
+        m => m.examId === exam.id && 
+             (m.className === selectedClass || activeClassStudents.some(s => s.id === m.studentId)) && 
+             (m.section === selectedSection || activeClassStudents.some(s => s.id === m.studentId)) && 
+             (m.subject || '').toLowerCase() === sub.toLowerCase()
       );
       if (subMarks.length === 0) {
         issues.push(`Marks not entered yet for subject: ${sub}.`);

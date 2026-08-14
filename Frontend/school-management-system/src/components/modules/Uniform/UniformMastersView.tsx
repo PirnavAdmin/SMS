@@ -11,7 +11,7 @@ interface UniformMastersViewProps {
   initialStatusFilter?: string;
 }
 
-export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialSubTab = 'items', initialStatusFilter }) => {
+export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialSubTab = 'categories', initialStatusFilter }) => {
   const [activeSubTab, setActiveSubTab] = useState<'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory'>(initialSubTab);
 
   React.useEffect(() => {
@@ -21,8 +21,8 @@ export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialS
   }, [initialSubTab]);
 
   const subTabs = [
-    { id: 'items', label: 'Uniform Type', icon: Shirt },
     { id: 'categories', label: 'Categories', icon: Layers },
+    { id: 'items', label: 'Uniform Type', icon: Shirt },
     { id: 'sizes', label: 'Sizes', icon: Ruler },
     { id: 'suppliers', label: 'Suppliers', icon: Users },
     { id: 'inventory', label: 'Inventory', icon: Package }
@@ -53,10 +53,10 @@ export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialS
 
   const renderSubTabContent = () => {
     switch (activeSubTab) {
-      case 'items':
-        return <UniformView tabs={tabsNode} />;
       case 'categories':
         return <UniformCategoryView tabs={tabsNode} />;
+      case 'items':
+        return <UniformView tabs={tabsNode} />;
       case 'sizes':
         return <UniformSizeView tabs={tabsNode} />;
       case 'suppliers':
@@ -64,7 +64,7 @@ export const UniformMastersView: React.FC<UniformMastersViewProps> = ({ initialS
       case 'inventory':
         return <UniformInventoryView initialStatusFilter={initialStatusFilter} tabs={tabsNode} />;
       default:
-        return <UniformView tabs={tabsNode} />;
+        return <UniformCategoryView tabs={tabsNode} />;
     }
   };
 

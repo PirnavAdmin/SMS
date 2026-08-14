@@ -275,7 +275,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
         <InfoLine label="Attendance Type" value={(staff as any).attendanceType} />
         <InfoLine label="Employee Code" value={staff.teacherCode || (staff as any).employeeCode} />
         <InfoLine label="Biometric ID" value={(staff as any).biometricId} />
-        <InfoLine label="Staff Role" value={staff.role || 'Staff'} />
+        <InfoLine label="Staff Role" value={staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')} />
       </div>
     </SectionBlock>
   );
@@ -788,7 +788,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                   <Badge variant="info" size="sm">{staff.empId}</Badge>
                 </div>
                 <p className="text-xs text-slate-500 font-bold mt-0.5">{designation} | {department}</p>
-                <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || 'Main Campus'} | Role: {staff.role || 'Staff'}</p>
+                <p className="text-[10px] text-slate-400 font-medium">Branch: {staff.branch || 'Main Campus'} | Role: {staff.role === 'Teacher' ? 'Teacher' : (staff.role === 'Staff' ? 'Non-Teaching Staff' : staff.role || 'Non-Teaching Staff')}</p>
               </div>
             </div>
 

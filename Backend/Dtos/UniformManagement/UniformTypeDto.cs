@@ -93,36 +93,65 @@ namespace SMS.Api.Dtos
 
     public class CreateUniformTypeDto
     {
-        [Required(ErrorMessage = "Uniform Category / Item Name is required.")]
+        private string _itemName = string.Empty;
+        private string _categoryName = "General";
+        private string _schoolWing = "Class 10";
+        private decimal _unitPrice;
+
         [JsonPropertyName("itemName")]
-        public string ItemName { get; set; } = string.Empty;
+        public string ItemName
+        {
+            get => _itemName;
+            set => _itemName = value;
+        }
 
         [JsonPropertyName("categoryName")]
-        public string? CategoryName { get; set; }
+        public string CategoryName
+        {
+            get => _categoryName;
+            set => _categoryName = value;
+        }
+
+        [JsonPropertyName("category")]
+        public string? CategoryAlias
+        {
+            get => _categoryName;
+            set { if (!string.IsNullOrWhiteSpace(value)) _categoryName = value; }
+        }
 
         [JsonPropertyName("uniformCategory")]
         public string? UniformCategoryAlias
         {
-            get => ItemName;
-            set { if (!string.IsNullOrWhiteSpace(value)) ItemName = value; }
+            get => _categoryName;
+            set { if (!string.IsNullOrWhiteSpace(value)) _categoryName = value; }
         }
 
         [JsonPropertyName("gender")]
         public string Gender { get; set; } = "Unisex";
 
         [JsonPropertyName("schoolWing")]
-        public string SchoolWing { get; set; } = "Class 10";
+        public string SchoolWing
+        {
+            get => _schoolWing;
+            set => _schoolWing = value;
+        }
+
+        [JsonPropertyName("className")]
+        public string? ClassNameAlias
+        {
+            get => _schoolWing;
+            set { if (!string.IsNullOrWhiteSpace(value)) _schoolWing = value; }
+        }
 
         [JsonPropertyName("level")]
         public string? LevelAlias
         {
-            get => SchoolWing;
-            set { if (!string.IsNullOrWhiteSpace(value)) SchoolWing = value; }
+            get => _schoolWing;
+            set { if (!string.IsNullOrWhiteSpace(value)) _schoolWing = value; }
         }
 
-        [Required(ErrorMessage = "Size is required.")]
         [JsonPropertyName("size")]
-        public string Size { get; set; } = "Size M";
+        public string Size { get; set; } = "M";
 
         [JsonPropertyName("color")]
         public string Color { get; set; } = "Navy Blue";
@@ -136,22 +165,34 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("unitPrice")]
         [JsonConverter(typeof(FlexibleDecimalConverter))]
-        public decimal UnitPrice { get; set; }
+        public decimal UnitPrice
+        {
+            get => _unitPrice;
+            set => _unitPrice = value;
+        }
+
+        [JsonPropertyName("price")]
+        [JsonConverter(typeof(FlexibleDecimalConverter))]
+        public decimal PriceAlias
+        {
+            get => _unitPrice;
+            set => _unitPrice = value;
+        }
 
         [JsonPropertyName("openingStock")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int OpeningStock { get; set; } = 200;
 
         [JsonPropertyName("availableStock")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int AvailableStock { get; set; } = 120;
 
         [JsonPropertyName("minThreshold")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int MinThreshold { get; set; } = 30;
 
         [JsonPropertyName("reorderPoint")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int ReorderPoint { get; set; } = 50;
 
         [JsonPropertyName("status")]
@@ -164,7 +205,18 @@ namespace SMS.Api.Dtos
         public string Action { get; set; } = "restock"; // restock, out, adjust
 
         [JsonPropertyName("quantity")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
+        [JsonConverter(typeof(FlexibleIntConverter))]
         public int Quantity { get; set; }
+
+        [JsonPropertyName("quantityChange")]
+        [JsonConverter(typeof(FlexibleIntConverter))]
+        public int QuantityChangeAlias
+        {
+            get => Quantity;
+            set { if (value != 0) Quantity = value; }
+        }
+
+        [JsonPropertyName("reason")]
+        public string? Reason { get; set; }
     }
 }

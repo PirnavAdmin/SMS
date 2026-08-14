@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Minus, Settings2, Package, AlertTriangle, CheckCircle2, ShoppingCart, Layers, List } from 'lucide-react';
+import { Search, Plus, Minus, Settings2, Package, AlertTriangle, CheckCircle2, ShoppingCart, Layers, List, X, Filter } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { UniformInventoryItem } from '../../../types';
@@ -16,17 +16,16 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState(initialStatusFilter || 'All');
-  const [filterSize, setFilterSize] = useState('All');
+  const [filterStatus, setFilterStatus] = useState(initialStatusFilter || '');
+  const [filterSize, setFilterSize] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'matrix'>('table');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   React.useEffect(() => {
     if (initialStatusFilter) {
       setFilterStatus(initialStatusFilter);
-      // Always reset size to 'All' so items show immediately when navigating from KPI cards
-      setFilterSize('All');
+      setFilterSize('');
       setCurrentPage(1);
     }
   }, [initialStatusFilter]);
@@ -37,78 +36,91 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
   const [quantity, setQuantity] = useState<number>(10);
   const [notes, setNotes] = useState('');
 
-  const lowStockCount = uniformInventory.filter(i => i.currentStock > 0 && (i.currentStock <= i.minimumStock || i.status === 'Low Stock')).length;
+  const lowStockCount = (uniformInventory || []).filter(i => i && i.currentStock > 0 && (i.currentStock <= i.minimumStock || i.status === 'Low Stock')).length;
 
   // Real-time calculation of stock breakdown by size
-  const sizeBreakdown = uniformInventory.reduce((acc, item) => {
+  const sizeBreakdown = (uniformInventory || []).reduce((acc, item) => {
+    if (!item) return acc;
     const sz = item.size || 'Other';
     if (!acc[sz]) {
       acc[sz] = { totalStock: 0, count: 0 };
     }
-    acc[sz].totalStock += item.currentStock;
+    acc[sz].totalStock += (item.currentStock || 0);
     acc[sz].count += 1;
     return acc;
   }, {} as Record<string, { totalStock: number; count: number }>);
 
-  const availableSizes = Array.from(new Set(uniformInventory.map(i => i.size))).filter(Boolean);
+  const availableSizes = Array.from(new Set((uniformInventory || []).map(i => i?.size))).filter(Boolean);
 
   // Group inventory items by itemName / category to generate item-wise size breakdown matrix
-  const groupedItemMatrix = uniformInventory.reduce((acc, item) => {
-    const key = item.itemName || item.category;
+  const groupedItemMatrix = (uniformInventory || []).reduce((acc, item) => {
+    if (!item) return acc;
+    const key = item.itemName || item.category || 'Item';
     if (!acc[key]) {
       acc[key] = {
         itemName: key,
-        category: item.category,
+        category: item.category || 'Uniform',
         totalStock: 0,
         sizes: {} as Record<string, { stock: number; itemObj: UniformInventoryItem }>
       };
     }
-    acc[key].totalStock += item.currentStock;
-    acc[key].sizes[item.size] = {
-      stock: item.currentStock,
+    const szKey = item.size || 'Standard';
+    acc[key].totalStock += (item.currentStock || 0);
+    acc[key].sizes[szKey] = {
+      stock: item.currentStock || 0,
       itemObj: item
     };
     return acc;
   }, {} as Record<string, { itemName: string; category: string; totalStock: number; sizes: Record<string, { stock: number; itemObj: UniformInventoryItem }> }>);
 
   // Size Breakdown for each Item Name for quick inline pill display (deduplicated by size)
-  const itemSizesMap = uniformInventory.reduce((acc, item) => {
-    const key = (item.itemName || item.category).toLowerCase();
+  const itemSizesMap = (uniformInventory || []).reduce((acc, item) => {
+    if (!item) return acc;
+    const key = (item.itemName || item.category || '').toLowerCase();
     if (!acc[key]) {
       acc[key] = {};
     }
-    acc[key][item.size] = (acc[key][item.size] || 0) + item.currentStock;
+    acc[key][item.size || 'M'] = (acc[key][item.size || 'M'] || 0) + (item.currentStock || 0);
     return acc;
   }, {} as Record<string, Record<string, number>>);
 
-  const filteredGroupedItems = Object.values(groupedItemMatrix).filter(group => {
-    const matchQuery = group.itemName.toLowerCase().includes(query.toLowerCase()) ||
-                       group.category.toLowerCase().includes(query.toLowerCase());
+  const isFiltered = Boolean(query.trim() || (filterStatus && filterStatus !== 'All') || (filterSize && filterSize !== 'All') || initialStatusFilter);
 
-    const sizeVariants = Object.values(group.sizes).map(s => s.itemObj);
+  const filteredGroupedItems = !isFiltered ? [] : Object.values(groupedItemMatrix).filter(g => {
+    if (!g) return false;
+    const q = (query || '').toLowerCase();
+    const matchQuery = !q || g.itemName.toLowerCase().includes(q) || g.category.toLowerCase().includes(q);
 
-    const matchSize = filterSize === 'All' || filterSize === '' ? true : sizeVariants.some(v => v.size === filterSize);
+    const sizeVariants = Object.values(g.sizes).map(s => s.itemObj);
+    const matchSize = !filterSize || filterSize === 'All' ? true : sizeVariants.some(v => v && v.size === filterSize);
 
-    const matchStatus = filterStatus === 'All' ? true : sizeVariants.some(v => {
-      if (filterStatus === 'Out of Stock') return v.currentStock === 0 || v.status === 'Out of Stock';
-      if (filterStatus === 'Low Stock') return v.currentStock > 0 && (v.status === 'Low Stock' || v.currentStock <= v.minimumStock);
-      if (filterStatus === 'In Stock') return v.currentStock > v.minimumStock && v.status !== 'Out of Stock';
+    const matchStatus = !filterStatus || filterStatus === 'All' ? true : sizeVariants.some(v => {
+      if (!v) return false;
+      const cStock = v.currentStock || 0;
+      const mStock = v.minimumStock || 0;
+      if (filterStatus === 'Out of Stock') return cStock === 0 || v.status === 'Out of Stock';
+      if (filterStatus === 'Low Stock') return cStock > 0 && (v.status === 'Low Stock' || cStock <= mStock);
+      if (filterStatus === 'In Stock') return cStock > mStock && v.status !== 'Out of Stock';
       return v.status === filterStatus;
     });
 
     return matchQuery && matchSize && matchStatus;
   });
 
-  const filtered = uniformInventory.filter(i => {
-    const matchQuery = i.itemName.toLowerCase().includes(query.toLowerCase()) ||
-                       i.category.toLowerCase().includes(query.toLowerCase());
-    const matchStatus = filterStatus === 'All' ? true : (
-      filterStatus === 'Out of Stock' ? (i.currentStock === 0 || i.status === 'Out of Stock') :
-      filterStatus === 'Low Stock' ? (i.currentStock > 0 && (i.status === 'Low Stock' || i.currentStock <= i.minimumStock)) :
-      filterStatus === 'In Stock' ? (i.currentStock > i.minimumStock && i.status !== 'Out of Stock') :
+  const filtered = !isFiltered ? [] : (uniformInventory || []).filter(i => {
+    if (!i) return false;
+    const q = (query || '').toLowerCase();
+    const matchQuery = !q || (i.itemName || '').toLowerCase().includes(q) ||
+                       (i.category || '').toLowerCase().includes(q);
+    const cStock = i.currentStock || 0;
+    const mStock = i.minimumStock || 0;
+    const matchStatus = !filterStatus || filterStatus === 'All' ? true : (
+      filterStatus === 'Out of Stock' ? (cStock === 0 || i.status === 'Out of Stock') :
+      filterStatus === 'Low Stock' ? (cStock > 0 && (i.status === 'Low Stock' || cStock <= mStock)) :
+      filterStatus === 'In Stock' ? (cStock > mStock && i.status !== 'Out of Stock') :
       i.status === filterStatus
     );
-    const matchSize = filterSize === 'All' || filterSize === '' ? true : i.size === filterSize;
+    const matchSize = !filterSize || filterSize === 'All' ? true : i.size === filterSize;
     return matchQuery && matchStatus && matchSize;
   });
 
@@ -188,24 +200,35 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
       {tabs}
 
       {/* Filters Bar */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 justify-between shadow-sm">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+      <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
             placeholder="Search items by name, category..."
             value={query}
             onChange={e => setQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
+            className="w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all font-medium"
           />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-semibold text-slate-500 flex items-center gap-1"><Filter className="w-3.5 h-3.5" /> Filters:</span>
           <select
             value={filterSize}
             onChange={e => { setFilterSize(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+            className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20"
           >
+            <option value="">Select Size</option>
             <option value="All">All Sizes</option>
             <option value="S">S</option>
             <option value="M">M</option>
@@ -225,9 +248,10 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
           <select
             value={filterStatus}
             onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+            className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20"
           >
-            <option value="All">All Status</option>
+            <option value="">Select Status</option>
+            <option value="All">All Statuses</option>
             <option value="In Stock">In Stock</option>
             <option value="Low Stock">Low Stock</option>
             <option value="Out of Stock">Out of Stock</option>
@@ -260,8 +284,16 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
       {/* Main View Display: Item Size Matrix vs Standard Table */}
       {viewMode === 'matrix' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredGroupedItems.length === 0 ? (
-            <div className="col-span-full glass-card p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center text-slate-400">
+          {!isFiltered ? (
+            <div className="col-span-full py-16 text-center text-slate-400 dark:text-slate-500 font-bold glass-card rounded-3xl border border-slate-200 dark:border-slate-800 space-y-2">
+              <Search className="w-8 h-8 text-sky-500/50 mx-auto" />
+              <p className="text-sm text-slate-700 dark:text-slate-300 font-extrabold">No Filter Selected</p>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto font-medium">
+                Please select a size/status filter or type in the search bar to display inventory stock.
+              </p>
+            </div>
+          ) : filteredGroupedItems.length === 0 ? (
+            <div className="col-span-full glass-card p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center text-slate-400 font-bold">
               No uniform items match your selected filters.
             </div>
           ) : (
@@ -347,7 +379,16 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-                {filtered.length === 0 ? (
+                {!isFiltered ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold">
+                      <div className="flex flex-col items-center gap-2">
+                        <Search className="w-6 h-6 text-sky-500/50" />
+                        <span>Select a size/status filter or type in the search bar to display inventory stock.</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   filterStatus === 'Low Stock' ? (
                     <tr>
                       <td colSpan={9} className="py-12 text-center">
@@ -401,6 +442,9 @@ export const UniformInventoryView: React.FC<UniformInventoryViewProps> = ({ tabs
         totalItems={viewMode === 'matrix' ? filteredGroupedItems.length : filtered.length}
         itemsPerPage={itemsPerPage}
         onPageChange={setCurrentPage}
+        onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
+        itemsPerPageOptions={[10, 25, 50, 100]}
+        label="inventory items"
       />
 
       {/* Action Modal */}

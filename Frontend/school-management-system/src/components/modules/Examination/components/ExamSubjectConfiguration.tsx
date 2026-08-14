@@ -47,7 +47,7 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
         rawNames = allSubjects.map(s => s.name);
       } else {
         rawNames = matchedClass.subjects
-          .map((sub: any) => (typeof sub === 'string' ? sub : (sub.name || '')))
+          .map((sub: any) => (typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')))
           .filter(Boolean);
         if (rawNames.length === 0) {
           rawNames = allSubjects.map(s => s.name);
@@ -130,7 +130,7 @@ export const ExamSubjectConfiguration: React.FC<ExamSubjectConfigurationProps> =
               {applicableClasses.map(cls => {
                 const matchedClass = academicClasses.find(c => c.name === cls);
                 const raw = matchedClass?.subjects && matchedClass.subjects.length > 0
-                  ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.name || '')).filter(Boolean)
+                  ? matchedClass.subjects.map((sub: any) => typeof sub === 'string' ? sub : (sub.subjectName || sub.name || sub.subjectCode || sub.code || '')).filter(Boolean)
                   : allSubjects.map(s => s.name);
                 const subSet = new Set(raw.map((s: string) => s.toLowerCase()));
                 const clsMap = classWiseConfig[cls] || {};

@@ -8,7 +8,7 @@ namespace SMS.Api.Services.Interfaces
         Task<UniformDashboardMetricsDto> GetDashboardMetricsAsync();
 
         // Uniform Types (Configuration Tab 1)
-        Task<List<UniformTypeDto>> GetAllUniformTypesAsync(string? search, string? gender);
+        Task<List<UniformTypeDto>> GetAllUniformTypesAsync(string? search, string? gender, string? category = null, string? size = null, string? status = null);
         Task<UniformTypeDto?> GetUniformTypeByIdAsync(int id);
         Task<UniformTypeDto> CreateUniformTypeAsync(CreateUniformTypeDto dto);
         Task<UniformTypeDto> UpdateUniformTypeAsync(int id, CreateUniformTypeDto dto);
@@ -30,7 +30,7 @@ namespace SMS.Api.Services.Interfaces
         Task<bool> DeleteSizeAsync(int id);
 
         // Uniform Suppliers (Configuration Tab 4)
-        Task<List<UniformSupplierDto>> GetAllSuppliersAsync(string? search);
+        Task<List<UniformSupplierDto>> GetAllSuppliersAsync(string? search, string? status = null);
         Task<UniformSupplierDto?> GetSupplierByIdAsync(int id);
         Task<UniformSupplierDto> CreateSupplierAsync(CreateUniformSupplierDto dto);
         Task<UniformSupplierDto> UpdateSupplierAsync(int id, CreateUniformSupplierDto dto);
@@ -38,6 +38,7 @@ namespace SMS.Api.Services.Interfaces
 
         // Student Uniform Distribution
         Task<List<StudentUniformDistributionDto>> GetAllDistributionsAsync(string? search, int? studentId);
+        Task<StudentUniformDistributionDto?> GetDistributionByIdAsync(int id);
         Task<StudentUniformDistributionDto> IssueUniformAsync(CreateStudentUniformDistributionDto dto);
         Task<bool> DeleteDistributionAsync(int id);
 

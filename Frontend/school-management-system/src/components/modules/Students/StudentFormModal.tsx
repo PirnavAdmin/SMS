@@ -396,7 +396,6 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {studentToEdit ? 'Edit Student Details' : 'Register New Student'}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Comprehensive profile representation matching admission form</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white">
@@ -407,7 +406,13 @@ export const StudentFormModal: React.FC<StudentFormModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-5 text-xs">
           {/* Profile Photo Upload / Delete */}
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
-            <img src={formData.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-2 ring-brand-500/20" />
+            {formData.avatar ? (
+              <img src={formData.avatar} alt="" className="w-16 h-16 rounded-2xl object-cover ring-2 ring-brand-500/20" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-600 ring-2 ring-brand-500/20 shrink-0">
+                <User className="w-8 h-8" />
+              </div>
+            )}
             <div className="space-y-1">
               <p className="text-xs font-bold text-slate-900 dark:text-white">Profile Photo</p>
               <div className="flex items-center gap-2">

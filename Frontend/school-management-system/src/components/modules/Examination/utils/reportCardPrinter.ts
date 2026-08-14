@@ -42,8 +42,13 @@ export function generateReportCardHtml(
     <div class="report-card-container" style="max-width: 800px; margin: 0 auto 30px auto; border: 2px solid #0284c7; border-radius: 16px; padding: 24px; background: #ffffff; page-break-after: always;">
       <!-- Header -->
       <div style="text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 20px;">
-        <div style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1;">${schoolName}</div>
-        <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 4px;">${schoolAddress} ${schoolContact ? `<br>${schoolContact}` : ''}</div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px;">
+          ${schoolProfile?.logoUrl ? `<img src="${schoolProfile.logoUrl}" style="width: 50px; height: 50px; border-radius: 10px; object-fit: contain;" alt="Logo" />` : ''}
+          <div style="${schoolProfile?.logoUrl ? 'text-align: left;' : 'text-align: center;'}">
+            <div style="font-size: 24px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; color: #0369a1;">${schoolName}</div>
+            <div style="font-size: 11px; font-weight: 600; color: #64748b; margin-top: 2px;">${schoolAddress} ${schoolContact ? `• ${schoolContact}` : ''}</div>
+          </div>
+        </div>
         <div style="margin-top: 10px; display: inline-block; background: #0f172a; color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; padding: 4px 16px; border-radius: 9999px;">
           Student Progress Report Card
         </div>

@@ -66,7 +66,7 @@ export const ResultDetails: React.FC<ResultDetailsProps> = ({
         <div className="p-5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between no-print">
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-black text-slate-900 dark:text-white">Detailed Examination Result Sheet</h3>
+              <h3 className="text-base font-black text-slate-900 dark:text-white">Student Progress Report Card</h3>
               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${getResultBadgeClass(data.passStatus)}`}>
                 {data.passStatus}
               </span>
