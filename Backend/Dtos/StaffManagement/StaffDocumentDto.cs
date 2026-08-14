@@ -1,4 +1,4 @@
-namespace SMS.Api.Dtos;
+namespace SMS.Api.Dtos.StaffManagement;
 
 public class StaffDocumentDto
 {
@@ -10,3 +10,4 @@ public class StaffDocumentDto
     public string Status { get; set; } = "Missing";
     public string? UploadedAt { get; set; }
 }
+

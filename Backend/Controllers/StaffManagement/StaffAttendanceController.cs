@@ -38,3 +38,4 @@ public class StaffAttendanceController : ControllerBase
         return Ok(new { success = true, message = "Staff attendance saved successfully." });
     }
 }
+

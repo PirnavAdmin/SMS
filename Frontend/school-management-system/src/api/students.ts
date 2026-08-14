@@ -19,7 +19,7 @@ export const fetchStudentsApi = async (filter?: {
   if (filter?.sectionId) params.append('sectionId', String(filter.sectionId));
   if (filter?.status) params.append('status', filter.status);
   if (filter?.academicYear) params.append('academicYear', filter.academicYear);
-  if (filter?.page) params.append('page', String(filter.page));
+  if (filter?.page) params.append('pageNumber', String(filter.page));
   if (filter?.pageSize) params.append('pageSize', String(filter.pageSize));
   const query = params.toString();
   return apiClient(`/api/v1/students${query ? `?${query}` : ''}`, { method: 'GET' });

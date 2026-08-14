@@ -1477,14 +1477,16 @@ public class SchoolService : ISchoolService
 		};
 	}
 
-	public async Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, string status)
+	public async Task<LeaveApplicationResponseDto> UpdateLeaveStatusAsync(int applicationId, UpdateLeaveStatusRequest request)
 	{
 		var application = await _schoolRepository.GetLeaveApplicationByIdAsync(applicationId)
 			?? throw new NotFoundException($"Leave application with ID {applicationId} not found.");
 
-		application.Status = status;
+		application.Status = request.Status;
+		if (request.ApproverRemarks != null) application.ApproverRemarks = request.ApproverRemarks;
+		if (request.ApprovedBy != null) application.ApprovedBy = request.ApprovedBy;
 
-		if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+		if (request.Status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
 		{
 			var staff = await _schoolRepository.GetStaffByIdAsync(application.StaffId);
 			if (staff != null)

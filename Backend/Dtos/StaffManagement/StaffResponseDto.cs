@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
-namespace SMS.Api.Dtos;
+namespace SMS.Api.Dtos.StaffManagement;
 
 public class StaffResponseDto
 {
+	[JsonPropertyName("id")]
 	public int StaffId { get; set; }
+	[JsonPropertyName("empId")]
 	public string EmployeeId { get; set; } = string.Empty;
 	public string EmployeeCategory { get; set; } = "Teaching Staff";
 	public string FirstName { get; set; } = string.Empty;
@@ -21,6 +24,8 @@ public class StaffResponseDto
 	// Identity Details
 	public string? AadhaarNumber { get; set; }
 	public string? PanNumber { get; set; }
+	[JsonPropertyName("profilePhoto")]
+	public string? ProfilePhoto { get; set; }
 
 	// Address Details
 	public string? PresentAddress { get; set; }
@@ -55,3 +60,4 @@ public class StaffResponseDto
 	public List<StaffExperienceDto> ExperienceRecords { get; set; } = new();
 	public List<StaffDocumentDto> Documents { get; set; } = new();
 }
+

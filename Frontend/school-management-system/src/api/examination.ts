@@ -217,8 +217,8 @@ export const fetchReportCardsApi = async (
   resultStatus?: string,
   rankOrder?: string
 ) => {
-  const statusQ = resultStatus ? `&resultStatus=${encodeURIComponent(resultStatus)}` : '';
-  const rankQ = rankOrder ? `&rankOrder=${encodeURIComponent(rankOrder)}` : '';
+  const statusQ = resultStatus ? `&statusFilter=${encodeURIComponent(resultStatus)}` : '';
+  const rankQ = rankOrder ? `&search=${encodeURIComponent(rankOrder)}` : '';
   return apiClient(`/api/examination-new/results-reports/report-cards?className=${encodeURIComponent(className)}&sectionName=${encodeURIComponent(sectionName)}${statusQ}${rankQ}`, {
     method: 'GET'
   });
@@ -312,7 +312,7 @@ export const updateMarksEntryApi = async (payload: any) => {
   });
 };
 
-export const clearMarksEntryApi = async (params: { examId?: number | string; className?: string; sectionName?: string }) => {
+export const clearMarksEntryApi = async (params: { examId?: number | string; className?: string; sectionName?: string; subjectCode?: string }) => {
   const q = new URLSearchParams(params as any).toString();
   return apiClient(`/api/examination-new/marks-entry/clear-marks?${q}`, {
     method: 'DELETE'

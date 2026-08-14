@@ -1,4 +1,4 @@
-namespace SMS.Api.Models;
+namespace SMS.Api.Models.StaffManagement;
 
 using System;
 using System.Collections.Generic;
@@ -94,3 +94,4 @@ public class Staff
     [NotMapped]
     public string DisplayName => $"{FirstName ?? ""} {LastName ?? ""} ({EmployeeId ?? ""})".Trim();
 }
+

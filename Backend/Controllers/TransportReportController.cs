@@ -50,6 +50,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("vehicles")]
+        [HttpGet("vehicle-wise")]
         [AllowAnonymous]
         public async Task<IActionResult> GetVehicleReports([FromQuery] ReportFilterDto filter)
         {
@@ -64,6 +65,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("drivers")]
+        [HttpGet("driver-wise")]
         [AllowAnonymous]
         public async Task<IActionResult> GetDriverReports([FromQuery] ReportFilterDto filter)
         {
@@ -78,6 +80,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("routes")]
+        [HttpGet("route-wise")]
         [AllowAnonymous]
         public async Task<IActionResult> GetRouteReports([FromQuery] ReportFilterDto filter)
         {

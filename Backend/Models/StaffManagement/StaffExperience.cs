@@ -1,4 +1,4 @@
-namespace SMS.Api.Models;
+namespace SMS.Api.Models.StaffManagement;
 
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -32,3 +32,4 @@ public class StaffExperience
     [MaxLength(300)]
     public string? ReasonForLeaving { get; set; }
 }
+

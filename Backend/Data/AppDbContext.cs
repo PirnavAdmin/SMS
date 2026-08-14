@@ -488,7 +488,7 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("ClassId")
+                    .HasColumnName("id")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
@@ -521,7 +521,7 @@ namespace SMS.Api.Data
                     .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                 entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("UpdatedAt");
+                    .HasColumnName("updated_at");
             });
         }
 
@@ -1292,6 +1292,8 @@ namespace SMS.Api.Data
                     .WithMany()
                     .HasForeignKey(x => x.StudentId)
                     .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasQueryFilter(x => !x.Student.IsDeleted);
             });
         }
 
