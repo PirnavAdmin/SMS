@@ -3657,8 +3657,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               id: classIdStr,
               name: c.className || c.name,
               sections: c.sections?.map((s: any) => s.sectionName || s) || [],
-              sectionTeachers: c.sectionTeachers || {},
-              teacher: c.teacher || "Unassigned",
+              sectionTeachers: localCls?.sectionTeachers || c.sectionTeachers || {},
+              teacher: localCls?.teacher || c.teacher || "Unassigned",
               subjects: c.subjects || [],
               weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
               sectionDetails: localCls?.sectionDetails || c.sectionDetails || {},
@@ -3837,7 +3837,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const mappedStaff: Staff[] = response.data.map((item: any) => {
           const cat = (item.employeeCategory || "").toLowerCase();
           const isTeaching =
-            cat.includes("teaching") ||
+            (cat.includes("teaching") && !cat.includes("non-teaching")) ||
             cat.includes("teacher") ||
             cat.includes("faculty") ||
             cat.includes("professor");
@@ -5408,6 +5408,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
+    // Update local state immediately to avoid race conditions and provide instant UI updates
+    setAcademicClasses((prev) => {
+      const next = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      localStorage.setItem("edu_db_academic_classes", JSON.stringify(next));
+      return next;
+    });
+
     try {
       const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
       const payload = {

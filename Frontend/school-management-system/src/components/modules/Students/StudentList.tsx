@@ -103,7 +103,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       }
     };
     loadStudents();
-  }, [fetchStudents]);
+  }, []);
 
   useEffect(() => {
     setApiStudents(students);

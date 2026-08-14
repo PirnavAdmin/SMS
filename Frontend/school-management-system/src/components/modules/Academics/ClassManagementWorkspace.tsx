@@ -1378,6 +1378,10 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
         [activeWorkspaceSection]: ''
       };
       updateAcademicClass(activeClass.id, { sectionTeachers: updatedTeachers } as any);
+      assignTeacherApi(activeClass.id, activeWorkspaceSection, {
+        teacher_id: '',
+        role: "Class Teacher"
+      }).catch(() => {});
       addToast('info', 'Class Teacher Unassigned', `Class Teacher for Section ${activeWorkspaceSection} is now unassigned.`);
       return;
     }

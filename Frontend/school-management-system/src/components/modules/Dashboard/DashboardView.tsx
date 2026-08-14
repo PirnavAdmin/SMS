@@ -482,7 +482,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
 
         {/* Bottom Row: Pending Approvals, Examinations & Birthdays */}
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Pending Approvals */}
           <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4">
             <div className="flex items-center gap-2">
@@ -510,7 +510,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Examinations info container */}
-          <div onClick={() => onNavigate('examination')} className="lg:col-span-3 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[230px] lg:h-auto">
+          <div onClick={() => onNavigate('examination')} className="lg:col-span-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 shadow-sm p-6 rounded-xl space-y-4 cursor-pointer hover:border-brand-400 transition-colors flex flex-col h-[230px] lg:h-auto">
             <div className="flex items-center gap-2">
               <ClipboardList className="w-5 h-5 text-indigo-500" />
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Examinations</h3>
