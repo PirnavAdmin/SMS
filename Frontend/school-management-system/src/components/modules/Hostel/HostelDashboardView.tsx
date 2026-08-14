@@ -71,8 +71,8 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
   const hostellerStudentsCount = (students || []).filter(s =>
     s && (
       s.studentType === 'Hosteller' ||
-      s.studentType === 'Residential' ||
-      s.studentType === 'Boarder' ||
+      (s.studentType as any) === 'Residential' ||
+      (s.studentType as any) === 'Boarder' ||
       (s as any).isHostelRequired === true ||
       (s as any).facilityOpted === 'Hostel'
     )

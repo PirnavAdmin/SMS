@@ -30,7 +30,7 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
     // This is a genuine EXTERNAL navigation (sidebar click) — reset to clean state
     const cleanTab = normalizeTab(initialTab);
     setActiveTab(cleanTab);
-    setActiveSubTab(undefined);      // Reset subTab so sidebar always opens 'items'
+    setActiveSubTab(undefined);      // Reset subTab so sidebar always opens 'categories'
     setStatusFilterParam(undefined); // Reset any status filter
     setReportTypeFilter(undefined);
   }, [initialTab]);
@@ -70,7 +70,7 @@ export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ init
         const resolvedSubTab = activeSubTab ||
           (['items', 'categories', 'sizes', 'suppliers', 'inventory'].includes(activeTab)
             ? activeTab as any
-            : 'items');
+            : 'categories');
         return (
           <UniformMastersView
             key={`masters-${resolvedSubTab}-${statusFilterParam || 'all'}`}

@@ -25,7 +25,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
     s && (
       s.studentType === 'Hosteller' ||
       s.studentType === 'Residential' ||
-      s.studentType === 'Boarder' ||
+      (s.studentType as any) === 'Boarder' ||
       (s as any).isHostelRequired === true ||
       (s as any).facilityOpted === 'Hostel' ||
       (s as any).hostelFacility === true
@@ -113,7 +113,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const handleVacate = async (a: BedAllocation) => {
     try {
-      await vacateAllocation(a.allocationId);
+      await vacateAllocation(Number(a.allocationId));
       addToast('success', 'Room Vacated', 'The bed allocation has been vacated.');
       fetchData();
     } catch (error: any) {
@@ -131,7 +131,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
       const isHosteller =
         matchingStudent.studentType === 'Hosteller' ||
         matchingStudent.studentType === 'Residential' ||
-        matchingStudent.studentType === 'Boarder' ||
+        (matchingStudent.studentType as any) === 'Boarder' ||
         (matchingStudent as any).isHostelRequired === true ||
         (matchingStudent as any).facilityOpted === 'Hostel';
       return isHosteller;

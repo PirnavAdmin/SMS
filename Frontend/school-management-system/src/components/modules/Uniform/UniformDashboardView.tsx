@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shirt, Package, AlertTriangle, UserCheck, IndianRupee, Clock, TrendingUp, RotateCcw, ArrowUpRight } from 'lucide-react';
+import { Shirt, Package, AlertTriangle, UserCheck, IndianRupee, Clock, TrendingUp, RotateCcw, ArrowUpRight, ShieldCheck, CreditCard, ChevronRight } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { formatCurrency } from '../../../utils/currency';
 import { Badge } from '../../common/Badge';
@@ -9,7 +9,18 @@ interface UniformDashboardViewProps {
 }
 
 export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNavigate }) => {
-  const { uniforms, uniformInventory, studentUniformIssues } = useData();
+  const { 
+    uniforms, 
+    uniformInventory, 
+    studentUniformIssues,
+    students = [],
+    feePayments = [],
+    financeTransactions = [],
+    getStudentFeeLedger,
+    calculateStudentPayableFee,
+    getStudentFeeOutstandingSummary,
+    financeUniformConfigs = []
+  } = useData();
 
   // 1. KPI Calculations
   const totalItems = uniforms.length;
@@ -18,12 +29,21 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
   const uniformsIssued = studentUniformIssues.filter(x => x.status === 'Issued').reduce((acc, x) => acc + x.quantity, 0);
   const uniformsReturned = studentUniformIssues.filter(x => x.status === 'Returned').reduce((acc, x) => acc + x.quantity, 0);
 
-  // Additional sales: Excludes replaced/returned items. Sums total value of all issued items
-  const additionalSalesValue = studentUniformIssues
-    .filter(x => x.status === 'Issued')
+  // Helper to get expected uniform fee amount for student's class
+  const getStudentUniformFeeAmount = (className: string) => {
+    const config = (financeUniformConfigs || []).find(c => c.className === className || className.includes(c.className));
+    if (config && config.feeAmount) return config.feeAmount;
+    if (className.includes('9') || className.includes('10') || className.includes('11') || className.includes('12')) return 3500;
+    return 3000;
+  };
+
+  // Additional sales: ONLY includes Extra Purchases outside baseline admission kit
+  const extraItemsSalesValue = studentUniformIssues
+    .filter(x => x.status === 'Issued' && (x.type === 'Additional Purchase' || x.itemName.includes('(Extra)') || (!x.itemName.toLowerCase().includes('package') && x.type !== 'Base Package')))
     .reduce((sum, issue) => {
-      const uItem = uniforms.find(u => u.id === issue.itemId || u.category.toLowerCase() === issue.itemName.toLowerCase());
-      return sum + (uItem ? uItem.price * issue.quantity : 0);
+      const uItem = uniforms.find(u => u.id === issue.itemId || u.category.toLowerCase() === (issue.itemName || '').toLowerCase());
+      const price = issue.price || (uItem ? uItem.price : (issue.itemName.includes('Package') ? 3000 : 350));
+      return sum + (price * issue.quantity);
     }, 0);
 
   const pendingOrders = uniformInventory.filter(x => x.status === 'Out of Stock' || x.currentStock === 0).length;
@@ -38,110 +58,98 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Card 1: Total Items */}
         <div 
           onClick={() => onNavigate?.('masters', 'items')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-sm transition-all group"
+          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-sky-400 dark:hover:border-sky-600 hover:shadow-sm transition-all group"
           title="Click to view uniform items"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">Total Items</span>
-            <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-950/40 text-sky-500 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all">
-              <Shirt className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">Total Items</span>
+            <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-500 flex items-center justify-center group-hover:bg-sky-500 group-hover:text-white transition-all">
+              <Shirt className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{totalItems}</h3>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white mt-3">{totalItems}</h3>
         </div>
 
         {/* Card 2: Available Stock */}
         <div 
           onClick={() => onNavigate?.('masters', 'inventory', undefined, 'All')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm transition-all group"
+          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-sm transition-all group"
           title="Click to view uniform inventory stock"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Stock Available</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
-              <Package className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Stock Available</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-all">
+              <Package className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{totalStock} Units</h3>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white mt-3">{totalStock} Units</h3>
         </div>
 
         {/* Card 3: Issued Units */}
         <div 
           onClick={() => onNavigate?.('student-uniform', undefined, undefined, 'Issued')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm transition-all group"
+          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-blue-400 dark:hover:border-blue-600 hover:shadow-sm transition-all group"
           title="Click to view student uniform distribution"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Issued Units</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
-              <UserCheck className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Issued Units</span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-500 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-all">
+              <UserCheck className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{uniformsIssued} Units</h3>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white mt-3">{uniformsIssued} Units</h3>
         </div>
 
         {/* Card 4: Returned Units */}
         <div 
           onClick={() => onNavigate?.('student-uniform', undefined, undefined, 'Returned')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-sm transition-all group"
+          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-sm transition-all group"
           title="Click to view returned items"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Returned Units</span>
-            <div className="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
-              <RotateCcw className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">Returned Units</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-all">
+              <RotateCcw className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{uniformsReturned} Units</h3>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white mt-3">{uniformsReturned} Units</h3>
         </div>
 
         {/* Card 5: Low Stock */}
         <div 
           onClick={() => onNavigate?.('masters', 'inventory', undefined, 'Low Stock')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-sm transition-all group"
+          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-sm transition-all group"
           title="Click to view low stock inventory"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Low Stock</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
-              <AlertTriangle className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Low Stock</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-white transition-all">
+              <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{lowStockItems} Items</h3>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white mt-3">{lowStockItems} Items</h3>
         </div>
 
-        {/* Card 6: Additional Sales */}
+        {/* Card 6: Extra Sales (Only extra items purchased outside admission kit) */}
         <div 
           onClick={() => onNavigate?.('reports', undefined, 'Additional Uniform Sales')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-sm transition-all group"
-          title="Click to view additional sales report"
+          className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-sm transition-all group"
+          title="Click to view extra sales revenue"
         >
           <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">Sales Value</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center group-hover:bg-rose-500 group-hover:text-white transition-all">
-              <IndianRupee className="w-3.5 h-3.5" />
+            <span className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Extra Sales</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-500 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all">
+              <IndianRupee className="w-4 h-4" />
             </div>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{formatCurrency(additionalSalesValue)}</h3>
-        </div>
-
-        {/* Card 7: Out of Stock */}
-        <div 
-          onClick={() => onNavigate?.('masters', 'inventory', undefined, 'Out of Stock')}
-          className="glass-card p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col justify-between shadow-xs cursor-pointer hover:border-purple-400 dark:hover:border-purple-600 hover:shadow-sm transition-all group"
-          title="Click to view out of stock inventory"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] uppercase font-extrabold text-slate-400 tracking-wider group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Out of Stock</span>
-            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center group-hover:bg-purple-500 group-hover:text-white transition-all">
-              <Clock className="w-3.5 h-3.5" />
-            </div>
+          <div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mt-2">{formatCurrency(extraItemsSalesValue)}</h3>
+            <p className="text-[9px] font-bold text-slate-400">Extra Counter Sales</p>
           </div>
-          <h3 className="text-base font-black text-slate-900 dark:text-white mt-3">{pendingOrders} Items</h3>
         </div>
       </div>
 
@@ -286,6 +294,7 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
           </table>
         </div>
       </div>
+
     </div>
   );
 };
