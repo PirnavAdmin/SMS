@@ -3695,7 +3695,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               sections: c.sections?.map((s: any) => s.sectionName || s) || [],
               sectionTeachers: localCls?.sectionTeachers || c.sectionTeachers || {},
               teacher: localCls?.teacher || c.teacher || "Unassigned",
-              subjects: c.curriculumSubjects || c.subjects || [],
+              subjects: Array.isArray(c.curriculumSubjects) ? c.curriculumSubjects.map((cs: any) => cs.subjectName || cs.name || "") : (c.subjects || []),
               weeklyPeriods: localCls?.weeklyPeriods || c.weeklyPeriods || {},
               sectionDetails: localCls?.sectionDetails || c.sectionDetails || {},
             };
@@ -5602,24 +5602,30 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
 
-    try {
-      const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
-      const payload = {
-        name: updates.name,
-        class_name: updates.name,
-        display_order: (updates as any).displayOrder,
-        status: updates.status,
-        remarks: (updates as any).remarks
-      };
+     try {
+       const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
+       
+       // Find the existing class in state to get the current name and other fields
+       const existingClass = academicClasses.find((c) => c.id === id);
+       const currentName = existingClass?.className || existingClass?.name || "";
+       const finalName = updates.className || updates.name || currentName;
 
-      await updateClassApi(numericId, payload);
-      await fetchAcademicClasses();
-    } catch (err: any) {
-      console.error("Error updating academic class:", err);
-      addToast("error", "API Error", err.message || "Failed to update class.");
-      throw err;
-    }
-  };
+       const payload = {
+         name: finalName,
+         class_name: finalName,
+         display_order: (updates as any).displayOrder !== undefined ? (updates as any).displayOrder : (existingClass as any)?.displayOrder || 0,
+         status: updates.status || existingClass?.status || "Active",
+         remarks: (updates as any).remarks !== undefined ? (updates as any).remarks : (existingClass as any)?.remarks || ""
+       };
+
+       await updateClassApi(numericId, payload);
+       await fetchAcademicClasses();
+     } catch (err: any) {
+       console.error("Error updating academic class:", err);
+       addToast("error", "API Error", err.message || "Failed to update class.");
+       throw err;
+     }
+   };
 
   const deleteAcademicClass = async (id: string) => {
     try {
