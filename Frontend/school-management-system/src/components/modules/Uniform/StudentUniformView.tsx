@@ -6,7 +6,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Student, StudentUniformIssue, StudentFeeInstallment } from '../../../types';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
-import { getCategorySizes } from '../../../utils/uniformUtils';
+import { getCategorySizes, getUniformPackageFeeByClass } from '../../../utils/uniformUtils';
 import { Pagination } from '../../common/Pagination';
 
 interface StudentUniformViewProps {
@@ -62,20 +62,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     );
     if (dfsItem && dfsItem.amount >= 1000) return dfsItem.amount;
 
-    const clsLower = (className || '').toLowerCase();
-    if (clsLower.includes('lkg') || clsLower.includes('ukg') || clsLower.includes('nursery') || clsLower.includes('pkg')) {
-      return 2000;
-    }
-    if (clsLower.includes('class 1') || clsLower.includes('class 2') || clsLower.includes('class 3') || clsLower.includes('class 4') || clsLower.includes('class 5') || clsLower.includes('class 6') || clsLower.includes('class 7') || clsLower.includes('class 8')) {
-      return 2500;
-    }
-    if (clsLower.includes('class 9') || clsLower.includes('class 10') || clsLower === '9' || clsLower === '10' || clsLower.includes('9th') || clsLower.includes('10th')) {
-      return 3000;
-    }
-    if (clsLower.includes('class 11') || clsLower.includes('class 12') || clsLower === '11' || clsLower === '12' || clsLower.includes('11th') || clsLower.includes('12th')) {
-      return 3500;
-    }
-    return 3000;
+    return getUniformPackageFeeByClass(className);
   };
 
   const getStudentUniformFeeStatus = (studentId: string, studentAdmissionNo?: string, studentClass?: string) => {

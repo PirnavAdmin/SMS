@@ -7,6 +7,7 @@ import React, {
   useCallback,
 } from "react";
 import { formatCurrency } from "../utils/currency";
+import { getUniformPackageFeeByClass } from "../utils/uniformUtils";
 import {
   Student,
   AcademicHistoryRecord,
@@ -7912,14 +7913,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         c.className === clsName &&
         (c.gender === "Unisex" || c.gender === (student?.gender || "Male")),
     );
-    const clsLower = (clsName || '').toLowerCase();
-    const defaultClassUniformFee = clsLower.includes('lkg') || clsLower.includes('ukg') || clsLower.includes('nursery') || clsLower.includes('pkg') 
-      ? 2000 
-      : (clsLower.includes('class 9') || clsLower === '9' ? 0 : 3000);
+    const defaultClassUniformFee = getUniformPackageFeeByClass(clsName);
 
     const uniformAmount = uniformConfig 
       ? uniformConfig.feeAmount 
-      : (dfsUniformFee !== undefined ? dfsUniformFee : defaultClassUniformFee);
+      : (dfsUniformFee !== undefined && dfsUniformFee > 0 ? dfsUniformFee : defaultClassUniformFee);
 
     // Helper to identify uniform fee heads
     const isUniformHead = (headName: string) => {

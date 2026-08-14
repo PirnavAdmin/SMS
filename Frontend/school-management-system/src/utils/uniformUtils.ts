@@ -109,3 +109,61 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     { value: 'Others', label: 'Others (Custom Tailored)' }
   ];
 };
+
+export const getUniformPackageFeeByClass = (className: string = ''): number => {
+  const clsLower = (className || '').toLowerCase().trim();
+  if (
+    clsLower.includes('lkg') ||
+    clsLower.includes('ukg') ||
+    clsLower.includes('nursery') ||
+    clsLower.includes('pkg') ||
+    clsLower.includes('playgroup') ||
+    clsLower.includes('pre-primary') ||
+    clsLower.includes('kg')
+  ) {
+    return 2000;
+  }
+  if (
+    clsLower.includes('class 1') ||
+    clsLower.includes('class 2') ||
+    clsLower.includes('class 3') ||
+    clsLower.includes('class 4') ||
+    clsLower.includes('class 5') ||
+    clsLower.includes('class 6') ||
+    clsLower.includes('class 7') ||
+    clsLower.includes('class 8') ||
+    clsLower.includes('grade 1') ||
+    clsLower.includes('grade 2') ||
+    clsLower.includes('grade 3') ||
+    clsLower.includes('grade 4') ||
+    clsLower.includes('grade 5') ||
+    clsLower.includes('grade 6') ||
+    clsLower.includes('grade 7') ||
+    clsLower.includes('grade 8') ||
+    /^(1|2|3|4|5|6|7|8)th$/.test(clsLower) ||
+    /^(1|2|3|4|5|6|7|8)$/.test(clsLower)
+  ) {
+    return 2500;
+  }
+  if (
+    clsLower.includes('class 9') ||
+    clsLower.includes('class 10') ||
+    clsLower.includes('grade 9') ||
+    clsLower.includes('grade 10') ||
+    /^(9|10)th$/.test(clsLower) ||
+    /^(9|10)$/.test(clsLower)
+  ) {
+    return 3000;
+  }
+  if (
+    clsLower.includes('class 11') ||
+    clsLower.includes('class 12') ||
+    clsLower.includes('grade 11') ||
+    clsLower.includes('grade 12') ||
+    /^(11|12)th$/.test(clsLower) ||
+    /^(11|12)$/.test(clsLower)
+  ) {
+    return 3500;
+  }
+  return 2500;
+};
