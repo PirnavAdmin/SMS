@@ -7,11 +7,9 @@ namespace SMS.Api.Dtos.AcademicManagement
 	public class CreateClassGradeDto
 	{
 		[JsonPropertyName("name")]
-		[Required]
 		public string? Name { get; set; }
 
 		[JsonPropertyName("class_name")]
-		[Required]
 		public string? ClassName { get; set; }
 
 		[JsonPropertyName("campus_location")]

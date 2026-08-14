@@ -257,7 +257,8 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     academicClasses, addAcademicClass, updateAcademicClass, deleteAcademicClass,
     students, updateStudent, staff, timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
-    subjects, addSubject, updateSubject, deleteSubject
+    subjects, addSubject, updateSubject, deleteSubject,
+    fetchAcademicClasses, fetchSubjects
   } = useData();
 
   const { addToast } = useToast();
@@ -266,6 +267,11 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
   // Selected class & section state inside Workspace Cockpit
   const activeClass = academicClasses.find(c => c.id === selectedClassId);
   const [activeWorkspaceSection, setActiveWorkspaceSection] = useState<string>('A');
+
+  useEffect(() => {
+    fetchAcademicClasses();
+    fetchSubjects();
+  }, []);
 
   useEffect(() => {
     if (activeClass && !activeClass.sections.includes(activeWorkspaceSection)) {

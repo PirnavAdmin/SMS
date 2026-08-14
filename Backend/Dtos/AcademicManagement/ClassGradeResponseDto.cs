@@ -16,10 +16,10 @@ public class ClassGradeResponseDto
 	[JsonPropertyName("name")]
 	public string Name => ClassName;
 
-	[JsonIgnore]
+	[JsonPropertyName("sections")]
 	public List<SectionResponseDto> Sections { get; set; } = new();
 
-	[JsonPropertyName("sections")]
+	[JsonPropertyName("sectionNames")]
 	public List<string> SectionNames => Sections.Select(s => s.SectionName).ToList();
 	[JsonPropertyName("sectionTeachers")]
 	public Dictionary<string, string> SectionTeachers => Sections

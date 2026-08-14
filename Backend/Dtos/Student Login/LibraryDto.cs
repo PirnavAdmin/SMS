@@ -194,9 +194,22 @@ namespace SMS.Api.Dtos
             set { if (!string.IsNullOrWhiteSpace(value)) BorrowerIdCode = value; }
         }
 
-        [Required(ErrorMessage = "Borrower Full Name is required.")]
+        [JsonPropertyName("memberId")]
+        public int? MemberIdAlias
+        {
+            get => int.TryParse(BorrowerIdCode, out var i) ? i : null;
+            set { if (value.HasValue) BorrowerIdCode = value.ToString(); }
+        }
+
+        [JsonPropertyName("memberType")]
+        public string? MemberTypeAlias
+        {
+            get => BorrowerRole;
+            set { if (!string.IsNullOrWhiteSpace(value)) BorrowerRole = value; }
+        }
+
         [JsonPropertyName("borrowerName")]
-        public string BorrowerName { get; set; } = string.Empty;
+        public string BorrowerName { get; set; } = "Unknown";
 
         [JsonPropertyName("fullName")]
         public string? FullNameAlias

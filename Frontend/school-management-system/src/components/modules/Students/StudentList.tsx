@@ -24,7 +24,7 @@ import { BRANCHES } from '../../../utils/validation';
 
 
 export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = ({ onNavigate }) => {
-  const { students, updateStudent, deleteStudent, academicClasses, staff } = useData();
+  const { students, updateStudent, deleteStudent, academicClasses, staff, fetchStudents } = useData();
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const { addToast } = useToast();
@@ -90,47 +90,23 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     { name: 'Aadhaar_Card_Student.pdf', status: 'Verified', date: '15/05/2026' }
   ];
 
-  // Base admissions load
   useEffect(() => {
-    if (students && students.length > 0) {
-      setApiStudents(students);
-      setLoading(false);
-      return;
-    }
     const loadStudents = async () => {
       try {
         setLoading(true);
-        const response = await fetchAdmissionsApi();
-        if (response && response.data) {
-          const enrolled = response.data.filter((a: any) => a.status === 'Enrolled');
-          const mappedStudents: Student[] = enrolled.map((a: any) => ({
-            id: a.id.toString(),
-            firstName: a.firstName || a.applicantName?.split(' ')[0] || 'Unknown',
-            lastName: a.lastName || a.applicantName?.split(' ').slice(1).join(' ') || '',
-            className: a.appliedClass || 'Class 10',
-            section: 'A',
-            rollNo: a.registrationNo || a.applicationNo || a.id.toString(),
-            admissionNo: a.registrationNo || a.applicationNo || a.id.toString(),
-            fatherName: a.parentName || 'N/A',
-            fatherPhone: a.phone || 'N/A',
-            status: 'Active',
-            dueFee: 0,
-            branch: a.branch || 'Main Campus',
-            avatar: a.avatar || '',
-            gender: a.gender || 'Other',
-            dob: a.dob || '',
-            bloodGroup: a.bloodGroup || '',
-            category: a.category || ''
-          }));
-          setApiStudents(mappedStudents);
-        }
-      } catch (error) {
-        console.error('Failed to fetch students:', error);
+        await fetchStudents();
+      } catch (err: any) {
+        console.error('Failed to fetch students:', err);
+        addToast('error', 'Fetch Failed', 'Could not retrieve students database directory.');
       } finally {
         setLoading(false);
       }
     };
     loadStudents();
+  }, [fetchStudents]);
+
+  useEffect(() => {
+    setApiStudents(students);
   }, [students]);
 
   // Helper to calculate natural ascending order rank for classes

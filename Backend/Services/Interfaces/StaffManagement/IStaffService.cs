@@ -14,6 +14,7 @@ public interface IStaffService
     Task<TeacherDto?> GetTeacherByIdAsync(int id);
     Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto);
     Task<StaffResponseDto> UpdateStaffAsync(int id, StaffCreateDto dto);
+    Task<bool> UpdateStaffStatusAsync(int id, string status);
     Task<bool> DeleteStaffAsync(int id);
 
     // Attendance Operations
@@ -22,3 +23,4 @@ public interface IStaffService
     Task<List<StaffAttendanceResponseDto>> GetMonthlyAttendanceAsync(int month, int year, string? department);
     Task<bool> SaveBulkAttendanceAsync(BulkAttendanceDto dto);
 }
+

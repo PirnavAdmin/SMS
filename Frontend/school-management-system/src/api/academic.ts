@@ -280,9 +280,16 @@ export const saveTimetableSlotApi = async (payload: {
   roomNo?: string;
   periodId?: number | string;
 }) => {
+  const p = { ...payload } as any;
+  if (typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
+  if (typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
+  if (typeof p.subjectId === 'string') p.subjectId = Number(p.subjectId.replace('SUB-', ''));
+  if (typeof p.teacherId === 'string') p.teacherId = Number(p.teacherId.replace('EMP-', ''));
+  if (typeof p.periodId === 'string') p.periodId = Number(p.periodId.replace('PS-', ''));
+  
   return apiClient('/api/timetable/slot', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(p)
   });
 };
 
@@ -297,9 +304,13 @@ export const publishTimetableApi = async (payload: {
   academicYear: string;
   status: string;
 }) => {
+  const p = { ...payload } as any;
+  if (typeof p.classId === 'string') p.classId = Number(p.classId.replace('CL-', ''));
+  if (typeof p.sectionId === 'string') p.sectionId = Number(p.sectionId.replace('SEC-', ''));
+  
   return apiClient('/api/timetable/publish', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(p)
   });
 };
 
@@ -310,9 +321,15 @@ export const copyTimetableApi = async (payload: {
   targetSectionId: number | string;
   academicYear: string;
 }) => {
+  const p = { ...payload } as any;
+  if (typeof p.sourceClassId === 'string') p.sourceClassId = Number(p.sourceClassId.replace('CL-', ''));
+  if (typeof p.sourceSectionId === 'string') p.sourceSectionId = Number(p.sourceSectionId.replace('SEC-', ''));
+  if (typeof p.targetClassId === 'string') p.targetClassId = Number(p.targetClassId.replace('CL-', ''));
+  if (typeof p.targetSectionId === 'string') p.targetSectionId = Number(p.targetSectionId.replace('SEC-', ''));
+
   return apiClient('/api/timetable/copy', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(p)
   });
 };
 
@@ -327,25 +344,25 @@ export const fetchDesignationsApi = async (search?: string) => {
 
 export const createDesignationApi = async (payload: {
   designationName: string;
-  designationCode: string;
-  description?: string;
   status: string;
+  [key: string]: any;
 }) => {
+  const p = { designationName: payload.designationName, status: payload.status };
   return apiClient('/api/designations', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(p)
   });
 };
 
 export const updateDesignationApi = async (id: number | string, payload: {
   designationName: string;
-  designationCode: string;
-  description?: string;
   status: string;
+  [key: string]: any;
 }) => {
+  const p = { designationName: payload.designationName, status: payload.status };
   return apiClient(`/api/designations/${id}`, {
     method: 'PUT',
-    body: JSON.stringify(payload)
+    body: JSON.stringify(p)
   });
 };
 
@@ -375,4 +392,19 @@ export const fetchTimetableForClassSectionApi = async (
     { method: 'GET' }
   );
 };
+
+export const generateTimetableApi = async (payload: any) => {
+  return apiClient('/api/academics/timetable/generate', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const validateTimetableApi = async (classId: number | string, sectionId: number | string, academicYear: string) => {
+  return apiClient(
+    `/api/academics/timetable/validate?classId=${classId}&sectionId=${sectionId}&academicYear=${encodeURIComponent(academicYear)}`,
+    { method: 'POST' }
+  );
+};
+
 

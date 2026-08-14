@@ -24,10 +24,17 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     timetable, addTimetableSlot, updateTimetableSlot, deleteTimetableSlot, publishClassTimetable, loadTimetableForClassSection,
     periodSettings, addPeriodSetting, updatePeriodSetting, deletePeriodSetting, bulkAssignPeriods, resetClassPeriods,
     teacherAssignments, addTeacherAssignment, updateTeacherAssignment, deleteTeacherAssignment,
-    staff, academicClasses, rawClasses, subjects, holidays
+    staff, academicClasses, rawClasses, subjects, holidays,
+    fetchAcademicClasses, fetchSubjects, fetchPeriods
   } = useData();
   const { user, role, selectedBranch, setSelectedBranch } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    fetchAcademicClasses();
+    fetchSubjects();
+    fetchPeriods();
+  }, []);
 
   const [activeTab, setActiveTab] = useState<TimetableTab>('period-settings');
   const [academicYear, setAcademicYear] = useState('2026-2027');

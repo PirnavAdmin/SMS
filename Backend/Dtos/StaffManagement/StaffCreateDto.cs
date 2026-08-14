@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
-namespace SMS.Api.Dtos;
+namespace SMS.Api.Dtos.StaffManagement;
 
 public class StaffCreateDto
 {
@@ -21,7 +21,8 @@ public class StaffCreateDto
     // Identity Details
     public string? AadhaarNumber { get; set; }
     public string? PanNumber { get; set; }
-
+    public string? ProfilePhoto { get; set; }
+    
     // Address Details
     public string? PresentAddress { get; set; }
     public string? PermanentAddress { get; set; }
@@ -57,3 +58,4 @@ public class StaffCreateDto
     public List<StaffExperienceDto> ExperienceRecords { get; set; } = new();
     public List<StaffDocumentDto> Documents { get; set; } = new();
 }
+

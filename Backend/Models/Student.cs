@@ -106,6 +106,10 @@ public class Student
     [Column("updated_at")]
     public DateTime? UpdatedAt { get; set; }
 
+    [MaxLength(500)]
+    [Column("avatar")]
+    public string? Avatar { get; set; }
+
     public ICollection<StudentAttendance> AttendanceRecords { get; set; }
         = new List<StudentAttendance>();
 }

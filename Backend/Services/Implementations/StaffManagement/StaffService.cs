@@ -148,6 +148,7 @@ public class StaffService : IStaffService
             Gender = dto.Gender,
             ResidentialAddress = dto.ResidentialAddress,
             BloodGroup = dto.BloodGroup,
+            ProfilePhoto = dto.ProfilePhoto,
             AadhaarNumber = dto.AadhaarNumber,
             PanNumber = dto.PanNumber,
             PresentAddress = dto.PresentAddress,
@@ -247,6 +248,7 @@ public class StaffService : IStaffService
         if (dto.Gender != null) staff.Gender = dto.Gender;
         if (dto.ResidentialAddress != null) staff.ResidentialAddress = dto.ResidentialAddress;
         staff.BloodGroup = dto.BloodGroup;
+        if (dto.ProfilePhoto != null) staff.ProfilePhoto = dto.ProfilePhoto;
         staff.AadhaarNumber = dto.AadhaarNumber;
         staff.PanNumber = dto.PanNumber;
         staff.PresentAddress = dto.PresentAddress;
@@ -479,6 +481,7 @@ public class StaffService : IStaffService
         Gender = s.Gender,
         DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-dd"),
         BloodGroup = s.BloodGroup,
+        ProfilePhoto = s.ProfilePhoto,
         ResidentialAddress = s.ResidentialAddress,
         AadhaarNumber = s.AadhaarNumber,
         PanNumber = s.PanNumber,
@@ -537,4 +540,14 @@ public class StaffService : IStaffService
             UploadedAt = d.UploadedAt?.ToString("yyyy-MM-dd HH:mm:ss")
         }).ToList()
     };
+
+    public async Task<bool> UpdateStaffStatusAsync(int id, string status)
+    {
+        var staff = await _schoolRepository.GetStaffByIdAsync(id);
+        if (staff == null) return false;
+        staff.IsActive = status.Equals("Active", StringComparison.OrdinalIgnoreCase);
+        await _schoolRepository.SaveChangesAsync();
+        return true;
+    }
 }
+

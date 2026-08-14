@@ -49,6 +49,15 @@ public class StaffController : ControllerBase
     public async Task<IActionResult> UpdateStaff(int id, [FromBody] StaffCreateDto dto) =>
         Ok(new { success = true, message = "Staff member updated successfully.", data = await _staffService.UpdateStaffAsync(id, dto) });
 
+    [HttpPatch("{id:int}")]
+    public async Task<IActionResult> UpdateStaffStatus(int id, [FromBody] System.Text.Json.JsonElement body)
+    {
+        string status = body.GetProperty("status").GetString() ?? "";
+        var success = await _staffService.UpdateStaffStatusAsync(id, status);
+        if (!success) return NotFound(new { success = false, message = "Staff not found" });
+        return Ok(new { success = true, message = "Status updated successfully." });
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteStaff(int id)
     {
@@ -91,3 +100,4 @@ public class StaffController : ControllerBase
         return File(bytes, "text/csv", "TeachingStaffDirectory.csv");
     }
 }
+

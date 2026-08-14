@@ -57,20 +57,36 @@ public class AdmissionsController : ControllerBase
             return NotFound(new { success = false, message = $"Application '{registrationNo}' not found." });
         }
 
+        int? studentId = null;
+        string? rollNumber = null;
+        string? sectionName = null;
+        string? admissionNumber = null;
+
         if (dto.Status.Equals("Rejected", System.StringComparison.OrdinalIgnoreCase))
         {
             await _schoolService.RejectApplicationAsync(target.Id);
         }
         else if (dto.Status.Equals("Enrolled", System.StringComparison.OrdinalIgnoreCase))
         {
-            await _schoolService.EnrollStudentAsync(target.Id);
+            var student = await _schoolService.EnrollStudentAsync(target.Id);
+            studentId = student.StudentId;
+            rollNumber = student.RollNumber;
+            sectionName = student.ClassSection?.SectionName ?? "A";
+            admissionNumber = student.AdmissionNumber;
         }
         else
         {
             await _schoolService.UpdateApplicationStatusAsync(target.Id, dto.Status);
         }
 
-        return Ok(new { success = true, message = $"Status updated to '{dto.Status}' successfully." });
+        return Ok(new { 
+            success = true, 
+            studentId = studentId, 
+            rollNumber = rollNumber,
+            section = sectionName,
+            admissionNumber = admissionNumber,
+            message = $"Status updated to '{dto.Status}' successfully." 
+        });
     }
 
     [HttpPost("{id:int}/reject")]
@@ -83,8 +99,15 @@ public class AdmissionsController : ControllerBase
     [HttpPost("{id:int}/enroll")]
     public async Task<IActionResult> EnrollStudent(int id)
     {
-        await _schoolService.EnrollStudentAsync(id);
-        return Ok(new { success = true, message = "Student enrolled successfully into active database." });
+        var student = await _schoolService.EnrollStudentAsync(id);
+        return Ok(new { 
+            success = true, 
+            studentId = student.StudentId, 
+            rollNumber = student.RollNumber,
+            section = student.ClassSection?.SectionName ?? "A",
+            admissionNumber = student.AdmissionNumber,
+            message = "Student enrolled successfully into active database." 
+        });
     }
 }
 

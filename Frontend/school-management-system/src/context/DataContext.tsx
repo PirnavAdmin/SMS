@@ -607,12 +607,19 @@ interface DataContextType {
     id: string,
     status: AdmissionApplication["status"],
   ) => Promise<string | null>;
+  fetchAdmissions: () => Promise<void>;
+  fetchStudents: () => Promise<void>;
+  fetchAcademicClasses: (force?: boolean) => Promise<void>;
+  fetchSubjects: (force?: boolean) => Promise<void>;
+  fetchPeriods: (force?: boolean) => Promise<void>;
+  fetchDepartments: (force?: boolean) => Promise<void>;
+  fetchDesignations: (force?: boolean) => Promise<void>;
 
   academicClasses: AcademicClass[];
   rawClasses: any[];
-  addAcademicClass: (cls: Omit<AcademicClass, "id">) => void;
-  updateAcademicClass: (id: string, updates: Partial<AcademicClass>) => void;
-  deleteAcademicClass: (id: string) => void;
+  addAcademicClass: (cls: Omit<AcademicClass, "id">) => Promise<void>;
+  updateAcademicClass: (id: string, updates: Partial<AcademicClass>) => Promise<void>;
+  deleteAcademicClass: (id: string) => Promise<void>;
 
   subjects: SubjectItem[];
   addSubject: (subject: Omit<SubjectItem, "id">) => void;
@@ -3763,6 +3770,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: item.status,
             applicationDate: item.createdAt,
             branch: item.branch || "Main Campus",
+            avatar: item.avatar || "",
           }),
         );
         setAdmissions(mappedAdmissions);
@@ -3879,13 +3887,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const response: any = await fetchStudentsApi();
       const items = Array.isArray(response)
         ? response
-        : response?.items || response?.Items || response?.data?.items || response?.data || [];
+        : response?.items || response?.data?.items || response?.data || [];
       if (Array.isArray(items)) {
         const mapped = items.map((s: any) => {
-          const nameParts = (s.studentName || s.name || "").trim().split(" ");
+          const nameParts = (s.studentName || s.name || "").trim().split(/\s+/);
           const firstName = s.firstName || nameParts[0] || "";
           const lastName = s.lastName || nameParts.slice(1).join(" ") || "";
-          
           return {
             id: s.studentId?.toString() || s.id?.toString() || "",
             admissionNo: s.admissionNumber || s.admissionNo || "",
@@ -3894,7 +3901,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             middleName: s.middleName || "",
             lastName,
             email: s.email || "",
-            phone: s.phone || s.contactNumber || s.mobileNumber || "",
+            phone: s.phone || s.mobileNumber || s.contactNumber || "",
             gender: s.gender || "Male",
             dob: s.dateOfBirth ? s.dateOfBirth.split("T")[0] : "",
             className: s.className || s.class || "",
@@ -3904,21 +3911,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: s.status || "Active",
             studentType: s.studentType || "Day Scholar",
             parentName: s.parentName || s.fatherName || "",
-            parentPhone: s.parentPhone || s.fatherMobile || s.fatherContact || "",
+            parentPhone: s.parentPhone || s.fatherContact || "",
             address: s.address || "",
             promotionHistory: [],
             rollNo: s.rollNumber || s.rollNo || "",
-            bloodGroup: s.bloodGroup || "",
-            category: s.category || "",
+            bloodGroup: s.bloodGroup || "O+",
+            category: s.category || "General",
             avatar: s.avatar || "",
-            joiningDate: s.joiningDate || "",
-            fatherName: s.fatherName || "",
-            fatherPhone: s.fatherMobile || s.fatherPhone || "",
-            fatherOccupation: s.fatherOccupation || "",
-            motherName: s.motherName || "",
-            motherPhone: s.motherMobile || s.motherPhone || ""
-          };
-        }) as any as Student[];
+            joiningDate: s.joiningDate || new Date().toISOString().split("T")[0]
+          } as unknown as Student;
+        });
         setStudents(mapped);
       }
     } catch (err) {
@@ -4047,61 +4049,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const items = Array.isArray(response)
         ? response
         : response?.data?.items || response?.data || [];
-      if (Array.isArray(items)) {
-        const mapped = items.map((item: any) => {
-          // Normalize status
-          let status: any = "Scheduled";
-          const backendStatus = (item.meetingStatus || item.status || "").toLowerCase();
-          if (backendStatus === "draft") status = "Draft";
-          else if (backendStatus === "completed") status = "Completed";
-          else if (backendStatus === "cancelled") status = "Cancelled";
-
-          // Normalize audience
-          let audience: any = "Individual";
-          const audStr = (item.meetingAudience || "").toLowerCase();
-          if (audStr.includes("group")) {
-            audience = "Group";
-          }
-
-          // Build participants list from ParticipantName etc. if present
-          const participants: any[] = [];
-          if (item.participantName) {
-            participants.push({
-              id: "P-" + Math.floor(100 + Math.random() * 900),
-              name: item.participantName,
-              type: item.participantType || "Parent",
-              details: item.wardStudentName 
-                ? `Ward: ${item.wardStudentName} (${item.wardClass || ""})` 
-                : (item.participantPhone || "")
-            });
-          }
-
-          return {
-            id: (item.meetingId || item.id || "").toString(),
-            title: item.meetingTitle || item.title || "",
-            description: item.agenda || item.description || "",
-            academicYear: item.academicYear || "2026-2027",
-            branch: item.branch || "Main Campus",
-            meetingAudience: audience,
-            participantType: item.participantType,
-            participants: participants,
-            targetGroupDescription: item.targetGroupDescription || item.wardStudentName || item.participantName || "",
-            meetingMode: item.meetingMode || "In-Person",
-            roomVenue: item.meetingRoom || item.roomVenue || "",
-            building: item.building || "",
-            floor: item.floor || "",
-            onlineMeetingUrl: item.onlineMeetingUrl || "",
-            meetingDate: item.meetingDate ? item.meetingDate.split("T")[0] : "",
-            startTime: item.startTime || "",
-            endTime: item.endTime || "",
-            status: status,
-            organizerName: item.organizerName || "Administration",
-            organizerRole: item.organizerRole || "Admin",
-            createdAt: item.createdAt ? item.createdAt.split("T")[0] : new Date().toISOString().split("T")[0],
-          };
-        });
-        setMeetings(mapped);
-      }
+      if (Array.isArray(items)) setMeetings(items);
     } catch (err) {
       console.warn("Failed to fetch meetings from API", err);
     }
@@ -4131,9 +4079,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Communication (replaces initialAnnouncements / initialMeetings mock data)
       fetchAnnouncementsData();
       fetchMeetingsData();
-      // Today's Staff Attendance for Dashboard stats
-      const todayStr = new Date().toLocaleDateString('en-CA');
-      fetchDailyAttendance(todayStr);
     }
     const allowedAdmissionsRoles = [
       "Super Admin",
@@ -4908,14 +4853,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      const clsObj = academicClasses.find(c => c.name === appData.appliedClass || c.id === appData.appliedClass);
-      const resolvedClassId = clsObj ? Number(clsObj.id) : 0;
-
       const payload = {
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
-        appliedClassId: resolvedClassId,
-        AppliedClassId: resolvedClassId,
         gender: appData.gender || "",
         dob: isoDob,
         bloodGroup: appData.bloodGroup || "O+",
@@ -4934,7 +4874,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         numberOfSiblings: appData.siblingsCount || 0,
         siblingStudentId: "N/A",
         studentType: appData.studentType || "Day Scholar",
-        StudentType: appData.studentType || "Day Scholar",
         transportRequired: !!appData.transportRequired,
         transportType: appData.transportType || "N/A",
         busRoute: appData.busRoute || "N/A",
@@ -4944,8 +4883,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         floorLevel: "N/A",
         allocatedBedId: appData.hostelBed || "N/A",
         branch: appData.branch || selectedBranch || "Main Campus",
-        branchName: appData.branch || selectedBranch || "Main Campus",
-        BranchName: appData.branch || selectedBranch || "Main Campus",
+        avatar: appData.avatar || "",
       };
 
       const json = await createAdmissionApi(payload);
@@ -5004,14 +4942,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
-      const clsObj = academicClasses.find(c => c.name === appData.appliedClass || c.id === appData.appliedClass);
-      const resolvedClassId = clsObj ? Number(clsObj.id) : 0;
-
       const payload = {
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
-        appliedClassId: resolvedClassId,
-        AppliedClassId: resolvedClassId,
         gender: appData.gender || "",
         dob: isoDob,
         bloodGroup: appData.bloodGroup || "O+",
@@ -5030,7 +4963,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         numberOfSiblings: appData.siblingsCount || 0,
         siblingStudentId: "N/A",
         studentType: appData.studentType || "Day Scholar",
-        StudentType: appData.studentType || "Day Scholar",
         transportRequired: !!appData.transportRequired,
         transportType: appData.transportType || "N/A",
         busRoute: appData.busRoute || "N/A",
@@ -5041,8 +4973,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         scholarship:
           (appData as any).scholarship || appData.scholarshipId || "None",
         discount: (appData as any).discount || appData.discountId || "None",
-        branchName: appData.branch || selectedBranch || "Main Campus",
-        BranchName: appData.branch || selectedBranch || "Main Campus",
+        avatar: appData.avatar || "",
       };
 
       await updateAdmissionApi(parseInt(id, 10), payload);
@@ -5451,40 +5382,61 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     return null;
   };
 
-  const addAcademicClass = (clsData: Omit<AcademicClass, "id">) => {
-    let id = "";
-    do {
-      id = "CL-" + Math.floor(100 + Math.random() * 900);
-    } while (academicClasses.some((c) => c.id === id));
-    const newCls: AcademicClass = {
-      ...clsData,
-      id,
-      branch: (clsData as any).branch || selectedBranch || "Main Campus",
-    } as any;
-    setAcademicClasses((prev) => [...prev, newCls]);
-    logActivity("Created Academic Class", `Added ${newCls.name}`);
-  };
+  const addAcademicClass = async (clsData: Omit<AcademicClass, "id">) => {
+    try {
+      const payload = {
+        name: clsData.name,
+        class_name: clsData.name,
+        campus_location: (clsData as any).campus || (clsData as any).branch || selectedBranch || "Main Campus",
+        academic_year: (clsData as any).academicYear || selectedAcademicYear || "2026-2027",
+        display_order: (clsData as any).displayOrder,
+        status: clsData.status || "Active",
+        remarks: (clsData as any).remarks || "",
+        sections: clsData.sections || [],
+        sectionTeachers: (clsData as any).sectionTeachers || {},
+        subjects: clsData.subjects || []
+      };
 
-  const updateAcademicClass = (id: string, updates: Partial<AcademicClass>) => {
-    setAcademicClasses((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    );
-    logActivity("Updated Academic Class", `Updated class ID ${id}`);
-  };
-
-  const deleteAcademicClass = (id: string) => {
-    const cls = academicClasses.find((c) => c.id === id);
-    if (cls) {
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.className === cls.name
-            ? { ...s, className: "", section: "", rollNo: "" }
-            : s,
-        ),
-      );
+      await createClassApi(payload);
+      await fetchAcademicClasses();
+      addToast("success", "Class Created", `Class ${clsData.name} has been created successfully.`);
+    } catch (err: any) {
+      console.error("Error creating academic class:", err);
+      addToast("error", "API Error", err.message || "Failed to create class.");
+      throw err;
     }
-    setAcademicClasses((prev) => prev.filter((c) => c.id !== id));
-    logActivity("Deleted Academic Class", `Removed class ID ${id}`);
+  };
+
+  const updateAcademicClass = async (id: string, updates: Partial<AcademicClass>) => {
+    try {
+      const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
+      const payload = {
+        name: updates.name,
+        class_name: updates.name,
+        display_order: (updates as any).displayOrder,
+        status: updates.status,
+        remarks: (updates as any).remarks
+      };
+
+      await updateClassApi(numericId, payload);
+      await fetchAcademicClasses();
+    } catch (err: any) {
+      console.error("Error updating academic class:", err);
+      addToast("error", "API Error", err.message || "Failed to update class.");
+      throw err;
+    }
+  };
+
+  const deleteAcademicClass = async (id: string) => {
+    try {
+      const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
+      await deleteClassApi(numericId);
+      await fetchAcademicClasses();
+    } catch (err: any) {
+      console.error("Error deleting academic class:", err);
+      addToast("error", "API Error", err.message || "Failed to delete class.");
+      throw err;
+    }
   };
 
   // Subjects CRUD
@@ -8477,8 +8429,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         minDistanceKm: r.minDistanceKm ?? 5,
         minBaseFare: r.minBaseFare ?? 1000,
         ratePerKm: r.ratePerKm ?? 100,
-        acMinBaseFare: r.acMinBaseFare ?? 1200,
-        acRatePerKm: r.acRatePerKm ?? 150
+        acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
+        acRatePerKm: (r as any).acRatePerKm ?? 150
       }));
 
       const newRoute: RouteMaster = {
@@ -8488,8 +8440,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         minDistanceKm: r.minDistanceKm ?? 5,
         minBaseFare: r.minBaseFare ?? 1000,
         ratePerKm: r.ratePerKm ?? 100,
-        acMinBaseFare: r.acMinBaseFare ?? 1200,
-        acRatePerKm: r.acRatePerKm ?? 150,
+        acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
+        acRatePerKm: (r as any).acRatePerKm ?? 150,
         branch: (r as any).branch || selectedBranch || "Main Campus",
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
@@ -8505,8 +8457,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         minDistanceKm: r.minDistanceKm ?? 5,
         minBaseFare: r.minBaseFare ?? 1000,
         ratePerKm: r.ratePerKm ?? 100,
-        acMinBaseFare: r.acMinBaseFare ?? 1200,
-        acRatePerKm: r.acRatePerKm ?? 150
+        acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
+        acRatePerKm: (r as any).acRatePerKm ?? 150
       }));
 
       const newRoute: RouteMaster = {
@@ -8515,8 +8467,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         minDistanceKm: r.minDistanceKm ?? 5,
         minBaseFare: r.minBaseFare ?? 1000,
         ratePerKm: r.ratePerKm ?? 100,
-        acMinBaseFare: r.acMinBaseFare ?? 1200,
-        acRatePerKm: r.acRatePerKm ?? 150,
+        acMinBaseFare: (r as any).acMinBaseFare ?? 1200,
+        acRatePerKm: (r as any).acRatePerKm ?? 150,
         branch: (r as any).branch || selectedBranch || "Main Campus",
       } as any;
       setRouteMasters((prev) => [...prev, newRoute]);
@@ -8561,8 +8513,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         minDistanceKm: updates.minDistanceKm !== undefined ? updates.minDistanceKm : parsed.minDistanceKm,
         minBaseFare: updates.minBaseFare !== undefined ? updates.minBaseFare : parsed.minBaseFare,
         ratePerKm: updates.ratePerKm !== undefined ? updates.ratePerKm : parsed.ratePerKm,
-        acMinBaseFare: updates.acMinBaseFare !== undefined ? updates.acMinBaseFare : parsed.acMinBaseFare,
-        acRatePerKm: updates.acRatePerKm !== undefined ? updates.acRatePerKm : parsed.acRatePerKm
+        acMinBaseFare: (updates as any).acMinBaseFare !== undefined ? (updates as any).acMinBaseFare : parsed.acMinBaseFare,
+        acRatePerKm: (updates as any).acRatePerKm !== undefined ? (updates as any).acRatePerKm : parsed.acRatePerKm
       }));
 
       setRouteMasters((prev) =>
@@ -8581,8 +8533,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         minDistanceKm: updates.minDistanceKm !== undefined ? updates.minDistanceKm : parsed.minDistanceKm,
         minBaseFare: updates.minBaseFare !== undefined ? updates.minBaseFare : parsed.minBaseFare,
         ratePerKm: updates.ratePerKm !== undefined ? updates.ratePerKm : parsed.ratePerKm,
-        acMinBaseFare: updates.acMinBaseFare !== undefined ? updates.acMinBaseFare : parsed.acMinBaseFare,
-        acRatePerKm: updates.acRatePerKm !== undefined ? updates.acRatePerKm : parsed.acRatePerKm
+        acMinBaseFare: (updates as any).acMinBaseFare !== undefined ? (updates as any).acMinBaseFare : parsed.acMinBaseFare,
+        acRatePerKm: (updates as any).acRatePerKm !== undefined ? (updates as any).acRatePerKm : parsed.acRatePerKm
       }));
 
       setRouteMasters((prev) =>
@@ -11812,6 +11764,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAdmission,
         deleteAdmission,
         updateAdmissionStatus,
+        fetchAdmissions,
+        fetchStudents,
+        fetchAcademicClasses,
+        fetchSubjects,
+        fetchPeriods,
+        fetchDepartments,
+        fetchDesignations,
         academicClasses: filteredClasses,
         addAcademicClass,
         updateAcademicClass,

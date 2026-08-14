@@ -10,7 +10,7 @@ export const fetchHomeworkOptionsApi = async () => {
 
 export const fetchHomeworkApi = async (classId?: string, subject?: string, status?: string) => {
   const params = new URLSearchParams();
-  if (classId) params.append('classId', classId);
+  if (classId) params.append('className', classId);
   if (subject) params.append('subject', subject);
   if (status) params.append('status', status);
   const query = params.toString();

@@ -134,6 +134,7 @@ namespace SMS.Api.Data
         public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
         //student
         public DbSet<Student> Students { get; set; } = null!;
+        public DbSet<StudentImage> StudentImages { get; set; } = null!;
         public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
         public DbSet<StudentAttendanceSession> StudentAttendanceSessions { get; set; } = null!;
         public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
@@ -190,6 +191,7 @@ namespace SMS.Api.Data
             ConfigureStandardTableNames(modelBuilder);
             ConfigureAcademicYear(modelBuilder);
             ConfigureStudent(modelBuilder);
+            ConfigureStudentImage(modelBuilder);
             ConfigureStudentAttendanceSession(modelBuilder);
             ConfigureStudentAttendance(modelBuilder);
             ConfigureNewExamination(modelBuilder);
@@ -486,7 +488,7 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.ClassId);
 
                 entity.Property(x => x.ClassId)
-                    .HasColumnName("ClassId")
+                    .HasColumnName("id")
                     .ValueGeneratedOnAdd();
 
                 entity.Property(x => x.ClassName)
@@ -519,7 +521,7 @@ namespace SMS.Api.Data
                     .HasDefaultValueSql("CURRENT_TIMESTAMP(6)");
 
                 entity.Property(x => x.UpdatedAt)
-                    .HasColumnName("UpdatedAt");
+                    .HasColumnName("updated_at");
             });
         }
 
@@ -1178,6 +1180,10 @@ namespace SMS.Api.Data
                     .HasColumnName("address")
                     .HasMaxLength(500);
 
+                entity.Property(x => x.Avatar)
+                    .HasColumnName("avatar")
+                    .HasMaxLength(500);
+
                 entity.Property(x => x.BranchId)
                     .HasColumnName("branch_id")
                     .IsRequired();
@@ -1266,6 +1272,31 @@ namespace SMS.Api.Data
                 entity.HasQueryFilter(x => !x.IsDeleted);
             });
         }
+
+        private static void ConfigureStudentImage(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<StudentImage>(entity =>
+            {
+                entity.ToTable("student_images");
+                entity.HasKey(x => x.FileId);
+                entity.Property(x => x.FileId).HasColumnName("file_id").ValueGeneratedOnAdd();
+                entity.Property(x => x.StudentId).HasColumnName("student_id").IsRequired();
+                entity.Property(x => x.FileName).HasColumnName("file_name").HasMaxLength(255).IsRequired();
+                entity.Property(x => x.StoredFileName).HasColumnName("stored_file_name").HasMaxLength(255).IsRequired();
+                entity.Property(x => x.ContentType).HasColumnName("content_type").HasMaxLength(100).IsRequired();
+                entity.Property(x => x.FilePath).HasColumnName("file_path").HasMaxLength(500).IsRequired();
+                entity.Property(x => x.FileSize).HasColumnName("file_size").IsRequired();
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at").HasColumnType("datetime(6)").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+                entity.HasOne(x => x.Student)
+                    .WithMany()
+                    .HasForeignKey(x => x.StudentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasQueryFilter(x => !x.Student.IsDeleted);
+            });
+        }
+
         private static void ConfigureStudentAttendanceSession(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<StudentAttendanceSession>(entity =>
