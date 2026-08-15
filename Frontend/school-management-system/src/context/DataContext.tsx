@@ -3523,13 +3523,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const assignments = extractData(results[4]);
         const maintenance = extractData(results[5]);
 
+        const normalizeStatus = (status: any) => {
+          if (status === true || String(status).toLowerCase() === 'true' || String(status).toLowerCase() === 'active') {
+            return 'Active';
+          }
+          if (String(status).toLowerCase() === 'on leave') {
+            return 'On Leave';
+          }
+          return 'Inactive';
+        };
+
         if (routes) {
           const mergedRoutes = routes.map((r: any) => {
             const stored = localStorage.getItem(`route_slab_${r.id}`);
+            let updated = { ...r };
             if (stored) {
               try {
                 const parsed = JSON.parse(stored);
-                return {
+                updated = {
                   ...r,
                   minDistanceKm: parsed.minDistanceKm ?? r.minDistanceKm,
                   minBaseFare: parsed.minBaseFare ?? r.minBaseFare,
@@ -3541,15 +3552,91 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 console.error(e);
               }
             }
-            return r;
+            return {
+              id: (updated.id || updated.routeId || "").toString(),
+              routeCode: updated.routeCode || "",
+              routeName: updated.routeName || "",
+              routeStart: updated.routeStart || updated.startLocation || "",
+              routeEnd: updated.routeEnd || updated.endLocation || "",
+              totalDistanceKm: Number(updated.totalDistanceKm !== undefined ? updated.totalDistanceKm : (updated.distanceKm !== undefined ? updated.distanceKm : 0)),
+              estimatedTimeMinutes: Number(updated.estimatedTimeMinutes !== undefined ? updated.estimatedTimeMinutes : (updated.estimatedDurationMinutes !== undefined ? updated.estimatedDurationMinutes : 0)),
+              minDistanceKm: Number(updated.minDistanceKm !== undefined ? updated.minDistanceKm : (updated.minRangeKm !== undefined ? updated.minRangeKm : (updated.minRange !== undefined ? updated.minRange : 5))),
+              minBaseFare: Number(updated.minBaseFare !== undefined ? updated.minBaseFare : (updated.nonAcBaseFare !== undefined ? updated.nonAcBaseFare : 1000)),
+              ratePerKm: Number(updated.ratePerKm !== undefined ? updated.ratePerKm : (updated.nonAcRateAddlKm !== undefined ? updated.nonAcRateAddlKm : (updated.nonAcRatePerKm !== undefined ? updated.nonAcRatePerKm : 100))),
+              acMinBaseFare: Number(updated.acMinBaseFare !== undefined ? updated.acMinBaseFare : (updated.acBaseFare !== undefined ? updated.acBaseFare : 1200)),
+              acRatePerKm: Number(updated.acRatePerKm !== undefined ? updated.acRatePerKm : (updated.acRateAddlKm !== undefined ? updated.acRateAddlKm : (updated.acRatePerKm !== undefined ? updated.acRatePerKm : 150))),
+              description: updated.description || "",
+              status: normalizeStatus(updated.status)
+            };
           });
           const validRoutes = mergedRoutes.filter((r: any) => r.routeName && r.routeName.trim() !== "" && r.routeName.toUpperCase() !== "N/A");
           setRouteMasters(validRoutes);
         }
-        if (points) setPickupPoints(points);
-        if (vehicles) setVehicleMasters(vehicles);
-        if (drivers) setDriverMasters(drivers);
-        if (assignments) setVehicleAssignments(assignments);
+        if (points) {
+          setPickupPoints(points.map((p: any) => ({
+            id: (p.id || p.pickupPointId || "").toString(),
+            routeId: (p.routeId || "").toString(),
+            routeName: p.routeName || p.selectRoute || "",
+            pickupName: p.pickupName || p.pickupPointName || "",
+            landmark: p.landmark || "",
+            sequenceNumber: Number(p.sequenceNumber !== undefined ? p.sequenceNumber : (p.sequenceNo !== undefined ? p.sequenceNo : 0)),
+            arrivalTime: p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
+            morningPickupTime: p.morningPickupTime || p.arrivalTime || p.pickupTime || "",
+            eveningDropTime: p.eveningDropTime || p.dropTime || "",
+            distanceFromSchoolKm: Number(p.distanceFromSchoolKm !== undefined ? p.distanceFromSchoolKm : (p.distanceFromStart !== undefined ? p.distanceFromStart : 0)),
+            monthlyFee: Number(p.monthlyFee !== undefined ? p.monthlyFee : (p.monthlyFare !== undefined ? p.monthlyFare : 0)),
+            status: normalizeStatus(p.status)
+          })));
+        }
+        if (vehicles) {
+          setVehicleMasters(vehicles.map((v: any) => ({
+            id: (v.id || v.vehicleId || "").toString(),
+            vehicleNumber: v.vehicleNumber || "",
+            registrationNumber: v.registrationNumber || v.regNumber || "",
+            vehicleType: v.vehicleType || v.vehicleName || "",
+            capacity: Number(v.capacity !== undefined ? v.capacity : (v.seatingCapacity !== undefined ? v.seatingCapacity : 40)),
+            insuranceExpiry: v.insuranceExpiry || "",
+            pollutionExpiry: v.pollutionExpiry || "",
+            fitnessExpiry: v.fitnessExpiry || "",
+            isAC: v.isAC === true,
+            status: normalizeStatus(v.status)
+          })));
+        }
+        if (drivers) {
+          setDriverMasters(drivers.map((d: any) => ({
+            id: (d.id || d.driverId || "").toString(),
+            employeeId: d.employeeId || d.empId || "",
+            driverName: d.driverName || d.driverFullName || d.fullName || d.name || "",
+            mobileNumber: d.mobileNumber || d.phone || "",
+            email: d.email || "",
+            licenseNumber: d.licenseNumber || d.licenceNumber || d.commercialLicenseNo || "",
+            licenseExpiryDate: d.licenseExpiryDate || d.licenceExpiry || "",
+            address: d.address || "",
+            emergencyContact: d.emergencyContact || d.emergencyContactNumber || "",
+            experienceYears: Number(d.experienceYears || 0),
+            status: normalizeStatus(d.status)
+          })));
+        }
+        if (assignments) {
+          setVehicleAssignments(assignments.map((a: any) => ({
+            id: (a.id || a.assignmentId || "").toString(),
+            branch: a.branch || "",
+            academicYear: a.academicYear || "",
+            routeId: (a.routeId || "").toString(),
+            routeName: a.routeName || a.selectRoute || "",
+            vehicleId: (a.vehicleId || "").toString(),
+            vehicleNumber: a.vehicleNumber || a.selectActiveVehicle || "",
+            driverId: (a.driverId || "").toString(),
+            driverName: a.driverName || a.selectLicensedDriver || "",
+            attendantId: (a.attendantId || "").toString(),
+            attendantName: a.attendantName || a.selectBusAttendant || "",
+            morningTripTime: a.morningTripTime || a.morningTrip || "",
+            eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
+            effectiveFrom: a.effectiveFrom || a.effectiveFromDate || "",
+            effectiveTo: a.effectiveTo || "",
+            status: normalizeStatus(a.status)
+          })));
+        }
         if (maintenance) setVehicleMaintenances(maintenance);
 
         if (results.some((r) => r.status === "rejected")) {
@@ -6977,7 +7064,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await TransportAPI.createStudentAssignmentApi(
         payload as any,
       );
-      const backendData = response?.data || {};
+      const backendData = response?.data || response || {};
 
       const id = (
         backendData.id ||
@@ -8838,17 +8925,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const addRouteMaster = async (r: Omit<RouteMaster, "id">) => {
     try {
       const payload = {
-        routeCode: r.routeCode,
-        routeName: r.routeName,
-        startLocation: r.routeStart,
-        endLocation: r.routeEnd,
-        distanceKm: r.totalDistanceKm,
-        estimatedDurationMinutes: r.estimatedTimeMinutes,
-        description: r.description,
+        routeCode: r.routeCode || "",
+        routeName: r.routeName || "",
+        startLocation: r.routeStart || "",
+        routeStart: r.routeStart || "",
+        endLocation: r.routeEnd || "",
+        routeEnd: r.routeEnd || "",
+        distanceKm: Number(r.totalDistanceKm) || 0,
+        totalDistanceKm: Number(r.totalDistanceKm) || 0,
+        estimatedDurationMinutes: Number(r.estimatedTimeMinutes) || 0,
+        estimatedTimeMinutes: Number(r.estimatedTimeMinutes) || 0,
+        minRangeKm: Number(r.minDistanceKm) || 0,
+        minRange: Number(r.minDistanceKm) || 0,
+        nonAcBaseFare: Number(r.minBaseFare) || 0,
+        nonAcRateAddlKm: Number(r.ratePerKm) || 0,
+        nonAcRatePerKm: Number(r.ratePerKm) || 0,
+        acBaseFare: Number((r as any).acMinBaseFare) || 0,
+        acRateAddlKm: Number((r as any).acRatePerKm) || 0,
+        acRatePerKm: Number((r as any).acRatePerKm) || 0,
+        description: r.description || "",
         status: r.status === "Active",
       };
       const response = await TransportAPI.createRouteApi(payload as any);
-      const backendData = response?.data || {};
+      const backendData = response?.data || response || {};
       const id = (
         backendData.id ||
         backendData.routeId ||
@@ -8867,6 +8966,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...r,
         ...backendData,
         id,
+        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || r.status === 'Active') ? 'Active' : 'Inactive',
         minDistanceKm: r.minDistanceKm ?? 5,
         minBaseFare: r.minBaseFare ?? 1000,
         ratePerKm: r.ratePerKm ?? 100,
@@ -8919,14 +9019,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         payload.routeCode = updates.routeCode;
       if (updates.routeName !== undefined)
         payload.routeName = updates.routeName;
-      if (updates.routeStart !== undefined)
+      if (updates.routeStart !== undefined) {
         payload.startLocation = updates.routeStart;
-      if (updates.routeEnd !== undefined)
+        payload.routeStart = updates.routeStart;
+      }
+      if (updates.routeEnd !== undefined) {
         payload.endLocation = updates.routeEnd;
-      if (updates.totalDistanceKm !== undefined)
-        payload.distanceKm = updates.totalDistanceKm;
-      if (updates.estimatedTimeMinutes !== undefined)
-        payload.estimatedDurationMinutes = updates.estimatedTimeMinutes;
+        payload.routeEnd = updates.routeEnd;
+      }
+      if (updates.totalDistanceKm !== undefined) {
+        payload.distanceKm = Number(updates.totalDistanceKm) || 0;
+        payload.totalDistanceKm = Number(updates.totalDistanceKm) || 0;
+      }
+      if (updates.estimatedTimeMinutes !== undefined) {
+        payload.estimatedDurationMinutes = Number(updates.estimatedTimeMinutes) || 0;
+        payload.estimatedTimeMinutes = Number(updates.estimatedTimeMinutes) || 0;
+      }
+      if (updates.minDistanceKm !== undefined) {
+        payload.minRangeKm = Number(updates.minDistanceKm) || 0;
+        payload.minRange = Number(updates.minDistanceKm) || 0;
+      }
+      if (updates.minBaseFare !== undefined) {
+        payload.nonAcBaseFare = Number(updates.minBaseFare) || 0;
+      }
+      if (updates.ratePerKm !== undefined) {
+        payload.nonAcRateAddlKm = Number(updates.ratePerKm) || 0;
+        payload.nonAcRatePerKm = Number(updates.ratePerKm) || 0;
+      }
+      if ((updates as any).acMinBaseFare !== undefined) {
+        payload.acBaseFare = Number((updates as any).acMinBaseFare) || 0;
+      }
+      if ((updates as any).acRatePerKm !== undefined) {
+        payload.acRateAddlKm = Number((updates as any).acRatePerKm) || 0;
+        payload.acRatePerKm = Number((updates as any).acRatePerKm) || 0;
+      }
       if (updates.description !== undefined)
         payload.description = updates.description;
       if (updates.status !== undefined)
@@ -8975,20 +9101,91 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteRouteMaster = async (id: string) => {
     try {
+      // Find all pickup points belonging to this route and delete them from the backend
+      const pointsToDelete = pickupPoints.filter((p) => p.routeId === id);
+      for (const p of pointsToDelete) {
+        try {
+          await TransportAPI.deletePickupPointApi(p.id);
+        } catch (e) {
+          console.warn("Failed to delete pickup point during route deletion", e);
+        }
+      }
+
+      // Find all vehicle assignments belonging to this route and delete them from the backend
+      const assignmentsToDelete = vehicleAssignments.filter((a) => a.routeId === id);
+      for (const a of assignmentsToDelete) {
+        try {
+          await TransportAPI.deleteVehicleAssignmentApi(a.id);
+        } catch (e) {
+          console.warn("Failed to delete vehicle assignment during route deletion", e);
+        }
+      }
+
       await TransportAPI.deleteRouteApi(id);
       setRouteMasters((prev) => prev.filter((r) => r.id !== id));
+      setPickupPoints((prev) => prev.filter((p) => p.routeId !== id));
+      setVehicleAssignments((prev) => prev.filter((a) => a.routeId !== id));
+      setStudentTransports((prev) =>
+        prev.map((st) =>
+          st.routeId === id
+            ? {
+                ...st,
+                routeId: '',
+                routeName: 'Unassigned',
+                pickupPoint: 'Unassigned',
+                vehicleId: '',
+                vehicleNumber: '',
+                status: 'Inactive',
+              }
+            : st
+        )
+      );
       logActivity("Deleted Transport Route", `Removed Route ID ${id}`);
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
       setRouteMasters((prev) => prev.filter((r) => r.id !== id));
+      setPickupPoints((prev) => prev.filter((p) => p.routeId !== id));
+      setVehicleAssignments((prev) => prev.filter((a) => a.routeId !== id));
+      setStudentTransports((prev) =>
+        prev.map((st) =>
+          st.routeId === id
+            ? {
+                ...st,
+                routeId: '',
+                routeName: 'Unassigned',
+                pickupPoint: 'Unassigned',
+                vehicleId: '',
+                vehicleNumber: '',
+                status: 'Inactive',
+              }
+            : st
+        )
+      );
     }
   };
 
   const addPickupPoint = async (p: Omit<PickupPoint, "id">) => {
     try {
-      const payload = { ...p, status: true };
+      const payload = {
+        routeId: Number(p.routeId) || 0,
+        pickupPointName: p.pickupName || "",
+        pickupName: p.pickupName || "",
+        landmark: (p as any).landmark || "",
+        sequenceNo: Number(p.sequenceNumber) || 0,
+        sequenceNumber: Number(p.sequenceNumber) || 0,
+        pickupTime: p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        arrivalTime: p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        dropTime: p.eveningDropTime || "04:15 PM",
+        eveningDropTime: p.eveningDropTime || "04:15 PM",
+        morningPickupTime: p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        distanceFromStart: Number(p.distanceFromSchoolKm) || 0,
+        distanceFromSchoolKm: Number(p.distanceFromSchoolKm) || 0,
+        monthlyFee: Number(p.monthlyFee) || 0,
+        monthlyFare: Number(p.monthlyFee) || 0,
+        status: p.status === "Active" || (p.status as any) === true
+      };
       const response = await TransportAPI.createPickupPointApi(payload as any);
-      const backendData = response?.data || {};
+      const backendData = response?.data || response || {};
       const id = (
         backendData.id ||
         backendData.pickupPointId ||
@@ -8998,6 +9195,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...p,
         ...backendData,
         id,
+        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || p.status === 'Active') ? 'Active' : 'Inactive',
         branch: (p as any).branch || selectedBranch || "Main Campus",
       } as any;
       setPickupPoints((prev) => [...prev, newPt]);
@@ -9022,7 +9220,43 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     updates: Partial<PickupPoint>,
   ) => {
     try {
-      const payload = { ...updates, status: true };
+      const payload: any = {};
+      if (updates.routeId !== undefined) payload.routeId = Number(updates.routeId) || 0;
+      if (updates.pickupName !== undefined) {
+        payload.pickupPointName = updates.pickupName;
+        payload.pickupName = updates.pickupName;
+      }
+      if ((updates as any).landmark !== undefined) payload.landmark = (updates as any).landmark;
+      if (updates.sequenceNumber !== undefined) {
+        payload.sequenceNo = Number(updates.sequenceNumber) || 0;
+        payload.sequenceNumber = Number(updates.sequenceNumber) || 0;
+      }
+      if (updates.morningPickupTime !== undefined) {
+        payload.pickupTime = updates.morningPickupTime;
+        payload.arrivalTime = updates.morningPickupTime;
+        payload.morningPickupTime = updates.morningPickupTime;
+      }
+      if (updates.arrivalTime !== undefined) {
+        payload.pickupTime = updates.arrivalTime;
+        payload.arrivalTime = updates.arrivalTime;
+        payload.morningPickupTime = updates.arrivalTime;
+      }
+      if (updates.eveningDropTime !== undefined) {
+        payload.dropTime = updates.eveningDropTime;
+        payload.eveningDropTime = updates.eveningDropTime;
+      }
+      if (updates.distanceFromSchoolKm !== undefined) {
+        payload.distanceFromStart = Number(updates.distanceFromSchoolKm) || 0;
+        payload.distanceFromSchoolKm = Number(updates.distanceFromSchoolKm) || 0;
+      }
+      if (updates.monthlyFee !== undefined) {
+        payload.monthlyFee = Number(updates.monthlyFee) || 0;
+        payload.monthlyFare = Number(updates.monthlyFee) || 0;
+      }
+      if (updates.status !== undefined) {
+        payload.status = updates.status === "Active" || (updates.status as any) === true;
+      }
+
       await TransportAPI.updatePickupPointApi(id, payload as any);
       setPickupPoints((prev) =>
         prev.map((p) => (p.id === id ? { ...p, ...updates } : p)),
@@ -9037,29 +9271,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deletePickupPoint = async (id: string) => {
     try {
+      const p = pickupPoints.find((x) => x.id === id);
       await TransportAPI.deletePickupPointApi(id);
-      setPickupPoints((prev) => prev.filter((p) => p.id !== id));
+      setPickupPoints((prev) => prev.filter((pt) => pt.id !== id));
+      if (p) {
+        setStudentTransports((prev) =>
+          prev.map((st) =>
+            st.routeId === p.routeId && st.pickupPoint === p.pickupName
+              ? { ...st, pickupPoint: 'Unassigned' }
+              : st
+          )
+        );
+      }
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setPickupPoints((prev) => prev.filter((p) => p.id !== id));
+      const p = pickupPoints.find((x) => x.id === id);
+      setPickupPoints((prev) => prev.filter((pt) => pt.id !== id));
+      if (p) {
+        setStudentTransports((prev) =>
+          prev.map((st) =>
+            st.routeId === p.routeId && st.pickupPoint === p.pickupName
+              ? { ...st, pickupPoint: 'Unassigned' }
+              : st
+          )
+        );
+      }
     }
   };
 
   const addVehicleMaster = async (v: Omit<VehicleMaster, "id">) => {
     try {
       const payload = {
-        vehicleNumber: v.vehicleNumber,
-        registrationNumber: v.registrationNumber,
-        vehicleName: v.vehicleNumber,
-        vehicleType: v.vehicleType,
-        capacity: v.capacity,
-        insuranceExpiry: v.insuranceExpiry,
-        pollutionExpiry: v.pollutionExpiry,
-        fitnessExpiry: v.fitnessExpiry,
+        vehicleNumber: v.vehicleNumber || "",
+        registrationNumber: v.registrationNumber || "",
+        regNumber: v.registrationNumber || "",
+        vehicleName: v.vehicleNumber || "",
+        vehicleType: v.vehicleType || "",
+        capacity: Number(v.capacity) || 0,
+        seatingCapacity: Number(v.capacity) || 0,
+        insuranceExpiry: v.insuranceExpiry ? new Date(v.insuranceExpiry).toISOString() : null,
+        pollutionExpiry: v.pollutionExpiry ? new Date(v.pollutionExpiry).toISOString() : null,
+        fitnessExpiry: v.fitnessExpiry ? new Date(v.fitnessExpiry).toISOString() : null,
+        isAC: (v as any).isAC === true || (v as any).isAC === 'true',
+        acSpecification: (v as any).acSpecification || "",
+        chassisNumber: (v as any).chassisNumber || "",
+        engineNumber: (v as any).engineNumber || "",
+        gpsDeviceId: (v as any).gpsDeviceId || "",
+        manufacturer: (v as any).manufacturer || "",
+        model: (v as any).model || "",
+        insuranceNumber: (v as any).insuranceNumber || "",
         status: v.status === "Active",
       };
       const response = await TransportAPI.createVehicleApi(payload as any);
-      const backendData = response?.data || {};
+      const backendData = response?.data || response || {};
       const id = (
         backendData.id ||
         backendData.vehicleId ||
@@ -9069,6 +9333,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...v,
         ...backendData,
         id,
+        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || v.status === 'Active') ? 'Active' : 'Inactive',
         branch: (v as any).branch || selectedBranch || "Main Campus",
       } as any;
       setVehicleMasters((prev) => [...prev, newVehicle]);
@@ -9098,17 +9363,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         payload.vehicleNumber = updates.vehicleNumber;
         payload.vehicleName = updates.vehicleNumber;
       }
-      if (updates.registrationNumber !== undefined)
+      if (updates.registrationNumber !== undefined) {
         payload.registrationNumber = updates.registrationNumber;
+        payload.regNumber = updates.registrationNumber;
+      }
       if (updates.vehicleType !== undefined)
         payload.vehicleType = updates.vehicleType;
-      if (updates.capacity !== undefined) payload.capacity = updates.capacity;
+      if (updates.capacity !== undefined) {
+        payload.capacity = Number(updates.capacity) || 0;
+        payload.seatingCapacity = Number(updates.capacity) || 0;
+      }
       if (updates.insuranceExpiry !== undefined)
-        payload.insuranceExpiry = updates.insuranceExpiry;
+        payload.insuranceExpiry = updates.insuranceExpiry ? new Date(updates.insuranceExpiry).toISOString() : null;
       if (updates.pollutionExpiry !== undefined)
-        payload.pollutionExpiry = updates.pollutionExpiry;
+        payload.pollutionExpiry = updates.pollutionExpiry ? new Date(updates.pollutionExpiry).toISOString() : null;
       if (updates.fitnessExpiry !== undefined)
-        payload.fitnessExpiry = updates.fitnessExpiry;
+        payload.fitnessExpiry = updates.fitnessExpiry ? new Date(updates.fitnessExpiry).toISOString() : null;
+      if ((updates as any).isAC !== undefined)
+        payload.isAC = (updates as any).isAC === true || (updates as any).isAC === 'true';
       if (updates.status !== undefined)
         payload.status = updates.status === "Active";
 
@@ -9126,28 +9398,72 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteVehicleMaster = async (id: string) => {
     try {
+      const v = vehicleMasters.find((x) => x.id === id);
+      
+      // Find all assignments referencing this vehicle and delete them from the backend
+      const assignmentsToDelete = vehicleAssignments.filter((a) => a.vehicleId === id || (v && a.vehicleNumber === v.vehicleNumber));
+      for (const a of assignmentsToDelete) {
+        try {
+          await TransportAPI.deleteVehicleAssignmentApi(a.id);
+        } catch (e) {
+          console.warn("Failed to delete vehicle assignment during vehicle deletion", e);
+        }
+      }
+
       await TransportAPI.deleteVehicleApi(id);
       setVehicleMasters((prev) => prev.filter((v) => v.id !== id));
+      if (v) {
+        setVehicleAssignments((prev) => prev.filter((a) => a.vehicleId !== id && a.vehicleNumber !== v.vehicleNumber));
+        setStudentTransports((prev) =>
+          prev.map((st) =>
+            st.vehicleId === id || st.vehicleNumber === v.vehicleNumber
+              ? { ...st, vehicleId: '', vehicleNumber: 'Unassigned' }
+              : st
+          )
+        );
+      }
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
+      const v = vehicleMasters.find((x) => x.id === id);
       setVehicleMasters((prev) => prev.filter((v) => v.id !== id));
+      if (v) {
+        setVehicleAssignments((prev) => prev.filter((a) => a.vehicleId !== id && a.vehicleNumber !== v.vehicleNumber));
+        setStudentTransports((prev) =>
+          prev.map((st) =>
+            st.vehicleId === id || st.vehicleNumber === v.vehicleNumber
+              ? { ...st, vehicleId: '', vehicleNumber: 'Unassigned' }
+              : st
+          )
+        );
+      }
     }
   };
 
   const addDriverMaster = async (d: Omit<DriverMaster, "id">) => {
     try {
       const payload = {
-        driverName: d.driverName,
-        mobileNumber: d.mobileNumber,
-        email: d.email,
-        licenceNumber: d.licenseNumber,
-        licenceExpiry: d.licenseExpiryDate,
-        address: d.address,
-        emergencyContactNumber: d.emergencyContact,
+        employeeId: d.employeeId || "",
+        empId: d.employeeId || "",
+        driverName: d.driverName || "",
+        driverFullName: d.driverName || "",
+        fullName: d.driverName || "",
+        name: d.driverName || "",
+        mobileNumber: d.mobileNumber || "",
+        phone: d.mobileNumber || "",
+        email: d.email || "",
+        licenceNumber: d.licenseNumber || "",
+        licenseNumber: d.licenseNumber || "",
+        commercialLicenseNo: d.licenseNumber || "",
+        licenceExpiry: d.licenseExpiryDate ? new Date(d.licenseExpiryDate).toISOString() : null,
+        licenseExpiryDate: d.licenseExpiryDate ? new Date(d.licenseExpiryDate).toISOString() : null,
+        address: d.address || "",
+        emergencyContactNumber: d.emergencyContact || "",
+        emergencyContact: d.emergencyContact || "",
+        experienceYears: Number(d.experienceYears) || 0,
         status: d.status === "Active",
       };
       const response = await TransportAPI.createDriverApi(payload as any);
-      const backendData = response?.data || {};
+      const backendData = response?.data || response || {};
       const id = (
         backendData.id ||
         backendData.driverId ||
@@ -9157,6 +9473,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...d,
         ...backendData,
         id,
+        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || d.status === 'Active') ? 'Active' : (d.status === 'On Leave' ? 'On Leave' : 'Inactive'),
         branch: (d as any).branch || selectedBranch || "Main Campus",
       } as any;
       setDriverMasters((prev) => [...prev, newDriver]);
@@ -9182,18 +9499,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     try {
       const payload: any = {};
-      if (updates.driverName !== undefined)
+      if (updates.employeeId !== undefined) {
+        payload.employeeId = updates.employeeId;
+        payload.empId = updates.employeeId;
+      }
+      if (updates.driverName !== undefined) {
         payload.driverName = updates.driverName;
-      if (updates.mobileNumber !== undefined)
+        payload.driverFullName = updates.driverName;
+        payload.fullName = updates.driverName;
+        payload.name = updates.driverName;
+      }
+      if (updates.mobileNumber !== undefined) {
         payload.mobileNumber = updates.mobileNumber;
+        payload.phone = updates.mobileNumber;
+      }
       if (updates.email !== undefined) payload.email = updates.email;
-      if (updates.licenseNumber !== undefined)
+      if (updates.licenseNumber !== undefined) {
         payload.licenceNumber = updates.licenseNumber;
-      if (updates.licenseExpiryDate !== undefined)
-        payload.licenceExpiry = updates.licenseExpiryDate;
+        payload.licenseNumber = updates.licenseNumber;
+        payload.commercialLicenseNo = updates.licenseNumber;
+      }
+      if (updates.licenseExpiryDate !== undefined) {
+        payload.licenceExpiry = updates.licenseExpiryDate ? new Date(updates.licenseExpiryDate).toISOString() : null;
+        payload.licenseExpiryDate = updates.licenseExpiryDate ? new Date(updates.licenseExpiryDate).toISOString() : null;
+      }
       if (updates.address !== undefined) payload.address = updates.address;
-      if (updates.emergencyContact !== undefined)
+      if (updates.emergencyContact !== undefined) {
         payload.emergencyContactNumber = updates.emergencyContact;
+        payload.emergencyContact = updates.emergencyContact;
+      }
+      if (updates.experienceYears !== undefined) {
+        payload.experienceYears = Number(updates.experienceYears) || 0;
+      }
       if (updates.status !== undefined)
         payload.status = updates.status === "Active";
 
@@ -9211,11 +9548,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteDriverMaster = async (id: string) => {
     try {
+      // Find all assignments referencing this driver and delete them from the backend
+      const assignmentsToDelete = vehicleAssignments.filter((a) => a.driverId === id);
+      for (const a of assignmentsToDelete) {
+        try {
+          await TransportAPI.deleteVehicleAssignmentApi(a.id);
+        } catch (e) {
+          console.warn("Failed to delete vehicle assignment during driver deletion", e);
+        }
+      }
+
       await TransportAPI.deleteDriverApi(id);
       setDriverMasters((prev) => prev.filter((d) => d.id !== id));
+      setVehicleAssignments((prev) =>
+        prev.map((a) =>
+          a.driverId === id
+            ? { ...a, driverId: '', driverName: 'Unassigned', driverEmployeeId: '' }
+            : a
+        )
+      );
     } catch (err) {
       addToast("error", "API Sync Failed", "Operating in local fallback mode");
       setDriverMasters((prev) => prev.filter((d) => d.id !== id));
+      setVehicleAssignments((prev) =>
+        prev.map((a) =>
+          a.driverId === id
+            ? { ...a, driverId: '', driverName: 'Unassigned', driverEmployeeId: '' }
+            : a
+        )
+      );
     }
   };
 
@@ -9265,14 +9626,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const payload = {
-        ...normalizedAssignment,
-        status: true,
+        routeId: Number(va.routeId) || 0,
+        vehicleId: Number(va.vehicleId) || 0,
+        driverId: Number(va.driverId) || 0,
+        attendantId: va.attendantId ? Number(va.attendantId) : null,
+        selectRoute: va.routeName || "",
+        selectActiveVehicle: va.vehicleNumber || "",
+        selectLicensedDriver: va.driverName || "",
+        selectBusAttendant: va.attendantName || "",
+        branchName: effectiveBranch,
+        branch: effectiveBranch,
+        academicYear: effectiveAcademicYear,
+        morningTripTime: va.morningTripTime || "07:00 AM",
+        morningTrip: va.morningTripTime || "07:00 AM",
+        eveningTripTime: va.eveningTripTime || "03:45 PM",
+        eveningTrip: va.eveningTripTime || "03:45 PM",
         assignmentDate: new Date().toISOString(),
+        effectiveFrom: va.effectiveFrom ? new Date(va.effectiveFrom).toISOString() : new Date().toISOString(),
+        effectiveFromDate: va.effectiveFrom ? new Date(va.effectiveFrom).toISOString() : new Date().toISOString(),
+        effectiveTo: va.effectiveTo ? new Date(va.effectiveTo).toISOString() : null,
+        status: va.status === "Active" || (va.status as any) === true
       };
       const response = await TransportAPI.createVehicleAssignmentApi(
         payload as any,
       );
-      const backendData = response?.data || {};
+      const backendData = response?.data || response || {};
       const id = (
         backendData.id ||
         backendData.assignmentId ||
@@ -9284,7 +9662,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         id,
         branch: effectiveBranch,
         academicYear: effectiveAcademicYear,
-        status: normalizedAssignment.status,
+        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || normalizedAssignment.status === 'Active') ? 'Active' : 'Inactive',
       } as any;
       setVehicleAssignments((prev) => [
         ...deactivateConflicts(prev),
@@ -9332,7 +9710,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           | "Active"
           | "Inactive",
       };
-      const payload = { ...updates, status: true };
+      const payload: any = {};
+      if (updates.routeId !== undefined) {
+        payload.routeId = Number(updates.routeId) || 0;
+      }
+      if (updates.vehicleId !== undefined) {
+        payload.vehicleId = Number(updates.vehicleId) || 0;
+      }
+      if (updates.driverId !== undefined) {
+        payload.driverId = Number(updates.driverId) || 0;
+      }
+      if (updates.attendantId !== undefined) {
+        payload.attendantId = updates.attendantId ? Number(updates.attendantId) : null;
+      }
+      if (updates.routeName !== undefined) {
+        payload.selectRoute = updates.routeName;
+      }
+      if (updates.vehicleNumber !== undefined) {
+        payload.selectActiveVehicle = updates.vehicleNumber;
+      }
+      if (updates.driverName !== undefined) {
+        payload.selectLicensedDriver = updates.driverName;
+      }
+      if (updates.attendantName !== undefined) {
+        payload.selectBusAttendant = updates.attendantName;
+      }
+      if (updates.branch !== undefined) {
+        payload.branchName = updates.branch;
+        payload.branch = updates.branch;
+      }
+      if (updates.academicYear !== undefined) {
+        payload.academicYear = updates.academicYear;
+      }
+      if (updates.morningTripTime !== undefined) {
+        payload.morningTripTime = updates.morningTripTime;
+        payload.morningTrip = updates.morningTripTime;
+      }
+      if (updates.eveningTripTime !== undefined) {
+        payload.eveningTripTime = updates.eveningTripTime;
+        payload.eveningTrip = updates.eveningTripTime;
+      }
+      if (updates.effectiveFrom !== undefined) {
+        payload.effectiveFrom = updates.effectiveFrom ? new Date(updates.effectiveFrom).toISOString() : new Date().toISOString();
+        payload.effectiveFromDate = updates.effectiveFrom ? new Date(updates.effectiveFrom).toISOString() : new Date().toISOString();
+      }
+      if (updates.effectiveTo !== undefined) {
+        payload.effectiveTo = updates.effectiveTo ? new Date(updates.effectiveTo).toISOString() : null;
+      }
+      if (updates.status !== undefined) {
+        payload.status = updates.status === "Active" || (updates.status as any) === true;
+      }
+
       await TransportAPI.updateVehicleAssignmentApi(id, payload as any);
       setVehicleAssignments((prev) => {
         const deactivateConflicts = (
@@ -9449,8 +9877,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const addVehicleMaintenance = async (vm: Omit<VehicleMaintenance, "id">) => {
     try {
-      const response = await TransportAPI.createMaintenanceApi(vm);
-      const backendData = response?.data || {};
+      const payload = {
+        vehicleId: Number(vm.vehicleId) || 0,
+        selectFleetVehicle: vm.vehicleNumber || "",
+        fleetVehicle: vm.vehicleNumber || "",
+        serviceType: vm.serviceType || "",
+        serviceDate: vm.serviceDate ? new Date(vm.serviceDate).toISOString() : new Date().toISOString(),
+        serviceDateString: vm.serviceDate ? new Date(vm.serviceDate).toISOString() : new Date().toISOString(),
+        cost: Number(vm.cost) || 0,
+        vendor: vm.vendor || "",
+        vendorCenter: vm.vendor || "",
+        nextServiceDue: vm.nextServiceDue ? new Date(vm.nextServiceDue).toISOString() : null,
+        nextServiceDueDate: vm.nextServiceDue ? new Date(vm.nextServiceDue).toISOString() : null,
+        remarks: vm.remarks || "",
+        status: vm.status === "Completed" || (vm.status as any) === true
+      };
+      const response = await TransportAPI.createMaintenanceApi(payload as any);
+      const backendData = response?.data || response || {};
       const id = (
         backendData.id ||
         backendData.maintenanceId ||
@@ -9484,7 +9927,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     updates: Partial<VehicleMaintenance>,
   ) => {
     try {
-      await TransportAPI.updateMaintenanceApi(id, updates);
+      const payload: any = {};
+      if (updates.vehicleId !== undefined) {
+        payload.vehicleId = Number(updates.vehicleId) || 0;
+      }
+      if (updates.vehicleNumber !== undefined) {
+        payload.selectFleetVehicle = updates.vehicleNumber;
+        payload.fleetVehicle = updates.vehicleNumber;
+      }
+      if (updates.serviceType !== undefined) {
+        payload.serviceType = updates.serviceType;
+      }
+      if (updates.serviceDate !== undefined) {
+        payload.serviceDate = updates.serviceDate ? new Date(updates.serviceDate).toISOString() : new Date().toISOString();
+        payload.serviceDateString = updates.serviceDate ? new Date(updates.serviceDate).toISOString() : new Date().toISOString();
+      }
+      if (updates.cost !== undefined) {
+        payload.cost = Number(updates.cost) || 0;
+      }
+      if (updates.vendor !== undefined) {
+        payload.vendor = updates.vendor;
+        payload.vendorCenter = updates.vendor;
+      }
+      if (updates.nextServiceDue !== undefined) {
+        payload.nextServiceDue = updates.nextServiceDue ? new Date(updates.nextServiceDue).toISOString() : null;
+        payload.nextServiceDueDate = updates.nextServiceDue ? new Date(updates.nextServiceDue).toISOString() : null;
+      }
+      if (updates.remarks !== undefined) {
+        payload.remarks = updates.remarks;
+      }
+      if (updates.status !== undefined) {
+        payload.status = updates.status === "Completed" || (updates.status as any) === true;
+      }
+
+      await TransportAPI.updateMaintenanceApi(id, payload);
       setVehicleMaintenances((prev) =>
         prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
       );
