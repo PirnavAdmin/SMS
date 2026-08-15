@@ -615,6 +615,7 @@ interface DataContextType {
   ) => Promise<string | null>;
   fetchAdmissions: () => Promise<void>;
   fetchStudents: () => Promise<void>;
+  fetchStaff: () => Promise<void>;
   fetchAcademicClasses: (force?: boolean) => Promise<void>;
   fetchSubjects: (force?: boolean) => Promise<void>;
   fetchPeriods: (force?: boolean) => Promise<void>;
@@ -3874,7 +3875,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               applicationNo: item.registrationNo,
               registrationNo: item.registrationNo,
               applicantName: item.applicantFullName,
-              appliedClass: item.appliedClass,
+              appliedClass: item.appliedClass || existingLocal?.appliedClass || "Class 1",
               gender: item.gender,
               dob: item.dob ? item.dob.split("T")[0] : "",
               bloodGroup: item.bloodGroup,
@@ -5145,6 +5146,54 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const json = await createAdmissionApi(payload);
 
+      const createdApp: AdmissionApplication = {
+        id: json?.data?.applicationId?.toString() || json?.data?.id?.toString() || "ADM-" + Date.now(),
+        applicationNo: json?.data?.registrationNo || "REG-" + Math.floor(1000 + Math.random() * 9000),
+        registrationNo: json?.data?.registrationNo || "REG-" + Math.floor(1000 + Math.random() * 9000),
+        applicantName: appData.applicantName,
+        appliedClass: appData.appliedClass,
+        gender: appData.gender || "Male",
+        dob: appData.dob || "",
+        bloodGroup: appData.bloodGroup || "O+",
+        religion: appData.religion || "General",
+        casteCategory: appData.casteCategory || "General",
+        parentName: appData.parentName,
+        motherName: appData.motherName || "N/A",
+        phone: appData.phone,
+        email: appData.email || "",
+        addressHouseNo: appData.addressHouseNo,
+        addressStreet: appData.addressStreet,
+        addressArea: appData.addressArea,
+        addressCity: appData.addressCity,
+        addressDistrict: appData.addressDistrict,
+        addressState: appData.addressState,
+        addressPinCode: appData.addressPinCode,
+        hasSiblings: appData.hasSiblings,
+        siblingsCount: appData.siblingsCount || 0,
+        siblingDetails: appData.siblingDetails || [],
+        siblingStudentId: appData.siblingStudentId || "",
+        siblingStudentIds: appData.siblingStudentIds || [],
+        studentType: appData.studentType || "Day Scholar",
+        transportRequired: appData.transportRequired,
+        transportType: appData.transportType,
+        busRoute: appData.busRoute,
+        pickupPoint: appData.pickupPoint,
+        dropPoint: appData.dropPoint,
+        hostelBlock: appData.hostelBlock,
+        floor: appData.floor,
+        hostelRoom: appData.hostelRoom,
+        hostelBed: appData.hostelBed,
+        branch: appData.branch || selectedBranch || "Main Campus",
+        scholarshipId: appData.scholarshipId,
+        discountId: appData.discountId,
+        selectedOptionalFees: appData.selectedOptionalFees || [],
+        submissionDate: new Date().toISOString().split("T")[0],
+        status: "Pending",
+        documentsSubmitted: appData.documentsSubmitted || [],
+      };
+
+      setAdmissions((prev) => [createdApp, ...prev.filter((a) => a.id !== createdApp.id)]);
+
       if (json && json.success !== false) {
         logActivity(
           "New Admission Application",
@@ -5293,7 +5342,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               : "Main Campus Area";
 
           // --- DYNAMIC FEE CALCULATION & ASSIGNMENT SETUP ---
-          const clsName = app.appliedClass || "Class 10";
+          const clsName = app.appliedClass || "Class 1";
           const dfs =
             dynamicFeeStructures.find(
               (d) => d.className === clsName && d.status === "Active",
@@ -5462,7 +5511,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             bloodGroup: app.bloodGroup || "O+",
             religion: app.religion || "General",
             casteCategory: app.casteCategory || "General",
-            className: app.appliedClass || "Class 10",
+            className: app.appliedClass || "Class 1",
             section: "",
             category: app.casteCategory || "General",
             status: "Active",
@@ -7997,7 +8046,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (admApp?.residentialStatus === "Residential" || admApp?.studentType === "Residential" || student?.studentType === "Hosteller" || student?.studentType === "Residential")
         ? "Hosteller"
         : "Day Scholar";
-    const clsName = admApp?.appliedClass || admApp?.targetClass || admApp?.className || student?.className || "Class 10";
+    const clsName = admApp?.appliedClass || admApp?.targetClass || admApp?.className || student?.className || "Class 1";
     const secName = admApp?.section || student?.section || "A";
     const admNo = admApp?.applicationNo || student?.admissionNo || "ADM-2026-000";
     const stName = admApp
@@ -10015,7 +10064,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         firstName: adm.firstName || nameParts[0] || 'Student',
         lastName: adm.lastName || nameParts.slice(1).join(' ') || '',
         admissionNo: adm.applicationNo || adm.id,
-        className: adm.appliedClass || adm.targetClass || adm.className || 'Class 10',
+        className: adm.appliedClass || adm.targetClass || adm.className || 'Class 1',
         section: adm.section || 'A',
         gender: adm.gender || 'Male',
         studentType: 'Day Scholar',
@@ -12912,6 +12961,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateAdmissionStatus,
         fetchAdmissions,
         fetchStudents,
+        fetchStaff,
         fetchAcademicClasses,
         fetchSubjects,
         fetchPeriods,
