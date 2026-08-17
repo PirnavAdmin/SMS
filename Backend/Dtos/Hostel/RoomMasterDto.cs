@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using SMS.Api.Common;
@@ -33,6 +34,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("roomTypeName")]
         public string RoomTypeName => RoomTypeSpecification;
 
+        [JsonPropertyName("assignedRoomSharing")]
+        public string AssignedRoomSharing => $"{RoomTypeSpecification} (Cap: {BedCapacity})";
+
         [JsonPropertyName("bedCapacity")]
         public int BedCapacity { get; set; }
 
@@ -52,7 +56,7 @@ namespace SMS.Api.Dtos
         public string Floor => FloorLevel;
 
         [JsonPropertyName("hierarchy")]
-        public string Hierarchy => $"{HostelName} – {FloorLevel}";
+        public string Hierarchy => $"{HostelName} ➔ {FloorLevel}";
 
         [JsonPropertyName("roomNumber")]
         public string RoomNumber { get; set; } = string.Empty;
@@ -72,18 +76,40 @@ namespace SMS.Api.Dtos
 
     public class CreateRoomMasterDto
     {
-        [Required(ErrorMessage = "Hostel Block is required.")]
         [JsonPropertyName("hostelId")]
         public int HostelId { get; set; }
+
+        [JsonIgnore]
+        public string? RawHostelBlockText { get; set; }
 
         [JsonPropertyName("selectHostelBlock")]
         public string? SelectHostelBlockAlias
         {
-            get => HostelId.ToString();
-            set { if (int.TryParse(value, out int val)) HostelId = val; }
+            get => HostelId > 0 ? HostelId.ToString() : RawHostelBlockText;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && value != "string")
+                {
+                    RawHostelBlockText = value;
+                    if (int.TryParse(value, out int val)) HostelId = val;
+                }
+            }
         }
 
-        [Required(ErrorMessage = "Floor Level is required.")]
+        [JsonPropertyName("hostelBlockId")]
+        public string? HostelBlockIdAlias
+        {
+            get => HostelId > 0 ? HostelId.ToString() : RawHostelBlockText;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value) && value != "string")
+                {
+                    if (string.IsNullOrWhiteSpace(RawHostelBlockText)) RawHostelBlockText = value;
+                    if (int.TryParse(value, out int val)) HostelId = val;
+                }
+            }
+        }
+
         [JsonPropertyName("floorLevel")]
         public string FloorLevel { get; set; } = "1st Floor";
 
@@ -91,25 +117,32 @@ namespace SMS.Api.Dtos
         public string? FloorAlias
         {
             get => FloorLevel;
-            set { if (!string.IsNullOrWhiteSpace(value)) FloorLevel = value; }
+            set { if (!string.IsNullOrWhiteSpace(value) && value != "string") FloorLevel = value; }
         }
 
-        [Required(ErrorMessage = "Room Number is required.")]
         [JsonPropertyName("roomNumber")]
         public string RoomNumber { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Room Type is required.")]
         [JsonPropertyName("roomTypeId")]
         public int RoomTypeId { get; set; }
+
+        [JsonPropertyName("assignedRoomSharing")]
+        public string? AssignedRoomSharingAlias { get; set; }
+
+        [JsonPropertyName("roomSharing")]
+        public string? RoomSharingAlias
+        {
+            get => AssignedRoomSharingAlias;
+            set { if (!string.IsNullOrWhiteSpace(value) && value != "string" && string.IsNullOrWhiteSpace(AssignedRoomSharingAlias)) AssignedRoomSharingAlias = value; }
+        }
 
         [JsonPropertyName("roomCategory")]
         public string? RoomCategoryAlias
         {
-            get => RoomTypeId.ToString();
-            set { if (int.TryParse(value, out int val)) RoomTypeId = val; }
+            get => AssignedRoomSharingAlias;
+            set { if (!string.IsNullOrWhiteSpace(value) && value != "string" && string.IsNullOrWhiteSpace(AssignedRoomSharingAlias)) AssignedRoomSharingAlias = value; }
         }
 
-        [Required(ErrorMessage = "Status is required.")]
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
     }

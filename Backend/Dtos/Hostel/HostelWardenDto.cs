@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
@@ -62,12 +63,18 @@ namespace SMS.Api.Dtos
 
     public class SaveHostelWardenDto
     {
-        [Required(ErrorMessage = "Assigned Hostel Block is required.")]
         [JsonPropertyName("hostelId")]
         public int HostelId { get; set; }
 
         [JsonPropertyName("selectHostel")]
         public string? SelectHostelAlias
+        {
+            get => HostelId.ToString();
+            set { if (int.TryParse(value, out int val)) HostelId = val; }
+        }
+
+        [JsonPropertyName("selectHostelBlock")]
+        public string? SelectHostelBlockAlias
         {
             get => HostelId.ToString();
             set { if (int.TryParse(value, out int val)) HostelId = val; }
@@ -81,6 +88,20 @@ namespace SMS.Api.Dtos
         {
             get => StaffId?.ToString();
             set { if (int.TryParse(value, out int val)) StaffId = val; }
+        }
+
+        [JsonPropertyName("selectNonTeachingStaffWarden")]
+        public string? SelectNonTeachingStaffWardenAlias
+        {
+            get => StaffId?.ToString();
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    if (int.TryParse(value, out int val)) StaffId = val;
+                    else WardenName = value;
+                }
+            }
         }
 
         [JsonPropertyName("employeeId")]
@@ -108,28 +129,14 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("blockName")]
         public string? BlockName { get; set; }
 
-        [JsonPropertyName("assignBlock")]
-        public string? AssignBlockAlias
-        {
-            get => BlockName;
-            set { if (!string.IsNullOrWhiteSpace(value)) BlockName = value; }
-        }
-
         [JsonPropertyName("floorLevel")]
         public string? FloorLevel { get; set; }
-
-        [JsonPropertyName("assignFloor")]
-        public string? AssignFloorAlias
-        {
-            get => FloorLevel;
-            set { if (!string.IsNullOrWhiteSpace(value)) FloorLevel = value; }
-        }
 
         [JsonPropertyName("effectiveDate")]
         public DateTime? EffectiveDate { get; set; }
 
-        [JsonPropertyName("assignmentEffectiveDate")]
-        public DateTime? AssignmentEffectiveDateAlias
+        [JsonPropertyName("assignmentDate")]
+        public DateTime? AssignmentDateAlias
         {
             get => EffectiveDate;
             set { if (value.HasValue) EffectiveDate = value.Value; }

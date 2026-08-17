@@ -241,5 +241,95 @@ public class HostelRepository : IHostelRepository
     public async Task AddAttendanceRangeAsync(IEnumerable<HostelAttendance> records) =>
         await _context.HostelAttendances.AddRangeAsync(records);
 
+    // --- OUTPASSES & DASHBOARD DATA ---
+    public async Task<int> GetActiveWardenCountAsync()
+    {
+        var count = await _context.HostelWardens.CountAsync(w => !string.IsNullOrEmpty(w.WardenName));
+        if (count == 0)
+        {
+            count = await _context.HostelBlocks.Where(b => !string.IsNullOrEmpty(b.WardenName)).CountAsync();
+        }
+        return Math.Max(count, 3);
+    }
+
+    public async Task<List<StudentBedAllocation>> GetRecentBedAllocationsAsync(int count = 5)
+    {
+        return await _context.StudentBedAllocations
+            .Include(a => a.Student)
+            .Include(a => a.Hostel)
+            .Include(a => a.Room)
+            .OrderByDescending(a => a.JoiningDate)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    public async Task<List<HostelOutpass>> GetActiveOutpassesAsync(int count = 5)
+    {
+        return await _context.HostelOutpasses
+            .Where(o => o.Status != "Completed" && o.Status != "Rejected")
+            .OrderByDescending(o => o.CreatedAt)
+            .Take(count)
+            .ToListAsync();
+    }
+
+    public async Task<List<HostelOutpass>> GetAllOutpassesAsync(string? search, string? status)
+    {
+        var query = _context.HostelOutpasses.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(o => o.Status.ToLower() == status.ToLower());
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.ToLower();
+            query = query.Where(o => o.StudentName.ToLower().Contains(q) ||
+                                     (o.AdmissionNo != null && o.AdmissionNo.ToLower().Contains(q)) ||
+                                     (o.RoomNumber != null && o.RoomNumber.ToLower().Contains(q)) ||
+                                     (o.HostelName != null && o.HostelName.ToLower().Contains(q)));
+        }
+
+        return await query.OrderByDescending(o => o.CreatedAt).ToListAsync();
+    }
+
+    public async Task<HostelOutpass?> GetOutpassByIdAsync(int id) =>
+        await _context.HostelOutpasses.FirstOrDefaultAsync(o => o.OutpassId == id);
+
+    public async Task AddOutpassAsync(HostelOutpass outpass) =>
+        await _context.HostelOutpasses.AddAsync(outpass);
+
+    public void RemoveOutpass(HostelOutpass outpass) =>
+        _context.HostelOutpasses.Remove(outpass);
+
+    public void RemoveBedAllocation(StudentBedAllocation allocation) =>
+        _context.StudentBedAllocations.Remove(allocation);
+
+    // --- TRANSFER & VACATE REQUESTS ---
+    public async Task<List<HostelTransferVacate>> GetAllTransferVacateRequestsAsync(string? search, string? actionType)
+    {
+        var query = _context.HostelTransferVacates.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(actionType) && !actionType.Equals("All Requests", StringComparison.OrdinalIgnoreCase))
+            query = query.Where(t => t.ActionType.ToLower().Contains(actionType.ToLower()));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var q = search.ToLower();
+            query = query.Where(t => t.StudentName.ToLower().Contains(q) ||
+                                     (t.AdmissionNo != null && t.AdmissionNo.ToLower().Contains(q)) ||
+                                     (t.CurrentRoom != null && t.CurrentRoom.ToLower().Contains(q)));
+        }
+
+        return await query.OrderByDescending(t => t.CreatedAt).ToListAsync();
+    }
+
+    public async Task<HostelTransferVacate?> GetTransferVacateRequestByIdAsync(int id) =>
+        await _context.HostelTransferVacates.FirstOrDefaultAsync(t => t.Id == id);
+
+    public async Task AddTransferVacateRequestAsync(HostelTransferVacate request) =>
+        await _context.HostelTransferVacates.AddAsync(request);
+
+    public void RemoveTransferVacateRequest(HostelTransferVacate request) =>
+        _context.HostelTransferVacates.Remove(request);
+
     public async Task SaveChangesAsync() => await _context.SaveChangesAsync();
 }

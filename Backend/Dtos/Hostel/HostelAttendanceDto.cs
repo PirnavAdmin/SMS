@@ -1,6 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
-using SMS.Api.Common;
 
 namespace SMS.Api.Dtos
 {
@@ -20,6 +21,9 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("studentName")]
         public string StudentName { get; set; } = string.Empty;
+
+        [JsonPropertyName("student")]
+        public string Student => StudentName;
 
         [JsonPropertyName("admissionNo")]
         public string AdmissionNo { get; set; } = string.Empty;
@@ -48,11 +52,37 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("bedNo")]
         public string BedNo => BedNumber;
 
+        [JsonPropertyName("roomAndBedNo")]
+        public string RoomAndBedNo => (!string.IsNullOrWhiteSpace(RoomNumber) || !string.IsNullOrWhiteSpace(BedNumber))
+            ? $"Room #{RoomNumber} ({BedNumber})"
+            : "Room #N/A";
+
+        [JsonPropertyName("roomAndBed")]
+        public string RoomAndBed => RoomAndBedNo;
+
         [JsonPropertyName("date")]
         public DateTime Date { get; set; }
 
+        [JsonPropertyName("attendanceDate")]
+        public string AttendanceDateString => Date.ToString("yyyy-MM-dd");
+
+        [JsonPropertyName("sessionType")]
+        public string SessionType { get; set; } = "Morning"; // Morning or Night
+
         [JsonPropertyName("curfewStatus")]
-        public string CurfewStatus { get; set; } = "Present"; // Present, Absent, Late Night Pass, On Leave
+        public string CurfewStatus { get; set; } = "Present"; // Present, Absent, Half Day, Leave
+
+        [JsonPropertyName("attendanceStatus")]
+        public string AttendanceStatus => CurfewStatus;
+
+        [JsonPropertyName("status")]
+        public string Status => CurfewStatus;
+
+        [JsonPropertyName("inTime")]
+        public string InTime { get; set; } = "07:00 AM";
+
+        [JsonPropertyName("outTime")]
+        public string OutTime { get; set; } = "08:30 AM";
 
         [JsonPropertyName("remarks")]
         public string? Remarks { get; set; }
@@ -60,13 +90,31 @@ namespace SMS.Api.Dtos
 
     public class SaveHostelAttendanceRollCallDto
     {
-        [Required]
         [JsonPropertyName("date")]
         public DateTime Date { get; set; } = DateTime.UtcNow;
 
+        [JsonPropertyName("attendanceDate")]
+        public DateTime? AttendanceDateAlias
+        {
+            get => Date;
+            set { if (value.HasValue) Date = value.Value; }
+        }
+
+        [JsonPropertyName("sessionType")]
+        public string SessionType { get; set; } = "Morning";
+
+        [JsonPropertyName("session")]
+        public string? SessionAlias
+        {
+            get => SessionType;
+            set { if (!string.IsNullOrWhiteSpace(value)) SessionType = value; }
+        }
+
         [JsonPropertyName("hostelId")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
         public int? HostelId { get; set; }
+
+        [JsonPropertyName("hostelBlock")]
+        public string? HostelBlockAlias { get; set; }
 
         [JsonPropertyName("selectBlock")]
         public string? SelectBlockAlias
@@ -86,7 +134,6 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("roomId")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
         public int? RoomId { get; set; }
 
         [JsonPropertyName("selectRoom")]
@@ -96,20 +143,54 @@ namespace SMS.Api.Dtos
             set { if (int.TryParse(value, out int val)) RoomId = val; }
         }
 
-        [Required]
         [JsonPropertyName("records")]
         public List<HostelStudentAttendanceRecordDto> Records { get; set; } = new();
+
+        [JsonPropertyName("logs")]
+        public List<HostelStudentAttendanceRecordDto>? LogsAlias
+        {
+            get => Records;
+            set { if (value != null) Records = value; }
+        }
+
+        [JsonPropertyName("items")]
+        public List<HostelStudentAttendanceRecordDto>? ItemsAlias
+        {
+            get => Records;
+            set { if (value != null) Records = value; }
+        }
     }
 
     public class HostelStudentAttendanceRecordDto
     {
-        [Required]
         [JsonPropertyName("allocationId")]
         public int AllocationId { get; set; }
 
-        [Required]
+        [JsonPropertyName("studentId")]
+        public int? StudentId { get; set; }
+
         [JsonPropertyName("curfewStatus")]
-        public string CurfewStatus { get; set; } = "Present"; // Present, Absent, Late Night Pass, On Leave
+        public string CurfewStatus { get; set; } = "Present"; // Present, Absent, Half Day, Leave
+
+        [JsonPropertyName("attendanceStatus")]
+        public string? AttendanceStatusAlias
+        {
+            get => CurfewStatus;
+            set { if (!string.IsNullOrWhiteSpace(value)) CurfewStatus = value; }
+        }
+
+        [JsonPropertyName("status")]
+        public string? StatusAlias
+        {
+            get => CurfewStatus;
+            set { if (!string.IsNullOrWhiteSpace(value)) CurfewStatus = value; }
+        }
+
+        [JsonPropertyName("inTime")]
+        public string? InTime { get; set; }
+
+        [JsonPropertyName("outTime")]
+        public string? OutTime { get; set; }
 
         [JsonPropertyName("remarks")]
         public string? Remarks { get; set; }

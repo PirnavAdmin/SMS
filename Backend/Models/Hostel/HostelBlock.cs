@@ -21,6 +21,8 @@ public class HostelBlock
     [MaxLength(50)]
     public string? HostelType { get; set; } = "Boys Hostel";
 
+    public int TotalFloors { get; set; } = 1;
+
     [MaxLength(150)]
     public string? WardenName { get; set; }
 

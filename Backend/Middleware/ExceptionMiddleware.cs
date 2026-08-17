@@ -45,7 +45,7 @@ public class ExceptionMiddleware
         context.Response.ContentType = "application/json";
 
         var statusCode = HttpStatusCode.InternalServerError;
-        var message = "An internal server error occurred.";
+        var message = !string.IsNullOrWhiteSpace(exception.Message) ? exception.Message : "An internal server error occurred.";
 
         if (exception is AppException appException)
         {

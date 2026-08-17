@@ -86,6 +86,12 @@ namespace SMS.Api.Data
         // Uniform Module
         public DbSet<UniformType> UniformTypes { get; set; } = null!;
         public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
+
+        // Faculty Development & Staff Training Module
+        public DbSet<FacultyWorkshop> FacultyWorkshops { get; set; } = null!;
+        public DbSet<EmployeeCompetencyAssessment> EmployeeCompetencyAssessments { get; set; } = null!;
+        public DbSet<FacultyTrainingParticipation> FacultyTrainingParticipations { get; set; } = null!;
+        public DbSet<EmployeeAssessmentCandidate> EmployeeAssessmentCandidates { get; set; } = null!;
         public DbSet<UniformSize> UniformSizes { get; set; } = null!;
         public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
         public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
@@ -122,6 +128,8 @@ namespace SMS.Api.Data
         public DbSet<HostelWarden> HostelWardens { get; set; } = null!;
         public DbSet<StudentBedAllocation> StudentBedAllocations { get; set; } = null!;
         public DbSet<HostelAttendance> HostelAttendances { get; set; } = null!;
+        public DbSet<HostelOutpass> HostelOutpasses { get; set; } = null!;
+        public DbSet<HostelTransferVacate> HostelTransferVacates { get; set; } = null!;
 
 
         // =====================================================
@@ -187,6 +195,11 @@ namespace SMS.Api.Data
             ConfigureNewGradingScaleRule(modelBuilder);
             ConfigureNewStudentExamResult(modelBuilder);
             ConfigureNewStudentMarksEntry(modelBuilder);
+
+            ConfigureFacultyWorkshop(modelBuilder);
+            ConfigureEmployeeCompetencyAssessment(modelBuilder);
+            ConfigureFacultyTrainingParticipation(modelBuilder);
+            ConfigureEmployeeAssessmentCandidate(modelBuilder);
         }
 
         private static void ConfigureTeacherAttendanceCorrection(ModelBuilder modelBuilder)
@@ -1717,6 +1730,122 @@ namespace SMS.Api.Data
                     .HasColumnName("updated_at")
                     .HasColumnType("datetime")
                     .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            });
+        }
+
+        private static void ConfigureFacultyWorkshop(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<FacultyWorkshop>(entity =>
+            {
+                entity.ToTable("faculty_workshops");
+                entity.HasKey(x => x.WorkshopId);
+                entity.Property(x => x.WorkshopId).HasColumnName("id");
+                entity.Property(x => x.Title).HasColumnName("title").IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Description).HasColumnName("description");
+                entity.Property(x => x.TrainerName).HasColumnName("trainer_name").HasMaxLength(100);
+                entity.Property(x => x.Organization).HasColumnName("organization").HasMaxLength(150);
+                entity.Property(x => x.Venue).HasColumnName("venue").HasMaxLength(100);
+                entity.Property(x => x.StartDate).HasColumnName("start_date");
+                entity.Property(x => x.EndDate).HasColumnName("end_date");
+                entity.Property(x => x.StartTime).HasColumnName("start_time").HasMaxLength(20);
+                entity.Property(x => x.EndTime).HasColumnName("end_time").HasMaxLength(20);
+                entity.Property(x => x.Category).HasColumnName("category").IsRequired().HasMaxLength(50);
+                entity.Property(x => x.TargetRoleType).HasColumnName("target_role_type").HasMaxLength(100);
+                entity.Property(x => x.Branch).HasColumnName("branch").HasMaxLength(100);
+                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20);
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            });
+        }
+
+        private static void ConfigureEmployeeCompetencyAssessment(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<EmployeeCompetencyAssessment>(entity =>
+            {
+                entity.ToTable("employee_competency_assessments");
+                entity.HasKey(x => x.AssessmentId);
+                entity.Property(x => x.AssessmentId).HasColumnName("id");
+                entity.Property(x => x.AssessmentName).HasColumnName("assessment_name").IsRequired().HasMaxLength(200);
+                entity.Property(x => x.AssessmentType).HasColumnName("assessment_type").IsRequired().HasMaxLength(100);
+                entity.Property(x => x.AssessmentCategory).HasColumnName("assessment_category").IsRequired().HasMaxLength(100);
+                entity.Property(x => x.TotalMarks).HasColumnName("total_marks").IsRequired();
+                entity.Property(x => x.PassingMarks).HasColumnName("passing_marks").IsRequired();
+                entity.Property(x => x.GradingScheme).HasColumnName("grading_scheme").IsRequired().HasMaxLength(100);
+                entity.Property(x => x.Description).HasColumnName("description");
+                entity.Property(x => x.AssessmentInstructions).HasColumnName("assessment_instructions");
+                entity.Property(x => x.ScheduledDate).HasColumnName("scheduled_date");
+                entity.Property(x => x.StartTime).HasColumnName("start_time").HasMaxLength(20);
+                entity.Property(x => x.EmployeeTypeFilter).HasColumnName("employee_type_filter").HasMaxLength(100);
+                entity.Property(x => x.BranchFilter).HasColumnName("branch_filter").HasMaxLength(100);
+                entity.Property(x => x.DepartmentFilter).HasColumnName("department_filter").HasMaxLength(100);
+                entity.Property(x => x.DesignationFilter).HasColumnName("designation_filter").HasMaxLength(100);
+                entity.Property(x => x.EndTime).HasColumnName("end_time").HasMaxLength(20);
+                entity.Property(x => x.AssessmentMode).HasColumnName("assessment_mode").HasMaxLength(100);
+                entity.Property(x => x.Venue).HasColumnName("venue").HasMaxLength(250);
+                entity.Property(x => x.MainEvaluator).HasColumnName("main_evaluator").HasMaxLength(150);
+                entity.Property(x => x.CoEvaluator).HasColumnName("co_evaluator").HasMaxLength(150);
+                entity.Property(x => x.NotifyParticipants).HasColumnName("notify_participants").HasDefaultValue(true);
+                entity.Property(x => x.AutoCertificates).HasColumnName("auto_certificates").HasDefaultValue(true);
+                entity.Property(x => x.AddToCalendar).HasColumnName("add_to_calendar").HasDefaultValue(true);
+                entity.Property(x => x.PublishImmediately).HasColumnName("publish_immediately").HasDefaultValue(true);
+                entity.Property(x => x.CandidatesCount).HasColumnName("candidates_count");
+                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20);
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+            });
+        }
+
+        private static void ConfigureFacultyTrainingParticipation(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<FacultyTrainingParticipation>(entity =>
+            {
+                entity.ToTable("faculty_training_participations");
+                entity.HasKey(x => x.ParticipationId);
+                entity.Property(x => x.ParticipationId).HasColumnName("id");
+                entity.Property(x => x.WorkshopId).HasColumnName("workshop_id").IsRequired();
+                entity.Property(x => x.StaffId).HasColumnName("staff_id").IsRequired();
+                entity.Property(x => x.RegistrationStatus).HasColumnName("registration_status").IsRequired().HasMaxLength(20);
+                entity.Property(x => x.AssessmentScore).HasColumnName("assessment_score").HasPrecision(5, 2);
+                entity.Property(x => x.CertificateIssued).HasColumnName("certificate_issued").IsRequired();
+                entity.Property(x => x.CertificateNumber).HasColumnName("certificate_number").HasMaxLength(100);
+                entity.Property(x => x.IssuedDate).HasColumnName("issued_date");
+
+                entity.HasOne(x => x.Workshop)
+                    .WithMany(x => x.Participants)
+                    .HasForeignKey(x => x.WorkshopId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Staff)
+                    .WithMany()
+                    .HasForeignKey(x => x.StaffId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureEmployeeAssessmentCandidate(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<EmployeeAssessmentCandidate>(entity =>
+            {
+                entity.ToTable("employee_assessment_candidates");
+                entity.HasKey(x => x.CandidateId);
+                entity.Property(x => x.CandidateId).HasColumnName("id");
+                entity.Property(x => x.AssessmentId).HasColumnName("assessment_id").IsRequired();
+                entity.Property(x => x.StaffId).HasColumnName("staff_id").IsRequired();
+                entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(20);
+                entity.Property(x => x.Score).HasColumnName("score").HasPrecision(5, 2);
+                entity.Property(x => x.Grade).HasColumnName("grade").HasMaxLength(10);
+                entity.Property(x => x.Remarks).HasColumnName("remarks");
+                entity.Property(x => x.CertificateIssued).HasColumnName("certificate_issued").IsRequired();
+                entity.Property(x => x.CertificateNumber).HasColumnName("certificate_number").HasMaxLength(100);
+                entity.Property(x => x.IssuedDate).HasColumnName("issued_date");
+
+                entity.HasOne(x => x.Assessment)
+                    .WithMany(x => x.Candidates)
+                    .HasForeignKey(x => x.AssessmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Staff)
+                    .WithMany()
+                    .HasForeignKey(x => x.StaffId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
     }
