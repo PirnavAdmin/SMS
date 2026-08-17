@@ -106,6 +106,7 @@ export const VehicleAssignmentView: React.FC = () => {
     routeMasters,
     driverMasters,
     studentTransports,
+    busAttendants,
     assignVehicleRouteDriver,
     removeVehicleAssignment,
     updateVehicleAssignment
@@ -169,7 +170,7 @@ export const VehicleAssignmentView: React.FC = () => {
   ]));
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
-    const attendant = initialBusAttendants.find(a =>
+    const attendant = busAttendants.find(a =>
       a.id === assignment.attendantId ||
       a.attendantName === assignment.attendantName
     );
@@ -275,7 +276,7 @@ export const VehicleAssignmentView: React.FC = () => {
     const vehicle = vehicleMasters.find(v => v.id === form.vehicleId);
     const route = routeMasters.find(r => r.id === form.routeId);
     const driver = driverMasters.find(d => d.id === form.driverId);
-    const attendant = initialBusAttendants.find(a => a.id === form.attendantId);
+    const attendant = busAttendants.find(a => a.id === form.attendantId);
 
     if (!vehicle || !route || !driver) {
       addToast('warning', 'Incomplete Form', 'Select active vehicle, route, and driver before saving.');
@@ -859,7 +860,7 @@ export const VehicleAssignmentView: React.FC = () => {
                 <select
                   value={form.attendantId}
                   onChange={e => {
-                    const att = initialBusAttendants.find(a => a.id === e.target.value);
+                    const att = busAttendants.find(a => a.id === e.target.value);
                     setForm(prev => ({
                       ...prev,
                       attendantId: e.target.value,
@@ -869,7 +870,7 @@ export const VehicleAssignmentView: React.FC = () => {
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
                 >
                   <option value="">-- Select Bus Attendant --</option>
-                  {initialBusAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
+                  {busAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
                     const activeOther = vehicleAssignments.find(va => va.attendantId === attendant.id && va.status === 'Active' && va.id !== editingAssignment?.id);
                     return (
                       <option key={attendant.id} value={attendant.id} disabled={!!activeOther && modalMode !== 'reassign'}>

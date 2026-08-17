@@ -35,12 +35,15 @@ const formatTripTime = (value?: string) => {
   return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${suffix}`;
 };
 
-const resolveAttendant = (assignment?: VehicleAssignment) => {
+const resolveAttendant = (assignment?: VehicleAssignment, busAttendants: any[] = []) => {
   if (!assignment) {
     return { name: 'Unassigned', mobile: '', id: '' };
   }
 
-  const attendant = initialBusAttendants.find(a =>
+  const attendant = busAttendants.find(a =>
+    a.id === assignment.attendantId ||
+    a.attendantName === assignment.attendantName
+  ) || initialBusAttendants.find(a =>
     a.id === assignment.attendantId ||
     a.attendantName === assignment.attendantName
   );
@@ -60,7 +63,8 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
     routeMasters,
     pickupPoints,
     studentTransports,
-    students
+    students,
+    busAttendants
   } = useData();
 
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(initialVehicleId || vehicleMasters[0]?.id || '');
@@ -101,7 +105,7 @@ export const TransportGPSTrackingView: React.FC<TransportGPSTrackingViewProps> =
       (r.id && (vehicle as any).routeId && r.id.toString() === (vehicle as any).routeId.toString()) ||
       (r.routeName && (vehicle as any).routeName && r.routeName.trim().toLowerCase() === (vehicle as any).routeName.trim().toLowerCase())
     );
-    const attendant = resolveAttendant(assignment);
+    const attendant = resolveAttendant(assignment, busAttendants);
 
     // 1. Fetch all configured pickup points for this route dynamically
     const configuredStops = pickupPoints

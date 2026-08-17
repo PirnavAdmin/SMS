@@ -38,7 +38,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const {
     students, studentTransports, routeMasters, pickupPoints, vehicleAssignments,
     vehicleMasters, driverMasters, assignStudentTransport, removeStudentTransport, checkVehicleCapacity,
-    academicClasses, financeTransportConfigs
+    academicClasses, financeTransportConfigs, busAttendants
   } = useData();
   const { addToast } = useToast();
 
@@ -82,19 +82,17 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const availableSeats = Math.max(0, totalCapacity - assignedCount);
   const isVehicleFull = availableSeats <= 0;
 
-  // Only show Non-Residential / Day Scholar students who opted for bus transport
+  // Only show students who opted for bus transport
   const eligibleStudents = React.useMemo(() => {
     return students.filter(st => {
-      const isNonResidential = st.studentType === 'Day Scholar' || st.studentType === 'Non-Residential' || (!st.studentType && st.studentType !== 'Hosteller' && st.studentType !== 'Residential');
-      const hasBusOption = st.transportRequired === true || Boolean(st.busRoute) || Boolean(st.transportType) || Boolean(st.routeId);
-      return isNonResidential && hasBusOption;
+      return st.transportRequired === true || Boolean(st.busRoute) || Boolean(st.transportType) || Boolean(st.routeId);
     });
   }, [students]);
 
-  // Fallback to all non-residential students if none explicitly marked yet
+  // Fallback to all students if none explicitly marked yet
   const availableStudentsForTransport = eligibleStudents.length > 0 
     ? eligibleStudents 
-    : students.filter(st => st.studentType === 'Day Scholar' || st.studentType === 'Non-Residential' || (!st.studentType && st.studentType !== 'Hosteller' && st.studentType !== 'Residential'));
+    : students;
 
   const filteredStudentTransports = studentTransports.filter(st => {
     const matchesQuery = st.studentName.toLowerCase().includes(query.toLowerCase()) || st.admissionNo.toLowerCase().includes(query.toLowerCase());
@@ -509,7 +507,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                                    vehicleAssignments.find(va => va.vehicleId === inspectingAssignment.vehicleId);
         const vehicleObj = vehicleMasters.find(v => v.id === inspectingAssignment.vehicleId || v.vehicleNumber === inspectingAssignment.vehicleNumber) || vehicleMasters[0];
         const driverObj = driverMasters.find(d => d.id === vehicleAssignedRel?.driverId || d.driverName === vehicleAssignedRel?.driverName) || driverMasters[0];
-        const attendantObj = initialBusAttendants.find(a => a.id === vehicleAssignedRel?.attendantId || a.attendantName === vehicleAssignedRel?.attendantName) || initialBusAttendants[0];
+        const attendantObj = busAttendants.find(a => a.id === vehicleAssignedRel?.attendantId || a.attendantName === vehicleAssignedRel?.attendantName) || busAttendants[0];
 
         const driverEmpId = driverObj?.employeeId || vehicleAssignedRel?.driverEmployeeId || `DRV-${driverObj?.id || '01'}`;
         const attendantEmpId = attendantObj?.employeeId || vehicleAssignedRel?.attendantEmployeeId || 'ATT-2026-01';

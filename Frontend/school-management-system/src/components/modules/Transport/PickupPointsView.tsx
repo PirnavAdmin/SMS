@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Plus, Search, Edit, Trash2, Clock, X } from 'lucide-react';
+import { MapPin, Plus, Search, Edit, Trash2, Clock, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -51,9 +51,21 @@ export const PickupPointsView: React.FC = () => {
   const [editingPoint, setEditingPoint] = useState<PickupPoint | null>(null);
   const [deletingPoint, setDeletingPoint] = useState<PickupPoint | null>(null);
 
+  // Dynamic creation input fields
+  const [newPickupPoints, setNewPickupPoints] = useState<{ name: string; distance: string; morningTime: string; eveningTime: string }[]>([{ name: '', distance: '', morningTime: '', eveningTime: '' }]);
+  // Accordion open/close state by route ID
+  const [expandedRoutes, setExpandedRoutes] = useState<Record<string, boolean>>({});
+
   const handleRouteFilterChange = (val: string) => {
     setSelectedRouteFilter(val);
     sessionStorage.setItem('tm_pickup_route_filter', val);
+  };
+
+  const toggleRouteExpanded = (routeId: string | number) => {
+    setExpandedRoutes(prev => ({
+      ...prev,
+      [routeId]: !prev[routeId]
+    }));
   };
 
   const calculateFeeForDistance = (routeId?: string | number, distanceKm: number = 0) => {
@@ -105,6 +117,7 @@ export const PickupPointsView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setEditingPoint(null);
+    setNewPickupPoints([{ name: '', distance: '', morningTime: '', eveningTime: '' }]);
     const defaultRoute = (selectedRouteFilter && selectedRouteFilter !== 'All')
       ? routeMasters.find(r => r.id == selectedRouteFilter)
       : null;
@@ -137,40 +150,86 @@ export const PickupPointsView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.pickupName || !form.routeId) return;
+    if (!form.routeId) return;
 
     const r = routeMasters.find(rt => rt.id == form.routeId);
     const routeName = r ? r.routeName : form.routeName || '';
-    const seqNum = Number(form.sequenceNumber) || 1;
-    const distKm = Number(form.distanceFromSchoolKm) || 0;
-    const feeAmt = Number(form.monthlyFee) || calculateFeeForDistance(form.routeId, distKm);
-
-    const routeSequence = pickupPoints.filter(p => p.routeId === form.routeId && p.id !== editingPoint?.id);
-    const isDuplicateSequence = routeSequence.some(p => p.sequenceNumber === seqNum);
-
-    if (isDuplicateSequence) {
-      addToast('warning', 'Duplicate Sequence', `Sequence #${seqNum} is already used on ${routeName}.`);
-      return;
-    }
-
-    const payload = {
-      ...form,
-      routeName,
-      sequenceNumber: seqNum,
-      distanceFromSchoolKm: distKm,
-      arrivalTime: form.morningPickupTime || form.arrivalTime || '07:30 AM',
-      monthlyFee: feeAmt
-    } as Omit<PickupPoint, 'id'>;
 
     if (editingPoint) {
+      if (!form.pickupName) return;
+      const seqNum = Number(form.sequenceNumber) || 1;
+      const distKm = Number(form.distanceFromSchoolKm) || 0;
+      const feeAmt = Number(form.monthlyFee) || calculateFeeForDistance(form.routeId, distKm);
+
+      const routeSequence = pickupPoints.filter(p => p.routeId === form.routeId && p.id !== editingPoint.id);
+      const isDuplicateSequence = routeSequence.some(p => p.sequenceNumber === seqNum);
+
+      if (isDuplicateSequence) {
+        addToast('warning', 'Duplicate Sequence', `Sequence #${seqNum} is already used on ${routeName}.`);
+        return;
+      }
+
+      const payload = {
+        ...form,
+        routeName,
+        sequenceNumber: seqNum,
+        distanceFromSchoolKm: distKm,
+        arrivalTime: form.morningPickupTime || form.arrivalTime || '07:30 AM',
+        monthlyFee: feeAmt
+      } as Omit<PickupPoint, 'id'>;
+
       updatePickupPoint(editingPoint.id, payload);
       addToast('success', 'Pickup Point Updated', `Updated ${form.pickupName}`);
     } else {
-      addPickupPoint(payload);
-      addToast('success', 'Pickup Point Created', `Added ${form.pickupName}`);
+      const validPoints = newPickupPoints.map(p => ({
+        name: p.name.trim(),
+        distance: p.distance.trim(),
+        morningTime: p.morningTime,
+        eveningTime: p.eveningTime
+      })).filter(p => p.name !== '');
+
+      if (validPoints.length === 0) {
+        addToast('warning', 'Validation Error', 'Please enter at least one pickup point name.');
+        return;
+      }
+
+      const existingForRoute = pickupPoints.filter(p => p.routeId == form.routeId);
+      const maxSeq = existingForRoute.length > 0 ? Math.max(...existingForRoute.map(p => p.sequenceNumber)) : 0;
+
+      validPoints.forEach((item, index) => {
+        const seqNum = maxSeq + index + 1;
+        const distKm = Number(item.distance) || 0;
+        const feeAmt = calculateFeeForDistance(form.routeId, distKm);
+        const morningTime12h = item.morningTime ? convertTo12Hour(item.morningTime) : '07:30 AM';
+        const eveningTime12h = item.eveningTime ? convertTo12Hour(item.eveningTime) : '04:15 PM';
+        
+        const payload = {
+          routeId: form.routeId,
+          routeName,
+          pickupName: item.name,
+          sequenceNumber: seqNum,
+          distanceFromSchoolKm: distKm,
+          arrivalTime: morningTime12h,
+          morningPickupTime: morningTime12h,
+          eveningDropTime: eveningTime12h,
+          monthlyFee: feeAmt,
+          status: 'Active'
+        } as Omit<PickupPoint, 'id'>;
+
+        addPickupPoint(payload);
+      });
+
+      addToast('success', 'Pickup Points Created', `Added ${validPoints.length} pickup point(s) to ${routeName}.`);
     }
     setIsModalOpen(false);
   };
+
+  const visibleRoutes = routeMasters.filter(r => {
+    if (selectedRouteFilter && selectedRouteFilter !== 'All') {
+      return r.id == selectedRouteFilter;
+    }
+    return true;
+  });
 
   return (
     <div className="space-y-5 animate-in fade-in">
@@ -180,12 +239,12 @@ export const PickupPointsView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <MapPin className="w-6 h-6 text-sky-500" /> Pickup Points
           </h2>
-          </div>
+        </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Pickup Point
           </button>
@@ -247,9 +306,9 @@ export const PickupPointsView: React.FC = () => {
             </button>
           </div>
         </div>
-      ) : filteredPoints.length === 0 ? (
+      ) : visibleRoutes.length === 0 ? (
         <div className="glass-card p-12 text-center rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-2">
-          <p className="text-slate-400 text-xs font-bold">No pickup points found matching your filter or search query.</p>
+          <p className="text-slate-400 text-xs font-bold">No routes found matching your filter.</p>
           <button
             onClick={() => { handleRouteFilterChange('All'); setQuery(''); }}
             className="text-xs text-sky-600 font-bold hover:underline"
@@ -258,61 +317,123 @@ export const PickupPointsView: React.FC = () => {
           </button>
         </div>
       ) : (
-        /* Table */
-        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4 text-center">Seq #</th>
-                  <th className="py-3.5 px-4 text-left">Route</th>
-                  <th className="py-3.5 px-4 text-left">Pickup Point Name</th>
-                  <th className="py-3.5 px-4 text-center">Distance (KM)</th>
-                  <th className="py-3.5 px-4 text-center">Morning Pickup</th>
-                  <th className="py-3.5 px-4 text-center">Evening Drop</th>
-                  <th className="py-3.5 px-4 text-center">Monthly Fee</th>
-                  <th className="py-3.5 px-4 text-center">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {filteredPoints.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 text-center">
-                      <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-black text-[11px] flex items-center justify-center mx-auto">
-                        {p.sequenceNumber}
+        /* Accordion List of Routes */
+        <div className="space-y-4">
+          {visibleRoutes
+            .filter(r => {
+              if (!query) return true;
+              const routePoints = pickupPoints.filter(p => p.routeId == r.id);
+              const matchesQueryStr = (p: PickupPoint) => 
+                p.pickupName.toLowerCase().includes(query.toLowerCase()) || 
+                p.routeName.toLowerCase().includes(query.toLowerCase());
+              return r.routeName.toLowerCase().includes(query.toLowerCase()) || 
+                     r.routeCode.toLowerCase().includes(query.toLowerCase()) || 
+                     routePoints.some(matchesQueryStr);
+            })
+            .map(route => {
+              const routePoints = pickupPoints
+                .filter(p => p.routeId == route.id)
+                .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+              
+              const filteredRoutePoints = query
+                ? routePoints.filter(p => 
+                    p.pickupName.toLowerCase().includes(query.toLowerCase()) || 
+                    p.routeName.toLowerCase().includes(query.toLowerCase())
+                  )
+                : routePoints;
+
+              const isExpanded = query ? true : !!expandedRoutes[route.id];
+
+              return (
+                <div key={route.id} className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
+                  {/* Route Header (Clickable) */}
+                  <div
+                    onClick={() => toggleRouteExpanded(route.id)}
+                    className="p-4 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all select-none"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="text-slate-400">
+                        {isExpanded ? (
+                          <ChevronDown className="w-5 h-5" />
+                        ) : (
+                          <ChevronRight className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">{route.routeName}</h4>
+                        <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                          ({route.routeCode.toLowerCase()})
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-slate-500">
+                        {filteredRoutePoints.length} Pickup Point{filteredRoutePoints.length !== 1 ? 's' : ''}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 dark:text-slate-300 text-left">{p.routeName}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white text-left">{p.pickupName}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{p.distanceFromSchoolKm} KM</td>
-                    <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime || '07:30 AM'}
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400 text-center">
-                      {p.eveningDropTime || '04:15 PM'}
-                    </td>
-                    <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-center">
-                      ₹{p.monthlyFee || calculateFeeForDistance(p.routeId, p.distanceFromSchoolKm)}/mo
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <Badge variant={((p.status as any) === true || p.status === 'Active') ? 'success' : 'neutral'}>
-                        {((p.status as any) === true || p.status === 'Active') ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => handleOpenEdit(p)} className="p-1 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => setDeletingPoint(p)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <Badge variant={route.status === 'Active' ? 'success' : 'neutral'}>{route.status}</Badge>
+                    </div>
+                  </div>
+
+                  {/* Accordion Body */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-200/80 dark:border-slate-800 animate-in slide-in-from-top-1 duration-200">
+                      {filteredRoutePoints.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-slate-500 font-medium">
+                          {query ? 'No matching pickup points on this route.' : 'No pickup points configured for this route.'}
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-center border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                                <th className="py-3.5 px-4 text-center w-16">Seq #</th>
+                                <th className="py-3.5 px-4 text-center">Pickup Point Name</th>
+                                <th className="py-3.5 px-4 text-center w-32">Distance (KM)</th>
+                                <th className="py-3.5 px-4 text-center w-40">Morning Pickup</th>
+                                <th className="py-3.5 px-4 text-center w-40">Evening Drop</th>
+                                <th className="py-3.5 px-4 text-center w-36">Monthly Fee</th>
+                                <th className="py-3.5 px-4 text-center w-24">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                              {filteredRoutePoints.map(p => (
+                                <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                  <td className="py-3 px-4 text-center">
+                                    <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-black text-[11px] flex items-center justify-center mx-auto">
+                                      {p.sequenceNumber}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white text-center">{p.pickupName}</td>
+                                  <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300 text-center">{p.distanceFromSchoolKm} KM</td>
+                                  <td className="py-3 px-4 font-semibold text-emerald-600 dark:text-emerald-400 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Clock className="w-3.5 h-3.5" /> {p.morningPickupTime || p.arrivalTime || '07:30 AM'}
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400 text-center">
+                                    {p.eveningDropTime || '04:15 PM'}
+                                  </td>
+                                  <td className="py-3 px-4 font-mono font-extrabold text-emerald-600 dark:text-emerald-400 text-center">
+                                    ₹{p.monthlyFee || calculateFeeForDistance(p.routeId, p.distanceFromSchoolKm)}/mo
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button onClick={() => handleOpenEdit(p)} className="p-1 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-3.5 h-3.5" /></button>
+                                      <button onClick={() => setDeletingPoint(p)} className="p-1 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-3.5 h-3.5" /></button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
         </div>
       )}
 
@@ -345,118 +466,214 @@ export const PickupPointsView: React.FC = () => {
                       monthlyFee: autoFee
                     });
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
                 >
                   <option value="">-- Select Route --</option>
                   {routeMasters.map(r => <option key={r.id} value={r.id}>{r.routeName} ({r.routeCode})</option>)}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Pickup Point Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter pickup point name..."
-                    value={form.pickupName || ''}
-                    onChange={e => setForm({ ...form, pickupName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Sequence Number *</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    placeholder="e.g. 1"
-                    value={form.sequenceNumber !== undefined && form.sequenceNumber !== null ? form.sequenceNumber : ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '' || /^\d*$/.test(val)) {
-                        setForm({ ...form, sequenceNumber: val as any });
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
+              {editingPoint ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold mb-1">Pickup Point Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter pickup point name..."
+                        value={form.pickupName || ''}
+                        onChange={e => setForm({ ...form, pickupName: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Sequence Number *</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        placeholder="e.g. 1"
+                        value={form.sequenceNumber !== undefined && form.sequenceNumber !== null ? form.sequenceNumber : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setForm({ ...form, sequenceNumber: val as any });
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Distance from School (KM) *</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    required
-                    placeholder="e.g. 10.0"
-                    value={form.distanceFromSchoolKm !== undefined && form.distanceFromSchoolKm !== null ? form.distanceFromSchoolKm : ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '' || /^\d*\.?\d*$/.test(val)) {
-                        const dist = val === '' ? 0 : Number(val);
-                        const autoFee = val === '' ? undefined : calculateFeeForDistance(form.routeId, dist);
-                        setForm({ ...form, distanceFromSchoolKm: val as any, monthlyFee: autoFee });
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Monthly Fare (Auto-Calculated) *</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    placeholder="e.g. 1500"
-                    value={form.monthlyFee !== undefined && form.monthlyFee !== null ? form.monthlyFee : ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val === '' || /^\d*$/.test(val)) {
-                        setForm({ ...form, monthlyFee: val as any });
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-extrabold text-emerald-600 dark:text-emerald-400"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold mb-1">Distance from School (KM) *</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        required
+                        placeholder="e.g. 10.0"
+                        value={form.distanceFromSchoolKm !== undefined && form.distanceFromSchoolKm !== null ? form.distanceFromSchoolKm : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                            const dist = val === '' ? 0 : Number(val);
+                            const autoFee = val === '' ? undefined : calculateFeeForDistance(form.routeId, dist);
+                            setForm({ ...form, distanceFromSchoolKm: val as any, monthlyFee: autoFee });
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Monthly Fare (Auto-Calculated) *</label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        required
+                        placeholder="e.g. 1500"
+                        value={form.monthlyFee !== undefined && form.monthlyFee !== null ? form.monthlyFee : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (val === '' || /^\d*$/.test(val)) {
+                            setForm({ ...form, monthlyFee: val as any });
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-extrabold text-emerald-600 dark:text-emerald-400 outline-none"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Morning Pickup Time</label>
-                  <input
-                    type="time"
-                    value={convertTo24Hour(form.morningPickupTime || '')}
-                    onChange={e => {
-                      const val12h = convertTo12Hour(e.target.value);
-                      setForm({ ...form, morningPickupTime: val12h, arrivalTime: val12h });
-                    }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Evening Drop Time</label>
-                  <input
-                    type="time"
-                    value={convertTo24Hour(form.eveningDropTime || '')}
-                    onChange={e => setForm({ ...form, eveningDropTime: convertTo12Hour(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-semibold mb-1">Morning Pickup Time</label>
+                      <input
+                        type="time"
+                        value={convertTo24Hour(form.morningPickupTime || '')}
+                        onChange={e => {
+                          const val12h = convertTo12Hour(e.target.value);
+                          setForm({ ...form, morningPickupTime: val12h, arrivalTime: val12h });
+                        }}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold mb-1">Evening Drop Time</label>
+                      <input
+                        type="time"
+                        value={convertTo24Hour(form.eveningDropTime || '')}
+                        onChange={e => setForm({ ...form, eveningDropTime: convertTo12Hour(e.target.value) })}
+                        className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white outline-none"
+                      />
+                    </div>
+                  </div>
 
-              <div>
-                <label className="block font-semibold mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
+                  <div>
+                    <label className="block font-semibold mb-1">Status</label>
+                    <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer">
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-3">
+                  <label className="block font-semibold">Pickup Points, Distances & Timings *</label>
+                  <div className="max-h-[45vh] overflow-y-auto space-y-3.5 pr-1">
+                    {newPickupPoints.map((point, index) => (
+                      <div key={index} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-2 relative">
+                        {newPickupPoints.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewPickupPoints(newPickupPoints.filter((_, i) => i !== index));
+                            }}
+                            className="absolute top-2 right-2 p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Pickup Point Name #{index + 1} *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Enter pickup point name..."
+                            value={point.name}
+                            onChange={e => {
+                              const copy = [...newPickupPoints];
+                              copy[index].name = e.target.value;
+                              setNewPickupPoints(copy);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-bold text-slate-900 dark:text-white outline-none"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2.5">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Distance (KM) *</label>
+                            <input
+                              type="text"
+                              inputMode="decimal"
+                              required
+                              placeholder="e.g. 5.0"
+                              value={point.distance !== undefined ? point.distance : ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                  const copy = [...newPickupPoints];
+                                  copy[index].distance = val;
+                                  setNewPickupPoints(copy);
+                                }
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono text-[11px] font-semibold text-slate-900 dark:text-white outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Morning Pickup</label>
+                            <input
+                              type="time"
+                              value={point.morningTime}
+                              onChange={e => {
+                                const copy = [...newPickupPoints];
+                                copy[index].morningTime = e.target.value;
+                                setNewPickupPoints(copy);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono text-[11px] font-semibold text-slate-900 dark:text-white outline-none cursor-pointer"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 mb-0.5">Evening Drop</label>
+                            <input
+                              type="time"
+                              value={point.eveningTime}
+                              onChange={e => {
+                                const copy = [...newPickupPoints];
+                                copy[index].eveningTime = e.target.value;
+                                setNewPickupPoints(copy);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-mono text-[11px] font-semibold text-slate-900 dark:text-white outline-none cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNewPickupPoints([...newPickupPoints, { name: '', distance: '', morningTime: '', eveningTime: '' }])}
+                    className="w-full py-2 rounded-xl border border-dashed border-sky-300 dark:border-sky-850 text-sky-600 dark:text-sky-400 font-bold hover:bg-sky-50/50 dark:hover:bg-sky-950/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" /> Add Pickup Point Field
+                  </button>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20 cursor-pointer">Save</button>
               </div>
             </form>
           </div>

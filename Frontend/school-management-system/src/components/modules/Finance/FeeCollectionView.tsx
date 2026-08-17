@@ -109,7 +109,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       const nameParts = (adm.applicantName || '').trim().split(' ');
       const fName = adm.firstName || nameParts[0] || 'Student';
       const lName = adm.lastName || nameParts.slice(1).join(' ') || '';
-      const targetCls = adm.appliedClass || adm.targetClass || adm.className || 'Class 10';
+      const targetCls = adm.appliedClass || adm.targetClass || adm.className || 'Class 1';
       const key = admNo.toLowerCase();
 
       map.set(key, {

@@ -44,25 +44,33 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
   const { addToast } = useToast();
 
   const getPackageFeeForStudent = (className: string, priceOverride?: number) => {
-    if (priceOverride && priceOverride > 0 && priceOverride !== 85) return priceOverride;
-    const config = (financeUniformConfigs || []).find(c => 
-      c.className?.toLowerCase() === className?.toLowerCase() || 
-      (className && c.className && className.toLowerCase().includes(c.className.toLowerCase()))
-    );
-    if (config && config.feeAmount && config.feeAmount >= 1000) return config.feeAmount;
+    const targetClass = className || '';
 
+    // 1. Check dynamic fee structures for class
     const dfs = (dynamicFeeStructures || []).find(d => 
-      d.className?.toLowerCase() === className?.toLowerCase() || 
-      (className && d.className && className.toLowerCase().includes(d.className.toLowerCase()))
+      d.className?.toLowerCase() === targetClass.toLowerCase() || 
+      (targetClass && d.className && targetClass.toLowerCase().includes(d.className.toLowerCase()))
     );
     const dfsItem = dfs?.items?.find(i => 
       i.feeHeadName?.toLowerCase().includes('uniform') || 
       i.feeHeadName?.toLowerCase().includes('kit') || 
       i.feeHeadName?.toLowerCase().includes('accessories')
     );
-    if (dfsItem && dfsItem.amount >= 1000) return dfsItem.amount;
+    if (dfsItem && dfsItem.amount > 0) return dfsItem.amount;
 
-    return getUniformPackageFeeByClass(className);
+    // 2. Check finance uniform configs for class
+    const config = (financeUniformConfigs || []).find(c => 
+      c.className?.toLowerCase() === targetClass.toLowerCase() || 
+      (targetClass && c.className && targetClass.toLowerCase().includes(c.className.toLowerCase()))
+    );
+    if (config && config.feeAmount && config.feeAmount > 0) return config.feeAmount;
+
+    // 3. Use class fee structure from uniformUtils (LKG/UKG/Playgroup = 2000, Class 1-8 = 2500, Class 9-10 = 3000, Class 11-12 = 3500)
+    const classFee = getUniformPackageFeeByClass(targetClass);
+    if (classFee > 0) return classFee;
+
+    if (priceOverride && priceOverride > 0 && priceOverride !== 85) return priceOverride;
+    return 2000;
   };
 
   const getStudentUniformFeeStatus = (studentId: string, studentAdmissionNo?: string, studentClass?: string) => {
@@ -109,6 +117,41 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     };
   };
 
+  const getExtraItemsFeeStatus = (studentId: string, admissionNo: string, extraItems: StudentUniformIssue[]) => {
+    if (!extraItems || extraItems.length === 0) return { isPaid: false, isPartial: false };
+
+    const paidItems = extraItems.filter(issue => {
+      if (issue.status === 'Paid' || issue.notes?.toLowerCase().includes('paid')) return true;
+
+      return (feePayments || []).some(p => {
+        const isStudentMatch = p.studentId === studentId || (admissionNo && p.studentId === admissionNo);
+        if (!isStudentMatch || !p.amountPaid || p.amountPaid <= 0) return false;
+
+        const instId1 = `INST-UNIF-EXTRA-${issue.id}`;
+        const instId2 = `FEE-UNI-EXTRA-${issue.id}`;
+
+        if (p.selectedInstallmentIds?.includes(instId1) || p.selectedInstallmentIds?.includes(instId2) || p.receiptNo?.includes(`UNI-EXTRA-${issue.id}`)) {
+          return true;
+        }
+
+        if (p.paymentAllocation && p.paymentAllocation.length > 0) {
+          return p.paymentAllocation.some(alloc => {
+            const head = (alloc.feeHeadName || alloc.termName || '').toLowerCase();
+            const itemLower = (issue.itemName || '').toLowerCase();
+            return head.includes('extra') || (itemLower && head.includes(itemLower));
+          });
+        }
+
+        return false;
+      });
+    });
+
+    const isAllPaid = paidItems.length === extraItems.length;
+    const isPartial = paidItems.length > 0 && paidItems.length < extraItems.length;
+
+    return { isPaid: isAllPaid, isPartial };
+  };
+
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');
@@ -121,36 +164,6 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       setFilterStatus(initialStatusFilter);
     }
   }, [initialStatusFilter]);
-
-  // Filter student uniform issues based on query, class, section, status, and academic year
-  const filteredIssues = studentUniformIssues.filter(issue => {
-    const matchAcademicYear = !selectedAcademicYear || !issue.academicYear || issue.academicYear === selectedAcademicYear;
-    const matchQuery =
-      issue.studentName.toLowerCase().includes(query.toLowerCase()) ||
-      issue.admissionNo.toLowerCase().includes(query.toLowerCase()) ||
-      issue.itemName.toLowerCase().includes(query.toLowerCase());
-    const matchClass = filterClass === 'All' || issue.className === filterClass || issue.className.includes(filterClass);
-    const matchSection = filterSection === 'All' || issue.section === filterSection;
-    const matchStatus = filterStatus === 'All' || issue.status === filterStatus;
-    return matchAcademicYear && matchQuery && matchClass && matchSection && matchStatus;
-  });
-
-  // Compute student grouped entries for pagination & table display
-  const groupedMap = new Map<string, {
-    id: string;
-    studentId: string;
-    studentName: string;
-    admissionNo: string;
-    className: string;
-    section: string;
-    issueDate: string;
-    academicYear: string;
-    status: string;
-    items: StudentUniformIssue[];
-    basePackage?: StudentUniformIssue;
-    extraItems: StudentUniformIssue[];
-    totalExtraPayable: number;
-  }>();
 
   // Combine students master roster with admissions array to guarantee 100% student availability
   const allEnrolledStudents = React.useMemo(() => {
@@ -190,45 +203,69 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     return list;
   }, [admissions]);
 
-  // Build distribution grouped entries ONLY from actual issued uniform records
-  filteredIssues.forEach(issue => {
-    let targetKey = (issue.studentId || issue.admissionNo || issue.studentName || '').trim();
+  // Compute student grouped entries for pagination & table display
+  const groupedMap = new Map<string, {
+    id: string;
+    studentId: string;
+    studentName: string;
+    admissionNo: string;
+    className: string;
+    section: string;
+    issueDate: string;
+    academicYear: string;
+    status: string;
+    items: StudentUniformIssue[];
+    basePackage?: StudentUniformIssue;
+    extraItems: StudentUniformIssue[];
+    totalExtraPayable: number;
+  }>();
 
-    // Look up existing student in groupedMap by ID, admissionNo, or full name
-    const existingEntry = Array.from(groupedMap.entries()).find(([k, g]) =>
-      k === targetKey ||
-      g.studentId === issue.studentId ||
-      (g.admissionNo && g.admissionNo === issue.admissionNo) ||
-      g.studentName.toLowerCase() === (issue.studentName || '').toLowerCase()
+  // Group ALL student uniform issues by student to guarantee 1 single row per student (no duplicates)
+  (studentUniformIssues || []).forEach(issue => {
+    const stMatch = (allEnrolledStudents || []).find(s => 
+      (issue.studentId && s.id === issue.studentId) ||
+      (issue.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === issue.admissionNo.toLowerCase()) ||
+      (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (issue.studentName || '').trim().toLowerCase())
     );
 
-    const catalogItem = uniforms.find(u => u.category === issue.itemName || u.name === issue.itemName);
-    const itemPrice = (issue.price && issue.price > 0)
-      ? issue.price
-      : (catalogItem && catalogItem.price > 0
-          ? catalogItem.price
-          : (issue.itemName.includes('Package') ? 3000 : 85));
-    const isBasePkg = issue.type === 'Base Package' || issue.itemName.includes('Package') || issue.notes?.includes('Admission Fee');
+    const stdName = issue.studentName || (stMatch ? `${stMatch.firstName} ${stMatch.lastName}`.trim() : 'Student');
+    const admNo = issue.admissionNo || (stMatch ? stMatch.admissionNo : '');
+    const stdId = issue.studentId || (stMatch ? stMatch.id : '');
+    const clsName = issue.className || (stMatch ? stMatch.className : 'LKG');
+    const secName = issue.section || (stMatch ? stMatch.section : 'A');
 
-    if (existingEntry) {
-      const grp = existingEntry[1];
-      grp.items.push(issue);
-      if (isBasePkg) {
-        grp.basePackage = issue;
-      } else {
-        if (!grp.extraItems.some(e => e.id === issue.id)) {
-          grp.extraItems.push(issue);
-          grp.totalExtraPayable += (itemPrice * (issue.quantity || 1));
+    const normKey = (admNo && admNo.trim()) 
+      ? admNo.trim().toLowerCase() 
+      : ((stdId && stdId.trim()) ? stdId.trim().toLowerCase() : stdName.trim().toLowerCase());
+
+    const catalogItem = uniforms.find(u => u.category === issue.itemName || u.name === issue.itemName);
+    const isBasePkg = issue.type === 'Base Package' || issue.itemName.includes('Package') || issue.notes?.includes('Admission Fee');
+    const itemPrice = isBasePkg
+      ? getPackageFeeForStudent(clsName, issue.price)
+      : ((issue.price && issue.price > 0) ? issue.price : (catalogItem && catalogItem.price > 0 ? catalogItem.price : 85));
+
+    const existing = groupedMap.get(normKey);
+
+    if (existing) {
+      if (!existing.items.some(i => i.id === issue.id)) {
+        existing.items.push(issue);
+      }
+      if (isBasePkg && !existing.basePackage) {
+        existing.basePackage = issue;
+      } else if (!isBasePkg) {
+        if (!existing.extraItems.some(e => e.id === issue.id)) {
+          existing.extraItems.push(issue);
+          existing.totalExtraPayable += (itemPrice * (issue.quantity || 1));
         }
       }
     } else {
-      groupedMap.set(targetKey, {
+      groupedMap.set(normKey, {
         id: issue.id,
-        studentId: issue.studentId,
-        studentName: issue.studentName,
-        admissionNo: issue.admissionNo,
-        className: issue.className,
-        section: issue.section,
+        studentId: stdId,
+        studentName: stdName,
+        admissionNo: admNo,
+        className: clsName,
+        section: secName,
         issueDate: issue.issueDate,
         academicYear: issue.academicYear,
         status: issue.status,
@@ -240,12 +277,31 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     }
   });
 
-  const groupedList = Array.from(groupedMap.values()).sort((a, b) => {
+  const allGroupedList = Array.from(groupedMap.values()).sort((a, b) => {
     const dateA = new Date(a.issueDate || '2026-01-01').getTime();
     const dateB = new Date(b.issueDate || '2026-01-01').getTime();
     return dateB - dateA;
   });
-  const paginatedGrouped = groupedList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Filter student grouped entries based on query, class, section, status, and academic year
+  const filteredGroupedList = allGroupedList.filter(g => {
+    const matchAcademicYear = !selectedAcademicYear || !g.academicYear || g.academicYear === selectedAcademicYear || g.items.some(i => !i.academicYear || i.academicYear === selectedAcademicYear);
+
+    const q = query.trim().toLowerCase();
+    const matchQuery = !q ||
+      g.studentName.toLowerCase().includes(q) ||
+      g.admissionNo.toLowerCase().includes(q) ||
+      g.className.toLowerCase().includes(q) ||
+      g.items.some(i => (i.itemName || '').toLowerCase().includes(q));
+
+    const matchClass = filterClass === 'All' || g.className === filterClass || g.className.includes(filterClass);
+    const matchSection = filterSection === 'All' || g.section === filterSection;
+    const matchStatus = filterStatus === 'All' || g.status === filterStatus || g.items.some(i => i.status === filterStatus);
+
+    return matchAcademicYear && matchQuery && matchClass && matchSection && matchStatus;
+  });
+
+  const paginatedGrouped = filteredGroupedList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'Issue' | 'Replace' | 'Return'>('Issue');
@@ -419,7 +475,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           studentId: form.studentId,
           studentName: `${studentObj.firstName} ${studentObj.lastName}`,
           admissionNo: studentObj.admissionNo || 'ADM2026-000',
-          className: studentObj.className || 'Class 10',
+          className: studentObj.className || 'Class 1',
           section: studentObj.section || 'A',
           itemId: form.itemId,
           itemName: itemObj.category,
@@ -438,7 +494,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           studentId: form.studentId,
           studentName: `${studentObj.firstName} ${studentObj.lastName}`,
           admissionNo: studentObj.admissionNo || 'ADM2026-000',
-          className: studentObj.className || 'Class 10',
+          className: studentObj.className || 'Class 1',
           section: studentObj.section || 'A',
           itemId: form.itemId,
           itemName: `${itemObj.category} (Extra)`,
@@ -833,14 +889,40 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                 Fee Pending at Finance
                               </span>
                             )}
-                            {g.extraItems.length > 0 && g.totalExtraPayable > 0 && (
-                              <span 
-                                className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 text-center flex items-center justify-center w-full"
-                                title="Extra Purchase — Pay Fees at Finance"
-                              >
-                                Extras (+{formatCurrency(g.totalExtraPayable)}) • Pay Fees at Finance
-                              </span>
-                            )}
+                            {g.extraItems.length > 0 && g.totalExtraPayable > 0 && (() => {
+                              const extraStatus = getExtraItemsFeeStatus(g.studentId, g.admissionNo, g.extraItems);
+                              if (extraStatus.isPaid) {
+                                return (
+                                  <span 
+                                    className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 text-center flex items-center justify-center gap-1 w-full"
+                                    title="Extra Purchase — Fee Paid at Finance"
+                                  >
+                                    <ShieldCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 inline shrink-0" />
+                                    Extras (+{formatCurrency(g.totalExtraPayable)}) • Fee Paid at Finance
+                                  </span>
+                                );
+                              } else if (extraStatus.isPartial) {
+                                return (
+                                  <span 
+                                    className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 text-center flex items-center justify-center gap-1 w-full"
+                                    title="Extra Purchase — Partial Fee Paid at Finance"
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-amber-500 inline shrink-0" />
+                                    Extras (+{formatCurrency(g.totalExtraPayable)}) • Partial Fee Paid
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span 
+                                    className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 text-center flex items-center justify-center gap-1 w-full"
+                                    title="Extra Purchase — Pay Fees at Finance"
+                                  >
+                                    <AlertTriangle className="w-3 h-3 text-purple-500 inline shrink-0" />
+                                    Extras (+{formatCurrency(g.totalExtraPayable)}) • Pay Fees at Finance
+                                  </span>
+                                );
+                              }
+                            })()}
                           </div>
                         </td>
 
@@ -904,7 +986,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
       <div className="print:hidden">
         <Pagination
           currentPage={currentPage}
-          totalItems={groupedList.length}
+          totalItems={filteredGroupedList.length}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(n) => { setItemsPerPage(n); setCurrentPage(1); }}
@@ -1114,12 +1196,14 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                 }
                               });
 
-                              const classFee = getPackageFeeForStudent(selStudentForFee?.className || 'Class 10');
+                              const classFee = selStudentForFee 
+                                ? getPackageFeeForStudent(selStudentForFee.className)
+                                : getPackageFeeForStudent('Class 1');
 
                               return combined.map(u => {
                                 return (
                                   <option key={u.id} value={u.id}>
-                                    •  {u.category || u.name} — ({formatCurrency(classFee)})
+                                    •  {u.category || u.name} — ({formatCurrency(classFee)}{!selStudentForFee ? ' Base' : ''})
                                   </option>
                                 );
                               });

@@ -228,12 +228,11 @@ export const RouteMasterView: React.FC = () => {
               || vehicleAssignments.find(va => va.routeId === r.id);
             const assignedBus = activeAssignment?.vehicleNumber || 'Unassigned';
             const assignedDriver = activeAssignment?.driverName || 'Unassigned';
-            const previewStops: RouteSequenceItem[] = routePickupPoints.length > 0
-              ? routePickupPoints.map(p => ({ id: p.id, sequenceNumber: p.sequenceNumber, label: p.pickupName }))
-              : initialRouteStops
-                .filter(s => s.routeId.toLowerCase() === r.id.toLowerCase())
-                .sort((a, b) => a.stopOrder - b.stopOrder)
-                .map(s => ({ id: s.id, sequenceNumber: s.stopOrder, label: s.stopName }));
+            const previewStops: RouteSequenceItem[] = routePickupPoints.map(p => ({
+              id: p.id,
+              sequenceNumber: p.sequenceNumber,
+              label: p.pickupName
+            }));
 
             return (
               <div key={r.id} className="glass-card p-5 rounded-3xl space-y-3 flex flex-col justify-between border border-slate-200/80 dark:border-slate-800">

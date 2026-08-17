@@ -33,7 +33,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         setLoading(true);
         await Promise.all([
           fetchStudents(),
-          fetchStaff(),
+          typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
           fetchAdmissions(),
           fetchAcademicClasses(),
           fetchTodayStudentAttendanceSummary()

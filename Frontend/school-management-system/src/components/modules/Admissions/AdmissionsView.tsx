@@ -748,6 +748,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       return;
     }
 
+    if (!formData.appliedClass || formData.appliedClass === "Select Class") {
+      addToast(
+        "error",
+        "Missing Class Selection",
+        "Please select a target Class for the student admission application.",
+      );
+      return;
+    }
+
     const phoneValidation = validate10DigitPhone(formData.phone || "");
     if (!phoneValidation.isValid) {
       setPhoneError(phoneValidation.error || "Invalid 10-digit phone");
@@ -832,7 +841,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       addAdmission({
         applicantName: fullApplicantName,
         avatar,
-        appliedClass: formData.appliedClass || "Class 10",
+        appliedClass: formData.appliedClass!,
         gender: formData.gender || "Male",
         dob: finalDob || "15/08/2012",
         bloodGroup: formData.bloodGroup || "O+",
@@ -2517,7 +2526,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                 {/* Optional Fee Head Selection */}
                 {(() => {
-                  const clsName = formData.appliedClass || "Class 10";
+                  const clsName = formData.appliedClass || (classOptions && classOptions[0]) || "Class 1";
                   const dfs =
                     dynamicFeeStructures.find(
                       (d) => d.className === clsName && d.status === "Active",

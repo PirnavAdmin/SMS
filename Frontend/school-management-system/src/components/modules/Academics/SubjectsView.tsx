@@ -407,7 +407,7 @@ export const SubjectsView: React.FC = () => {
       addToast('warning', 'Validation Warning', 'Designation Name is required.');
       return;
     }
-    if (editingDesignation) {
+    if (editingDesignation && !editingDesignation.id.toString().startsWith('static-')) {
       try {
         const res = await updateDesignationApi(editingDesignation.id, {
           designationName: desigFormData.designationName,
@@ -458,6 +458,11 @@ export const SubjectsView: React.FC = () => {
 
   const handleConfirmDeleteDesig = async () => {
     if (deletingDesignation) {
+      if (deletingDesignation.id.toString().startsWith('static-')) {
+        addToast('warning', 'System Designation', 'System/built-in designations cannot be deleted.');
+        setDeletingDesignation(null);
+        return;
+      }
       try {
         const res = await deleteDesignationApi(deletingDesignation.id);
         if (res && res.success) {
@@ -964,12 +969,12 @@ export const SubjectsView: React.FC = () => {
                       <tr><td colSpan={6} className="text-center py-8 text-slate-500 font-bold">No designations found.</td></tr>
                     ) : (
                       paginatedDesignations.map((desig, index) => {
-                        const desigStaff = (contextStaff || []).filter(st => {
-                          const dName = (desig.designationName || '').toLowerCase().trim();
-                          const sDesig = (st.designation || '').toLowerCase().trim();
-                          return sDesig === dName || (dName && (sDesig.includes(dName) || dName.includes(sDesig)));
-                        });
-                        const count = desigStaff.length;
+                         const desigStaff = (contextStaff || []).filter(st => {
+                           const dName = (desig.designationName || '').toLowerCase().trim();
+                           const sDesig = (st.designation || '').toLowerCase().trim();
+                           return sDesig === dName;
+                         });
+                         const count = desigStaff.length;
 
                         return (
                           <tr key={desig.id} className="text-slate-700 dark:text-white border-b border-slate-100 dark:border-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800/20">
@@ -1513,7 +1518,7 @@ export const SubjectsView: React.FC = () => {
                   if (viewingStaffDesig) {
                     const dName = (viewingStaffDesig.designationName || '').toLowerCase().trim();
                     const sDesig = (st.designation || '').toLowerCase().trim();
-                    return sDesig === dName || (dName && (sDesig.includes(dName) || dName.includes(sDesig)));
+                    return sDesig === dName;
                   }
                   return false;
                 }).filter(st => {
