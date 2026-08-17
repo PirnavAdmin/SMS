@@ -61,38 +61,14 @@ namespace SMS.Api.Controllers
 
                 if (result is null)
                 {
-                    long numericId = long.TryParse(routeIdOrCode, out long pId) ? pId : 1;
-                    return Ok(new TransportRouteDto
-                    {
-                        RouteId = numericId,
-                        RouteCode = $"R-0{numericId}",
-                        RouteName = "Route 1",
-                        StartLocation = "Main City",
-                        EndLocation = "School Campus",
-                        DistanceKm = 15,
-                        EstimatedDurationMinutes = 30,
-                        Status = "Active",
-                        StatusText = "Active"
-                    });
+                    return NotFound(new { success = false, message = "Transport route not found." });
                 }
 
                 return Ok(result);
             }
             catch
             {
-                long numericId = long.TryParse(routeIdOrCode, out long pId) ? pId : 1;
-                return Ok(new TransportRouteDto
-                {
-                    RouteId = numericId,
-                    RouteCode = $"R-0{numericId}",
-                    RouteName = "Route 1",
-                    StartLocation = "Main City",
-                    EndLocation = "School Campus",
-                    DistanceKm = 15,
-                    EstimatedDurationMinutes = 30,
-                    Status = "Active",
-                    StatusText = "Active"
-                });
+                return NotFound(new { success = false, message = "Transport route not found." });
             }
         }
 

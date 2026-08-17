@@ -160,20 +160,28 @@ namespace SMS.Api.Repositories.Implementations
             CreateTransportRouteDto dto,
             long? userId)
         {
-            var startLoc = !string.IsNullOrWhiteSpace(dto.StartLocation) ? dto.StartLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteStart) ? dto.RouteStart.Trim() : "Start Location");
-            var endLoc = !string.IsNullOrWhiteSpace(dto.EndLocation) ? dto.EndLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteEnd) ? dto.RouteEnd.Trim() : "End Location");
+            var rawCode = !string.IsNullOrWhiteSpace(dto.RouteCode) && !dto.RouteCode.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.RouteCode.Trim() : $"R-{Random.Shared.Next(100, 999)}";
+            var rawName = !string.IsNullOrWhiteSpace(dto.RouteName) && !dto.RouteName.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.RouteName.Trim() : "New Route";
+            var startLoc = !string.IsNullOrWhiteSpace(dto.StartLocation) && !dto.StartLocation.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.StartLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteStart) && !dto.RouteStart.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.RouteStart.Trim() : "Main City");
+            var endLoc = !string.IsNullOrWhiteSpace(dto.EndLocation) && !dto.EndLocation.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.EndLocation.Trim() : (!string.IsNullOrWhiteSpace(dto.RouteEnd) && !dto.RouteEnd.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.RouteEnd.Trim() : "School Campus");
+
+            bool codeExists = await _context.TransportRoutes.AnyAsync(r => r.RouteCode == rawCode && !r.IsDeleted);
+            if (codeExists)
+            {
+                rawCode = $"R-{Random.Shared.Next(1000, 9999)}";
+            }
 
             TransportRoute route = new()
             {
-                RouteCode = !string.IsNullOrWhiteSpace(dto.RouteCode) ? dto.RouteCode.Trim() : $"R-CODE-{Random.Shared.Next(100, 999)}",
-                RouteName = !string.IsNullOrWhiteSpace(dto.RouteName) ? dto.RouteName.Trim() : "New Route",
+                RouteCode = rawCode,
+                RouteName = rawName,
                 StartLocation = startLoc,
                 EndLocation = endLoc,
                 PickupPoint = startLoc,
                 DropPoint = endLoc,
-                DistanceKm = dto.DistanceKm > 0 ? dto.DistanceKm : (dto.TotalDistanceKm.HasValue ? dto.TotalDistanceKm.Value : 0),
+                DistanceKm = dto.DistanceKm > 0 ? dto.DistanceKm : (dto.TotalDistanceKm.HasValue ? dto.TotalDistanceKm.Value : 15),
                 EstimatedDurationMinutes = dto.EstimatedDurationMinutes > 0 ? dto.EstimatedDurationMinutes : (dto.EstimatedTimeMinutes.HasValue ? dto.EstimatedTimeMinutes.Value : 30),
-                Description = dto.Description?.Trim() ?? string.Empty,
+                Description = dto.Description != null && !dto.Description.Equals("string", StringComparison.OrdinalIgnoreCase) ? dto.Description.Trim() : string.Empty,
                 MinRangeKm = dto.MinRangeKm > 0 ? dto.MinRangeKm : 5,
                 NonAcBaseFare = dto.NonAcBaseFare > 0 ? dto.NonAcBaseFare : 1000,
                 NonAcRatePerKm = dto.NonAcRateAddlKm > 0 ? dto.NonAcRateAddlKm : (dto.NonAcRatePerKm.HasValue ? dto.NonAcRatePerKm.Value : 100),
