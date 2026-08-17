@@ -466,47 +466,6 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     setIsGenerating(true);
 
     try {
-      const payload = {
-        schoolStartTime,
-        schoolEndTime,
-        periodDurationMinutes: Number(periodDurationMinutes),
-        breaks: breaks
-          .filter(b => b.enabled)
-          .map(b => ({
-            name: b.name,
-            durationMinutes: Number(b.durationMinutes),
-            afterPeriod: Number(b.afterPeriod),
-            type: (b.type as string) === 'Teaching' ? 'Teaching' : ((b.type as string) === 'Lunch' ? 'Lunch' : ((b.type as string) === 'Assembly' ? 'Assembly' : 'Break'))
-          })),
-        workingDays,
-        selectedClassSections,
-        academicYear
-      };
-
-      const res = await generateTimetableApi(payload);
-      if (res && res.success) {
-        addToast(
-          'success',
-          'Auto-Generation Complete! 🎉',
-          res.message || 'Timetable generated successfully and saved as Draft.'
-        );
-        if (onSuccess) onSuccess();
-        onClose();
-      } else {
-        addToast('error', 'Generation Failed', res?.message || 'Failed to auto-generate timetable.');
-      }
-    } catch (err: any) {
-      console.error('Error generating auto timetable:', err);
-      addToast('error', 'Generation Error', err.message || 'Failed to generate timetable slots.');
-    } finally {
-      setIsGenerating(false);
-    }
-
-    /*
-    // =========================================================================
-    // ORIGINAL GREEDY SOLVER ALGORITHM (PRESERVED FOR REFERENCE)
-    // =========================================================================
-    try {
       // 1. Add New Master Period Settings
       for (const p of calculationResult.periods) {
         addPeriodSetting({
@@ -632,9 +591,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
                   const isBusy = teacherBusySchedule.get(candidateTeacher)?.has(`${day}_${timeSlotStr}`);
                   if (!isBusy) {
-                    selectedSub = candidate;
-                    subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.length;
-                    break;
+                     selectedSub = candidate;
+                     subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.length;
+                     break;
                   }
                 }
 
@@ -688,13 +647,12 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
       if (onSuccess) onSuccess();
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating auto timetable:', err);
-      addToast('error', 'Generation Error', 'Failed to generate timetable slots.');
+      addToast('error', 'Generation Error', err.message || 'Failed to generate timetable slots.');
     } finally {
       setIsGenerating(false);
     }
-    */
   };
 
   if (!isOpen) return null;

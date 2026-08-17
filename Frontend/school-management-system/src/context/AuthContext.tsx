@@ -45,7 +45,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(() => {
     try {
       const saved = localStorage.getItem('auth_user');
-      return saved ? JSON.parse(saved) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.name === 'Administrator' || !parsed.name) && parsed.email && parsed.email.includes('@')) {
+          const parts = parsed.email.split('@')[0].split('.');
+          parsed.name = parts.map((p: any) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+          localStorage.setItem('auth_user', JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+      return null;
     } catch {
       localStorage.removeItem('auth_user');
       return null;
@@ -110,7 +119,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
+      let userName = response?.fullName || emailOrPhone.split('@')[0] || 'User';
+      if (userName === 'Administrator' && emailOrPhone.includes('@')) {
+        const parts = emailOrPhone.split('@')[0].split('.');
+        userName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+      }
       const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
 
       const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];

@@ -341,6 +341,7 @@ export const DriverMasterView: React.FC = () => {
                     if (selected) {
                       setForm(prev => ({
                         ...prev,
+                        employeeId: selected.empId || prev.employeeId,
                         driverName: `${selected.firstName} ${selected.lastName}`.trim(),
                         mobileNumber: selected.phone || prev.mobileNumber,
                         email: selected.email || prev.email,

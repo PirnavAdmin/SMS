@@ -1,5 +1,14 @@
 import { apiClient } from './client';
 import { RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, StudentTransport, VehicleMaintenance } from '../types';
+import { 
+  initialRouteMasters, 
+  initialPickupPoints, 
+  initialVehicleMasters, 
+  initialDriverMasters, 
+  initialVehicleAssignments, 
+  initialStudentTransports, 
+  initialVehicleMaintenances 
+} from '../services/mockData';
 
 // Testing Mode Helper: Safely try real API, fallback to local testing mock state if backend is offline/unreachable
 const safeTransportApiCall = async <T>(endpoint: string, options?: RequestInit, fallbackData?: any): Promise<T> => {
@@ -14,14 +23,31 @@ const safeTransportApiCall = async <T>(endpoint: string, options?: RequestInit, 
   return fallbackData as T;
 };
 
-// In-Memory Testing Store
-let localRoutes: RouteMaster[] = [];
-let localPickupPoints: PickupPoint[] = [];
-let localVehicles: VehicleMaster[] = [];
-let localDrivers: DriverMaster[] = [];
-let localVehicleAssignments: VehicleAssignment[] = [];
-let localStudentAssignments: StudentTransport[] = [];
-let localMaintenance: VehicleMaintenance[] = [];
+const getStoredMock = <T>(key: string, fallback: T): T => {
+  try {
+    const saved = localStorage.getItem(`edu_db_${key}`);
+    return saved ? JSON.parse(saved) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const setStoredMock = (key: string, data: any) => {
+  try {
+    localStorage.setItem(`edu_db_${key}`, JSON.stringify(data));
+  } catch (err) {
+    console.error(`Failed to save edu_db_${key} to localStorage`, err);
+  }
+};
+
+// Persisted Mock Testing Store
+let localRoutes: RouteMaster[] = getStoredMock('route_masters', initialRouteMasters);
+let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', initialPickupPoints);
+let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', initialVehicleMasters);
+let localDrivers: DriverMaster[] = getStoredMock('driver_masters', initialDriverMasters);
+let localVehicleAssignments: VehicleAssignment[] = getStoredMock('vehicle_assignments', initialVehicleAssignments);
+let localStudentAssignments: StudentTransport[] = getStoredMock('student_transports', initialStudentTransports);
+let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', initialVehicleMaintenances);
 
 // --- Routes ---
 export const fetchRoutesApi = async (): Promise<RouteMaster[]> => {
@@ -45,6 +71,7 @@ export const createRouteApi = async (data: Partial<RouteMaster>): Promise<RouteM
     description: data.description || ''
   } as RouteMaster;
   localRoutes.push(newRoute);
+  setStoredMock('route_masters', localRoutes);
 
   return safeTransportApiCall<RouteMaster>(
     '/api/transport/routes',
@@ -57,6 +84,7 @@ export const updateRouteApi = async (id: string, data: Partial<RouteMaster>): Pr
   const idx = localRoutes.findIndex(r => String(r.id) === id);
   if (idx !== -1) {
     localRoutes[idx] = { ...localRoutes[idx], ...data };
+    setStoredMock('route_masters', localRoutes);
   }
   const updated = localRoutes[idx] || (data as RouteMaster);
 
@@ -69,6 +97,7 @@ export const updateRouteApi = async (id: string, data: Partial<RouteMaster>): Pr
 
 export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> => {
   localRoutes = localRoutes.filter(r => String(r.id) !== id);
+  setStoredMock('route_masters', localRoutes);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/routes/${id}`,
     { method: 'DELETE' },
@@ -97,6 +126,7 @@ export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<
     status: data.status || 'Active'
   } as PickupPoint;
   localPickupPoints.push(newPoint);
+  setStoredMock('pickup_points', localPickupPoints);
 
   return safeTransportApiCall<PickupPoint>(
     '/api/transport/pickup-points',
@@ -109,6 +139,7 @@ export const updatePickupPointApi = async (id: string, data: Partial<PickupPoint
   const idx = localPickupPoints.findIndex(p => String(p.id) === id);
   if (idx !== -1) {
     localPickupPoints[idx] = { ...localPickupPoints[idx], ...data };
+    setStoredMock('pickup_points', localPickupPoints);
   }
   const updated = localPickupPoints[idx] || (data as PickupPoint);
 
@@ -121,6 +152,7 @@ export const updatePickupPointApi = async (id: string, data: Partial<PickupPoint
 
 export const deletePickupPointApi = async (id: string): Promise<{ success: boolean }> => {
   localPickupPoints = localPickupPoints.filter(p => String(p.id) !== id);
+  setStoredMock('pickup_points', localPickupPoints);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/pickup-points/${id}`,
     { method: 'DELETE' },
@@ -147,6 +179,7 @@ export const createVehicleApi = async (data: Partial<VehicleMaster>): Promise<Ve
     status: data.status || 'Active'
   } as VehicleMaster;
   localVehicles.push(newVehicle);
+  setStoredMock('vehicle_masters', localVehicles);
 
   return safeTransportApiCall<VehicleMaster>(
     '/api/transport/vehicles',
@@ -159,6 +192,7 @@ export const updateVehicleApi = async (id: string, data: Partial<VehicleMaster>)
   const idx = localVehicles.findIndex(v => String(v.id) === id);
   if (idx !== -1) {
     localVehicles[idx] = { ...localVehicles[idx], ...data };
+    setStoredMock('vehicle_masters', localVehicles);
   }
   const updated = localVehicles[idx] || (data as VehicleMaster);
 
@@ -171,6 +205,7 @@ export const updateVehicleApi = async (id: string, data: Partial<VehicleMaster>)
 
 export const deleteVehicleApi = async (id: string): Promise<{ success: boolean }> => {
   localVehicles = localVehicles.filter(v => String(v.id) !== id);
+  setStoredMock('vehicle_masters', localVehicles);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/vehicles/${id}`,
     { method: 'DELETE' },
@@ -197,6 +232,7 @@ export const createDriverApi = async (data: Partial<DriverMaster>): Promise<Driv
     status: data.status || 'Active'
   } as DriverMaster;
   localDrivers.push(newDriver);
+  setStoredMock('driver_masters', localDrivers);
 
   return safeTransportApiCall<DriverMaster>(
     '/api/transport/drivers',
@@ -209,6 +245,7 @@ export const updateDriverApi = async (id: string, data: Partial<DriverMaster>): 
   const idx = localDrivers.findIndex(d => String(d.id) === id);
   if (idx !== -1) {
     localDrivers[idx] = { ...localDrivers[idx], ...data };
+    setStoredMock('driver_masters', localDrivers);
   }
   const updated = localDrivers[idx] || (data as DriverMaster);
 
@@ -221,6 +258,7 @@ export const updateDriverApi = async (id: string, data: Partial<DriverMaster>): 
 
 export const deleteDriverApi = async (id: string): Promise<{ success: boolean }> => {
   localDrivers = localDrivers.filter(d => String(d.id) !== id);
+  setStoredMock('driver_masters', localDrivers);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/drivers/${id}`,
     { method: 'DELETE' },
@@ -247,6 +285,7 @@ export const createVehicleAssignmentApi = async (data: Partial<VehicleAssignment
     status: data.status || 'Active'
   } as VehicleAssignment;
   localVehicleAssignments.push(newAssign);
+  setStoredMock('vehicle_assignments', localVehicleAssignments);
 
   return safeTransportApiCall<VehicleAssignment>(
     '/api/transport/vehicle-assignments',
@@ -259,6 +298,7 @@ export const updateVehicleAssignmentApi = async (id: string, data: Partial<Vehic
   const idx = localVehicleAssignments.findIndex(a => String(a.id) === id);
   if (idx !== -1) {
     localVehicleAssignments[idx] = { ...localVehicleAssignments[idx], ...data };
+    setStoredMock('vehicle_assignments', localVehicleAssignments);
   }
   const updated = localVehicleAssignments[idx] || (data as VehicleAssignment);
 
@@ -271,6 +311,7 @@ export const updateVehicleAssignmentApi = async (id: string, data: Partial<Vehic
 
 export const deleteVehicleAssignmentApi = async (id: string): Promise<{ success: boolean }> => {
   localVehicleAssignments = localVehicleAssignments.filter(a => String(a.id) !== id);
+  setStoredMock('vehicle_assignments', localVehicleAssignments);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/vehicle-assignments/${id}`,
     { method: 'DELETE' },
@@ -298,6 +339,7 @@ export const createStudentAssignmentApi = async (data: Partial<StudentTransport>
     status: data.status || 'Active'
   } as StudentTransport;
   localStudentAssignments.push(newSt);
+  setStoredMock('student_transports', localStudentAssignments);
 
   return safeTransportApiCall<StudentTransport>(
     '/api/transport/student-assignments',
@@ -310,6 +352,7 @@ export const updateStudentAssignmentApi = async (id: string, data: Partial<Stude
   const idx = localStudentAssignments.findIndex(s => String(s.id) === id);
   if (idx !== -1) {
     localStudentAssignments[idx] = { ...localStudentAssignments[idx], ...data };
+    setStoredMock('student_transports', localStudentAssignments);
   }
   const updated = localStudentAssignments[idx] || (data as StudentTransport);
 
@@ -322,6 +365,7 @@ export const updateStudentAssignmentApi = async (id: string, data: Partial<Stude
 
 export const deleteStudentAssignmentApi = async (id: string): Promise<{ success: boolean }> => {
   localStudentAssignments = localStudentAssignments.filter(s => String(s.id) !== id);
+  setStoredMock('student_transports', localStudentAssignments);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/student-assignments/${id}`,
     { method: 'DELETE' },
@@ -349,6 +393,7 @@ export const createMaintenanceApi = async (data: Partial<VehicleMaintenance>): P
     status: data.status || 'Completed'
   } as VehicleMaintenance;
   localMaintenance.push(newM);
+  setStoredMock('vehicle_maintenances', localMaintenance);
 
   return safeTransportApiCall<VehicleMaintenance>(
     '/api/transport/vehicle-maintenance',
@@ -361,6 +406,7 @@ export const updateMaintenanceApi = async (id: string, data: Partial<VehicleMain
   const idx = localMaintenance.findIndex(m => String(m.id) === id);
   if (idx !== -1) {
     localMaintenance[idx] = { ...localMaintenance[idx], ...data };
+    setStoredMock('vehicle_maintenances', localMaintenance);
   }
   const updated = localMaintenance[idx] || (data as VehicleMaintenance);
 
@@ -373,6 +419,7 @@ export const updateMaintenanceApi = async (id: string, data: Partial<VehicleMain
 
 export const deleteMaintenanceApi = async (id: string): Promise<{ success: boolean }> => {
   localMaintenance = localMaintenance.filter(m => String(m.id) !== id);
+  setStoredMock('vehicle_maintenances', localMaintenance);
   return safeTransportApiCall<{ success: boolean }>(
     `/api/transport/vehicle-maintenance/${id}`,
     { method: 'DELETE' },
