@@ -85,6 +85,7 @@ public class SchoolService : ISchoolService
 			DepartmentCode = dto.DepartmentCode?.Trim(),
 			Description = dto.Description?.Trim(),
 			Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
+			HeadOfDepartment = dto.HeadOfDepartment?.Trim(),
 			CreatedDate = System.DateTime.UtcNow
 		};
 
@@ -105,6 +106,7 @@ public class SchoolService : ISchoolService
 		dept.DepartmentCode = dto.DepartmentCode?.Trim();
 		dept.Description = dto.Description?.Trim();
 		dept.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
+		dept.HeadOfDepartment = dto.HeadOfDepartment?.Trim();
 
 		await _schoolRepository.SaveChangesAsync();
 		return MapToDepartmentDto(dept);
@@ -122,6 +124,7 @@ public class SchoolService : ISchoolService
 		dept.DepartmentCode = dto.DepartmentCode?.Trim();
 		dept.Description = dto.Description?.Trim();
 		dept.Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim();
+		dept.HeadOfDepartment = dto.HeadOfDepartment?.Trim();
 
 		await _schoolRepository.SaveChangesAsync();
 		return MapToDepartmentDto(dept);
@@ -166,6 +169,7 @@ public class SchoolService : ISchoolService
 		DepartmentCode = d.DepartmentCode,
 		Description = d.Description,
 		Status = d.Status,
+		HeadOfDepartment = d.HeadOfDepartment,
 		CreatedDate = d.CreatedDate,
 		NumberOfSubjects = d.Subjects?.Count ?? 0
 	};
@@ -701,6 +705,25 @@ public class SchoolService : ISchoolService
 	public async Task<AdmissionApplicationResponseDto> SubmitApplicationAsync(SubmitAdmissionDto dto)
 	{
 		int targetClassId = dto.AppliedClassId;
+		if (targetClassId <= 0 && !string.IsNullOrWhiteSpace(dto.AppliedClass))
+		{
+			if (dto.AppliedClass.StartsWith("CL-", StringComparison.OrdinalIgnoreCase) && 
+				int.TryParse(dto.AppliedClass.Substring(3), out var parsedId))
+			{
+				targetClassId = parsedId;
+			}
+			else
+			{
+				var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => 
+					c.ClassName == dto.AppliedClass || 
+					c.ClassName.ToLower() == dto.AppliedClass.ToLower());
+				if (matchedClass != null)
+				{
+					targetClassId = matchedClass.ClassId;
+				}
+			}
+		}
+
 		if (targetClassId > 0)
 		{
 			var existingClass = await _schoolRepository.GetClassGradeByIdAsync(targetClassId);
@@ -813,7 +836,26 @@ public class SchoolService : ISchoolService
 		app.FirstName = dto.FirstName ?? app.FirstName;
 		app.LastName = dto.LastName ?? app.LastName;
 		app.Gender = dto.Gender;
-		if (dto.AppliedClassId > 0) app.AppliedClassId = dto.AppliedClassId;
+		int targetClassId = dto.AppliedClassId;
+		if (targetClassId <= 0 && !string.IsNullOrWhiteSpace(dto.AppliedClass))
+		{
+			if (dto.AppliedClass.StartsWith("CL-", StringComparison.OrdinalIgnoreCase) && 
+				int.TryParse(dto.AppliedClass.Substring(3), out var parsedId))
+			{
+				targetClassId = parsedId;
+			}
+			else
+			{
+				var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => 
+					c.ClassName == dto.AppliedClass || 
+					c.ClassName.ToLower() == dto.AppliedClass.ToLower());
+				if (matchedClass != null)
+				{
+					targetClassId = matchedClass.ClassId;
+				}
+			}
+		}
+		if (targetClassId > 0) app.AppliedClassId = targetClassId;
 		app.BranchName = dto.BranchName;
 		if (!string.IsNullOrWhiteSpace(dto.StudentType)) app.StudentType = dto.StudentType;
 		app.BloodGroup = dto.BloodGroup;
@@ -962,7 +1004,7 @@ public class SchoolService : ISchoolService
 		ProfilePhotoUrl = a.ProfilePhotoUrl,
 		FirstName = a.FirstName ?? "",
 		LastName = a.LastName ?? "",
-		DateOfBirth = a.DateOfBirth?.ToString("yyyy-MM-dd"),
+		DateOfBirth = a.DateOfBirth?.ToString("yyyy-MM-ddTHH:mm:ssZ"),
 		Gender = a.Gender ?? "",
 		AppliedClassGrade = a.AppliedClass != null ? a.AppliedClass.ClassName ?? "N/A" : "N/A",
 		BranchName = a.BranchName ?? "",
@@ -996,20 +1038,21 @@ public class SchoolService : ISchoolService
 		AvailableBed = a.AvailableBed,
 		Scholarship = a.Scholarship,
 		Discount = a.Discount,
-		Status = a.Status ?? ""
+		Status = a.Status ?? "",
+		CreatedAt = a.CreatedAt
 	};
 
 	private async Task SyncHostelAllocationAsync(AdmissionApplication app)
 	{
 		try
 		{
-			if (string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
-				!string.IsNullOrWhiteSpace(app.HostelBlock) ||
-				!string.IsNullOrWhiteSpace(app.HostelRoom))
+			if (string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
 			{
-				string blockName = !string.IsNullOrWhiteSpace(app.HostelBlock) ? app.HostelBlock : "Main Block";
-				string roomNo = !string.IsNullOrWhiteSpace(app.HostelRoom) ? app.HostelRoom : "Room 101";
-				string bedNo = !string.IsNullOrWhiteSpace(app.AllocatedBedId) ? app.AllocatedBedId : (!string.IsNullOrWhiteSpace(app.AvailableBed) ? app.AvailableBed : "Bed-1");
+				string blockName = !string.IsNullOrWhiteSpace(app.HostelBlock) && app.HostelBlock != "N/A" ? app.HostelBlock : "Main Block";
+				string roomNo = !string.IsNullOrWhiteSpace(app.HostelRoom) && app.HostelRoom != "N/A" ? app.HostelRoom : "Room 101";
+				string bedNo = !string.IsNullOrWhiteSpace(app.AllocatedBedId) && app.AllocatedBedId != "N/A" 
+					? app.AllocatedBedId 
+					: (!string.IsNullOrWhiteSpace(app.AvailableBed) && app.AvailableBed != "N/A" ? app.AvailableBed : "Bed-1");
 
 				var block = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
 					_context.HostelBlocks, b => b.HostelName == blockName && b.Status == "Active");
@@ -1072,6 +1115,17 @@ public class SchoolService : ISchoolService
 				}
 
 				await _context.SaveChangesAsync();
+			}
+			else
+			{
+				var existingAllocation = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.FirstOrDefaultAsync(
+					_context.StudentBedAllocations, a => a.StudentId == app.Id && a.Status == "Active");
+
+				if (existingAllocation != null)
+				{
+					existingAllocation.Status = "Inactive";
+					await _context.SaveChangesAsync();
+				}
 			}
 		}
 		catch (Exception ex)

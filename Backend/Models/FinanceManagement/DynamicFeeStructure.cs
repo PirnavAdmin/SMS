@@ -15,4 +15,5 @@ public class DynamicFeeStructure
     public string StudentCategory { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Active";
+    public string? ItemsJson { get; set; }
 }

@@ -476,6 +476,10 @@ namespace SMS.Api.Data
                     .HasMaxLength(20)
                     .HasDefaultValue("Active");
 
+                entity.Property(x => x.HeadOfDepartment)
+                    .HasColumnName("HeadOfDepartment")
+                    .HasMaxLength(150);
+
                 entity.HasIndex(x => x.DepartmentCode)
                     .IsUnique();
             });
@@ -621,8 +625,8 @@ namespace SMS.Api.Data
                 entity.Property(x => x.Role).HasColumnName("role").IsRequired().HasMaxLength(50);
                 entity.Property(x => x.Status).HasColumnName("status").IsRequired().HasMaxLength(50).HasDefaultValue("Active");
 
-                entity.HasIndex(x => new { x.ClassId, x.SectionLetter, x.Role })
-                    .HasDatabaseName("ux_teacher_assignments_class_sec_role")
+                entity.HasIndex(x => new { x.ClassId, x.SectionLetter, x.SubjectId, x.Role })
+                    .HasDatabaseName("ux_teacher_assignments_class_sec_subj_role")
                     .IsUnique();
 
                 entity.HasOne(x => x.ClassGrade)
@@ -1116,6 +1120,16 @@ namespace SMS.Api.Data
             modelBuilder.Entity<RoomTypeConfig>().ToTable("room_type_configs");
             modelBuilder.Entity<RoomMaster>().ToTable("room_masters");
             modelBuilder.Entity<TransportAttendant>().ToTable("transport_attendants");
+
+            // Finance Management mappings
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeHead>().ToTable("feeheads");
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.DynamicFeeStructure>(entity =>
+            {
+                entity.ToTable("dynamicfeestructures");
+                entity.Property(x => x.ItemsJson).HasColumnName("items_json");
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentFeeAssignment>().ToTable("studentfeeassignments");
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeePayment>().ToTable("feepayments");
         }
         private static void ConfigureAcademicYear(ModelBuilder modelBuilder)
         {

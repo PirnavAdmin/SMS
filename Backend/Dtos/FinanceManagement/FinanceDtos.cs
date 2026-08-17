@@ -26,6 +26,15 @@ public class DynamicFeeStructureDto
     public string StudentCategory { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Active";
+    public System.Collections.Generic.List<FeeStructureItemDto> Items { get; set; } = new();
+}
+
+public class FeeStructureItemDto
+{
+    public int FeeHeadId { get; set; }
+    public string FeeHeadName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
 }
 
 public class StudentFeeAssignmentDto

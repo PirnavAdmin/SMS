@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -11,10 +12,10 @@ public class Admission
     public long AdmissionId { get; set; }
 
     [Column("application_no")]
-    public string ApplicationNo { get; set; } = string.Empty;
+    public string? ApplicationNo { get; set; }
 
     [Column("student_name")]
-    public string StudentName { get; set; } = string.Empty;
+    public string? StudentName { get; set; }
 
     [Column("dob")]
     public DateTime? Dob { get; set; }
@@ -50,7 +51,7 @@ public class Admission
     public string? AdmissionType { get; set; } = "Regular";
 
     [Column("status")]
-    public string Status { get; set; } = "Pending";
+    public string? Status { get; set; } = "Pending";
 
     [Column("is_deleted")]
     public bool IsDeleted { get; set; }

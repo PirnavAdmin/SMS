@@ -495,7 +495,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [dobError, setDobError] = useState("");
   const [photoError, setPhotoError] = useState("");
 
-  const classOptions = academicClasses.map((cls) => cls.name);
+  const classOptions = (academicClasses || []).map((cls) => cls.name || cls.className || "");
 
   const handleAltPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -513,42 +513,56 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   // Multi-filter filtering
-  const filteredAdmissions = admissions.filter((a) => {
+  const filteredAdmissions = (admissions || []).filter((a) => {
+    if (!a) return false;
+    const applicantName = a.applicantName || "";
+    const applicationNo = a.applicationNo || "";
+    const parentName = a.parentName || "";
+    const appliedClass = a.appliedClass || "";
+    const status = a.status || "";
+
     const matchQuery =
-      a.applicantName.toLowerCase().includes(query.toLowerCase()) ||
-      a.applicationNo.toLowerCase().includes(query.toLowerCase()) ||
-      a.parentName.toLowerCase().includes(query.toLowerCase());
-    const matchClass = filterClass === "All" || a.appliedClass === filterClass;
+      applicantName.toLowerCase().includes((query || "").toLowerCase()) ||
+      applicationNo.toLowerCase().includes((query || "").toLowerCase()) ||
+      parentName.toLowerCase().includes((query || "").toLowerCase());
+    const matchClass = filterClass === "All" || appliedClass === filterClass;
     const matchStatus =
       filterStatus === "All" ||
-      (a.status || "").toLowerCase() === filterStatus.toLowerCase();
+      status.toLowerCase() === (filterStatus || "").toLowerCase();
     return matchQuery && matchClass && matchStatus;
   });
 
   const sortedAdmissions = [...filteredAdmissions].sort((a, b) => {
+    const regA = a.applicationNo || "";
+    const regB = b.applicationNo || "";
+    const nameA = a.applicantName || "";
+    const nameB = b.applicantName || "";
+    const classA = a.appliedClass || "";
+    const classB = b.appliedClass || "";
+
     if (sortBy === "regAsc") {
-      return a.applicationNo.localeCompare(b.applicationNo, undefined, {
+      return regA.localeCompare(regB, undefined, {
         numeric: true,
       });
     }
     if (sortBy === "regDesc") {
-      return b.applicationNo.localeCompare(a.applicationNo, undefined, {
+      return regB.localeCompare(regA, undefined, {
         numeric: true,
       });
     }
     if (sortBy === "nameAsc") {
-      return a.applicantName.localeCompare(b.applicantName);
+      return nameA.localeCompare(nameB);
     }
     if (sortBy === "nameDesc") {
-      return b.applicantName.localeCompare(a.applicantName);
+      return nameB.localeCompare(nameA);
     }
     if (sortBy === "classAsc") {
-      return a.appliedClass.localeCompare(b.appliedClass, undefined, {
+      return classA.localeCompare(classB, undefined, {
         numeric: true,
       });
     }
     if (sortBy === "classDesc") {
-      return b.appliedClass.localeCompare(a.appliedClass, undefined, {
+      return classB.localeCompare(classA, undefined, {
         numeric: true,
       });
     }
@@ -2385,13 +2399,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                         a.bedNumber === bed &&
                                         a.status === "Active",
                                     ) ||
-                                    admissions.some(
+                                    (admissions || []).some(
                                       (app) =>
-                                        app.hostelRoom ===
+                                        app?.hostelRoom ===
                                           formData.hostelRoom &&
-                                        app.hostelBed === bed &&
-                                        app.status === "Pending" &&
-                                        app.id !== editingApp?.id,
+                                        app?.hostelBed === bed &&
+                                        app?.status === "Pending" &&
+                                        app?.id !== editingApp?.id,
                                     );
                                   return (
                                     <option
@@ -2748,7 +2762,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Classes</option>
-              {Array.from(new Set(admissions.map((a) => a.appliedClass)))
+              {Array.from(new Set((admissions || []).map((a) => a?.appliedClass || "")))
+                .filter(Boolean)
                 .sort()
                 .map((c) => (
                   <option key={c} value={c}>
@@ -2773,12 +2788,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                   "Pending",
                   "Enrolled",
                   "Rejected",
-                  ...admissions.map((a) => {
-                    const s = (a.status || "Pending").trim();
+                  ...(admissions || []).map((a) => {
+                    const s = (a?.status || "Pending").trim();
                     return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
                   }),
                 ]),
               )
+                .filter(Boolean)
                 .filter((s) => s !== "Deleted")
                 .sort()
                 .map((s) => (

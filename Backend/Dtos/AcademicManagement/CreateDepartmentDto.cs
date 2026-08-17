@@ -17,5 +17,8 @@ namespace SMS.Api.Dtos.AcademicManagement
         [Required(ErrorMessage = "Status is required.")]
         [MaxLength(20)]
         public string Status { get; set; } = "Active";
+
+        [MaxLength(150)]
+        public string? HeadOfDepartment { get; set; }
     }
 }

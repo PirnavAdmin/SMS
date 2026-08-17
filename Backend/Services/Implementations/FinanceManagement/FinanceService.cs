@@ -17,8 +17,48 @@ public class FinanceService : IFinanceService
     public async Task<FeeHeadDto> UpdateFeeHeadAsync(int id, FeeHeadDto dto) { var model = new FeeHead { Id = id, Name = dto.Name, Description = dto.Description, Frequency = dto.Frequency, DefaultAmount = dto.DefaultAmount, IsRefundable = dto.IsRefundable, IsTaxable = dto.IsTaxable, Category = dto.Category, Status = dto.Status }; await _repo.UpdateFeeHeadAsync(model); dto.Id = id; return dto; }
     public async Task DeleteFeeHeadAsync(int id) { await _repo.DeleteFeeHeadAsync(id); }
     
-    public async Task<IEnumerable<DynamicFeeStructureDto>> GetDynamicFeeStructuresAsync() { var list = await _repo.GetDynamicFeeStructuresAsync(); return list.Select(x => new DynamicFeeStructureDto { Id = x.Id, Name = x.Name, Description = x.Description, TargetAudience = x.TargetAudience, AcademicYear = x.AcademicYear, Branch = x.Branch, ClassName = x.ClassName, Section = x.Section, StudentCategory = x.StudentCategory, TotalAmount = x.TotalAmount, Status = x.Status }); }
-    public async Task<DynamicFeeStructureDto> CreateDynamicFeeStructureAsync(DynamicFeeStructureDto dto) { var model = new DynamicFeeStructure { Name = dto.Name, Description = dto.Description, TargetAudience = dto.TargetAudience, AcademicYear = dto.AcademicYear, Branch = dto.Branch, ClassName = dto.ClassName, Section = dto.Section, StudentCategory = dto.StudentCategory, TotalAmount = dto.TotalAmount, Status = dto.Status }; var res = await _repo.CreateDynamicFeeStructureAsync(model); dto.Id = res.Id; return dto; }
+    public async Task<IEnumerable<DynamicFeeStructureDto>> GetDynamicFeeStructuresAsync()
+    {
+        var list = await _repo.GetDynamicFeeStructuresAsync();
+        return list.Select(x => new DynamicFeeStructureDto
+        {
+            Id = x.Id,
+            Name = x.Name,
+            Description = x.Description,
+            TargetAudience = x.TargetAudience,
+            AcademicYear = x.AcademicYear,
+            Branch = x.Branch,
+            ClassName = x.ClassName,
+            Section = x.Section,
+            StudentCategory = x.StudentCategory,
+            TotalAmount = x.TotalAmount,
+            Status = x.Status,
+            Items = string.IsNullOrEmpty(x.ItemsJson) 
+                ? new List<FeeStructureItemDto>() 
+                : System.Text.Json.JsonSerializer.Deserialize<List<FeeStructureItemDto>>(x.ItemsJson) ?? new List<FeeStructureItemDto>()
+        });
+    }
+
+    public async Task<DynamicFeeStructureDto> CreateDynamicFeeStructureAsync(DynamicFeeStructureDto dto)
+    {
+        var model = new DynamicFeeStructure
+        {
+            Name = dto.Name,
+            Description = dto.Description,
+            TargetAudience = dto.TargetAudience,
+            AcademicYear = dto.AcademicYear,
+            Branch = dto.Branch,
+            ClassName = dto.ClassName,
+            Section = dto.Section,
+            StudentCategory = dto.StudentCategory,
+            TotalAmount = dto.TotalAmount,
+            Status = dto.Status,
+            ItemsJson = System.Text.Json.JsonSerializer.Serialize(dto.Items)
+        };
+        var res = await _repo.CreateDynamicFeeStructureAsync(model);
+        dto.Id = res.Id;
+        return dto;
+    }
     
     public async Task<IEnumerable<StudentFeeAssignmentDto>> GetStudentFeeAssignmentsAsync() { var list = await _repo.GetStudentFeeAssignmentsAsync(); return list.Select(x => new StudentFeeAssignmentDto { Id = x.Id, StudentId = x.StudentId, DynamicFeeStructureId = x.DynamicFeeStructureId, TotalAmount = x.TotalAmount, PaidAmount = x.PaidAmount, DueAmount = x.DueAmount, Status = x.Status, FeePolicy = x.FeePolicy }); }
     public async Task<StudentFeeAssignmentDto> CreateStudentFeeAssignmentAsync(StudentFeeAssignmentDto dto) { var model = new StudentFeeAssignment { StudentId = dto.StudentId, DynamicFeeStructureId = dto.DynamicFeeStructureId, TotalAmount = dto.TotalAmount, PaidAmount = dto.PaidAmount, DueAmount = dto.DueAmount, Status = dto.Status, FeePolicy = dto.FeePolicy }; var res = await _repo.CreateStudentFeeAssignmentAsync(model); dto.Id = res.Id; return dto; }

@@ -100,7 +100,11 @@ namespace SMS.Api.Controllers.AcademicManagement
                         ClassTeacherName = classTeacherAssign != null
                             ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
                             : null,
-                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId
+                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
+                        Capacity = s.Capacity,
+                        Status = s.Status,
+                        Remarks = s.Remarks,
+                        RoomNo = s.RoomNo
                     };
                 }).ToList(),
                 CurriculumSubjects = c.SubjectMappings.Select(sm => new SubjectDto
@@ -151,7 +155,11 @@ namespace SMS.Api.Controllers.AcademicManagement
                         ClassTeacherName = classTeacherAssign != null
                             ? $"{classTeacherAssign.Teacher.FirstName} {classTeacherAssign.Teacher.LastName}"
                             : null,
-                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId
+                        EmployeeId = classTeacherAssign?.Teacher?.EmployeeId,
+                        Capacity = s.Capacity,
+                        Status = s.Status,
+                        Remarks = s.Remarks,
+                        RoomNo = s.RoomNo
                     };
                 }).ToList(),
                 CurriculumSubjects = classObj.SubjectMappings.Select(sm => new SubjectDto
@@ -767,7 +775,7 @@ await transaction.CommitAsync();
                     FirstName = fName,
                     LastName = lName,
                     Gender = s.Gender ?? "Male",
-                    Dob = s.Dob?.ToString("yyyy-MM-dd") ?? "",
+                    Dob = s.Dob?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "",
                     ClassName = classObj.ClassName ?? "",
                     Section = s.SectionLetter ?? "",
                     FatherName = s.FatherName ?? "",

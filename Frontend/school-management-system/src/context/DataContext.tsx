@@ -2663,6 +2663,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [studentFeeAssignments, setStudentFeeAssignments] = useState<
     StudentFeeAssignment[]
   >(() => getStored("student_fee_assignments", initialStudentFeeAssignments));
+
+  const [dbAssignments, setDbAssignments] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!dbAssignments.length) return;
+    const mapped = dbAssignments.map((a) => {
+      const student = students.find((s) => s.id === a.studentId?.toString() || s.admissionNo === a.studentId);
+      const dfs = dynamicFeeStructures.find((d) => d.id === a.dynamicFeeStructureId?.toString() || d.id === a.feeStructureId);
+      return {
+        id: a.id?.toString() || a.id || "",
+        studentId: a.studentId || "",
+        studentName: student?.studentName || (student ? `${student.firstName} ${student.lastName}` : "") || a.studentName || "",
+        admissionNo: student?.admissionNo || a.admissionNo || a.studentId || "",
+        branch: student?.branch || a.branch || "Main Campus",
+        academicYear: student?.academicYear || a.academicYear || "2026-2027",
+        className: student?.className || a.className || "",
+        section: student?.section || a.section || "",
+        feeStructureId: a.dynamicFeeStructureId?.toString() || a.feeStructureId || "",
+        assignedFeeHeads: dfs?.items || a.assignedFeeHeads || [],
+        baseFeeTotal: a.totalAmount ?? a.baseFeeTotal ?? dfs?.totalAmount ?? 0,
+        originalFeeTotal: a.totalAmount ?? a.originalFeeTotal ?? dfs?.totalAmount ?? 0,
+        adjustmentTotal: a.adjustmentTotal || 0,
+        feePolicy: (a.feePolicy || "Full Annual Fee") as any,
+        assignedDate: a.assignedDate || new Date().toISOString(),
+        status: a.status || "Active"
+      };
+    });
+    setStudentFeeAssignments(mapped);
+  }, [dbAssignments, students, dynamicFeeStructures]);
   const [scholarships, setScholarships] = useState<Scholarship[]>(() =>
     getStored("scholarships", initialScholarships),
   );
@@ -4236,7 +4265,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const payments = extract(paymentsRes);
       if (heads.length) setFeeHeads(heads);
       if (structs.length) setDynamicFeeStructures(structs);
-      if (assignments.length) setStudentFeeAssignments(assignments);
+      if (assignments.length) setDbAssignments(assignments);
       if (payments.length) setFeePayments(payments);
     } catch (err) {
       console.warn("Failed to fetch finance data from API", err);
@@ -6668,12 +6697,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // 2. Dynamic Fee Structures CRUD
   const addDynamicFeeStructure = async (dfs: Omit<DynamicFeeStructure, "id">) => {
+    let id = "DFS-" + Math.floor(100 + Math.random() * 900);
     try {
-      await FinanceAPI.createDynamicFeeStructureApi(dfs);
+      const res = await FinanceAPI.createDynamicFeeStructureApi(dfs);
+      if (res && res.data && res.data.id) {
+        id = res.data.id.toString();
+      } else if (res && res.id) {
+        id = res.id.toString();
+      }
     } catch (err) {
       console.warn("API failed, using local", err);
     }
-    const id = "DFS-" + Math.floor(100 + Math.random() * 900);
     const newDfs: DynamicFeeStructure = {
       ...dfs,
       id,
@@ -6702,7 +6736,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // 3. Student Fee Assignment
-  const assignFeeStructure = (studentId: string, feeStructureId: string) => {
+  const assignFeeStructure = async (studentId: string, feeStructureId: string) => {
     const st = students.find((s) => s.id === studentId);
     const dfs = dynamicFeeStructures.find((d) => d.id === feeStructureId);
     if (!st || !dfs) return;
@@ -6724,9 +6758,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "Active",
     };
 
-    setStudentFeeAssignments((prev) => [
-      ...prev.filter((a) => !(a.studentId === studentId && a.academicYear === dfs.academicYear)),
-      assignment,
+    try {
+      await FinanceAPI.createStudentFeeAssignmentApi(assignment);
+    } catch (err) {
+      console.warn("API failed, using local", err);
+    }
+
+    setDbAssignments((prev) => [
+      ...prev.filter((a) => !(a.studentId === studentId && (a.academicYear === dfs.academicYear || a.academicYear === undefined))),
+      {
+        id,
+        studentId: assignment.studentId,
+        dynamicFeeStructureId: parseInt(assignment.feeStructureId) || 0,
+        totalAmount: assignment.baseFeeTotal,
+        paidAmount: 0,
+        dueAmount: assignment.baseFeeTotal,
+        status: assignment.status,
+        feePolicy: assignment.feePolicy || "Full Annual Fee"
+      }
     ]);
     setStudents((prev) =>
       prev.map((s) =>
@@ -6747,7 +6796,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setTimeout(() => generateStudentFeeLedger(studentId, dfs.academicYear), 50);
   };
 
-  const assignCustomFeeStructure = (
+  const assignCustomFeeStructure = async (
     studentId: string,
     feeStructureId: string,
     feePolicy: FeePolicyType,
@@ -6859,11 +6908,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       status: "Active",
     };
 
-    setStudentFeeAssignments((prev) => [
-      ...prev.filter(
-        (a) => !(a.studentId === studentId && a.academicYear === dfs.academicYear),
-      ),
-      assignment,
+    try {
+      await FinanceAPI.createStudentFeeAssignmentApi(assignment);
+    } catch (err) {
+      console.warn("API failed, using local", err);
+    }
+
+    setDbAssignments((prev) => [
+      ...prev.filter((a) => !(a.studentId === studentId && (a.academicYear === dfs.academicYear || a.academicYear === undefined))),
+      {
+        id,
+        studentId: assignment.studentId,
+        dynamicFeeStructureId: parseInt(assignment.feeStructureId) || 0,
+        totalAmount: assignment.baseFeeTotal,
+        paidAmount: 0,
+        dueAmount: assignment.baseFeeTotal,
+        status: assignment.status,
+        feePolicy: assignment.feePolicy || "Full Annual Fee"
+      }
     ]);
 
     logActivity(
@@ -6885,13 +6947,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<StudentFeeAssignment>,
   ) => {
-    setStudentFeeAssignments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+    setDbAssignments((prev) =>
+      prev.map((a) => (a.id === id || a.dynamicFeeStructureId?.toString() === id ? { ...a, ...updates } : a)),
     );
   };
 
   const removeStudentFeeAssignment = (id: string) => {
-    setStudentFeeAssignments((prev) => prev.filter((a) => a.id !== id));
+    setDbAssignments((prev) => prev.filter((a) => a.id !== id && a.dynamicFeeStructureId?.toString() !== id));
   };
 
   // 4. Scholarships CRUD
