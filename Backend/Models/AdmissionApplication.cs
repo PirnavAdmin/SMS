@@ -63,7 +63,7 @@ public class AdmissionApplication
     public string? ExistingSiblingLookup { get; set; }
 
     // 5. Student Type & Facility Allocation - Transport
-    public string? StudentType { get; set; } = "Day Scholar"; // "Day Scholar", "Hosteller"
+    public string? StudentType { get; set; } = "Non-Residential"; // "Non-Residential", "Residential"
     public bool? TransportRequired { get; set; } = false;
     public string? TransportType { get; set; }
     public string? BusRoute { get; set; }

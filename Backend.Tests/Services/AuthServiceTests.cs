@@ -38,7 +38,7 @@ namespace Backend.Tests.Services
                 .Options;
             _dbContext = new AppDbContext(options);
 
-            _service = new AuthService(_userRepoMock.Object, _adminRepoMock.Object, _configMock.Object, _dbContext);
+            _service = new AuthService(_userRepoMock.Object, _adminRepoMock.Object, _configMock.Object);
         }
 
         [Fact]

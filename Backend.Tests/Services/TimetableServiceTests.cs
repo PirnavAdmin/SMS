@@ -12,6 +12,7 @@ using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Repositories.Implementations;
 using SMS.Api.Services.Implementations;
+using SMS.Api.Services.Implementations.AcademicManagement;
 using Xunit;
 
 public class TimetableServiceTests

@@ -1,11 +1,12 @@
-namespace SMS.Api.Dtos;
-
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Json.Serialization;
 
+namespace SMS.Api.Dtos;
+
 public class SubmitAdmissionDto
 {
+    [JsonPropertyName("avatar")]
     public string? ProfilePhotoUrl { get; set; }
 
     public string? FirstName { get; set; }
@@ -35,19 +36,27 @@ public class SubmitAdmissionDto
         set => DateOfBirth = value;
     }
 
+    [JsonPropertyName("gender")]
     public string Gender { get; set; } = "Male";
 
+    [JsonPropertyName("appliedClassId")]
     public int AppliedClassId { get; set; }
 
     [JsonPropertyName("appliedClass")]
     public string? AppliedClass { get; set; }
 
+    [JsonPropertyName("branch")]
     public string BranchName { get; set; } = "Main Campus";
 
-    public string StudentType { get; set; } = "Day Scholar";
+    [JsonPropertyName("studentType")]
+    public string StudentType { get; set; } = "Non-Residential";
 
+    [JsonPropertyName("bloodGroup")]
     public string? BloodGroup { get; set; }
+
+    [JsonPropertyName("religion")]
     public string? Religion { get; set; }
+
     public string? Caste { get; set; }
 
     [JsonPropertyName("casteCategory")]
@@ -85,36 +94,75 @@ public class SubmitAdmissionDto
         set => FatherContact = value ?? "";
     }
 
+    [JsonPropertyName("motherMobileNumber")]
     public string? MotherMobileNumber { get; set; }
+
+    [JsonPropertyName("alternateMobileNumber")]
     public string? AlternateMobileNumber { get; set; }
 
+    [JsonPropertyName("email")]
     [EmailAddress]
     public string? ParentEmail { get; set; }
 
     // Residential Address
+    [JsonPropertyName("houseNo")]
     public string? HouseNo { get; set; }
+
+    [JsonPropertyName("street")]
     public string? Street { get; set; }
+
+    [JsonPropertyName("areaLocality")]
     public string? AreaLocality { get; set; }
+
+    [JsonPropertyName("city")]
     public string? City { get; set; }
+
+    [JsonPropertyName("district")]
     public string? District { get; set; }
+
+    [JsonPropertyName("state")]
     public string? State { get; set; }
+
+    [JsonPropertyName("pinCode")]
     public string? PinCode { get; set; }
 
     // Sibling Info
+    [JsonPropertyName("numberOfSiblings")]
     public int NumberOfSiblings { get; set; } = 0;
+
+    [JsonPropertyName("existingSiblingLookup")]
     public string? ExistingSiblingLookup { get; set; }
 
+    [JsonPropertyName("siblingStudentId")]
+    public string? SiblingStudentId { get; set; }
+
     // Transport Facility Allocation
+    [JsonPropertyName("transportRequired")]
     public bool TransportRequired { get; set; } = false;
+
+    [JsonPropertyName("transportType")]
     public string? TransportType { get; set; }
+
+    [JsonPropertyName("busRoute")]
     public string? BusRoute { get; set; }
+
+    [JsonPropertyName("pickupPoint")]
     public string? PickupPoint { get; set; }
+
+    [JsonPropertyName("dropPoint")]
     public string? DropPoint { get; set; }
 
     // Hostel Facility Allocation
+    [JsonPropertyName("hostelBlock")]
     public string? HostelBlock { get; set; }
+
+    [JsonPropertyName("floorLevel")]
     public string? FloorLevel { get; set; }
+
+    [JsonPropertyName("hostelRoom")]
     public string? HostelRoom { get; set; }
+
+    [JsonPropertyName("availableBed")]
     public string? AvailableBed { get; set; }
 
     [JsonPropertyName("allocatedBedId")]
@@ -125,6 +173,9 @@ public class SubmitAdmissionDto
     }
 
     // Financial Benefits
+    [JsonPropertyName("scholarship")]
     public string? Scholarship { get; set; } = "None";
+
+    [JsonPropertyName("discount")]
     public string? Discount { get; set; } = "None";
 }

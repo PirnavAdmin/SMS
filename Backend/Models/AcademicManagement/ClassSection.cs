@@ -24,6 +24,8 @@ namespace SMS.Api.Models.AcademicManagement
 
 		public string? Remarks { get; set; }
 
+		public string? RoomNo { get; set; }
+
 		public ICollection<Student> Students { get; set; } = new List<Student>();
 	}
 }

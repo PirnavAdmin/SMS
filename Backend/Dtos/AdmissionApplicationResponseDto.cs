@@ -93,7 +93,7 @@ public class AdmissionApplicationResponseDto
     public string? ExistingSiblingLookup { get; set; }
 
     // Student Type
-    public string StudentType { get; set; } = "Day Scholar";
+    public string StudentType { get; set; } = "Non-Residential";
 
     // Facility Allocation - Transport
     public bool TransportRequired { get; set; }
@@ -116,4 +116,6 @@ public class AdmissionApplicationResponseDto
     public string? Discount { get; set; }
 
     public string Status { get; set; } = string.Empty;
+
+    public DateTime? CreatedAt { get; set; }
 }

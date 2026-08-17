@@ -129,3 +129,41 @@ public class PublishTimetableDto
     public string AcademicYear { get; set; } = "2026-2027";
     public string Status { get; set; } = "Published"; // "Draft", "Published"
 }
+
+// 6. Generate Timetable DTOs
+public class GenerateTimetableRequestDto
+{
+    public string AcademicYear { get; set; } = "2026-2027";
+    public string SchoolStartTime { get; set; } = "08:30 AM";
+    public string SchoolEndTime { get; set; } = "03:30 PM";
+    public int PeriodDurationMinutes { get; set; } = 45;
+    public List<string> WorkingDays { get; set; } = new();
+    public List<BreakItemDto> Breaks { get; set; } = new();
+    public List<string> SelectedClassSections { get; set; } = new(); // e.g. ["Class 9-A"]
+    public bool AutoAssignMappedSubjects { get; set; } = true;
+}
+
+public class BreakItemDto
+{
+    public string Name { get; set; } = string.Empty;
+    public int DurationMinutes { get; set; }
+    public int AfterPeriod { get; set; }
+    public string Type { get; set; } = "Break"; // "Break", "Lunch", "Assembly", "Tea", "Other"
+}
+
+public class TimetableValidationResultDto
+{
+    public bool Valid { get; set; }
+    public List<TimetableConflictDto> Conflicts { get; set; } = new();
+}
+
+public class TimetableConflictDto
+{
+    public string Type { get; set; } = string.Empty; // "TeacherConflict", "RoomConflict", "WeeklyLimit", etc.
+    public string Message { get; set; } = string.Empty;
+    public int? TeacherId { get; set; }
+    public string? TeacherName { get; set; }
+    public string? RoomNo { get; set; }
+    public string? Day { get; set; }
+    public string? TimeSlot { get; set; }
+}

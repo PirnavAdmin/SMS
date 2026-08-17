@@ -23,6 +23,9 @@ public class Department
     [MaxLength(20)]
     public string Status { get; set; } = "Active";
 
+    [MaxLength(150)]
+    public string? HeadOfDepartment { get; set; }
+
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
     public ICollection<Subject> Subjects { get; set; } = new List<Subject>();

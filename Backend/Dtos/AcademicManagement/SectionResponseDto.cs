@@ -27,4 +27,16 @@ public class SectionResponseDto
 	public string TeacherLabel => !string.IsNullOrEmpty(ClassTeacherName)
 		? (!string.IsNullOrEmpty(EmployeeId) ? $"{ClassTeacherName} ({EmployeeId})" : ClassTeacherName)
 		: "Unassigned";
+
+	[JsonPropertyName("capacity")]
+	public int Capacity { get; set; }
+
+	[JsonPropertyName("status")]
+	public string Status { get; set; } = "Active";
+
+	[JsonPropertyName("remarks")]
+	public string? Remarks { get; set; }
+
+	[JsonPropertyName("roomNo")]
+	public string? RoomNo { get; set; }
 }
