@@ -16,7 +16,7 @@ interface TransportDashboardViewProps {
 export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ onNavigateToSection }) => {
   const {
     vehicleMasters, routeMasters, driverMasters, studentTransports,
-    vehicleAssignments, checkVehicleCapacity, feePayments, pickupPoints
+    vehicleAssignments, checkVehicleCapacity, feePayments, pickupPoints, busAttendants
   } = useData();
 
   const [selectedAssignment, setSelectedAssignment] = useState<VehicleAssignment | null>(null);
@@ -28,7 +28,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
   const activeRoutes = routeMasters.filter(r => r.status === 'Active').length;
   const totalDrivers = driverMasters.length;
   const activeDrivers = driverMasters.filter(d => d.status === 'Active').length;
-  const totalBusAttendants = initialBusAttendants.length;
+  const totalBusAttendants = busAttendants.length;
   const totalTransportStudents = studentTransports.filter(s => s.status === 'Active').length;
 
   // Today's Trips Metrics

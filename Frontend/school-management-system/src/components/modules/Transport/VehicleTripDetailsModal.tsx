@@ -52,7 +52,8 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     vehicleMasters,
     driverMasters,
     routeMasters,
-    pickupPoints
+    pickupPoints,
+    busAttendants
   } = useData();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'morning' | 'evening' | 'students' | 'history'>(defaultTab);
@@ -72,7 +73,10 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   const driver = driverMasters.find(d => d.id === assignment.driverId || d.driverName === assignment.driverName) || driverMasters[0];
   const route = routeMasters.find(r => r.id === assignment.routeId || r.routeName === assignment.routeName) || routeMasters[0];
 
-  const attendant = initialBusAttendants.find(a =>
+  const attendant = busAttendants.find(a =>
+    a.id === assignment.attendantId ||
+    a.attendantName === assignment.attendantName
+  ) || initialBusAttendants.find(a =>
     a.id === assignment.attendantId ||
     a.attendantName === assignment.attendantName
   );

@@ -213,6 +213,7 @@ import {
   deleteAdmissionApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
+import { BusAttendantMaster, initialBusAttendants } from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
 import {
@@ -932,6 +933,14 @@ interface DataContextType {
     updates: Partial<DriverMaster>,
   ) => Promise<void>;
   deleteDriverMaster: (id: string) => Promise<void>;
+
+  busAttendants: BusAttendantMaster[];
+  addBusAttendant: (a: Omit<BusAttendantMaster, "id">) => Promise<void>;
+  updateBusAttendant: (
+    id: string,
+    updates: Partial<BusAttendantMaster>,
+  ) => Promise<void>;
+  deleteBusAttendant: (id: string) => Promise<void>;
 
   vehicleAssignments: VehicleAssignment[];
   assignVehicleRouteDriver: (
@@ -2705,6 +2714,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
     getStored("driver_masters", initialDriverMasters),
   );
+  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
+    getStored("bus_attendants", initialBusAttendants),
+  );
   const [vehicleAssignments, setVehicleAssignments] = useState<
     VehicleAssignment[]
   >(() => getStored("vehicle_assignments", initialVehicleAssignments));
@@ -3450,6 +3462,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [driverMasters]);
   useEffect(() => {
     localStorage.setItem(
+      "edu_db_bus_attendants",
+      JSON.stringify(busAttendants),
+    );
+  }, [busAttendants]);
+  useEffect(() => {
+    localStorage.setItem(
       "edu_db_vehicle_assignments",
       JSON.stringify(vehicleAssignments),
     );
@@ -3480,6 +3498,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           TransportAPI.fetchDriversApi(),
           TransportAPI.fetchVehicleAssignmentsApi(),
           TransportAPI.fetchMaintenanceApi(),
+          TransportAPI.fetchAttendantsApi(),
         ]);
 
         const extractData = (result: any) => {
@@ -3512,6 +3531,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               item.assignmentId ||
               item.maintenanceId ||
               item.studentTransportId ||
+              item.attendantId ||
+              item.busAttendantId ||
               ""
             ).toString(),
           }));
@@ -3523,6 +3544,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const drivers = extractData(results[3]);
         const assignments = extractData(results[4]);
         const maintenance = extractData(results[5]);
+        const attendants = extractData(results[6]);
 
         const normalizeStatus = (status: any) => {
           if (status === true || String(status).toLowerCase() === 'true' || String(status).toLowerCase() === 'active') {
@@ -3532,6 +3554,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             return 'On Leave';
           }
           return 'Inactive';
+        };
+
+        const mergeApiAndLocal = <T extends { id: string | number }>(apiList: T[], localKey: string, initialFallback: T[]): T[] => {
+          const saved = localStorage.getItem(localKey);
+          let localList: T[] = [];
+          if (saved) {
+            try {
+              localList = JSON.parse(saved);
+            } catch (e) {
+              console.error("Error parsing local storage key " + localKey, e);
+            }
+          }
+          const merged = [...apiList];
+          if (Array.isArray(localList)) {
+            localList.forEach((localItem: T) => {
+              if (localItem && localItem.id !== undefined && localItem.id !== null) {
+                if (!merged.some(m => m.id.toString() === localItem.id.toString())) {
+                  merged.push(localItem);
+                }
+              }
+            });
+          }
+          return merged;
         };
 
         if (routes) {
@@ -3571,10 +3616,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
           const validRoutes = mergedRoutes.filter((r: any) => r.routeName && r.routeName.trim() !== "" && r.routeName.toUpperCase() !== "N/A");
-          setRouteMasters(validRoutes);
+          setRouteMasters(mergeApiAndLocal(validRoutes, "edu_db_route_masters", initialRouteMasters));
         }
         if (points) {
-          setPickupPoints(points.map((p: any) => ({
+          const mappedPoints = points.map((p: any) => ({
             id: (p.id || p.pickupPointId || "").toString(),
             routeId: (p.routeId || "").toString(),
             routeName: p.routeName || p.selectRoute || "",
@@ -3587,10 +3632,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             distanceFromSchoolKm: Number(p.distanceFromSchoolKm !== undefined ? p.distanceFromSchoolKm : (p.distanceFromStart !== undefined ? p.distanceFromStart : 0)),
             monthlyFee: Number(p.monthlyFee !== undefined ? p.monthlyFee : (p.monthlyFare !== undefined ? p.monthlyFare : 0)),
             status: normalizeStatus(p.status)
-          })));
+          }));
+          setPickupPoints(mergeApiAndLocal(mappedPoints, "edu_db_pickup_points", initialPickupPoints));
         }
         if (vehicles) {
-          setVehicleMasters(vehicles.map((v: any) => ({
+          const mappedVehicles = vehicles.map((v: any) => ({
             id: (v.id || v.vehicleId || "").toString(),
             vehicleNumber: v.vehicleNumber || "",
             registrationNumber: v.registrationNumber || v.regNumber || "",
@@ -3601,10 +3647,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             fitnessExpiry: v.fitnessExpiry || "",
             isAC: v.isAC === true,
             status: normalizeStatus(v.status)
-          })));
+          }));
+          setVehicleMasters(mergeApiAndLocal(mappedVehicles, "edu_db_vehicle_masters", initialVehicleMasters));
         }
         if (drivers) {
-          setDriverMasters(drivers.map((d: any) => ({
+          const mappedDrivers = drivers.map((d: any) => ({
             id: (d.id || d.driverId || "").toString(),
             employeeId: d.employeeId || d.empId || "",
             driverName: d.driverName || d.driverFullName || d.fullName || d.name || "",
@@ -3616,29 +3663,80 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             emergencyContact: d.emergencyContact || d.emergencyContactNumber || "",
             experienceYears: Number(d.experienceYears || 0),
             status: normalizeStatus(d.status)
-          })));
+          }));
+          setDriverMasters(mergeApiAndLocal(mappedDrivers, "edu_db_driver_masters", initialDriverMasters));
         }
         if (assignments) {
-          setVehicleAssignments(assignments.map((a: any) => ({
-            id: (a.id || a.assignmentId || "").toString(),
-            branch: a.branch || "",
-            academicYear: a.academicYear || "",
-            routeId: (a.routeId || "").toString(),
-            routeName: a.routeName || a.selectRoute || "",
-            vehicleId: (a.vehicleId || "").toString(),
-            vehicleNumber: a.vehicleNumber || a.selectActiveVehicle || "",
-            driverId: (a.driverId || "").toString(),
-            driverName: a.driverName || a.selectLicensedDriver || "",
-            attendantId: (a.attendantId || "").toString(),
-            attendantName: a.attendantName || a.selectBusAttendant || "",
-            morningTripTime: a.morningTripTime || a.morningTrip || "",
-            eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
-            effectiveFrom: a.effectiveFrom || a.effectiveFromDate || "",
-            effectiveTo: a.effectiveTo || "",
-            status: normalizeStatus(a.status)
-          })));
+          const mappedAssignments = assignments.map((a: any) => {
+            let routeId = (a.routeId || "").toString();
+            let routeName = a.routeName || a.selectRoute || "";
+            if (!routeId && routeMasters) {
+              const matchedRoute = routeMasters.find((r: any) => r.routeName?.toLowerCase() === routeName.toLowerCase() || r.routeCode?.toLowerCase() === routeName.toLowerCase());
+              if (matchedRoute) {
+                routeId = matchedRoute.id.toString();
+              }
+            }
+            let vehicleId = (a.vehicleId || "").toString();
+            let vehicleNumber = a.vehicleNumber || a.selectActiveVehicle || "";
+            if (!vehicleId && vehicleMasters) {
+              const matchedVehicle = vehicleMasters.find((v: any) => v.vehicleNumber?.toLowerCase() === vehicleNumber.toLowerCase());
+              if (matchedVehicle) {
+                vehicleId = matchedVehicle.id.toString();
+              }
+            }
+            let driverId = (a.driverId || "").toString();
+            let driverName = a.driverName || a.selectLicensedDriver || "";
+            if (!driverId && driverMasters) {
+              const matchedDriver = driverMasters.find((d: any) => d.driverName?.toLowerCase() === driverName.toLowerCase());
+              if (matchedDriver) {
+                driverId = matchedDriver.id.toString();
+              }
+            }
+
+            return {
+              id: (a.id || a.assignmentId || "").toString(),
+              branch: a.branch || "",
+              academicYear: a.academicYear || "",
+              routeId,
+              routeName,
+              vehicleId,
+              vehicleNumber,
+              driverId,
+              driverName,
+              attendantId: (a.attendantId || "").toString(),
+              attendantName: a.attendantName || a.selectBusAttendant || "",
+              morningTripTime: a.morningTripTime || a.morningTrip || "",
+              eveningTripTime: a.eveningTripTime || a.eveningTrip || "",
+              effectiveFrom: a.effectiveFrom || a.effectiveFromDate || "",
+              effectiveTo: a.effectiveTo || "",
+              status: normalizeStatus(a.status)
+            };
+          });
+          setVehicleAssignments(mergeApiAndLocal(mappedAssignments, "edu_db_vehicle_assignments", initialVehicleAssignments));
         }
-        if (maintenance) setVehicleMaintenances(maintenance);
+        if (maintenance) {
+          const mappedMaintenance = maintenance.map((m: any) => ({
+            id: (m.id || m.maintenanceId || "").toString(),
+            vehicleId: (m.vehicleId || "").toString(),
+            serviceDate: m.serviceDate || "",
+            cost: Number(m.cost || 0),
+            description: m.description || "",
+            status: normalizeStatus(m.status)
+          }));
+          setVehicleMaintenances(mergeApiAndLocal(mappedMaintenance, "edu_db_vehicle_maintenances", initialVehicleMaintenances));
+        }
+        if (attendants) {
+          const mappedAttendants = attendants.map((a: any) => ({
+            id: (a.id || a.attendantId || "").toString(),
+            employeeId: a.employeeId || a.empId || "",
+            attendantName: a.attendantName || a.attendantFullName || a.fullName || a.name || "",
+            mobileNumber: a.mobileNumber || a.phone || "",
+            gender: a.gender || "Female",
+            branch: a.branch || "",
+            status: normalizeStatus(a.status)
+          }));
+          setBusAttendants(mergeApiAndLocal(mappedAttendants, "edu_db_bus_attendants", initialBusAttendants));
+        }
 
         if (results.some((r) => r.status === "rejected")) {
           console.warn(
@@ -5111,9 +5209,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      const matchedClass = academicClasses.find(
+        (c) => c.name?.toLowerCase().trim() === appData.appliedClass?.toLowerCase().trim()
+      );
+      const appliedClassId = matchedClass ? Number(matchedClass.id.replace(/\D/g, "")) : 1;
+
       const payload = {
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
+        appliedClassId: appliedClassId,
+        AppliedClassId: appliedClassId,
         gender: appData.gender || "",
         dob: isoDob,
         bloodGroup: appData.bloodGroup || "O+",
@@ -5248,9 +5353,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
 
+      const matchedClass = academicClasses.find(
+        (c) => c.name?.toLowerCase().trim() === appData.appliedClass?.toLowerCase().trim()
+      );
+      const appliedClassId = matchedClass ? Number(matchedClass.id.replace(/\D/g, "")) : 1;
+
       const payload = {
         applicantFullName: appData.applicantName || "",
         appliedClass: appData.appliedClass || "",
+        appliedClassId: appliedClassId,
+        AppliedClassId: appliedClassId,
         gender: appData.gender || "",
         dob: isoDob,
         bloodGroup: appData.bloodGroup || "O+",
@@ -9213,6 +9325,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const toTimeSpanString = (timeStr: string): string => {
+    if (!timeStr) return "00:00:00";
+    if (/^\d{2}:\d{2}:\d{2}$/.test(timeStr)) return timeStr;
+    if (/^\d{2}:\d{2}$/.test(timeStr)) return timeStr + ":00";
+    
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return "00:00:00";
+    
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2];
+    const ampm = match[3].toUpperCase();
+    
+    if (ampm === "PM" && hours < 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+    
+    return `${hours.toString().padStart(2, "0")}:${minutes}:00`;
+  };
+
   const addPickupPoint = async (p: Omit<PickupPoint, "id">) => {
     try {
       const payload = {
@@ -9222,11 +9352,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         landmark: (p as any).landmark || "",
         sequenceNo: Number(p.sequenceNumber) || 0,
         sequenceNumber: Number(p.sequenceNumber) || 0,
-        pickupTime: p.morningPickupTime || p.arrivalTime || "07:30 AM",
-        arrivalTime: p.morningPickupTime || p.arrivalTime || "07:30 AM",
-        dropTime: p.eveningDropTime || "04:15 PM",
-        eveningDropTime: p.eveningDropTime || "04:15 PM",
-        morningPickupTime: p.morningPickupTime || p.arrivalTime || "07:30 AM",
+        pickupTime: toTimeSpanString(p.morningPickupTime || p.arrivalTime || "07:30 AM"),
+        arrivalTime: toTimeSpanString(p.morningPickupTime || p.arrivalTime || "07:30 AM"),
+        dropTime: toTimeSpanString(p.eveningDropTime || "04:15 PM"),
+        eveningDropTime: toTimeSpanString(p.eveningDropTime || "04:15 PM"),
+        morningPickupTime: toTimeSpanString(p.morningPickupTime || p.arrivalTime || "07:30 AM"),
         distanceFromStart: Number(p.distanceFromSchoolKm) || 0,
         distanceFromSchoolKm: Number(p.distanceFromSchoolKm) || 0,
         monthlyFee: Number(p.monthlyFee) || 0,
@@ -9281,18 +9411,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         payload.sequenceNumber = Number(updates.sequenceNumber) || 0;
       }
       if (updates.morningPickupTime !== undefined) {
-        payload.pickupTime = updates.morningPickupTime;
-        payload.arrivalTime = updates.morningPickupTime;
-        payload.morningPickupTime = updates.morningPickupTime;
+        const tsVal = toTimeSpanString(updates.morningPickupTime);
+        payload.pickupTime = tsVal;
+        payload.arrivalTime = tsVal;
+        payload.morningPickupTime = tsVal;
       }
       if (updates.arrivalTime !== undefined) {
-        payload.pickupTime = updates.arrivalTime;
-        payload.arrivalTime = updates.arrivalTime;
-        payload.morningPickupTime = updates.arrivalTime;
+        const tsVal = toTimeSpanString(updates.arrivalTime);
+        payload.pickupTime = tsVal;
+        payload.arrivalTime = tsVal;
+        payload.morningPickupTime = tsVal;
       }
       if (updates.eveningDropTime !== undefined) {
-        payload.dropTime = updates.eveningDropTime;
-        payload.eveningDropTime = updates.eveningDropTime;
+        const tsVal = toTimeSpanString(updates.eveningDropTime);
+        payload.dropTime = tsVal;
+        payload.eveningDropTime = tsVal;
       }
       if (updates.distanceFromSchoolKm !== undefined) {
         payload.distanceFromStart = Number(updates.distanceFromSchoolKm) || 0;
@@ -9626,6 +9759,127 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             : a
         )
       );
+    }
+  };
+
+  const addBusAttendant = async (a: Omit<BusAttendantMaster, "id">) => {
+    try {
+      const payload = {
+        employeeId: a.employeeId || "",
+        empId: a.employeeId || "",
+        attendantName: a.attendantName || "",
+        attendantFullName: a.attendantName || "",
+        fullName: a.attendantName || "",
+        name: a.attendantName || "",
+        mobileNumber: a.mobileNumber || "",
+        phone: a.mobileNumber || "",
+        gender: a.gender || "Female",
+        status: a.status === "Active",
+      };
+      const response = await TransportAPI.createAttendantApi(payload as any);
+      const backendData = response?.data || response || {};
+      const id = (
+        backendData.id ||
+        backendData.attendantId ||
+        "ATT-" + Math.floor(100 + Math.random() * 900)
+      ).toString();
+      const newAttendant: BusAttendantMaster = {
+        ...a,
+        ...backendData,
+        id,
+        status: (backendData.status === true || String(backendData.status).toLowerCase() === 'true' || backendData.status === 'Active' || a.status === 'Active') ? 'Active' : 'Inactive',
+        branch: (a as any).branch || selectedBranch || "Main Campus",
+      } as any;
+      setBusAttendants((prev) => [...prev, newAttendant]);
+      logActivity(
+        "Registered Bus Attendant",
+        `Added attendant ${newAttendant.attendantName}`,
+      );
+    } catch (err) {
+      addToast("error", "API Sync Failed", "Operating in local fallback mode");
+      const id = "ATT-" + Math.floor(100 + Math.random() * 900);
+      const newAttendant: BusAttendantMaster = {
+        ...a,
+        id,
+        branch: (a as any).branch || selectedBranch || "Main Campus",
+      } as any;
+      setBusAttendants((prev) => [...prev, newAttendant]);
+    }
+  };
+
+  const updateBusAttendant = async (
+    id: string,
+    updates: Partial<BusAttendantMaster>,
+  ) => {
+    try {
+      const payload: any = {};
+      if (updates.employeeId !== undefined) {
+        payload.employeeId = updates.employeeId;
+        payload.empId = updates.employeeId;
+      }
+      if (updates.attendantName !== undefined) {
+        payload.attendantName = updates.attendantName;
+        payload.attendantFullName = updates.attendantName;
+        payload.fullName = updates.attendantName;
+        payload.name = updates.attendantName;
+      }
+      if (updates.mobileNumber !== undefined) {
+        payload.mobileNumber = updates.mobileNumber;
+        payload.phone = updates.mobileNumber;
+      }
+      if (updates.gender !== undefined) payload.gender = updates.gender;
+      if (updates.status !== undefined)
+        payload.status = updates.status === "Active";
+
+      await TransportAPI.updateAttendantApi(id, payload);
+      setBusAttendants((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+      );
+    } catch (err) {
+      addToast("error", "API Sync Failed", "Operating in local fallback mode");
+      setBusAttendants((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+      );
+    }
+  };
+
+  const deleteBusAttendant = async (id: string) => {
+    try {
+      // Find all assignments referencing this attendant and delete them from the backend
+      const assignmentsToDelete = vehicleAssignments.filter((a) => a.attendantId === id);
+      for (const a of assignmentsToDelete) {
+        try {
+          await TransportAPI.deleteVehicleAssignmentApi(a.id);
+        } catch (e) {
+          console.warn("Failed to delete vehicle assignment during attendant deletion", e);
+        }
+      }
+
+      await TransportAPI.deleteAttendantApi(id);
+      const att = busAttendants.find((x) => x.id === id);
+      setBusAttendants((prev) => prev.filter((a) => a.id !== id));
+      if (att) {
+        setVehicleAssignments((prev) =>
+          prev.map((a) =>
+            a.attendantId === id || a.attendantName === att.attendantName
+              ? { ...a, attendantId: '', attendantName: 'Unassigned', attendantEmployeeId: '' }
+              : a
+          )
+        );
+      }
+    } catch (err) {
+      addToast("error", "API Sync Failed", "Operating in local fallback mode");
+      const att = busAttendants.find((x) => x.id === id);
+      setBusAttendants((prev) => prev.filter((a) => a.id !== id));
+      if (att) {
+        setVehicleAssignments((prev) =>
+          prev.map((a) =>
+            a.attendantId === id || a.attendantName === att.attendantName
+              ? { ...a, attendantId: '', attendantName: 'Unassigned', attendantEmployeeId: '' }
+              : a
+          )
+        );
+      }
     }
   };
 
@@ -12520,6 +12774,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const filteredPickupPoints = filterByBranch(pickupPoints);
   const filteredVehicleMasters = filterByBranch(vehicleMasters);
   const filteredDriverMasters = filterByBranch(driverMasters);
+  const filteredBusAttendants = filterByBranch(busAttendants);
   const filteredVehicleAssignments = filterByBranch(vehicleAssignments);
   const filteredVehicleMaintenances = filterByBranch(vehicleMaintenances);
   const filteredUniformCategories = filterByBranch(uniformCategories);
@@ -13110,6 +13365,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         addDriverMaster,
         updateDriverMaster,
         deleteDriverMaster,
+        busAttendants: filteredBusAttendants,
+        addBusAttendant,
+        updateBusAttendant,
+        deleteBusAttendant,
         vehicleAssignments: filteredVehicleAssignments,
         assignVehicleRouteDriver,
         updateVehicleAssignment,

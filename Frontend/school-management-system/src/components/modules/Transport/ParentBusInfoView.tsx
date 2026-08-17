@@ -9,7 +9,7 @@ import { Badge } from '../../common/Badge';
 import { initialBusAttendants } from './BusAttendantMasterView';
 
 export const ParentBusInfoView: React.FC = () => {
-  const { students, studentTransports, vehicleAssignments, vehicleMasters, driverMasters, routeMasters, pickupPoints } = useData();
+  const { students, studentTransports, vehicleAssignments, vehicleMasters, driverMasters, routeMasters, pickupPoints, busAttendants } = useData();
   const { user, role } = useAuth();
 
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
@@ -39,7 +39,7 @@ export const ParentBusInfoView: React.FC = () => {
                              vehicleAssignments.find(va => va.vehicleId === assignedTransport?.vehicleId);
   const assignedVehicleObj = vehicleMasters.find(v => v.id === assignedTransport?.vehicleId || v.vehicleNumber === assignedTransport?.vehicleNumber) || vehicleMasters[0];
   const assignedDriverObj = driverMasters.find(d => d.id === assignedVehicleRel?.driverId || d.driverName === assignedVehicleRel?.driverName) || driverMasters[0];
-  const assignedAttendantObj = initialBusAttendants.find(a => a.id === assignedVehicleRel?.attendantId || a.attendantName === assignedVehicleRel?.attendantName) || initialBusAttendants[0];
+  const assignedAttendantObj = busAttendants.find(a => a.id === assignedVehicleRel?.attendantId || a.attendantName === assignedVehicleRel?.attendantName) || busAttendants[0];
   
   const driverEmpId = assignedDriverObj?.employeeId || assignedVehicleRel?.driverEmployeeId || `DRV-${assignedDriverObj?.id || '01'}`;
   const attendantEmpId = assignedAttendantObj?.employeeId || assignedVehicleRel?.attendantEmployeeId || 'ATT-2026-01';

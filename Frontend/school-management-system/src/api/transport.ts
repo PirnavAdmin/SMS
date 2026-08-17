@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import { RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, StudentTransport, VehicleMaintenance } from '../types';
+import { BusAttendantMaster } from '../components/modules/Transport/transportData';
 import { 
   initialRouteMasters, 
   initialPickupPoints, 
@@ -21,6 +22,47 @@ const safeTransportApiCall = async <T>(endpoint: string, options?: RequestInit, 
     // API endpoint unreachable or error - using testing mock bypass
   }
   return fallbackData as T;
+};
+
+const fetchListWithLookupFallback = async <T>(
+  listEndpoint: string,
+  lookupEndpoint: string,
+  idKey: string,
+  detailEndpointPrefix: string,
+  fallbackData: T
+): Promise<T> => {
+  try {
+    const listRes = await apiClient(listEndpoint, { method: 'GET' });
+    let items = Array.isArray(listRes) ? listRes : (listRes?.items || listRes?.data || []);
+    if (items.length > 0) {
+      return (listRes?.data !== undefined ? listRes.data : listRes) as unknown as T;
+    }
+
+    // Fallback: list endpoint returned empty, try using lookup endpoint to fetch item IDs and fetch details
+    const lookups = await apiClient(lookupEndpoint, { method: 'GET' });
+    const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
+    
+    if (lookupList.length > 0) {
+      const detailsPromises = lookupList.map(async (lookup: any) => {
+        const id = lookup[idKey] || lookup.id || lookup.routeId || lookup.driverId || lookup.assignmentId;
+        if (!id) return null;
+        try {
+          return await apiClient(`${detailEndpointPrefix}/${id}`, { method: 'GET' });
+        } catch (e) {
+          console.warn(`Failed to fetch lookup detail for ${idKey} ${id}`, e);
+          return null;
+        }
+      });
+      const detailsResults = await Promise.all(detailsPromises);
+      const validDetails = detailsResults.filter(Boolean);
+      if (validDetails.length > 0) {
+        return validDetails as unknown as T;
+      }
+    }
+  } catch (err) {
+    console.error(`Error in fetchListWithLookupFallback for ${listEndpoint}`, err);
+  }
+  return fallbackData;
 };
 
 const getStoredMock = <T>(key: string, fallback: T): T => {
@@ -51,7 +93,13 @@ let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances
 
 // --- Routes ---
 export const fetchRoutesApi = async (): Promise<RouteMaster[]> => {
-  return safeTransportApiCall<RouteMaster[]>('/api/transport/routes', { method: 'GET' }, localRoutes);
+  return fetchListWithLookupFallback<RouteMaster[]>(
+    '/api/transport/routes',
+    '/api/transport/lookups/routes',
+    'routeId',
+    '/api/transport/routes',
+    localRoutes
+  );
 };
 
 export const fetchRouteByIdApi = async (id: string): Promise<RouteMaster | undefined> => {
@@ -215,7 +263,13 @@ export const deleteVehicleApi = async (id: string): Promise<{ success: boolean }
 
 // --- Drivers ---
 export const fetchDriversApi = async (): Promise<DriverMaster[]> => {
-  return safeTransportApiCall<DriverMaster[]>('/api/transport/drivers', { method: 'GET' }, localDrivers);
+  return fetchListWithLookupFallback<DriverMaster[]>(
+    '/api/transport/drivers',
+    '/api/transport/lookups/drivers',
+    'driverId',
+    '/api/transport/drivers',
+    localDrivers
+  );
 };
 
 export const fetchDriverByIdApi = async (id: string): Promise<DriverMaster | undefined> => {
@@ -268,6 +322,30 @@ export const deleteDriverApi = async (id: string): Promise<{ success: boolean }>
 
 // --- Vehicle Assignments ---
 export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]> => {
+  try {
+    const lookups = await apiClient('/api/transport/lookups/vehicle-assignments', { method: 'GET' });
+    const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
+    if (lookupList.length > 0) {
+      const mapped = lookupList.map((a: any) => ({
+        id: (a.assignmentId || a.id || "").toString(),
+        routeId: "",
+        routeName: a.routeName || "",
+        vehicleId: "",
+        vehicleNumber: a.vehicleNumber || "",
+        driverId: "",
+        driverName: a.driverName || "",
+        attendantId: "",
+        attendantName: "Unassigned",
+        morningTripTime: "07:00 AM",
+        eveningTripTime: "03:45 PM",
+        status: "Active",
+        effectiveFrom: new Date().toISOString().split('T')[0]
+      }));
+      return mapped as unknown as VehicleAssignment[];
+    }
+  } catch (err) {
+    console.error("Failed to fetch vehicle assignments lookup", err);
+  }
   return safeTransportApiCall<VehicleAssignment[]>('/api/transport/vehicle-assignments', { method: 'GET' }, localVehicleAssignments);
 };
 
@@ -459,3 +537,68 @@ export const fetchTransportLookupsDriversApi = async () => safeTransportApiCall(
 export const fetchTransportLookupsPickupPointsApi = async () => safeTransportApiCall('/api/transport/lookups/pickup-points', { method: 'GET' }, localPickupPoints);
 export const fetchTransportLookupsVehicleAssignmentsApi = async () => safeTransportApiCall('/api/transport/lookups/vehicle-assignments', { method: 'GET' }, localVehicleAssignments);
 export const fetchTransportLookupsStudentAssignmentsApi = async () => safeTransportApiCall('/api/transport/lookups/student-assignments', { method: 'GET' }, localStudentAssignments);
+
+// --- Bus Attendants ---
+export const fetchAttendantsApi = async (): Promise<BusAttendantMaster[]> => {
+  return safeTransportApiCall<BusAttendantMaster[]>('/api/transport/bus-attendants', { method: 'GET' }, []);
+};
+
+export const createAttendantApi = async (data: Partial<BusAttendantMaster>): Promise<BusAttendantMaster> => {
+  return safeTransportApiCall<BusAttendantMaster>(
+    '/api/transport/bus-attendants',
+    { method: 'POST', body: JSON.stringify(data) },
+    data as BusAttendantMaster
+  );
+};
+
+export const updateAttendantApi = async (id: string, data: Partial<BusAttendantMaster>): Promise<BusAttendantMaster> => {
+  return safeTransportApiCall<BusAttendantMaster>(
+    `/api/transport/bus-attendants/${id}`,
+    { method: 'PUT', body: JSON.stringify(data) },
+    data as BusAttendantMaster
+  );
+};
+
+export const deleteAttendantApi = async (id: string): Promise<{ success: boolean }> => {
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/bus-attendants/${id}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};
+
+// --- Driver Documents ---
+export interface DriverDocumentDto {
+  id?: number;
+  documentCategory: string;
+  documentNumber: string;
+  issueDate: string;
+  expiryDate: string;
+  badgeNumber?: string;
+  fileName?: string;
+  fileUrl?: string;
+}
+
+export const fetchDriverDocumentsApi = async (driverId: string): Promise<DriverDocumentDto[]> => {
+  return safeTransportApiCall<DriverDocumentDto[]>(
+    `/api/transport/drivers/${driverId}/documents`,
+    { method: 'GET' },
+    []
+  );
+};
+
+export const createDriverDocumentApi = async (driverId: string, data: DriverDocumentDto): Promise<DriverDocumentDto> => {
+  return safeTransportApiCall<DriverDocumentDto>(
+    `/api/transport/drivers/${driverId}/documents`,
+    { method: 'POST', body: JSON.stringify(data) },
+    data
+  );
+};
+
+export const deleteDriverDocumentApi = async (driverId: string, docId: string): Promise<{ success: boolean }> => {
+  return safeTransportApiCall<{ success: boolean }>(
+    `/api/transport/drivers/${driverId}/documents/${docId}`,
+    { method: 'DELETE' },
+    { success: true }
+  );
+};

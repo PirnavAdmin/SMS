@@ -32,7 +32,8 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
     vehicleMasters,
     driverMasters,
     routeMasters,
-    studentTransports
+    studentTransports,
+    busAttendants
   } = useData();
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -45,7 +46,10 @@ export const VehicleTripsView: React.FC<VehicleTripsViewProps> = ({ onOpenGps })
   const hasFilterSelection = filterRoute !== '' || searchQuery.trim() !== '';
 
   const resolveAttendant = (assignment: VehicleAssignment) => {
-    const attendant = initialBusAttendants.find(a =>
+    const attendant = busAttendants.find(a =>
+      a.id === assignment.attendantId ||
+      a.attendantName === assignment.attendantName
+    ) || initialBusAttendants.find(a =>
       a.id === assignment.attendantId ||
       a.attendantName === assignment.attendantName
     );

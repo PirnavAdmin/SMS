@@ -6,6 +6,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { fetchDriverDocumentsApi, createDriverDocumentApi, deleteDriverDocumentApi } from '../../../api/transport';
 
 export interface DriverDocumentItem {
   id: string;
@@ -30,17 +31,17 @@ export const DriverMasterView: React.FC = () => {
 
   const nonTeachingStaff = React.useMemo(() => {
     return (staff || []).filter(s => 
-      s.employeeCategory === 'Staff' ||
-      s.department?.toLowerCase().includes('transport') ||
-      s.department?.toLowerCase().includes('operation') ||
-      s.department?.toLowerCase().includes('maintenance') ||
-      s.department?.toLowerCase().includes('security') ||
-      s.department?.toLowerCase().includes('admin') ||
       s.designation?.toLowerCase().includes('driver') ||
-      s.designation?.toLowerCase().includes('attendant') ||
-      s.designation?.toLowerCase().includes('staff')
+      s.department?.toLowerCase().includes('driver') ||
+      (s as any).role?.toLowerCase().includes('driver')
     );
   }, [staff]);
+
+  const filteredNonTeachingStaff = React.useMemo(() => {
+    return nonTeachingStaff.filter(
+      s => !driverMasters.some(d => d.employeeId === s.empId)
+    );
+  }, [nonTeachingStaff, driverMasters]);
 
   const [query, setQuery] = useState('');
   const [selectedDriverFilter, setSelectedDriverFilter] = useState(() => sessionStorage.getItem('tm_driver_filter') || '');
@@ -121,7 +122,7 @@ export const DriverMasterView: React.FC = () => {
   };
 
   // Driver Documents Management Handlers
-  const handleOpenDriverDocs = (d: DriverMaster) => {
+  const handleOpenDriverDocs = async (d: DriverMaster) => {
     setDocModalDriver(d);
     setDocForm({
       docType: 'Medical Certificate',
@@ -131,25 +132,87 @@ export const DriverMasterView: React.FC = () => {
       badgeNumber: 'BDG-1004',
       attachmentName: ''
     });
+
+    try {
+      const apiDocs = await fetchDriverDocumentsApi(d.id);
+      if (apiDocs && apiDocs.length > 0) {
+        const mapped = apiDocs.map(item => ({
+          id: String(item.id),
+          driverId: d.id,
+          docType: item.documentCategory as any,
+          docNumber: item.documentNumber,
+          issueDate: item.issueDate ? item.issueDate.split('T')[0] : "",
+          expiryDate: item.expiryDate ? item.expiryDate.split('T')[0] : "",
+          badgeNumber: item.badgeNumber,
+          attachmentName: item.fileName || "Document.pdf"
+        }));
+        setDriverDocs(prev => {
+          const withoutDriver = prev.filter(x => x.driverId !== d.id);
+          return [...withoutDriver, ...mapped];
+        });
+      } else {
+        if (d.id !== 'dm-01') {
+          setDriverDocs(prev => prev.filter(x => x.driverId !== d.id));
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching driver documents", err);
+    }
   };
 
-  const handleAddDriverDoc = (e: React.FormEvent) => {
+  const handleAddDriverDoc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docModalDriver || !docForm.docNumber) return;
 
-    const newDoc: DriverDocumentItem = {
-      id: 'dd-' + Date.now(),
-      driverId: docModalDriver.id,
-      docType: (docForm.docType || 'Medical Certificate') as any,
-      docNumber: docForm.docNumber || '',
+    const payload = {
+      documentCategory: docForm.docType || 'Medical Certificate',
+      documentNumber: docForm.docNumber || '',
       issueDate: docForm.issueDate || new Date().toISOString().split('T')[0],
       expiryDate: docForm.expiryDate || '2027-01-01',
       badgeNumber: docForm.badgeNumber || '',
-      attachmentName: docForm.attachmentName || `${docForm.docType}_${docModalDriver.driverName.replace(/\s+/g, '_')}.pdf`
+      fileName: docForm.attachmentName || `${docForm.docType}_${docModalDriver.driverName.replace(/\s+/g, '_')}.pdf`,
+      fileUrl: ""
     };
 
-    setDriverDocs(prev => [newDoc, ...prev]);
-    addToast('success', 'Driver Document Uploaded', `Added ${newDoc.docType} for ${docModalDriver.driverName}`);
+    try {
+      const response = await createDriverDocumentApi(docModalDriver.id, payload);
+      const newDoc: DriverDocumentItem = {
+        id: String(response?.id || Date.now()),
+        driverId: docModalDriver.id,
+        docType: (response?.documentCategory || payload.documentCategory) as any,
+        docNumber: response?.documentNumber || payload.documentNumber,
+        issueDate: response?.issueDate || payload.issueDate,
+        expiryDate: response?.expiryDate || payload.expiryDate,
+        badgeNumber: response?.badgeNumber || payload.badgeNumber,
+        attachmentName: response?.fileName || payload.fileName
+      };
+
+      setDriverDocs(prev => [newDoc, ...prev]);
+      addToast('success', 'Driver Document Uploaded', `Added ${newDoc.docType} for ${docModalDriver.driverName}`);
+      
+      setDocForm({
+        docType: 'Medical Certificate',
+        docNumber: `MED-VER-${Math.floor(1000 + Math.random() * 9000)}`,
+        issueDate: new Date().toISOString().split('T')[0],
+        expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        badgeNumber: 'BDG-1004',
+        attachmentName: ''
+      });
+    } catch (err) {
+      console.error(err);
+      addToast('error', 'Upload Failed', 'Operating in local fallback mode');
+      const newDoc: DriverDocumentItem = {
+        id: 'dd-' + Date.now(),
+        driverId: docModalDriver.id,
+        docType: (docForm.docType || 'Medical Certificate') as any,
+        docNumber: docForm.docNumber || '',
+        issueDate: docForm.issueDate || new Date().toISOString().split('T')[0],
+        expiryDate: docForm.expiryDate || '2027-01-01',
+        badgeNumber: docForm.badgeNumber || '',
+        attachmentName: docForm.attachmentName || `${docForm.docType}_${docModalDriver.driverName.replace(/\s+/g, '_')}.pdf`
+      };
+      setDriverDocs(prev => [newDoc, ...prev]);
+    }
   };
 
   const checkDocExpiryStatus = (expiryDateStr?: string) => {
@@ -200,7 +263,7 @@ export const DriverMasterView: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder="Search driver name, phone, or license..."
+            placeholder="Search by driver name, phone, or license..."
             value={query}
             onChange={e => setQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
@@ -331,35 +394,46 @@ export const DriverMasterView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                  Import from Non-Teaching Staff (Optional)
-                </label>
-                <select
-                  onChange={e => {
-                    const selected = nonTeachingStaff.find(s => s.id === e.target.value);
-                    if (selected) {
-                      setForm(prev => ({
-                        ...prev,
-                        employeeId: selected.empId || prev.employeeId,
-                        driverName: `${selected.firstName} ${selected.lastName}`.trim(),
-                        mobileNumber: selected.phone || prev.mobileNumber,
-                        email: selected.email || prev.email,
-                        address: selected.address || selected.presentAddress || prev.address
-                      }));
-                    }
-                  }}
-                  defaultValue=""
-                  className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border text-xs font-semibold text-slate-700 dark:text-slate-300"
-                >
-                  <option value="">-- Choose Non-Teaching Staff Member --</option>
-                  {nonTeachingStaff.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.firstName} {s.lastName} ({s.empId} • {s.designation} • {s.department})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!editingDriver && (
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Select Driver from Non-Teaching Staff
+                  </label>
+                  <select
+                    value={filteredNonTeachingStaff.find(s => s.empId === form.employeeId)?.id || ""}
+                    onChange={e => {
+                      const selected = filteredNonTeachingStaff.find(s => String(s.id) === String(e.target.value));
+                      if (selected) {
+                        setForm(prev => ({
+                          ...prev,
+                          employeeId: selected.empId || prev.employeeId,
+                          driverName: `${selected.firstName} ${selected.lastName}`.trim(),
+                          mobileNumber: selected.phone || prev.mobileNumber,
+                          email: selected.email || prev.email,
+                          address: selected.address || selected.presentAddress || prev.address
+                        }));
+                      } else {
+                        setForm(prev => ({
+                          ...prev,
+                          employeeId: '',
+                          driverName: '',
+                          mobileNumber: '',
+                          email: '',
+                          address: ''
+                        }));
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border text-xs font-semibold text-slate-700 dark:text-slate-300"
+                  >
+                    <option value="">-- Choose Non-Teaching Staff Member --</option>
+                    {filteredNonTeachingStaff.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.firstName} {s.lastName} ({s.empId} • {s.designation} • {s.department})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -507,15 +581,33 @@ export const DriverMasterView: React.FC = () => {
                         </p>
                       </div>
 
-                      <div className="text-right space-y-1">
-                        {status.isExpired ? (
-                          <Badge variant="danger" size="sm">EXPIRED</Badge>
-                        ) : status.isExpiringSoon ? (
-                          <Badge variant="warning" size="sm">Expiring in {status.daysLeft}d</Badge>
-                        ) : (
-                          <Badge variant="success" size="sm">Verified</Badge>
-                        )}
-                        <p className="text-[10px] text-sky-600 font-bold flex items-center justify-end gap-1"><FileText className="w-3 h-3" /> {doc.attachmentName || 'Document.pdf'}</p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right space-y-1">
+                          {status.isExpired ? (
+                            <Badge variant="danger" size="sm">EXPIRED</Badge>
+                          ) : status.isExpiringSoon ? (
+                            <Badge variant="warning" size="sm">Expiring in {status.daysLeft}d</Badge>
+                          ) : (
+                            <Badge variant="success" size="sm">Verified</Badge>
+                          )}
+                          <p className="text-[10px] text-sky-600 font-bold flex items-center justify-end gap-1"><FileText className="w-3 h-3" /> {doc.attachmentName || 'Document.pdf'}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await deleteDriverDocumentApi(docModalDriver.id, doc.id);
+                              setDriverDocs(prev => prev.filter(x => x.id !== doc.id));
+                              addToast('info', 'Document Deleted', 'Driver document removed successfully');
+                            } catch (err) {
+                              setDriverDocs(prev => prev.filter(x => x.id !== doc.id));
+                            }
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 transition-colors"
+                          title="Delete Document"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   );
