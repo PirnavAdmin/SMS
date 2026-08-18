@@ -29,16 +29,23 @@ public class Meeting
 
     public string? Building { get; set; } = "Academic Block A";
     public string? Floor { get; set; } = "1st Floor";
-    public string? MeetingRoom { get; set; } = "Conference Room 204";
+    public string? MeetingRoom { get; set; } = "Conference Room 102";
     public int RoomCapacity { get; set; } = 15;
 
+    public string? OnlineMeetingUrl { get; set; }
+
     [Required]
-    public DateTime MeetingDate { get; set; }
+    public DateTime MeetingDate { get; set; } = DateTime.UtcNow;
 
-    public string StartTime { get; set; } = "14:00";
-    public string EndTime { get; set; } = "14:30";
+    public string StartTime { get; set; } = "10:00";
+    public string EndTime { get; set; } = "10:30";
 
-    public string MeetingStatus { get; set; } = "Scheduled";
+    public string MeetingStatus { get; set; } = "SCHEDULED";
+
+    public string Priority { get; set; } = "Normal";
+    public string AttendancePolicy { get; set; } = "Mandatory";
+    public string Recurrence { get; set; } = "None (One-time)";
+    public int TotalRecipients { get; set; } = 47;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

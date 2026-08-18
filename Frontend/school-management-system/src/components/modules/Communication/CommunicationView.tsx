@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Megaphone, Send, Mail, MessageSquare, Bell, Users, Calendar, Search, 
   Plus, X, CheckCircle2, AlertTriangle, Pin, Trash2, Filter, Clock, 
@@ -8,6 +8,12 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
+import {
+  fetchNotificationsApi,
+  createNotificationApi,
+  updateNotificationApi,
+  deleteNotificationApi
+} from '../../../api/communication';
 
 interface LocalAnnouncement {
   id: string;
@@ -211,6 +217,37 @@ export const CommunicationView: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const loadFromApi = async () => {
+      try {
+        const res = await fetchNotificationsApi(categoryFilter === 'All' ? undefined : categoryFilter, searchQuery || undefined);
+        const data = (res as any)?.data || res;
+        if (Array.isArray(data) && data.length > 0) {
+          const mapped: LocalAnnouncement[] = data.map((c: any) => ({
+            id: String(c.circularId || c.id || `COMM-${Date.now()}`),
+            title: c.title || c.circularHeadline || '',
+            content: c.content || c.messageContent || '',
+            category: (c.category || c.categoryTag || 'SPORTS • ALL').toUpperCase(),
+            targetAudience: (c.targetAudience || c.audience || 'ALL').toUpperCase(),
+            date: c.createdDate || c.broadcastDate || c.date || new Date().toISOString().split('T')[0],
+            author: c.author || 'School Administration',
+            deliveredCount: c.deliveredCount || 1420,
+            isPinned: Boolean(c.isPinned),
+            channels: {
+              sms: c.smsSent ?? c.smsAlert ?? true,
+              email: c.emailSent ?? c.emailBlast ?? true,
+              push: c.pushDelivered ?? c.appPush ?? true,
+            }
+          }));
+          setLocalAnnouncements(mapped);
+        }
+      } catch (e) {
+        console.warn("API fetch notifications fallback to local:", e);
+      }
+    };
+    loadFromApi();
+  }, [categoryFilter, searchQuery]);
+
   // Modal Composer & Edit States
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [isEmergencyOpen, setIsEmergencyOpen] = useState(false);
@@ -281,7 +318,22 @@ export const CommunicationView: React.FC = () => {
     const finalDate = broadcastDate || new Date().toISOString().split('T')[0];
 
     if (editingId) {
-      // Update existing announcement
+      // API Update Call
+      const numericId = parseInt(editingId.replace(/\D/g, ''), 10);
+      if (numericId) {
+        updateNotificationApi(numericId, {
+          title: title.trim(),
+          content: content.trim(),
+          category: category.toUpperCase(),
+          targetAudience: target.toUpperCase(),
+          createdDate: finalDate,
+          smsSent: sendSMS,
+          emailSent: sendEmail,
+          pushDelivered: sendPush,
+        }).catch(e => console.warn("API update failed:", e));
+      }
+
+      // Update local state
       const updated = localAnnouncements.map(a => {
         if (a.id === editingId) {
           return {
@@ -299,7 +351,22 @@ export const CommunicationView: React.FC = () => {
       saveAnnouncements(updated);
       addToast('success', 'Announcement Updated', 'Circular text and settings updated successfully.');
     } else {
-      // Create new announcement
+      // API Create Call
+      createNotificationApi({
+        title: title.trim(),
+        content: content.trim(),
+        category: category.toUpperCase(),
+        targetAudience: target.toUpperCase(),
+        createdDate: finalDate,
+        author: role === 'Teacher' ? 'Faculty Member' : 'School Administration',
+        deliveredCount: target === 'ALL' ? 1420 : target === 'STAFF' ? 185 : 1280,
+        isPinned: priority === 'Urgent',
+        smsSent: sendSMS,
+        emailSent: sendEmail,
+        pushDelivered: sendPush,
+      }).catch(e => console.warn("API create failed:", e));
+
+      // Create new local announcement
       const newNotice: LocalAnnouncement = {
         id: `COMM-${Date.now()}`,
         title: title.trim(),
@@ -337,6 +404,20 @@ export const CommunicationView: React.FC = () => {
   };
 
   const handleEmergencyBroadcast = (type: string) => {
+    createNotificationApi({
+      title: `🚨 EMERGENCY ALERT: ${type}`,
+      content: `Urgent notification regarding ${type}. All parents and staff members please note the immediate advisory. Further details will be communicated via official SMS.`,
+      category: 'URGENT',
+      targetAudience: 'ALL',
+      createdDate: new Date().toISOString().split('T')[0],
+      author: 'Principal Office',
+      deliveredCount: 1420,
+      isPinned: true,
+      smsSent: true,
+      emailSent: true,
+      pushDelivered: true,
+    }).catch(e => console.warn("API emergency broadcast failed:", e));
+
     const emergencyNotice: LocalAnnouncement = {
       id: `EMERGENCY-${Date.now()}`,
       title: `🚨 EMERGENCY ALERT: ${type}`,
@@ -356,6 +437,10 @@ export const CommunicationView: React.FC = () => {
   };
 
   const handleDeleteNotice = (id: string) => {
+    const numericId = parseInt(id.replace(/\D/g, ''), 10);
+    if (numericId) {
+      deleteNotificationApi(numericId).catch(e => console.warn("API delete failed:", e));
+    }
     const updated = localAnnouncements.filter(a => a.id !== id);
     saveAnnouncements(updated);
     addToast('info', 'Notice Removed', 'Broadcast circular removed from notice board.');
