@@ -128,14 +128,14 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(route =>
-                    route.RouteName.ToLower().Contains(search));
+                    route.RouteName != null && route.RouteName.ToLower().Contains(search));
             }
 
             return await query
                 .Select(route => new RouteStudentReportDto
                 {
                     RouteId = route.RouteId,
-                    RouteName = route.RouteName,
+                    RouteName = route.RouteName ?? string.Empty,
 
                     StudentCount = _context
                         .StudentTransportAssignments
@@ -177,7 +177,7 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(point =>
-                    point.PickupPointName.ToLower().Contains(search) ||
+                    (point.PickupPointName != null && point.PickupPointName.ToLower().Contains(search)) ||
                     (point.Landmark != null &&
                      point.Landmark.ToLower().Contains(search)));
             }
@@ -186,9 +186,9 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(point => new PickupPointReportDto
                 {
                     PickupPointId = point.PickupPointId,
-                    PickupPointName = point.PickupPointName,
+                    PickupPointName = point.PickupPointName ?? string.Empty,
 
-                    RouteName = point.TransportRoute != null
+                    RouteName = point.TransportRoute != null && point.TransportRoute.RouteName != null
                         ? point.TransportRoute.RouteName
                         : string.Empty,
 
@@ -259,7 +259,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(assignment => new DriverVehicleReportDto
                 {
                     DriverId = assignment.DriverId,
-                    DriverName = assignment.Driver != null ? assignment.Driver.DriverName : string.Empty,
+                    DriverName = assignment.Driver != null && assignment.Driver.DriverName != null ? assignment.Driver.DriverName : string.Empty,
                     VehicleNumber =
                         (assignment.Vehicle != null && assignment.Vehicle.VehicleNumber != null) ? assignment.Vehicle.VehicleNumber : string.Empty,
                     RouteName = (assignment.Route != null && assignment.Route.RouteName != null) ? assignment.Route.RouteName : string.Empty
@@ -604,9 +604,9 @@ namespace SMS.Api.Repositories.Implementations
                     var assignment = activeAssignments.FirstOrDefault(a => a.DriverId == d.DriverId);
                     return new DriverReportDto
                     {
-                        DriverName = d.DriverName,
-                        MobileNumber = d.MobileNumber,
-                        LicenseNumber = d.LicenceNumber,
+                        DriverName = d.DriverName ?? string.Empty,
+                        MobileNumber = d.MobileNumber ?? string.Empty,
+                        LicenseNumber = d.LicenceNumber ?? string.Empty,
                         LicenseExpiry = d.LicenceExpiry?.ToString("yyyy-MM-dd"),
                         CurrentBus = assignment?.Vehicle?.VehicleNumber ?? "Unassigned",
                         CurrentRoute = assignment?.Route?.RouteName ?? "Unassigned",
@@ -668,8 +668,8 @@ namespace SMS.Api.Repositories.Implementations
 
                     return new RouteReportDto
                     {
-                        RouteCode = r.RouteCode,
-                        RouteName = r.RouteName,
+                        RouteCode = r.RouteCode ?? string.Empty,
+                        RouteName = r.RouteName ?? string.Empty,
                         StartPoint = r.StartLocation ?? string.Empty,
                         Destination = r.EndLocation ?? string.Empty,
                         DistanceKm = r.DistanceKm,

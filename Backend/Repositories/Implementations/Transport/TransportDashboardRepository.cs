@@ -204,7 +204,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(route => new RouteStudentSummaryDto
                 {
                     RouteId = route.RouteId,
-                    RouteName = route.RouteName,
+                    RouteName = route.RouteName ?? string.Empty,
 
                     StudentCount = _context.StudentTransportAssignments
                         .Count(assignment =>
@@ -437,7 +437,7 @@ namespace SMS.Api.Repositories.Implementations
                 morningSequence.Add(new TripSequenceStopDto
                 {
                     StepNo = stepIdx++,
-                    StopName = p.PickupPointName,
+                    StopName = p.PickupPointName ?? string.Empty,
                     DistanceKm = (double)p.DistanceFromStart,
                     ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : "07:15 AM",
                     BoardingAlightingInfo = boardingCount > 0 ? $"{boardingCount} Student(s) Boarding" : "No Students Assigned",
@@ -474,7 +474,7 @@ namespace SMS.Api.Repositories.Implementations
                 eveningSequence.Add(new TripSequenceStopDto
                 {
                     StepNo = stepIdx++,
-                    StopName = p.PickupPointName,
+                    StopName = p.PickupPointName ?? string.Empty,
                     DistanceKm = (double)p.DistanceFromStart,
                     ScheduledTime = assignment.EveningTripTime ?? "03:45 PM",
                     BoardingAlightingInfo = alightingCount > 0 ? $"{alightingCount} Student(s) Alighting" : "No Students Assigned",

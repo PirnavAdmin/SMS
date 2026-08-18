@@ -377,8 +377,8 @@ public class HostelService : IHostelService
             if (!string.IsNullOrWhiteSpace(dto.AssignedRoomSharingAlias) && dto.AssignedRoomSharingAlias != "string")
             {
                 var searchSharing = dto.AssignedRoomSharingAlias.Trim();
-                var matched = roomConfigs.FirstOrDefault(c => searchSharing.Contains(c.RoomTypeSpecification, StringComparison.OrdinalIgnoreCase) ||
-                                                             c.RoomTypeSpecification.Contains(searchSharing, StringComparison.OrdinalIgnoreCase));
+                var matched = roomConfigs.FirstOrDefault(c => c.RoomTypeSpecification != null && (searchSharing.Contains(c.RoomTypeSpecification, StringComparison.OrdinalIgnoreCase) ||
+                                                             c.RoomTypeSpecification.Contains(searchSharing, StringComparison.OrdinalIgnoreCase)));
                 if (matched != null) roomTypeId = matched.RoomTypeId;
             }
             if (roomTypeId <= 0) roomTypeId = roomConfigs.FirstOrDefault()?.RoomTypeId ?? 1;

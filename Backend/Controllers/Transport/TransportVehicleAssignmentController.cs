@@ -159,7 +159,7 @@ namespace SMS.Api.Controllers
                 var newDto = await _service.GetByIdAsync(newId);
                 return Ok(new { success = true, message = "Assignment updated successfully.", data = newDto });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 long numericId = long.TryParse(id, out long pId) ? pId : 1;
                 return Ok(new

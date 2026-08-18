@@ -500,9 +500,16 @@ using (var scope = app.Services.CreateScope())
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `classes` (
-                `ClassId` int NOT NULL AUTO_INCREMENT,
-                `ClassName` varchar(100) NOT NULL,
-                PRIMARY KEY (`ClassId`)
+                `id` int NOT NULL AUTO_INCREMENT,
+                `ClassName` varchar(100) NULL,
+                `CampusLocation` varchar(100) NOT NULL DEFAULT 'Main Campus',
+                `AcademicYear` varchar(20) NOT NULL DEFAULT '2026-2027',
+                `DisplayOrder` int NULL,
+                `status` varchar(20) NOT NULL DEFAULT 'Active',
+                `remarks` longtext NULL,
+                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `updated_at` datetime(6) NULL,
+                PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `class_sections` (
@@ -1189,6 +1196,71 @@ using (var scope = app.Services.CreateScope())
             }
             catch { }
         }
+
+        void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
+        {
+            try
+            {
+                var conn = context.Database.GetDbConnection();
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+
+                bool oldExists = false;
+                bool newExists = false;
+
+                using (var schemaTable = conn.GetSchema("Columns", new[] { null, conn.Database, table, null }))
+                {
+                    foreach (System.Data.DataRow row in schemaTable.Rows)
+                    {
+                        var colName = row["COLUMN_NAME"]?.ToString();
+                        if (colName != null)
+                        {
+                            if (colName.Equals(oldColumn, StringComparison.OrdinalIgnoreCase)) oldExists = true;
+                            if (colName.Equals(newColumn, StringComparison.OrdinalIgnoreCase)) newExists = true;
+                        }
+                    }
+                }
+
+                if (closeConn)
+                {
+                    conn.Close();
+                }
+
+                if (oldExists && !newExists)
+                {
+#pragma warning disable EF1002
+                    try
+                    {
+                        context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` RENAME COLUMN `{oldColumn}` TO `{newColumn}`;");
+                    }
+                    catch
+                    {
+                        context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` CHANGE COLUMN `{oldColumn}` `{newColumn}` {columnDef};");
+                    }
+#pragma warning restore EF1002
+                }
+            }
+            catch { }
+        }
+
+        EnsureColumnRenamed("classes", "ClassId", "id", "int NOT NULL AUTO_INCREMENT");
+        EnsureColumnRenamed("classes", "Status", "status", "varchar(20) NOT NULL DEFAULT 'Active'");
+        EnsureColumnRenamed("classes", "Remarks", "remarks", "longtext NULL");
+        EnsureColumnRenamed("classes", "UpdatedAt", "updated_at", "datetime(6) NULL");
+
+        EnsureColumnExists("classes", "id", "int NOT NULL AUTO_INCREMENT");
+        EnsureColumnExists("classes", "ClassName", "varchar(100) NULL");
+        EnsureColumnExists("classes", "CampusLocation", "varchar(100) NOT NULL DEFAULT 'Main Campus'");
+        EnsureColumnExists("classes", "AcademicYear", "varchar(20) NOT NULL DEFAULT '2026-2027'");
+        EnsureColumnExists("classes", "DisplayOrder", "int NULL");
+        EnsureColumnExists("classes", "status", "varchar(20) NOT NULL DEFAULT 'Active'");
+        EnsureColumnExists("classes", "remarks", "longtext NULL");
+        EnsureColumnExists("classes", "CreatedAt", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        EnsureColumnExists("classes", "updated_at", "datetime(6) NULL");
 
         EnsureColumnExists("Subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
         EnsureColumnExists("subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
@@ -2251,7 +2323,7 @@ using (var scope = app.Services.CreateScope())
                             {
                                 AdmissionNumber = admission.ApplicationNo ?? $"ADM-{admission.AdmissionId}",
                                 RollNumber = admission.RollNo ?? $"R-{admission.AdmissionId}",
-                                StudentName = admission.StudentName,
+                                StudentName = admission.StudentName ?? string.Empty,
                                 DateOfBirth = admission.Dob,
                                 Gender = admission.Gender,
                                 FatherName = admission.FatherName,

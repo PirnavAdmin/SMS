@@ -28,8 +28,8 @@ namespace SMS.Api.Repositories.Implementations
                 string search = filter.Search.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.RouteCode.ToLower().Contains(search) ||
-                    x.RouteName.ToLower().Contains(search) ||
+                    (x.RouteCode != null && x.RouteCode.ToLower().Contains(search)) ||
+                    (x.RouteName != null && x.RouteName.ToLower().Contains(search)) ||
                     (x.StartLocation != null && x.StartLocation.ToLower().Contains(search)) ||
                     (x.EndLocation != null && x.EndLocation.ToLower().Contains(search)));
             }
@@ -76,8 +76,8 @@ namespace SMS.Api.Repositories.Implementations
                 return new TransportRouteDto
                 {
                     RouteId = x.RouteId,
-                    RouteCode = x.RouteCode,
-                    RouteName = x.RouteName,
+                    RouteCode = x.RouteCode ?? string.Empty,
+                    RouteName = x.RouteName ?? string.Empty,
                     StartLocation = x.StartLocation ?? string.Empty,
                     EndLocation = x.EndLocation ?? string.Empty,
                     DistanceKm = x.DistanceKm,
@@ -133,8 +133,8 @@ namespace SMS.Api.Repositories.Implementations
             return new TransportRouteDto
             {
                 RouteId = x.RouteId,
-                RouteCode = x.RouteCode,
-                RouteName = x.RouteName,
+                RouteCode = x.RouteCode ?? string.Empty,
+                RouteName = x.RouteName ?? string.Empty,
                 StartLocation = x.StartLocation ?? string.Empty,
                 EndLocation = x.EndLocation ?? string.Empty,
                 DistanceKm = x.DistanceKm,
@@ -284,10 +284,8 @@ namespace SMS.Api.Repositories.Implementations
                     search.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.RouteCode.ToLower()
-                        .Contains(normalizedSearch) ||
-                    x.RouteName.ToLower()
-                        .Contains(normalizedSearch));
+                    (x.RouteCode != null && x.RouteCode.ToLower().Contains(normalizedSearch)) ||
+                    (x.RouteName != null && x.RouteName.ToLower().Contains(normalizedSearch)));
             }
 
             return await query
@@ -296,8 +294,8 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportRouteLookupDto
                 {
                     RouteId = x.RouteId,
-                    RouteCode = x.RouteCode,
-                    RouteName = x.RouteName,
+                    RouteCode = x.RouteCode ?? string.Empty,
+                    RouteName = x.RouteName ?? string.Empty,
                     DisplayName =
                         x.RouteCode + " - " + x.RouteName
                 })
@@ -315,7 +313,7 @@ namespace SMS.Api.Repositories.Implementations
                 .AsNoTracking()
                 .AnyAsync(x =>
                     !x.IsDeleted &&
-                    x.RouteCode.ToLower() == normalizedCode &&
+                    x.RouteCode != null && x.RouteCode.ToLower() == normalizedCode &&
                     (!excludeRouteId.HasValue ||
                      x.RouteId != excludeRouteId.Value));
         }
@@ -331,7 +329,7 @@ namespace SMS.Api.Repositories.Implementations
                 .AsNoTracking()
                 .AnyAsync(x =>
                     !x.IsDeleted &&
-                    x.RouteName.ToLower() == normalizedName &&
+                    x.RouteName != null && x.RouteName.ToLower() == normalizedName &&
                     (!excludeRouteId.HasValue ||
                      x.RouteId != excludeRouteId.Value));
         }
