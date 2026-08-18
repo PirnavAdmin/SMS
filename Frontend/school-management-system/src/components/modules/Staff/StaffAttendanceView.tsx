@@ -1257,6 +1257,17 @@ export const StaffAttendanceView: React.FC = () => {
     return JSON.stringify(relevant);
   }, [attendance, attendanceDate]);
 
+  // Helper to normalize status strings to standard TitleCase enum
+  const normalizeStatus = useCallback((raw: string | undefined): "Present" | "Absent" | "Late" | "HalfDay" | "Leave" => {
+    if (!raw) return "Present";
+    const val = String(raw).trim().toLowerCase();
+    if (val === "absent") return "Absent";
+    if (val === "leave" || val === "on leave" || val === "onleave") return "Leave";
+    if (val === "halfday" || val === "half day" || val === "half-day") return "HalfDay";
+    if (val === "late") return "Late";
+    return "Present";
+  }, []);
+
   // Populate / Sync local attendance maps whenever attendanceDate or staff changes
   useEffect(() => {
     const newStatusMap: typeof attendanceMap = {};
@@ -1268,24 +1279,33 @@ export const StaffAttendanceView: React.FC = () => {
       // 1. Check Approved Leave
       const approvedLeave = getApprovedLeave(s.id, attendanceDate);
 
-      // 2. Check Existing Recorded Attendance
+      // 2. Check Existing Recorded Attendance (flexible match on ID, entityType & date)
+      const targetDate = String(attendanceDate).split("T")[0];
       const existing = (attendance || []).find(
-        (r) =>
-          r.entityType === "Staff" &&
-          r.entityId === s.id &&
-          r.date === attendanceDate,
+        (r) => {
+          const rDate = String(r.date || "").split("T")[0];
+          const isDateMatch = rDate === targetDate;
+          const isStaffEntity = !r.entityType || r.entityType.toLowerCase() === "staff";
+          const isIdMatch =
+            String(r.entityId) === String(s.id) ||
+            String(r.entityId) === String(s.empId) ||
+            String((r as any).staffId) === String(s.id) ||
+            String((r as any).employeeId) === String(s.id);
+          return isDateMatch && isStaffEntity && isIdMatch;
+        }
       );
 
       if (existing) {
-        newStatusMap[s.id] = existing.status;
+        const normSt = normalizeStatus(existing.status);
+        newStatusMap[s.id] = normSt;
         newInTimeMap[s.id] =
           existing.inTime ||
-          (existing.status === "Present" || existing.status === "Late"
+          (normSt === "Present" || normSt === "Late"
             ? "08:30 AM"
             : "");
         newOutTimeMap[s.id] =
           existing.outTime ||
-          (existing.status === "Present" || existing.status === "Late"
+          (normSt === "Present" || normSt === "Late"
             ? "04:30 PM"
             : "");
         newRemarksMap[s.id] = existing.remarks || "";
@@ -1308,7 +1328,7 @@ export const StaffAttendanceView: React.FC = () => {
     setOutTimeMap(newOutTimeMap);
     setRemarksMap(newRemarksMap);
     setOverrideLeaveSet(new Set());
-  }, [attendanceDate, staff, attendanceHash, leaveApplications]);
+  }, [attendanceDate, staff, attendanceHash, leaveApplications, normalizeStatus]);
 
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
@@ -1363,7 +1383,8 @@ export const StaffAttendanceView: React.FC = () => {
     let halfDay = 0;
 
     currentTabStaffList.forEach((s) => {
-      const st = attendanceMap[s.id] || "Present";
+      const rawSt = attendanceMap[s.id];
+      const st = normalizeStatus(rawSt);
       if (st === "Present") present++;
       else if (st === "Absent") absent++;
       else if (st === "Leave") leave++;
@@ -1371,7 +1392,7 @@ export const StaffAttendanceView: React.FC = () => {
     });
 
     return { total, present, absent, leave, halfDay };
-  }, [currentTabStaffList, attendanceMap]);
+  }, [currentTabStaffList, attendanceMap, normalizeStatus]);
 
   // Status Change Handler with Leave Locks & Permission Checks
   const handleStatusChange = (
@@ -1537,7 +1558,7 @@ export const StaffAttendanceView: React.FC = () => {
       date: attendanceDate,
       entityType: "Staff",
       entityId: s.id,
-      status: attendanceMap[s.id] || "Present",
+      status: normalizeStatus(attendanceMap[s.id]),
       inTime: inTimeMap[s.id] || "",
       outTime: outTimeMap[s.id] || "",
       department: s.department || "",

@@ -18,11 +18,58 @@ interface OutpassRecord {
   status: 'Approved' | 'Pending' | 'Rejected';
 }
 
+const OUTPASSES_STORE_KEY = 'edu_db_hostel_outpasses';
+
+const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [
+  {
+    id: 1,
+    studentName: 'Rajesh Kumar',
+    admissionNo: 'ADM-2026-101',
+    hostelName: 'Ramachandra Bhavan Block',
+    roomNumber: '101',
+    outpassType: 'Home Leave',
+    departureDate: '2026-08-15',
+    returnDate: '2026-08-18',
+    reason: 'Family function visit',
+    status: 'Approved'
+  },
+  {
+    id: 2,
+    studentName: 'Ananya Roy',
+    admissionNo: 'ADM-2026-106',
+    hostelName: 'Girls Block A',
+    roomNumber: 'G-101',
+    outpassType: 'Local Outpass',
+    departureDate: '2026-08-17',
+    returnDate: '2026-08-17',
+    reason: 'Medical checkup',
+    status: 'Pending'
+  }
+];
+
 export const HostelOutpassLeaveView: React.FC = () => {
   const { students } = useData();
   const { addToast } = useToast();
 
-  const [records, setRecords] = useState<OutpassRecord[]>([]);
+  const [records, setRecords] = useState<OutpassRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(OUTPASSES_STORE_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {}
+      }
+    }
+    return DEFAULT_INITIAL_OUTPASSES;
+  });
+
+  const saveRecords = (newRecords: OutpassRecord[]) => {
+    setRecords(newRecords);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(OUTPASSES_STORE_KEY, JSON.stringify(newRecords));
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -73,10 +120,10 @@ export const HostelOutpassLeaveView: React.FC = () => {
 
     const newRecord: OutpassRecord = {
       id: Date.now(),
-      studentName: selectedSt ? `${selectedSt.firstName} ${selectedSt.lastName}` : 'Student',
-      admissionNo: selectedSt?.admissionNo || 'ADM-2026-000',
-      hostelName: 'Boys Residence - Block A',
-      roomNumber: '102',
+      studentName: selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student',
+      admissionNo: selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`,
+      hostelName: (selectedSt as any)?.hostelName || 'Ramachandra Bhavan Block',
+      roomNumber: (selectedSt as any)?.roomNumber || '101',
       outpassType,
       departureDate,
       returnDate,
@@ -84,20 +131,22 @@ export const HostelOutpassLeaveView: React.FC = () => {
       status: 'Pending'
     };
 
-    setRecords([newRecord, ...records]);
+    saveRecords([newRecord, ...records]);
     addToast('Outpass / Leave request submitted successfully.', 'success');
     setIsSubmitting(false);
     setIsModalOpen(false);
   };
 
   const handleStatusChange = (id: number, newStatus: 'Approved' | 'Rejected') => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    const updated = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
+    saveRecords(updated);
     addToast(`Outpass request marked as ${newStatus}.`, 'info');
   };
 
   const handleDelete = () => {
     if (!deletingRecord) return;
-    setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
+    const updated = records.filter(r => r.id !== deletingRecord.id);
+    saveRecords(updated);
     addToast('Outpass record deleted.', 'success');
     setDeletingRecord(null);
   };

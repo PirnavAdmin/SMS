@@ -63,39 +63,44 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [refreshHostelData]);
 
   // Map to legacy models
-  const hostelBlocks: HostelBlock[] = blocks.map(b => ({
-    id: b.hostelId.toString(),
-    name: b.hostelName,
-    wardenName: b.wardenName || 'Unassigned',
-    wardenPhone: b.primaryMobileNumber || 'N/A'
-  }));
+  const hostelBlocks: HostelBlock[] = (blocks || [])
+    .filter(b => b != null)
+    .map(b => ({
+      id: String(b.hostelId ?? (b as any).id ?? ''),
+      name: b.hostelName || (b as any).name || 'Hostel Block',
+      wardenName: b.wardenName || 'Unassigned',
+      wardenPhone: b.primaryMobileNumber || 'N/A'
+    }));
 
-  const hostelRooms: HostelRoom[] = rooms.map(r => ({
-    id: r.roomId.toString(),
-    blockId: r.hostelId.toString(),
-    roomNo: r.roomNumber,
-    capacity: r.bedCapacity,
-    occupiedBeds: r.occupiedBeds,
-    status: r.status === 'Active' ? (r.vacantBeds > 0 ? 'Available' : 'Full') : 'Maintenance'
-  }));
+  const hostelRooms: HostelRoom[] = (rooms || [])
+    .filter(r => r != null)
+    .map(r => ({
+      id: String(r.roomId ?? (r as any).id ?? ''),
+      blockId: String(r.hostelId ?? (r as any).blockId ?? ''),
+      roomNo: r.roomNumber || (r as any).roomNo || '',
+      capacity: r.bedCapacity ?? (r as any).capacity ?? 0,
+      occupiedBeds: r.occupiedBeds ?? 0,
+      status: r.status === 'Active' ? ((r.vacantBeds ?? 0) > 0 ? 'Available' : 'Full') : 'Maintenance'
+    }));
 
   // Dynamically generate beds based on room capacities and allocations
   const hostelBeds: HostelBed[] = [];
-  rooms.forEach(r => {
-    for (let i = 1; i <= r.bedCapacity; i++) {
+  (rooms || []).filter(r => r != null).forEach(r => {
+    const cap = r.bedCapacity || 0;
+    for (let i = 1; i <= cap; i++) {
       const bedNo = `Bed ${i}`;
       // Check if this specific bed is allocated
-      const isOccupied = allocations.some(
-        a => a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
+      const isOccupied = (allocations || []).some(
+        a => a && a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
       );
       // Find occupying student name if any
-      const studentName = allocations.find(
-        a => a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
+      const studentName = (allocations || []).find(
+        a => a && a.roomId === r.roomId && a.bedNumber === bedNo && a.status === 'Active'
       )?.studentName;
 
       hostelBeds.push({
-        id: `bed_${r.roomId}_${i}`,
-        roomId: r.roomId.toString(),
+        id: `bed_${r.roomId || '0'}_${i}`,
+        roomId: String(r.roomId ?? ''),
         bedNo,
         status: isOccupied ? 'Occupied' : 'Available',
         studentName

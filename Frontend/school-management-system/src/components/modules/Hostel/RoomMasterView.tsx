@@ -61,13 +61,23 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
     fetchData();
   }, [fetchData]);
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = async () => {
     setEditingRoom(null);
     setFormHostelId('');
     setFormFloorLevel('');
     setFormRoomNumber('');
     setFormRoomTypeId('');
     setFormStatus('Active');
+
+    try {
+      const blocksData = await getHostelBlocks();
+      if (Array.isArray(blocksData) && blocksData.length > 0) {
+        setBlocks(blocksData);
+      }
+    } catch (e) {
+      // Ignored
+    }
+
     setIsModalOpen(true);
   };
 
@@ -181,7 +191,17 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           >
             <option value="">Select Hostel...</option>
             <option value="All">All Hostels</option>
-            {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
+            {(blocks || [])
+              .filter(h => h != null)
+              .map((h, idx) => {
+                const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
+                return (
+                  <option key={`filter_h_${idVal}_${idx}`} value={idVal}>
+                    {nameVal}
+                  </option>
+                );
+              })}
           </select>
         </div>
       </div>
@@ -205,8 +225,8 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {paginatedRooms.map(rm => (
-              <div key={rm.roomId} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+            {paginatedRooms.map((rm, idx) => (
+              <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">Room #{rm.roomNumber}</span>
@@ -254,33 +274,69 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 <label className="block font-semibold mb-1">Select Hostel Block <span className="text-rose-500">*</span></label>
                 <select
                   value={formHostelId}
-                  onChange={e => setFormHostelId(e.target.value)}
+                  onChange={e => {
+                    setFormHostelId(e.target.value);
+                    setFormFloorLevel('');
+                  }}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
                   disabled={isSubmitting}
                   required
                 >
                   <option value="" disabled>Select Hostel Block...</option>
-                  {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
+                  {(blocks || [])
+                    .filter(h => h != null)
+                    .map((h, idx) => {
+                      const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                      const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
+                      return (
+                        <option key={`form_h_${idVal}_${idx}`} value={idVal}>
+                          {nameVal}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 
               <div>
                 <label className="block font-semibold mb-1">Floor Level <span className="text-rose-500">*</span></label>
-                <select 
-                  value={formFloorLevel} 
-                  onChange={e => setFormFloorLevel(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
-                  disabled={isSubmitting}
-                  required
-                >
-                  <option value="" disabled>Select Floor Level...</option>
-                  <option value="Ground Floor">Ground Floor</option>
-                  <option value="1st Floor">1st Floor</option>
-                  <option value="2nd Floor">2nd Floor</option>
-                  <option value="3rd Floor">3rd Floor</option>
-                  <option value="4th Floor">4th Floor</option>
-                  <option value="5th Floor">5th Floor</option>
-                </select>
+                {(() => {
+                  const selBlock = (blocks || []).find(b => b && b.hostelId !== undefined && String(b.hostelId) === formHostelId);
+                  let floorList: string[] = [];
+                  if (selBlock) {
+                    const stored = localStorage.getItem(`edu_db_floor_sharing_config_${selBlock.hostelId}`);
+                    if (stored) {
+                      try {
+                        const parsed = JSON.parse(stored);
+                        if (Array.isArray(parsed) && parsed.length > 0) {
+                          floorList = parsed.map((f: any) => f.floorLabel || `Floor #${f.floorIndex + 1}`);
+                        }
+                      } catch (e) {}
+                    }
+                    if (floorList.length === 0) {
+                      const count = Math.max(1, Number((selBlock as any).totalFloors || (selBlock as any).totalBuildingFloors || 2));
+                      floorList = Array.from({ length: count }, (_, i) =>
+                        i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`
+                      );
+                    }
+                  }
+
+                  return (
+                    <select 
+                      value={formFloorLevel} 
+                      onChange={e => setFormFloorLevel(e.target.value)} 
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white"
+                      disabled={isSubmitting || !formHostelId}
+                      required
+                    >
+                      <option value="" disabled>{!formHostelId ? 'Select Hostel Block first...' : 'Select Floor Level...'}</option>
+                      {floorList.map((fl, idx) => (
+                        <option key={`fl_opt_${idx}`} value={fl}>
+                          {fl}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

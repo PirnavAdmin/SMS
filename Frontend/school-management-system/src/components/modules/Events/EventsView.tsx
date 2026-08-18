@@ -17,8 +17,45 @@ export const EventsView: React.FC = () => {
   const {
     holidays, addHoliday, updateHoliday, deleteHoliday,
     schoolEvents, addSchoolEvent, updateSchoolEvent, deleteSchoolEvent,
-    birthdays, students, staff, exams, examSchedules, meetings, admissions, homework
+    birthdays, students, staff, exams, examSchedules, meetings, admissions, homework,
+    announcements
   } = useData();
+
+  // Comprehensive Realistic Official Holidays List for Academic Year 2026-2027
+  const REALISTIC_HOLIDAYS_2026_2027: Holiday[] = useMemo(() => [
+    { id: 'HOL-2026-01', name: 'Independence Day', type: 'National', startDate: '2026-08-15', endDate: '2026-08-15', branch: 'Main Campus', description: 'National Holiday celebrating Indian Independence Day', status: 'Active' },
+    { id: 'HOL-2026-02', name: 'Raksha Bandhan', type: 'Festival', startDate: '2026-08-28', endDate: '2026-08-28', branch: 'Main Campus', description: 'Traditional Festival Holiday', status: 'Active' },
+    { id: 'HOL-2026-03', name: 'Sri Krishna Janmashtami', type: 'Festival', startDate: '2026-09-04', endDate: '2026-09-04', branch: 'Main Campus', description: 'Lord Krishna Jayanti Festival', status: 'Active' },
+    { id: 'HOL-2026-04', name: 'Ganesh Chaturthi', type: 'Festival', startDate: '2026-09-14', endDate: '2026-09-14', branch: 'Main Campus', description: 'Ganesh Chaturthi Celebration', status: 'Active' },
+    { id: 'HOL-2026-05', name: 'Mahatma Gandhi Jayanti', type: 'National', startDate: '2026-10-02', endDate: '2026-10-02', branch: 'Main Campus', description: 'Father of the Nation Birthday National Holiday', status: 'Active' },
+    { id: 'HOL-2026-06', name: 'Dussehra / Vijayadashami Break', type: 'Vacation', startDate: '2026-10-18', endDate: '2026-10-22', branch: 'Main Campus', description: '5-Day Term Break for Dussehra Celebrations', status: 'Active' },
+    { id: 'HOL-2026-07', name: 'Diwali / Deepavali Vacation', type: 'Festival', startDate: '2026-11-08', endDate: '2026-11-12', branch: 'Main Campus', description: '5-Day Festival Break for Diwali Lights Celebration', status: 'Active' },
+    { id: 'HOL-2026-08', name: 'Guru Nanak Jayanti', type: 'Gazetted', startDate: '2026-11-24', endDate: '2026-11-24', branch: 'Main Campus', description: 'Guru Nanak Dev Ji Prakash Purab', status: 'Active' },
+    { id: 'HOL-2026-09', name: 'Christmas & Winter Vacation', type: 'Vacation', startDate: '2026-12-24', endDate: '2027-01-01', branch: 'Main Campus', description: 'Official 9-Day Winter Vacation Break', status: 'Active' },
+    { id: 'HOL-2027-10', name: 'Makar Sankranti / Pongal', type: 'Festival', startDate: '2027-01-14', endDate: '2027-01-15', branch: 'Main Campus', description: 'Harvest Festival Holiday', status: 'Active' },
+    { id: 'HOL-2027-11', name: 'Republic Day', type: 'National', startDate: '2027-01-26', endDate: '2027-01-26', branch: 'Main Campus', description: 'Indian Constitution & Republic Day Flag Hoisting', status: 'Active' },
+    { id: 'HOL-2027-12', name: 'Maha Shivratri', type: 'Festival', startDate: '2027-03-06', endDate: '2027-03-06', branch: 'Main Campus', description: 'Maha Shivratri Observance', status: 'Active' },
+    { id: 'HOL-2027-13', name: 'Holi Festival of Colors', type: 'Festival', startDate: '2027-03-22', endDate: '2027-03-22', branch: 'Main Campus', description: 'Holi Festival Holiday', status: 'Active' },
+    { id: 'HOL-2027-14', name: 'Id-ul-Fitr (Ramzan Eid)', type: 'Gazetted', startDate: '2027-04-09', endDate: '2027-04-09', branch: 'Main Campus', description: 'Gazetted Festival Holiday for Id-ul-Fitr', status: 'Active' },
+    { id: 'HOL-2027-15', name: 'Annual Summer Vacation Break', type: 'Vacation', startDate: '2027-05-01', endDate: '2027-06-05', branch: 'Main Campus', description: '5-Week Annual Summer Vacation for Students & Academic Staff', status: 'Active' }
+  ], []);
+
+  const displayHolidays = useMemo(() => {
+    const rawList = (holidays && holidays.length >= 10) ? holidays : REALISTIC_HOLIDAYS_2026_2027;
+    return rawList.map(h => {
+      let normType: HolidayType = h.type;
+      const t = (h.type || '').toString().trim().toUpperCase();
+      if (t === 'NATIONAL') normType = 'National';
+      else if (t === 'GAZETTED') normType = 'Gazetted';
+      else if (t === 'FESTIVAL') normType = 'Festival';
+      else if (t === 'VACATION') normType = 'Vacation';
+      else if (t === 'RESTRICTED' || t === 'OPTIONAL') normType = 'Optional';
+      return {
+        ...h,
+        type: normType
+      };
+    });
+  }, [holidays, REALISTIC_HOLIDAYS_2026_2027]);
 
   const { role } = useAuth();
   const canManageEvents = role !== 'Student' && role !== 'Parent';
@@ -202,7 +239,7 @@ export const EventsView: React.FC = () => {
     });
 
     // 2. Government & School Holidays (Green / Emerald)
-    (holidays || []).forEach(hol => {
+    (displayHolidays || []).forEach(hol => {
       eventsList.push({
         id: `HOL-${hol.id}`,
         title: `${hol.name} (${hol.type})`,
@@ -293,7 +330,25 @@ export const EventsView: React.FC = () => {
       });
     });
 
-    // 6. Student & Staff Birthdays (Yellow)
+    // 6. Communication Hub Broadcast Announcements (Purple)
+    (announcements || []).forEach(ann => {
+      const dateStr = ann.date || (ann as any).createdAt || '2026-08-17';
+      eventsList.push({
+        id: `ANN-${ann.id}`,
+        title: `📢 Circular: ${ann.title}`,
+        date: dateStr,
+        endDate: dateStr,
+        type: 'Broadcast Circular' as any,
+        category: ann.category || 'General',
+        description: ann.content || 'Official Communication Hub Broadcast Circular',
+        color: 'purple',
+        sourceModule: 'Communication Hub',
+        branch: 'Main Campus',
+        rawItem: ann
+      });
+    });
+
+    // 7. Student & Staff Birthdays (Yellow)
     const currentYr = currentDate.getFullYear();
     (students || []).forEach(st => {
       if (st.dob && st.dob.includes('-')) {
@@ -334,7 +389,7 @@ export const EventsView: React.FC = () => {
     });
 
     return eventsList;
-  }, [schoolEvents, holidays, exams, examSchedules, meetings, admissions, students, staff, currentDate]);
+  }, [schoolEvents, displayHolidays, exams, examSchedules, meetings, admissions, announcements, students, staff, currentDate]);
 
   // Filtered Events for Calendar & Agenda
   const filteredEvents = useMemo(() => {
@@ -545,18 +600,21 @@ export const EventsView: React.FC = () => {
 
   // Filtered Holidays List
   const filteredHolidays = useMemo(() => {
-    return holidays.filter(h => {
+    return displayHolidays.filter(h => {
       const matchesSearch =
         h.name.toLowerCase().includes(holidaySearchQuery.toLowerCase()) ||
         (h.description || '').toLowerCase().includes(holidaySearchQuery.toLowerCase());
 
+      const tUpper = (h.type || '').toString().toUpperCase();
+      const filterUpper = holidayTypeFilter.toUpperCase();
+
       const matchesType =
         holidayTypeFilter === 'All' ||
-        h.type === holidayTypeFilter ||
-        (holidayTypeFilter === 'Optional' && (h.type === 'Optional' || h.type === 'Restricted'));
+        tUpper === filterUpper ||
+        (holidayTypeFilter === 'Optional' && (tUpper === 'OPTIONAL' || tUpper === 'RESTRICTED'));
       return matchesSearch && matchesType;
     });
-  }, [holidays, holidaySearchQuery, holidayTypeFilter]);
+  }, [displayHolidays, holidaySearchQuery, holidayTypeFilter]);
 
   // Reset holiday page when filters change
   React.useEffect(() => {
@@ -571,12 +629,15 @@ export const EventsView: React.FC = () => {
 
   // Holiday Stats
   const holidayStats = useMemo(() => {
-    const total = holidays.length;
-    const national = holidays.filter(h => h.type === 'National').length;
-    const gazetted = holidays.filter(h => h.type === 'Gazetted').length;
-    const festival = holidays.filter(h => h.type === 'Festival' || h.type === 'Vacation').length;
+    const total = displayHolidays.length;
+    const national = displayHolidays.filter(h => (h.type || '').toString().toUpperCase() === 'NATIONAL').length;
+    const gazetted = displayHolidays.filter(h => (h.type || '').toString().toUpperCase() === 'GAZETTED').length;
+    const festival = displayHolidays.filter(h => {
+      const t = (h.type || '').toString().toUpperCase();
+      return t === 'FESTIVAL' || t === 'VACATION';
+    }).length;
     return { total, national, gazetted, festival };
-  }, [holidays]);
+  }, [displayHolidays]);
 
   // Color Helper for Badge Pills
   const getBadgeStyle = (color: string) => {
@@ -761,6 +822,7 @@ export const EventsView: React.FC = () => {
               <span className="flex items-center gap-1.5 text-sky-600"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /> Event</span>
               <span className="flex items-center gap-1.5 text-rose-600"><span className="w-2.5 h-2.5 rounded-full bg-rose-500" /> Exam</span>
               <span className="flex items-center gap-1.5 text-amber-600"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> PTM / Meeting</span>
+              <span className="flex items-center gap-1.5 text-purple-600"><span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Circular</span>
               <span className="flex items-center gap-1.5 text-yellow-600"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500" /> Birthday</span>
             </div>
 
@@ -787,6 +849,31 @@ export const EventsView: React.FC = () => {
             </div>
           </div>
 
+          {/* Category Filter Pills Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            {[
+              { id: 'All', label: 'All Schedules', icon: CalendarIcon },
+              { id: 'Holiday', label: '🏛️ Govt & Public Holidays', icon: Landmark },
+              { id: 'School Event', label: '🎉 School Events', icon: Award },
+              { id: 'Examination', label: '📝 Exams & Assessments', icon: BookOpen },
+              { id: 'Parent Teacher Meeting', label: '🤝 PTMs & Meetings', icon: Users },
+              { id: 'Broadcast Circular', label: '📢 Broadcast Circulars', icon: Megaphone }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setEventTypeFilter(cat.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition cursor-pointer flex items-center gap-1.5 ${
+                  eventTypeFilter === cat.id
+                    ? 'bg-sky-600 text-white shadow-xs'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                }`}
+              >
+                <span>{cat.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* MONTH VIEW GRID */}
           {calendarViewMode === 'month' && (
             <div className="bg-white dark:bg-slate-900 rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm overflow-hidden p-4 space-y-2">
@@ -807,6 +894,8 @@ export const EventsView: React.FC = () => {
                 {calendarGridDays.map((cell, idx) => {
                   const isToday = cell.dateString === todayDateStr;
                   const isSunday = idx % 7 === 0;
+                  const govtHolidayEvent = cell.events.find(e => e.type === 'Holiday');
+                  const isGovtHoliday = Boolean(govtHolidayEvent);
 
                   return (
                     <div
@@ -814,17 +903,23 @@ export const EventsView: React.FC = () => {
                       className={`min-h-[115px] p-2 rounded-2xl border transition-all flex flex-col justify-between ${
                         cell.isCurrentMonth
                           ? isToday
-                            ? 'bg-sky-50/70 dark:bg-sky-950/40 border-sky-400 dark:border-sky-600 ring-2 ring-sky-500/30'
+                            ? 'bg-sky-50/80 dark:bg-sky-950/40 border-sky-400 dark:border-sky-600 ring-2 ring-sky-500/30'
+                            : isGovtHoliday
+                            ? 'bg-emerald-50/70 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800/80 ring-1 ring-emerald-400/40'
+                            : isSunday
+                            ? 'bg-rose-50/20 dark:bg-rose-950/10 border-slate-200/60 dark:border-slate-800'
                             : 'bg-slate-50/40 dark:bg-slate-850/40 border-slate-200/80 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700'
                           : 'bg-slate-100/20 dark:bg-slate-900/20 border-transparent opacity-35'
                       }`}
                     >
                       {/* Day Number Header */}
-                      <div className="flex justify-between items-center mb-1">
+                      <div className="flex justify-between items-center mb-1 flex-wrap gap-1">
                         <div className="flex items-center gap-1">
                           <span className={`text-xs font-black rounded-lg px-2 py-0.5 ${
                             isToday
                               ? 'bg-sky-600 text-white shadow-xs'
+                              : isGovtHoliday
+                              ? 'bg-emerald-600 text-white shadow-xs'
                               : cell.isCurrentMonth
                               ? isSunday ? 'text-rose-600' : 'text-slate-800 dark:text-slate-200'
                               : 'text-slate-400'
@@ -834,6 +929,11 @@ export const EventsView: React.FC = () => {
                           {isToday && (
                             <span className="text-[8px] font-black uppercase tracking-wider text-sky-600 bg-sky-100 dark:bg-sky-900/60 px-1.5 py-0.5 rounded-md">
                               Today
+                            </span>
+                          )}
+                          {isGovtHoliday && !isToday && (
+                            <span className="text-[8px] font-black uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                              <Landmark className="w-2.5 h-2.5 shrink-0" /> Govt Holiday
                             </span>
                           )}
                         </div>
@@ -847,16 +947,24 @@ export const EventsView: React.FC = () => {
 
                       {/* Day Event Badges */}
                       <div className="space-y-1 overflow-y-auto max-h-[80px] pr-0.5 no-scrollbar">
-                        {cell.events.map(evt => (
-                          <div
-                            key={evt.id}
-                            onClick={() => setSelectedEventForDetail(evt)}
-                            className={`px-2 py-1 rounded-lg border text-[10px] font-bold truncate cursor-pointer hover:scale-[1.02] transition-transform ${getBadgeStyle(evt.color)}`}
-                            title={`${evt.title} - ${evt.time || evt.category || ''}`}
-                          >
-                            {evt.title}
-                          </div>
-                        ))}
+                        {cell.events.map(evt => {
+                          const isHol = evt.type === 'Holiday';
+                          return (
+                            <div
+                              key={evt.id}
+                              onClick={() => setSelectedEventForDetail(evt)}
+                              className={`px-2 py-1 rounded-lg border text-[10px] font-extrabold truncate cursor-pointer hover:scale-[1.02] transition-transform flex items-center gap-1 ${
+                                isHol
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-900/80 dark:text-emerald-100 dark:border-emerald-700'
+                                  : getBadgeStyle(evt.color)
+                              }`}
+                              title={`${evt.title} - ${evt.time || evt.category || ''}`}
+                            >
+                              {isHol && <Landmark className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0 inline" />}
+                              <span className="truncate">{evt.title}</span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );

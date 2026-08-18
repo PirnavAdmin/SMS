@@ -63,7 +63,7 @@ export const HostelMasterView: React.FC = () => {
   const [form, setForm] = useState<Partial<HostelBlock>>({
     hostelName: '',
     hostelCode: '',
-    hostelType: 'Boys Hostel',
+    hostelType: '',
     address: '',
     status: 'Active'
   });
@@ -119,6 +119,7 @@ export const HostelMasterView: React.FC = () => {
 
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!form.hostelName || !form.hostelCode) {
       addToast('error', 'Validation Error', 'Please enter hostel name and code');
       return;
@@ -176,9 +177,21 @@ export const HostelMasterView: React.FC = () => {
 
   const handleDelete = async () => {
     if (deletingHostel) {
+      const targetId = deletingHostel.hostelId;
+      const targetCode = deletingHostel.hostelCode;
+      const targetName = deletingHostel.hostelName;
+
       try {
-        await deleteHostelBlock(deletingHostel.hostelId);
-        addToast('success', 'Hostel Deleted', 'The hostel was deleted successfully.');
+        await deleteHostelBlock(targetId, targetCode, targetName);
+
+        // Immediate local state update for instant UI response
+        setHostelMasters(prev => prev.filter(b => 
+          String(b.hostelId) !== String(targetId) &&
+          (b.hostelCode || '').toLowerCase().trim() !== (targetCode || '').toLowerCase().trim() &&
+          (b.hostelName || '').toLowerCase().trim() !== (targetName || '').toLowerCase().trim()
+        ));
+
+        addToast('success', 'Hostel Deleted', `${targetName || 'Hostel'} was deleted successfully.`);
         fetchData();
       } catch (error: any) {
         addToast('error', 'Delete Failed', error.message);
@@ -253,10 +266,10 @@ export const HostelMasterView: React.FC = () => {
           >
             <option value="">Select Hostel...</option>
             <option value="All">All Hostels</option>
-            {hostelMasters.map(h => {
+            {hostelMasters.map((h, idx) => {
               const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
               return (
-                <option key={h.hostelId} value={displayTitle}>
+                <option key={`h-opt-${h.hostelId || idx}-${idx}`} value={displayTitle}>
                   {displayTitle} ({h.hostelCode || 'HST-01'})
                 </option>
               );
@@ -286,15 +299,18 @@ export const HostelMasterView: React.FC = () => {
           ) : filteredHostels.length === 0 ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">No hostels found for this category.</div>
           ) : (
-            filteredHostels.map(h => {
-              const hRooms = roomMasters.filter(r => r.hostelId === h.hostelId);
+            filteredHostels.map((h, idx) => {
+              const hRooms = roomMasters.filter(r => 
+                (r.hostelCode && h.hostelCode && r.hostelCode.toLowerCase().trim() === h.hostelCode.toLowerCase().trim()) ||
+                (Number(r.hostelId) === Number(h.hostelId) && String(r.hostelName || '').toLowerCase().trim() === String(h.hostelName || '').toLowerCase().trim())
+              );
               const totalBeds = hRooms.reduce((acc, r) => acc + (r.bedCapacity || 0), 0);
-              const activeAssignments = allocations.filter(a => a.status === 'Active' && hRooms.some(r => r.roomId === a.roomId)).length;
+              const activeAssignments = allocations.filter(a => a.status === 'Active' && hRooms.some(r => Number(r.roomId) === Number(a.roomId))).length;
 
               const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
 
               return (
-                <div key={h.hostelId} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+                <div key={`h-card-${h.hostelId || idx}-${h.hostelCode || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div>
                       <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">{h.hostelCode}</span>
@@ -400,8 +416,6 @@ export const HostelMasterView: React.FC = () => {
                     <option value="" disabled>Select Category...</option>
                     <option value="Boys Hostel">Boys Hostel</option>
                     <option value="Girls Hostel">Girls Hostel</option>
-                    <option value="Co-Ed Hostel">Co-Ed Hostel</option>
-                    <option value="Senior Student Hostel">Senior Student Hostel</option>
                   </select>
                 </div>
                 <div>

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Users, User, Calendar, Clock, MapPin, Video, Plus, X, Search, CheckCircle2, 
   AlertCircle, ShieldAlert, Check, XCircle, Lock, Edit, Trash2, Link as LinkIcon, Building2,
-  UserX, Filter, Save, Bookmark, Repeat, AlertTriangle, ShieldCheck, Layers, BadgeCheck, CheckSquare, Square
+  UserX, Filter, Save, Bookmark, Repeat, AlertTriangle, ShieldCheck, Layers, BadgeCheck, CheckSquare, Square, Sparkles
 } from 'lucide-react';
 import { 
   SchoolMeeting, MeetingAudience, MeetingParticipantType, MeetingMode, 
@@ -26,6 +26,14 @@ export const MeetingsView: React.FC = () => {
   const [filterMode, setFilterMode] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Pagination State
+  const [meetingPage, setMeetingPage] = useState<number>(1);
+  const [meetingPageSize, setMeetingPageSize] = useState<number>(6);
+
+  useEffect(() => {
+    setMeetingPage(1);
+  }, [filterAudience, filterMode, filterStatus, searchQuery, meetingPageSize]);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -706,6 +714,55 @@ export const MeetingsView: React.FC = () => {
         )}
       </div>
 
+      {/* KPI Overview Cards Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="glass-card p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs bg-white dark:bg-slate-900">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Scheduled</p>
+            <h4 className="text-lg font-black text-slate-900 dark:text-white mt-0.5">{meetings.length} Meetings</h4>
+          </div>
+          <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600">
+            <Calendar className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="glass-card p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs bg-white dark:bg-slate-900">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Parent-Teacher Meets</p>
+            <h4 className="text-lg font-black text-emerald-600 dark:text-emerald-400 mt-0.5">
+              {meetings.filter(m => m.meetingAudience === 'Individual').length} Syncs
+            </h4>
+          </div>
+          <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600">
+            <User className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="glass-card p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs bg-white dark:bg-slate-900">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Faculty Conferences</p>
+            <h4 className="text-lg font-black text-indigo-600 dark:text-indigo-400 mt-0.5">
+              {meetings.filter(m => m.meetingAudience === 'Group').length} Groups
+            </h4>
+          </div>
+          <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600">
+            <Users className="w-4 h-4" />
+          </div>
+        </div>
+
+        <div className="glass-card p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center justify-between shadow-xs bg-white dark:bg-slate-900">
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">On-Site vs Online</p>
+            <h4 className="text-sm font-black text-amber-600 dark:text-amber-400 mt-0.5">
+              {meetings.filter(m => m.meetingMode === 'In-Person').length} In-Person / {meetings.filter(m => m.meetingMode === 'Online').length} Virtual
+            </h4>
+          </div>
+          <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600">
+            <Video className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
       {/* Filter Bar */}
       <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-xs grid grid-cols-2 md:grid-cols-5 gap-3 text-xs font-semibold">
         <div>
@@ -766,169 +823,246 @@ export const MeetingsView: React.FC = () => {
       </div>
 
       {/* Meetings Grid / List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(() => {
-          const filtered = meetings.filter(m => {
-            if (filterAudience && m.meetingAudience !== filterAudience) return false;
-            if (filterMode && m.meetingMode !== filterMode) return false;
-            if (filterStatus && m.status !== filterStatus) return false;
-            if (searchQuery) {
-              const q = searchQuery.toLowerCase();
-              const pMatch = (m.participants || []).some(p => p.name.toLowerCase().includes(q) || p.details.toLowerCase().includes(q));
-              const match = m.title.toLowerCase().includes(q) || (m.roomVenue && m.roomVenue.toLowerCase().includes(q)) || pMatch;
-              if (!match) return false;
-            }
-            return true;
-          });
-
-          if (filtered.length === 0) {
-            return (
-              <div className="col-span-full p-12 text-center text-slate-400 font-bold glass-card rounded-3xl">
-                No meetings found matching your selected criteria.
-              </div>
-            );
+      {(() => {
+        const filtered = meetings.filter(m => {
+          if (filterAudience && m.meetingAudience !== filterAudience) return false;
+          if (filterMode && m.meetingMode !== filterMode) return false;
+          if (filterStatus && m.status !== filterStatus) return false;
+          if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            const pMatch = (m.participants || []).some(p => p.name.toLowerCase().includes(q) || p.details.toLowerCase().includes(q));
+            const match = m.title.toLowerCase().includes(q) || (m.roomVenue && m.roomVenue.toLowerCase().includes(q)) || pMatch;
+            if (!match) return false;
           }
+          return true;
+        });
 
-          return filtered.map(meeting => (
-            <div key={meeting.id} className="glass-card p-5 rounded-3xl space-y-3.5 flex flex-col justify-between border border-slate-100 dark:border-slate-800 shadow-md">
-              <div className="space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    meeting.meetingAudience === 'Individual'
-                      ? 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200'
-                      : 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200'
-                  }`}>
-                    {meeting.meetingAudience} Meeting
-                  </span>
+        const totalMeetingItems = filtered.length;
+        const totalMeetingPages = Math.ceil(totalMeetingItems / meetingPageSize) || 1;
+        const meetingStartIndex = (meetingPage - 1) * meetingPageSize;
+        const paginatedMeetings = filtered.slice(meetingStartIndex, meetingStartIndex + meetingPageSize);
 
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    meeting.status === 'Scheduled' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200' :
-                    meeting.status === 'Draft' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200' :
-                    meeting.status === 'Completed' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200' :
-                    'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200'
-                  }`}>
-                    {meeting.status}
-                  </span>
-                </div>
+        if (filtered.length === 0) {
+          return (
+            <div className="p-12 text-center text-slate-400 font-bold glass-card rounded-3xl">
+              No meetings found matching your selected criteria.
+            </div>
+          );
+        }
 
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-sm hover:text-sky-600 transition-colors leading-tight">
-                  {meeting.title}
-                </h3>
-                {meeting.description && (
-                  <p className="text-[11px] text-slate-500 line-clamp-2">{meeting.description}</p>
-                )}
-              </div>
-
-              <div className="space-y-2 text-xs font-semibold pt-2 border-t border-slate-100 dark:border-slate-800">
-                {/* Participant Info */}
-                <div className="flex items-center gap-2">
-                  <User className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                  <div className="truncate">
-                    {meeting.meetingAudience === 'Individual' ? (
-                      <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                        {meeting.participants?.[0]?.name || '1 Participant'}
-                        <span className="block text-[10px] text-slate-400 font-normal truncate">{meeting.participants?.[0]?.details}</span>
+        return (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedMeetings.map(meeting => (
+                <div key={meeting.id} className="glass-card p-5 rounded-3xl space-y-3.5 flex flex-col justify-between border border-slate-100 dark:border-slate-800 shadow-md">
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border border-sky-200">
+                        {(meeting.meetingAudience || 'Individual').replace(/\s*meeting\s*/gi, '').toUpperCase()} MEETING
                       </span>
-                    ) : (
-                      <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                        {meeting.targetGroupDescription || `${meeting.participants?.length || 0} Participants`}
+
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        meeting.status === 'Scheduled' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200' :
+                        meeting.status === 'Draft' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200' :
+                        meeting.status === 'Completed' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200' :
+                        'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200'
+                      }`}>
+                        {meeting.status}
                       </span>
+                    </div>
+
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm hover:text-sky-600 transition-colors leading-tight">
+                      {meeting.title}
+                    </h3>
+                    {meeting.description && (
+                      <p className="text-[11px] text-slate-500 line-clamp-2">{meeting.description}</p>
                     )}
                   </div>
-                </div>
 
-                {/* Date & Time */}
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                  <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                  <span className="font-mono text-xs">{meeting.meetingDate}</span>
-                  <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-2" />
-                  <span className="font-mono text-xs">{meeting.startTime} - {meeting.endTime}</span>
-                </div>
+                  <div className="space-y-2 text-xs font-semibold pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {/* Participant Info */}
+                    <div className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                      <div className="truncate w-full">
+                        {meeting.meetingAudience === 'Individual' ? (
+                          <div>
+                            <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">
+                              1 Participant: {meeting.participants?.[0]?.name || 'Parent (Alex Morgan)'}
+                            </span>
+                            {meeting.participants?.[0]?.details && (
+                              <span className="block text-[10px] text-slate-400 font-normal truncate">
+                                {meeting.participants[0].details}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            <span className="font-extrabold text-slate-800 dark:text-slate-200 text-xs">
+                              {(meeting.participants && meeting.participants.length > 0) 
+                                ? `${meeting.participants.length} Participants` 
+                                : (meeting.selectedParticipantIds && meeting.selectedParticipantIds.length > 0)
+                                ? `${meeting.selectedParticipantIds.length} Participants`
+                                : 'All Department Faculty'}
+                            </span>
+                            {meeting.targetGroupDescription && (
+                              <span className="block text-[10px] text-slate-400 font-normal truncate">
+                                {meeting.targetGroupDescription}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                {/* Venue / Link */}
-                <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                  {(meeting.meetingMode === 'In-Person' || meeting.meetingMode === 'Hybrid') ? (
-                    <>
-                      <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                      <span className="truncate font-bold text-amber-600 dark:text-amber-400">
-                        {meeting.roomVenue} {meeting.building ? `(${meeting.building})` : ''}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Video className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                      <span className="truncate text-blue-600 font-mono text-[11px]">{meeting.onlineMeetingUrl || 'Online Video Room'}</span>
-                    </>
-                  )}
-                </div>
-              </div>
+                    {/* Date & Time */}
+                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-mono text-xs">{meeting.meetingDate}</span>
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-2" />
+                      <span className="font-mono text-xs">{meeting.startTime} - {meeting.endTime}</span>
+                    </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-2 border-t text-xs">
-                <button
-                  onClick={() => setViewingMeeting(meeting)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] transition-colors"
-                >
-                  View Details
-                </button>
+                    {/* Venue / Link */}
+                    <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                      {(meeting.meetingMode === 'In-Person' || meeting.meetingMode === 'Hybrid') ? (
+                        <>
+                          <MapPin className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span className="truncate font-bold text-amber-600 dark:text-amber-400">
+                            {meeting.roomVenue} {meeting.building ? `(${meeting.building})` : ''}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                          <span className="truncate text-blue-600 font-mono text-[11px]">{meeting.onlineMeetingUrl || 'Online Video Room'}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
 
-                {canManageMeetings && (
-                  <div className="flex items-center gap-1">
-                    {meeting.status === 'Scheduled' && (
-                      <>
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-between pt-2 border-t text-xs">
+                    <button
+                      onClick={() => setViewingMeeting(meeting)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] transition-colors"
+                    >
+                      View Details
+                    </button>
+
+                    {canManageMeetings && (
+                      <div className="flex items-center gap-1">
+                        {meeting.status === 'Scheduled' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                updateMeeting(meeting.id, { status: 'Completed' });
+                                addToast('success', 'Meeting Completed', `Marked meeting '${meeting.title}' as Completed.`);
+                              }}
+                              title="Mark Completed"
+                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditModal(meeting)}
+                              title="Edit Meeting"
+                              className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setCancellingMeeting(meeting)}
+                              title="Cancel Meeting"
+                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                         <button
                           onClick={() => {
-                            updateMeeting(meeting.id, { status: 'Completed' });
-                            addToast('success', 'Meeting Completed', `Marked meeting '${meeting.title}' as Completed.`);
+                            if (window.confirm(`Delete meeting '${meeting.title}'?`)) {
+                              deleteMeeting(meeting.id);
+                              addToast('info', 'Deleted', 'Meeting record removed.');
+                            }
                           }}
-                          title="Mark Completed"
-                          className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                          title="Delete Record"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
                         >
-                          <CheckCircle2 className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => setCancellingMeeting(meeting)}
-                          title="Cancel Meeting"
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      </>
+                      </div>
                     )}
-                    {(meeting.status === 'Scheduled' || meeting.status === 'Draft') && (
-                      <button
-                        onClick={() => handleOpenEditModal(meeting)}
-                        title="Edit Meeting"
-                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        if (window.confirm(`Delete meeting '${meeting.title}'?`)) {
-                          deleteMeeting(meeting.id);
-                          addToast('info', 'Deleted', 'Meeting record removed.');
-                        }
-                      }}
-                      title="Delete Record"
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
-                )}
+                </div>
+              ))}
+            </div>
+
+            {/* Clean Pagination Bar */}
+            <div className="glass-card p-4 rounded-2xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs bg-white dark:bg-slate-900">
+              <div className="flex items-center gap-3 text-xs font-semibold text-slate-500">
+                <span>
+                  Showing <span className="font-bold text-slate-900 dark:text-white">{meetingStartIndex + 1}</span> to{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">{Math.min(meetingStartIndex + meetingPageSize, totalMeetingItems)}</span> of{' '}
+                  <span className="font-bold text-slate-900 dark:text-white">{totalMeetingItems}</span> meetings
+                </span>
+
+                <div className="flex items-center gap-1.5 ml-2">
+                  <span className="text-[11px] font-bold text-slate-400">Rows per page:</span>
+                  <select
+                    value={meetingPageSize}
+                    onChange={e => setMeetingPageSize(Number(e.target.value))}
+                    className="px-2 py-1 rounded-lg border bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+                  >
+                    <option value={6}>6</option>
+                    <option value={12}>12</option>
+                    <option value={18}>18</option>
+                    <option value={24}>24</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setMeetingPage(prev => Math.max(prev - 1, 1))}
+                  disabled={meetingPage === 1}
+                  className="px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                >
+                  Previous
+                </button>
+
+                {Array.from({ length: totalMeetingPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setMeetingPage(p)}
+                    className={`w-8 h-8 rounded-xl text-xs font-extrabold transition-all ${
+                      meetingPage === p
+                        ? 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-500/20'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => setMeetingPage(prev => Math.min(prev + 1, totalMeetingPages))}
+                  disabled={meetingPage === totalMeetingPages}
+                  className="px-3.5 py-1.5 rounded-xl border text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
+                >
+                  Next
+                </button>
               </div>
             </div>
-          ));
-        })()}
-      </div>
+          </div>
+        );
+      })()}
 
       {/* Schedule / Edit Meeting Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-955/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-850">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
                 <Users className="w-4 h-4 text-sky-600" />
                 {editingMeeting ? 'Modify Meeting Details' : 'Schedule New Meeting'}
@@ -937,6 +1071,108 @@ export const MeetingsView: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {/* Quick Auto Fill Meeting Presets Bar */}
+            {!editingMeeting && (
+              <div className="p-3 bg-sky-50/60 dark:bg-sky-950/40 rounded-2xl border border-sky-100 dark:border-sky-900/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-sky-700 dark:text-sky-300 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-500" /> ✨ Quick Meeting Presets:
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold">1-Click Auto Fill</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingAudience('Individual');
+                      setParticipantType('Parent');
+                      setFormData(prev => ({
+                        ...prev,
+                        title: 'Class 10 Mid-Term Performance Review PTM',
+                        description: 'Individual parent-teacher discussion regarding student mid-term academic progress, attendance, and career stream guidance.',
+                        meetingMode: 'In-Person',
+                        building: 'Academic Block A',
+                        floor: '1st Floor',
+                        roomVenue: 'Conference Room 102',
+                        startTime: '14:00',
+                        endTime: '14:30',
+                      }));
+                      addToast('info', 'Preset Loaded', 'Auto-filled Parent-Teacher Sync details.');
+                    }}
+                    className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 transition-all flex items-center gap-1"
+                  >
+                    <span>👨‍👩‍👧</span> PTM Sync
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingAudience('Group');
+                      setFormData(prev => ({
+                        ...prev,
+                        title: 'HOD & Mathematics Faculty Academic Alignment',
+                        description: 'Department strategy session to align syllabus completion for Class 9 and 10 upcoming term assessments.',
+                        meetingMode: 'In-Person',
+                        building: 'Science & Tech Wing',
+                        floor: '1st Floor',
+                        roomVenue: 'Staff Seminar Hall B',
+                        startTime: '11:00',
+                        endTime: '12:00',
+                      }));
+                      addToast('info', 'Preset Loaded', 'Auto-filled HOD Department Sync details.');
+                    }}
+                    className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 transition-all flex items-center gap-1"
+                  >
+                    <span>📚</span> HOD Department Sync
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingAudience('Group');
+                      setFormData(prev => ({
+                        ...prev,
+                        title: 'All-Faculty Academic Standards Briefing',
+                        description: 'Quarterly general assembly for all teaching staff regarding curriculum progress and examination evaluation.',
+                        meetingMode: 'In-Person',
+                        building: 'Main Administration Block',
+                        floor: '2nd Floor',
+                        roomVenue: 'Auditorium Conference Room',
+                        startTime: '15:00',
+                        endTime: '16:00',
+                      }));
+                      addToast('info', 'Preset Loaded', 'Auto-filled All-Faculty Meeting details.');
+                    }}
+                    className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 transition-all flex items-center gap-1"
+                  >
+                    <span>🎙️</span> All-Faculty Sync
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingAudience('Individual');
+                      setParticipantType('Parent');
+                      setFormData(prev => ({
+                        ...prev,
+                        title: 'Virtual Parent Counseling & Feedback Session',
+                        description: 'Online Google Meet session with student guardian to address attendance and subject improvement plan.',
+                        meetingMode: 'Online',
+                        onlineMeetingUrl: 'https://meet.google.com/pirnav-ptm-sync',
+                        startTime: '16:00',
+                        endTime: '16:30',
+                      }));
+                      addToast('info', 'Preset Loaded', 'Auto-filled Virtual Meeting details.');
+                    }}
+                    className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 transition-all flex items-center gap-1"
+                  >
+                    <span>🎥</span> Online Meet
+                  </button>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold text-slate-655 dark:text-slate-350">
               {/* Meeting Audience Selection */}

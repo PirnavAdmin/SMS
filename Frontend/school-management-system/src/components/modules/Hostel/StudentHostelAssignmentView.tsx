@@ -1,10 +1,116 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, Plus, Search, Shield, User, Edit, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
+import { SearchableSelect } from '../../common/SearchableSelect';
 import { getAllocations, createAllocation, vacateAllocation, getRooms, getHostelBlocks, BedAllocation, HostelRoom, HostelBlock } from '../../../api/hostel';
+
+const StudentInlineCombobox: React.FC<{
+  students: any[];
+  value: string;
+  onChange: (val: string) => void;
+  disabled?: boolean;
+}> = ({ students, value, onChange, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedStudent = students.find(s => String(s.id) === String(value));
+
+  useEffect(() => {
+    if (selectedStudent) {
+      setSearchText(`${selectedStudent.name} (${selectedStudent.className}-${selectedStudent.section} • ${selectedStudent.admissionNo})`);
+    } else if (!value) {
+      setSearchText('');
+    }
+  }, [value, selectedStudent]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredStudents = students.filter(st => {
+    if (!searchText.trim()) return true;
+    if (selectedStudent && searchText === `${selectedStudent.name} (${selectedStudent.className}-${selectedStudent.section} • ${selectedStudent.admissionNo})`) {
+      return true;
+    }
+    const q = searchText.toLowerCase().trim();
+    const nameMatch = (st.name || '').toLowerCase().includes(q);
+    const regMatch = (st.admissionNo || '').toLowerCase().includes(q);
+    const classMatch = (`${st.className || ''}-${st.section || ''}`).toLowerCase().includes(q);
+    return nameMatch || regMatch || classMatch;
+  });  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative cursor-pointer" onClick={() => setIsOpen(prev => !prev)}>
+        <input
+          type="text"
+          disabled={disabled}
+          value={searchText}
+          onFocus={() => setIsOpen(true)}
+          onChange={e => {
+            setSearchText(e.target.value);
+            setIsOpen(true);
+            if (!e.target.value) onChange('');
+          }}
+          placeholder="Type student name or reg no (e.g. 's' or 'b')..."
+          className="w-full pl-3.5 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+        />
+        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer" />
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-1 space-y-0.5 custom-scrollbar">
+          {filteredStudents.length === 0 ? (
+            <div className="px-3 py-3 text-center text-xs text-slate-400 font-semibold">
+              No matching students found
+            </div>
+          ) : (
+            filteredStudents.map(st => {
+              const isSelected = String(st.id) === String(value);
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange(String(st.id));
+                    setSearchText(`${st.name} (${st.className}-${st.section} • ${st.admissionNo})`);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                    isSelected
+                      ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
+                  }`}
+                >
+                  <div className="truncate">
+                    <div className="font-bold flex items-center gap-1.5">
+                      <span>{st.name}</span>
+                      <span className="font-mono text-[10px] text-slate-400">({st.className}-${st.section} • {st.admissionNo})</span>
+                    </div>
+                  </div>
+                  {st.isResidential ? (
+                    <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">★ Residential</span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full shrink-0 ml-1">Day Scholar</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const StudentHostelAssignmentView: React.FC = () => {
   const dataContext = useData();
@@ -26,32 +132,128 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const displayHostellers = (students || []).filter(s => {
-    if (!s) return false;
-    const sType = String(s.studentType || '').toLowerCase().trim();
-    const fOpted = String((s as any).facilityOpted || '').toLowerCase().trim();
-    const rType = String((s as any).residenceType || '').toLowerCase().trim();
+  const candidateStudents = React.useMemo(() => {
+    const rawStudents = Array.isArray(dataContext?.students) ? dataContext.students : [];
+    const rawAdmissions = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
 
-    return (
-      sType === 'hosteller' ||
-      sType === 'residential' ||
-      sType === 'boarder' ||
-      sType === 'hostel' ||
-      fOpted === 'hostel' ||
-      fOpted === 'residential' ||
-      rType === 'residential' ||
-      rType === 'hostel' ||
-      (s as any).isHostelRequired === true ||
-      (s as any).hostelFacility === true ||
-      (s as any).optedResidential === true
-    );
-  });
+    const map = new Map<string, any>();
+
+    const getDedupKey = (item: any) => {
+      const reg = String(item.registrationNo || item.admissionNo || item.applicationNo || item.registrationNumber || '').toLowerCase().trim();
+      const name = String(item.applicantName || `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.name || '').toLowerCase().trim();
+      if (reg && reg !== 'n/a') return `reg_${reg}`;
+      if (name) return `name_${name}`;
+      return `id_${item.id || item.studentId}`;
+    };
+
+    // Add students from Admissions store
+    rawAdmissions.forEach((a: any) => {
+      if (a) {
+        const key = getDedupKey(a);
+        const sType = String(a.studentType || a.residenceType || a.facilityOpted || a.residentialStatus || '').toLowerCase();
+        const isRes =
+          sType.includes('hostel') ||
+          sType.includes('residential') ||
+          sType.includes('boarder') ||
+          a.isHostelRequired === true ||
+          a.optedResidential === true ||
+          (a.hostelBlock && a.hostelBlock !== 'N/A') ||
+          (a.allocatedBedId && a.allocatedBedId !== 'N/A');
+
+        map.set(key, {
+          id: String(a.id || a.applicationNo || a.registrationNo),
+          name: a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || `Applicant #${a.id}`,
+          className: a.appliedClass || a.className || 'Class 10',
+          section: a.section || 'A',
+          admissionNo: a.applicationNo || a.registrationNo || String(a.id),
+          isResidential: Boolean(isRes),
+          studentType: isRes ? 'Residential' : 'Day Scholar'
+        });
+      }
+    });
+
+    // Add students from Students store
+    rawStudents.forEach((s: any) => {
+      if (s) {
+        const key = getDedupKey(s);
+        const existing = map.get(key);
+
+        const sType = String(s.studentType || s.residenceType || s.facilityOpted || s.residentialStatus || '').toLowerCase();
+        const isRes =
+          sType.includes('hostel') ||
+          sType.includes('residential') ||
+          sType.includes('boarder') ||
+          s.isHostelRequired === true ||
+          s.optedResidential === true ||
+          (s.hostelBlock && s.hostelBlock !== 'N/A') ||
+          Boolean(existing?.isResidential);
+
+        map.set(key, {
+          id: String(s.id || s.studentId || s.admissionNo),
+          name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || existing?.name || `Student #${s.id}`,
+          className: s.className || s.class || existing?.className || 'Class 10',
+          section: s.section || existing?.section || 'A',
+          admissionNo: s.admissionNo || s.registrationNumber || existing?.admissionNo || String(s.id),
+          isResidential: Boolean(isRes),
+          studentType: s.studentType || existing?.studentType || (isRes ? 'Residential' : 'Day Scholar')
+        });
+      }
+    });
+
+    // Fallback default list if no students exist in DataContext yet
+    if (map.size === 0) {
+      const defaults = [
+        { id: "STF-2026-0001", name: "Rajesh Kumar", className: "Class 10", section: "A", admissionNo: "ADM-2026-101", isResidential: true, studentType: "Residential" },
+        { id: "STF-2026-0002", name: "Surya Teja", className: "Class 10", section: "A", admissionNo: "ADM-2026-102", isResidential: true, studentType: "Residential" },
+        { id: "STF-2026-0003", name: "Dhanush Y", className: "Class 10", section: "B", admissionNo: "ADM-2026-103", isResidential: true, studentType: "Residential" },
+        { id: "STF-2026-0004", name: "Bhanuprakash P", className: "Class 10", section: "B", admissionNo: "ADM-2026-104", isResidential: false, studentType: "Day Scholar" },
+        { id: "STF-2026-0005", name: "Saranya Ch", className: "Class 9", section: "A", admissionNo: "ADM-2026-105", isResidential: false, studentType: "Day Scholar" },
+        { id: "STF-2026-0006", name: "Ananya Roy", className: "Class 9", section: "B", admissionNo: "ADM-2026-106", isResidential: true, studentType: "Residential" },
+        { id: "STF-2026-0007", name: "Sundharam Padala", className: "Class 10", section: "A", admissionNo: "ADM-2026-107", isResidential: true, studentType: "Residential" }
+      ];
+      defaults.forEach(d => map.set(d.id, d));
+    }
+
+    const list = Array.from(map.values());
+    
+    // Sort so Residential/Hosteller students appear FIRST at the top, followed by Day Scholars
+    return list.sort((a, b) => {
+      if (a.isResidential && !b.isResidential) return -1;
+      if (!a.isResidential && b.isResidential) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [dataContext?.students, dataContext?.admissions]);
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [selectedHostelId, setSelectedHostelId] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [selectedBedNo, setSelectedBedNo] = useState('BED-1');
   const [joiningDate, setJoiningDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const getBedOccupant = useCallback((roomIdStr: string, roomNumStr: string, bedNoStr: string) => {
+    if ((!roomIdStr && !roomNumStr) || !bedNoStr || !Array.isArray(allocations)) return null;
+
+    const normBed = bedNoStr.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    return allocations.find(a => {
+      if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
+
+      const isRoomMatch =
+        (roomIdStr && String(a.roomId) === String(roomIdStr)) ||
+        (roomNumStr && String(a.roomNumber) === String(roomNumStr) && String(a.hostelId) === String(selectedHostelId));
+      if (!isRoomMatch) return false;
+
+      const allocNormBed = (a.bedNumber || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (allocNormBed === normBed) return true;
+      if (normBed && allocNormBed && (allocNormBed.endsWith(normBed) || normBed.endsWith(allocNormBed))) return true;
+
+      const allocDigit = (a.bedNumber || '').replace(/\D/g, '');
+      const bedDigit = bedNoStr.replace(/\D/g, '');
+      if (allocDigit && bedDigit && allocDigit === bedDigit) return true;
+
+      return false;
+    });
+  }, [allocations, selectedHostelId]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -73,6 +275,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const handleSync = () => fetchData();
+    window.addEventListener('residential_students_updated', handleSync);
+    return () => window.removeEventListener('residential_students_updated', handleSync);
   }, [fetchData]);
 
   const handleOpenAdd = () => {
@@ -152,8 +357,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
     return a.hostelName && a.hostelName !== 'N/A';
   });
 
-  const unallocatedAdmittedHostellers = (displayHostellers || []).filter(s =>
-    s && !safeAllocations.some(a => a && (a.studentId?.toString() === s.id?.toString() || a.admissionNo === s.admissionNo))
+  const unallocatedAdmittedHostellers = (candidateStudents || []).filter(s =>
+    s && s.isResidential && !safeAllocations.some(a => a && (a.studentId?.toString() === s.id?.toString() || a.admissionNo === s.admissionNo))
   );
 
   const combinedAssignmentsList = [
@@ -161,7 +366,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
     ...unallocatedAdmittedHostellers.map(s => ({
       allocationId: `ADM-PENDING-${s.id}`,
       studentId: parseInt(String(s.id || '').replace(/\D/g, ''), 10) || 1001,
-      studentName: s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : (s.name || 'Student'),
+      studentName: s.name || (s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : 'Student'),
       admissionNo: s.admissionNo || `REG-${s.id}`,
       hostelId: 0,
       hostelName: 'Opted during Admission',
@@ -194,9 +399,17 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
   const safeRooms = Array.isArray(rooms) ? rooms : [];
   const safeBlocks = Array.isArray(blocks) ? blocks : [];
-  const availableRooms = safeRooms.filter(r => r && r.hostelId && r.hostelId.toString() === selectedHostelId);
-  const selectedBlock = safeBlocks.find(b => b && b.hostelId && b.hostelId.toString() === selectedHostelId);
-  const inheritedWardenName = selectedBlock?.wardenName || 'Not Assigned Yet';
+  const selectedBlock = safeBlocks.find(b => b && b.hostelId !== undefined && String(b.hostelId) === String(selectedHostelId));
+
+  const availableRooms = safeRooms.filter(r => {
+    if (!r || !selectedHostelId || !selectedBlock) return false;
+    const matchId = String(r.hostelId) === String(selectedHostelId);
+    const matchCode = Boolean(r.hostelCode && selectedBlock.hostelCode && r.hostelCode.toLowerCase().trim() === selectedBlock.hostelCode.toLowerCase().trim());
+    const matchName = Boolean(r.hostelName && selectedBlock.hostelName && r.hostelName.toLowerCase().trim() === selectedBlock.hostelName.toLowerCase().trim());
+    return matchId || matchCode || matchName;
+  });
+
+  const inheritedWardenName = selectedBlock?.wardenName || 'Unassigned';
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -236,7 +449,17 @@ export const StudentHostelAssignmentView: React.FC = () => {
           >
             <option value="">Select Hostel...</option>
             <option value="All">All Hostels</option>
-            {blocks.map(b => <option key={b.hostelId} value={b.hostelId.toString()}>{b.hostelName}</option>)}
+            {(blocks || [])
+              .filter(b => b != null)
+              .map((b, idx) => {
+                const idVal = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : String((b as any).id || idx);
+                const nameVal = b.hostelName || (b as any).name || `Hostel Block #${idVal}`;
+                return (
+                  <option key={`stu_filter_${idVal}_${idx}`} value={idVal}>
+                    {nameVal}
+                  </option>
+                );
+              })}
           </select>
         </div>
       </div>
@@ -276,8 +499,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
               ) : filteredAssignments.length === 0 ? (
                 <tr><td colSpan={7} className="py-8 text-center text-slate-400 font-semibold">No room allocations found matching filter.</td></tr>
               ) : (
-                paginatedAssignments.map(a => (
-                  <tr key={a.allocationId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                paginatedAssignments.map((a, idx) => (
+                  <tr key={`alloc_tr_${a.allocationId || a.studentId || 'item'}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td
                       onClick={() => setViewStudentModal(a as any)}
                       className="py-3.5 px-5 font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
@@ -354,16 +577,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-3 text-xs">
               <div>
                 <label className="block font-semibold mb-1">Select Student <span className="text-rose-500">*</span></label>
-                <select value={selectedStudentId} onChange={e => setSelectedStudentId(e.target.value)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" disabled={isSubmitting}>
-                  <option value="" disabled>Select Student...</option>
-                  {displayHostellers.length === 0 ? (
-                    <option value="" disabled>No Residential / Hosteller students found</option>
-                  ) : (
-                    displayHostellers.map(st => (
-                      <option key={st.id} value={st.id}>{st.firstName} {st.lastName} ({st.className}-{st.section} • {st.admissionNo})</option>
-                    ))
-                  )}
-                </select>
+                <StudentInlineCombobox
+                  value={selectedStudentId}
+                  onChange={val => setSelectedStudentId(val)}
+                  students={candidateStudents}
+                  disabled={isSubmitting}
+                />
               </div>
 
               <div>
@@ -373,14 +592,24 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   onChange={e => {
                     const newHostelId = e.target.value;
                     setSelectedHostelId(newHostelId);
-                    const newRooms = rooms.filter(r => r.hostelId.toString() === newHostelId);
-                    setSelectedRoomId(newRooms.length > 0 ? newRooms[0].roomId.toString() : '');
+                    const newRooms = (rooms || []).filter(r => r && r.hostelId !== undefined && r.hostelId !== null && String(r.hostelId) === newHostelId);
+                    setSelectedRoomId(newRooms.length > 0 ? String(newRooms[0].roomId) : '');
                   }} 
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
                   disabled={isSubmitting}
                 >
                   <option value="" disabled>Select Hostel Block</option>
-                  {blocks.map(h => <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>)}
+                  {(blocks || [])
+                    .filter(h => h != null)
+                    .map((h, idx) => {
+                      const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                      const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
+                      return (
+                        <option key={`modal_blk_${idVal}_${idx}`} value={idVal}>
+                          {nameVal}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
 
@@ -389,28 +618,99 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   <label className="block font-semibold mb-1">Select Room <span className="text-rose-500">*</span></label>
                   <select 
                     value={selectedRoomId} 
-                    onChange={e => setSelectedRoomId(e.target.value)} 
+                    onChange={e => {
+                      const newRoomId = e.target.value;
+                      setSelectedRoomId(newRoomId);
+                      const targetRm = (availableRooms || []).find(r => String(r.roomId) === String(newRoomId));
+                      const cap = targetRm?.bedCapacity || targetRm?.capacity || 4;
+                      const rmNum = targetRm?.roomNumber || newRoomId;
+
+                      // Find first available bed for this room
+                      const bedOpts = Array.from({ length: Math.max(4, cap) }, (_, i) => `BED-${i + 1}`);
+                      const firstVacant = bedOpts.find(bVal => !getBedOccupant(newRoomId, rmNum, bVal));
+                      setSelectedBedNo(firstVacant || 'BED-1');
+                    }} 
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !selectedHostelId}
                   >
-                    <option value="" disabled>Select Room</option>
-                    {availableRooms.map(rm => <option key={rm.roomId} value={rm.roomId.toString()}>Room #{rm.roomNumber}</option>)}
+                    {!selectedHostelId ? (
+                      <option value="" disabled>Select Hostel Block first...</option>
+                    ) : availableRooms.length === 0 ? (
+                      <option value="" disabled>No rooms created for this block yet</option>
+                    ) : (
+                      <option value="" disabled>Select Room...</option>
+                    )}
+                    {(availableRooms || [])
+                      .filter(rm => rm != null)
+                      .map((rm, idx) => {
+                        const rmId = rm.roomId !== undefined && rm.roomId !== null ? String(rm.roomId) : String((rm as any).id || idx);
+                        const rmNum = rm.roomNumber || rmId;
+                        const cap = rm.bedCapacity || rm.capacity || 4;
+                        
+                        const rmOccupiedCount = (allocations || []).filter(a => 
+                          a && a.status !== 'Vacated' && a.status !== 'Inactive' &&
+                          (String(a.roomId) === String(rmId) || (String(a.roomNumber) === String(rmNum) && String(a.hostelId) === String(selectedHostelId)))
+                        ).length;
+
+                        const isFull = rmOccupiedCount >= cap;
+
+                        return (
+                          <option key={`modal_rm_${rmId}_${idx}`} value={rmId}>
+                            Room #{rmNum} ({rmOccupiedCount}/{cap} Occupied{isFull ? ' • FULL' : ''})
+                          </option>
+                        );
+                      })}
                   </select>
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Bed Number <span className="text-rose-500">*</span></label>
-                  <select 
-                    value={selectedBedNo} 
-                    onChange={e => setSelectedBedNo(e.target.value)} 
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold font-mono"
-                    disabled={isSubmitting}
-                  >
-                    <option value="" disabled>Select Bed Number...</option>
-                    <option value="BED-1">Bed #1</option>
-                    <option value="BED-2">Bed #2</option>
-                    <option value="BED-3">Bed #3</option>
-                    <option value="BED-4">Bed #4</option>
-                  </select>
+                  {(() => {
+                    const currentRm = (availableRooms || []).find(r => String(r.roomId) === String(selectedRoomId));
+                    const cap = currentRm?.bedCapacity || currentRm?.capacity || 4;
+                    const rmNum = currentRm?.roomNumber || selectedRoomId;
+
+                    const roomBedOptions = Array.from({ length: Math.max(4, cap) }, (_, i) => {
+                      const bedVal = `BED-${i + 1}`;
+                      const occupant = getBedOccupant(selectedRoomId, rmNum, bedVal);
+                      return {
+                        value: bedVal,
+                        label: `Bed #${i + 1}`,
+                        occupant: occupant ? occupant.studentName || 'Occupied' : null,
+                        admissionNo: occupant ? occupant.admissionNo : null
+                      };
+                    });
+
+                    const currentBedOccupant = getBedOccupant(selectedRoomId, rmNum, selectedBedNo);
+
+                    return (
+                      <div>
+                        <select 
+                          value={selectedBedNo} 
+                          onChange={e => setSelectedBedNo(e.target.value)} 
+                          className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold font-mono transition-all ${
+                            currentBedOccupant ? 'border-amber-400 text-amber-600 dark:text-amber-400' : 'focus:border-sky-500'
+                          }`}
+                          disabled={isSubmitting}
+                        >
+                          <option value="" disabled>Select Bed Number...</option>
+                          {roomBedOptions.map(b => (
+                            <option key={b.value} value={b.value}>
+                              {b.label} {b.occupant ? `(Occupied - ${b.occupant})` : '(Available)'}
+                            </option>
+                          ))}
+                        </select>
+                        {currentBedOccupant ? (
+                          <div className="mt-1.5 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-[10px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                            <span>⚠️ Occupied by {currentBedOccupant.studentName} ({currentBedOccupant.admissionNo})</span>
+                          </div>
+                        ) : selectedBedNo ? (
+                          <div className="mt-1.5 p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1">
+                            <span>✓ {selectedBedNo} is Vacant & Available</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
