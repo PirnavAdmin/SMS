@@ -108,16 +108,17 @@ export const fetchRouteByIdApi = async (id: string): Promise<RouteMaster | undef
 };
 
 export const createRouteApi = async (data: Partial<RouteMaster>): Promise<RouteMaster> => {
-  const newRoute: RouteMaster = {
+  const newRoute = {
     id: data.id || `RT-${Date.now()}`,
     routeName: data.routeName || 'Sample Route',
     routeCode: data.routeCode || 'RTC-01',
-    startPoint: data.startPoint || 'Main Campus',
-    endPoint: data.endPoint || 'City Center',
-    totalDistance: data.totalDistance || 15,
+    routeStart: data.routeStart || 'Main Campus',
+    routeEnd: data.routeEnd || 'City Center',
+    totalDistanceKm: data.totalDistanceKm || 15,
+    estimatedTimeMinutes: data.estimatedTimeMinutes || 45,
     status: data.status || 'Active',
     description: data.description || ''
-  } as RouteMaster;
+  } as unknown as RouteMaster;
   localRoutes.push(newRoute);
   setStoredMock('route_masters', localRoutes);
 
@@ -164,15 +165,17 @@ export const fetchPickupPointByIdApi = async (id: string): Promise<PickupPoint |
 };
 
 export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<PickupPoint> => {
-  const newPoint: PickupPoint = {
+  const newPoint = {
     id: data.id || `PK-${Date.now()}`,
     pickupName: data.pickupName || 'Main Station',
     routeId: data.routeId || '',
-    pickupTime: data.pickupTime || '07:30 AM',
-    dropTime: data.dropTime || '04:30 PM',
+    routeName: data.routeName || 'Sample Route',
+    sequenceNumber: data.sequenceNumber || 1,
+    arrivalTime: data.arrivalTime || '07:30 AM',
+    distanceFromSchoolKm: data.distanceFromSchoolKm || 5,
     monthlyFee: data.monthlyFee || 1500,
     status: data.status || 'Active'
-  } as PickupPoint;
+  } as unknown as PickupPoint;
   localPickupPoints.push(newPoint);
   setStoredMock('pickup_points', localPickupPoints);
 
@@ -219,13 +222,21 @@ export const fetchVehicleByIdApi = async (id: string): Promise<VehicleMaster | u
 };
 
 export const createVehicleApi = async (data: Partial<VehicleMaster>): Promise<VehicleMaster> => {
-  const newVehicle: VehicleMaster = {
+  const newVehicle = {
     id: data.id || `VH-${Date.now()}`,
     vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
-    vehicleModel: data.vehicleModel || 'School Bus',
-    seatingCapacity: data.seatingCapacity || 40,
+    registrationNumber: data.registrationNumber || 'KA-01-EXP-1010',
+    vehicleType: data.vehicleType || 'Bus',
+    capacity: data.capacity || 40,
+    isAC: data.isAC ?? true,
+    chassisNumber: data.chassisNumber || 'CH-001',
+    engineNumber: data.engineNumber || 'ENG-001',
+    insuranceExpiry: data.insuranceExpiry || '2026-12-31',
+    pollutionExpiry: data.pollutionExpiry || '2026-12-31',
+    fitnessExpiry: data.fitnessExpiry || '2026-12-31',
+    gpsDeviceId: data.gpsDeviceId || 'GPS-001',
     status: data.status || 'Active'
-  } as VehicleMaster;
+  } as unknown as VehicleMaster;
   localVehicles.push(newVehicle);
   setStoredMock('vehicle_masters', localVehicles);
 
@@ -278,13 +289,17 @@ export const fetchDriverByIdApi = async (id: string): Promise<DriverMaster | und
 };
 
 export const createDriverApi = async (data: Partial<DriverMaster>): Promise<DriverMaster> => {
-  const newDriver: DriverMaster = {
+  const newDriver = {
     id: data.id || `DRV-${Date.now()}`,
     driverName: data.driverName || 'Driver',
     licenseNumber: data.licenseNumber || 'DL-99887766',
-    phoneNumber: data.phoneNumber || '+91 9876543210',
+    mobileNumber: data.mobileNumber || '+91 9876543210',
+    licenseExpiryDate: data.licenseExpiryDate || '2027-12-31',
+    address: data.address || 'Campus Staff Quarters',
+    emergencyContact: data.emergencyContact || '+91 9876543210',
+    experienceYears: data.experienceYears || 5,
     status: data.status || 'Active'
-  } as DriverMaster;
+  } as unknown as DriverMaster;
   localDrivers.push(newDriver);
   setStoredMock('driver_masters', localDrivers);
 
@@ -358,10 +373,14 @@ export const createVehicleAssignmentApi = async (data: Partial<VehicleAssignment
   const newAssign: VehicleAssignment = {
     id: data.id || `VA-${Date.now()}`,
     vehicleId: data.vehicleId || '',
+    vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
     routeId: data.routeId || '',
+    routeName: data.routeName || 'Sample Route',
     driverId: data.driverId || '',
+    driverName: data.driverName || 'Driver',
+    effectiveFrom: data.effectiveFrom || '2026-06-01',
     status: data.status || 'Active'
-  } as VehicleAssignment;
+  } as unknown as VehicleAssignment;
   localVehicleAssignments.push(newAssign);
   setStoredMock('vehicle_assignments', localVehicleAssignments);
 
@@ -408,14 +427,20 @@ export const fetchStudentAssignmentByIdApi = async (id: string): Promise<Student
 };
 
 export const createStudentAssignmentApi = async (data: Partial<StudentTransport>): Promise<StudentTransport> => {
-  const newSt: StudentTransport = {
+  const newSt = {
     id: data.id || `ST-${Date.now()}`,
     studentId: data.studentId || '',
+    studentName: data.studentName || 'Student',
+    admissionNo: data.admissionNo || 'ADM-101',
     routeId: data.routeId || '',
-    pickupPointId: data.pickupPointId || '',
+    routeName: data.routeName || 'Sample Route',
+    pickupPoint: data.pickupPoint || 'Main Station',
+    feePlan: data.feePlan || 'Monthly',
+    feeAmount: data.feeAmount || 1500,
+    effectiveFrom: data.effectiveFrom || '2026-06-01',
     vehicleId: data.vehicleId || '',
     status: data.status || 'Active'
-  } as StudentTransport;
+  } as unknown as StudentTransport;
   localStudentAssignments.push(newSt);
   setStoredMock('student_transports', localStudentAssignments);
 
@@ -462,14 +487,18 @@ export const fetchMaintenanceByIdApi = async (id: string): Promise<VehicleMainte
 };
 
 export const createMaintenanceApi = async (data: Partial<VehicleMaintenance>): Promise<VehicleMaintenance> => {
-  const newM: VehicleMaintenance = {
+  const newM = {
     id: data.id || `MAIN-${Date.now()}`,
     vehicleId: data.vehicleId || '',
+    vehicleNumber: data.vehicleNumber || 'KA-01-EXP-1010',
     serviceDate: data.serviceDate || new Date().toISOString().split('T')[0],
+    serviceType: data.serviceType || 'General Service',
+    vendor: data.vendor || 'Auto Care Center',
     cost: data.cost || 0,
-    description: data.description || '',
+    nextServiceDue: data.nextServiceDue || '2026-12-31',
+    remarks: data.remarks || '',
     status: data.status || 'Completed'
-  } as VehicleMaintenance;
+  } as unknown as VehicleMaintenance;
   localMaintenance.push(newM);
   setStoredMock('vehicle_maintenances', localMaintenance);
 
@@ -517,7 +546,7 @@ export const fetchTransportDashboardApi = async (): Promise<any> => {
     totalDrivers: localDrivers.length,
     totalStudents: localStudentAssignments.length,
     activeVehicles: localVehicles.filter(v => v.status === 'Active').length,
-    inMaintenance: localMaintenance.filter(m => m.status === 'In Progress').length
+    inMaintenance: localMaintenance.filter(m => m.status === 'Scheduled' || m.status === 'Overdue').length
   };
   return safeTransportApiCall('/api/transport/dashboard', { method: 'GET' }, defaultDashboard);
 };

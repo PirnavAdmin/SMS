@@ -33,8 +33,6 @@ export const FinanceMastersView: React.FC = () => {
     { id: 'transport-fee', label: 'Transport Fee', icon: Route },
     { id: 'hostel-fee', label: 'Hostel Fee', icon: Home },
     { id: 'student-assignment', label: 'Fee Assignment', icon: UserPlus },
-    { id: 'student-transport', label: 'Student Transport', icon: Bus },
-    { id: 'student-hostel', label: 'Student Hostel', icon: Bed },
     { id: 'uniform-fee', label: 'Uniform Fee', icon: Shirt },
     { id: 'refunds', label: 'Refund Management', icon: RotateCcw },
     { id: 'settings', label: 'Fine Configurations', icon: SlidersHorizontal },
@@ -60,10 +58,6 @@ export const FinanceMastersView: React.FC = () => {
         return <FinanceHostelConfigView />;
       case 'student-assignment':
         return <StudentFeeAssignmentView />;
-      case 'student-transport':
-        return <StudentTransportView />;
-      case 'student-hostel':
-        return <HostelConfigView />;
       case 'refunds':
         return <RefundManagementView />;
       case 'uniform-fee':
