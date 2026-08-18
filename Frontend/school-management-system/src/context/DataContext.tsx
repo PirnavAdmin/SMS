@@ -205,6 +205,7 @@ import {
   initialDepartments,
   initialDesignations,
 } from "../services/mockData";
+import { initialBusAttendants } from "../components/modules/Transport/transportData";
 import {
   fetchAdmissionsApi,
   createAdmissionApi,
