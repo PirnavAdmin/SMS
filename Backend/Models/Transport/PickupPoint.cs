@@ -14,9 +14,8 @@ namespace SMS.Api.Models
         [ForeignKey(nameof(RouteId))]
         public TransportRoute? TransportRoute { get; set; }
 
-        [Required]
         [MaxLength(150)]
-        public string PickupPointName { get; set; } = string.Empty;
+        public string? PickupPointName { get; set; }
 
         [MaxLength(250)]
         public string? Landmark { get; set; }

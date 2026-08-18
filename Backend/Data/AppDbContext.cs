@@ -141,12 +141,6 @@ namespace SMS.Api.Data
         public DbSet<TimetableHeader> TimetableHeaders { get; set; } = null!;
         public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
         
-        // Faculty Training & Development Module
-        public DbSet<FacultyWorkshop> FacultyWorkshops { get; set; } = null!;
-        public DbSet<EmployeeCompetencyAssessment> EmployeeCompetencyAssessments { get; set; } = null!;
-        public DbSet<FacultyTrainingParticipation> FacultyTrainingParticipations { get; set; } = null!;
-        public DbSet<EmployeeAssessmentCandidate> EmployeeAssessmentCandidates { get; set; } = null!;
-        
         // =====================================================
         // Finance Management Module
         // =====================================================

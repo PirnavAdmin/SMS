@@ -8,28 +8,25 @@ public class TransportDriver
     [Key]
     public long DriverId { get; set; }
 
-    [Required]
-    public string DriverName { get; set; } = string.Empty;
+    public string? DriverName { get; set; }
 
-    public string EmployeeId { get; set; } = "DRV-1";
+    public string? EmployeeId { get; set; } = "DRV-1";
 
-    [Required]
-    public string LicenceNumber { get; set; } = string.Empty;
+    public string? LicenceNumber { get; set; }
 
     public DateTime? LicenceExpiry { get; set; }
 
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public string LicenseNumber
+    public string? LicenseNumber
     {
         get => LicenceNumber;
         set => LicenceNumber = value;
     }
 
-    [Required]
-    public string MobileNumber { get; set; } = string.Empty;
+    public string? MobileNumber { get; set; }
 
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-    public string Phone
+    public string? Phone
     {
         get => MobileNumber;
         set => MobileNumber = value;
