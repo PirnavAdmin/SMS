@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
@@ -23,7 +23,9 @@ export const WardenMasterView: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterHostel, setFilterHostel] = useState('All');
+  const [filterHostel, setFilterHostel] = useState('');
+  const [manualHostelInput, setManualHostelInput] = useState('');
+  const effectiveHostel = filterHostel === 'MANUAL' ? manualHostelInput : filterHostel;
 
   const [wardens, setWardens] = useState<WardenRecord[]>([]);
   const [staffList, setStaffList] = useState<StaffCandidate[]>([]);
@@ -61,14 +63,39 @@ export const WardenMasterView: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  const filteredWardens = wardens.filter(w => {
-    const matchesSearch =
-      (w.wardenName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (w.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (w.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesHostel = filterHostel === 'All' || w.hostelName === filterHostel;
-    return matchesSearch && matchesHostel;
-  });
+  const filteredWardens = useMemo(() => {
+    if (!filterHostel && !searchQuery.trim()) return [];
+    return wardens.map(w => {
+      const matchedStaff = staffList.find(s => 
+        (s.employeeId && w.employeeId && s.employeeId.toLowerCase() === w.employeeId.toLowerCase()) ||
+        (s.staffId && w.staffId && Number(s.staffId) === Number(w.staffId))
+      );
+      const matchedHostel = hostels.find(h => 
+        (h.hostelName && w.hostelName && h.hostelName.toLowerCase() === w.hostelName.toLowerCase()) ||
+        (h.hostelId && w.hostelId && Number(h.hostelId) === Number(w.hostelId))
+      );
+
+      const name = w.wardenName || w.staffName || matchedStaff?.staffName || matchedHostel?.wardenName || 'Assigned Warden';
+      const mobile = w.mobileNumber || w.phone || matchedStaff?.phone || matchedHostel?.primaryMobileNumber || 'N/A';
+      const mail = w.emailAddress || w.email || matchedStaff?.email || matchedHostel?.email || 'N/A';
+      const empId = w.employeeId || matchedStaff?.employeeId || `EMP-${w.wardenId || '1001'}`;
+
+      return {
+        ...w,
+        employeeId: empId,
+        wardenName: name,
+        mobileNumber: mobile,
+        emailAddress: mail
+      };
+    }).filter(w => {
+      const matchesSearch =
+        (w.wardenName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (w.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (w.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesHostel = !effectiveHostel || effectiveHostel === 'ALL_HOSTELS' || (w.hostelName || '').toLowerCase().includes(effectiveHostel.toLowerCase().trim());
+      return matchesSearch && matchesHostel;
+    });
+  }, [wardens, staffList, hostels, searchQuery, filterHostel, effectiveHostel]);
 
   const handleOpenAdd = () => {
     setSelectedStaffId(staffList.length > 0 ? staffList[0].staffId.toString() : '');
@@ -149,65 +176,94 @@ export const WardenMasterView: React.FC = () => {
             placeholder="Search warden by name, ID, hostel..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
           <select
             value={filterHostel}
-            onChange={e => setFilterHostel(e.target.value)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white"
+            onChange={e => {
+              setFilterHostel(e.target.value);
+              if (e.target.value !== 'MANUAL') setManualHostelInput('');
+            }}
+            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none focus:border-sky-500 min-w-[180px]"
           >
-            <option value="All">All Hostels</option>
+            <option value="">-- Select Hostel --</option>
+            <option value="ALL_HOSTELS">All Hostels</option>
             {hostels.map(h => <option key={h.hostelId} value={h.hostelName}>{h.hostelName}</option>)}
+            <option value="MANUAL">✍️ Custom / Manual Entry</option>
           </select>
+
+          {filterHostel === 'MANUAL' && (
+            <input
+              type="text"
+              placeholder="Type manual hostel..."
+              value={manualHostelInput}
+              onChange={e => setManualHostelInput(e.target.value)}
+              className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-300 text-xs font-bold text-slate-900 dark:text-white outline-none"
+            />
+          )}
         </div>
       </div>
 
-      <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Employee ID</th>
-                <th className="py-3.5 px-4">Warden Name</th>
-                <th className="py-3.5 px-4">Mobile & Email</th>
-                <th className="py-3.5 px-4">Assigned Hostel</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400 italic">Loading wardens...</td>
-                </tr>
-              ) : filteredWardens.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400 italic">No warden assignments found. Click "Assign Warden" to assign.</td>
-                </tr>
-              ) : (
-                filteredWardens.map(a => (
-                  <tr key={a.wardenId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-500">{a.employeeId}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
-                    <td className="py-3 px-4">
-                      <p className="font-mono font-bold text-sky-600">{a.mobileNumber}</p>
-                      <p className="text-[10px] text-slate-400">{a.emailAddress}</p>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setDeletingWarden(a)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600" title="Revoke Assignment"><Trash2 className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {!filterHostel && !searchQuery.trim() ? (
+        <div className="py-16 text-center space-y-3 bg-white dark:bg-slate-900 rounded-3xl border border-sky-300 dark:border-sky-800 p-8 shadow-xs">
+          <div className="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400 flex items-center justify-center mx-auto border border-sky-200 dark:border-sky-800">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">No Hostel Filter Selected</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+              Please select a hostel block from the filter dropdown above or use search/manual entry to load warden records.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3.5 px-4">Employee ID</th>
+                  <th className="py-3.5 px-4">Warden Name</th>
+                  <th className="py-3.5 px-4">Mobile & Email</th>
+                  <th className="py-3.5 px-4">Assigned Hostel</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 italic">Loading wardens...</td>
+                  </tr>
+                ) : filteredWardens.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 italic">No warden assignments found matching filter.</td>
+                  </tr>
+                ) : (
+                  filteredWardens.map(a => (
+                    <tr key={a.wardenId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                      <td className="py-3 px-4 font-mono font-bold text-slate-500">{a.employeeId}</td>
+                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
+                      <td className="py-3 px-4">
+                        <p className="font-mono font-bold text-sky-600">{a.mobileNumber}</p>
+                        <p className="text-[10px] text-slate-400">{a.emailAddress}</p>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setDeletingWarden(a)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600" title="Revoke Assignment"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
@@ -264,11 +320,13 @@ export const WardenMasterView: React.FC = () => {
                   onChange={e => setSelectedHostelId(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600 dark:text-sky-400"
                 >
-                  {hostels.map(h => (
-                    <option key={h.hostelId} value={h.hostelId}>
-                      {h.hostelName} ({h.hostelType})
-                    </option>
-                  ))}
+                  {hostels
+                    .filter(h => h && h.hostelId && h.hostelName && !h.hostelName.includes('undefined'))
+                    .map(h => (
+                      <option key={h.hostelId} value={h.hostelId}>
+                        {h.hostelName} ({h.hostelType || 'Boys Hostel'})
+                      </option>
+                    ))}
                 </select>
               </div>
 

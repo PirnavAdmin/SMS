@@ -9,7 +9,7 @@ namespace SMS.Api.Models
         public long StudentTransportAssignmentId { get; set; }
 
         [MaxLength(50)]
-        public string AdmissionNo { get; set; } = string.Empty;
+        public string? AdmissionNo { get; set; }
 
         public long RouteId { get; set; }
 
@@ -22,7 +22,7 @@ namespace SMS.Api.Models
         public DateTime? EffectiveTo { get; set; }
 
         [MaxLength(20)]
-        public string TransportType { get; set; } = "Both";
+        public string? TransportType { get; set; } = "Both";
 
         [MaxLength(255)]
         public string? Remarks { get; set; }

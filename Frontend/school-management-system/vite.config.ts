@@ -17,7 +17,8 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
           headers: {
-            'ngrok-skip-browser-warning': 'true'
+            'ngrok-skip-browser-warning': 'true',
+            'Bypass-Tunnel-Reminder': 'true'
           }
         }
       }

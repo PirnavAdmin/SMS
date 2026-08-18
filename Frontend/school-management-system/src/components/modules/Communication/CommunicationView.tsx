@@ -188,8 +188,8 @@ export const CommunicationView: React.FC = () => {
 
           <div className={`${canModify ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4`}>
             <div className="space-y-3">
-              {announcements.map(a => (
-                <div key={a.id} className="glass-card p-5 rounded-3xl space-y-2 text-xs">
+              {announcements.map((a, index) => (
+                <div key={`${a.id || 'ann'}-${index}`} className="glass-card p-5 rounded-3xl space-y-2 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="px-2.5 py-0.5 rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950 font-bold uppercase">
                       {a.category} • {a.targetAudience}

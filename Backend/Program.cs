@@ -130,6 +130,10 @@ builder.Services.AddScoped<ITeacherStudentAttendanceRepository,TeacherStudentAtt
 
 builder.Services.AddScoped<ITeacherStudentAttendanceService,TeacherStudentAttendanceService>();
 
+// Student Attendance Service and Repository
+builder.Services.AddScoped<IStudentAttendanceRepository, StudentAttendanceRepository>();
+builder.Services.AddScoped<IStudentAttendanceService, StudentAttendanceService>();
+
 
 // Academic and School Management
 builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
@@ -1631,6 +1635,20 @@ using (var scope = app.Services.CreateScope())
         await context.SaveChangesAsync();
 
         // =================================================
+        // SEED BRANCHES
+        // =================================================
+        var branchesToSeed = new[] { "Main Campus", "North Branch", "Hyderabad", "West Campus" };
+        foreach (var branchName in branchesToSeed)
+        {
+            var exists = await context.Branches.AnyAsync(b => b.BranchName == branchName);
+            if (!exists)
+            {
+                await context.Branches.AddAsync(new Branch { BranchName = branchName });
+            }
+        }
+        await context.SaveChangesAsync();
+
+        // =================================================
         // SEED DEPARTMENTS
         // =================================================
 
@@ -2102,17 +2120,69 @@ using (var scope = app.Services.CreateScope())
 
                 if (defaultBranch != null && defaultAcademicYear != null)
                 {
+                    // 1. Sync enrolled applications from admission_applications to admissions table
+                    var enrolledApps = await context.AdmissionApplications
+                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
+                        .ToListAsync();
+
+                    var branches = await context.Branches.ToListAsync();
+
+                    foreach (var admApp in enrolledApps)
+                    {
+                        var existingAdmission = await context.Admissions
+                            .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo);
+
+                        var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
+
+                        if (existingAdmission == null)
+                        {
+                            var newAdmission = new Admission
+                            {
+                                ApplicationNo = admApp.RegistrationNo ?? "",
+                                StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
+                                Dob = admApp.DateOfBirth,
+                                Gender = admApp.Gender,
+                                FatherName = admApp.FatherName,
+                                FatherMobile = admApp.FatherContact,
+                                BloodGroup = admApp.BloodGroup,
+                                Caste = admApp.Caste,
+                                BranchId = appBranch.BranchId,
+                                ClassId = admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 ? admApp.AppliedClassId.Value : 1,
+                                SectionLetter = "A",
+                                AdmissionType = "Regular",
+                                Status = admApp.Status ?? "",
+                                IsDeleted = false,
+                                CreatedDate = DateTime.UtcNow
+                            };
+                            await context.Admissions.AddAsync(newAdmission);
+                        }
+                        else
+                        {
+                            existingAdmission.BranchId = appBranch.BranchId;
+                            existingAdmission.Status = admApp.Status ?? "";
+                        }
+                    }
+                    await context.SaveChangesAsync();
+
+                    // 2. Sync from admissions to students table
                     var activeAdmissions = await context.Admissions
                         .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
                         .ToListAsync();
 
                     foreach (var admission in activeAdmissions)
                     {
-                        if (admission.ClassId == null || string.IsNullOrEmpty(admission.SectionLetter))
+                        if (admission.ClassId == null)
                             continue;
 
+                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
                         var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
+                        
+                        if (sectionObj == null)
+                        {
+                            sectionObj = await context.ClassSections
+                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId);
+                        }
                         if (sectionObj == null) continue;
 
                         var existing = await context.Students
@@ -2122,6 +2192,7 @@ using (var scope = app.Services.CreateScope())
                         {
                             existing.SectionId = sectionObj.SectionId;
                             existing.RollNumber = admission.RollNo ?? existing.RollNumber;
+                            existing.BranchId = (int)admission.BranchId;
                             existing.Status = "Active";
                         }
                         else
@@ -2135,7 +2206,7 @@ using (var scope = app.Services.CreateScope())
                                 Gender = admission.Gender,
                                 FatherName = admission.FatherName,
                                 FatherMobile = admission.FatherMobile,
-                                BranchId = defaultBranch.BranchId,
+                                BranchId = (int)admission.BranchId,
                                 AcademicYearId = defaultAcademicYear.AcademicYearId,
                                 ClassId = admission.ClassId.Value,
                                 SectionId = sectionObj.SectionId,

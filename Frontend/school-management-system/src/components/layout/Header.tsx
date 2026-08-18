@@ -430,11 +430,11 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 {!(announcements && announcements.length > 0) ? (
                   <div className="p-4 text-center text-xs text-slate-400">No notifications</div>
                 ) : (
-                  (announcements || []).map(a => {
+                  (announcements || []).map((a, idx) => {
                     const isUnread = !(readNotifIds || []).includes(a.id);
                     return (
                       <div
-                        key={a.id}
+                        key={a.id ? `ANN-${a.id}` : `ANN-${idx}-${a.title || 'notice'}`}
                         className={`p-2.5 rounded-xl border transition-colors ${
                           isUnread
                             ? 'bg-brand-50/70 dark:bg-brand-950/40 border-brand-200 dark:border-brand-800/60'

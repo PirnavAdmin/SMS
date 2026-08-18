@@ -27,6 +27,24 @@ interface FloorSharingConfig {
   customAllocations?: CustomAllocation[];
 }
 
+const getStoredFloorConfigs = (hostelId: string): FloorSharingConfig[] | null => {
+  if (typeof window === 'undefined' || !hostelId) return null;
+  const stored = localStorage.getItem(`edu_db_floor_sharing_config_${hostelId}`);
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (e) {}
+  }
+  return null;
+};
+
+const saveStoredFloorConfigs = (hostelId: string, configs: FloorSharingConfig[]) => {
+  if (typeof window !== 'undefined' && hostelId && configs && configs.length > 0) {
+    localStorage.setItem(`edu_db_floor_sharing_config_${hostelId}`, JSON.stringify(configs));
+  }
+};
+
 export const RoomTypeMasterView: React.FC = () => {
   const { addToast } = useToast();
 
@@ -36,6 +54,7 @@ export const RoomTypeMasterView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAcType, setFilterAcType] = useState('');
+  const [manualFilterInput, setManualFilterInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRt, setEditingRt] = useState<RoomType | null>(null);
@@ -73,23 +92,30 @@ export const RoomTypeMasterView: React.FC = () => {
   }, [loadData]);
 
   // Selected hostel block object
-  const selectedBlock = blocks.find(b => b.hostelId.toString() === selectedHostelId);
+  const selectedBlock = (blocks || []).find(b => b && b.hostelId !== undefined && b.hostelId !== null && String(b.hostelId) === selectedHostelId);
 
   // Initialize floor configurations when block selection changes
   const handleHostelChange = (hostelIdStr: string) => {
     setSelectedHostelId(hostelIdStr);
     setSelectedFloorLevel('');
 
-    const blockObj = blocks.find(b => b.hostelId.toString() === hostelIdStr);
+    const blockObj = (blocks || []).find(b => b && b.hostelId !== undefined && b.hostelId !== null && String(b.hostelId) === hostelIdStr);
     if (!blockObj) {
       setFloorConfigs([]);
       return;
     }
 
+    // Restore saved floor configs if present
+    const saved = getStoredFloorConfigs(hostelIdStr);
+    if (saved && saved.length > 0) {
+      setFloorConfigs(saved);
+      return;
+    }
+
     const totalFloorsCount = Math.max(1, (blockObj as any).totalFloors || (blockObj as any).totalBuildingFloors || 4);
     const initialConfigs: FloorSharingConfig[] = Array.from({ length: totalFloorsCount }, (_, i) => {
-      const floorIndex = i + 1;
-      const floorLabel = floorIndex === 1 ? '1st Floor' : floorIndex === 2 ? '2nd Floor' : floorIndex === 3 ? '3rd Floor' : `${floorIndex}th Floor`;
+      const floorIndex = i;
+      const floorLabel = i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`;
       return {
         floorIndex,
         floorLabel,
@@ -106,16 +132,27 @@ export const RoomTypeMasterView: React.FC = () => {
     });
 
     setFloorConfigs(initialConfigs);
+    saveStoredFloorConfigs(hostelIdStr, initialConfigs);
+  };
+
+  const updateAndSaveFloorConfigs = (fn: (prev: FloorSharingConfig[]) => FloorSharingConfig[]) => {
+    setFloorConfigs(prev => {
+      const updated = fn(prev);
+      if (selectedHostelId) {
+        saveStoredFloorConfigs(selectedHostelId, updated);
+      }
+      return updated;
+    });
   };
 
   const handleFloorConfigChange = (floorIndex: number, field: keyof FloorSharingConfig, value: any) => {
-    setFloorConfigs(prev =>
+    updateAndSaveFloorConfigs(prev =>
       prev.map(fc => (fc.floorIndex === floorIndex ? { ...fc, [field]: value } : fc))
     );
   };
 
   const handleAcToggle = (floorIndex: number, field: 'singleAc' | 'doubleAc' | 'tripleAc' | 'fourAc') => {
-    setFloorConfigs(prev =>
+    updateAndSaveFloorConfigs(prev =>
       prev.map(fc => {
         if (fc.floorIndex === floorIndex) {
           const currentVal = fc[field];
@@ -127,7 +164,7 @@ export const RoomTypeMasterView: React.FC = () => {
   };
 
   const handleCustomAllocationChange = (floorIndex: number, customIdx: number, field: keyof CustomAllocation, value: any) => {
-    setFloorConfigs(prev =>
+    updateAndSaveFloorConfigs(prev =>
       prev.map(fc => {
         if (fc.floorIndex === floorIndex) {
           const updatedCustom = [...(fc.customAllocations || [])];
@@ -140,7 +177,7 @@ export const RoomTypeMasterView: React.FC = () => {
   };
 
   const handleAddCustomAllocation = (floorIndex: number) => {
-    setFloorConfigs(prev =>
+    updateAndSaveFloorConfigs(prev =>
       prev.map(fc => {
         if (fc.floorIndex === floorIndex) {
           const updatedCustom = [...(fc.customAllocations || [])];
@@ -158,7 +195,7 @@ export const RoomTypeMasterView: React.FC = () => {
   };
 
   const handleRemoveCustomAllocation = (floorIndex: number, customIdx: number) => {
-    setFloorConfigs(prev =>
+    updateAndSaveFloorConfigs(prev =>
       prev.map(fc => {
         if (fc.floorIndex === floorIndex) {
           const updatedCustom = (fc.customAllocations || []).filter((_, idx) => idx !== customIdx);
@@ -169,7 +206,7 @@ export const RoomTypeMasterView: React.FC = () => {
     );
   };
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = async () => {
     setEditingRt(null);
     setSelectedHostelId('');
     setSelectedFloorLevel('');
@@ -177,6 +214,16 @@ export const RoomTypeMasterView: React.FC = () => {
     setFormStatus('Active');
     setFormDescription('');
     setActiveModalTab('block');
+    
+    try {
+      const bList = await getHostelBlocks();
+      if (Array.isArray(bList) && bList.length > 0) {
+        setBlocks(bList);
+      }
+    } catch (e) {
+      // Ignored
+    }
+
     setIsModalOpen(true);
   };
 
@@ -298,6 +345,7 @@ export const RoomTypeMasterView: React.FC = () => {
         'success'
       );
 
+      saveStoredFloorConfigs(selectedBlock.hostelId.toString(), floorConfigs);
       setIsModalOpen(false);
       loadData();
     } catch (err: any) {
@@ -338,11 +386,28 @@ export const RoomTypeMasterView: React.FC = () => {
   );
 
   const filtered = uniqueRoomTypes.filter(rt => {
-    const matchesSearch =
-      rt.roomTypeSpecification?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (rt.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesAc = filterAcType === 'All' || !filterAcType || rt.acType === filterAcType;
-    return matchesSearch && matchesAc;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q ||
+      rt.roomTypeSpecification?.toLowerCase().includes(q) ||
+      (rt.description || '').toLowerCase().includes(q);
+
+    let matchesAc = false;
+    if (filterAcType === 'All') {
+      matchesAc = true;
+    } else if (filterAcType === 'AC' || filterAcType === 'Non-AC') {
+      matchesAc = (rt.acType || '').toLowerCase() === filterAcType.toLowerCase();
+    } else if (filterAcType === 'Custom' && manualFilterInput.trim()) {
+      const mq = manualFilterInput.toLowerCase().trim();
+      matchesAc = rt.roomTypeSpecification?.toLowerCase().includes(mq) ||
+                  (rt.acType || '').toLowerCase().includes(mq) ||
+                  (rt.description || '').toLowerCase().includes(mq);
+    } else if (filterAcType && filterAcType !== 'Custom') {
+      matchesAc = (rt.acType || '').toLowerCase() === filterAcType.toLowerCase();
+    }
+
+    if (q) return matchesSearch && (filterAcType ? matchesAc : true);
+    if (filterAcType) return matchesAc;
+    return false;
   });
 
   const paginated = filtered.slice(
@@ -374,21 +439,36 @@ export const RoomTypeMasterView: React.FC = () => {
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <div className="min-w-[200px] w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
+          <div className="min-w-[220px] w-full sm:w-auto">
             <SearchableSelect
               value={filterAcType}
-              onChange={setFilterAcType}
-              placeholder="Select AC/Non-AC Filter..."
+              onChange={val => {
+                setFilterAcType(val);
+                if (val !== 'Custom') setManualFilterInput('');
+              }}
+              placeholder="-- Select AC / Non-AC Option --"
               searchPlaceholder="Search option..."
               options={[
-                { value: '', label: 'Select Option...' },
+                { value: '', label: '-- Select AC / Non-AC Option --' },
                 { value: 'All', label: 'All Categories (AC & Non-AC)' },
                 { value: 'AC', label: 'AC Rooms' },
-                { value: 'Non-AC', label: 'Non-AC Rooms' }
+                { value: 'Non-AC', label: 'Non-AC Rooms' },
+                { value: 'Custom', label: '✍️ Custom / Manual Entry' }
               ]}
             />
           </div>
+
+          {filterAcType === 'Custom' && (
+            <input
+              type="text"
+              placeholder="Type category (e.g. Deluxe)..."
+              value={manualFilterInput}
+              onChange={e => setManualFilterInput(e.target.value)}
+              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none w-full sm:w-56"
+              autoFocus
+            />
+          )}
         </div>
       </div>
 
@@ -429,8 +509,8 @@ export const RoomTypeMasterView: React.FC = () => {
                     <td colSpan={6} className="py-10 text-center text-slate-400 italic font-semibold">No room type configurations found matching filter.</td>
                   </tr>
                 ) : (
-                  paginated.map(rt => (
-                    <tr key={rt.roomTypeId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
+                  paginated.map((rt, idx) => (
+                    <tr key={`rt-row-${rt.roomTypeId || idx}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
                       <td className="py-3.5 px-5 text-center">
                         <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
@@ -527,15 +607,18 @@ export const RoomTypeMasterView: React.FC = () => {
                       placeholder="Select Hostel Block..."
                       searchPlaceholder="Search hostel block..."
                       disabled={isSubmitting}
-                      options={blocks.map(b => {
-                        const nameVal = b.hostelName || (b as any).name || (b as any).blockName || `Hostel Block #${b.hostelId}`;
-                        return {
-                          value: b.hostelId.toString(),
-                          label: nameVal,
-                          code: b.hostelCode || `BLK-${b.hostelId}`,
-                          sublabel: `${b.hostelType || 'Hostel'} • ${b.totalFloors || 1} Floors`
-                        };
-                      })}
+                      options={(blocks || [])
+                        .filter(b => b != null)
+                        .map((b, idx) => {
+                          const bId = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : String((b as any).id || idx);
+                          const nameVal = b.hostelName || (b as any).name || (b as any).blockName || `Hostel Block #${bId}`;
+                          return {
+                            value: bId,
+                            label: nameVal,
+                            code: b.hostelCode || `BLK-${bId}`,
+                            sublabel: `${b.hostelType || 'Hostel'} • ${b.totalFloors || 1} Floors`
+                          };
+                        })}
                     />
                     {selectedBlock && (
                       <div className="mt-2 p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 text-[11px] grid grid-cols-2 gap-3 items-center">
@@ -550,13 +633,11 @@ export const RoomTypeMasterView: React.FC = () => {
                             onChange={e => {
                               const newFloorsCount = parseInt(e.target.value) || 1;
                               selectedBlock.totalFloors = newFloorsCount;
-                              (selectedBlock as any).totalBuildingFloors = newFloorsCount;
-
-                              const updatedConfigs: FloorSharingConfig[] = Array.from({ length: newFloorsCount }, (_, i) => {
-                                const floorIndex = i + 1;
+                              (selectedBlock as any).totalBuildingFloors = newFloorsCount;                               const updatedConfigs: FloorSharingConfig[] = Array.from({ length: newFloorsCount }, (_, i) => {
+                                const floorIndex = i;
                                 const existing = floorConfigs.find(f => f.floorIndex === floorIndex);
                                 if (existing) return existing;
-                                const floorLabel = floorIndex === 1 ? '1st Floor' : floorIndex === 2 ? '2nd Floor' : floorIndex === 3 ? '3rd Floor' : `${floorIndex}th Floor`;
+                                const floorLabel = i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`;
                                 return {
                                   floorIndex,
                                   floorLabel,
@@ -601,9 +682,8 @@ export const RoomTypeMasterView: React.FC = () => {
                             <>
                               <option value="">All Floors ({numFloors} Floors Configured)</option>
                               {Array.from({ length: numFloors }, (_, i) => {
-                                const floorIndex = i + 1;
-                                const floorLabel = floorIndex === 1 ? '1st Floor' : floorIndex === 2 ? '2nd Floor' : floorIndex === 3 ? '3rd Floor' : `${floorIndex}th Floor`;
-                                return <option key={floorIndex} value={floorLabel}>{floorLabel}</option>;
+                                const floorLabel = i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`;
+                                return <option key={i} value={floorLabel}>{floorLabel}</option>;
                               })}
                             </>
                           );
@@ -633,9 +713,9 @@ export const RoomTypeMasterView: React.FC = () => {
                           const totalRoomsOnFloor = (fc.singleSharing || 0) + (fc.doubleSharing || 0) + (fc.tripleSharing || 0) + (fc.fourSharing || 0) + customRoomsCount;
                           const totalBedsOnFloor = (fc.singleSharing * 1) + (fc.doubleSharing * 2) + (fc.tripleSharing * 3) + (fc.fourSharing * 4) + customBedsCount;
 
-                          const startRoomNum = `${fc.floorIndex}01`;
+                          const startRoomNum = fc.floorIndex === 0 ? '001' : `${fc.floorIndex}01`;
                           const endRoomNumStr = totalRoomsOnFloor < 10 ? `0${totalRoomsOnFloor}` : `${totalRoomsOnFloor}`;
-                          const endRoomNum = `${fc.floorIndex}${endRoomNumStr}`;
+                          const endRoomNum = fc.floorIndex === 0 ? `0${endRoomNumStr}` : `${fc.floorIndex}${endRoomNumStr}`;
                           const roomRangeText = totalRoomsOnFloor === 0 
                             ? 'No rooms allocated' 
                             : totalRoomsOnFloor === 1 

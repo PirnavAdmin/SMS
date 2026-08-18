@@ -69,7 +69,9 @@ export const HostelAttendanceView: React.FC = () => {
           // Hydrate local state
           const newState: Record<string, string> = {};
           (records || []).forEach(r => {
-            newState[r.studentId.toString()] = r.curfewStatus;
+            if (r && r.studentId !== undefined && r.studentId !== null) {
+              newState[String(r.studentId)] = r.curfewStatus;
+            }
           });
           setAttendanceState(newState);
         } catch (error: any) {
@@ -84,11 +86,12 @@ export const HostelAttendanceView: React.FC = () => {
   }, [selectedDate, selectedBlockId, addToast]);
 
   // Derived filters
-  const availableBlockRooms = rooms.filter(rm => !selectedBlockId || rm.hostelId.toString() === selectedBlockId);
+  const availableBlockRooms = rooms.filter(rm => rm && rm.hostelId !== undefined && rm.hostelId !== null && (!selectedBlockId || String(rm.hostelId) === selectedBlockId));
   const floors = Array.from(new Set(availableBlockRooms.map(rm => rm.floorLevel))).sort();
 
   const filteredRooms = rooms.filter(rm =>
-    (!selectedBlockId || rm.hostelId.toString() === selectedBlockId) &&
+    rm && rm.hostelId !== undefined && rm.hostelId !== null &&
+    (!selectedBlockId || String(rm.hostelId) === selectedBlockId) &&
     (!selectedFloor || rm.floorLevel === selectedFloor)
   );
 
@@ -336,9 +339,16 @@ export const HostelAttendanceView: React.FC = () => {
               className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
             >
               <option value="">All Blocks</option>
-              {blocks.map(h => (
-                <option key={h.hostelId} value={h.hostelId.toString()}>{h.hostelName}</option>
-              ))}
+              {(blocks || [])
+                .filter(h => h != null)
+                .map((h, idx) => {
+                  const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
+                  return (
+                    <option key={`att_blk_${idVal}_${idx}`} value={idVal}>
+                      {h.hostelName || `Block #${idVal}`}
+                    </option>
+                  );
+                })}
             </select>
           </div>
 
@@ -353,9 +363,16 @@ export const HostelAttendanceView: React.FC = () => {
               className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
             >
               <option value="">All Rooms</option>
-              {filteredRooms.map(r => (
-                <option key={r.roomId} value={r.roomId.toString()}>Room #{r.roomNumber}</option>
-              ))}
+              {(filteredRooms || [])
+                .filter(r => r != null)
+                .map((r, idx) => {
+                  const rId = r.roomId !== undefined && r.roomId !== null ? String(r.roomId) : String((r as any).id || idx);
+                  return (
+                    <option key={`att_rm_${rId}_${idx}`} value={rId}>
+                      Room #{r.roomNumber || rId}
+                    </option>
+                  );
+                })}
             </select>
           </div>
         </div>
