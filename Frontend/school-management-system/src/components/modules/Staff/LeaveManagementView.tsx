@@ -11,6 +11,15 @@ import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
+const DEFAULT_LEAVE_TYPES: LeaveType[] = [
+  { id: 'LT-001', name: 'Casual Leave', code: 'CL', maxDays: 10, isPaid: true, description: 'Annual casual leave for personal matters', requiresDocument: false },
+  { id: 'LT-002', name: 'Sick Leave', code: 'SL', maxDays: 10, isPaid: true, description: 'Medical and health leave', requiresDocument: true },
+  { id: 'LT-003', name: 'Paid / Earned Leave', code: 'PL', maxDays: 15, isPaid: true, description: 'Earned paid annual leave', requiresDocument: false },
+  { id: 'LT-004', name: 'On Duty Leave', code: 'OD', maxDays: 12, isPaid: true, description: 'Official school duty, exam, seminar, or workshop', requiresDocument: false },
+  { id: 'LT-005', name: 'Maternity / Paternity Leave', code: 'ML', maxDays: 90, isPaid: true, description: 'Parental leave', requiresDocument: true },
+  { id: 'LT-006', name: 'Loss of Pay (Unpaid)', code: 'LOP', maxDays: 30, isPaid: false, description: 'Unpaid leave beyond entitlement', requiresDocument: false }
+];
+
 export const LeaveManagementView: React.FC = () => {
   const {
     staff,
@@ -18,6 +27,8 @@ export const LeaveManagementView: React.FC = () => {
     leaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
     holidays, addHoliday, updateHoliday, deleteHoliday
   } = useData();
+
+  const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
 
   const { user, role } = useAuth();
   const { addToast } = useToast();
@@ -544,7 +555,7 @@ export const LeaveManagementView: React.FC = () => {
                   className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
                 >
                   <option value="All">All Leave Types</option>
-                  {leaveTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                  {activeLeaveTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                 </select>
                 <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
@@ -643,7 +654,7 @@ export const LeaveManagementView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {leaveTypes.map(t => (
+            {activeLeaveTypes.map(t => (
               <div key={t.id} className="p-5 bg-white dark:bg-slate-900 border rounded-3xl space-y-3 relative group">
                 <div className="flex justify-between items-center">
                   <div>
@@ -915,7 +926,7 @@ export const LeaveManagementView: React.FC = () => {
                   className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer"
                 >
                   <option value="">Select Leave Type</option>
-                  {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
+                  {activeLeaveTypes.map(t => <option key={t.id} value={t.id}>{t.name} ({t.code})</option>)}
                 </select>
               </div>
 

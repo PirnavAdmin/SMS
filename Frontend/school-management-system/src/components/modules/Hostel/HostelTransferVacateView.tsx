@@ -1,9 +1,118 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
-import { SearchableSelect } from '../../common/SearchableSelect';
-import { ConfirmModal } from '../../common/ConfirmModal';
+import { getAllocations, vacateAllocation, createAllocation } from '../../../api/hostel';
+
+interface ComboboxOption {
+  value: string;
+  label: string;
+  subLabel?: string;
+  disabled?: boolean;
+}
+
+const SearchableCombobox: React.FC<{
+  options: ComboboxOption[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  className?: string;
+}> = ({ options, value, onChange, placeholder = 'Select option...', className = '' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedOpt = options.find(o => String(o.value) === String(value));
+
+  React.useEffect(() => {
+    if (selectedOpt) {
+      setSearchText(selectedOpt.label);
+    } else if (value) {
+      setSearchText(value);
+    } else {
+      setSearchText('');
+    }
+  }, [value, selectedOpt]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(opt => {
+    if (!searchText.trim()) return true;
+    if (selectedOpt && searchText === selectedOpt.label) return true;
+    const q = searchText.toLowerCase().trim();
+    return opt.label.toLowerCase().includes(q) || (opt.subLabel || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div ref={containerRef} className={`relative w-full ${className}`}>
+      <div className="relative cursor-pointer" onClick={() => setIsOpen(prev => !prev)}>
+        <input
+          type="text"
+          value={searchText}
+          onFocus={() => setIsOpen(true)}
+          onChange={e => {
+            const val = e.target.value;
+            setSearchText(val);
+            setIsOpen(true);
+            onChange(val);
+          }}
+          placeholder={placeholder}
+          className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+        />
+        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer pointer-events-none" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1 space-y-0.5 custom-scrollbar">
+          {filteredOptions.length === 0 ? (
+            <div className="px-3 py-2 text-xs font-bold text-sky-600 cursor-pointer" onClick={() => { onChange(searchText); setIsOpen(false); }}>
+              Use custom: "{searchText}"
+            </div>
+          ) : (
+            filteredOptions.map((opt, idx) => {
+              const isSelected = String(opt.value) === String(value);
+              return (
+                <button
+                  key={`combobox_opt_${opt.value}_${idx}`}
+                  type="button"
+                  disabled={opt.disabled}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (opt.disabled) return;
+                    onChange(opt.value);
+                    setSearchText(opt.label);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                    opt.disabled
+                      ? 'opacity-50 cursor-not-allowed text-slate-400'
+                      : isSelected
+                      ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
+                  }`}
+                >
+                  <span className="font-bold">{opt.label}</span>
+                  {isSelected && <span className="text-[10px] text-sky-600 font-bold">✓ Selected</span>}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SearchableSelect = SearchableCombobox;
 
 interface TransferRecord {
   id: number;
@@ -21,14 +130,68 @@ interface TransferRecord {
   monthsStayed?: number;
   feeUtilized?: number;
   refundableBalance?: number;
-  feeAdjustmentMode?: 'Credit to Tuition Fee' | 'Refund Cash/Bank' | 'Non-Refundable';
+  feeAdjustmentMode?: string;
 }
+
+const TRANSFERS_STORE_KEY = 'edu_db_hostel_transfers';
+
+const DEFAULT_INITIAL_TRANSFERS: TransferRecord[] = [
+  {
+    id: 1,
+    studentName: 'Rajesh Kumar',
+    admissionNo: 'ADM-2026-101',
+    actionType: 'Room Transfer',
+    fromHostel: 'Ramachandra Bhavan Block',
+    fromRoom: '101',
+    toHostel: 'Bhanu Block',
+    toRoom: '201',
+    requestDate: '2026-08-01',
+    reason: 'Mutual exchange with classmate',
+    status: 'Completed'
+  },
+  {
+    id: 2,
+    studentName: 'Surya Teja',
+    admissionNo: 'ADM-2026-102',
+    actionType: 'Bed Vacate',
+    fromHostel: 'Ramachandra Bhavan Block',
+    fromRoom: '101',
+    toHostel: 'N/A (Vacated)',
+    toRoom: 'N/A',
+    requestDate: '2026-08-10',
+    reason: 'Shifted to Day Scholar residence',
+    status: 'Completed',
+    totalFeePaid: 60000,
+    monthsStayed: 3,
+    feeUtilized: 15000,
+    refundableBalance: 45000,
+    feeAdjustmentMode: 'Credit to Tuition Fee'
+  }
+];
 
 export const HostelTransferVacateView: React.FC = () => {
   const { students } = useData();
   const { addToast } = useToast();
 
-  const [records, setRecords] = useState<TransferRecord[]>([]);
+  const [records, setRecords] = useState<TransferRecord[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(TRANSFERS_STORE_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {}
+      }
+    }
+    return DEFAULT_INITIAL_TRANSFERS;
+  });
+
+  const saveRecords = (newRecords: TransferRecord[]) => {
+    setRecords(newRecords);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(TRANSFERS_STORE_KEY, JSON.stringify(newRecords));
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterAction, setFilterAction] = useState('');
@@ -68,7 +231,7 @@ export const HostelTransferVacateView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentId) {
       addToast('Please select a student.', 'warning');
@@ -77,13 +240,26 @@ export const HostelTransferVacateView: React.FC = () => {
 
     setIsSubmitting(true);
     const selectedSt = students.find(s => s.id.toString() === selectedStudentId);
+    const stName = selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student';
+    const admNo = selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`;
+
+    // If Bed Vacate is chosen, trigger vacateAllocation in hostel API
+    if (actionType === 'Bed Vacate') {
+      try {
+        const allocs = await getAllocations();
+        const matchAlloc = allocs.find(a => String(a.studentId) === String(selectedStudentId) || a.admissionNo === admNo);
+        if (matchAlloc) {
+          await vacateAllocation(matchAlloc.allocationId);
+        }
+      } catch (err) {}
+    }
 
     const newRecord: TransferRecord = {
       id: Date.now(),
-      studentName: selectedSt ? `${selectedSt.firstName} ${selectedSt.lastName}` : 'Student',
-      admissionNo: selectedSt?.admissionNo || 'ADM-2026-000',
+      studentName: stName,
+      admissionNo: admNo,
       actionType,
-      fromHostel: 'Boys Residence - Block A',
+      fromHostel: 'Ramachandra Bhavan Block',
       fromRoom: '101',
       toHostel: actionType === 'Bed Vacate' ? 'N/A (Vacated)' : targetBlock,
       toRoom: actionType === 'Bed Vacate' ? 'N/A' : targetRoom,
@@ -99,20 +275,22 @@ export const HostelTransferVacateView: React.FC = () => {
       } : {})
     };
 
-    setRecords([newRecord, ...records]);
-    addToast(`${actionType} request processed. Bed is now available. Fee adjusted: ₹${refundableBalance.toLocaleString()}`, 'success');
+    saveRecords([newRecord, ...records]);
+    addToast(`${actionType} request processed. ${actionType === 'Bed Vacate' ? 'Bed released to available. Fee adjusted: ₹' + refundableBalance.toLocaleString() : 'Transferred to ' + targetBlock}`, 'success');
     setIsSubmitting(false);
     setIsModalOpen(false);
   };
 
   const handleApprove = (id: number) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Completed' } : r));
+    const updated = records.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r);
+    saveRecords(updated);
     addToast('Transfer/Vacate request completed successfully. Bed released to available status.', 'success');
   };
 
   const handleDelete = () => {
     if (!deletingRecord) return;
-    setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
+    const updated = records.filter(r => r.id !== deletingRecord.id);
+    saveRecords(updated);
     addToast('Record removed.', 'success');
     setDeletingRecord(null);
   };

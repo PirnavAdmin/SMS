@@ -1,10 +1,144 @@
-import React, { useState } from 'react';
-import { formatCurrency } from '../../../utils/currency';
-import { Home, Plus, Edit, Trash2, Search, Building2, Layers, CheckCircle2, XCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { getHostelBlocks, getRoomTypes } from '../../../api/hostel';
 import { FinanceHostelConfig } from '../../../types';
-import { ConfirmModal } from '../../common/ConfirmModal';
+import { Building2, Plus, Search, Edit2, Trash2, Bed, Check, Sparkles, Filter, ChevronDown } from 'lucide-react';
+
+interface ComboboxOption {
+  value: string;
+  label: string;
+  subLabel?: string;
+  disabled?: boolean;
+}
+
+const SearchableCombobox: React.FC<{
+  options: ComboboxOption[];
+  value: string;
+  onChange: (val: string, selectedOpt?: ComboboxOption) => void;
+  placeholder?: string;
+  allowCustom?: boolean;
+  disabled?: boolean;
+  className?: string;
+}> = ({ options, value, onChange, placeholder = 'Select option...', allowCustom = true, disabled = false, className = '' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const selectedOpt = options.find(o => String(o.value) === String(value));
+
+  useEffect(() => {
+    if (selectedOpt) {
+      setSearchText(selectedOpt.label);
+    } else if (value) {
+      setSearchText(value);
+    } else {
+      setSearchText('');
+    }
+  }, [value, selectedOpt]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(opt => {
+    if (!searchText.trim()) return true;
+    if (selectedOpt && searchText === selectedOpt.label) return true;
+    const q = searchText.toLowerCase().trim();
+    return opt.label.toLowerCase().includes(q) || (opt.subLabel || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div ref={containerRef} className={`relative w-full ${className}`}>
+      <div className="relative cursor-pointer" onClick={() => !disabled && setIsOpen(prev => !prev)}>
+        <input
+          type="text"
+          disabled={disabled}
+          value={searchText}
+          onFocus={() => setIsOpen(true)}
+          onChange={e => {
+            const val = e.target.value;
+            setSearchText(val);
+            setIsOpen(true);
+            if (allowCustom) {
+              onChange(val);
+            } else if (!val) {
+              onChange('');
+            }
+          }}
+          placeholder={placeholder}
+          className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+        />
+        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer pointer-events-none" />
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1 space-y-0.5 custom-scrollbar">
+          {filteredOptions.length === 0 ? (
+            allowCustom && searchText.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(searchText.trim());
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 flex items-center justify-between"
+              >
+                <span>Use custom: "{searchText}"</span>
+                <span className="text-[10px] bg-sky-100 dark:bg-sky-900 px-2 py-0.5 rounded-full">Custom</span>
+              </button>
+            ) : (
+              <div className="px-3 py-3 text-center text-xs text-slate-400 font-semibold">
+                No matching options
+              </div>
+            )
+          ) : (
+            filteredOptions.map((opt, idx) => {
+              const isSelected = String(opt.value) === String(value);
+              return (
+                <button
+                  key={`combobox_opt_${opt.value}_${idx}`}
+                  type="button"
+                  disabled={opt.disabled}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (opt.disabled) return;
+                    onChange(opt.value, opt);
+                    setSearchText(opt.label);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                    opt.disabled
+                      ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-800/40 text-slate-400'
+                      : isSelected
+                      ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
+                  }`}
+                >
+                  <div className="truncate">
+                    <span className="font-bold">{opt.label}</span>
+                    {opt.subLabel && (
+                      <span className="text-[10px] text-slate-400 block font-normal">{opt.subLabel}</span>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">✓ Selected</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const FinanceHostelConfigView: React.FC = () => {
   const {
@@ -16,16 +150,62 @@ export const FinanceHostelConfigView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterHostel, setFilterHostel] = useState('All');
 
+  // Live Hostel Masters & Room Types from Hostel Management API & Local Storage
+  const [activeBlocks, setActiveBlocks] = useState<Array<{ id: string; hostelName: string; hostelType: string }>>([]);
+  const [activeRoomTypes, setActiveRoomTypes] = useState<Array<{ id: string; roomTypeName: string; capacity: number }>>([]);
+
+  const loadLiveMasters = useCallback(async () => {
+    try {
+      const [bRes, rtRes] = await Promise.all([
+        getHostelBlocks().catch(() => []),
+        getRoomTypes().catch(() => [])
+      ]);
+
+      const apiBlocks = (Array.isArray(bRes) ? bRes : []).map(b => ({
+        id: String(b.hostelId),
+        hostelName: b.hostelName || `Hostel Block #${b.hostelId}`,
+        hostelType: b.hostelType || 'Boys Hostel'
+      }));
+
+      const blockMap = new Map<string, { id: string; hostelName: string; hostelType: string }>();
+      (hostelMasters || []).forEach(h => blockMap.set(String(h.id), { id: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' }));
+      apiBlocks.forEach(b => blockMap.set(String(b.id), b));
+
+      const combinedBlocks = Array.from(blockMap.values());
+      setActiveBlocks(combinedBlocks.length > 0 ? combinedBlocks : (hostelMasters || []).map(h => ({ id: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' })));
+
+      const apiRt = (Array.isArray(rtRes) ? rtRes : []).map(rt => ({
+        id: String(rt.roomTypeId),
+        roomTypeName: rt.roomTypeSpecification || `Room Type #${rt.roomTypeId}`,
+        capacity: Number(rt.bedCapacity) || 2
+      }));
+
+      const rtMap = new Map<string, { id: string; roomTypeName: string; capacity: number }>();
+      (roomTypeMasters || []).forEach(rt => rtMap.set(String(rt.id), { id: String(rt.id), roomTypeName: rt.roomTypeName, capacity: rt.capacity || 2 }));
+      apiRt.forEach(rt => rtMap.set(String(rt.id), rt));
+
+      const combinedRt = Array.from(rtMap.values());
+      setActiveRoomTypes(combinedRt.length > 0 ? combinedRt : (roomTypeMasters || []).map(rt => ({ id: String(rt.id), roomTypeName: rt.roomTypeName, capacity: rt.capacity || 2 })));
+    } catch (e) {
+      setActiveBlocks((hostelMasters || []).map(h => ({ id: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' })));
+      setActiveRoomTypes((roomTypeMasters || []).map(rt => ({ id: String(rt.id), roomTypeName: rt.roomTypeName, capacity: rt.capacity || 2 })));
+    }
+  }, [hostelMasters, roomTypeMasters]);
+
+  useEffect(() => {
+    loadLiveMasters();
+  }, [loadLiveMasters]);
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<FinanceHostelConfig | null>(null);
   const [deletingConfig, setDeletingConfig] = useState<FinanceHostelConfig | null>(null);
 
   const [form, setForm] = useState<Partial<FinanceHostelConfig>>({
-    hostelId: hostelMasters[0]?.id || '',
-    hostelName: hostelMasters[0]?.hostelName || '',
-    roomTypeId: roomTypeMasters[0]?.id || '',
-    roomTypeName: roomTypeMasters[0]?.roomTypeName || '',
+    hostelId: '',
+    hostelName: '',
+    roomTypeId: '',
+    roomTypeName: '',
     roomId: '',
     roomNo: 'All Rooms',
     feePlan: 'Annual',
@@ -35,13 +215,18 @@ export const FinanceHostelConfigView: React.FC = () => {
     status: 'Active'
   });
 
-  const handleOpenAdd = () => {
+  const handleOpenAdd = async () => {
     setEditingConfig(null);
+    await loadLiveMasters();
+
+    const firstBlock = activeBlocks[0] || hostelMasters[0];
+    const firstRt = activeRoomTypes[0] || roomTypeMasters[0];
+
     setForm({
-      hostelId: hostelMasters[0]?.id || '',
-      hostelName: hostelMasters[0]?.hostelName || '',
-      roomTypeId: roomTypeMasters[0]?.id || '',
-      roomTypeName: roomTypeMasters[0]?.roomTypeName || '',
+      hostelId: firstBlock ? String(firstBlock.id) : '',
+      hostelName: firstBlock ? firstBlock.hostelName : '',
+      roomTypeId: firstRt ? String(firstRt.id) : '',
+      roomTypeName: firstRt ? (firstRt.roomTypeName || (firstRt as any).roomTypeSpecification) : '',
       roomId: '',
       roomNo: 'All Rooms',
       feePlan: 'Annual',
@@ -53,7 +238,8 @@ export const FinanceHostelConfigView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (c: FinanceHostelConfig) => {
+  const handleOpenEdit = async (c: FinanceHostelConfig) => {
+    await loadLiveMasters();
     setEditingConfig(c);
     setForm(c);
     setIsModalOpen(true);
@@ -62,19 +248,20 @@ export const FinanceHostelConfigView: React.FC = () => {
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.hostelId || !form.hostelFee) {
-      addToast('error', 'Validation Error', 'Please select a hostel and enter a valid hostel fee');
+      addToast('error', 'Validation Error', 'Please select a hostel block and enter a valid hostel fee');
       return;
     }
 
-    const hObj = hostelMasters.find(h => h.id === form.hostelId);
-    const rtObj = roomTypeMasters.find(rt => rt.id === form.roomTypeId);
-    const rmObj = roomMasters.find(rm => rm.id === form.roomId);
+    const hObj = activeBlocks.find(h => String(h.id) === String(form.hostelId));
+    const rtObj = activeRoomTypes.find(rt => String(rt.id) === String(form.roomTypeId));
 
     const configData = {
       ...form,
+      hostelId: String(form.hostelId),
       hostelName: hObj?.hostelName || form.hostelName || 'Hostel Block',
+      roomTypeId: String(form.roomTypeId),
       roomTypeName: rtObj?.roomTypeName || form.roomTypeName || 'Standard Room',
-      roomNo: rmObj ? rmObj.roomNumber : 'All Rooms'
+      roomNo: 'All Rooms'
     };
 
     if (editingConfig) {
@@ -96,9 +283,9 @@ export const FinanceHostelConfigView: React.FC = () => {
   };
 
   const filteredConfigs = financeHostelConfigs.filter(c => {
-    const matchQuery = c.hostelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       c.roomTypeName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchHostel = filterHostel === 'All' || c.hostelId === filterHostel;
+    const matchQuery = (c.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                       (c.roomTypeName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchHostel = filterHostel === 'All' || String(c.hostelId) === String(filterHostel);
     return matchQuery && matchHostel;
   });
 
@@ -110,7 +297,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <Home className="w-6 h-6 text-sky-500" /> Hostel Fee Configuration
           </h2>
-          </div>
+        </div>
 
         <button
           onClick={handleOpenAdd}
@@ -138,8 +325,8 @@ export const FinanceHostelConfigView: React.FC = () => {
           onChange={e => setFilterHostel(e.target.value)}
           className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none"
         >
-          <option value="All">All Hostels ({hostelMasters.length})</option>
-          {hostelMasters.map(h => <option key={h.id} value={h.id}>{h.hostelName}</option>)}
+          <option value="All">All Hostels ({activeBlocks.length})</option>
+          {activeBlocks.map(h => <option key={h.id} value={h.id}>{h.hostelName}</option>)}
         </select>
       </div>
 
@@ -220,36 +407,37 @@ export const FinanceHostelConfigView: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Hostel Block *</label>
-                <select
-                  required
-                  value={form.hostelId}
-                  onChange={e => {
-                    const hObj = hostelMasters.find(h => h.id === e.target.value);
-                    setForm({ ...form, hostelId: e.target.value, hostelName: hObj?.hostelName || '' });
+                <SearchableCombobox
+                  value={form.hostelId || ''}
+                  placeholder="Search or type Hostel Block..."
+                  options={activeBlocks.map(h => ({
+                    value: String(h.id),
+                    label: h.hostelName,
+                    subLabel: h.hostelType
+                  }))}
+                  onChange={(val, opt) => {
+                    const hObj = activeBlocks.find(h => String(h.id) === String(val)) || { hostelName: val, hostelType: 'Boys Hostel' };
+                    setForm({ ...form, hostelId: val, hostelName: hObj.hostelName || val });
                   }}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-                >
-                  {hostelMasters.map(h => (
-                    <option key={h.id} value={h.id}>{h.hostelName} ({h.hostelType})</option>
-                  ))}
-                </select>
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Room Type *</label>
-                  <select
-                    value={form.roomTypeId}
-                    onChange={e => {
-                      const rtObj = roomTypeMasters.find(rt => rt.id === e.target.value);
-                      setForm({ ...form, roomTypeId: e.target.value, roomTypeName: rtObj?.roomTypeName || '' });
+                  <SearchableCombobox
+                    value={form.roomTypeId || ''}
+                    placeholder="Search or type Room Type..."
+                    options={activeRoomTypes.map(rt => ({
+                      value: String(rt.id),
+                      label: rt.roomTypeName,
+                      subLabel: `Capacity: ${rt.capacity}`
+                    }))}
+                    onChange={(val, opt) => {
+                      const rtObj = activeRoomTypes.find(rt => String(rt.id) === String(val)) || { roomTypeName: val };
+                      setForm({ ...form, roomTypeId: val, roomTypeName: rtObj.roomTypeName || val });
                     }}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none"
-                  >
-                    {roomTypeMasters.map(rt => (
-                      <option key={rt.id} value={rt.id}>{rt.roomTypeName} (Capacity: {rt.capacity})</option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>

@@ -55,6 +55,141 @@ import {
   BedAllocation,
 } from "../../../api/hostel";
 
+interface ComboboxOption {
+  value: string;
+  label: string;
+  subLabel?: string;
+  disabled?: boolean;
+}
+
+const SearchableCombobox: React.FC<{
+  options: ComboboxOption[];
+  value: string;
+  onChange: (val: string, selectedOpt?: ComboboxOption) => void;
+  placeholder?: string;
+  allowCustom?: boolean;
+  disabled?: boolean;
+  className?: string;
+}> = ({ options, value, onChange, placeholder = 'Select option...', allowCustom = true, disabled = false, className = '' }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const selectedOpt = options.find(o => String(o.value) === String(value));
+
+  useEffect(() => {
+    if (selectedOpt) {
+      setSearchText(selectedOpt.label);
+    } else if (value) {
+      setSearchText(value);
+    } else {
+      setSearchText('');
+    }
+  }, [value, selectedOpt]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(opt => {
+    if (!searchText.trim()) return true;
+    if (selectedOpt && searchText === selectedOpt.label) return true;
+    const q = searchText.toLowerCase().trim();
+    return opt.label.toLowerCase().includes(q) || (opt.subLabel || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div ref={containerRef} className={`relative w-full ${className}`}>
+      <div className="relative cursor-pointer" onClick={() => !disabled && setIsOpen(prev => !prev)}>
+        <input
+          type="text"
+          disabled={disabled}
+          value={searchText}
+          onFocus={() => setIsOpen(true)}
+          onChange={e => {
+            const val = e.target.value;
+            setSearchText(val);
+            setIsOpen(true);
+            if (allowCustom) {
+              onChange(val);
+            } else if (!val) {
+              onChange('');
+            }
+          }}
+          placeholder={placeholder}
+          className="w-full pl-3.5 pr-8 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
+        />
+        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 cursor-pointer pointer-events-none" />
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-52 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-1 space-y-0.5 custom-scrollbar">
+          {filteredOptions.length === 0 ? (
+            allowCustom && searchText.trim() ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(searchText.trim());
+                  setIsOpen(false);
+                }}
+                className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 flex items-center justify-between"
+              >
+                <span>Use custom: "{searchText}"</span>
+                <span className="text-[10px] bg-sky-100 dark:bg-sky-900 px-2 py-0.5 rounded-full">Custom</span>
+              </button>
+            ) : (
+              <div className="px-3 py-3 text-center text-xs text-slate-400 font-semibold">
+                No matching options
+              </div>
+            )
+          ) : (
+            filteredOptions.map((opt, idx) => {
+              const isSelected = String(opt.value) === String(value);
+              return (
+                <button
+                  key={`combobox_opt_${opt.value}_${idx}`}
+                  type="button"
+                  disabled={opt.disabled}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (opt.disabled) return;
+                    onChange(opt.value, opt);
+                    setSearchText(opt.label);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-all ${
+                    opt.disabled
+                      ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-800/40 text-slate-400'
+                      : isSelected
+                      ? 'bg-sky-50 dark:bg-sky-950/70 text-sky-600 font-extrabold'
+                      : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold'
+                  }`}
+                >
+                  <div className="truncate">
+                    <span className="font-bold">{opt.label}</span>
+                    {opt.subLabel && (
+                      <span className="text-[10px] text-slate-400 block font-normal">{opt.subLabel}</span>
+                    )}
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">✓ Selected</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface AdmissionsViewProps {
   onSelectStudentProfile?: (student: Student) => void;
   onNavigate?: (module: string) => void;
@@ -198,27 +333,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   useEffect(() => {
-    if (isFormView) {
-      setLoadingHostels(true);
-      Promise.all([
-        getHostelBlocks(),
-        getRooms(),
-        getRoomTypes(),
-        getAllocations(),
-      ])
-        .then(([blocks, rooms, roomTypes, allocs]) => {
-          setDynamicHostelBlocks(blocks);
-          setDynamicHostelRooms(rooms);
-          setDynamicRoomTypes(roomTypes);
-          setDynamicAllocations(allocs);
-        })
-        .catch((err) => {
-          console.error("Failed to load dynamic hostel data:", err);
-        })
-        .finally(() => {
-          setLoadingHostels(false);
-        });
-    }
+    setLoadingHostels(true);
+    Promise.all([
+      getHostelBlocks().catch(() => []),
+      getRooms().catch(() => []),
+      getRoomTypes().catch(() => []),
+      getAllocations().catch(() => []),
+    ])
+      .then(([blocks, rooms, roomTypes, allocs]) => {
+        setDynamicHostelBlocks(Array.isArray(blocks) ? blocks : []);
+        setDynamicHostelRooms(Array.isArray(rooms) ? rooms : []);
+        setDynamicRoomTypes(Array.isArray(roomTypes) ? roomTypes : []);
+        setDynamicAllocations(Array.isArray(allocs) ? allocs : []);
+      })
+      .catch((err) => {
+        console.error("Failed to load dynamic hostel data:", err);
+      })
+      .finally(() => {
+        setLoadingHostels(false);
+      });
   }, [isFormView]);
 
   // Form Fields State
@@ -838,7 +971,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         `Updated details for ${fullApplicantName}`,
       );
     } else {
-      addAdmission({
+      const admissionPayload = {
         applicantName: fullApplicantName,
         avatar,
         appliedClass: formData.appliedClass!,
@@ -892,7 +1025,75 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         feeCalculationMethod: formData.feeCalculationMethod || "Term-wise",
         status: "Pending",
         documentsSubmitted: formData.documentsSubmitted || [],
-      });
+      };
+
+      addAdmission(admissionPayload);
+
+      // Sync Residential / Hosteller student across all Hostel & Finance pages
+      if (
+        formData.studentType === "Residential" ||
+        (formData.studentType as any) === "Hosteller" ||
+        formData.hostelBlock ||
+        formData.hostelBed
+      ) {
+        try {
+          const STORE_KEY = 'edu_db_residential_students';
+          const stored = localStorage.getItem(STORE_KEY);
+          let list = stored ? JSON.parse(stored) : [];
+          if (!Array.isArray(list)) list = [];
+
+          const stId = `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+          const admNo = `ADM-2026-${Math.floor(100 + Math.random() * 900)}`;
+
+          const newRecord = {
+            id: stId,
+            name: fullApplicantName,
+            firstName: firstName.trim(),
+            lastName: lastName.trim(),
+            admissionNo: admNo,
+            className: formData.appliedClass,
+            section: 'A',
+            studentType: 'Residential',
+            isResidential: true,
+            phone: formData.phone || '',
+            email: formData.email || '',
+            parentName: formData.parentName || '',
+            hostelBlock: formData.hostelBlock || '',
+            hostelBed: formData.hostelBed || '',
+            status: 'Active'
+          };
+
+          list.push(newRecord);
+          localStorage.setItem(STORE_KEY, JSON.stringify(list));
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new Event('residential_students_updated'));
+          }
+        } catch (e) {}
+      }
+
+      // Auto-Allocate Hostel Room & Bed if Residential student opted for block, room & bed
+      if (
+        (formData.studentType === "Residential" || (formData.studentType as any) === "Hosteller") &&
+        formData.hostelBlock &&
+        formData.hostelRoom &&
+        formData.hostelBed
+      ) {
+        const selBlk = dynamicHostelBlocks.find((b) => String(b.hostelId) === String(formData.hostelBlock)) || hostelMasters.find(h => String(h.id) === String(formData.hostelBlock));
+        const selRm = dynamicHostelRooms.find((r) => String(r.roomId) === String(formData.hostelRoom)) || roomMasters.find(r => String(r.id) === String(formData.hostelRoom));
+
+        createAllocation({
+          studentId: `STF-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+          studentName: fullApplicantName,
+          admissionNo: `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
+          hostelId: Number(formData.hostelBlock) || 1,
+          hostelName: selBlk?.hostelName || "Ramachandra Bhavan Block",
+          roomId: Number(formData.hostelRoom) || 201,
+          roomNumber: selRm?.roomNumber || "101",
+          bedNumber: formData.hostelBed,
+          joiningDate: new Date().toISOString().split("T")[0],
+          status: "Active",
+        }).catch(() => {});
+      }
 
       addToast(
         "success",
@@ -2249,82 +2450,86 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Hostel Block
                         </label>
-                        <div className="relative">
-                          <select
-                            value={formData.hostelBlock}
-                            onChange={(e) => {
-                              setFormData({
-                                ...formData,
-                                hostelBlock: e.target.value,
-                                hostelRoom: "",
-                                hostelBed: "",
-                              });
-                            }}
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
-                          >
-                            <option value="">Select Hostel Block</option>
-                            {dynamicHostelBlocks.map((b) => (
-                              <option key={b.hostelId} value={b.hostelId}>
-                                {b.hostelName} ({b.hostelType})
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
+                        {(() => {
+                          const blockMap = new Map<string, any>();
+                          (hostelMasters || []).forEach(h => blockMap.set(String(h.id), { hostelId: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' }));
+                          (dynamicHostelBlocks || []).forEach(b => blockMap.set(String(b.hostelId), b));
+                          const blockOpts = Array.from(blockMap.values()).map(b => ({
+                            value: String(b.hostelId),
+                            label: b.hostelName,
+                            subLabel: b.hostelType
+                          }));
+
+                          return (
+                            <SearchableCombobox
+                              value={formData.hostelBlock || ''}
+                              placeholder="Search or type Hostel Block..."
+                              options={blockOpts}
+                              onChange={(val) => {
+                                setFormData({
+                                  ...formData,
+                                  hostelBlock: val,
+                                  hostelRoom: "",
+                                  hostelBed: "",
+                                });
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Room
                         </label>
-                        <div className="relative">
-                          <select
-                            value={formData.hostelRoom}
-                            onChange={(e) => {
-                              setFormData({
-                                ...formData,
-                                hostelRoom: e.target.value,
-                                hostelBed: "",
-                              });
-                            }}
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
-                          >
-                            <option value="">Select Room</option>
-                            {dynamicHostelRooms
-                              .filter(
-                                (r) =>
-                                  r.hostelId.toString() ===
-                                  formData.hostelBlock,
-                              )
-                              .map((r) => {
-                                const rtObj = dynamicRoomTypes.find(
-                                  (rt) => rt.roomTypeId === r.roomTypeId,
-                                );
-                                const rCap = rtObj
-                                  ? rtObj.bedCapacity
-                                  : r.bedCapacity || 2;
-                                const rName = rtObj
-                                  ? rtObj.roomTypeSpecification
-                                  : r.roomTypeSpecification || "Standard Room";
-                                const acLabel = rtObj?.acType || "Non-AC";
-                                const occupied = dynamicAllocations.filter(
-                                  (a) =>
-                                    a.roomId === r.roomId &&
-                                    a.status === "Active",
-                                ).length;
-                                return (
-                                  <option
-                                    key={r.roomId}
-                                    value={r.roomId}
-                                    disabled={occupied >= rCap}
-                                  >
-                                    Room #{r.roomNumber} ({rName} - {acLabel}){" "}
-                                    {occupied >= rCap ? "[FULLY OCCUPIED]" : ""}
-                                  </option>
-                                );
-                              })}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
+                        {(() => {
+                          const roomMap = new Map<string, any>();
+                          (roomMasters || []).forEach(r => roomMap.set(String(r.id), { roomId: String(r.id), hostelId: String(r.hostelId), roomNumber: r.roomNumber, bedCapacity: r.bedCapacity || r.capacity || 4, roomTypeSpecification: r.roomTypeSpecification }));
+                          (dynamicHostelRooms || []).forEach(r => roomMap.set(String(r.roomId), r));
+
+                          const roomOpts = Array.from(roomMap.values())
+                            .filter((r) => String(r.hostelId) === String(formData.hostelBlock))
+                            .map((r) => {
+                              const rtObj = dynamicRoomTypes.find((rt) => rt.roomTypeId === r.roomTypeId);
+                              const rCap = rtObj ? rtObj.bedCapacity : (r.bedCapacity || 4);
+                              const rName = rtObj ? rtObj.roomTypeSpecification : (r.roomTypeSpecification || "Standard Room");
+                              const occupied = dynamicAllocations.filter(
+                                (a) => (String(a.roomId) === String(r.roomId) || String(a.roomNumber) === String(r.roomNumber)) && a.status === "Active"
+                              ).length;
+                              const isFull = occupied >= rCap;
+
+                              return {
+                                value: String(r.roomId),
+                                label: `Room #${r.roomNumber} (${rName})`,
+                                subLabel: `${occupied}/${rCap} Occupied${isFull ? " • FULL" : ""}`,
+                                disabled: isFull
+                              };
+                            });
+
+                          return (
+                            <SearchableCombobox
+                              disabled={!formData.hostelBlock}
+                              value={formData.hostelRoom || ''}
+                              placeholder={formData.hostelBlock ? "Search or type Room..." : "Select Block first"}
+                              options={roomOpts}
+                              onChange={(val) => {
+                                const selRoomObj = dynamicHostelRooms.find(r => String(r.roomId) === String(val));
+                                const rtObj = selRoomObj ? dynamicRoomTypes.find(rt => rt.roomTypeId === selRoomObj.roomTypeId) : null;
+                                const rCap = rtObj ? rtObj.bedCapacity : (selRoomObj?.bedCapacity || 4);
+                                const bedOpts = Array.from({ length: rCap }, (_, idx) => `BED-${idx + 1}`);
+
+                                const firstVacantBed = bedOpts.find(bed => {
+                                  return !dynamicAllocations.some(a => String(a.roomId) === String(val) && a.bedNumber === bed && a.status === "Active");
+                                });
+
+                                setFormData({
+                                  ...formData,
+                                  hostelRoom: val,
+                                  hostelBed: firstVacantBed || bedOpts[0] || "",
+                                });
+                              }}
+                            />
+                          );
+                        })()}
                         {(() => {
                           const selRoom = dynamicHostelRooms.find(
                             (r) => r.roomId.toString() === formData.hostelRoom,
@@ -2335,10 +2540,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             );
                             const rCap = rtObj
                               ? rtObj.bedCapacity
-                              : selRoom.bedCapacity || 2;
+                              : selRoom.bedCapacity || 4;
                             const occupied = dynamicAllocations.filter(
                               (a) =>
-                                a.roomId === selRoom.roomId &&
+                                (String(a.roomId) === String(selRoom.roomId) || String(a.roomNumber) === String(selRoom.roomNumber)) &&
                                 a.status === "Active",
                             ).length;
                             const avail = Math.max(0, rCap - occupied);
@@ -2365,72 +2570,65 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Bed
                         </label>
-                        <div className="relative">
-                          <select
-                            value={formData.hostelBed}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                hostelBed: e.target.value,
-                              })
-                            }
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none animate-in fade-in appearance-none cursor-pointer pr-10"
-                          >
-                            <option value="">Select Bed</option>
-                            {formData.hostelRoom &&
-                              (() => {
-                                const selRoom = dynamicHostelRooms.find(
-                                  (r) =>
-                                    r.roomId.toString() === formData.hostelRoom,
-                                );
-                                const rtObj = selRoom
-                                  ? dynamicRoomTypes.find(
-                                      (rt) =>
-                                        rt.roomTypeId === selRoom.roomTypeId,
-                                    )
-                                  : null;
-                                const rCap = rtObj
-                                  ? rtObj.bedCapacity
-                                  : selRoom
-                                    ? selRoom.bedCapacity || 2
-                                    : 2;
-                                const beds = Array.from(
-                                  { length: rCap },
-                                  (_, idx) => `BED-${idx + 1}`,
-                                );
+                        {(() => {
+                          const selRoom = dynamicHostelRooms.find(
+                            (r) => r.roomId.toString() === formData.hostelRoom,
+                          );
+                          const rtObj = selRoom
+                            ? dynamicRoomTypes.find(
+                                (rt) => rt.roomTypeId === selRoom.roomTypeId,
+                              )
+                            : null;
+                          const rCap = rtObj
+                            ? rtObj.bedCapacity
+                            : selRoom
+                              ? selRoom.bedCapacity || 4
+                              : 4;
+                          const beds = Array.from(
+                            { length: rCap },
+                            (_, idx) => `BED-${idx + 1}`,
+                          );
 
-                                return beds.map((bed) => {
-                                  const isTaken =
-                                    dynamicAllocations.some(
-                                      (a) =>
-                                        a.roomId.toString() ===
-                                          formData.hostelRoom &&
-                                        a.bedNumber === bed &&
-                                        a.status === "Active",
-                                    ) ||
-                                    (admissions || []).some(
-                                      (app) =>
-                                        app?.hostelRoom ===
-                                          formData.hostelRoom &&
-                                        app?.hostelBed === bed &&
-                                        app?.status === "Pending" &&
-                                        app?.id !== editingApp?.id,
-                                    );
-                                  return (
-                                    <option
-                                      key={bed}
-                                      value={bed}
-                                      disabled={isTaken}
-                                    >
-                                      {bed}{" "}
-                                      {isTaken ? "[Occupied]" : "[Available]"}
-                                    </option>
-                                  );
+                          const bedOpts = beds.map((bed) => {
+                            const activeAlloc = dynamicAllocations.find(
+                              (a) =>
+                                (String(a.roomId) === String(formData.hostelRoom) || String(a.roomNumber) === String(selRoom?.roomNumber)) &&
+                                a.bedNumber === bed &&
+                                a.status === "Active",
+                            );
+                            const pendingApp = admissions.find(
+                              (app) =>
+                                app.hostelRoom === formData.hostelRoom &&
+                                app.hostelBed === bed &&
+                                app.status === "Pending" &&
+                                app.id !== editingApp?.id,
+                            );
+                            const isTaken = Boolean(activeAlloc || pendingApp);
+                            const occupantName = activeAlloc?.studentName || pendingApp?.applicantName || "Student";
+
+                            return {
+                              value: bed,
+                              label: `Bed #${bed.replace(/\D/g, '') || bed}`,
+                              subLabel: isTaken ? `Occupied by ${occupantName}` : 'Vacant & Available',
+                              disabled: isTaken
+                            };
+                          });
+
+                          return (
+                            <SearchableCombobox
+                              disabled={!formData.hostelRoom}
+                              value={formData.hostelBed || ''}
+                              placeholder={formData.hostelRoom ? "Search or type Bed..." : "Select Room first"}
+                              options={bedOpts}
+                              onChange={(val) => {
+                                setFormData({
+                                  ...formData,
+                                  hostelBed: val,
                                 });
-                              })()}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
+                              }}
+                            />
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>

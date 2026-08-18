@@ -48,15 +48,23 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
 
   // Derived calculations from real data across all hostel modules
   const displayBlocks = blocks;
-
   const totalHostels = displayBlocks.length;
 
-  // Real room capacity aggregation
-  const roomsCapacitySum = rooms.reduce((acc, r) => acc + (Number(r.bedCapacity) || Number(r.capacity) || 0), 0);
-  const totalCapacity = roomsCapacitySum > 0 ? roomsCapacitySum : displayBlocks.reduce((acc, b) => acc + (b.totalCapacity || 0), 0);
+  const activeBlockIds = new Set(displayBlocks.map(b => String(b.hostelId)));
 
-  // Active bed allocations
-  const validAllocations = allocations.filter(a => a && (a.status === 'Active' || !a.isPendingAdmitted));
+  // Rooms belonging strictly to active blocks
+  const activeBlockRooms = rooms.filter(r => r && activeBlockIds.has(String(r.hostelId)));
+
+  // Room capacity sum for active blocks
+  const roomsCapacitySum = activeBlockRooms.reduce((acc, r) => acc + (Number(r.bedCapacity) || Number(r.capacity) || 0), 0);
+  const blocksCapacitySum = displayBlocks.reduce((acc, b) => acc + (Number(b.totalCapacity) || 0), 0);
+  const totalCapacity = roomsCapacitySum > 0 ? roomsCapacitySum : blocksCapacitySum;
+
+  // Active bed allocations belonging strictly to active blocks
+  const validAllocations = allocations.filter(a =>
+    a && (a.status === 'Active' || !a.isPendingAdmitted) &&
+    (activeBlockIds.has(String(a.hostelId)) || activeBlockRooms.some(r => Number(r.roomId) === Number(a.roomId)))
+  );
   const occupiedBeds = validAllocations.length;
 
   // Vacant beds
@@ -67,31 +75,24 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
   const occupancyPercentage = Math.min(100, Math.max(0, rawPercentage));
   const vacantPercentage = 100 - occupancyPercentage;
 
-  // Hostellers count from admitted students or active room allocations
-  const hostellerStudentsCount = (students || []).filter(s =>
-    s && (
-      s.studentType === 'Hosteller' ||
-      (s.studentType as any) === 'Residential' ||
-      (s.studentType as any) === 'Boarder' ||
-      (s as any).isHostelRequired === true ||
-      (s as any).facilityOpted === 'Hostel'
-    )
-  ).length;
-  const enrolledHostellers = hostellerStudentsCount;
+  // Hostellers count matching active occupied beds
+  const enrolledHostellers = occupiedBeds;
 
-  // Monthly Revenue estimation from rooms or active occupied beds
-  const roomRevenueTotal = rooms.reduce((acc, r) => acc + (Number(r.monthlyFee) || 0), 0);
-  const estMonthlyRevenue = roomRevenueTotal;
+  // Monthly Revenue estimation from active rooms
+  const estMonthlyRevenue = activeBlockRooms.reduce((acc, r) => acc + (Number(r.monthlyFee) || 0), 0);
 
-  // Unique Active Wardens count
-  const activeWardensCount = new Set(displayBlocks.map(b => b.wardenName).filter(Boolean)).size;
+  // Unique Active Wardens count (excluding 'Unassigned' and 'N/A')
+  const activeWardensCount = new Set(
+    displayBlocks
+      .map(b => b.wardenName)
+      .filter(w => w && w !== 'Unassigned' && w !== 'N/A' && w !== 'Not Assigned Yet')
+  ).size;
 
   const [dashboardBlockFilter, setDashboardBlockFilter] = useState('');
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
 
   const filteredBlocksList = displayBlocks.filter(b => {
-    const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
-    const blockTitle = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
+    const blockTitle = b.hostelName || (b as any).name || (b as any).blockName || `Hostel Block #${b.hostelId}`;
     const codeVal = b.hostelCode || (b as any).code || 'HST-01';
 
     const matchesFilter =
@@ -312,15 +313,18 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
                 >
                   <option value="">Select Hostel Block...</option>
                   <option value="All">All Hostel Blocks</option>
-                  {displayBlocks.map(b => {
-                    const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
-                    const title = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
-                    return (
-                      <option key={b.hostelId} value={title}>
-                        {title}
-                      </option>
-                    );
-                  })}
+                  {(displayBlocks || [])
+                    .filter(b => b != null)
+                    .map((b, idx) => {
+                      const rawName = b.hostelName || (b as any).name || (b as any).blockName || '';
+                      const title = rawName && isNaN(Number(rawName)) ? rawName : (rawName === '1' ? 'Boys Residence - Block A' : (rawName === '2' ? 'Bhanu Block' : 'Boys Residence - Block A'));
+                      const idKey = b.hostelId !== undefined && b.hostelId !== null ? String(b.hostelId) : `dash_blk_${idx}`;
+                      return (
+                        <option key={`dash_opt_${idKey}_${idx}`} value={title}>
+                          {title}
+                        </option>
+                      );
+                    })}
                 </select>
               </div>
             </div>

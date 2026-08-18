@@ -952,15 +952,46 @@ export const TrainingContainerView: React.FC = () => {
       {/* CREATE WORKSHOP MODAL */}
       {isAddWorkshopModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="font-black text-sm text-slate-900 dark:text-white">Create Employee Workshop / FDP</h3>
-              <button onClick={() => setIsAddWorkshopModalOpen(false)}><X className="w-5 h-5" /></button>
+          <div className="bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-sky-600" /> Create Employee Workshop / FDP
+              </h3>
+              <button onClick={() => setIsAddWorkshopModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-5 h-5" /></button>
             </div>
 
-            <form onSubmit={handleAddWorkshopSubmit} className="flex-1 overflow-y-auto space-y-3 pr-1">
+            {/* Quick Presets */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">Quick Presets:</span>
+              {[
+                { title: 'AI & Machine Learning Tools in Modern Education', category: 'AI Training', trainer: 'Dr. Vikramaditya Sharma', org: 'EdTech Innovations Institute', venue: 'Smart Audio-Visual Lab 1' },
+                { title: 'POCSO & Child Safety Awareness Training', category: 'POCSO Awareness', trainer: 'Adv. Meenakshi Sundaram', org: 'National Child Rights Protection Forum', venue: 'Main Auditorium' },
+                { title: 'CBSE NEP 2020 Pedagogical Alignment Workshop', category: 'Faculty Development Program (FDP)', trainer: 'Prof. V. K. Mehta', org: 'CBSE Academic Directorate', venue: 'Conference Hall A' },
+                { title: 'Teacher Wellness, Resilience & Stress Management', category: 'Leadership Training', trainer: 'Dr. Sunita Rao', org: 'Mindfulness & Wellness Cell', venue: 'Seminar Hall 2' }
+              ].map((preset, pIdx) => (
+                <button
+                  key={pIdx}
+                  type="button"
+                  onClick={() => {
+                    setWorkshopForm({
+                      ...workshopForm,
+                      workshopName: preset.title,
+                      category: preset.category as any,
+                      trainerName: preset.trainer,
+                      organization: preset.org,
+                      venue: preset.venue
+                    });
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800 text-[10px] font-bold whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  + {preset.category}
+                </button>
+              ))}
+            </div>
+
+            <form onSubmit={handleAddWorkshopSubmit} className="flex-1 overflow-y-auto space-y-3 pr-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               <div>
-                <label className="block font-bold mb-1">Workshop Name *</label>
+                <label className="block font-bold text-slate-900 dark:text-white mb-1">Workshop Name *</label>
                 <input
                   type="text"
                   required
@@ -1108,6 +1139,35 @@ export const TrainingContainerView: React.FC = () => {
             <div className="flex-1 overflow-y-auto min-h-0 pr-1.5 space-y-4">
               {assessmentWizardStep === 1 ? (
                 <div className="space-y-4">
+                  {/* Quick Evaluation Presets */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                    <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">Quick Presets:</span>
+                    {[
+                      { name: 'Digital Pedagogy & Smart Classroom Skills Assessment', type: 'Digital Skills Test', category: 'Knowledge', marks: 100, pass: 40 },
+                      { name: 'Subject Knowledge Mastery & Curriculum Evaluation', type: 'Subject Knowledge Test', category: 'Knowledge', marks: 100, pass: 50 },
+                      { name: 'Classroom Discipline & Student Engagement Evaluation', type: 'Classroom Observation', category: 'Observation', marks: 50, pass: 25 },
+                      { name: 'POCSO & Child Protection Compliance Quiz', type: 'Safety Assessment', category: 'Validation', marks: 50, pass: 35 }
+                    ].map((preset, pIdx) => (
+                      <button
+                        key={pIdx}
+                        type="button"
+                        onClick={() => {
+                          setWizardStep1({
+                            ...wizardStep1,
+                            assessmentName: preset.name,
+                            assessmentType: preset.type as any,
+                            category: preset.category as any,
+                            totalMarks: preset.marks,
+                            passingMarks: preset.pass
+                          });
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800 text-[10px] font-bold whitespace-nowrap cursor-pointer shrink-0"
+                      >
+                        + {preset.type}
+                      </button>
+                    ))}
+                  </div>
+
                   <div>
                     <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Name *</label>
                     <input

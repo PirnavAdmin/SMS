@@ -10,9 +10,9 @@ export const StudentHostelContainerView: React.FC = () => {
 
   const subTabs = [
     { id: 'allocations', label: 'Student Hostel Allocation', icon: UserPlus },
+    { id: 'attendance', label: 'Hostel Attendance Register', icon: UserCheck },
     { id: 'outpass', label: 'Outpass & Leave Management', icon: LogOut },
-    { id: 'transfers', label: 'Transfer & Vacate Student', icon: ArrowRightLeft },
-    { id: 'attendance', label: 'Hostel Attendance Register', icon: UserCheck }
+    { id: 'transfers', label: 'Transfer & Vacate Student', icon: ArrowRightLeft }
   ] as const;
 
   const renderContent = () => {

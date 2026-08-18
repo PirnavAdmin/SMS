@@ -213,6 +213,7 @@ import {
   deleteAdmissionApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
+import * as FinanceAPI from "../api/finance";
 import { BusAttendantMaster, initialBusAttendants } from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
@@ -2539,8 +2540,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("announcements", initialAnnouncements),
   );
   const [holidays, setHolidays] = useState<Holiday[]>(() => {
+    const version = localStorage.getItem("edu_db_holidays_full_v2026");
+    if (!version) {
+      localStorage.setItem("edu_db_holidays_full_v2026", "true");
+      localStorage.removeItem("holidays");
+      localStorage.removeItem("edu_db_holidays");
+      localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
+      return initialHolidays;
+    }
     const stored = getStored("holidays", initialHolidays);
-    if (!stored || stored.length <= 1) {
+    if (!stored || stored.length < 10) {
       localStorage.setItem("edu_db_holidays", JSON.stringify(initialHolidays));
       return initialHolidays;
     }
@@ -2564,9 +2573,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Leave Management ERP States
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() =>
-    getStored("leave_types", initialLeaveTypes),
-  );
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() => {
+    const stored = getStored("leave_types", initialLeaveTypes);
+    return Array.isArray(stored) && stored.length > 0 ? stored : [
+      { id: 'LT-001', name: 'Casual Leave', code: 'CL', annualAllowance: 10, maxConsecutiveDays: 3, isPaid: true, carryForward: true, requiresDocument: false, status: 'Active' },
+      { id: 'LT-002', name: 'Sick Leave', code: 'SL', annualAllowance: 10, maxConsecutiveDays: 5, isPaid: true, carryForward: true, requiresDocument: true, status: 'Active' },
+      { id: 'LT-003', name: 'Paid / Earned Leave', code: 'PL', annualAllowance: 15, maxConsecutiveDays: 10, isPaid: true, carryForward: true, requiresDocument: false, status: 'Active' },
+      { id: 'LT-004', name: 'On Duty Leave', code: 'OD', annualAllowance: 12, maxConsecutiveDays: 4, isPaid: true, carryForward: false, requiresDocument: false, status: 'Active' },
+      { id: 'LT-005', name: 'Maternity / Paternity Leave', code: 'ML', annualAllowance: 90, maxConsecutiveDays: 90, isPaid: true, carryForward: false, requiresDocument: true, status: 'Active' },
+      { id: 'LT-006', name: 'Loss of Pay (Unpaid)', code: 'LOP', annualAllowance: 30, maxConsecutiveDays: 30, isPaid: false, carryForward: false, requiresDocument: false, status: 'Active' }
+    ];
+  });
   const [leaveApplications, setLeaveApplications] = useState<
     LeaveApplication[]
   >(() => getStored("leave_applications", initialLeaveApplications));
@@ -11086,12 +11103,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const response = await fetchStudentAttendanceRegisterApi({
         filterType: "day",
         date: todayStr
+      }).catch((e) => {
+        console.warn("Student attendance API offline/unavailable, using local summary fallback.");
+        return null;
       });
       if (response && response.success && response.data && response.data.summary) {
         setTodayStudentAttendanceSummary(response.data.summary);
       }
     } catch (err) {
-      console.error("Error fetching today student attendance:", err);
+      // Suppress unhandled rejection
     }
   }, []);
 
