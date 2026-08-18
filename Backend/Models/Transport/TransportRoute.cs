@@ -8,11 +8,9 @@ public class TransportRoute
     [Key]
     public long RouteId { get; set; }
 
-    [Required]
-    public string RouteCode { get; set; } = string.Empty;
+    public string? RouteCode { get; set; }
 
-    [Required]
-    public string RouteName { get; set; } = string.Empty;
+    public string? RouteName { get; set; }
 
     public string? StartLocation { get; set; }
     public string? EndLocation { get; set; }

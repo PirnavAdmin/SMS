@@ -140,7 +140,7 @@ namespace SMS.Api.Data
         public DbSet<TeacherSubjectAssignment> TeacherSubjectAssignments { get; set; } = null!;
         public DbSet<TimetableHeader> TimetableHeaders { get; set; } = null!;
         public DbSet<TimetableSlot> TimetableSlots { get; set; } = null!;
-
+        
         // =====================================================
         // Finance Management Module
         // =====================================================

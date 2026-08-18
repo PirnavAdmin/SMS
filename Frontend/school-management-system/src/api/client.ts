@@ -17,7 +17,8 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
   }
 
   const baseUrl = (import.meta.env.VITE_API_URL as string) || '';
-  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
+  const useProxy = baseUrl.includes('ngrok-free.dev') || baseUrl.includes('loca.lt');
+  const url = (endpoint.startsWith('http') || useProxy) ? endpoint : `${baseUrl}${endpoint}`;
 
   const response = await fetch(url, {
     ...options,

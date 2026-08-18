@@ -8,11 +8,9 @@ public class TransportAttendant
     [Key]
     public long AttendantId { get; set; }
 
-    [Required]
-    public string AttendantName { get; set; } = string.Empty;
+    public string? AttendantName { get; set; }
 
-    [Required]
-    public string MobileNumber { get; set; } = string.Empty;
+    public string? MobileNumber { get; set; }
 
     public string? EmployeeId { get; set; }
     public string? Gender { get; set; }
