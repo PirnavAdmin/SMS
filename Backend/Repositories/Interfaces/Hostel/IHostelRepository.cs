@@ -48,5 +48,21 @@ public interface IHostelRepository
     Task<List<HostelAttendance>> GetAttendanceForDateAsync(DateTime date, int? hostelId, string? floor, int? roomId);
     Task AddAttendanceRangeAsync(IEnumerable<HostelAttendance> records);
 
+    // Outpasses & Leave Requests
+    Task<int> GetActiveWardenCountAsync();
+    Task<List<StudentBedAllocation>> GetRecentBedAllocationsAsync(int count = 5);
+    Task<List<HostelOutpass>> GetActiveOutpassesAsync(int count = 5);
+    Task<List<HostelOutpass>> GetAllOutpassesAsync(string? search, string? status);
+    Task<HostelOutpass?> GetOutpassByIdAsync(int id);
+    Task AddOutpassAsync(HostelOutpass outpass);
+    void RemoveOutpass(HostelOutpass outpass);
+    void RemoveBedAllocation(StudentBedAllocation allocation);
+
+    // Transfer & Vacate Requests
+    Task<List<HostelTransferVacate>> GetAllTransferVacateRequestsAsync(string? search, string? actionType);
+    Task<HostelTransferVacate?> GetTransferVacateRequestByIdAsync(int id);
+    Task AddTransferVacateRequestAsync(HostelTransferVacate request);
+    void RemoveTransferVacateRequest(HostelTransferVacate request);
+
     Task SaveChangesAsync();
 }

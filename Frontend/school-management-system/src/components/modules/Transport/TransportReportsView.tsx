@@ -409,7 +409,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
           {filteredRows.length === 0 ? (
             <p className="text-center py-8 text-xs text-slate-400 italic">No report records found.</p>
           ) : (
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
                   {Object.keys(filteredRows[0] || {}).map(key => (
@@ -421,7 +421,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
                 {filteredRows.map((row, idx) => (
                   <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     {Object.entries(row).map(([key, value]) => (
-                      <td key={key} className="py-3 px-4 text-slate-800 dark:text-slate-200 font-semibold">
+                      <td key={key} className="py-3 px-4 text-slate-800 dark:text-slate-200 font-semibold text-center">
                         {typeof value === 'number' && keyMatchesCurrency(key) ? formatCurrency(value) : String(value)}
                       </td>
                     ))}

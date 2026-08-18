@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using SMS.Api.Common;
@@ -78,8 +79,21 @@ namespace SMS.Api.Dtos
     public class CreateBedAllocationDto
     {
         [JsonPropertyName("studentId")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
         public int StudentId { get; set; }
+
+        [JsonPropertyName("selectStudent")]
+        public string? SelectStudentAlias
+        {
+            get => StudentId > 0 ? StudentId.ToString() : AdmissionNo;
+            set
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    if (int.TryParse(value, out int parsedId)) StudentId = parsedId;
+                    else AdmissionNo = value;
+                }
+            }
+        }
 
         [JsonPropertyName("selectHostellerStudent")]
         public string? SelectHostellerStudentAlias
@@ -109,8 +123,14 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("hostelId")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
         public int HostelId { get; set; }
+
+        [JsonPropertyName("selectHostelBlock")]
+        public string? SelectHostelBlockAlias
+        {
+            get => HostelId.ToString();
+            set { if (int.TryParse(value, out int val)) HostelId = val; }
+        }
 
         [JsonPropertyName("selectHostelFacility")]
         public string? SelectHostelFacilityAlias
@@ -123,7 +143,6 @@ namespace SMS.Api.Dtos
         public string? HostelName { get; set; }
 
         [JsonPropertyName("roomId")]
-        [JsonConverter(typeof(FlexibleLongConverter))]
         public int RoomId { get; set; }
 
         [JsonPropertyName("selectRoom")]
@@ -138,6 +157,13 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("bedNumber")]
         public string? BedNumber { get; set; }
+
+        [JsonPropertyName("selectBedNumber")]
+        public string? SelectBedNumberAlias
+        {
+            get => BedNumber;
+            set { if (!string.IsNullOrWhiteSpace(value)) BedNumber = value; }
+        }
 
         [JsonPropertyName("allocatedBedId")]
         public string? AllocatedBedId

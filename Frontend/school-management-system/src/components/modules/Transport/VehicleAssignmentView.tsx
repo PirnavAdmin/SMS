@@ -301,10 +301,11 @@ export const VehicleAssignmentView: React.FC = () => {
     // Strict Rule 1: A route can only be assigned to ONE active bus
     const routeAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
+      va.id !== reassignSource?.id &&
       (va.routeId === route.id || (va.routeName && va.routeName.toLowerCase() === route.routeName.toLowerCase())) &&
       va.status === 'Active'
     );
-    if (routeAlreadyAssigned && modalMode !== 'reassign') {
+    if (routeAlreadyAssigned) {
       addToast('warning', 'Route Already Assigned', `Route "${route.routeName}" is already assigned to bus ${routeAlreadyAssigned.vehicleNumber}. A route cannot have multiple active buses.`);
       return;
     }
@@ -312,10 +313,11 @@ export const VehicleAssignmentView: React.FC = () => {
     // Strict Rule 2: A bus can only be assigned to ONE active route
     const vehicleAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
+      va.id !== reassignSource?.id &&
       (va.vehicleId === vehicle.id || (va.vehicleNumber && va.vehicleNumber.toLowerCase() === vehicle.vehicleNumber.toLowerCase())) &&
       va.status === 'Active'
     );
-    if (vehicleAlreadyAssigned && modalMode !== 'reassign') {
+    if (vehicleAlreadyAssigned) {
       addToast('warning', 'Vehicle Already Assigned', `Bus "${vehicle.vehicleNumber}" is already assigned to route "${vehicleAlreadyAssigned.routeName}".`);
       return;
     }
@@ -323,10 +325,11 @@ export const VehicleAssignmentView: React.FC = () => {
     // Strict Rule 3: No single driver can drive multiple buses
     const driverAlreadyAssigned = vehicleAssignments.find(va =>
       va.id !== editingAssignment?.id &&
+      va.id !== reassignSource?.id &&
       (va.driverId === driver.id || (va.driverName && va.driverName.toLowerCase() === driver.driverName.toLowerCase())) &&
       va.status === 'Active'
     );
-    if (driverAlreadyAssigned && modalMode !== 'reassign') {
+    if (driverAlreadyAssigned) {
       addToast('warning', 'Driver Already Assigned', `Driver "${driver.driverName}" is already assigned to bus ${driverAlreadyAssigned.vehicleNumber} (${driverAlreadyAssigned.routeName}). A driver cannot be assigned to two buses.`);
       return;
     }
@@ -335,10 +338,11 @@ export const VehicleAssignmentView: React.FC = () => {
     if (attendant) {
       const attendantAlreadyAssigned = vehicleAssignments.find(va =>
         va.id !== editingAssignment?.id &&
+        va.id !== reassignSource?.id &&
         (va.attendantId === attendant.id || (va.attendantName && va.attendantName.toLowerCase() === attendant.attendantName.toLowerCase())) &&
         va.status === 'Active'
       );
-      if (attendantAlreadyAssigned && modalMode !== 'reassign') {
+      if (attendantAlreadyAssigned) {
         addToast('warning', 'Attendant Already Assigned', `Bus Attendant "${attendant.attendantName}" is already assigned to bus ${attendantAlreadyAssigned.vehicleNumber}.`);
         return;
       }
@@ -797,9 +801,9 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Route --</option>
                   {routeMasters.filter(route => route.status === 'Active').map(route => {
-                    const activeOther = vehicleAssignments.find(va => va.routeId === route.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    const activeOther = vehicleAssignments.find(va => va.routeId === route.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
                     return (
-                      <option key={route.id} value={route.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                      <option key={route.id} value={route.id} disabled={!!activeOther}>
                         {route.routeName} ({route.routeCode}) {activeOther ? ` [Assigned to ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>
                     );
@@ -816,9 +820,9 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Vehicle --</option>
                   {vehicleMasters.filter(vehicle => vehicle.status === 'Active').map(vehicle => {
-                    const activeOther = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    const activeOther = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
                     return (
-                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                      <option key={vehicle.id} value={vehicle.id} disabled={!!activeOther}>
                         {vehicle.vehicleNumber} ({vehicle.registrationNumber} - {vehicle.capacity} Seats)
                         {activeOther ? ` [Assigned to: ${activeOther.routeName}]` : ' [Available]'}
                       </option>
@@ -843,10 +847,10 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Driver --</option>
                   {driverMasters.filter(driver => driver.status === 'Active').map(driver => {
-                    const activeOther = vehicleAssignments.find(va => va.driverId === driver.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    const activeOther = vehicleAssignments.find(va => va.driverId === driver.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
                     const empIdText = driver.employeeId ? `Emp ID: ${driver.employeeId}` : `DRV-${driver.id}`;
                     return (
-                      <option key={driver.id} value={driver.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                      <option key={driver.id} value={driver.id} disabled={!!activeOther}>
                         {driver.driverName} ({empIdText} • {driver.mobileNumber})
                         {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>
@@ -871,9 +875,9 @@ export const VehicleAssignmentView: React.FC = () => {
                 >
                   <option value="">-- Select Bus Attendant --</option>
                   {busAttendants.filter(attendant => attendant.status === 'Active').map(attendant => {
-                    const activeOther = vehicleAssignments.find(va => va.attendantId === attendant.id && va.status === 'Active' && va.id !== editingAssignment?.id);
+                    const activeOther = vehicleAssignments.find(va => va.attendantId === attendant.id && va.status === 'Active' && va.id !== editingAssignment?.id && va.id !== reassignSource?.id);
                     return (
-                      <option key={attendant.id} value={attendant.id} disabled={!!activeOther && modalMode !== 'reassign'}>
+                      <option key={attendant.id} value={attendant.id} disabled={!!activeOther}>
                         {attendant.attendantName} (Emp ID: {attendant.employeeId} • {attendant.mobileNumber})
                         {activeOther ? ` [Assigned to: ${activeOther.vehicleNumber}]` : ' [Available]'}
                       </option>

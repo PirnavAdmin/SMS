@@ -9,6 +9,7 @@ public interface IHostelService
 {
     // Dashboard & Metrics
     Task<HostelDashboardMetricsDto> GetExecutiveDashboardMetricsAsync();
+    Task<HostelDashboardResponseDto> GetDashboardResponseAsync();
 
     // Hostel Blocks
     Task<List<HostelBlockDto>> GetAllHostelBlocksAsync(string? search, string? type);
@@ -23,6 +24,7 @@ public interface IHostelService
     Task<RoomTypeConfigDto> CreateRoomTypeConfigAsync(CreateRoomTypeConfigDto dto);
     Task<RoomTypeConfigDto> UpdateRoomTypeConfigAsync(int roomTypeId, CreateRoomTypeConfigDto dto);
     Task<bool> DeleteRoomTypeConfigAsync(int roomTypeId);
+    Task<bool> CreateBatchRoomSharingConfigAsync(CreateBatchRoomSharingConfigDto dto);
 
     // Rooms
     Task<List<RoomMasterDto>> GetAllRoomsAsync(int? hostelId, string? floor, int? roomTypeId, string? search);
@@ -41,6 +43,7 @@ public interface IHostelService
     Task<List<BedAllocationDto>> GetAllBedAllocationsAsync(int? hostelId, int? roomId, string? search);
     Task<BedAllocationDto> AllocateBedAsync(CreateBedAllocationDto dto);
     Task<bool> VacateBedAsync(int allocationId);
+    Task<bool> DeleteBedAllocationAsync(int allocationId);
 
     // Attendance
     Task<List<HostelAttendanceDto>> GetNightAttendanceRollCallAsync(DateTime date, int? hostelId, string? floor, int? roomId);
@@ -48,4 +51,15 @@ public interface IHostelService
 
     // Reports
     Task<List<HostelReportItemDto>> GetFilteredReportsAsync(HostelReportFilterDto filter);
+
+    // Outpasses & Leave Requests
+    Task<List<HostelOutpassDto>> GetAllOutpassesAsync(string? search, string? status);
+    Task<HostelOutpassDto> CreateOutpassAsync(CreateHostelOutpassDto dto);
+    Task<HostelOutpassDto> UpdateOutpassStatusAsync(int id, string status, string? approvedBy, string? remarks);
+    Task<bool> DeleteOutpassAsync(int id);
+
+    // Transfer & Vacate Requests
+    Task<List<HostelTransferVacateDto>> GetAllTransferVacateRequestsAsync(string? search, string? actionType);
+    Task<HostelTransferVacateDto> CreateTransferVacateRequestAsync(CreateHostelTransferVacateDto dto);
+    Task<bool> DeleteTransferVacateRequestAsync(int id);
 }

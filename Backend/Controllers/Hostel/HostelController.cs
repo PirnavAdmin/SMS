@@ -28,26 +28,13 @@ namespace SMS.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetDashboard()
         {
-            var metrics = await _hostelService.GetExecutiveDashboardMetricsAsync();
-            var blocks = await _hostelService.GetAllHostelBlocksAsync(null, null);
+            var response = await _hostelService.GetDashboardResponseAsync();
 
             return Ok(new
             {
                 success = true,
                 message = "Hostel dashboard metrics retrieved successfully.",
-                data = new
-                {
-                    metrics,
-                    blocks,
-                    totalHostels = metrics.TotalHostels,
-                    totalRooms = metrics.TotalRooms,
-                    totalBedCapacity = metrics.TotalBedCapacity,
-                    occupiedBeds = metrics.OccupiedBeds,
-                    availableVacantBeds = metrics.AvailableVacantBeds,
-                    enrolledHostellers = metrics.HostellerStudents,
-                    estMonthlyRevenue = metrics.EstMonthlyRevenue,
-                    occupancyPercentage = metrics.OccupancyPercentage
-                }
+                data = response
             });
         }
 
@@ -232,6 +219,19 @@ namespace SMS.Api.Controllers
             {
                 success = deleted,
                 message = "Room category deleted successfully."
+            });
+        }
+
+        [HttpPost("room-sharing/config")]
+        [HttpPost("room-types/batch")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CreateRoomSharingConfig([FromBody] CreateBatchRoomSharingConfigDto dto)
+        {
+            var result = await _hostelService.CreateBatchRoomSharingConfigAsync(dto);
+            return Ok(new
+            {
+                success = result,
+                message = "Room sharing configuration saved successfully."
             });
         }
 
@@ -442,14 +442,38 @@ namespace SMS.Api.Controllers
         }
 
         [HttpDelete("allocations/{id}")]
+        [HttpDelete("bed-allocations/{id}")]
         [AllowAnonymous]
-        public async Task<IActionResult> VacateBed(int id)
+        public async Task<IActionResult> VacateOrDeleteBed(int id, [FromQuery] bool? forceDelete)
         {
+            if (forceDelete == true)
+            {
+                var deleted = await _hostelService.DeleteBedAllocationAsync(id);
+                return Ok(new
+                {
+                    success = deleted,
+                    message = "Student room allocation deleted successfully."
+                });
+            }
+
             var vacated = await _hostelService.VacateBedAsync(id);
             return Ok(new
             {
                 success = vacated,
                 message = "Bed vacated successfully."
+            });
+        }
+
+        [HttpDelete("allocations/{id}/delete")]
+        [HttpDelete("bed-allocations/{id}/delete")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteBedAllocationPermanent(int id)
+        {
+            var deleted = await _hostelService.DeleteBedAllocationAsync(id);
+            return Ok(new
+            {
+                success = deleted,
+                message = "Student room allocation deleted successfully."
             });
         }
 
@@ -607,6 +631,118 @@ namespace SMS.Api.Controllers
 
             var bytes = Encoding.UTF8.GetBytes(sb.ToString());
             return File(bytes, "text/csv", $"Hostel_Report_{DateTime.Now:yyyyMMdd}.csv");
+        }
+
+        // =========================================================
+        // 9. OUTPASSES & LEAVE REQUESTS
+        // =========================================================
+
+        [HttpGet("outpasses")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllOutpasses(
+            [FromQuery] string? search,
+            [FromQuery] string? status)
+        {
+            var outpasses = await _hostelService.GetAllOutpassesAsync(search, status);
+            return Ok(new
+            {
+                success = true,
+                message = "Outpass and leave requests retrieved successfully.",
+                data = outpasses,
+                totalCount = outpasses.Count
+            });
+        }
+
+        [HttpPost("outpasses")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CreateOutpass([FromBody] CreateHostelOutpassDto dto)
+        {
+            var outpass = await _hostelService.CreateOutpassAsync(dto);
+            return Ok(new
+            {
+                success = true,
+                message = "Outpass request created successfully.",
+                data = outpass
+            });
+        }
+
+        [HttpPut("outpasses/{id}/status")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateOutpassStatus(
+            int id,
+            [FromQuery] string status,
+            [FromQuery] string? approvedBy,
+            [FromQuery] string? remarks)
+        {
+            var outpass = await _hostelService.UpdateOutpassStatusAsync(id, status, approvedBy, remarks);
+            return Ok(new
+            {
+                success = true,
+                message = "Outpass status updated successfully.",
+                data = outpass
+            });
+        }
+
+        [HttpDelete("outpasses/{id}")]
+        [HttpDelete("outpass/{id}")]
+        [HttpDelete("leave-requests/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteOutpass(int id)
+        {
+            var deleted = await _hostelService.DeleteOutpassAsync(id);
+            return Ok(new
+            {
+                success = deleted,
+                message = "Outpass/leave record deleted successfully."
+            });
+        }
+
+        // =========================================================
+        // 9. TRANSFER & VACATE STUDENT
+        // =========================================================
+
+        [HttpGet("transfers")]
+        [HttpGet("transfer-vacate")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetAllTransferVacateRequests(
+            [FromQuery] string? search,
+            [FromQuery] string? actionType)
+        {
+            var requests = await _hostelService.GetAllTransferVacateRequestsAsync(search, actionType);
+            return Ok(new
+            {
+                success = true,
+                message = "Transfer & vacate requests retrieved successfully.",
+                data = requests,
+                totalCount = requests.Count
+            });
+        }
+
+        [HttpPost("transfers")]
+        [HttpPost("transfer-vacate")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CreateTransferVacateRequest([FromBody] CreateHostelTransferVacateDto dto)
+        {
+            var request = await _hostelService.CreateTransferVacateRequestAsync(dto);
+            return Ok(new
+            {
+                success = true,
+                message = "Transfer/vacate request processed successfully.",
+                data = request
+            });
+        }
+
+        [HttpDelete("transfers/{id}")]
+        [HttpDelete("transfer-vacate/{id}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DeleteTransferVacateRequest(int id)
+        {
+            var deleted = await _hostelService.DeleteTransferVacateRequestAsync(id);
+            return Ok(new
+            {
+                success = deleted,
+                message = "Transfer/vacate record deleted successfully."
+            });
         }
     }
 }

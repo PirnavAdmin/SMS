@@ -214,6 +214,7 @@ import {
   deleteAdmissionApi,
 } from "../api/admission";
 import * as TransportAPI from "../api/transport";
+import { BusAttendantMaster, initialBusAttendants } from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
 import { useAuth } from "./AuthContext";
 import {
@@ -3532,6 +3533,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           TransportAPI.fetchVehicleAssignmentsApi(),
           TransportAPI.fetchMaintenanceApi(),
           TransportAPI.fetchAttendantsApi(),
+          TransportAPI.fetchStudentAssignmentsApi(),
         ]);
 
         const extractData = (result: any) => {
@@ -3748,14 +3750,27 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           setVehicleAssignments(mergeApiAndLocal(mappedAssignments, "edu_db_vehicle_assignments", initialVehicleAssignments));
         }
         if (maintenance) {
-          const mappedMaintenance = maintenance.map((m: any) => ({
-            id: (m.id || m.maintenanceId || "").toString(),
-            vehicleId: (m.vehicleId || "").toString(),
-            serviceDate: m.serviceDate || "",
-            cost: Number(m.cost || 0),
-            description: m.description || "",
-            status: normalizeStatus(m.status)
-          }));
+          const mappedMaintenance = maintenance.map((m: any) => {
+            let vNum = m.vehicleNumber || "";
+            if (!vNum && vehicles) {
+              const matchedVeh = vehicles.find((v: any) => v.id?.toString() === m.vehicleId?.toString());
+              if (matchedVeh) {
+                vNum = matchedVeh.vehicleNumber || "";
+              }
+            }
+            return {
+              id: (m.id || m.maintenanceId || "").toString(),
+              vehicleId: (m.vehicleId || "").toString(),
+              vehicleNumber: vNum,
+              serviceDate: m.serviceDate ? m.serviceDate.split("T")[0] : "",
+              serviceType: m.serviceType || m.type || "Routine Service",
+              vendor: m.vendor || m.serviceCenter || "Default Vendor",
+              cost: Number(m.cost || 0),
+              nextServiceDue: m.nextServiceDue ? m.nextServiceDue.split("T")[0] : "",
+              remarks: m.remarks || m.description || "",
+              status: normalizeStatus(m.status)
+            };
+          });
           setVehicleMaintenances(mergeApiAndLocal(mappedMaintenance, "edu_db_vehicle_maintenances", initialVehicleMaintenances));
         }
         if (attendants) {
@@ -3769,6 +3784,35 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             status: normalizeStatus(a.status)
           }));
           setBusAttendants(mergeApiAndLocal(mappedAttendants, "edu_db_bus_attendants", initialBusAttendants));
+        }
+        const studentTransportsData = extractData(results[7]);
+        if (studentTransportsData) {
+          const mappedTransports = studentTransportsData.map((t: any) => {
+            let admNo = t.admissionNo || t.admissionNumber || "";
+            if (!admNo && students) {
+              const matchedStudent = students.find((s: any) => s.id?.toString() === t.studentId?.toString());
+              if (matchedStudent) {
+                admNo = matchedStudent.admissionNo || matchedStudent.admissionNumber || "";
+              }
+            }
+            return {
+              id: (t.id || t.studentTransportId || "").toString(),
+              studentId: (t.studentId || "").toString(),
+              studentName: t.studentName || t.fullName || "",
+              admissionNo: admNo,
+              routeName: t.routeName || "",
+              routeId: (t.routeId || "").toString(),
+              pickupPoint: t.pickupPoint || t.pickupName || "",
+              pickupPointId: (t.pickupPointId || "").toString(),
+              vehicleNumber: t.vehicleNumber || "",
+              vehicleId: (t.vehicleId || "").toString(),
+              feePlan: t.feePlan || "Monthly",
+              feeAmount: Number(t.feeAmount || 0),
+              effectiveFrom: t.effectiveFrom ? t.effectiveFrom.split("T")[0] : "",
+              status: normalizeStatus(t.status)
+            };
+          });
+          setStudentTransports(mergeApiAndLocal(mappedTransports, "edu_db_student_transports", initialStudentTransports));
         }
 
         if (results.some((r) => r.status === "rejected")) {
@@ -5667,7 +5711,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   c.pickupName === pObj?.pickupName) &&
                 c.status === "Active",
             );
-            additionalFees += ftc ? ftc.feeAmount : 5500;
+            const pFee = (pObj && pObj.monthlyFee > 0) ? pObj.monthlyFee : (ftc ? ftc.feeAmount : 5500);
+            additionalFees += pFee;
           } else if (
             (app.studentType === "Hosteller" ||
               app.studentType === "Residential") &&
@@ -5837,7 +5882,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 c.status === "Active",
             );
 
-            const trpFee = ftc ? ftc.feeAmount : 5500;
+            const trpFee = (pObj && pObj.monthlyFee > 0) ? pObj.monthlyFee : (ftc ? ftc.feeAmount : 5500);
             assignStudentTransport({
               studentId: newStudent.id,
               studentName: `${newStudent.firstName} ${newStudent.lastName}`,
@@ -10474,7 +10519,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       (st) => (st.vehicleId === vehicleId || st.vehicleNumber === vehicle?.vehicleNumber) && st.status === "Active",
     );
 
-    const assignedCount = matchedTransports.length > 0 ? matchedTransports.length : 5;
+    const assignedCount = matchedTransports.length;
     const availableSeats = Math.max(0, totalCapacity - assignedCount);
 
     return {

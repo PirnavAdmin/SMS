@@ -86,6 +86,12 @@ namespace SMS.Api.Data
         // Uniform Module
         public DbSet<UniformType> UniformTypes { get; set; } = null!;
         public DbSet<UniformCategory> UniformCategories { get; set; } = null!;
+
+        // Faculty Development & Staff Training Module
+        public DbSet<FacultyWorkshop> FacultyWorkshops { get; set; } = null!;
+        public DbSet<EmployeeCompetencyAssessment> EmployeeCompetencyAssessments { get; set; } = null!;
+        public DbSet<FacultyTrainingParticipation> FacultyTrainingParticipations { get; set; } = null!;
+        public DbSet<EmployeeAssessmentCandidate> EmployeeAssessmentCandidates { get; set; } = null!;
         public DbSet<UniformSize> UniformSizes { get; set; } = null!;
         public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
         public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
@@ -122,6 +128,8 @@ namespace SMS.Api.Data
         public DbSet<HostelWarden> HostelWardens { get; set; } = null!;
         public DbSet<StudentBedAllocation> StudentBedAllocations { get; set; } = null!;
         public DbSet<HostelAttendance> HostelAttendances { get; set; } = null!;
+        public DbSet<HostelOutpass> HostelOutpasses { get; set; } = null!;
+        public DbSet<HostelTransferVacate> HostelTransferVacates { get; set; } = null!;
 
 
         // =====================================================

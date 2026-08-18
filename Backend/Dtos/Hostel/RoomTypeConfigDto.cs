@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
@@ -20,6 +22,9 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("roomTypeName")]
         public string RoomTypeName => RoomTypeSpecification;
 
+        [JsonPropertyName("roomCategory")]
+        public string RoomCategory => RoomTypeSpecification;
+
         [JsonPropertyName("bedCapacity")]
         public int BedCapacity { get; set; }
 
@@ -41,7 +46,6 @@ namespace SMS.Api.Dtos
 
     public class CreateRoomTypeConfigDto
     {
-        [Required(ErrorMessage = "Room Type Specification is required.")]
         [JsonPropertyName("roomTypeSpecification")]
         public string RoomTypeSpecification { get; set; } = string.Empty;
 
@@ -59,8 +63,13 @@ namespace SMS.Api.Dtos
             set { if (!string.IsNullOrWhiteSpace(value)) RoomTypeSpecification = value; }
         }
 
-        [Required(ErrorMessage = "Bed Capacity is required.")]
-        [Range(1, 20, ErrorMessage = "Bed Capacity must be between 1 and 20.")]
+        [JsonPropertyName("roomCategory")]
+        public string? RoomCategoryAlias
+        {
+            get => RoomTypeSpecification;
+            set { if (!string.IsNullOrWhiteSpace(value)) RoomTypeSpecification = value; }
+        }
+
         [JsonPropertyName("bedCapacity")]
         public int BedCapacity { get; set; } = 1;
 
@@ -68,18 +77,66 @@ namespace SMS.Api.Dtos
         public int? CapacityAlias
         {
             get => BedCapacity;
-            set { if (value.HasValue) BedCapacity = value.Value; }
+            set { if (value.HasValue && value.Value > 0) BedCapacity = value.Value; }
         }
 
-        [Required(ErrorMessage = "AC Type is required.")]
         [JsonPropertyName("acType")]
         public string AcType { get; set; } = "AC";
 
-        [Required(ErrorMessage = "Status is required.")]
         [JsonPropertyName("status")]
         public string Status { get; set; } = "Active";
 
         [JsonPropertyName("description")]
         public string? Description { get; set; }
+    }
+
+    public class BatchRoomSharingItemDto
+    {
+        [JsonPropertyName("floorLevel")]
+        public string FloorLevel { get; set; } = "1st Floor";
+
+        [JsonPropertyName("categoryName")]
+        public string CategoryName { get; set; } = "Double Sharing (AC)";
+
+        [JsonPropertyName("roomCategory")]
+        public string? RoomCategoryAlias
+        {
+            get => CategoryName;
+            set { if (!string.IsNullOrWhiteSpace(value)) CategoryName = value; }
+        }
+
+        [JsonPropertyName("bedCapacity")]
+        public int BedCapacity { get; set; } = 2;
+
+        [JsonPropertyName("acType")]
+        public string AcType { get; set; } = "AC";
+
+        [JsonPropertyName("roomsCount")]
+        public int RoomsCount { get; set; } = 1;
+    }
+
+    public class CreateBatchRoomSharingConfigDto
+    {
+        [JsonPropertyName("hostelId")]
+        public int HostelId { get; set; }
+
+        [JsonPropertyName("floorLevel")]
+        public string? FloorLevel { get; set; } = "All Floors";
+
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "Active";
+
+        [JsonPropertyName("description")]
+        public string? Description { get; set; }
+
+        [JsonPropertyName("layoutNote")]
+        public string? LayoutNote
+        {
+            get => Description;
+            set { if (!string.IsNullOrWhiteSpace(value)) Description = value; }
+        }
+
+        [JsonPropertyName("items")]
+        public List<BatchRoomSharingItemDto> Items { get; set; } = new();
     }
 }

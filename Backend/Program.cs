@@ -159,11 +159,13 @@ builder.Services.AddScoped<ITimetableService, TimetableService>();
 //teacher dashboard
 // Teacher Dashboard Module
 builder.Services.AddScoped<ITeacherDashboardRepository, TeacherDashboardRepository>();
-
 builder.Services.AddScoped<ITeacherDashboardService, TeacherDashboardService>();
 builder.Services.AddScoped<ITeacherAttendanceRepository, TeacherAttendanceRepository>();
-
 builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>();
+
+// Faculty Development & Staff Training Module
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IFacultyTrainingRepository, SMS.Api.Repositories.Implementations.FacultyTrainingRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFacultyTrainingService, SMS.Api.Services.Implementations.FacultyTrainingService>();
 
 // =========================================================
 // 3. JWT AUTHENTICATION
@@ -709,6 +711,7 @@ using (var scope = app.Services.CreateScope())
                 `HostelName` varchar(150) NOT NULL,
                 `HostelCode` varchar(50) NOT NULL,
                 `HostelType` varchar(50) NOT NULL DEFAULT 'Boys Hostel',
+                `total_floors` int NOT NULL DEFAULT 1,
                 `WardenName` varchar(150) NULL,
                 `PrimaryMobileNumber` varchar(20) NULL,
                 `AlternateMobileNumber` varchar(20) NULL,
@@ -774,6 +777,43 @@ using (var scope = app.Services.CreateScope())
                 `Remarks` varchar(255) NULL,
                 `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                 PRIMARY KEY (`AttendanceId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `hostel_outpasses` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `student_id` int NOT NULL,
+                `student_name` varchar(200) NOT NULL,
+                `admission_no` varchar(50) NULL,
+                `hostel_name` varchar(100) NULL,
+                `room_number` varchar(50) NULL,
+                `request_type` varchar(50) NOT NULL DEFAULT 'Local Outpass',
+                `reason` longtext NULL,
+                `out_date` datetime(6) NOT NULL,
+                `expected_return_date` datetime(6) NOT NULL,
+                `actual_return_date` datetime(6) NULL,
+                `status` varchar(30) NOT NULL DEFAULT 'Pending Approval',
+                `approved_by` varchar(150) NULL,
+                `remarks` longtext NULL,
+                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `hostel_transfer_vacate_requests` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `student_id` int NOT NULL,
+                `student_name` varchar(200) NOT NULL,
+                `admission_no` varchar(50) NULL,
+                `action_type` varchar(50) NOT NULL DEFAULT 'Room Transfer',
+                `current_room` varchar(150) NULL,
+                `destination_hostel_id` int NULL,
+                `destination_hostel_name` varchar(150) NULL,
+                `destination_room_id` int NULL,
+                `destination_room_number` varchar(50) NULL,
+                `destination_bed_number` varchar(50) NULL,
+                `reason` longtext NULL,
+                `status` varchar(30) NOT NULL DEFAULT 'Approved',
+                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `staff_attendances` (
@@ -1199,6 +1239,53 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("student_transport_assignments", "AdmissionNo", "varchar(50) NOT NULL DEFAULT ''");
         EnsureColumnExists("student_transport_assignments", "StudentId", "bigint NULL");
         EnsureColumnExists("transport_routes", "Description", "varchar(500) NULL");
+        EnsureColumnExists("hostel_blocks", "HostelName", "varchar(150) NULL");
+        EnsureColumnExists("hostel_blocks", "hostel_name", "varchar(150) NULL");
+        EnsureColumnExists("hostel_blocks", "HostelCode", "varchar(50) NULL");
+        EnsureColumnExists("hostel_blocks", "hostel_code", "varchar(50) NULL");
+        EnsureColumnExists("hostel_blocks", "HostelType", "varchar(50) NULL DEFAULT 'Boys Hostel'");
+        EnsureColumnExists("hostel_blocks", "hostel_type", "varchar(50) NULL DEFAULT 'Boys Hostel'");
+        EnsureColumnExists("hostel_blocks", "TotalFloors", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("hostel_blocks", "total_floors", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("hostel_blocks", "WardenName", "varchar(150) NULL");
+        EnsureColumnExists("hostel_blocks", "warden_name", "varchar(150) NULL");
+        EnsureColumnExists("hostel_blocks", "PrimaryMobileNumber", "varchar(20) NULL");
+        EnsureColumnExists("hostel_blocks", "primary_mobile_number", "varchar(20) NULL");
+        EnsureColumnExists("hostel_blocks", "AlternateMobileNumber", "varchar(20) NULL");
+        EnsureColumnExists("hostel_blocks", "alternate_mobile_number", "varchar(20) NULL");
+        EnsureColumnExists("hostel_blocks", "Email", "varchar(150) NULL");
+        EnsureColumnExists("hostel_blocks", "email", "varchar(150) NULL");
+        EnsureColumnExists("hostel_blocks", "Status", "varchar(20) NULL DEFAULT 'Active'");
+        EnsureColumnExists("hostel_blocks", "status", "varchar(20) NULL DEFAULT 'Active'");
+        EnsureColumnExists("hostel_blocks", "Address", "varchar(500) NULL");
+        EnsureColumnExists("hostel_blocks", "address", "varchar(500) NULL");
+        EnsureColumnExists("hostel_blocks", "CreatedAt", "datetime(6) NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        EnsureColumnExists("hostel_blocks", "created_at", "datetime(6) NULL DEFAULT CURRENT_TIMESTAMP(6)");
+
+        EnsureColumnExists("room_type_configs", "room_type_specification", "varchar(150) NULL");
+        EnsureColumnExists("room_type_configs", "bed_capacity", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("room_type_configs", "ac_type", "varchar(20) NULL DEFAULT 'Non-AC'");
+        EnsureColumnExists("room_type_configs", "status", "varchar(20) NULL DEFAULT 'Active'");
+        EnsureColumnExists("room_type_configs", "description", "varchar(500) NULL");
+        EnsureColumnExists("room_type_configs", "layout_note", "varchar(255) NULL");
+
+        EnsureColumnExists("room_masters", "hostel_id", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("room_masters", "room_type_id", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("room_masters", "floor_level", "varchar(50) NULL");
+        EnsureColumnExists("room_masters", "room_number", "varchar(50) NULL");
+        EnsureColumnExists("room_masters", "status", "varchar(20) NULL DEFAULT 'Available'");
+
+        EnsureColumnExists("hostel_wardens", "hostel_id", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("hostel_wardens", "staff_id", "int NULL");
+        EnsureColumnExists("hostel_wardens", "warden_name", "varchar(150) NULL");
+        EnsureColumnExists("hostel_wardens", "mobile_number", "varchar(20) NULL");
+        EnsureColumnExists("hostel_wardens", "floor_level", "varchar(50) NULL");
+
+        EnsureColumnExists("student_bed_allocations", "hostel_id", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("student_bed_allocations", "room_id", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("student_bed_allocations", "bed_number", "varchar(50) NULL");
+        EnsureColumnExists("student_bed_allocations", "joining_date", "datetime(6) NULL");
+        EnsureColumnExists("student_bed_allocations", "status", "varchar(30) NULL DEFAULT 'Active'");
         EnsureColumnExists("transport_routes", "MinRangeKm", "decimal(18,2) NOT NULL DEFAULT 5.00");
         EnsureColumnExists("transport_routes", "NonAcBaseFare", "decimal(18,2) NOT NULL DEFAULT 1000.00");
         EnsureColumnExists("transport_routes", "NonAcRatePerKm", "decimal(18,2) NOT NULL DEFAULT 100.00");
