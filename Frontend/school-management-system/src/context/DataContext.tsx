@@ -4324,9 +4324,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             cat.includes("teacher") ||
             cat.includes("faculty") ||
             cat.includes("professor");
+          
+          const itemId = (item.staffId !== undefined && item.staffId !== null ? item.staffId : (item.id !== undefined && item.id !== null ? item.id : "")).toString();
+          const itemEmpId = item.employeeId || item.empId || "";
+
+          // Look up in current staff state to preserve local workload data
+          const existing = staff.find(s => s.id === itemId || s.empId === itemEmpId);
+
           return {
-            id: (item.staffId !== undefined && item.staffId !== null ? item.staffId : (item.id !== undefined && item.id !== null ? item.id : "")).toString(),
-            empId: item.employeeId || item.empId || "",
+            id: itemId,
+            empId: itemEmpId,
             employeeCategory: isTeaching ? "Teacher" : "Staff",
             firstName: item.firstName,
             middleName: item.middleName || "",
@@ -4347,6 +4354,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             role: item.systemRole || (isTeaching ? "Teacher" : "Staff"),
             profileStatus: "Completed",
             status: item.isActive ? "Active" : "Inactive",
+            assignedClasses: existing?.assignedClasses || [],
+            assignedSubjects: existing?.assignedSubjects || [],
+            isClassTeacherEligible: existing?.isClassTeacherEligible || false,
             bankDetails: {
               accountHolderName: item.accountHolderName || "",
               accountNumber: item.accountNumber || "",
@@ -5107,6 +5117,63 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   // Staff CRUD
+  const syncTeacherAssignments = (teacher: Staff) => {
+    const classes = teacher.assignedClasses || [];
+    const subjects = teacher.assignedSubjects || [];
+    const teacherFullName = teacher.name || `${teacher.firstName} ${teacher.lastName}`;
+
+    setTeacherAssignments((prev) => {
+      // 1. Filter out assignments for this teacher that are no longer in their workload lists
+      let next = prev.filter((ta) => {
+        if (ta.teacherId !== teacher.id) return true;
+        const classSecKey = `${ta.className}-${ta.section}`;
+        const hasClass = classes.includes(classSecKey);
+        const hasSubject = subjects.includes(ta.subject);
+        return hasClass && hasSubject;
+      });
+
+      // 2. Upsert assignments for classes and subjects they are assigned to
+      classes.forEach((classSec) => {
+        const parts = classSec.split("-");
+        const className = parts[0]?.trim();
+        const section = parts[1]?.trim() || "A";
+
+        subjects.forEach((subject) => {
+          const existingIdx = next.findIndex(
+            (ta) =>
+              ta.className === className &&
+              ta.section === section &&
+              ta.subject === subject
+          );
+
+          if (existingIdx > -1) {
+            next[existingIdx] = {
+              ...next[existingIdx],
+              teacherId: teacher.id,
+              teacherName: teacherFullName,
+              status: "Active",
+            };
+          } else {
+            const taId = "TA-" + Math.floor(100 + Math.random() * 900);
+            next.push({
+              id: taId,
+              academicYear: "2026-2027",
+              branch: teacher.branch || "Main Campus",
+              className,
+              section,
+              subject,
+              teacherId: teacher.id,
+              teacherName: teacherFullName,
+              status: "Active",
+            });
+          }
+        });
+      });
+
+      return next;
+    });
+  };
+
   const addStaff = (staffData: Omit<Staff, "id">): Staff => {
     const id = "STF-" + Math.floor(100 + Math.random() * 900);
     const newStaff: Staff = {
@@ -5147,13 +5214,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     })
       .then((response) => {
         if (response && response.success && response.data) {
+          const actualId = response.data.staffId?.toString() || response.data.id?.toString() || id;
           setStaff((prev) =>
             prev.map((s) =>
               s.empId === newStaff.empId
-                ? { ...s, id: response.data.staffId?.toString() || response.data.id?.toString() || s.id }
+                ? { ...s, id: actualId }
                 : s,
             ),
           );
+          // Sync actual ID as well if it changed from generated fake ID
+          if (newStaff.employeeCategory === "Teacher" || newStaff.role === "Teacher") {
+            syncTeacherAssignments({ ...newStaff, id: actualId });
+          }
         }
       })
       .catch((err) => {
@@ -5165,6 +5237,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       "Hired Staff Member",
       `Registered ${newStaff.firstName} ${newStaff.lastName}`,
     );
+
+    if (newStaff.employeeCategory === "Teacher" || newStaff.role === "Teacher") {
+      syncTeacherAssignments(newStaff);
+    }
+
     return newStaff;
   };
 
@@ -5208,9 +5285,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       }
     }
 
-    setStaff((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
-    );
+    setStaff((prev) => {
+      const nextStaff = prev.map((s) => (s.id === id ? { ...s, ...updates } : s));
+      const updated = nextStaff.find((s) => s.id === id);
+      if (updated && (updated.employeeCategory === "Teacher" || updated.role === "Teacher")) {
+        syncTeacherAssignments(updated);
+      }
+      return nextStaff;
+    });
     logActivity("Updated Staff Record", `Updated details for staff ID ${id}`);
   };
 
@@ -5223,6 +5305,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     }
 
     setStaff((prev) => prev.filter((s) => s.id !== id));
+    setTeacherAssignments((prev) => prev.filter((ta) => ta.teacherId !== id));
     logActivity("Terminated Staff Record", `Removed staff ID ${id}`);
   };
 
