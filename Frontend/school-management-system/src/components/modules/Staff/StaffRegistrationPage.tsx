@@ -123,6 +123,23 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     }
 
     setSubmitting(true);
+
+    const isTeaching = normalizeStaffType(form.employeeCategory) === 'Teaching Staff';
+    let duplicateConflict: any = null;
+    if (isTeaching && form.designation && form.assignedSubjects && form.assignedSubjects.length > 0) {
+      duplicateConflict = staff.find(s => {
+        const category = s.employeeCategory || s.role || '';
+        const isTeachingStaff = category === 'Teacher' || category === 'Teaching Staff';
+        if (!isTeachingStaff) return false;
+        if (s.designation?.trim().toLowerCase() !== form.designation.trim().toLowerCase()) return false;
+        
+        const otherSubjects = s.assignedSubjects || [];
+        return form.assignedSubjects.some(subj => 
+          otherSubjects.some(os => os.trim().toLowerCase() === subj.trim().toLowerCase())
+        );
+      });
+    }
+
     const payload = buildBasicStaffCreatePayload(form);
     const added = addStaff(payload);
 
@@ -137,6 +154,15 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
       'Employee created',
       `${added.firstName} ${added.lastName} has been added to the directory.`
     );
+
+    if (duplicateConflict) {
+      addToast(
+        'warning',
+        'Workload Conflict Detected',
+        `${duplicateConflict.name || `${duplicateConflict.firstName} ${duplicateConflict.lastName}`} also teaches this subject as a ${duplicateConflict.designation}.`
+      );
+    }
+
     setSubmitting(false);
     onNavigate('staff-directory');
   };

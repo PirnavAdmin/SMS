@@ -6,6 +6,7 @@ export const MODULES = [
   'staff',
   'admissions',
   'student-promotion',
+  'certificates',
   'transfer-certificates',
   'alumni',
   'student-management',
@@ -37,17 +38,17 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   'Admin': [...MODULES],
   'Principal': [
     'dashboard', 'students', 'staff', 'admissions', 'academics', 'subjects',
-    'timetable', 'examination', 'communication', 'events', 'reports', 'settings', 'training'
+    'timetable', 'examination', 'certificates', 'communication', 'events', 'reports', 'settings', 'training'
   ],
   'Teacher': [
     'dashboard', 'students', 'attendance', 'timetable', 'examination', 
-    'homework', 'communication', 'events', 'staff'
+    'homework', 'communication', 'events', 'staff', 'certificates'
   ],
   'HR': [
     'dashboard', 'staff', 'communication', 'events', 'training'
   ],
   'Accountant': [
-    'dashboard', 'students', 'fees', 'inventory', 'reports', 'communication', 'events', 'training'
+    'dashboard', 'students', 'fees', 'certificates', 'inventory', 'reports', 'communication', 'events', 'training'
   ],
   'Librarian': [
     'dashboard', 'library', 'communication', 'events', 'training'
@@ -59,13 +60,13 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     'dashboard', 'hostel', 'students', 'communication', 'events', 'training'
   ],
   'Receptionist': [
-    'dashboard', 'admissions', 'students', 'communication', 'events', 'training'
+    'dashboard', 'admissions', 'students', 'certificates', 'communication', 'events', 'training'
   ],
   'Student': [
-    'dashboard', 'attendance', 'timetable', 'examination', 'homework', 'library', 'communication', 'events', 'fees', 'hostel', 'staff', 'transport'
+    'dashboard', 'attendance', 'timetable', 'examination', 'homework', 'library', 'communication', 'events', 'fees', 'hostel', 'staff', 'transport', 'certificates'
   ],
   'Parent': [
-    'dashboard', 'attendance', 'timetable', 'examination', 'homework', 'fees', 'communication', 'events', 'hostel', 'staff', 'transport'
+    'dashboard', 'attendance', 'timetable', 'examination', 'homework', 'fees', 'communication', 'events', 'hostel', 'staff', 'transport', 'certificates'
   ],
   'Staff': [
     'dashboard', 'communication', 'events', 'training'
@@ -73,6 +74,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
 };
 
 export const hasModuleAccess = (role: any, moduleId: ModuleId | string): boolean => {
+  if (moduleId === 'transfer-certificates') moduleId = 'certificates';
   const baseModule = moduleId.split('-')[0] as ModuleId;
   let lookupRole = role;
   if (role === 'Class Teacher') {

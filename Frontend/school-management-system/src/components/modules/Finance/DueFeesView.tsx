@@ -117,7 +117,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({ onCollectStudentFee })
       {/* Advanced Filter Box */}
       <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
         <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-          <Filter className="w-4 h-4 text-sky-500" /> Filter Dues Database
+          <Filter className="w-4 h-4 text-sky-500" /> Filter
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { formatCurrency } from "../../../utils/currency";
-import { getUniformPackageFeeByClass } from "../../../utils/uniformUtils";
 import {
   IndianRupee,
   Search,
@@ -15,7 +14,12 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { Student, FeePayment, StudentFeeLedger, StudentFeeInstallment } from "../../../types";
+import {
+  Student,
+  FeePayment,
+  StudentFeeLedger,
+  StudentFeeInstallment,
+} from "../../../types";
 import {
   useData,
   StudentCalculationResult,
@@ -103,13 +107,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const allEnrolledStudents = React.useMemo(() => {
     const map = new Map<string, Student>();
 
-    (admissions || []).forEach(adm => {
+    (admissions || []).forEach((adm) => {
       const admId = adm.id || adm.applicationNo;
       const admNo = adm.applicationNo || adm.id;
-      const nameParts = (adm.applicantName || '').trim().split(' ');
-      const fName = adm.firstName || nameParts[0] || 'Student';
-      const lName = adm.lastName || nameParts.slice(1).join(' ') || '';
-      const targetCls = adm.appliedClass || adm.targetClass || adm.className || 'Class 1';
+      const nameParts = (adm.applicantName || "").trim().split(" ");
+      const fName = adm.firstName || nameParts[0] || "Student";
+      const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
+      const targetCls =
+        adm.appliedClass || adm.targetClass || adm.className || "Class 10";
       const key = admNo.toLowerCase();
 
       map.set(key, {
@@ -118,32 +123,39 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         lastName: lName,
         admissionNo: admNo,
         className: targetCls,
-        section: adm.section || 'A',
-        gender: adm.gender || 'Male',
-        studentType: (adm.residentialStatus === 'Residential' || adm.studentType === 'Residential') ? 'Hosteller' : 'Day Scholar',
-        joiningDate: adm.admissionDate || new Date().toISOString().split('T')[0],
+        section: adm.section || "A",
+        gender: adm.gender || "Male",
+        studentType:
+          adm.residentialStatus === "Residential" ||
+          adm.studentType === "Residential"
+            ? "Hosteller"
+            : "Day Scholar",
+        joiningDate:
+          adm.admissionDate || new Date().toISOString().split("T")[0],
         dueFee: 0,
         paidFee: 0,
         totalFee: 0,
-        rollNo: '0',
-        fatherName: adm.parentName || '',
-        motherName: adm.motherName || '',
-        mobile: adm.mobile || '',
-        email: adm.email || '',
-        address: adm.address || '',
-        status: 'Active',
-        academicYear: adm.academicYear || '2026-2027',
-        branch: adm.branch || 'Main Campus'
+        rollNo: "0",
+        fatherName: adm.parentName || "",
+        motherName: adm.motherName || "",
+        mobile: adm.mobile || "",
+        email: adm.email || "",
+        address: adm.address || "",
+        status: "Active",
+        academicYear: adm.academicYear || "2026-2027",
+        branch: adm.branch || "Main Campus",
       } as unknown as Student);
     });
 
-    (students || []).forEach(s => {
+    (students || []).forEach((s) => {
       const sAdmNo = s.admissionNo || s.id;
       const nameKey = `${s.firstName.toLowerCase()} ${s.lastName.toLowerCase()}`;
       const alreadyInMap = Array.from(map.values()).some(
-        a => a.admissionNo.toLowerCase() === sAdmNo.toLowerCase() || 
-             a.id.toLowerCase() === s.id.toLowerCase() || 
-             `${a.firstName.toLowerCase()} ${a.lastName.toLowerCase()}` === nameKey
+        (a) =>
+          a.admissionNo.toLowerCase() === sAdmNo.toLowerCase() ||
+          a.id.toLowerCase() === s.id.toLowerCase() ||
+          `${a.firstName.toLowerCase()} ${a.lastName.toLowerCase()}` ===
+            nameKey,
       );
       if (!alreadyInMap) {
         map.set(sAdmNo.toLowerCase(), s);
@@ -161,8 +173,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     return allEnrolledStudents.filter(
       (s) =>
         `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-        (s.admissionNo || '').toLowerCase().includes(q) ||
-        (s.id || '').toLowerCase().includes(q)
+        (s.admissionNo || "").toLowerCase().includes(q) ||
+        (s.id || "").toLowerCase().includes(q),
     );
   }, [allEnrolledStudents, searchQuery]);
 
@@ -176,7 +188,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     // Fallback fee calculation if freshCalcResult is null
     if (!calc) {
-      const stObj = allEnrolledStudents.find(s => s.id === studentId);
+      const stObj = allEnrolledStudents.find((s) => s.id === studentId);
       if (stObj) {
         calc = {
           baseFee: stObj.totalFee || 35000,
@@ -405,9 +417,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     // Mark additional uniform purchase items as Paid in studentUniformIssues if collected
     if (updateStudentUniformIssue) {
       selectedInstallments.forEach((instId) => {
-        if (instId.startsWith('INST-UNIF-EXTRA-')) {
-          const rawIssueId = instId.replace('INST-UNIF-EXTRA-', '');
-          updateStudentUniformIssue(rawIssueId, { status: 'Paid' as any });
+        if (instId.startsWith("INST-UNIF-EXTRA-")) {
+          const rawIssueId = instId.replace("INST-UNIF-EXTRA-", "");
+          updateStudentUniformIssue(rawIssueId, { status: "Paid" as any });
         }
       });
     }
@@ -452,9 +464,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     let ledgerInstallments = ledger?.installments || [];
 
     // If ledgerInstallments is empty, construct installment checkboxes directly from ledger.feeItems
-    if (ledgerInstallments.length === 0 && ledger?.feeItems && ledger.feeItems.length > 0) {
+    if (
+      ledgerInstallments.length === 0 &&
+      ledger?.feeItems &&
+      ledger.feeItems.length > 0
+    ) {
       ledgerInstallments = ledger.feeItems
-        .filter(item => item.isApplicable && item.finalAmount > 0)
+        .filter((item) => item.isApplicable && item.finalAmount > 0)
         .map((item, idx) => ({
           id: `INST-FEE-${selectedStudent.id}-${item.headId || idx}`,
           studentId: selectedStudent.id,
@@ -462,51 +478,85 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           feeAssignmentId: `FA-LEAD-${selectedStudent.id}`,
           feeHeadId: item.headId || `FH-${idx}`,
           feeHeadName: item.headName,
-          frequency: 'One Time',
+          frequency: "One Time",
           termName: item.category || item.headName,
-          dueDate: new Date().toISOString().split('T')[0],
+          dueDate: new Date().toISOString().split("T")[0],
           amount: item.originalAmount,
           paidAmount: 0,
-          dueAmount: item.finalAmount > 0 ? item.finalAmount : item.originalAmount,
-          status: 'Pending',
+          dueAmount:
+            item.finalAmount > 0 ? item.finalAmount : item.originalAmount,
+          status: "Pending",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }));
     }
 
     // 2. Filter baseline ledger installments (excluding old extra uniform items)
-    const combined: StudentFeeInstallment[] = ledgerInstallments.filter(inst => {
-      const termLower = (inst.termName || inst.feeHeadName || '').toLowerCase();
-      const isExtraItem = termLower.includes('extra') || termLower.includes('shoes') || termLower.includes('tracksuit') || termLower.includes('belt') || termLower.includes('blazer');
-      return !isExtraItem;
-    });
+    const combined: StudentFeeInstallment[] = ledgerInstallments.filter(
+      (inst) => {
+        const termLower = (
+          inst.termName ||
+          inst.feeHeadName ||
+          ""
+        ).toLowerCase();
+        const isExtraItem =
+          termLower.includes("extra") ||
+          termLower.includes("shoes") ||
+          termLower.includes("tracksuit") ||
+          termLower.includes("belt") ||
+          termLower.includes("blazer");
+        return !isExtraItem;
+      },
+    );
 
     // 3. Build Additional Purchases STRICTLY from active studentUniformIssues (Uniform Distribution)
-    const addUniformIssues = (studentUniformIssues || []).filter(issue => {
-      const isForStudent = (issue.studentId && (issue.studentId === selectedStudent.id || issue.studentId === selectedStudent.admissionNo)) ||
-        (issue.admissionNo && (issue.admissionNo === selectedStudent.id || issue.admissionNo === selectedStudent.admissionNo));
-      
-      const isExtra = issue.transactionType === 'Additional Purchase' || 
-        (issue as any).type === 'Additional Purchase' ||
-        (issue.itemName && !issue.itemName.toLowerCase().includes('package') && !issue.itemName.toLowerCase().includes('base'));
-      
-      return isForStudent && isExtra && (issue.status as any) !== 'Returned' && (issue.status as any) !== 'Cancelled';
+    const addUniformIssues = (studentUniformIssues || []).filter((issue) => {
+      const isForStudent =
+        (issue.studentId &&
+          (issue.studentId === selectedStudent.id ||
+            issue.studentId === selectedStudent.admissionNo)) ||
+        (issue.admissionNo &&
+          (issue.admissionNo === selectedStudent.id ||
+            issue.admissionNo === selectedStudent.admissionNo));
+
+      const isExtra =
+        issue.transactionType === "Additional Purchase" ||
+        (issue as any).type === "Additional Purchase" ||
+        (issue.itemName &&
+          !issue.itemName.toLowerCase().includes("package") &&
+          !issue.itemName.toLowerCase().includes("base"));
+
+      return (
+        isForStudent &&
+        isExtra &&
+        (issue.status as any) !== "Returned" &&
+        (issue.status as any) !== "Cancelled"
+      );
     });
 
     addUniformIssues.forEach((issue) => {
       const extraInstId = `INST-UNIF-EXTRA-${issue.id}`;
-      if (!combined.some(c => c.id === extraInstId)) {
-        const itemTitle = issue.itemCategory || issue.itemName || 'Extra Uniform Item';
-        const qtyStr = issue.quantity ? ` x${issue.quantity}` : '';
-        const sizeStr = issue.size ? ` (Size: ${issue.size})` : '';
+      if (!combined.some((c) => c.id === extraInstId)) {
+        const itemTitle =
+          issue.itemCategory || issue.itemName || "Extra Uniform Item";
+        const qtyStr = issue.quantity ? ` x${issue.quantity}` : "";
+        const sizeStr = issue.size ? ` (Size: ${issue.size})` : "";
         const itemDisplayName = `${itemTitle}${sizeStr}${qtyStr}`.trim();
-        const amt = issue.totalAmount || (issue.unitPrice && issue.quantity ? issue.unitPrice * issue.quantity : (issue.price || 350));
-        
+        const amt =
+          issue.totalAmount ||
+          (issue.unitPrice && issue.quantity
+            ? issue.unitPrice * issue.quantity
+            : issue.price || 350);
+
         // ONLY mark paid if an actual fee payment receipt exists in feePayments for this exact extra item
-        const isPaidInFinance = (feePayments || []).some(p => 
-          (p.studentId === selectedStudent.id || (selectedStudent.admissionNo && p.studentId === selectedStudent.admissionNo)) &&
-          (p.receiptNo?.includes(`UNI-EXTRA-${issue.id}`) || p.selectedInstallmentIds?.includes(extraInstId)) &&
-          p.amountPaid > 0
+        const isPaidInFinance = (feePayments || []).some(
+          (p) =>
+            (p.studentId === selectedStudent.id ||
+              (selectedStudent.admissionNo &&
+                p.studentId === selectedStudent.admissionNo)) &&
+            (p.receiptNo?.includes(`UNI-EXTRA-${issue.id}`) ||
+              p.selectedInstallmentIds?.includes(extraInstId)) &&
+            p.amountPaid > 0,
         );
 
         combined.push({
@@ -515,14 +565,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           academicYear: currentYear,
           feeAssignmentId: `FA-UNIF-EXTRA-${selectedStudent.id}`,
           feeHeadId: `FH-UNIF-EXTRA-${issue.id}`,
-          feeHeadName: 'Additional Purchases (Extra Items)',
-          frequency: 'One Time',
+          feeHeadName: "Additional Purchases (Extra Items)",
+          frequency: "One Time",
           termName: itemDisplayName,
-          dueDate: issue.issueDate || new Date().toISOString().split('T')[0],
+          dueDate: issue.issueDate || new Date().toISOString().split("T")[0],
           amount: amt,
           paidAmount: isPaidInFinance ? amt : 0,
           dueAmount: isPaidInFinance ? 0 : amt,
-          status: isPaidInFinance ? 'Paid' : 'Pending',
+          status: isPaidInFinance ? "Paid" : "Pending",
           createdAt: issue.issueDate || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
@@ -531,28 +581,35 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     // 3. Fallback: If still empty, build default fee structure installments for the student's class
     if (combined.length === 0 && selectedStudent) {
-      const clsLower = (selectedStudent.className || '').toLowerCase();
-      const uniFee = getUniformPackageFeeByClass(selectedStudent.className);
+      const clsLower = (selectedStudent.className || "").toLowerCase();
       let defaultHeads = [
-        { id: 'FH-01', name: 'Tuition Fee', amount: 77000 },
-        { id: 'FH-02', name: 'Admission Fee', amount: 3000 },
-        { id: 'FH-03', name: 'Textbook & Material Fee', amount: 3000 },
-        { id: 'FH-04', name: 'Uniform & Sports Kit Fee', amount: uniFee },
+        { id: "FH-01", name: "Tuition Fee", amount: 77000 },
+        { id: "FH-02", name: "Admission Fee", amount: 3000 },
+        { id: "FH-03", name: "Textbook & Material Fee", amount: 3000 },
       ];
 
-      if (clsLower.includes('lkg') || clsLower.includes('ukg') || clsLower.includes('nursery') || clsLower.includes('pkg')) {
+      if (
+        clsLower.includes("lkg") ||
+        clsLower.includes("ukg") ||
+        clsLower.includes("nursery") ||
+        clsLower.includes("pkg")
+      ) {
         defaultHeads = [
-          { id: 'FH-01', name: 'Tuition Fee', amount: 4000 },
-          { id: 'FH-02', name: 'Admission Fee', amount: 2000 },
-          { id: 'FH-03', name: 'Textbook & Material Fee', amount: 1500 },
-          { id: 'FH-04', name: 'Uniform & Accessories', amount: 2000 },
-          { id: 'FH-05', name: 'Sports & Athletic Fee', amount: 1000 },
+          { id: "FH-01", name: "Tuition Fee", amount: 4000 },
+          { id: "FH-02", name: "Admission Fee", amount: 2000 },
+          { id: "FH-03", name: "Textbook & Material Fee", amount: 1500 },
+          { id: "FH-04", name: "Uniform & Accessories", amount: 2000 },
+          { id: "FH-05", name: "Sports & Athletic Fee", amount: 1000 },
         ];
-      } else if (clsLower.includes('class 9') || clsLower === '9' || clsLower === 'class 9th') {
+      } else if (
+        clsLower.includes("class 9") ||
+        clsLower === "9" ||
+        clsLower === "class 9th"
+      ) {
         defaultHeads = [
-          { id: 'FH-01', name: 'Tuition Fee', amount: 20000 },
-          { id: 'FH-02', name: 'Admission Fee', amount: 1111 },
-          { id: 'FH-03', name: 'Textbook & Material Fee', amount: 2000 },
+          { id: "FH-01", name: "Tuition Fee", amount: 20000 },
+          { id: "FH-02", name: "Admission Fee", amount: 1111 },
+          { id: "FH-03", name: "Textbook & Material Fee", amount: 2000 },
         ];
       }
       defaultHeads.forEach((h) => {
@@ -563,13 +620,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           feeAssignmentId: `FA-AUTO-${selectedStudent.id}`,
           feeHeadId: h.id,
           feeHeadName: h.name,
-          frequency: 'One Time',
+          frequency: "One Time",
           termName: h.name,
-          dueDate: new Date().toISOString().split('T')[0],
+          dueDate: new Date().toISOString().split("T")[0],
           amount: h.amount,
           paidAmount: 0,
           dueAmount: h.amount,
-          status: 'Pending',
+          status: "Pending",
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
@@ -577,16 +634,31 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     }
 
     // Synchronize baseline uniform fee payment status ONLY IF an actual fee payment for Uniform & Accessories is recorded in feePayments
-    const hasBaseUniformPayment = (feePayments || []).some(p => {
-      const isStudentMatch = p.studentId === selectedStudent.id || 
-        (selectedStudent.admissionNo && (p.studentId === selectedStudent.admissionNo || (p.receiptNo && p.receiptNo.includes(selectedStudent.admissionNo))));
+    const hasBaseUniformPayment = (feePayments || []).some((p) => {
+      const isStudentMatch =
+        p.studentId === selectedStudent.id ||
+        (selectedStudent.admissionNo &&
+          (p.studentId === selectedStudent.admissionNo ||
+            (p.receiptNo &&
+              p.receiptNo.includes(selectedStudent.admissionNo))));
       if (!isStudentMatch || !p.amountPaid || p.amountPaid <= 0) return false;
-      if (p.receiptNo?.includes('UNI-EXTRA-')) return false;
+      if (p.receiptNo?.includes("UNI-EXTRA-")) return false;
 
       if (p.paymentAllocation && p.paymentAllocation.length > 0) {
-        return p.paymentAllocation.some(alloc => {
-          const head = (alloc.feeHeadName || alloc.termName || '').toLowerCase();
-          return head.includes('uniform') && !head.includes('extra') && !head.includes('blazer') && !head.includes('socks') && !head.includes('shirt') && !head.includes('pant');
+        return p.paymentAllocation.some((alloc) => {
+          const head = (
+            alloc.feeHeadName ||
+            alloc.termName ||
+            ""
+          ).toLowerCase();
+          return (
+            head.includes("uniform") &&
+            !head.includes("extra") &&
+            !head.includes("blazer") &&
+            !head.includes("socks") &&
+            !head.includes("shirt") &&
+            !head.includes("pant")
+          );
         });
       }
       return false;
@@ -594,18 +666,34 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     if (hasBaseUniformPayment) {
       combined.forEach((inst) => {
-        const lowerName = (inst.feeHeadName || inst.termName || '').toLowerCase();
-        const isBaseUniform = lowerName.includes('uniform') && !lowerName.includes('extra') && !lowerName.includes('blazer') && !lowerName.includes('socks') && !lowerName.includes('shirt') && !lowerName.includes('pant');
+        const lowerName = (
+          inst.feeHeadName ||
+          inst.termName ||
+          ""
+        ).toLowerCase();
+        const isBaseUniform =
+          lowerName.includes("uniform") &&
+          !lowerName.includes("extra") &&
+          !lowerName.includes("blazer") &&
+          !lowerName.includes("socks") &&
+          !lowerName.includes("shirt") &&
+          !lowerName.includes("pant");
         if (isBaseUniform) {
           inst.paidAmount = inst.amount;
           inst.dueAmount = 0;
-          inst.status = 'Paid';
+          inst.status = "Paid";
         }
       });
     }
 
     return combined;
-  }, [selectedStudent, studentFeeLedgers, studentFeeInstallments, selectedAcademicYear, financeSettings]);
+  }, [
+    selectedStudent,
+    studentFeeLedgers,
+    studentFeeInstallments,
+    selectedAcademicYear,
+    financeSettings,
+  ]);
   const currentYearInstallments = allInstallments.filter(
     (i) => i.academicYear === currentYear,
   );
@@ -822,7 +910,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           </div>
           <div className="space-y-2 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
             {filteredStudents.map((st) => {
-              const isSelected = selectedStudent?.id === st.id || (selectedStudent?.admissionNo && (selectedStudent.admissionNo === st.admissionNo || selectedStudent.admissionNo === st.id));
+              const isSelected =
+                selectedStudent?.id === st.id ||
+                (selectedStudent?.admissionNo &&
+                  (selectedStudent.admissionNo === st.admissionNo ||
+                    selectedStudent.admissionNo === st.id));
               return (
                 <button
                   key={st.id}
@@ -833,17 +925,22 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                       : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-slate-300"
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
-                    isSelected ? "bg-sky-500 text-white" : "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
-                  }`}>
-                    {st.firstName?.[0] || 'S'}
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                      isSelected
+                        ? "bg-sky-500 text-white"
+                        : "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300"
+                    }`}
+                  >
+                    {st.firstName?.[0] || "S"}
                   </div>
                   <div className="truncate">
                     <p className="font-bold text-xs text-slate-900 dark:text-white truncate">
                       {st.firstName} {st.lastName}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      {st.className}-{st.section} • Adm: {st.admissionNo || st.id}
+                      {st.className}-{st.section} • Adm:{" "}
+                      {st.admissionNo || st.id}
                     </p>
                   </div>
                 </button>
@@ -858,7 +955,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center font-black text-sm shrink-0 border border-sky-200/60 dark:border-sky-800/60">
-                      {selectedStudent.firstName?.[0] || 'S'}
+                      {selectedStudent.firstName?.[0] || "S"}
                     </div>
                     <div>
                       <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">
@@ -960,7 +1057,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                               onChange={(e) =>
                                 setTempScholarshipId(e.target.value)
                               }
-                              className="flex-1 px-0.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-850 border text-[11px] font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
+                              className="flex- px-3.5 py-1 rounded-lg bg-slate-50 dark:bg-slate-850 border text-[11px] font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
                             >
                               <option value="">Select...</option>
                               {scholarships
@@ -1169,7 +1266,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                       )}
                                       <div>
                                         <p className="font-bold text-slate-800 dark:text-slate-200 text-xs">
-                                          {inst.feeHeadName.includes('Additional Purchases')
+                                          {inst.feeHeadName.includes(
+                                            "Additional Purchases",
+                                          )
                                             ? inst.termName
                                             : `${inst.feeHeadName} — ${inst.termName || inst.termId || "Installment"}`}
                                         </p>

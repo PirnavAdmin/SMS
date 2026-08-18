@@ -7,6 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { compareClassesAscending } from '../../../utils/classSorter';
 
 export const FeeStructuresView: React.FC = () => {
   const { feeHeads, dynamicFeeStructures, addDynamicFeeStructure, updateDynamicFeeStructure, deleteDynamicFeeStructure, academicClasses } = useData();
@@ -32,11 +33,28 @@ export const FeeStructuresView: React.FC = () => {
     return sum + val;
   }, 0);
 
-  const filteredStructures = dynamicFeeStructures.filter(s => {
-    const matchesQuery = s.className.toLowerCase().includes(query.toLowerCase());
-    const matchesClass = selectedClassFilter === 'All' || s.className === selectedClassFilter;
-    return matchesQuery && matchesClass;
-  });
+  // Sorted & Filtered Fee Structures (Displayed in ascending class order)
+  const filteredStructures = dynamicFeeStructures
+    .filter(s => {
+      const matchesQuery = s.className.toLowerCase().includes(query.toLowerCase());
+      const matchesClass = selectedClassFilter === 'All' || s.className === selectedClassFilter;
+      return matchesQuery && matchesClass;
+    })
+    .sort((a, b) => compareClassesAscending(a.className, b.className));
+
+  // Sorted Academic Classes for top-bar Filter
+  const sortedClassesForFilter = [...academicClasses].sort((a, b) =>
+    compareClassesAscending(a.name, b.name)
+  );
+
+  // Filter out classes that already have a fee structure created (unless editing current one) & sort in ascending order
+  const existingFeeStructClasses = dynamicFeeStructures
+    .filter(s => !editingStruct || s.id !== editingStruct.id)
+    .map(s => s.className);
+
+  const availableClassesForModal = academicClasses
+    .filter(c => !existingFeeStructClasses.includes(c.name))
+    .sort((a, b) => compareClassesAscending(a.name, b.name));
 
   const handleOpenAdd = () => {
     setEditingStruct(null);
@@ -53,8 +71,13 @@ export const FeeStructuresView: React.FC = () => {
     const ids: string[] = [];
     const amounts: Record<string, string> = {};
     s.items.forEach(item => {
-      ids.push(item.feeHeadId);
-      amounts[item.feeHeadId] = String(item.amount);
+      const existsInFeeHeads = feeHeads.some(h => h.id === item.feeHeadId || h.name.toLowerCase() === item.feeHeadName.toLowerCase());
+      if (existsInFeeHeads && item.feeHeadName !== 'Fee Head') {
+        const head = feeHeads.find(h => h.id === item.feeHeadId || h.name.toLowerCase() === item.feeHeadName.toLowerCase());
+        const realId = head ? head.id : item.feeHeadId;
+        ids.push(realId);
+        amounts[realId] = String(item.amount);
+      }
     });
     setSelectedHeadIds(ids);
     setSelectedHeadAmounts(amounts);
@@ -137,15 +160,18 @@ export const FeeStructuresView: React.FC = () => {
       }
     }
 
-    const itemsList: FeeStructureItem[] = selectedHeadIds.map(headId => {
-      const head = feeHeads.find(h => h.id === headId);
-      return {
-        feeHeadId: headId,
-        feeHeadName: head ? head.name : 'Fee Head',
-        category: head ? head.category : undefined,
-        amount: Number(selectedHeadAmounts[headId])
-      };
-    });
+    const itemsList: FeeStructureItem[] = selectedHeadIds
+      .map(headId => {
+        const head = feeHeads.find(h => h.id === headId);
+        if (!head) return null;
+        return {
+          feeHeadId: headId,
+          feeHeadName: head.name,
+          category: head.category,
+          amount: Number(selectedHeadAmounts[headId])
+        };
+      })
+      .filter(Boolean) as FeeStructureItem[];
 
     const payload: Omit<DynamicFeeStructure, 'id'> = {
       academicYear: editingStruct ? editingStruct.academicYear : (selectedAcademicYear || '2026-2027'),
@@ -217,7 +243,7 @@ export const FeeStructuresView: React.FC = () => {
           className="w-full sm:w-48 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
         >
           <option value="All">All Class Grades</option>
-          {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          {sortedClassesForFilter.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
         </select>
       </div>
 
@@ -257,13 +283,32 @@ export const FeeStructuresView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-1 text-xs">
-                {s.items.map(item => (
-                  <div key={item.feeHeadId} className="flex justify-between text-slate-600 dark:text-slate-300">
-                    <span>{item.feeHeadName}:</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(item.amount)}</span>
-                  </div>
-                ))}
+              <div className="space-y-1.5 text-xs">
+                {s.items.map(item => {
+                  const head = feeHeads.find(h => h.id === item.feeHeadId || h.name.toLowerCase().trim() === item.feeHeadName.toLowerCase().trim());
+                  const isMandatory = head && head.mandatory !== undefined ? head.mandatory : (
+                    item.feeHeadName.toLowerCase().includes("tuition") ||
+                    item.feeHeadName.toLowerCase().includes("admission") ||
+                    item.feeHeadName.toLowerCase().includes("book") ||
+                    item.feeHeadName.toLowerCase().includes("exam")
+                  );
+                  const freq = head ? head.frequency : "Quarterly";
+
+                  return (
+                    <div key={item.feeHeadId} className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-slate-900 dark:text-white">{item.feeHeadName}</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
+                          isMandatory ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
+                        }`}>
+                          {isMandatory ? 'Mandatory' : 'Optional'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">({freq})</span>
+                      </div>
+                      <span className="font-mono font-bold text-slate-900 dark:text-white">{formatCurrency(item.amount)}</span>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between font-extrabold text-sm text-slate-900 dark:text-white">
@@ -295,7 +340,7 @@ export const FeeStructuresView: React.FC = () => {
                   className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20 cursor-pointer"
                 >
                   <option value="">Select Class</option>
-                  {academicClasses.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  {availableClassesForModal.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                 </select>
               </div>
 

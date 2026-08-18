@@ -17,7 +17,7 @@ import {
 } from './staffFlowOptions';
 import {
   User, Briefcase, GraduationCap, Award, Upload, Plus, Trash2, Edit2, CheckCircle2,
-  FileText, Eye, Download, RefreshCw, X, ShieldCheck, MapPin, Building2, Check, UploadCloud, ChevronDown
+  FileText, Eye, Download, RefreshCw, X, ShieldCheck, MapPin, Building2, Check, UploadCloud, ChevronDown, AlertCircle
 } from 'lucide-react';
 
 import { DateInput } from '../../common/DateInput';
@@ -49,7 +49,54 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   onCancel,
   staffToEdit
 }) => {
-  const { departments = [], designations = [] } = useData();
+  const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [] } = useData();
+  const normalizedCategory = normalizeStaffType(value.employeeCategory);
+
+  const allClassSectionOptions = React.useMemo(() => {
+    return academicClasses.flatMap(cls => 
+      (cls.sections || []).map(sec => `${cls.name}-${sec}`)
+    );
+  }, [academicClasses]);
+
+  const allSubjectOptions = React.useMemo(() => {
+    const names = subjects.map(s => s.name).filter(Boolean);
+    return Array.from(new Set(names));
+  }, [subjects]);
+
+  const duplicateTeacher = React.useMemo(() => {
+    if (normalizedCategory !== 'Teaching Staff' || !value.designation || !value.assignedSubjects || value.assignedSubjects.length === 0) {
+      return null;
+    }
+    
+    const match = (staff || []).find(s => {
+      if (s.id === staffToEdit?.id) return false;
+      const category = s.employeeCategory || s.role || '';
+      const isTeachingStaff = category === 'Teacher' || category === 'Teaching Staff';
+      if (!isTeachingStaff) return false;
+      
+      if (s.designation?.trim().toLowerCase() !== value.designation.trim().toLowerCase()) return false;
+      
+      const otherSubjects = s.assignedSubjects || [];
+      const hasCommonSubject = value.assignedSubjects.some((subj: string) => 
+        otherSubjects.some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
+      );
+      
+      return hasCommonSubject;
+    });
+
+    if (match) {
+      const commonSubjects = value.assignedSubjects.filter((subj: string) =>
+        (match.assignedSubjects || []).some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
+      );
+      return {
+        teacherName: match.name || `${match.firstName} ${match.lastName}`,
+        designation: match.designation,
+        subjects: commonSubjects
+      };
+    }
+    
+    return null;
+  }, [staff, value.designation, value.assignedSubjects, staffToEdit, normalizedCategory]);
 
   // Stepper state (Step 1 to Step 5)
   const [activeStep, setActiveStep] = useState<number>(1);
@@ -83,7 +130,6 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   // Document preview modal state
   const [previewDoc, setPreviewDoc] = useState<StaffUploadedDocItem | null>(null);
 
-  const normalizedCategory = normalizeStaffType(value.employeeCategory);
   const departmentSelectOptions = getDepartmentSelectOptions(normalizedCategory, departments);
   const designationOptions = getDesignationOptions(normalizedCategory, value.department, designations);
 
@@ -658,6 +704,94 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 {errors.status && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.status}</p>}
               </div>
             </div>
+
+            {normalizedCategory === 'Teaching Staff' && (
+              <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
+                <h4 className="font-black text-slate-900 dark:text-white text-[11px] uppercase tracking-wider mb-3">
+                  Academic Workload & Teaching Assignment
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Assigned Classes */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Assigned Classes <span className="text-slate-400 font-normal">(Select all that apply)</span>
+                    </label>
+                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3 space-y-2">
+                      {allClassSectionOptions.length === 0 ? (
+                        <p className="text-slate-400 italic text-[11px]">No classes configured in the system.</p>
+                      ) : (
+                        allClassSectionOptions.map(clsSec => {
+                          const isChecked = (value.assignedClasses || []).includes(clsSec);
+                          return (
+                            <label key={clsSec} className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-brand-600 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={e => {
+                                  const current = value.assignedClasses || [];
+                                  const next = e.target.checked
+                                    ? [...current, clsSec]
+                                    : current.filter(c => c !== clsSec);
+                                  onChange('assignedClasses', next);
+                                }}
+                                className="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5"
+                              />
+                              {clsSec}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Assigned Subjects */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Assigned Subjects <span className="text-slate-400 font-normal">(Select all that apply)</span>
+                    </label>
+                    <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3 space-y-2">
+                      {allSubjectOptions.length === 0 ? (
+                        <p className="text-slate-400 italic text-[11px]">No subjects configured in the system.</p>
+                      ) : (
+                        allSubjectOptions.map(subj => {
+                          const isChecked = (value.assignedSubjects || []).includes(subj);
+                          return (
+                            <label key={subj} className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-brand-600 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={e => {
+                                  const current = value.assignedSubjects || [];
+                                  const next = e.target.checked
+                                    ? [...current, subj]
+                                    : current.filter(s => s !== subj);
+                                  onChange('assignedSubjects', next);
+                                }}
+                                className="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5"
+                              />
+                              {subj}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {duplicateTeacher && (
+                  <div className="mt-4 p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 text-amber-800 dark:text-amber-300 flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1">
+                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="font-bold text-[11px]">Potential Workload Conflict</p>
+                      <p className="text-[10px] mt-0.5 leading-relaxed">
+                        <strong>{duplicateTeacher.teacherName}</strong> is already registered with the designation <strong>"{duplicateTeacher.designation}"</strong> and teaches <strong>{duplicateTeacher.subjects.join(', ')}</strong>. You can proceed with registration, but this might conflict in timetable auto-generation.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

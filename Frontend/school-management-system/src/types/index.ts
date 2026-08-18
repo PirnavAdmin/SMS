@@ -369,18 +369,30 @@ export interface TcRecord {
 
 export interface CertificateTemplateConfig {
   id: string;
-  certificateType: 'Transfer Certificate' | 'Bonafide Certificate' | 'Character Certificate' | 'Leaving Certificate' | 'Merit Certificate' | 'Sports Certificate' | string;
+  certificateType?: 'Transfer Certificate' | 'Bonafide Certificate' | 'Character Certificate' | 'Leaving Certificate' | 'Merit Certificate' | 'Sports Certificate' | string;
+  certificateTypeId?: string;
+  certificateTypeName?: string;
   title: string;
-  subTitle: string;
+  subTitle?: string;
   headerStyle: 'Classic Double Border' | 'Modern Minimalist' | 'Royal Gold Crest' | 'Executive Slate';
   themeColor: string;
   showLogo: boolean;
+  showSchoolHeader?: boolean;
+  customHeaderHtml?: string;
+  bodyTemplate?: string;
+  footerText?: string;
   showSeal: boolean;
-  signatory1: string;
-  signatory2: string;
-  signatory3: string;
+  signatories?: CertificateSignatory[];
+  signatory1?: string;
+  signatory2?: string;
+  signatory3?: string;
   customPreamble?: string;
   footerDisclaimer?: string;
+  sealImageUrl?: string;
+  sealText?: string;
+  sealStyle?: 'Circular Badge' | 'Rubber Stamp Graphic' | 'Embossed Crest';
+  dateFormat?: string;
+  updatedAt?: string;
 }
 
 export interface BankDetails {
@@ -535,6 +547,8 @@ export interface AdmissionApplication {
   admissionDate?: string;
   isLateAdmission?: boolean;
   feeCalculationMethod?: 'Monthly' | 'Term-wise' | 'Full Annual Fee' | string;
+  registrationNo?: string;
+  applicationDate?: string;
   status: 'Pending' | 'Verified' | 'Approved' | 'Rejected' | 'Enrolled';
   documentsSubmitted: string[];
 }
@@ -2415,12 +2429,29 @@ export interface FeeScheduleTerm {
   status: 'Active' | 'Inactive';
 }
 
+export interface MonthDueDateItem {
+  monthIndex: number;
+  monthName: string;
+  dueDate: string;
+}
+
+export interface MonthlyDueDateConfig {
+  applySameDayToAllMonths: boolean;
+  dueDay: number;
+  monthDueDates: MonthDueDateItem[];
+}
+
 export interface AcademicYearFeeSchedule {
   id: string;
   academicYear: string;
   numberOfTerms: number;
   terms: FeeScheduleTerm[];
   status: 'Active' | 'Inactive';
+
+  // Frequency-specific due date configurations
+  monthlyConfig?: MonthlyDueDateConfig;
+  annualDueDate?: string;
+  oneTimeDueDate?: string;
 }
 
 export interface StudentFeeInstallment {
@@ -2465,3 +2496,61 @@ export interface PromotedStudentWithDues {
     items: StudentFeeInstallment[];
   }[];
 }
+
+// ==========================================
+// CERTIFICATE MODULE ERP DATA MODELS
+// ==========================================
+
+export interface CertificateSignatory {
+  id: string;
+  title: string;
+  name?: string;
+  designation?: string;
+  show: boolean;
+  signatureUrl?: string;
+}
+
+export interface CertificateTypeConfig {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  status: 'Active' | 'Inactive';
+  displayOrder: number;
+  requiredFields: string[];
+  numberingPrefix: string;
+  numberingStart: number;
+  numberingLength: number;
+  includeAcademicYearInNo: boolean;
+  isSystem?: boolean;
+  templateId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GeneratedCertificateRecord {
+  id: string;
+  certificateNumber: string;
+  certificateTypeId: string;
+  certificateTypeName: string;
+  studentId: string;
+  admissionNo: string;
+  studentName: string;
+  className: string;
+  section: string;
+  academicYear: string;
+  branch: string;
+  issueDate: string;
+  status: 'Issued' | 'Cancelled' | 'Revoked';
+  generatedBy: string;
+  fieldDataSnapshot: Record<string, any>;
+  templateSnapshot: CertificateTemplateConfig;
+  remarks?: string;
+  // Legacy / TC compatibility properties
+  tcNo?: string;
+  leavingDate?: string;
+  reason?: string;
+  conduct?: string;
+  clearanceSummary?: any;
+}
+

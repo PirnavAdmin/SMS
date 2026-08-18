@@ -71,7 +71,6 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
             <IndianRupee className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Fee Collection & Dues
           </h2>
-          <p className="text-xs text-slate-500">Collect fees, manage current due fees & track promoted students with previous year dues</p>
         </div>
 
         <div className="flex items-center gap-2">
