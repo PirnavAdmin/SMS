@@ -111,6 +111,23 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("roomCapacity")]
         public int RoomCapacity { get; set; } = 15;
 
+        [JsonPropertyName("onlineMeetingUrl")]
+        public string? OnlineMeetingUrl { get; set; }
+
+        [JsonPropertyName("onlineVideoUrl")]
+        public string? OnlineVideoUrlAlias
+        {
+            get => OnlineMeetingUrl;
+            set { if (!string.IsNullOrWhiteSpace(value)) OnlineMeetingUrl = value; }
+        }
+
+        [JsonPropertyName("videoUrl")]
+        public string? VideoUrlAlias
+        {
+            get => OnlineMeetingUrl;
+            set { if (!string.IsNullOrWhiteSpace(value)) OnlineMeetingUrl = value; }
+        }
+
         [JsonPropertyName("meetingDate")]
         public string MeetingDate { get; set; } = "2026-08-09";
 
@@ -136,5 +153,24 @@ namespace SMS.Api.Dtos
             get => MeetingStatus;
             set { if (!string.IsNullOrWhiteSpace(value)) MeetingStatus = value; }
         }
+
+        [JsonPropertyName("priority")]
+        public string Priority { get; set; } = "Normal";
+
+        [JsonPropertyName("attendancePolicy")]
+        public string AttendancePolicy { get; set; } = "Mandatory";
+
+        [JsonPropertyName("attendance")]
+        public string? AttendanceAlias
+        {
+            get => AttendancePolicy;
+            set { if (!string.IsNullOrWhiteSpace(value)) AttendancePolicy = value; }
+        }
+
+        [JsonPropertyName("recurrence")]
+        public string Recurrence { get; set; } = "None (One-time)";
+
+        [JsonPropertyName("totalRecipients")]
+        public int TotalRecipients { get; set; } = 47;
     }
 }

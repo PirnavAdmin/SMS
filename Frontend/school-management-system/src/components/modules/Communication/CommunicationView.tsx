@@ -4,6 +4,12 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
+import {
+  fetchNotificationsApi,
+  createNotificationApi,
+  updateNotificationApi,
+  deleteNotificationApi
+} from '../../../api/communication';
 
 export const CommunicationView: React.FC = () => {
   const { announcements, addAnnouncement } = useData();

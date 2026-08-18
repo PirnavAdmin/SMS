@@ -2333,34 +2333,40 @@ export const MeetingsView: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 font-semibold">
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Audience</span>
-                  <span className="text-sky-600 dark:text-sky-400 font-extrabold">{viewingMeeting.meetingAudience} Meeting</span>
+                  <span className="text-sky-600 dark:text-sky-400 font-extrabold">
+                    {viewingMeeting.meetingAudience?.replace(/\s+meeting$/i, '') || 'Group'} Meeting
+                  </span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Mode</span>
-                  <span className="text-slate-900 dark:text-white font-extrabold">{viewingMeeting.meetingMode}</span>
+                  <span className="text-slate-900 dark:text-white font-extrabold">{viewingMeeting.meetingMode || 'In-Person'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Date</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-200">{viewingMeeting.meetingDate}</span>
+                  <span className="font-mono text-slate-800 dark:text-slate-200">{viewingMeeting.meetingDate || viewingMeeting.date}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 block font-bold">Time Window</span>
-                  <span className="font-mono text-slate-800 dark:text-slate-200">{viewingMeeting.startTime} - {viewingMeeting.endTime}</span>
+                  <span className="font-mono text-slate-800 dark:text-slate-200">
+                    {viewingMeeting.startTime || '14:30'} - {viewingMeeting.endTime || '15:30'}
+                  </span>
                 </div>
               </div>
 
               {viewingMeeting.description && (
                 <div className="p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30">
-                  <span className="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">Agenda</span>
+                  <span className="text-[10px] font-bold text-slate-400 block mb-1 uppercase tracking-wider">AGENDA</span>
                   <p className="text-slate-700 dark:text-slate-300">{viewingMeeting.description}</p>
                 </div>
               )}
 
-              {(viewingMeeting.meetingMode === 'In-Person' || viewingMeeting.meetingMode === 'Hybrid') && (
+              {(viewingMeeting.meetingMode === 'In-Person' || viewingMeeting.meetingMode === 'Hybrid' || !viewingMeeting.meetingMode) && (
                 <div className="p-3 rounded-2xl border border-amber-200 dark:border-amber-900/40 bg-amber-50/20 dark:bg-amber-950/10 space-y-1">
-                  <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-wider">Venue Details</span>
-                  <p className="font-bold text-slate-900 dark:text-white">{viewingMeeting.roomVenue} ({viewingMeeting.building}, {viewingMeeting.floor})</p>
-                  <p className="text-[10px] text-slate-500 font-mono">Room Capacity: {viewingMeeting.roomCapacity || 15} Seats</p>
+                  <span className="text-[10px] font-black uppercase text-amber-700 dark:text-amber-400 tracking-wider">VENUE DETAILS</span>
+                  <p className="font-bold text-slate-900 dark:text-white">
+                    ({viewingMeeting.building || 'Main Administration'}, {viewingMeeting.floor || 'Ground Floor'})
+                  </p>
+                  <p className="text-[10px] text-slate-500 font-mono">Room Capacity: {viewingMeeting.roomCapacity || 30} Seats</p>
                 </div>
               )}
 
@@ -2383,8 +2389,8 @@ export const MeetingsView: React.FC = () => {
               )}
 
               <div className="flex items-center justify-between pt-2 border-t text-[10px] text-slate-400 font-medium">
-                <span>Organized by: <strong className="text-slate-600 dark:text-slate-300">{viewingMeeting.organizerName} ({viewingMeeting.organizerRole})</strong></span>
-                <span>Created: <strong className="font-mono text-slate-600 dark:text-slate-300">{viewingMeeting.createdAt}</strong></span>
+                <span>Organized by: <strong className="text-slate-600 dark:text-slate-300">{viewingMeeting.organizerName || 'School Administration'} ({viewingMeeting.organizerRole || 'Admin'})</strong></span>
+                <span>Created: <strong className="font-mono text-slate-600 dark:text-slate-300">{viewingMeeting.createdAt || new Date().toISOString().split('T')[0]}</strong></span>
               </div>
             </div>
           </div>
