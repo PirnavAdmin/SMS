@@ -17,7 +17,7 @@ import {
 } from './staffFlowOptions';
 import {
   User, Briefcase, GraduationCap, Award, Upload, Plus, Trash2, Edit2, CheckCircle2,
-  FileText, Eye, Download, RefreshCw, X, ShieldCheck, MapPin, Building2, Check, UploadCloud, ChevronDown, AlertCircle
+  FileText, Eye, Download, RefreshCw, X, ShieldCheck, MapPin, Building2, Check, UploadCloud, ChevronDown, AlertCircle, Search
 } from 'lucide-react';
 
 import { DateInput } from '../../common/DateInput';
@@ -59,9 +59,15 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   }, [academicClasses]);
 
   const allSubjectOptions = React.useMemo(() => {
-    const names = subjects.map(s => s.name).filter(Boolean);
+    let filtered = subjects;
+    if (value.department) {
+      filtered = subjects.filter(s => 
+        s.department?.trim().toLowerCase() === value.department.trim().toLowerCase()
+      );
+    }
+    const names = filtered.map(s => s.name).filter(Boolean);
     return Array.from(new Set(names));
-  }, [subjects]);
+  }, [subjects, value.department]);
 
   const duplicateTeacher = React.useMemo(() => {
     if (normalizedCategory !== 'Teaching Staff' || !value.designation || !value.assignedSubjects || value.assignedSubjects.length === 0) {
@@ -97,6 +103,21 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     
     return null;
   }, [staff, value.designation, value.assignedSubjects, staffToEdit, normalizedCategory]);
+
+  const [classSearch, setClassSearch] = useState('');
+  const [subjectSearch, setSubjectSearch] = useState('');
+
+  const filteredClassSectionOptions = React.useMemo(() => {
+    return allClassSectionOptions.filter(clsSec => 
+      clsSec.toLowerCase().includes(classSearch.toLowerCase())
+    );
+  }, [allClassSectionOptions, classSearch]);
+
+  const filteredSubjectOptions = React.useMemo(() => {
+    return allSubjectOptions.filter(subj => 
+      subj.toLowerCase().includes(subjectSearch.toLowerCase())
+    );
+  }, [allSubjectOptions, subjectSearch]);
 
   // Stepper state (Step 1 to Step 5)
   const [activeStep, setActiveStep] = useState<number>(1);
@@ -708,7 +729,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             {normalizedCategory === 'Teaching Staff' && (
               <div className="border-t border-slate-100 dark:border-slate-800 pt-4 mt-2">
                 <h4 className="font-black text-slate-900 dark:text-white text-[11px] uppercase tracking-wider mb-3">
-                  Academic Workload & Teaching Assignment
+                  Academic Allocations
                 </h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -717,14 +738,33 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       Assigned Classes <span className="text-slate-400 font-normal">(Select all that apply)</span>
                     </label>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search class sections..."
+                        value={classSearch}
+                        onChange={e => setClassSearch(e.target.value)}
+                        className="w-full pl-8 pr-7 py-1.5 text-[11px] font-semibold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                      />
+                      {classSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setClassSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3 space-y-2">
-                      {allClassSectionOptions.length === 0 ? (
-                        <p className="text-slate-400 italic text-[11px]">No classes configured in the system.</p>
+                      {filteredClassSectionOptions.length === 0 ? (
+                        <p className="text-slate-400 italic text-[11px] text-center py-4">No matching classes found.</p>
                       ) : (
-                        allClassSectionOptions.map(clsSec => {
+                        filteredClassSectionOptions.map(clsSec => {
                           const isChecked = (value.assignedClasses || []).includes(clsSec);
                           return (
-                            <label key={clsSec} className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-brand-600 transition-colors">
+                            <label key={clsSec} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
                               <input
                                 type="checkbox"
                                 checked={isChecked}
@@ -735,7 +775,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                                     : current.filter(c => c !== clsSec);
                                   onChange('assignedClasses', next);
                                 }}
-                                className="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5"
+                                className="rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 cursor-pointer"
                               />
                               {clsSec}
                             </label>
@@ -750,14 +790,33 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                       Assigned Subjects <span className="text-slate-400 font-normal">(Select all that apply)</span>
                     </label>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search subjects..."
+                        value={subjectSearch}
+                        onChange={e => setSubjectSearch(e.target.value)}
+                        className="w-full pl-8 pr-7 py-1.5 text-[11px] font-semibold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 outline-none focus:border-brand-500 transition-colors"
+                      />
+                      {subjectSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setSubjectSearch('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                     <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-3 space-y-2">
-                      {allSubjectOptions.length === 0 ? (
-                        <p className="text-slate-400 italic text-[11px]">No subjects configured in the system.</p>
+                      {filteredSubjectOptions.length === 0 ? (
+                        <p className="text-slate-400 italic text-[11px] text-center py-4">No matching subjects found.</p>
                       ) : (
-                        allSubjectOptions.map(subj => {
+                        filteredSubjectOptions.map(subj => {
                           const isChecked = (value.assignedSubjects || []).includes(subj);
                           return (
-                            <label key={subj} className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-brand-600 transition-colors">
+                            <label key={subj} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
                               <input
                                 type="checkbox"
                                 checked={isChecked}
@@ -768,7 +827,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                                     : current.filter(s => s !== subj);
                                   onChange('assignedSubjects', next);
                                 }}
-                                className="rounded text-brand-600 focus:ring-brand-500 w-3.5 h-3.5"
+                                className="rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 cursor-pointer"
                               />
                               {subj}
                             </label>
