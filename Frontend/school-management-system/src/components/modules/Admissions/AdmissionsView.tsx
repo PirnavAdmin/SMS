@@ -2798,7 +2798,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 )}
 
                 {/* Conditional Rendering for Residential (Available Rooms & Beds Only) */}
-                {/* Conditional Rendering for Residential (Available Rooms & Beds Only) */}
                 {(formData.studentType === "Residential" ||
                   formData.studentType === "Hosteller") && (
                   <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
@@ -2810,7 +2809,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Hostel Block
                         </label>
-<<<<<<< HEAD
                         {(() => {
                           const blockMap = new Map<string, any>();
                           (hostelMasters || []).forEach(h => blockMap.set(String(h.id), { hostelId: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' }));
@@ -2837,46 +2835,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             />
                           );
                         })()}
-=======
-                        <div className="relative">
-                          <select
-                            value={
-                              selectedBlockObj
-                                ? selectedBlockObj.id
-                                : formData.hostelBlock || ""
-                            }
-                            onChange={(e) => {
-                              const selId = e.target.value;
-                              const blkObj = combinedHostelBlocks.find(
-                                (b) => b.id === selId,
-                              );
-                              setFormData({
-                                ...formData,
-                                hostelBlock: blkObj
-                                  ? blkObj.name || blkObj.id
-                                  : selId,
-                                hostelRoom: "",
-                                hostelBed: "",
-                              });
-                            }}
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
-                          >
-                            <option value="">Select Hostel Block</option>
-                            {combinedHostelBlocks.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name} ({b.type})
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
->>>>>>> a018a1494730b73fb183f032763cc778931776af
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Room
                         </label>
-<<<<<<< HEAD
                         {(() => {
                           const roomMap = new Map<string, any>();
                           (roomMasters || []).forEach(r => roomMap.set(String(r.id), { roomId: String(r.id), hostelId: String(r.hostelId), roomNumber: r.roomNumber, bedCapacity: r.bedCapacity || r.capacity || 4, roomTypeSpecification: r.roomTypeSpecification }));
@@ -2961,45 +2924,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           }
                           return null;
                         })()}
-=======
-                        <div className="relative">
-                          <select
-                            value={
-                              selectedRoomObj
-                                ? selectedRoomObj.id
-                                : formData.hostelRoom || ""
-                            }
-                            onChange={(e) => {
-                              const selId = e.target.value;
-                              const rmObj = combinedHostelRooms.find(
-                                (r) => r.id === selId,
-                              );
-                              setFormData({
-                                ...formData,
-                                hostelRoom: rmObj
-                                  ? rmObj.roomNumber || rmObj.id
-                                  : selId,
-                                hostelBed: "",
-                              });
-                            }}
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
-                          >
-                            <option value="">Select Room</option>
-                            {availableRoomsForSelectedBlock.map((r) => (
-                              <option key={r.id} value={r.id}>
-                                Room #{r.roomNumber} ({r.specification})
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
->>>>>>> a018a1494730b73fb183f032763cc778931776af
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Bed
                         </label>
-<<<<<<< HEAD
                         {(() => {
                           const selRoom = dynamicHostelRooms.find(
                             (r) => r.roomId.toString() === formData.hostelRoom,
@@ -3018,41 +2947,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             { length: rCap },
                             (_, idx) => `BED-${idx + 1}`,
                           );
-=======
-                        <div className="relative">
-                          <select
-                            value={selectedBedValue}
-                            onChange={(e) =>
-                              setFormData({
-                                ...formData,
-                                hostelBed: e.target.value,
-                              })
-                            }
-                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none animate-in fade-in appearance-none cursor-pointer pr-10"
-                          >
-                            <option value="">Select Bed</option>
-                            {formData.hostelRoom &&
-                              (() => {
-                                const selRoom = dynamicHostelRooms.find(
-                                  (r) =>
-                                    r.roomId.toString() === formData.hostelRoom,
-                                );
-                                const rtObj = selRoom
-                                  ? dynamicRoomTypes.find(
-                                      (rt) =>
-                                        rt.roomTypeId === selRoom.roomTypeId,
-                                    )
-                                  : null;
-                                const rCap = rtObj
-                                  ? rtObj.bedCapacity
-                                  : selRoom
-                                    ? selRoom.bedCapacity || 2
-                                    : 2;
-                                const beds = Array.from(
-                                  { length: rCap },
-                                  (_, idx) => `BED-${idx + 1}`,
-                                );
->>>>>>> a018a1494730b73fb183f032763cc778931776af
 
                           const bedOpts = beds.map((bed) => {
                             const activeAlloc = dynamicAllocations.find(
