@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiTarget = env.VITE_API_URL || 'https://backspace-prowler-bleach.ngrok-free.dev';
+  const apiTarget = env.VITE_API_URL || 'https://trend-shortcut-mossy.ngrok-free.dev';
 
   return {
     plugins: [

@@ -1008,7 +1008,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               c.status === "Active",
           ) || financeTransportConfigs[0];
 
-        const trpFee = ftc ? ftc.feeAmount : 5500;
+        const trpFee = (pObj && pObj.monthlyFee > 0) ? pObj.monthlyFee : (ftc ? ftc.feeAmount : 0);
         items.push({
           name: `Transport Fee (${rObj?.routeName || formData.busRoute})`,
           amount: trpFee,
@@ -1049,8 +1049,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               c.status === "Active",
           ) || financeHostelConfigs[0];
 
-        const hstFee = fhc ? fhc.hostelFee : 40000;
-        const secDep = fhc ? fhc.securityDeposit : 5000;
+        const hstFee = fhc ? fhc.hostelFee : 0;
+        const secDep = fhc ? fhc.securityDeposit : 0;
 
         items.push({
           name: `Hostel Fee (${hObj?.hostelName || "Hostel Accommodation"})`,
@@ -2693,7 +2693,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               </span>
                             </span>
                             <span className="font-black text-slate-900 dark:text-white">
-                              {formatCurrency(item.amount)}
+                              {item.amount > 0 ? formatCurrency(item.amount) : "N/A"}
                             </span>
                           </div>
                         ))}
