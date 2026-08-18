@@ -31,7 +31,12 @@ import {
   Upload,
   ChevronDown,
 } from "lucide-react";
-import { AdmissionApplication, StudentType, Student, SiblingDetail } from "../../../types";
+import {
+  AdmissionApplication,
+  StudentType,
+  Student,
+  SiblingDetail,
+} from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -42,7 +47,11 @@ import {
   CASTE_CATEGORIES,
   BRANCHES,
 } from "../../../utils/validation";
-import { validateDOB, formatToDDMMYYYY, formatToISO } from "../../../utils/dateValidation";
+import {
+  validateDOB,
+  formatToDDMMYYYY,
+  formatToISO,
+} from "../../../utils/dateValidation";
 import { formatCurrency } from "../../../utils/currency";
 import {
   getHostelBlocks,
@@ -213,6 +222,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     dynamicFeeStructures,
     financeTransportConfigs,
     hostelMasters,
+    hostelBlocks,
+    hostelRooms,
     financeHostelConfigs,
     roomMasters,
     studentHostelAssignments,
@@ -363,8 +374,48 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [siblingsCount, setSiblingsCount] = useState<number>(1);
   const [siblingDetails, setSiblingDetails] = useState<SiblingDetail[]>([]);
   const [siblingStudentIds, setSiblingStudentIds] = useState<string[]>([]);
-  const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<number | null>(null);
+  const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<
+    number | null
+  >(null);
   const [siblingSearchQuery, setSiblingSearchQuery] = useState("");
+
+  const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
+    appliedClass: "",
+    gender: "" as any,
+    dob: "",
+    bloodGroup: "",
+    religion: "",
+    casteCategory: "",
+    parentName: "",
+    motherName: "",
+    email: "",
+    phone: "",
+    addressHouseNo: "",
+    addressStreet: "",
+    addressArea: "",
+    addressCity: "",
+    addressDistrict: "",
+    addressState: "",
+    addressPinCode: "",
+    siblingsCount: 0,
+    siblingStudentId: "",
+    studentType: "" as any,
+    transportRequired: false,
+    transportType: "" as any,
+    busRoute: "",
+    pickupPoint: "",
+    hostelBlock: "",
+    floor: "",
+    hostelRoom: "",
+    hostelBed: "",
+    branch: selectedBranch,
+    joiningDate: new Date().toISOString().split("T")[0],
+    admissionDate: new Date().toISOString().split("T")[0],
+    isLateAdmission: false,
+    feeCalculationMethod: "Term-wise",
+    selectedOptionalFees: [],
+    documentsSubmitted: [],
+  });
 
   const isSiblingConcession = (name?: string, category?: string) => {
     if (!name) return false;
@@ -374,8 +425,178 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   const hasExistingEnrolledSibling = Boolean(
-    hasSiblings && siblingDetails.some((d) => d.isExisting && Boolean(d.studentId))
+    hasSiblings &&
+    siblingDetails.some((d) => d.isExisting && Boolean(d.studentId)),
   );
+
+  // Robust Hostel Combination & Matching Helpers (Supports API & Local Mock Fallback)
+  const combinedHostelBlocks = useMemo(() => {
+    const list: { id: string; name: string; type: string; rawId: any }[] = [];
+    if (dynamicHostelBlocks && dynamicHostelBlocks.length > 0) {
+      dynamicHostelBlocks.forEach((b) => {
+        list.push({
+          id: b.hostelId.toString(),
+          name: b.hostelName,
+          type: b.hostelType,
+          rawId: b.hostelId,
+        });
+      });
+    }
+    if (hostelMasters && hostelMasters.length > 0) {
+      hostelMasters.forEach((h) => {
+        if (
+          !list.some(
+            (e) =>
+              e.id === h.id ||
+              e.name.toLowerCase() ===
+                (h.hostelName || h.name || "").toLowerCase(),
+          )
+        ) {
+          list.push({
+            id: h.id.toString(),
+            name: h.hostelName || h.name || "Hostel Block",
+            type: h.hostelType || "Mixed",
+            rawId: h.id,
+          });
+        }
+      });
+    }
+    if (hostelBlocks && hostelBlocks.length > 0) {
+      hostelBlocks.forEach((hb) => {
+        if (
+          !list.some(
+            (e) =>
+              e.id === hb.id || e.name.toLowerCase() === hb.name.toLowerCase(),
+          )
+        ) {
+          list.push({
+            id: hb.id.toString(),
+            name: hb.name,
+            type: "Mixed",
+            rawId: hb.id,
+          });
+        }
+      });
+    }
+    return list;
+  }, [dynamicHostelBlocks, hostelMasters, hostelBlocks]);
+
+  const selectedBlockObj = useMemo(() => {
+    if (!formData.hostelBlock) return null;
+    const target = formData.hostelBlock.toString().trim().toLowerCase();
+    return (
+      combinedHostelBlocks.find(
+        (b) =>
+          b.id.toLowerCase() === target ||
+          b.name.toLowerCase() === target ||
+          b.rawId?.toString().toLowerCase() === target,
+      ) || null
+    );
+  }, [formData.hostelBlock, combinedHostelBlocks]);
+
+  const combinedHostelRooms = useMemo(() => {
+    const list: {
+      id: string;
+      blockId: string;
+      blockName: string;
+      roomNumber: string;
+      roomTypeId: any;
+      specification: string;
+      capacity: number;
+      rawId: any;
+    }[] = [];
+
+    if (dynamicHostelRooms && dynamicHostelRooms.length > 0) {
+      dynamicHostelRooms.forEach((r) => {
+        list.push({
+          id: r.roomId.toString(),
+          blockId: r.hostelId.toString(),
+          blockName: r.hostelName,
+          roomNumber: r.roomNumber,
+          roomTypeId: r.roomTypeId,
+          specification: r.roomTypeSpecification || "Standard Room",
+          capacity: r.bedCapacity || 2,
+          rawId: r.roomId,
+        });
+      });
+    }
+
+    if (hostelRooms && hostelRooms.length > 0) {
+      hostelRooms.forEach((hr: any) => {
+        const bId = (hr.hostelId || hr.blockId || "").toString();
+        if (
+          !list.some(
+            (e) =>
+              e.id === hr.id || e.roomNumber === (hr.roomNumber || hr.roomNo),
+          )
+        ) {
+          list.push({
+            id: hr.id.toString(),
+            blockId: bId,
+            blockName: hr.blockName || "",
+            roomNumber: hr.roomNumber || hr.roomNo || "101",
+            roomTypeId: 1,
+            specification: hr.roomType || "Standard Room",
+            capacity: hr.capacity || hr.bedCapacity || 2,
+            rawId: hr.id,
+          });
+        }
+      });
+    }
+
+    return list;
+  }, [dynamicHostelRooms, hostelRooms]);
+
+  const availableRoomsForSelectedBlock = useMemo(() => {
+    if (!selectedBlockObj) return combinedHostelRooms;
+    return combinedHostelRooms.filter(
+      (r) =>
+        r.blockId === selectedBlockObj.id ||
+        r.blockId === selectedBlockObj.rawId?.toString() ||
+        (selectedBlockObj.name &&
+          r.blockName.toLowerCase() === selectedBlockObj.name.toLowerCase()),
+    );
+  }, [selectedBlockObj, combinedHostelRooms]);
+
+  const selectedRoomObj = useMemo(() => {
+    if (!formData.hostelRoom) return null;
+    const target = formData.hostelRoom.toString().trim().toLowerCase();
+    return (
+      availableRoomsForSelectedBlock.find(
+        (r) =>
+          r.id.toLowerCase() === target ||
+          r.roomNumber.toLowerCase() === target ||
+          r.rawId?.toString().toLowerCase() === target,
+      ) ||
+      combinedHostelRooms.find(
+        (r) =>
+          r.id.toLowerCase() === target ||
+          r.roomNumber.toLowerCase() === target ||
+          r.rawId?.toString().toLowerCase() === target,
+      ) ||
+      null
+    );
+  }, [
+    formData.hostelRoom,
+    availableRoomsForSelectedBlock,
+    combinedHostelRooms,
+  ]);
+
+  const availableBedsForSelectedRoom = useMemo(() => {
+    const cap = selectedRoomObj ? selectedRoomObj.capacity : 4;
+    return Array.from({ length: cap }, (_, idx) => `BED-${idx + 1}`);
+  }, [selectedRoomObj]);
+
+  const selectedBedValue = useMemo(() => {
+    if (!formData.hostelBed) return "";
+    const target = formData.hostelBed.toString().trim();
+    const match = availableBedsForSelectedRoom.find(
+      (b) =>
+        b.toLowerCase() === target.toLowerCase() ||
+        b.replace("BED-", "") === target.replace("BED-", ""),
+    );
+    return match || formData.hostelBed;
+  }, [formData.hostelBed, availableBedsForSelectedRoom]);
 
   const handleHasSiblingsChange = (val: boolean) => {
     setHasSiblings(val);
@@ -477,7 +698,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       }
 
       // Check if any existing enrolled sibling remains
-      const anyExistingRemains = next.some((d) => d.isExisting && Boolean(d.studentId));
+      const anyExistingRemains = next.some(
+        (d) => d.isExisting && Boolean(d.studentId),
+      );
       if (!anyExistingRemains) {
         setFormData((fPrev) => {
           const fNext = { ...fPrev };
@@ -512,21 +735,32 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     });
   };
 
-  const handleSelectExistingStudent = (idx: number, selectedStudent: Student) => {
+  const handleSelectExistingStudent = (
+    idx: number,
+    selectedStudent: Student,
+  ) => {
     const isAlreadyChosen = siblingDetails.some(
-      (item, i) => i !== idx && item.studentId === selectedStudent.id
+      (item, i) => i !== idx && item.studentId === selectedStudent.id,
     );
     if (isAlreadyChosen) {
-      addToast("warning", "Already Selected", `${selectedStudent.firstName} ${selectedStudent.lastName} is already selected as a sibling.`);
+      addToast(
+        "warning",
+        "Already Selected",
+        `${selectedStudent.firstName} ${selectedStudent.lastName} is already selected as a sibling.`,
+      );
       return;
     }
 
     const existingCountOtherSlots = siblingDetails.filter(
-      (item, i) => i !== idx && item.isExisting && item.studentId
+      (item, i) => i !== idx && item.isExisting && item.studentId,
     ).length;
 
     if (existingCountOtherSlots + 1 > siblingsCount) {
-      addToast("warning", "Limit Reached", `You can select a maximum of ${siblingsCount} siblings.`);
+      addToast(
+        "warning",
+        "Limit Reached",
+        `You can select a maximum of ${siblingsCount} siblings.`,
+      );
       return;
     }
 
@@ -549,47 +783,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const sibDiscount = discounts.find((d) => isSiblingConcession(d.name));
     if (sibDiscount && !formData.discountId) {
       setFormData((prev) => ({ ...prev, discountId: sibDiscount.id }));
-      addToast("info", "Concession Applied", `Sibling Concession (${sibDiscount.name}) auto-applied for existing sibling.`);
+      addToast(
+        "info",
+        "Concession Applied",
+        `Sibling Concession (${sibDiscount.name}) auto-applied for existing sibling.`,
+      );
     }
   };
-
-  const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
-    appliedClass: "",
-    gender: "" as any,
-    dob: "",
-    bloodGroup: "",
-    religion: "",
-    casteCategory: "",
-    parentName: "",
-    motherName: "",
-    email: "",
-    phone: "",
-    addressHouseNo: "",
-    addressStreet: "",
-    addressArea: "",
-    addressCity: "",
-    addressDistrict: "",
-    addressState: "",
-    addressPinCode: "",
-    siblingsCount: 0,
-    siblingStudentId: "",
-    studentType: "" as any,
-    transportRequired: false,
-    transportType: "" as any,
-    busRoute: "",
-    pickupPoint: "",
-    hostelBlock: "",
-    floor: "",
-    hostelRoom: "",
-    hostelBed: "",
-    branch: selectedBranch,
-    joiningDate: new Date().toISOString().split("T")[0],
-    admissionDate: new Date().toISOString().split("T")[0],
-    isLateAdmission: false,
-    feeCalculationMethod: "Term-wise",
-    selectedOptionalFees: [],
-    documentsSubmitted: [],
-  });
 
   const [isMidYearFeeModalOpen, setIsMidYearFeeModalOpen] = useState(false);
 
@@ -628,7 +828,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const [dobError, setDobError] = useState("");
   const [photoError, setPhotoError] = useState("");
 
-  const classOptions = (academicClasses || []).map((cls) => cls.name || cls.className || "");
+  const classOptions = (academicClasses || []).map(
+    (cls) => cls.name || (cls as any).className || "",
+  );
 
   const handleAltPhoneChange = (val: string) => {
     const cleaned = val.replace(/\D/g, "").slice(0, 10);
@@ -783,16 +985,29 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       formattedDob = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
     }
 
-    setFormData({ ...app, dob: formattedDob });
-    const hasSib = app.hasSiblings ?? ((app.siblingsCount && app.siblingsCount > 0) || !!app.siblingStudentId || (app.siblingDetails && app.siblingDetails.length > 0));
+    setFormData({
+      ...app,
+      dob: formattedDob,
+      selectedOptionalFees: app.selectedOptionalFees || [],
+    });
+    const hasSib =
+      app.hasSiblings ??
+      ((app.siblingsCount && app.siblingsCount > 0) ||
+        !!app.siblingStudentId ||
+        (app.siblingDetails && app.siblingDetails.length > 0));
     setHasSiblings(!!hasSib);
-    const count = app.siblingsCount && app.siblingsCount > 0 ? app.siblingsCount : (app.siblingDetails?.length || 1);
+    const count =
+      app.siblingsCount && app.siblingsCount > 0
+        ? app.siblingsCount
+        : app.siblingDetails?.length || 1;
     setSiblingsCount(count);
 
     if (app.siblingDetails && app.siblingDetails.length > 0) {
       setSiblingDetails(app.siblingDetails);
     } else if (hasSib) {
-      const sIds = app.siblingStudentIds || (app.siblingStudentId ? [app.siblingStudentId] : []);
+      const sIds =
+        app.siblingStudentIds ||
+        (app.siblingStudentId ? [app.siblingStudentId] : []);
       const reconstructed: SiblingDetail[] = [];
       for (let i = 0; i < count; i++) {
         const sId = sIds[i];
@@ -800,7 +1015,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           const matchedSt = students.find((s) => s.id === sId);
           reconstructed.push({
             id: sId,
-            name: matchedSt ? `${matchedSt.firstName} ${matchedSt.lastName}` : "Existing Student",
+            name: matchedSt
+              ? `${matchedSt.firstName} ${matchedSt.lastName}`
+              : "Existing Student",
             isExisting: true,
             studentId: sId,
             admissionNo: matchedSt?.admissionNo,
@@ -912,19 +1129,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     if (hasSiblings) {
       if (!siblingsCount || siblingsCount < 1) {
-        addToast("error", "Validation Error", "Number of siblings must be at least 1.");
+        addToast(
+          "error",
+          "Validation Error",
+          "Number of siblings must be at least 1.",
+        );
         return;
       }
       for (let i = 0; i < siblingDetails.length; i++) {
         const entry = siblingDetails[i];
         if (entry.isExisting) {
           if (!entry.studentId) {
-            addToast("error", "Validation Error", `Please select an existing student for Sibling ${i + 1}.`);
+            addToast(
+              "error",
+              "Validation Error",
+              `Please select an existing student for Sibling ${i + 1}.`,
+            );
             return;
           }
         } else {
           if (!entry.name || !entry.name.trim()) {
-            addToast("error", "Validation Error", `Please enter a name for Sibling ${i + 1}.`);
+            addToast(
+              "error",
+              "Validation Error",
+              `Please enter a name for Sibling ${i + 1}.`,
+            );
             return;
           }
         }
@@ -933,16 +1162,32 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     if (formData.discountId) {
       const selDisc = discounts.find((d) => d.id === formData.discountId);
-      if (selDisc && isSiblingConcession(selDisc.name) && !hasExistingEnrolledSibling) {
-        addToast("error", "Validation Error", "Sibling Concession can only be applied if an existing enrolled sibling is selected.");
+      if (
+        selDisc &&
+        isSiblingConcession(selDisc.name) &&
+        !hasExistingEnrolledSibling
+      ) {
+        addToast(
+          "error",
+          "Validation Error",
+          "Sibling Concession can only be applied if an existing enrolled sibling is selected.",
+        );
         return;
       }
     }
 
     if (formData.scholarshipId) {
       const selSch = scholarships.find((s) => s.id === formData.scholarshipId);
-      if (selSch && isSiblingConcession(selSch.name) && !hasExistingEnrolledSibling) {
-        addToast("error", "Validation Error", "Sibling Concession can only be applied if an existing enrolled sibling is selected.");
+      if (
+        selSch &&
+        isSiblingConcession(selSch.name) &&
+        !hasExistingEnrolledSibling
+      ) {
+        addToast(
+          "error",
+          "Validation Error",
+          "Sibling Concession can only be applied if an existing enrolled sibling is selected.",
+        );
         return;
       }
     }
@@ -1106,27 +1351,58 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   const isItemMandatory = (item: {
-    feeHeadId: string;
+    feeHeadId?: string;
     feeHeadName: string;
+    category?: string;
   }) => {
-    const fh = feeHeads.find(
-      (h) =>
-        h.id === item.feeHeadId ||
-        h.id.replace("-0", "-") === item.feeHeadId ||
-        h.id === item.feeHeadId.replace("-0", "-") ||
-        h.name.toLowerCase() === item.feeHeadName.toLowerCase(),
-    );
+    const nameLower = (item.feeHeadName || "").toLowerCase().trim();
+    const catLower = (item.category || "").toLowerCase().trim();
+
+    const fh = feeHeads.find((h) => {
+      if (!h) return false;
+      if (
+        item.feeHeadId &&
+        h.id &&
+        h.id.toLowerCase() === item.feeHeadId.toLowerCase()
+      )
+        return true;
+      if (
+        item.feeHeadId &&
+        h.id &&
+        h.id.replace("-0", "-") === item.feeHeadId.replace("-0", "-")
+      )
+        return true;
+      if (h.name && nameLower && h.name.toLowerCase().trim() === nameLower)
+        return true;
+      if (
+        h.name &&
+        nameLower &&
+        (h.name.toLowerCase().includes(nameLower) ||
+          nameLower.includes(h.name.toLowerCase()))
+      )
+        return true;
+      if (
+        h.category &&
+        catLower &&
+        h.category.toLowerCase().trim() === catLower
+      )
+        return true;
+      return false;
+    });
+
     if (fh !== undefined && fh.mandatory !== undefined) {
       return fh.mandatory;
     }
-    const lowerName = item.feeHeadName.toLowerCase();
+
     return (
-      lowerName.includes("tuition") ||
-      lowerName.includes("admission") ||
-      lowerName.includes("book") ||
-      lowerName.includes("textbook") ||
-      lowerName.includes("stationery") ||
-      lowerName.includes("material")
+      nameLower.includes("tuition") ||
+      nameLower.includes("admission") ||
+      nameLower.includes("book") ||
+      nameLower.includes("textbook") ||
+      nameLower.includes("stationery") ||
+      nameLower.includes("material") ||
+      nameLower.includes("exam") ||
+      catLower.includes("exam")
     );
   };
 
@@ -1144,7 +1420,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       ) ||
       dynamicFeeStructures.find((d) => d.className === clsName) ||
       dynamicFeeStructures[0];
-    const baseItems = dfs
+    const rawBaseItems = dfs
       ? dfs.items
       : [
           { feeHeadId: "FH-01", feeHeadName: "Tuition Fee", amount: 25000 },
@@ -1166,6 +1442,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           },
         ];
 
+    const baseItems = rawBaseItems.filter(
+      (item) =>
+        item.feeHeadName !== "Fee Head" &&
+        (feeHeads.length === 0 ||
+          feeHeads.some(
+            (h) =>
+              h.id === item.feeHeadId ||
+              h.name.toLowerCase() === item.feeHeadName.toLowerCase(),
+          )),
+    );
+
     let items: {
       name: string;
       amount: number;
@@ -1177,7 +1464,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       const isMandatory = isItemMandatory(i);
       const isSelected =
         isMandatory ||
-        (formData.selectedOptionalFees || []).includes(i.feeHeadId);
+        (formData.selectedOptionalFees || []).some(
+          (idOrName) =>
+            idOrName === i.feeHeadId ||
+            idOrName === i.feeHeadName ||
+            idOrName.replace("-0", "-") === i.feeHeadId.replace("-0", "-") ||
+            i.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-"),
+        );
       items.push({
         name: i.feeHeadName,
         amount: i.amount,
@@ -1209,7 +1502,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               c.status === "Active",
           ) || financeTransportConfigs[0];
 
-        const trpFee = (pObj && pObj.monthlyFee > 0) ? pObj.monthlyFee : (ftc ? ftc.feeAmount : 0);
+        const trpFee =
+          pObj && (pObj.monthlyFee ?? 0) > 0
+            ? (pObj.monthlyFee ?? 0)
+            : ftc
+              ? ftc.feeAmount
+              : 0;
         items.push({
           name: `Transport Fee (${rObj?.routeName || formData.busRoute})`,
           amount: trpFee,
@@ -1234,19 +1532,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       });
     } else {
       const isHostelSelected =
-        formData.hostelBlock && formData.hostelRoom && formData.hostelBed;
+        Boolean(formData.hostelBlock) ||
+        Boolean(selectedBlockObj) ||
+        Boolean(formData.hostelRoom || formData.hostelBed);
       if (isHostelSelected) {
         const hObj =
+          selectedBlockObj ||
           hostelMasters.find(
             (h) =>
               h.id === formData.hostelBlock ||
               h.hostelName === formData.hostelBlock ||
               h.id.toString() === formData.hostelBlock?.toString(),
-          ) || hostelMasters[0];
+          ) ||
+          hostelMasters[0];
         const fhc =
           financeHostelConfigs.find(
             (c) =>
-              (c.hostelId === hObj?.id || c.hostelName === hObj?.hostelName) &&
+              (c.hostelId === (hObj as any)?.rawId ||
+                c.hostelId === (hObj as any)?.id ||
+                c.hostelName === (hObj as any)?.name) &&
               c.status === "Active",
           ) || financeHostelConfigs[0];
 
@@ -1254,7 +1558,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         const secDep = fhc ? fhc.securityDeposit : 0;
 
         items.push({
-          name: `Hostel Fee (${hObj?.hostelName || "Hostel Accommodation"})`,
+          name: `Hostel Fee (${(hObj as any)?.hostelName || (hObj as any)?.name || "Hostel Accommodation"})`,
           amount: hstFee,
           isApplicable: true,
         });
@@ -1730,7 +2034,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           setFormData({
                             ...formData,
                             isLateAdmission: checked,
-                            feeCalculationMethod: formData.feeCalculationMethod || "Term-wise",
+                            feeCalculationMethod:
+                              formData.feeCalculationMethod || "Term-wise",
                           });
                           if (checked) {
                             setIsMidYearFeeModalOpen(true);
@@ -1738,7 +2043,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         }}
                         className="w-4 h-4 text-brand-600 rounded focus:ring-brand-500 cursor-pointer"
                       />
-                      <label htmlFor="isLateAdmissionCheckboxAdm" className="font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+                      <label
+                        htmlFor="isLateAdmissionCheckboxAdm"
+                        className="font-bold text-xs text-slate-700 dark:text-slate-300 cursor-pointer select-none"
+                      >
                         Late Admission
                       </label>
                     </div>
@@ -1797,8 +2105,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             type="radio"
                             name="popupMidYearMethod"
                             value="Monthly"
-                            checked={formData.feeCalculationMethod === "Monthly"}
-                            onChange={() => setFormData({ ...formData, feeCalculationMethod: "Monthly" })}
+                            checked={
+                              formData.feeCalculationMethod === "Monthly"
+                            }
+                            onChange={() =>
+                              setFormData({
+                                ...formData,
+                                feeCalculationMethod: "Monthly",
+                              })
+                            }
                             className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
                           <span className="font-extrabold text-xs">
@@ -1808,7 +2123,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                         <label
                           className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all cursor-pointer ${
-                            formData.feeCalculationMethod === "Term-wise" || !formData.feeCalculationMethod
+                            formData.feeCalculationMethod === "Term-wise" ||
+                            !formData.feeCalculationMethod
                               ? "bg-sky-50/70 dark:bg-sky-950/40 border-sky-500 text-slate-900 dark:text-white shadow-xs"
                               : "bg-slate-50/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-700 dark:text-slate-300"
                           }`}
@@ -1817,8 +2133,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             type="radio"
                             name="popupMidYearMethod"
                             value="Term-wise"
-                            checked={formData.feeCalculationMethod === "Term-wise" || !formData.feeCalculationMethod}
-                            onChange={() => setFormData({ ...formData, feeCalculationMethod: "Term-wise" })}
+                            checked={
+                              formData.feeCalculationMethod === "Term-wise" ||
+                              !formData.feeCalculationMethod
+                            }
+                            onChange={() =>
+                              setFormData({
+                                ...formData,
+                                feeCalculationMethod: "Term-wise",
+                              })
+                            }
                             className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           />
                           <span className="font-extrabold text-xs">
@@ -2125,7 +2449,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           type="number"
                           min={1}
                           value={siblingsCount === 0 ? "" : siblingsCount}
-                          onChange={(e) => handleSiblingsCountChange(e.target.value)}
+                          onChange={(e) =>
+                            handleSiblingsCountChange(e.target.value)
+                          }
                           onBlur={() => {
                             if (!siblingsCount || siblingsCount < 1) {
                               handleSiblingsCountChange("1");
@@ -2160,7 +2486,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                     type="radio"
                                     name={`siblingIsExisting_${idx}`}
                                     checked={entry.isExisting === true}
-                                    onChange={() => handleSiblingIsExistingChange(idx, true)}
+                                    onChange={() =>
+                                      handleSiblingIsExistingChange(idx, true)
+                                    }
                                     className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                                   />
                                   Yes
@@ -2170,7 +2498,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                     type="radio"
                                     name={`siblingIsExisting_${idx}`}
                                     checked={entry.isExisting === false}
-                                    onChange={() => handleSiblingIsExistingChange(idx, false)}
+                                    onChange={() =>
+                                      handleSiblingIsExistingChange(idx, false)
+                                    }
                                     className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                                   />
                                   No
@@ -2189,7 +2519,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                     type="button"
                                     onClick={() => {
                                       setActiveSiblingDropdownIdx(
-                                        activeSiblingDropdownIdx === idx ? null : idx
+                                        activeSiblingDropdownIdx === idx
+                                          ? null
+                                          : idx,
                                       );
                                       setSiblingSearchQuery("");
                                     }}
@@ -2207,7 +2539,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                     <>
                                       <div
                                         className="fixed inset-0 z-40"
-                                        onClick={() => setActiveSiblingDropdownIdx(null)}
+                                        onClick={() =>
+                                          setActiveSiblingDropdownIdx(null)
+                                        }
                                       />
                                       <div className="absolute z-50 w-full mt-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-2 space-y-2">
                                         <div className="relative">
@@ -2217,7 +2551,11 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                             autoFocus
                                             placeholder="Search student name or admission no..."
                                             value={siblingSearchQuery}
-                                            onChange={(e) => setSiblingSearchQuery(e.target.value)}
+                                            onChange={(e) =>
+                                              setSiblingSearchQuery(
+                                                e.target.value,
+                                              )
+                                            }
                                             className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-sky-500 font-medium"
                                           />
                                         </div>
@@ -2225,19 +2563,32 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                         <div className="max-h-48 overflow-y-auto space-y-1">
                                           {students
                                             .filter((s) => {
-                                              if (!siblingSearchQuery.trim()) return true;
-                                              const q = siblingSearchQuery.toLowerCase();
+                                              if (!siblingSearchQuery.trim())
+                                                return true;
+                                              const q =
+                                                siblingSearchQuery.toLowerCase();
                                               return (
-                                                `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-                                                (s.admissionNo && s.admissionNo.toLowerCase().includes(q))
+                                                `${s.firstName} ${s.lastName}`
+                                                  .toLowerCase()
+                                                  .includes(q) ||
+                                                (s.admissionNo &&
+                                                  s.admissionNo
+                                                    .toLowerCase()
+                                                    .includes(q))
                                               );
                                             })
                                             .map((s) => {
-                                              const isSelected = entry.studentId === s.id;
+                                              const isSelected =
+                                                entry.studentId === s.id;
                                               return (
                                                 <div
                                                   key={s.id}
-                                                  onClick={() => handleSelectExistingStudent(idx, s)}
+                                                  onClick={() =>
+                                                    handleSelectExistingStudent(
+                                                      idx,
+                                                      s,
+                                                    )
+                                                  }
                                                   className={`px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer rounded-lg text-xs font-bold flex items-center gap-2.5 transition-colors ${
                                                     isSelected
                                                       ? "bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300"
@@ -2253,10 +2604,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                                   />
                                                   <div className="flex-1 min-w-0">
                                                     <span className="truncate block font-bold">
-                                                      {s.firstName} {s.lastName} — {s.admissionNo || "ADM-N/A"}
+                                                      {s.firstName} {s.lastName}{" "}
+                                                      —{" "}
+                                                      {s.admissionNo ||
+                                                        "ADM-N/A"}
                                                     </span>
                                                     <span className="text-[10px] text-slate-400 font-normal">
-                                                      Class {s.className} {s.section ? `(${s.section})` : ""}
+                                                      Class {s.className}{" "}
+                                                      {s.section
+                                                        ? `(${s.section})`
+                                                        : ""}
                                                     </span>
                                                   </div>
                                                 </div>
@@ -2278,7 +2635,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                   type="text"
                                   placeholder="Enter sibling name"
                                   value={entry.name || ""}
-                                  onChange={(e) => handleSiblingNameChange(idx, e.target.value)}
+                                  onChange={(e) =>
+                                    handleSiblingNameChange(idx, e.target.value)
+                                  }
                                   className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
                                 />
                               </div>
@@ -2439,6 +2798,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 )}
 
                 {/* Conditional Rendering for Residential (Available Rooms & Beds Only) */}
+                {/* Conditional Rendering for Residential (Available Rooms & Beds Only) */}
                 {(formData.studentType === "Residential" ||
                   formData.studentType === "Hosteller") && (
                   <div className="p-4 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60 space-y-3 animate-in fade-in">
@@ -2450,6 +2810,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Hostel Block
                         </label>
+<<<<<<< HEAD
                         {(() => {
                           const blockMap = new Map<string, any>();
                           (hostelMasters || []).forEach(h => blockMap.set(String(h.id), { hostelId: String(h.id), hostelName: h.hostelName, hostelType: h.hostelType || 'Boys Hostel' }));
@@ -2476,11 +2837,46 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             />
                           );
                         })()}
+=======
+                        <div className="relative">
+                          <select
+                            value={
+                              selectedBlockObj
+                                ? selectedBlockObj.id
+                                : formData.hostelBlock || ""
+                            }
+                            onChange={(e) => {
+                              const selId = e.target.value;
+                              const blkObj = combinedHostelBlocks.find(
+                                (b) => b.id === selId,
+                              );
+                              setFormData({
+                                ...formData,
+                                hostelBlock: blkObj
+                                  ? blkObj.name || blkObj.id
+                                  : selId,
+                                hostelRoom: "",
+                                hostelBed: "",
+                              });
+                            }}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
+                          >
+                            <option value="">Select Hostel Block</option>
+                            {combinedHostelBlocks.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name} ({b.type})
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+>>>>>>> a018a1494730b73fb183f032763cc778931776af
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Room
                         </label>
+<<<<<<< HEAD
                         {(() => {
                           const roomMap = new Map<string, any>();
                           (roomMasters || []).forEach(r => roomMap.set(String(r.id), { roomId: String(r.id), hostelId: String(r.hostelId), roomNumber: r.roomNumber, bedCapacity: r.bedCapacity || r.capacity || 4, roomTypeSpecification: r.roomTypeSpecification }));
@@ -2565,11 +2961,45 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           }
                           return null;
                         })()}
+=======
+                        <div className="relative">
+                          <select
+                            value={
+                              selectedRoomObj
+                                ? selectedRoomObj.id
+                                : formData.hostelRoom || ""
+                            }
+                            onChange={(e) => {
+                              const selId = e.target.value;
+                              const rmObj = combinedHostelRooms.find(
+                                (r) => r.id === selId,
+                              );
+                              setFormData({
+                                ...formData,
+                                hostelRoom: rmObj
+                                  ? rmObj.roomNumber || rmObj.id
+                                  : selId,
+                                hostelBed: "",
+                              });
+                            }}
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none appearance-none cursor-pointer pr-10"
+                          >
+                            <option value="">Select Room</option>
+                            {availableRoomsForSelectedBlock.map((r) => (
+                              <option key={r.id} value={r.id}>
+                                Room #{r.roomNumber} ({r.specification})
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
+>>>>>>> a018a1494730b73fb183f032763cc778931776af
                       </div>
                       <div>
                         <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                           Bed
                         </label>
+<<<<<<< HEAD
                         {(() => {
                           const selRoom = dynamicHostelRooms.find(
                             (r) => r.roomId.toString() === formData.hostelRoom,
@@ -2588,6 +3018,41 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             { length: rCap },
                             (_, idx) => `BED-${idx + 1}`,
                           );
+=======
+                        <div className="relative">
+                          <select
+                            value={selectedBedValue}
+                            onChange={(e) =>
+                              setFormData({
+                                ...formData,
+                                hostelBed: e.target.value,
+                              })
+                            }
+                            className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none animate-in fade-in appearance-none cursor-pointer pr-10"
+                          >
+                            <option value="">Select Bed</option>
+                            {formData.hostelRoom &&
+                              (() => {
+                                const selRoom = dynamicHostelRooms.find(
+                                  (r) =>
+                                    r.roomId.toString() === formData.hostelRoom,
+                                );
+                                const rtObj = selRoom
+                                  ? dynamicRoomTypes.find(
+                                      (rt) =>
+                                        rt.roomTypeId === selRoom.roomTypeId,
+                                    )
+                                  : null;
+                                const rCap = rtObj
+                                  ? rtObj.bedCapacity
+                                  : selRoom
+                                    ? selRoom.bedCapacity || 2
+                                    : 2;
+                                const beds = Array.from(
+                                  { length: rCap },
+                                  (_, idx) => `BED-${idx + 1}`,
+                                );
+>>>>>>> a018a1494730b73fb183f032763cc778931776af
 
                           const bedOpts = beds.map((bed) => {
                             const activeAlloc = dynamicAllocations.find(
@@ -2648,9 +3113,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           value={formData.scholarshipId || ""}
                           onChange={(e) => {
                             const val = e.target.value;
-                            const selSch = scholarships.find((s) => s.id === val);
-                            if (selSch && isSiblingConcession(selSch.name) && !hasExistingEnrolledSibling) {
-                              addToast("warning", "Requirement Not Met", "Sibling Concession is only applicable when an existing enrolled sibling is selected.");
+                            const selSch = scholarships.find(
+                              (s) => s.id === val,
+                            );
+                            if (
+                              selSch &&
+                              isSiblingConcession(selSch.name) &&
+                              !hasExistingEnrolledSibling
+                            ) {
+                              addToast(
+                                "warning",
+                                "Requirement Not Met",
+                                "Sibling Concession is only applicable when an existing enrolled sibling is selected.",
+                              );
                               return;
                             }
                             setFormData({
@@ -2663,15 +3138,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <option value="">None</option>
                           {scholarships.map((s) => {
                             const isSib = isSiblingConcession(s.name);
-                            const isDisabled = isSib && !hasExistingEnrolledSibling;
+                            const isDisabled =
+                              isSib && !hasExistingEnrolledSibling;
                             return (
-                              <option key={s.id} value={s.id} disabled={isDisabled}>
+                              <option
+                                key={s.id}
+                                value={s.id}
+                                disabled={isDisabled}
+                              >
                                 {s.name} (
                                 {s.discountType === "Percentage"
                                   ? `${s.percentage}%`
                                   : formatCurrency(s.fixedAmount || 0)}
                                 )
-                                {isDisabled ? " — [Requires Existing Enrolled Sibling]" : ""}
+                                {isDisabled
+                                  ? " — [Requires Existing Enrolled Sibling]"
+                                  : ""}
                               </option>
                             );
                           })}
@@ -2689,8 +3171,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           onChange={(e) => {
                             const val = e.target.value;
                             const selDisc = discounts.find((d) => d.id === val);
-                            if (selDisc && isSiblingConcession(selDisc.name) && !hasExistingEnrolledSibling) {
-                              addToast("warning", "Requirement Not Met", "Sibling Concession is only applicable when an existing enrolled sibling is selected.");
+                            if (
+                              selDisc &&
+                              isSiblingConcession(selDisc.name) &&
+                              !hasExistingEnrolledSibling
+                            ) {
+                              addToast(
+                                "warning",
+                                "Requirement Not Met",
+                                "Sibling Concession is only applicable when an existing enrolled sibling is selected.",
+                              );
                               return;
                             }
                             setFormData({
@@ -2703,15 +3193,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           <option value="">None</option>
                           {discounts.map((d) => {
                             const isSib = isSiblingConcession(d.name);
-                            const isDisabled = isSib && !hasExistingEnrolledSibling;
+                            const isDisabled =
+                              isSib && !hasExistingEnrolledSibling;
                             return (
-                              <option key={d.id} value={d.id} disabled={isDisabled}>
+                              <option
+                                key={d.id}
+                                value={d.id}
+                                disabled={isDisabled}
+                              >
                                 {d.name} (
                                 {d.mode === "Percentage"
                                   ? `${d.value}%`
                                   : formatCurrency(d.value)}
                                 )
-                                {isDisabled ? " — [Requires Existing Enrolled Sibling]" : ""}
+                                {isDisabled
+                                  ? " — [Requires Existing Enrolled Sibling]"
+                                  : ""}
                               </option>
                             );
                           })}
@@ -2724,12 +3221,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                 {/* Optional Fee Head Selection */}
                 {(() => {
-                  const clsName = formData.appliedClass || (classOptions && classOptions[0]) || "Class 1";
+                  const clsName =
+                    formData.appliedClass ||
+                    (classOptions && classOptions[0]) ||
+                    "Class 1";
                   const dfs =
                     dynamicFeeStructures.find(
                       (d) => d.className === clsName && d.status === "Active",
                     ) || dynamicFeeStructures[0];
-                  const baseItems = dfs
+                  const rawBaseItems = dfs
                     ? dfs.items
                     : [
                         {
@@ -2759,6 +3259,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         },
                       ];
 
+                  const baseItems = rawBaseItems.filter(
+                    (item) =>
+                      item.feeHeadName !== "Fee Head" &&
+                      item.feeHeadName !== "Fee Head:" &&
+                      (feeHeads.length === 0 ||
+                        feeHeads.some(
+                          (h) =>
+                            h.id === item.feeHeadId ||
+                            h.name.toLowerCase().trim() ===
+                              item.feeHeadName.toLowerCase().trim(),
+                        )),
+                  );
+
                   const optionalItems = baseItems.filter(
                     (item) => !isItemMandatory(item),
                   );
@@ -2777,7 +3290,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         {optionalItems.map((item) => {
                           const isChecked = (
                             formData.selectedOptionalFees || []
-                          ).includes(item.feeHeadId);
+                          ).some(
+                            (idOrName) =>
+                              idOrName === item.feeHeadId ||
+                              idOrName === item.feeHeadName ||
+                              idOrName.replace("-0", "-") ===
+                                item.feeHeadId.replace("-0", "-") ||
+                              item.feeHeadId.replace("-0", "-") ===
+                                idOrName.replace("-0", "-"),
+                          );
                           return (
                             <label
                               key={item.feeHeadId}
@@ -2791,7 +3312,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                                     formData.selectedOptionalFees || [];
                                   const updated = isChecked
                                     ? currentSelected.filter(
-                                        (id) => id !== item.feeHeadId,
+                                        (idOrName) =>
+                                          idOrName !== item.feeHeadId &&
+                                          idOrName !== item.feeHeadName &&
+                                          idOrName.replace("-0", "-") !==
+                                            item.feeHeadId.replace("-0", "-") &&
+                                          item.feeHeadId.replace("-0", "-") !==
+                                            idOrName.replace("-0", "-"),
                                       )
                                     : [...currentSelected, item.feeHeadId];
                                   setFormData({
@@ -2891,7 +3418,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               </span>
                             </span>
                             <span className="font-black text-slate-900 dark:text-white">
-                              {item.amount > 0 ? formatCurrency(item.amount) : "N/A"}
+                              {item.amount > 0
+                                ? formatCurrency(item.amount)
+                                : "N/A"}
                             </span>
                           </div>
                         ))}
@@ -2969,7 +3498,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               className="px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
             >
               <option value="All">All Classes</option>
-              {Array.from(new Set((admissions || []).map((a) => a?.appliedClass || "")))
+              {Array.from(
+                new Set((admissions || []).map((a) => a?.appliedClass || "")),
+              )
                 .filter(Boolean)
                 .sort()
                 .map((c) => (

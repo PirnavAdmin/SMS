@@ -21,9 +21,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     students, staff, announcements, holidays, schoolEvents,
     schoolProfile, admissions, leaveApplications, attendance,
     academicClasses, departments, birthdays, exams,
-    fetchStudents, fetchStaff, fetchAdmissions, fetchAcademicClasses,
+    fetchStudents, fetchAdmissions, fetchAcademicClasses,
     totalStudentCount, todayStudentAttendanceSummary, fetchTodayStudentAttendanceSummary
   } = useData();
+  const fetchStaff = (useData() as any).fetchStaff || (async () => {});
 
   const [loading, setLoading] = useState(true);
 

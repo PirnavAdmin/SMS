@@ -11,6 +11,7 @@ import {
   Clock,
   Award,
   FileText,
+  FileCheck,
   Library,
   Bus,
   Home,
@@ -247,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           },
           {
             id: "finance-transactions",
-            label: "Transactions (Master Ledger)",
+            label: "Transactions",
             icon: FileSpreadsheet,
           },
           {
@@ -418,9 +419,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           icon: TrendingUp,
         },
         {
-          id: "transfer-certificates",
-          label: "Transfer Certificates",
-          icon: FileText,
+          id: "certificates",
+          label: "Certificates",
+          icon: FileCheck,
         },
         { id: "alumni", label: "Alumni", icon: Award },
       ],

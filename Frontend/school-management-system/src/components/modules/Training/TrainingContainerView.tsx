@@ -79,8 +79,8 @@ export const TrainingContainerView: React.FC = () => {
 
   const [wizardStep1, setWizardStep1] = useState({
     assessmentName: '',
-    assessmentType: 'Subject Knowledge Test' as AssessmentType,
-    category: 'Knowledge' as AssessmentCategory,
+    assessmentType: '' as any,
+    category: '' as any,
     description: '',
     totalMarks: 100,
     passingMarks: 40,
@@ -116,12 +116,12 @@ export const TrainingContainerView: React.FC = () => {
   const handleOpenCreateAssessmentModal = () => {
     setWizardStep1({
       assessmentName: '',
-      assessmentType: 'Subject Knowledge Test' as AssessmentType,
-      category: 'Knowledge' as AssessmentCategory,
+      assessmentType: '' as any,
+      category: '' as any,
       description: '',
       totalMarks: 100,
       passingMarks: 40,
-      gradingScheme: 'Letter Grade' as 'Letter Grade' | 'Percentage' | 'Pass/Fail',
+      gradingScheme: 'Letter Grade' as any,
       instructions: ''
     });
     setWizardStep2({
@@ -321,6 +321,14 @@ export const TrainingContainerView: React.FC = () => {
   const handleProceedToStep2 = () => {
     if (!wizardStep1.assessmentName.trim()) {
       addToast('warning', 'Validation Error', 'Assessment Name is mandatory.');
+      return;
+    }
+    if (!wizardStep1.assessmentType) {
+      addToast('warning', 'Validation Error', 'Please select Assessment Type.');
+      return;
+    }
+    if (!wizardStep1.category) {
+      addToast('warning', 'Validation Error', 'Please select Assessment Category.');
       return;
     }
     if (wizardStep1.totalMarks <= 0) {
@@ -1184,10 +1192,12 @@ export const TrainingContainerView: React.FC = () => {
                     <div>
                       <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Type *</label>
                       <select
+                        required
                         value={wizardStep1.assessmentType}
                         onChange={e => setWizardStep1({ ...wizardStep1, assessmentType: e.target.value as any })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
                       >
+                        <option value="">Select Assessment Type...</option>
                         <option value="Subject Knowledge Test">Subject Knowledge Test</option>
                         <option value="Teaching Competency">Teaching Competency</option>
                         <option value="Practical Demonstration">Practical Demonstration</option>
@@ -1206,10 +1216,12 @@ export const TrainingContainerView: React.FC = () => {
                     <div>
                       <label className="block font-bold text-slate-900 dark:text-white mb-1">Assessment Category *</label>
                       <select
+                        required
                         value={wizardStep1.category}
                         onChange={e => setWizardStep1({ ...wizardStep1, category: e.target.value as any })}
                         className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold text-xs cursor-pointer"
                       >
+                        <option value="">Select Assessment Category...</option>
                         <option value="Knowledge">Knowledge</option>
                         <option value="Practical">Practical</option>
                         <option value="Observation">Observation</option>

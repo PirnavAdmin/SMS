@@ -137,7 +137,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
     const ftc = financeTransportConfigs.find(
       c => c.routeId === rt.id && (c.pickupPointId === pk.id || c.pickupName === pk.pickupName) && c.feePlan === feePlan && c.status === 'Active'
     );
-    const fee = (pk && pk.monthlyFee > 0) ? pk.monthlyFee : (ftc ? ftc.feeAmount : 5000);
+    const fee = (pk && (pk.monthlyFee ?? 0) > 0) ? (pk.monthlyFee ?? 0) : (ftc ? ftc.feeAmount : 5000);
 
     assignStudentTransport({
       studentId: st.id,

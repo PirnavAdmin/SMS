@@ -16,7 +16,7 @@ import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
 import { AcademicHistoryView } from './components/modules/Students/AcademicHistoryView';
 import { StudentPromotionView } from './components/modules/Students/StudentPromotionView';
-import { TransferCertificatesView } from './components/modules/Students/TransferCertificatesView';
+import { CertificatesView } from './components/modules/Certificates/CertificatesView';
 import { AlumniView } from './components/modules/Students/AlumniView';
 import { StaffList } from './components/modules/Staff/StaffList';
 import { TeacherProfileView } from './components/modules/Staff/TeacherProfileView';
@@ -176,8 +176,13 @@ const MainLayout: React.FC = () => {
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <AcademicHistoryView />;
       case 'student-promotion':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <StudentPromotionView />;
+      case 'certificates':
       case 'transfer-certificates':
-        return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <TransferCertificatesView />;
+        return userRole === 'parent' || userRole === 'student' ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
+        ) : (
+          <CertificatesView onNavigateToSettings={() => setActiveModule('settings')} />
+        );
       case 'alumni':
         return userRole === 'parent' || userRole === 'student' ? <DashboardView onNavigate={(mod) => setActiveModule(mod)} /> : <AlumniView />;
       case 'teacher-profile':

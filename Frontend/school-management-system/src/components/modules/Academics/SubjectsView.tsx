@@ -119,8 +119,6 @@ export const SubjectsView: React.FC = () => {
         list.push({
           id: `static-${name.toLowerCase().replace(/\s+/g, '-')}`,
           designationName: name,
-          designationCode: name.slice(0, 4).toUpperCase(),
-          description: name + " Designation (Auto-detected)",
           employeeCategory: isTeaching ? 'Teaching' : 'Non-Teaching',
           status: 'Active'
         });
