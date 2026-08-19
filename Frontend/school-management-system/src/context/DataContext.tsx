@@ -5208,7 +5208,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       firstName: staffData.firstName,
       middleName: staffData.middleName || "",
       lastName: staffData.lastName,
-      email: staffData.email,
+      email: staffData.email?.trim() || null,
       phone: staffData.phone,
       gender: staffData.gender || "Male",
       designation: staffData.designation,
@@ -5227,6 +5227,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       branchName: staffData.bankDetails?.branch || "",
       ifscCode: staffData.bankDetails?.ifscCode || "",
       upiId: staffData.bankDetails?.upiId || "",
+      assignedClasses: staffData.assignedClasses || [],
+      assignedSubjects: staffData.assignedSubjects || [],
     })
       .then((response) => {
         if (response && response.success && response.data) {
@@ -5276,7 +5278,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           firstName: fullStaff.firstName,
           middleName: fullStaff.middleName || "",
           lastName: fullStaff.lastName,
-          email: fullStaff.email,
+          email: fullStaff.email?.trim() || null,
           phone: fullStaff.phone,
           gender: fullStaff.gender || "Male",
           designation: fullStaff.designation,
@@ -5295,6 +5297,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           branchName: fullStaff.bankDetails?.branch || "",
           ifscCode: fullStaff.bankDetails?.ifscCode || "",
           upiId: fullStaff.bankDetails?.upiId || "",
+          assignedClasses: fullStaff.assignedClasses || [],
+          assignedSubjects: fullStaff.assignedSubjects || [],
         }).catch((err) => {
           console.error("Failed to update staff in backend", err);
         });
@@ -5312,17 +5316,29 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     logActivity("Updated Staff Record", `Updated details for staff ID ${id}`);
   };
 
-  const deleteStaff = (id: string) => {
+  const deleteStaff = async (id: string) => {
     const numericId = parseInt(id, 10);
     if (!isNaN(numericId)) {
-      deleteStaffApi(numericId).catch((err) => {
+      try {
+        const response = await deleteStaffApi(numericId);
+        if (response && response.success) {
+          setStaff((prev) => prev.filter((s) => s.id !== id));
+          setTeacherAssignments((prev) => prev.filter((ta) => ta.teacherId !== id));
+          logActivity("Terminated Staff Record", `Removed staff ID ${id}`);
+          addToast("success", "Staff member deleted successfully.");
+        } else {
+          addToast("error", "Failed to delete staff", response.message || "An unknown error occurred.");
+        }
+      } catch (err: any) {
         console.error("Failed to delete staff in backend", err);
-      });
+        addToast("error", "Failed to delete staff", err.message || "An error occurred while deleting staff.");
+      }
+    } else {
+      // Local/mock staff deletion
+      setStaff((prev) => prev.filter((s) => s.id !== id));
+      setTeacherAssignments((prev) => prev.filter((ta) => ta.teacherId !== id));
+      addToast("success", "Local staff member removed.");
     }
-
-    setStaff((prev) => prev.filter((s) => s.id !== id));
-    setTeacherAssignments((prev) => prev.filter((ta) => ta.teacherId !== id));
-    logActivity("Terminated Staff Record", `Removed staff ID ${id}`);
   };
 
   const addStaffDocument = (
