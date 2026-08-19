@@ -1187,6 +1187,9 @@ namespace SMS.Api.Data
             {
                 entity.ToTable("students");
 
+                entity.Ignore("AcademicClassId");
+                entity.Ignore("SectionTempId");
+
                 entity.HasKey(x => x.StudentId);
 
                 entity.Property(x => x.StudentId)

@@ -34,7 +34,7 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim();
 
                 query = query.Where(x =>
-                    x.AdmissionNo.Contains(search) ||
+                    (x.AdmissionNo != null && x.AdmissionNo.Contains(search)) ||
                     (x.Route != null && x.Route.RouteName != null && x.Route.RouteName.Contains(search)) ||
                     (x.PickupPoint != null && x.PickupPoint.PickupPointName != null && x.PickupPoint.PickupPointName.Contains(search)) ||
                     (x.VehicleAssignment != null && x.VehicleAssignment.Vehicle != null && x.VehicleAssignment.Vehicle.VehicleNumber != null && x.VehicleAssignment.Vehicle.VehicleNumber.Contains(search)) ||
@@ -105,7 +105,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
-                    AdmissionNo = x.AdmissionNo,
+                    AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
                     RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
@@ -158,7 +158,7 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
-                    AdmissionNo = x.AdmissionNo,
+                    AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                     RouteId = x.RouteId,
                     RouteName = x.Route != null ? x.Route.RouteName : "Main Route",
@@ -303,7 +303,7 @@ namespace SMS.Api.Repositories.Implementations
                     {
                         StudentTransportAssignmentId = x.StudentTransportAssignmentId,
 
-                        AdmissionNo = x.AdmissionNo,
+                        AdmissionNo = x.AdmissionNo ?? string.Empty,
 
                         RouteId = x.RouteId,
                         RouteName = x.Route != null ? x.Route.RouteName : "Main Route",

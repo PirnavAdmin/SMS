@@ -11,17 +11,13 @@ import {
   initialVehicleMaintenances 
 } from '../services/mockData';
 
-// Testing Mode Helper: Safely try real API, fallback to local testing mock state if backend is offline/unreachable
+// Direct Backend API Dispatch Helper
 const safeTransportApiCall = async <T>(endpoint: string, options?: RequestInit, fallbackData?: any): Promise<T> => {
-  try {
-    const res = await apiClient(endpoint, options);
-    if (res !== undefined && res !== null && !(res as any)?.error) {
-      return (res as any)?.data !== undefined ? (res as any).data : res;
-    }
-  } catch (err) {
-    // API endpoint unreachable or error - using testing mock bypass
+  const res = await apiClient(endpoint, options);
+  if (res !== undefined && res !== null && !(res as any)?.error) {
+    return (res as any)?.data !== undefined ? (res as any).data : res;
   }
-  return fallbackData as T;
+  return (res ?? fallbackData) as T;
 };
 
 const fetchListWithLookupFallback = async <T>(
@@ -31,38 +27,30 @@ const fetchListWithLookupFallback = async <T>(
   detailEndpointPrefix: string,
   fallbackData: T
 ): Promise<T> => {
-  try {
-    const listRes = await apiClient(listEndpoint, { method: 'GET' });
-    let items = Array.isArray(listRes) ? listRes : (listRes?.items || listRes?.data || []);
-    if (items.length > 0) {
-      return (listRes?.data !== undefined ? listRes.data : listRes) as unknown as T;
-    }
-
-    // Fallback: list endpoint returned empty, try using lookup endpoint to fetch item IDs and fetch details
-    const lookups = await apiClient(lookupEndpoint, { method: 'GET' });
-    const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
-    
-    if (lookupList.length > 0) {
-      const detailsPromises = lookupList.map(async (lookup: any) => {
-        const id = lookup[idKey] || lookup.id || lookup.routeId || lookup.driverId || lookup.assignmentId;
-        if (!id) return null;
-        try {
-          return await apiClient(`${detailEndpointPrefix}/${id}`, { method: 'GET' });
-        } catch (e) {
-          console.warn(`Failed to fetch lookup detail for ${idKey} ${id}`, e);
-          return null;
-        }
-      });
-      const detailsResults = await Promise.all(detailsPromises);
-      const validDetails = detailsResults.filter(Boolean);
-      if (validDetails.length > 0) {
-        return validDetails as unknown as T;
-      }
-    }
-  } catch (err) {
-    console.error(`Error in fetchListWithLookupFallback for ${listEndpoint}`, err);
+  const listRes = await apiClient(listEndpoint, { method: 'GET' });
+  let items = Array.isArray(listRes) ? listRes : (listRes?.items || listRes?.data || []);
+  if (items.length > 0) {
+    return (listRes?.data !== undefined ? listRes.data : listRes) as unknown as T;
   }
-  return fallbackData;
+
+  // Fallback: list endpoint returned empty, try using lookup endpoint to fetch item IDs and fetch details
+  const lookups = await apiClient(lookupEndpoint, { method: 'GET' });
+  const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
+  
+  if (lookupList.length > 0) {
+    const detailsPromises = lookupList.map(async (lookup: any) => {
+      const id = lookup[idKey] || lookup.id || lookup.routeId || lookup.driverId || lookup.assignmentId;
+      if (!id) return null;
+      return await apiClient(`${detailEndpointPrefix}/${id}`, { method: 'GET' });
+    });
+    const detailsResults = await Promise.all(detailsPromises);
+    const validDetails = detailsResults.filter(Boolean);
+    if (validDetails.length > 0) {
+      return validDetails as unknown as T;
+    }
+  }
+
+  return (listRes ?? fallbackData) as unknown as T;
 };
 
 const getStoredMock = <T>(key: string, fallback: T): T => {

@@ -159,7 +159,7 @@ public class TeacherProfileRepository : ITeacherProfileRepository
                 classDict[ta.ClassId] = new TeacherClassAssignmentDto
                 {
                     ClassId = ta.ClassId,
-                    ClassName = ta.ClassGrade.ClassName,
+                    ClassName = ta.ClassGrade.ClassName ?? string.Empty,
                     Role = ta.Role ?? "Teacher"
                 };
             }
@@ -171,7 +171,7 @@ public class TeacherProfileRepository : ITeacherProfileRepository
                 classDict[tsa.ClassId] = new TeacherClassAssignmentDto
                 {
                     ClassId = tsa.ClassId,
-                    ClassName = tsa.ClassGrade.ClassName,
+                    ClassName = tsa.ClassGrade.ClassName ?? string.Empty,
                     Role = "Subject Teacher"
                 };
             }
@@ -226,7 +226,7 @@ public class TeacherProfileRepository : ITeacherProfileRepository
                     subjectDict[key] = new TeacherSubjectAssignmentDto
                     {
                         SubjectId = ta.Subject.SubjectId,
-                        SubjectName = ta.Subject.SubjectName,
+                        SubjectName = ta.Subject.SubjectName ?? string.Empty,
                         SubjectCode = ta.Subject.SubjectCode ?? "",
                         ClassName = ta.ClassGrade?.ClassName ?? ""
                     };

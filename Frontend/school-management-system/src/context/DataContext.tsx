@@ -335,6 +335,18 @@ import {
   updateMeetingApi,
   deleteMeetingApi,
 } from "../api/communication";
+import {
+  fetchWorkshopsApi,
+  createWorkshopApi,
+  updateWorkshopApi,
+  deleteWorkshopApi,
+  fetchAssessmentsApi,
+  createAssessmentApi,
+  updateAssessmentApi,
+  deleteAssessmentApi,
+  recordWorkshopAttendanceApi,
+  gradeAssessmentCandidateApi,
+} from "../api/facultyTraining";
 
 export interface AcademicClass {
   id: string;
@@ -12279,6 +12291,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     };
     setMeetings((prev) => [newMeeting, ...prev]);
 
+    scheduleMeetingApi({
+      meetingTitle: newMeeting.title,
+      meetingAudience: newMeeting.meetingAudience,
+      agenda: newMeeting.description,
+      meetingMode: newMeeting.mode,
+      building: newMeeting.venue,
+      meetingDate: newMeeting.date,
+      startTime: newMeeting.startTime,
+      endTime: newMeeting.endTime,
+      meetingStatus: newMeeting.status,
+    }).catch((e) => console.warn("API scheduleMeeting error:", e));
+
     if (newMeeting.status === "Scheduled") {
       const targets = newMeeting.participants.map((p) => p.name).join(", ");
       logActivity(
@@ -12299,6 +12323,22 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setMeetings((prev) =>
       prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateMeetingApi(numericId, {
+        meetingTitle: updates.title,
+        meetingAudience: updates.meetingAudience,
+        agenda: updates.description,
+        meetingMode: updates.mode,
+        building: updates.venue,
+        meetingDate: updates.date,
+        startTime: updates.startTime,
+        endTime: updates.endTime,
+        meetingStatus: updates.status,
+      }).catch((e) => console.warn("API updateMeeting error:", e));
+    }
+
     logActivity("Updated Meeting", `Updated details for meeting ID ${id}`);
   };
 
@@ -12310,6 +12350,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           : m,
       ),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateMeetingApi(numericId, { meetingStatus: "CANCELLED" }).catch((e) =>
+        console.warn("API cancelMeeting error:", e),
+      );
+    }
+
     logActivity(
       "Cancelled Meeting",
       `Cancelled meeting ID ${id}. Reason: ${reason}`,
@@ -12318,7 +12366,15 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   const deleteMeeting = (id: string) => {
     setMeetings((prev) => prev.filter((m) => m.id !== id));
-    logActivity("Deleted Meeting", `Removed meeting record ID ${id}`);
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      deleteMeetingApi(numericId).catch((e) =>
+        console.warn("API deleteMeeting error:", e),
+      );
+    }
+
+    logActivity("Deleted Meeting", `Permanently removed meeting ID ${id}`);
   };
 
   const addDepartment = (deptData: Omit<Department, "id">): Department => {
@@ -13395,18 +13451,44 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   // Holiday CRUD
   const addHoliday = (hData: Omit<Holiday, "id">) => {
     const id = "HOL-" + Math.floor(100 + Math.random() * 900);
-    setHolidays((prev) => [
-      ...prev,
-      { ...hData, id, branch: hData.branch || selectedBranch || "Main Campus" },
-    ]);
+    const newHoliday = { ...hData, id, branch: hData.branch || selectedBranch || "Main Campus" };
+    setHolidays((prev) => [...prev, newHoliday]);
+
+    createHolidayApi({
+      holidayName: hData.name,
+      holidayType: (hData.type || "Gazetted").toUpperCase(),
+      startDate: hData.startDate,
+      endDate: hData.endDate,
+      description: hData.description,
+    }).catch((e) => console.warn("API createHoliday error:", e));
   };
+
   const updateHoliday = (id: string, updates: Partial<Holiday>) => {
     setHolidays((prev) =>
       prev.map((h) => (h.id === id ? { ...h, ...updates } : h)),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateHolidayApi(numericId, {
+        holidayName: updates.name,
+        holidayType: updates.type ? updates.type.toUpperCase() : undefined,
+        startDate: updates.startDate,
+        endDate: updates.endDate,
+        description: updates.description,
+      }).catch((e) => console.warn("API updateHoliday error:", e));
+    }
   };
+
   const deleteHoliday = (id: string) => {
     setHolidays((prev) => prev.filter((h) => h.id !== id));
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      deleteHolidayApi(numericId).catch((e) =>
+        console.warn("API deleteHoliday error:", e),
+      );
+    }
   };
 
   // School Events CRUD
@@ -13420,6 +13502,19 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       updatedAt: new Date().toISOString().split("T")[0],
     };
     setSchoolEvents((prev) => [newEvent, ...prev]);
+
+    createSchoolEventApi({
+      title: newEvent.title,
+      category: newEvent.category,
+      venue: newEvent.venue,
+      startDate: newEvent.startDate,
+      endDate: newEvent.endDate,
+      time: newEvent.time,
+      organizer: newEvent.organizer,
+      description: newEvent.description,
+      status: newEvent.status,
+    }).catch((e) => console.warn("API createSchoolEvent error:", e));
+
     logActivity(
       "Created School Event",
       `Scheduled event ${newEvent.title} on ${newEvent.startDate}`,
@@ -13439,11 +13534,35 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           : e,
       ),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateSchoolEventApi(numericId, {
+        title: updates.title,
+        category: updates.category,
+        venue: updates.venue,
+        startDate: updates.startDate,
+        endDate: updates.endDate,
+        time: updates.time,
+        organizer: updates.organizer,
+        description: updates.description,
+        status: updates.status,
+      }).catch((e) => console.warn("API updateSchoolEvent error:", e));
+    }
+
     logActivity("Updated School Event", `Updated event ID ${id}`);
   };
 
   const deleteSchoolEvent = (id: string) => {
     setSchoolEvents((prev) => prev.filter((e) => e.id !== id));
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      deleteSchoolEventApi(numericId).catch((e) =>
+        console.warn("API deleteSchoolEvent error:", e),
+      );
+    }
+
     logActivity("Deleted School Event", `Removed event ID ${id}`);
   };
 
@@ -13460,6 +13579,21 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       createdAt: new Date().toISOString().split("T")[0],
     };
     setWorkshops((prev) => [newWorkshop, ...prev]);
+
+    createWorkshopApi({
+      title: newWorkshop.workshopName,
+      category: newWorkshop.category,
+      trainerName: newWorkshop.trainerName,
+      organization: newWorkshop.organization,
+      venue: newWorkshop.venue,
+      startDate: newWorkshop.startDate,
+      endDate: newWorkshop.endDate,
+      startTime: newWorkshop.startTime,
+      endTime: newWorkshop.endTime,
+      branch: newWorkshop.branch,
+      department: newWorkshop.department,
+      description: newWorkshop.description,
+    }).catch((e) => console.warn("API createWorkshop error:", e));
 
     // Automatically Sync to Academic Calendar
     addSchoolEvent({
@@ -13489,11 +13623,32 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setWorkshops((prev) =>
       prev.map((w) => (w.id === id ? { ...w, ...updates } : w)),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateWorkshopApi(numericId, {
+        title: updates.workshopName,
+        category: updates.category,
+        venue: updates.venue,
+        startDate: updates.startDate,
+        endDate: updates.endDate,
+        description: updates.description,
+      }).catch((e) => console.warn("API updateWorkshop error:", e));
+    }
+
     logActivity("Updated Workshop", `Updated workshop ID ${id}`);
   };
 
   const deleteWorkshop = (id: string) => {
     setWorkshops((prev) => prev.filter((w) => w.id !== id));
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      deleteWorkshopApi(numericId).catch((e) =>
+        console.warn("API deleteWorkshop error:", e),
+      );
+    }
+
     logActivity("Deleted Workshop", `Removed workshop ID ${id}`);
   };
 
@@ -13526,6 +13681,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         };
       }),
     );
+
+    const numericId = parseInt(workshopId.replace(/\D/g, ""), 10);
+    if (numericId) {
+      recordWorkshopAttendanceApi(numericId, {
+        attendances: attendanceList.map((a) => ({
+          staffId: parseInt(a.employeeId.replace(/\D/g, ""), 10) || 1,
+          status: a.status,
+        })),
+      }).catch((e) => console.warn("API recordWorkshopAttendance error:", e));
+    }
   };
 
   const submitWorkshopFeedback = (
@@ -13559,6 +13724,19 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     };
     setEmployeeAssessments((prev) => [newAssessment, ...prev]);
 
+    createAssessmentApi({
+      assessmentName: newAssessment.assessmentName,
+      assessmentType: newAssessment.assessmentType,
+      assessmentCategory: newAssessment.assessmentType || "Knowledge",
+      totalMarks: newAssessment.totalMarks || 100,
+      passingMarks: newAssessment.passingMarks || 40,
+      gradingScheme: "Letter Grade (A+, A, B, C, F)",
+      scheduledDate: newAssessment.date,
+      mainEvaluator: newAssessment.evaluatorName,
+      departmentFilter: newAssessment.department,
+      status: newAssessment.status,
+    }).catch((e) => console.warn("API createAssessment error:", e));
+
     // Automatically Sync to Academic Calendar
     addSchoolEvent({
       title: `[Assessment] ${newAssessment.assessmentName}`,
@@ -13590,11 +13768,32 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setEmployeeAssessments((prev) =>
       prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
     );
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateAssessmentApi(numericId, {
+        assessmentName: updates.assessmentName,
+        assessmentType: updates.assessmentType,
+        totalMarks: updates.totalMarks,
+        passingMarks: updates.passingMarks,
+        mainEvaluator: updates.evaluatorName,
+        status: updates.status,
+      }).catch((e) => console.warn("API updateAssessment error:", e));
+    }
+
     logActivity("Updated Assessment", `Updated assessment ID ${id}`);
   };
 
   const deleteAssessment = (id: string) => {
     setEmployeeAssessments((prev) => prev.filter((a) => a.id !== id));
+
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      deleteAssessmentApi(numericId).catch((e) =>
+        console.warn("API deleteAssessment error:", e),
+      );
+    }
+
     logActivity("Deleted Assessment", `Removed assessment ID ${id}`);
   };
 
@@ -13608,6 +13807,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         return { ...a, results, status: "Evaluated" };
       }),
     );
+
+    const numericAssessmentId = parseInt(assessmentId.replace(/\D/g, ""), 10);
+    if (numericAssessmentId) {
+      results.forEach((res) => {
+        const numericStaffId = parseInt(res.employeeId.replace(/\D/g, ""), 10) || 1;
+        gradeAssessmentCandidateApi(numericAssessmentId, {
+          staffId: numericStaffId,
+          score: res.score,
+          remarks: res.result,
+        }).catch((e) => console.warn("API gradeAssessmentCandidate error:", e));
+      });
+    }
 
     // Auto issue certificates for passing candidates
     const targetAssessment = employeeAssessments.find(

@@ -28,9 +28,9 @@ namespace SMS.Api.Repositories.Implementations
                 var search = filter.Search.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.DriverName.ToLower().Contains(search) ||
-                    x.MobileNumber.ToLower().Contains(search) ||
-                    x.LicenceNumber.ToLower().Contains(search));
+                    (x.DriverName != null && x.DriverName.ToLower().Contains(search)) ||
+                    (x.MobileNumber != null && x.MobileNumber.ToLower().Contains(search)) ||
+                    (x.LicenceNumber != null && x.LicenceNumber.ToLower().Contains(search)));
             }
 
             if (filter.Status.HasValue)
@@ -74,12 +74,12 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportDriverDto
                 {
                     DriverId = x.DriverId,
-                    DriverName = x.DriverName,
+                    DriverName = x.DriverName ?? string.Empty,
                     EmployeeId = !string.IsNullOrWhiteSpace(x.EmployeeId) ? x.EmployeeId : $"DRV-{x.DriverId}",
-                    MobileNumber = x.MobileNumber,
+                    MobileNumber = x.MobileNumber ?? string.Empty,
                     AlternateMobileNumber = x.AlternateMobileNumber,
                     Email = x.Email,
-                    LicenceNumber = x.LicenceNumber,
+                    LicenceNumber = x.LicenceNumber ?? string.Empty,
                     LicenceExpiry = x.LicenceExpiry,
                     Address = x.Address,
                     BloodGroup = x.BloodGroup,
@@ -112,12 +112,12 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportDriverDto
                 {
                     DriverId = x.DriverId,
-                    DriverName = x.DriverName,
+                    DriverName = x.DriverName ?? string.Empty,
                     EmployeeId = !string.IsNullOrWhiteSpace(x.EmployeeId) ? x.EmployeeId : $"DRV-{x.DriverId}",
-                    MobileNumber = x.MobileNumber,
+                    MobileNumber = x.MobileNumber ?? string.Empty,
                     AlternateMobileNumber = x.AlternateMobileNumber,
                     Email = x.Email,
-                    LicenceNumber = x.LicenceNumber,
+                    LicenceNumber = x.LicenceNumber ?? string.Empty,
                     LicenceExpiry = x.LicenceExpiry,
                     Address = x.Address,
                     BloodGroup = x.BloodGroup,
@@ -235,8 +235,8 @@ namespace SMS.Api.Repositories.Implementations
                 .AnyAsync(x =>
                     !x.IsDeleted &&
                     (
-                        x.LicenceNumber.ToLower() == licenceNumber ||
-                        x.MobileNumber.ToLower() == mobileNumber
+                        (x.LicenceNumber != null && x.LicenceNumber.ToLower() == licenceNumber) ||
+                        (x.MobileNumber != null && x.MobileNumber.ToLower() == mobileNumber)
                     ) &&
                     (!excludeDriverId.HasValue ||
                      x.DriverId != excludeDriverId.Value));
@@ -254,9 +254,9 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportDriverLookupDto
                 {
                     DriverId = x.DriverId,
-                    DriverName = x.DriverName,
-                    MobileNumber = x.MobileNumber,
-                    LicenceNumber = x.LicenceNumber
+                    DriverName = x.DriverName ?? string.Empty,
+                    MobileNumber = x.MobileNumber ?? string.Empty,
+                    LicenceNumber = x.LicenceNumber ?? string.Empty
                 })
                 .ToListAsync();
         }

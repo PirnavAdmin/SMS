@@ -64,7 +64,7 @@ namespace SMS.Api.Repositories.Implementations
                     AssignmentId = x.AssignmentId,
 
                     RouteId = x.RouteId,
-                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
+                    RouteName = x.Route != null && x.Route.RouteName != null ? x.Route.RouteName : string.Empty,
 
                     VehicleId = x.VehicleId,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
@@ -72,8 +72,8 @@ namespace SMS.Api.Repositories.Implementations
                     VehicleCapacity = x.Vehicle != null && x.Vehicle.Capacity > 0 ? x.Vehicle.Capacity : 50,
 
                     DriverId = x.DriverId,
-                    DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty,
-                    DriverMobile = x.Driver != null ? x.Driver.MobileNumber : string.Empty,
+                    DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty,
+                    DriverMobile = x.Driver != null && x.Driver.MobileNumber != null ? x.Driver.MobileNumber : string.Empty,
 
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
@@ -358,9 +358,9 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportVehicleAssignmentLookupDto
                 {
                     AssignmentId = x.AssignmentId,
-                    RouteName = x.Route != null ? x.Route.RouteName : string.Empty,
+                    RouteName = x.Route != null && x.Route.RouteName != null ? x.Route.RouteName : string.Empty,
                     VehicleNumber = x.Vehicle != null && x.Vehicle.VehicleNumber != null ? x.Vehicle.VehicleNumber : string.Empty,
-                    DriverName = x.Driver != null ? x.Driver.DriverName : string.Empty
+                    DriverName = x.Driver != null && x.Driver.DriverName != null ? x.Driver.DriverName : string.Empty
                 })
                 .ToListAsync();
         }

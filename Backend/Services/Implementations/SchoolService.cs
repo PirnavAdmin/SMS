@@ -715,8 +715,8 @@ public class SchoolService : ISchoolService
 			else
 			{
 				var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => 
-					c.ClassName == dto.AppliedClass || 
-					c.ClassName.ToLower() == dto.AppliedClass.ToLower());
+					c.ClassName != null && (c.ClassName == dto.AppliedClass || 
+					c.ClassName.ToLower() == dto.AppliedClass.ToLower()));
 				if (matchedClass != null)
 				{
 					targetClassId = matchedClass.ClassId;
@@ -847,8 +847,8 @@ public class SchoolService : ISchoolService
 			else
 			{
 				var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => 
-					c.ClassName == dto.AppliedClass || 
-					c.ClassName.ToLower() == dto.AppliedClass.ToLower());
+					c.ClassName != null && (c.ClassName == dto.AppliedClass || 
+					c.ClassName.ToLower() == dto.AppliedClass.ToLower()));
 				if (matchedClass != null)
 				{
 					targetClassId = matchedClass.ClassId;
@@ -1031,7 +1031,7 @@ public class SchoolService : ISchoolService
 
 							if (existingStudent != null)
 							{
-								existingStudent.StudentName = admission.StudentName;
+								existingStudent.StudentName = admission.StudentName ?? string.Empty;
 								existingStudent.DateOfBirth = admission.Dob;
 								existingStudent.Gender = admission.Gender;
 								existingStudent.FatherName = admission.FatherName;
@@ -1049,7 +1049,7 @@ public class SchoolService : ISchoolService
 								{
 									AdmissionNumber = admission.ApplicationNo ?? $"ADM-{admission.AdmissionId}",
 									RollNumber = admission.RollNo ?? $"R-{admission.AdmissionId}",
-									StudentName = admission.StudentName,
+									StudentName = admission.StudentName ?? string.Empty,
 									DateOfBirth = admission.Dob,
 									Gender = admission.Gender,
 									FatherName = admission.FatherName,

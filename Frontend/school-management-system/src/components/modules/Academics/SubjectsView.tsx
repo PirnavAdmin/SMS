@@ -24,7 +24,7 @@ export const SubjectsView: React.FC = () => {
   } = useData();
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'subjects' | 'departments' | 'designations'>('subjects');
+  const [activeTab, setActiveTab] = useState<'subjects' | 'departments' | 'designations'>('departments');
 
   // Subjects & Departments State
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
@@ -631,17 +631,6 @@ export const SubjectsView: React.FC = () => {
         {/* Sub-Navigation Tabs */}
         <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl">
           <button
-            onClick={() => setActiveTab('subjects')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-              activeTab === 'subjects'
-                ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-xs'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            Subjects ({subjects.length})
-          </button>
-          <button
             onClick={() => setActiveTab('departments')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
               activeTab === 'departments'
@@ -651,6 +640,18 @@ export const SubjectsView: React.FC = () => {
           >
             <Building2 className="w-3.5 h-3.5" />
             Departments ({departments.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab('subjects')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeTab === 'subjects'
+                ? 'bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-xs'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            Subjects ({subjects.length})
           </button>
 
           <button

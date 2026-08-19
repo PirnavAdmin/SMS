@@ -18,7 +18,4 @@ public class Section
     public int? ClassTeacherId { get; set; }
 
     public Staff? ClassTeacher { get; set; }
-
-    public ICollection<Student> Students { get; set; }
-        = new List<Student>();
 }

@@ -4,8 +4,7 @@ import { useToast } from '../../../context/ToastContext';
 import { getHostelBlocks, getRoomTypes } from '../../../api/hostel';
 import { FinanceHostelConfig } from '../../../types';
 import { formatCurrency } from '../../../utils/currency';
-import { ConfirmModal } from '../../common/ConfirmModal';
-import { Building2, Plus, Search, Edit2, Trash2, Bed, Check, Sparkles, Filter, ChevronDown, Home, CheckCircle2, XCircle } from 'lucide-react';
+import { Building2, Plus, Search, Edit, Edit2, Trash2, Bed, Check, Sparkles, Filter, ChevronDown, Home, CheckCircle2, XCircle } from 'lucide-react';
 
 interface ComboboxOption {
   value: string;
@@ -383,7 +382,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-right space-x-1">
                         <button onClick={() => handleOpenEdit(c)} className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors">
-                          <Edit2 className="w-4 h-4" />
+                          <Edit className="w-4 h-4" />
                         </button>
                         <button onClick={() => setDeletingConfig(c)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors">
                           <Trash2 className="w-4 h-4" />

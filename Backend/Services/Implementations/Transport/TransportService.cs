@@ -220,9 +220,9 @@ public class TransportService : ITransportService
     private static TransportDriverDto MapToDriverDto(TransportDriver d) => new()
     {
         DriverId = d.DriverId,
-        DriverName = d.DriverName,
-        LicenseNumber = d.LicenceNumber,
-        Phone = d.MobileNumber,
+        DriverName = d.DriverName ?? string.Empty,
+        LicenseNumber = d.LicenceNumber ?? string.Empty,
+        Phone = d.MobileNumber ?? string.Empty,
         Status = d.Status ? "Active" : "Inactive",
         AssignedVehicleId = d.AssignedVehicleId,
         AssignedVehicleNumber = d.AssignedVehicle?.VehicleNumber

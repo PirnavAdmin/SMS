@@ -1,15 +1,11 @@
 import { apiClient } from './client';
 
 const hostelApiClient = async (endpoint: string, options?: RequestInit) => {
-  try {
-    const res = await apiClient(endpoint, options);
-    if (res && typeof res === 'object' && 'data' in res) {
-      return res.data;
-    }
-    return res;
-  } catch (err) {
-    return null;
+  const res = await apiClient(endpoint, options);
+  if (res && typeof res === 'object' && 'data' in res) {
+    return res.data;
   }
+  return res;
 };
 
 export interface HostelBlock {

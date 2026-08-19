@@ -40,7 +40,55 @@ export const deleteBookApi = async (id: number | string) => {
 };
 
 // ============================
-// BOOK ISSUE / RETURN API
+// CATEGORIES, AUTHORS & RACKS API
+// ============================
+
+export const fetchCategoriesApi = async () => {
+  return apiClient('/api/library/categories', { method: 'GET' });
+};
+
+export const createCategoryApi = async (payload: any) => {
+  return apiClient('/api/library/categories', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchAuthorsApi = async () => {
+  return apiClient('/api/library/authors', { method: 'GET' });
+};
+
+export const createAuthorApi = async (payload: any) => {
+  return apiClient('/api/library/authors', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchRacksApi = async () => {
+  return apiClient('/api/library/racks', { method: 'GET' });
+};
+
+export const createRackApi = async (payload: any) => {
+  return apiClient('/api/library/racks', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchMembersApi = async () => {
+  return apiClient('/api/library/members', { method: 'GET' });
+};
+
+export const createMemberApi = async (payload: any) => {
+  return apiClient('/api/library/members', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+// ============================
+// BOOK ISSUE, RETURN & RENEWAL API
 // ============================
 
 export const fetchIssuedBooksApi = async (search?: string, status?: string, page = 1, pageSize = 50) => {
@@ -53,9 +101,9 @@ export const fetchIssuedBooksApi = async (search?: string, status?: string, page
 };
 
 export const issueBookApi = async (payload: {
-  bookId: number;
-  memberId: number;
-  memberType: string;
+  bookId: number | string;
+  memberId: number | string;
+  memberType?: string;
   issueDate: string;
   dueDate: string;
   remarks?: string;
@@ -70,4 +118,69 @@ export const returnBookApi = async (issueId: number | string) => {
   return apiClient(`/api/library/issued-books/${issueId}/return`, {
     method: 'POST'
   });
+};
+
+export const renewBookApi = async (issueId: number | string, extensionDays = 14) => {
+  return apiClient(`/api/library/issued-books/${issueId}/renew`, {
+    method: 'POST',
+    body: JSON.stringify({ extensionDays })
+  });
+};
+
+// ============================
+// RESERVATIONS & FINES API
+// ============================
+
+export const fetchReservationsApi = async () => {
+  return apiClient('/api/library/reservations', { method: 'GET' });
+};
+
+export const createReservationApi = async (payload: any) => {
+  return apiClient('/api/library/reservations', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fulfillReservationApi = async (id: number | string) => {
+  return apiClient(`/api/library/reservations/${id}/fulfill`, {
+    method: 'POST'
+  });
+};
+
+export const fetchFinesApi = async () => {
+  return apiClient('/api/library/fines', { method: 'GET' });
+};
+
+export const collectFineApi = async (fineId: number | string, payload?: any) => {
+  return apiClient(`/api/library/fines/${fineId}/collect`, {
+    method: 'POST',
+    body: JSON.stringify(payload || {})
+  });
+};
+
+export const fetchLostDamagedApi = async () => {
+  return apiClient('/api/library/lost-damaged', { method: 'GET' });
+};
+
+export const createLostDamagedApi = async (payload: any) => {
+  return apiClient('/api/library/lost-damaged', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchRulesApi = async () => {
+  return apiClient('/api/library/rules', { method: 'GET' });
+};
+
+export const updateRulesApi = async (payload: any) => {
+  return apiClient('/api/library/rules', {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const fetchLibraryReportsApi = async (reportType: string) => {
+  return apiClient(`/api/library/reports?type=${reportType}`, { method: 'GET' });
 };
