@@ -4,6 +4,7 @@
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<UseAppHost>false</UseAppHost>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -51,5 +52,9 @@
 						  Version="4.0.3" />
 
 	</ItemGroup>
+
+	<Target Name="UnblockGeneratedAssemblies" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">
+		<Exec Command="powershell -NoProfile -Command &quot;Get-ChildItem -Path '$(TargetDir)' -Recurse | Unblock-File -ErrorAction SilentlyContinue&quot;" ContinueOnError="true" />
+	</Target>
 
 </Project>

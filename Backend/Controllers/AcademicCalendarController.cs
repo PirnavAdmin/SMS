@@ -25,7 +25,6 @@ public class AcademicCalendarController : ControllerBase
     }
 
     [HttpGet("dashboard")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetDashboardSummary()
     {
         int eventsCount = await _context.SchoolEvents.CountAsync();
@@ -33,9 +32,9 @@ public class AcademicCalendarController : ControllerBase
 
         var summary = new CalendarDashboardSummaryDto
         {
-            TotalAcademicEvents = 28,
-            GazettedSchoolHolidays = Math.Max(1, holidaysCount),
-            PublishedSchoolEvents = Math.Max(5, eventsCount),
+            TotalAcademicEvents = eventsCount + holidaysCount,
+            GazettedSchoolHolidays = holidaysCount,
+            PublishedSchoolEvents = eventsCount,
             BirthdayRadarCount = 1
         };
 
@@ -43,77 +42,20 @@ public class AcademicCalendarController : ControllerBase
     }
 
     [HttpGet("events")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetAllEvents([FromQuery] string? category, [FromQuery] string? search)
     {
         var query = _context.SchoolEvents.AsNoTracking().AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))
-            query = query.Where(e => e.Category.ToLower() == category.ToLower());
+        if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase) && !category.Equals("All", StringComparison.OrdinalIgnoreCase))
+            query = query.Where(e => e.Category != null && e.Category.ToLower() == category.ToLower());
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(e => e.Title.Contains(search) || (e.Description != null && e.Description.Contains(search)));
+        {
+            string s = search.ToLower().Trim();
+            query = query.Where(e => e.Title.ToLower().Contains(s) || (e.Description != null && e.Description.ToLower().Contains(s)));
+        }
 
         var list = await query.OrderBy(e => e.StartDate).ToListAsync();
-
-        if (!list.Any())
-        {
-            // Seed list matching Academic Calendar events grid
-            var seedList = new List<SchoolEventDto>
-            {
-                new SchoolEventDto
-                {
-                    EventId = 1,
-                    Title = "Annual Sports Day & Athletic Meet 2026",
-                    Category = "SPORTS DAY",
-                    Venue = "Main Campus Stadium Ground",
-                    StartDate = "2026-08-15",
-                    EndDate = "2026-08-15",
-                    Time = "08:30 AM",
-                    Organizer = "Physical Education Dept",
-                    Description = "Grand Annual Sports Day featuring track & field competitions.",
-                    Status = "Published",
-                    ApplicableBranch = "Main Campus"
-                },
-                new SchoolEventDto
-                {
-                    EventId = 2,
-                    Title = "Inter-School Science & Tech Exhibition",
-                    Category = "SCIENCE EXHIBITION",
-                    Venue = "Science Block Exhibition Hall",
-                    StartDate = "2026-08-20",
-                    EndDate = "2026-08-21",
-                    Time = "09:00 AM",
-                    Organizer = "Science Faculty Council",
-                    Description = "Annual science exhibition showcasing student STEM projects.",
-                    Status = "Published",
-                    ApplicableBranch = "Main Campus"
-                },
-                new SchoolEventDto
-                {
-                    EventId = 3,
-                    Title = "Parent-Teacher Interactive Conference",
-                    Category = "PARENT TEACHER MEETING",
-                    Venue = "Primary & Secondary Classrooms",
-                    StartDate = "2026-08-28",
-                    EndDate = "2026-08-28",
-                    Time = "10:00 AM",
-                    Organizer = "School Administration",
-                    Description = "Quarterly academic review meeting with parents.",
-                    Status = "Published",
-                    ApplicableBranch = "Main Campus"
-                }
-            };
-
-            var filtered = seedList.AsQueryable();
-            if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))
-                filtered = filtered.Where(e => e.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
-
-            if (!string.IsNullOrWhiteSpace(search))
-                filtered = filtered.Where(e => e.Title.ToLower().Contains(search.ToLower()) || (e.Description != null && e.Description.ToLower().Contains(search.ToLower())));
-
-            return Ok(new { success = true, data = filtered.ToList() });
-        }
 
         var result = list.Select(e => new SchoolEventDto
         {
@@ -133,64 +75,46 @@ public class AcademicCalendarController : ControllerBase
         return Ok(new { success = true, data = result });
     }
 
-    [HttpGet("events/{id}")]
-    [AllowAnonymous]
+    [HttpGet("events/{id:int}")]
     public async Task<IActionResult> GetEventById(int id)
     {
-        try
-        {
-            var e = await _context.SchoolEvents.FindAsync(id);
-            if (e != null)
-            {
-                var dto = new SchoolEventDto
-                {
-                    EventId = e.EventId,
-                    Title = e.Title,
-                    Category = e.Category,
-                    Venue = e.Venue,
-                    StartDate = e.StartDate.ToString("yyyy-MM-dd"),
-                    EndDate = e.EndDate.ToString("yyyy-MM-dd"),
-                    Time = e.Time,
-                    Organizer = e.Organizer,
-                    Description = e.Description,
-                    Status = e.Status,
-                    ApplicableBranch = e.ApplicableBranch
-                };
-                return Ok(new { success = true, data = dto });
-            }
-        }
-        catch { }
+        var e = await _context.SchoolEvents.FindAsync(id);
+        if (e == null) return NotFound(new { success = false, message = "Academic event not found." });
 
-        var sample = new SchoolEventDto
+        var dto = new SchoolEventDto
         {
-            EventId = id,
-            Title = "Annual Sports Day & Athletic Meet 2026",
-            Category = "SPORTS DAY",
-            Venue = "Main Campus Stadium Ground",
-            StartDate = "2026-08-15",
-            EndDate = "2026-08-15",
-            Time = "08:30 AM",
-            Organizer = "Physical Education Dept",
-            Description = "Grand Annual Sports Day featuring track & field competitions.",
-            Status = "Published",
-            ApplicableBranch = "Main Campus"
+            EventId = e.EventId,
+            Title = e.Title,
+            Category = e.Category,
+            Venue = e.Venue,
+            StartDate = e.StartDate.ToString("yyyy-MM-dd"),
+            EndDate = e.EndDate.ToString("yyyy-MM-dd"),
+            Time = e.Time,
+            Organizer = e.Organizer,
+            Description = e.Description,
+            Status = e.Status,
+            ApplicableBranch = e.ApplicableBranch
         };
 
-        return Ok(new { success = true, data = sample });
+        return Ok(new { success = true, data = dto });
     }
 
     [HttpPost("events")]
-    [AllowAnonymous]
     public async Task<IActionResult> CreateEvent([FromBody] SchoolEventDto dto)
     {
+        if (string.IsNullOrWhiteSpace(dto.Title) && string.IsNullOrWhiteSpace(dto.EventName))
+        {
+            return BadRequest(new { success = false, message = "Event title is mandatory." });
+        }
+
         DateTime sDate = DateTime.TryParse(dto.StartDate, out var s) ? s : DateTime.UtcNow;
         DateTime eDate = DateTime.TryParse(dto.EndDate, out var e) ? e : sDate;
 
         var entity = new SchoolEvent
         {
-            Title = !string.IsNullOrWhiteSpace(dto.Title) ? dto.Title.Trim() : (dto.EventName ?? "New Academic Event"),
+            Title = !string.IsNullOrWhiteSpace(dto.Title) ? dto.Title.Trim() : dto.EventName!.Trim(),
             Category = !string.IsNullOrWhiteSpace(dto.Category) ? dto.Category.Trim() : "Sports Day",
-            Venue = !string.IsNullOrWhiteSpace(dto.Venue) ? dto.Venue.Trim() : "Main Campus Stadium Ground",
+            Venue = !string.IsNullOrWhiteSpace(dto.Venue) ? dto.Venue.Trim() : "Main Auditorium",
             StartDate = sDate,
             EndDate = eDate,
             Time = !string.IsNullOrWhiteSpace(dto.Time) ? dto.Time.Trim() : "08:30 AM",
@@ -200,68 +124,49 @@ public class AcademicCalendarController : ControllerBase
             ApplicableBranch = !string.IsNullOrWhiteSpace(dto.ApplicableBranch) ? dto.ApplicableBranch.Trim() : "Main Campus"
         };
 
-        try
-        {
-            await _context.SchoolEvents.AddAsync(entity);
-            await _context.SaveChangesAsync();
-        }
-        catch { }
+        await _context.SchoolEvents.AddAsync(entity);
+        await _context.SaveChangesAsync();
 
         dto.EventId = entity.EventId;
         return Ok(new { success = true, message = "Academic event created successfully.", data = dto });
     }
 
-    [HttpPut("events/{id}")]
-    [AllowAnonymous]
+    [HttpPut("events/{id:int}")]
     public async Task<IActionResult> UpdateEvent(int id, [FromBody] SchoolEventDto dto)
     {
-        try
-        {
-            var entity = await _context.SchoolEvents.FindAsync(id);
-            if (entity != null)
-            {
-                if (!string.IsNullOrWhiteSpace(dto.Title)) entity.Title = dto.Title.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Category)) entity.Category = dto.Category.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Venue)) entity.Venue = dto.Venue.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Time)) entity.Time = dto.Time.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Organizer)) entity.Organizer = dto.Organizer.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Description)) entity.Description = dto.Description.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Status)) entity.Status = dto.Status.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.ApplicableBranch)) entity.ApplicableBranch = dto.ApplicableBranch.Trim();
-                if (DateTime.TryParse(dto.StartDate, out var s)) entity.StartDate = s;
-                if (DateTime.TryParse(dto.EndDate, out var e)) entity.EndDate = e;
+        var entity = await _context.SchoolEvents.FindAsync(id);
+        if (entity == null) return NotFound(new { success = false, message = "Academic event not found." });
 
-                await _context.SaveChangesAsync();
-                dto.EventId = entity.EventId;
-                return Ok(new { success = true, message = "Academic event updated successfully.", data = dto });
-            }
-        }
-        catch { }
+        if (!string.IsNullOrWhiteSpace(dto.Title)) entity.Title = dto.Title.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Category)) entity.Category = dto.Category.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Venue)) entity.Venue = dto.Venue.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Time)) entity.Time = dto.Time.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Organizer)) entity.Organizer = dto.Organizer.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Description)) entity.Description = dto.Description.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Status)) entity.Status = dto.Status.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.ApplicableBranch)) entity.ApplicableBranch = dto.ApplicableBranch.Trim();
+        if (DateTime.TryParse(dto.StartDate, out var s)) entity.StartDate = s;
+        if (DateTime.TryParse(dto.EndDate, out var e)) entity.EndDate = e;
 
-        dto.EventId = id;
-        return Ok(new { success = true, message = "Academic event updated successfully.", data = dto });
+        await _context.SaveChangesAsync();
+        dto.EventId = entity.EventId;
+        return Ok(new { success = true, message = "Academic event updated successfully in database.", data = dto });
     }
 
-    [HttpDelete("events/{id}")]
-    [AllowAnonymous]
+    [HttpDelete("events/{id:int}")]
     public async Task<IActionResult> DeleteEvent(int id)
     {
-        try
+        var entity = await _context.SchoolEvents.FindAsync(id);
+        if (entity != null)
         {
-            var entity = await _context.SchoolEvents.FindAsync(id);
-            if (entity != null)
-            {
-                _context.SchoolEvents.Remove(entity);
-                await _context.SaveChangesAsync();
-            }
+            _context.SchoolEvents.Remove(entity);
+            await _context.SaveChangesAsync();
         }
-        catch { }
 
-        return Ok(new { success = true, message = "Academic event deleted successfully." });
+        return Ok(new { success = true, message = "Academic event deleted successfully from database." });
     }
 
     [HttpGet("birthdays")]
-    [AllowAnonymous]
     public IActionResult GetBirthdayRadar()
     {
         var list = new List<BirthdayRadarDto>
