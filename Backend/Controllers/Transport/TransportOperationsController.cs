@@ -191,7 +191,7 @@ namespace SMS.Api.Controllers.Transport
                         stops = pickupPoints.Select(p => new RouteStopDto
                         {
                             StopId = p.PickupPointId,
-                            StopName = p.PickupPointName,
+                            StopName = p.PickupPointName ?? string.Empty,
                             DistanceKm = p.DistanceFromStart,
                             ScheduledTime = p.PickupTime != default ? DateTime.Today.Add(p.PickupTime).ToString("hh:mm tt") : "07:30 AM"
                         }).ToList();

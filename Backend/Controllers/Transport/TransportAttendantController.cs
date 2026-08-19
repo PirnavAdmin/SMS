@@ -26,7 +26,7 @@ namespace SMS.Api.Controllers
                 var result = await _service.GetAllAsync(filter);
                 return Ok(result);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Ok(new SMS.Api.Common.PagedResult<TransportAttendantDto>
                 {

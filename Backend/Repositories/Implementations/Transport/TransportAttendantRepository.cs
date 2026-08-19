@@ -27,8 +27,8 @@ namespace SMS.Api.Repositories.Implementations
             {
                 var search = filter.Search.Trim().ToLower();
                 query = query.Where(x =>
-                    x.AttendantName.ToLower().Contains(search) ||
-                    x.MobileNumber.ToLower().Contains(search) ||
+                    (x.AttendantName != null && x.AttendantName.ToLower().Contains(search)) ||
+                    (x.MobileNumber != null && x.MobileNumber.ToLower().Contains(search)) ||
                     (x.Address != null && x.Address.ToLower().Contains(search)));
             }
 
@@ -47,8 +47,8 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     AttendantId = x.AttendantId,
                     EmployeeId = x.EmployeeId,
-                    AttendantName = x.AttendantName,
-                    MobileNumber = x.MobileNumber,
+                    AttendantName = x.AttendantName ?? string.Empty,
+                    MobileNumber = x.MobileNumber ?? string.Empty,
                     Gender = x.Gender,
                     BranchName = x.BranchName,
                     AlternateMobileNumber = x.AlternateMobileNumber,
@@ -82,8 +82,8 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     AttendantId = x.AttendantId,
                     EmployeeId = x.EmployeeId,
-                    AttendantName = x.AttendantName,
-                    MobileNumber = x.MobileNumber,
+                    AttendantName = x.AttendantName ?? string.Empty,
+                    MobileNumber = x.MobileNumber ?? string.Empty,
                     Gender = x.Gender,
                     BranchName = x.BranchName,
                     AlternateMobileNumber = x.AlternateMobileNumber,
@@ -177,8 +177,8 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new TransportAttendantLookupDto
                 {
                     AttendantId = x.AttendantId,
-                    AttendantName = x.AttendantName,
-                    MobileNumber = x.MobileNumber,
+                    AttendantName = x.AttendantName ?? string.Empty,
+                    MobileNumber = x.MobileNumber ?? string.Empty,
                     DisplayName = $"{x.AttendantName} ({x.MobileNumber})"
                 })
                 .ToListAsync();

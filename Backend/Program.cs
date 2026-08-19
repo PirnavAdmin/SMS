@@ -130,6 +130,10 @@ builder.Services.AddScoped<ITeacherStudentAttendanceRepository,TeacherStudentAtt
 
 builder.Services.AddScoped<ITeacherStudentAttendanceService,TeacherStudentAttendanceService>();
 
+// Student Attendance Service and Repository
+builder.Services.AddScoped<IStudentAttendanceRepository, StudentAttendanceRepository>();
+builder.Services.AddScoped<IStudentAttendanceService, StudentAttendanceService>();
+
 
 // Academic and School Management
 builder.Services.AddScoped<ISchoolRepository, SchoolRepository>();
@@ -496,9 +500,16 @@ using (var scope = app.Services.CreateScope())
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `classes` (
-                `ClassId` int NOT NULL AUTO_INCREMENT,
-                `ClassName` varchar(100) NOT NULL,
-                PRIMARY KEY (`ClassId`)
+                `id` int NOT NULL AUTO_INCREMENT,
+                `ClassName` varchar(100) NULL,
+                `CampusLocation` varchar(100) NOT NULL DEFAULT 'Main Campus',
+                `AcademicYear` varchar(20) NOT NULL DEFAULT '2026-2027',
+                `DisplayOrder` int NULL,
+                `status` varchar(20) NOT NULL DEFAULT 'Active',
+                `remarks` longtext NULL,
+                `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `updated_at` datetime(6) NULL,
+                PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `class_sections` (
@@ -1186,6 +1197,71 @@ using (var scope = app.Services.CreateScope())
             catch { }
         }
 
+        void EnsureColumnRenamed(string table, string oldColumn, string newColumn, string columnDef)
+        {
+            try
+            {
+                var conn = context.Database.GetDbConnection();
+                bool closeConn = false;
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                    closeConn = true;
+                }
+
+                bool oldExists = false;
+                bool newExists = false;
+
+                using (var schemaTable = conn.GetSchema("Columns", new[] { null, conn.Database, table, null }))
+                {
+                    foreach (System.Data.DataRow row in schemaTable.Rows)
+                    {
+                        var colName = row["COLUMN_NAME"]?.ToString();
+                        if (colName != null)
+                        {
+                            if (colName.Equals(oldColumn, StringComparison.OrdinalIgnoreCase)) oldExists = true;
+                            if (colName.Equals(newColumn, StringComparison.OrdinalIgnoreCase)) newExists = true;
+                        }
+                    }
+                }
+
+                if (closeConn)
+                {
+                    conn.Close();
+                }
+
+                if (oldExists && !newExists)
+                {
+#pragma warning disable EF1002
+                    try
+                    {
+                        context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` RENAME COLUMN `{oldColumn}` TO `{newColumn}`;");
+                    }
+                    catch
+                    {
+                        context.Database.ExecuteSqlRaw($"ALTER TABLE `{table}` CHANGE COLUMN `{oldColumn}` `{newColumn}` {columnDef};");
+                    }
+#pragma warning restore EF1002
+                }
+            }
+            catch { }
+        }
+
+        EnsureColumnRenamed("classes", "ClassId", "id", "int NOT NULL AUTO_INCREMENT");
+        EnsureColumnRenamed("classes", "Status", "status", "varchar(20) NOT NULL DEFAULT 'Active'");
+        EnsureColumnRenamed("classes", "Remarks", "remarks", "longtext NULL");
+        EnsureColumnRenamed("classes", "UpdatedAt", "updated_at", "datetime(6) NULL");
+
+        EnsureColumnExists("classes", "id", "int NOT NULL AUTO_INCREMENT");
+        EnsureColumnExists("classes", "ClassName", "varchar(100) NULL");
+        EnsureColumnExists("classes", "CampusLocation", "varchar(100) NOT NULL DEFAULT 'Main Campus'");
+        EnsureColumnExists("classes", "AcademicYear", "varchar(20) NOT NULL DEFAULT '2026-2027'");
+        EnsureColumnExists("classes", "DisplayOrder", "int NULL");
+        EnsureColumnExists("classes", "status", "varchar(20) NOT NULL DEFAULT 'Active'");
+        EnsureColumnExists("classes", "remarks", "longtext NULL");
+        EnsureColumnExists("classes", "CreatedAt", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        EnsureColumnExists("classes", "updated_at", "datetime(6) NULL");
+
         EnsureColumnExists("Subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
         EnsureColumnExists("subjects", "DepartmentId", "int NOT NULL DEFAULT 1");
         EnsureColumnExists("transport_routes", "VehicleId", "bigint NULL");
@@ -1218,6 +1294,12 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("transport_attendants", "EmergencyContactName", "varchar(150) NULL");
         EnsureColumnExists("transport_attendants", "EmergencyContactNumber", "varchar(30) NULL");
         EnsureColumnExists("transport_attendants", "AssignedVehicleId", "bigint NULL");
+        EnsureColumnExists("transport_pickup_points", "DropTime", "time(6) NOT NULL DEFAULT '16:15:00'");
+        EnsureColumnExists("transport_pickup_points", "PickupTime", "time(6) NOT NULL DEFAULT '07:30:00'");
+        EnsureColumnExists("transport_pickup_points", "Landmark", "varchar(250) NULL");
+        EnsureColumnExists("transport_pickup_points", "SequenceNo", "int NOT NULL DEFAULT 1");
+        EnsureColumnExists("transport_pickup_points", "DistanceFromStart", "decimal(10,2) NOT NULL DEFAULT 0.00");
+        EnsureColumnExists("transport_pickup_points", "MonthlyFee", "decimal(10,2) NOT NULL DEFAULT 1200.00");
         EnsureColumnExists("transport_pickup_points", "IsDeleted", "tinyint(1) NOT NULL DEFAULT 0");
         EnsureColumnExists("transport_vehicle_assignments", "AttendantId", "bigint NULL");
         EnsureColumnExists("transport_vehicle_assignments", "BranchName", "varchar(100) NULL");
@@ -1239,6 +1321,50 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("student_transport_assignments", "AdmissionNo", "varchar(50) NOT NULL DEFAULT ''");
         EnsureColumnExists("student_transport_assignments", "StudentId", "bigint NULL");
         EnsureColumnExists("transport_routes", "Description", "varchar(500) NULL");
+
+        EnsureColumnExists("departments", "DepartmentName", "varchar(150) NULL");
+        EnsureColumnExists("departments", "DepartmentCode", "varchar(50) NULL");
+        EnsureColumnExists("departments", "Description", "varchar(500) NULL");
+        EnsureColumnExists("departments", "Status", "varchar(20) NOT NULL DEFAULT 'Active'");
+        EnsureColumnExists("departments", "HeadOfDepartment", "varchar(150) NULL");
+        EnsureColumnExists("departments", "head_of_department", "varchar(150) NULL");
+        EnsureColumnExists("departments", "CreatedDate", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+
+        EnsureColumnExists("circulars", "Title", "varchar(255) NOT NULL DEFAULT ''");
+        EnsureColumnExists("circulars", "Category", "varchar(100) NULL DEFAULT 'SPORTS • ALL'");
+        EnsureColumnExists("circulars", "Content", "text NULL");
+        EnsureColumnExists("circulars", "TargetAudience", "varchar(100) NULL DEFAULT 'ALL'");
+        EnsureColumnExists("circulars", "CreatedDate", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        EnsureColumnExists("circulars", "Author", "varchar(150) NULL DEFAULT 'School Administration'");
+        EnsureColumnExists("circulars", "DeliveredCount", "int NOT NULL DEFAULT 1420");
+        EnsureColumnExists("circulars", "IsPinned", "tinyint(1) NOT NULL DEFAULT 0");
+        EnsureColumnExists("circulars", "SmsSent", "tinyint(1) NOT NULL DEFAULT 1");
+        EnsureColumnExists("circulars", "EmailSent", "tinyint(1) NOT NULL DEFAULT 1");
+        EnsureColumnExists("circulars", "PushDelivered", "tinyint(1) NOT NULL DEFAULT 1");
+
+        EnsureColumnExists("meetings", "MeetingAudience", "varchar(100) NULL DEFAULT 'Individual Meeting'");
+        EnsureColumnExists("meetings", "ParticipantType", "varchar(50) NULL DEFAULT 'Parent'");
+        EnsureColumnExists("meetings", "ParticipantName", "varchar(150) NULL");
+        EnsureColumnExists("meetings", "ParticipantPhone", "varchar(30) NULL");
+        EnsureColumnExists("meetings", "WardStudentName", "varchar(150) NULL");
+        EnsureColumnExists("meetings", "WardAdmissionNo", "varchar(50) NULL");
+        EnsureColumnExists("meetings", "WardClass", "varchar(50) NULL");
+        EnsureColumnExists("meetings", "MeetingTitle", "varchar(255) NOT NULL DEFAULT ''");
+        EnsureColumnExists("meetings", "Agenda", "text NULL");
+        EnsureColumnExists("meetings", "MeetingMode", "varchar(50) NULL DEFAULT 'In-Person'");
+        EnsureColumnExists("meetings", "Building", "varchar(150) NULL DEFAULT 'Academic Block A'");
+        EnsureColumnExists("meetings", "Floor", "varchar(50) NULL DEFAULT '1st Floor'");
+        EnsureColumnExists("meetings", "MeetingRoom", "varchar(150) NULL DEFAULT 'Conference Room 102'");
+        EnsureColumnExists("meetings", "RoomCapacity", "int NOT NULL DEFAULT 15");
+        EnsureColumnExists("meetings", "OnlineMeetingUrl", "varchar(500) NULL");
+        EnsureColumnExists("meetings", "MeetingDate", "datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)");
+        EnsureColumnExists("meetings", "StartTime", "varchar(20) NULL DEFAULT '10:00'");
+        EnsureColumnExists("meetings", "EndTime", "varchar(20) NULL DEFAULT '10:30'");
+        EnsureColumnExists("meetings", "MeetingStatus", "varchar(50) NULL DEFAULT 'SCHEDULED'");
+        EnsureColumnExists("meetings", "Priority", "varchar(50) NULL DEFAULT 'Normal'");
+        EnsureColumnExists("meetings", "AttendancePolicy", "varchar(50) NULL DEFAULT 'Mandatory'");
+        EnsureColumnExists("meetings", "Recurrence", "varchar(100) NULL DEFAULT 'None (One-time)'");
+        EnsureColumnExists("meetings", "TotalRecipients", "int NOT NULL DEFAULT 47");
         EnsureColumnExists("hostel_blocks", "HostelName", "varchar(150) NULL");
         EnsureColumnExists("hostel_blocks", "hostel_name", "varchar(150) NULL");
         EnsureColumnExists("hostel_blocks", "HostelCode", "varchar(50) NULL");
@@ -1628,6 +1754,20 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        await context.SaveChangesAsync();
+
+        // =================================================
+        // SEED BRANCHES
+        // =================================================
+        var branchesToSeed = new[] { "Main Campus", "North Branch", "Hyderabad", "West Campus" };
+        foreach (var branchName in branchesToSeed)
+        {
+            var exists = await context.Branches.AnyAsync(b => b.BranchName == branchName);
+            if (!exists)
+            {
+                await context.Branches.AddAsync(new Branch { BranchName = branchName });
+            }
+        }
         await context.SaveChangesAsync();
 
         // =================================================
@@ -2102,17 +2242,69 @@ using (var scope = app.Services.CreateScope())
 
                 if (defaultBranch != null && defaultAcademicYear != null)
                 {
+                    // 1. Sync enrolled applications from admission_applications to admissions table
+                    var enrolledApps = await context.AdmissionApplications
+                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
+                        .ToListAsync();
+
+                    var branches = await context.Branches.ToListAsync();
+
+                    foreach (var admApp in enrolledApps)
+                    {
+                        var existingAdmission = await context.Admissions
+                            .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo);
+
+                        var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
+
+                        if (existingAdmission == null)
+                        {
+                            var newAdmission = new Admission
+                            {
+                                ApplicationNo = admApp.RegistrationNo ?? "",
+                                StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
+                                Dob = admApp.DateOfBirth,
+                                Gender = admApp.Gender,
+                                FatherName = admApp.FatherName,
+                                FatherMobile = admApp.FatherContact,
+                                BloodGroup = admApp.BloodGroup,
+                                Caste = admApp.Caste,
+                                BranchId = appBranch.BranchId,
+                                ClassId = admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 ? admApp.AppliedClassId.Value : 1,
+                                SectionLetter = "A",
+                                AdmissionType = "Regular",
+                                Status = admApp.Status ?? "",
+                                IsDeleted = false,
+                                CreatedDate = DateTime.UtcNow
+                            };
+                            await context.Admissions.AddAsync(newAdmission);
+                        }
+                        else
+                        {
+                            existingAdmission.BranchId = appBranch.BranchId;
+                            existingAdmission.Status = admApp.Status ?? "";
+                        }
+                    }
+                    await context.SaveChangesAsync();
+
+                    // 2. Sync from admissions to students table
                     var activeAdmissions = await context.Admissions
                         .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
                         .ToListAsync();
 
                     foreach (var admission in activeAdmissions)
                     {
-                        if (admission.ClassId == null || string.IsNullOrEmpty(admission.SectionLetter))
+                        if (admission.ClassId == null)
                             continue;
 
+                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
                         var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
+                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
+                        
+                        if (sectionObj == null)
+                        {
+                            sectionObj = await context.ClassSections
+                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId);
+                        }
                         if (sectionObj == null) continue;
 
                         var existing = await context.Students
@@ -2122,6 +2314,7 @@ using (var scope = app.Services.CreateScope())
                         {
                             existing.SectionId = sectionObj.SectionId;
                             existing.RollNumber = admission.RollNo ?? existing.RollNumber;
+                            existing.BranchId = (int)admission.BranchId;
                             existing.Status = "Active";
                         }
                         else
@@ -2130,12 +2323,12 @@ using (var scope = app.Services.CreateScope())
                             {
                                 AdmissionNumber = admission.ApplicationNo ?? $"ADM-{admission.AdmissionId}",
                                 RollNumber = admission.RollNo ?? $"R-{admission.AdmissionId}",
-                                StudentName = admission.StudentName,
+                                StudentName = admission.StudentName ?? string.Empty,
                                 DateOfBirth = admission.Dob,
                                 Gender = admission.Gender,
                                 FatherName = admission.FatherName,
                                 FatherMobile = admission.FatherMobile,
-                                BranchId = defaultBranch.BranchId,
+                                BranchId = (int)admission.BranchId,
                                 AcademicYearId = defaultAcademicYear.AcademicYearId,
                                 ClassId = admission.ClassId.Value,
                                 SectionId = sectionObj.SectionId,

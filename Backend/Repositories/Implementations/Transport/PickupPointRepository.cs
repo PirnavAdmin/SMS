@@ -30,7 +30,7 @@ namespace SMS.Api.Repositories.Implementations
                 string search = filter.Search.Trim().ToLower();
 
                 query = query.Where(x =>
-                    x.PickupPointName.ToLower().Contains(search) ||
+                    (x.PickupPointName != null && x.PickupPointName.ToLower().Contains(search)) ||
                     (x.Landmark != null &&
                      x.Landmark.ToLower().Contains(search)));
             }
@@ -48,8 +48,8 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     PickupPointId = x.PickupPointId,
                     RouteId = x.RouteId,
-                    RouteName = x.TransportRoute != null ? x.TransportRoute.RouteName : "Main Route",
-                    PickupPointName = x.PickupPointName,
+                    RouteName = x.TransportRoute != null && x.TransportRoute.RouteName != null ? x.TransportRoute.RouteName : "Main Route",
+                    PickupPointName = x.PickupPointName ?? string.Empty,
                     Landmark = x.Landmark,
                     SequenceNo = x.SequenceNo,
                     PickupTime = x.PickupTime,
@@ -79,8 +79,8 @@ namespace SMS.Api.Repositories.Implementations
                 {
                     PickupPointId = x.PickupPointId,
                     RouteId = x.RouteId,
-                    RouteName = x.TransportRoute != null ? x.TransportRoute.RouteName : "Main Route",
-                    PickupPointName = x.PickupPointName,
+                    RouteName = x.TransportRoute != null && x.TransportRoute.RouteName != null ? x.TransportRoute.RouteName : "Main Route",
+                    PickupPointName = x.PickupPointName ?? string.Empty,
                     Landmark = x.Landmark,
                     SequenceNo = x.SequenceNo,
                     PickupTime = x.PickupTime,
@@ -185,7 +185,7 @@ namespace SMS.Api.Repositories.Implementations
                 .Select(x => new PickupPointLookupDto
                 {
                     PickupPointId = x.PickupPointId,
-                    PickupPointName = x.PickupPointName
+                    PickupPointName = x.PickupPointName ?? string.Empty
                 })
                 .ToListAsync();
         }
@@ -201,7 +201,7 @@ namespace SMS.Api.Repositories.Implementations
                 .AnyAsync(x =>
                     !x.IsDeleted &&
                     x.RouteId == routeId &&
-                    x.PickupPointName.ToLower() == normalizedName &&
+                    x.PickupPointName != null && x.PickupPointName.ToLower() == normalizedName &&
                     (!excludePickupPointId.HasValue ||
                      x.PickupPointId != excludePickupPointId.Value));
         }

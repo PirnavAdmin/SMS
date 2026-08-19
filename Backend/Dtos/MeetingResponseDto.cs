@@ -75,6 +75,15 @@ namespace SMS.Api.Dtos
         [JsonPropertyName("roomCapacity")]
         public int RoomCapacity { get; set; } = 15;
 
+        [JsonPropertyName("onlineMeetingUrl")]
+        public string? OnlineMeetingUrl { get; set; }
+
+        [JsonPropertyName("onlineVideoUrl")]
+        public string? OnlineVideoUrl => OnlineMeetingUrl;
+
+        [JsonPropertyName("videoUrl")]
+        public string? VideoUrl => OnlineMeetingUrl;
+
         [JsonPropertyName("meetingDate")]
         public string MeetingDate { get; set; } = string.Empty;
 
@@ -95,6 +104,21 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("status")]
         public string Status => MeetingStatus;
+
+        [JsonPropertyName("priority")]
+        public string Priority { get; set; } = "Normal";
+
+        [JsonPropertyName("attendancePolicy")]
+        public string AttendancePolicy { get; set; } = "Mandatory";
+
+        [JsonPropertyName("attendance")]
+        public string Attendance => AttendancePolicy;
+
+        [JsonPropertyName("recurrence")]
+        public string Recurrence { get; set; } = "None (One-time)";
+
+        [JsonPropertyName("totalRecipients")]
+        public int TotalRecipients { get; set; } = 47;
     }
 
     public class ParticipantLookupDto
