@@ -3,7 +3,8 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { getHostelBlocks, getRoomTypes } from '../../../api/hostel';
 import { FinanceHostelConfig } from '../../../types';
-import { Building2, Plus, Search, Edit2, Trash2, Bed, Check, Sparkles, Filter, ChevronDown } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { Building2, Plus, Search, Edit, Edit2, Trash2, Bed, Check, Sparkles, Filter, ChevronDown, Home, CheckCircle2, XCircle } from 'lucide-react';
 
 interface ComboboxOption {
   value: string;
