@@ -64,8 +64,83 @@ export const LibraryView: React.FC = () => {
   const { role, user } = useAuth();
   const isStudentOrParent = role.toLowerCase() === 'student' || role.toLowerCase() === 'parent';
 
-  const { books, bookIssues, addBook, issueBook, returnBook, students, staff } = useData();
+  const { books, bookIssues, addBook, issueBook, returnBook, students, staff, admissions } = useData();
   const { addToast } = useToast();
+
+  // Unified candidate list from Enrolled Students and Admission Applications
+  const studentAdmissionCandidates = useMemo(() => {
+    const list: Array<{ id: string; name: string; admissionNo: string; phone: string; className: string; role: 'Student' }> = [];
+
+    // Add enrolled students
+    (students || []).forEach(st => {
+      const name = `${st.firstName} ${st.lastName}`.trim();
+      list.push({
+        id: st.id,
+        name: name,
+        admissionNo: st.admissionNo || st.id,
+        phone: st.phone || st.fatherPhone || '',
+        className: `${st.className || ''}-${st.section || ''}`.replace(/^-$/, 'General'),
+        role: 'Student'
+      });
+    });
+
+    // Add admission application records
+    (admissions || []).forEach(adm => {
+      const name = (adm.applicantName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
+      const admNo = adm.admissionNo || adm.applicationNo || adm.id;
+      if (name && !list.some(item => item.admissionNo === admNo || item.name.toLowerCase() === name.toLowerCase())) {
+        list.push({
+          id: adm.id,
+          name: name,
+          admissionNo: admNo,
+          phone: adm.phone || adm.parentPhone || '',
+          className: adm.appliedClass || 'Admission Candidate',
+          role: 'Student'
+        });
+      }
+    });
+
+    return list;
+  }, [students, admissions]);
+
+  const staffCandidates = useMemo(() => {
+    return (staff || []).map(s => ({
+      id: s.id,
+      name: `${s.firstName} ${s.lastName}`.trim(),
+      admissionNo: s.id,
+      phone: s.phone || '',
+      className: s.department || 'Staff',
+      role: 'Staff' as const
+    }));
+  }, [staff]);
+
+  // Member Form State for Auto-fill & Search
+  const [memberFormState, setMemberFormState] = useState({
+    memberId: '',
+    name: '',
+    role: 'Student' as 'Student' | 'Staff',
+    phone: '',
+    maxLimit: 3
+  });
+  const [showMemberSuggestions, setShowMemberSuggestions] = useState(false);
+
+  const filteredMemberSuggestions = useMemo(() => {
+    if (!memberFormState.name || memberFormState.name.trim().length < 1) return [];
+    const q = memberFormState.name.toLowerCase().trim();
+    const source = memberFormState.role === 'Staff' ? staffCandidates : studentAdmissionCandidates;
+    return source.filter(c => c.name.toLowerCase().includes(q) || c.admissionNo.toLowerCase().includes(q)).slice(0, 8);
+  }, [memberFormState.name, memberFormState.role, staffCandidates, studentAdmissionCandidates]);
+
+  const handleSelectCandidateToForm = (c: { name: string; admissionNo: string; phone: string; role: 'Student' | 'Staff' }) => {
+    setMemberFormState({
+      memberId: c.admissionNo,
+      name: c.name,
+      role: c.role,
+      phone: c.phone || '9876543210',
+      maxLimit: c.role === 'Staff' ? 6 : 3
+    });
+    setShowMemberSuggestions(false);
+  };
 
   // Active Phase & Sub-tab Navigation
   const [activePhase, setActivePhase] = useState<'phase1' | 'phase2' | 'phase3' | 'phase4'>('phase1');
@@ -573,7 +648,7 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-sky-500" /> Library Membership Roster</h3>
-            <button onClick={() => setModalType('addMember')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Register Member</button>
+            <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md flex items-center gap-1"><Plus className="w-4 h-4" /> Register Member</button>
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -1337,32 +1412,186 @@ export const LibraryView: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="glass-card max-w-md w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border space-y-4 shadow-2xl">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Register Library Member</h3>
+
+            {/* Quick Auto-Fill Selector */}
+            <div className="p-3 rounded-2xl bg-sky-50 dark:bg-slate-800/60 border border-sky-200 dark:border-sky-800 space-y-1.5">
+              <label className="block font-bold text-xs text-sky-900 dark:text-sky-300">
+                ⚡ Auto-Fill from Admission List / Students / Staff
+              </label>
+              <select
+                value=""
+                onChange={e => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const found = studentAdmissionCandidates.find(c => c.id === val || c.admissionNo === val) ||
+                                staffCandidates.find(c => c.id === val);
+                  if (found) {
+                    handleSelectCandidateToForm(found);
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none hover:border-sky-500 shadow-xs"
+              >
+                <option value="">-- Select from Admission List / Students --</option>
+                <optgroup label="📋 Admission Applications & Candidates">
+                  {studentAdmissionCandidates.filter(c => c.className.toLowerCase().includes('admission')).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.admissionNo} • {c.className})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="🎓 Enrolled Students">
+                  {studentAdmissionCandidates.filter(c => !c.className.toLowerCase().includes('admission')).map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.admissionNo} • {c.className})
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="👔 Faculty & Staff">
+                  {staffCandidates.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.admissionNo} • {c.className})
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+
             <form onSubmit={e => {
               e.preventDefault();
-              const f = e.target as any;
+              if (!memberFormState.name.trim() || !memberFormState.memberId.trim()) {
+                addToast('warning', 'Validation Error', 'Please enter Member ID and Full Name.');
+                return;
+              }
               const newM: LibraryMember = {
                 id: `MEM-${Date.now()}`,
-                memberId: f.memberId.value,
-                name: f.name.value,
-                role: f.role.value as any,
-                email: f.email.value,
-                phone: f.phone.value,
-                maxLimit: Number(f.maxLimit.value) || 3,
+                memberId: memberFormState.memberId.trim(),
+                name: memberFormState.name.trim(),
+                role: memberFormState.role,
+                email: `${memberFormState.memberId.toLowerCase()}@school.edu`,
+                phone: memberFormState.phone || '9876543210',
+                maxLimit: Number(memberFormState.maxLimit) || 3,
                 issuedCount: 0,
                 fineBalance: 0,
                 joinedDate: new Date().toISOString().split('T')[0],
                 status: 'Active'
               };
               saveMembers([...members, newM]);
-              addToast('success', 'Member Registered', `Registered ${newM.name}`);
+              addToast('success', 'Member Registered', `Registered ${newM.name} (${newM.memberId})`);
               setModalType(null);
             }} className="space-y-3 text-xs">
-              <div><label className="block font-bold mb-1">Member ID / Admission No *</label><input type="text" name="memberId" required placeholder="e.g. ADM-2026-105" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
-              <div><label className="block font-bold mb-1">Full Name *</label><input type="text" name="name" required placeholder="e.g. Saranya Ch" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
-              <div><label className="block font-bold mb-1">Role *</label><select name="role" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold"><option value="Student">Student</option><option value="Staff">Staff</option></select></div>
-              <div><label className="block font-bold mb-1">Phone Number</label><input type="text" name="phone" placeholder="9876543210" className="w-full px-3 py-2 rounded-xl bg-slate-50 border" /></div>
-              <div><label className="block font-bold mb-1">Max Books Limit</label><input type="number" name="maxLimit" defaultValue={3} className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono" /></div>
-              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button><button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Member</button></div>
+
+              <div>
+                <label className="block font-bold mb-1">Member ID / Admission No *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. ADM-2026-105"
+                  value={memberFormState.memberId}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setMemberFormState(prev => ({ ...prev, memberId: val }));
+                    const found = studentAdmissionCandidates.find(c => c.admissionNo.toLowerCase() === val.trim().toLowerCase()) ||
+                                  staffCandidates.find(c => c.admissionNo.toLowerCase() === val.trim().toLowerCase());
+                    if (found) {
+                      setMemberFormState({
+                        memberId: found.admissionNo,
+                        name: found.name,
+                        role: found.role,
+                        phone: found.phone || '9876543210',
+                        maxLimit: found.role === 'Staff' ? 6 : 3
+                      });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold"
+                />
+              </div>
+
+              <div className="relative">
+                <label className="block font-bold mb-1">Full Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Type name to auto-search admission list..."
+                  value={memberFormState.name}
+                  onFocus={() => setShowMemberSuggestions(true)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setMemberFormState(prev => ({ ...prev, name: val }));
+                    setShowMemberSuggestions(true);
+                    const found = studentAdmissionCandidates.find(c => c.name.toLowerCase() === val.trim().toLowerCase()) ||
+                                  staffCandidates.find(c => c.name.toLowerCase() === val.trim().toLowerCase());
+                    if (found) {
+                      setMemberFormState({
+                        memberId: found.admissionNo,
+                        name: found.name,
+                        role: found.role,
+                        phone: found.phone || '9876543210',
+                        maxLimit: found.role === 'Staff' ? 6 : 3
+                      });
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                />
+
+                {/* Autocomplete Suggestions from Admission List */}
+                {showMemberSuggestions && filteredMemberSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-xl shadow-xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+                    {filteredMemberSuggestions.map(c => (
+                      <div
+                        key={c.id}
+                        onClick={() => handleSelectCandidateToForm(c)}
+                        className="p-2.5 hover:bg-sky-50 dark:hover:bg-slate-800 cursor-pointer flex justify-between items-center transition-colors"
+                      >
+                        <div>
+                          <span className="font-extrabold text-xs text-slate-900 dark:text-white block">{c.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">{c.admissionNo} • {c.className}</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300 text-[10px] font-bold">
+                          {c.role}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Role *</label>
+                <select
+                  value={memberFormState.role}
+                  onChange={e => setMemberFormState(prev => ({ ...prev, role: e.target.value as any, maxLimit: e.target.value === 'Staff' ? 6 : 3 }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                >
+                  <option value="Student">Student</option>
+                  <option value="Staff">Staff</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Phone Number</label>
+                <input
+                  type="text"
+                  placeholder="9876543210"
+                  value={memberFormState.phone}
+                  onChange={e => setMemberFormState(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1">Max Books Limit</label>
+                <input
+                  type="number"
+                  value={memberFormState.maxLimit}
+                  onChange={e => setMemberFormState(prev => ({ ...prev, maxLimit: Number(e.target.value) || 3 }))}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setModalType(null)} className="px-4 py-2 rounded-xl border font-bold">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-sky-600 text-white font-extrabold">Save Member</button>
+              </div>
             </form>
           </div>
         </div>
