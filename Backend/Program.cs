@@ -639,6 +639,27 @@ using (var scope = app.Services.CreateScope())
                 PRIMARY KEY (`AssignmentId`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
+            @"CREATE TABLE IF NOT EXISTS `student_promotion_histories` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `student_id` int NOT NULL,
+                `admission_no` varchar(50) NOT NULL,
+                `student_name` varchar(150) NOT NULL,
+                `from_academic_year` varchar(50) NOT NULL,
+                `to_academic_year` varchar(50) NOT NULL,
+                `from_class` varchar(50) NOT NULL,
+                `to_class` varchar(50) NOT NULL,
+                `from_section` varchar(20) NOT NULL,
+                `to_section` varchar(20) NOT NULL,
+                `overall_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
+                `grade` varchar(10) NOT NULL DEFAULT 'A',
+                `final_result` varchar(20) NOT NULL DEFAULT 'PASS',
+                `status` varchar(30) NOT NULL DEFAULT 'Promoted',
+                `remarks` varchar(255) NULL,
+                `promotion_date` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
             @"CREATE TABLE IF NOT EXISTS `student_transport_assignments` (
                 `StudentTransportAssignmentId` bigint NOT NULL AUTO_INCREMENT,
                 `AdmissionNo` varchar(50) NOT NULL DEFAULT '',
