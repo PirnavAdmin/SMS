@@ -264,13 +264,32 @@ export const TrainingContainerView: React.FC = () => {
   // Matching Employee Selection List
   const candidateEmployees = useMemo(() => {
     return staff.filter(s => {
-      const matchesRole = workshopForm.targetRoleType === 'Teaching Staff' ? s.role === 'Teacher' : s.role !== 'Teacher';
-      const matchesBranch = participantFilters.branch === 'All' || s.branch === participantFilters.branch;
-      const matchesDept = participantFilters.department === 'All' || s.department === participantFilters.department;
-      const matchesDesig = participantFilters.designation === 'All' || s.designation === participantFilters.designation;
+      const isTeacherRole = s.role === 'Teacher' || s.role === 'Teaching' || (s as any).employeeType === 'Teaching Staff' ||
+        (s.department || '').toLowerCase().includes('teach') || (s.department || '').toLowerCase().includes('academic') ||
+        (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty');
+
+      const matchesRole = (workshopForm.targetRoleType as string) === 'All Staff' || (workshopForm.targetRoleType as string) === 'Both' ||
+        (workshopForm.targetRoleType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
+
+      const matchesBranch = participantFilters.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
+        s.branch.toLowerCase() === participantFilters.branch.toLowerCase();
+
+      const matchesDept = participantFilters.department === 'All' ||
+        s.department?.toLowerCase() === participantFilters.department?.toLowerCase();
+
+      const matchesDesig = participantFilters.designation === 'All' ||
+        s.designation?.toLowerCase() === participantFilters.designation?.toLowerCase();
+
       return matchesRole && matchesBranch && matchesDept && matchesDesig;
     });
   }, [staff, workshopForm.targetRoleType, participantFilters]);
+
+  // Auto-sync selected employees when candidateEmployees change or modal opens
+  React.useEffect(() => {
+    if (isAddWorkshopModalOpen) {
+      setSelectedEmployeeIds(candidateEmployees.map(s => s.id));
+    }
+  }, [isAddWorkshopModalOpen, candidateEmployees]);
 
   // Handle Select All Employees
   const handleSelectAllCandidates = () => {
@@ -1061,33 +1080,85 @@ export const TrainingContainerView: React.FC = () => {
                   >
                     <option value="Teaching Staff">Teaching Staff</option>
                     <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                    <option value="All Staff">All Staff (Both)</option>
                   </select>
                 </div>
               </div>
 
               {/* Dynamic Employee Selector */}
-              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2 font-semibold">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold text-slate-800 dark:text-slate-200">Matching Employee Participants ({selectedEmployeeIds.length} Selected)</span>
-                  <button type="button" onClick={handleSelectAllCandidates} className="text-brand-600 font-bold hover:underline">
-                    {selectedEmployeeIds.length === candidateEmployees.length ? 'Deselect All' : 'Select All'}
-                  </button>
+                  <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                    Matching Employee Participants ({selectedEmployeeIds.length} of {candidateEmployees.length} Selected)
+                  </span>
+                  {selectedEmployeeIds.length > 0 && (
+                    <button type="button" onClick={() => setSelectedEmployeeIds([])} className="text-rose-600 text-[11px] font-bold hover:underline">
+                      Clear Selection
+                    </button>
+                  )}
                 </div>
 
-                <div className="max-h-32 overflow-y-auto space-y-1">
-                  {candidateEmployees.map(emp => (
-                    <label key={emp.id} className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={selectedEmployeeIds.includes(emp.id)}
-                        onChange={e => {
-                          if (e.target.checked) setSelectedEmployeeIds([...selectedEmployeeIds, emp.id]);
-                          else setSelectedEmployeeIds(selectedEmployeeIds.filter(id => id !== emp.id));
-                        }}
-                      />
-                      <span>{emp.firstName} {emp.lastName} ({emp.designation || emp.role})</span>
-                    </label>
-                  ))}
+                {/* Candidate Selection Dropdown Menu */}
+                <select
+                  value=""
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (!val) return;
+                    if (val === 'SELECT_ALL') {
+                      setSelectedEmployeeIds(candidateEmployees.map(s => s.id));
+                    } else if (val === 'DESELECT_ALL') {
+                      setSelectedEmployeeIds([]);
+                    } else {
+                      if (!selectedEmployeeIds.includes(val)) {
+                        setSelectedEmployeeIds([...selectedEmployeeIds, val]);
+                      } else {
+                        setSelectedEmployeeIds(selectedEmployeeIds.filter(id => id !== val));
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none hover:border-sky-500 shadow-xs"
+                >
+                  <option value="">Select Employee from Dropdown...</option>
+                  <optgroup label="⚡ Selection Actions">
+                    <option value="SELECT_ALL">Select All Employees ({candidateEmployees.length})</option>
+                    <option value="DESELECT_ALL">Deselect All Employees</option>
+                  </optgroup>
+                  <optgroup label="👥 Available Staff Members">
+                    {candidateEmployees.map(emp => {
+                      const isSelected = selectedEmployeeIds.includes(emp.id);
+                      return (
+                        <option key={emp.id} value={emp.id}>
+                          {isSelected ? '✓ [Selected] ' : '+ [Add] '} {emp.firstName} {emp.lastName} — {emp.designation || emp.role} ({emp.department || 'Academics'})
+                        </option>
+                      );
+                    })}
+                  </optgroup>
+                </select>
+
+                <div className="max-h-36 overflow-y-auto space-y-1 pr-1 border rounded-xl p-1 bg-white/50 dark:bg-slate-900/50">
+                  {candidateEmployees.length === 0 ? (
+                    <div className="p-3 text-center text-xs font-bold text-slate-400">
+                      No staff members found matching target role. Try selecting "All Staff" above.
+                    </div>
+                  ) : (
+                    candidateEmployees.map(emp => (
+                      <label key={emp.id} className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors ${selectedEmployeeIds.includes(emp.id) ? 'bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={selectedEmployeeIds.includes(emp.id)}
+                            onChange={e => {
+                              if (e.target.checked) setSelectedEmployeeIds([...selectedEmployeeIds, emp.id]);
+                              else setSelectedEmployeeIds(selectedEmployeeIds.filter(id => id !== emp.id));
+                            }}
+                            className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                          />
+                          <span className="font-extrabold text-xs text-slate-900 dark:text-white">{emp.firstName} {emp.lastName}</span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium">{emp.designation || emp.role} • {emp.department || 'Academics'}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1381,52 +1452,68 @@ export const TrainingContainerView: React.FC = () => {
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center justify-between">
                         <span className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                           <UserCheck className="w-4 h-4 text-sky-500" />
                           Selected Candidates ({selectedAssessmentCandidateIds.length} of {matchingAssessmentCandidates.length})
                         </span>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-bold text-slate-500">Quick Select:</span>
-                          <select
-                            defaultValue=""
-                            onChange={e => {
-                              const val = e.target.value;
-                              if (val === 'all') {
-                                setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
-                              } else if (val === 'none') {
-                                setSelectedAssessmentCandidateIds([]);
-                              } else if (val.startsWith('select-')) {
-                                const count = parseInt(val.replace('select-', ''), 10);
-                                setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.slice(0, count).map(s => s.id));
-                              }
-                              e.target.value = '';
-                            }}
-                            className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-extrabold text-sky-700 dark:text-sky-300 outline-none cursor-pointer hover:border-sky-500 shadow-xs"
+                        {selectedAssessmentCandidateIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAssessmentCandidateIds([])}
+                            className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
                           >
-                            <option value="" disabled>Select Candidate Count...</option>
-                            <option value="select-1">Select 1 Candidate</option>
-                            <option value="select-2">Select 2 Candidates</option>
-                            <option value="select-3">Select 3 Candidates</option>
-                            {matchingAssessmentCandidates.length >= 4 && <option value="select-4">Select 4 Candidates</option>}
-                            {matchingAssessmentCandidates.length >= 5 && <option value="select-5">Select 5 Candidates</option>}
-                            {matchingAssessmentCandidates.length >= 10 && <option value="select-10">Select 10 Candidates</option>}
-                            <option value="all">Select All Candidates ({matchingAssessmentCandidates.length})</option>
-                            <option value="none">Deselect All</option>
-                          </select>
-                        </div>
+                            Clear All Selected
+                          </button>
+                        )}
                       </div>
 
+                      {/* Single Dropdown to Select Candidates directly */}
                       <div className="relative">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="Search candidate by name, department, designation..."
-                          value={assessmentCandidateSearch}
-                          onChange={e => setAssessmentCandidateSearch(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1 rounded-xl bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white"
-                        />
+                        <select
+                          value=""
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (!val) return;
+                            if (val === 'SELECT_ALL') {
+                              setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
+                            } else if (val === 'DESELECT_ALL') {
+                              setSelectedAssessmentCandidateIds([]);
+                            } else if (val === 'SELECT_1') {
+                              setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.slice(0, 1).map(s => s.id));
+                            } else if (val === 'SELECT_2') {
+                              setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.slice(0, 2).map(s => s.id));
+                            } else if (val === 'SELECT_3') {
+                              setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.slice(0, 3).map(s => s.id));
+                            } else {
+                              if (!selectedAssessmentCandidateIds.includes(val)) {
+                                setSelectedAssessmentCandidateIds([...selectedAssessmentCandidateIds, val]);
+                              } else {
+                                setSelectedAssessmentCandidateIds(selectedAssessmentCandidateIds.filter(id => id !== val));
+                              }
+                            }
+                          }}
+                          className="w-full px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-extrabold text-slate-900 dark:text-white outline-none cursor-pointer hover:border-sky-500 focus:ring-2 focus:ring-sky-500/20 shadow-xs"
+                        >
+                          <option value="">Select Candidate from Dropdown...</option>
+                          <optgroup label="⚡ Selection Actions">
+                            <option value="SELECT_1">Select 1st Candidate</option>
+                            <option value="SELECT_2">Select Top 2 Candidates</option>
+                            <option value="SELECT_3">Select Top 3 Candidates</option>
+                            <option value="SELECT_ALL">Select All Candidates ({matchingAssessmentCandidates.length})</option>
+                            <option value="DESELECT_ALL">Deselect All Candidates</option>
+                          </optgroup>
+                          <optgroup label="👥 Available Staff Members">
+                            {matchingAssessmentCandidates.map(emp => {
+                              const isSelected = selectedAssessmentCandidateIds.includes(emp.id);
+                              return (
+                                <option key={emp.id} value={emp.id}>
+                                  {isSelected ? '✓ [Selected] ' : '+ [Add] '} {emp.firstName} {emp.lastName} — {emp.designation || emp.role} ({emp.department || 'Academics'})
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+                        </select>
                       </div>
 
                       <div className="max-h-40 overflow-y-auto space-y-1 pr-1 border rounded-xl p-1 bg-white/50 dark:bg-slate-900/50">
