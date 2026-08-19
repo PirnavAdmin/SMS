@@ -1558,6 +1558,77 @@ using (var scope = app.Services.CreateScope())
                 JOIN `users` u ON u.`UserId` = ur.`UserId`
                 WHERE u.`Role` = 'Admin';");
 
+            try
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `faculty_workshops` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `title` VARCHAR(200) NOT NULL,
+                      `description` TEXT NULL,
+                      `trainer_name` VARCHAR(100) NULL,
+                      `organization` VARCHAR(150) NULL,
+                      `venue` VARCHAR(100) NULL,
+                      `start_date` DATETIME NULL,
+                      `end_date` DATETIME NULL,
+                      `start_time` VARCHAR(20) DEFAULT '10:00 AM',
+                      `end_time` VARCHAR(20) DEFAULT '04:00 PM',
+                      `category` VARCHAR(50) NOT NULL DEFAULT 'Pedagogy',
+                      `target_role_type` VARCHAR(100) NULL,
+                      `branch` VARCHAR(100) NULL,
+                      `status` VARCHAR(20) NOT NULL DEFAULT 'Scheduled',
+                      `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `employee_competency_assessments` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `assessment_name` VARCHAR(200) NOT NULL,
+                      `assessment_type` VARCHAR(100) NOT NULL DEFAULT 'Subject Knowledge Test',
+                      `assessment_category` VARCHAR(100) NOT NULL DEFAULT 'Knowledge',
+                      `total_marks` INT NOT NULL DEFAULT 100,
+                      `passing_marks` INT NOT NULL DEFAULT 70,
+                      `grading_scheme` VARCHAR(100) NOT NULL DEFAULT 'Letter Grade',
+                      `description` TEXT NULL,
+                      `assessment_instructions` TEXT NULL,
+                      `employee_type_filter` VARCHAR(100) NULL,
+                      `branch_filter` VARCHAR(100) NULL,
+                      `department_filter` VARCHAR(100) NULL,
+                      `designation_filter` VARCHAR(100) NULL,
+                      `scheduled_date` DATETIME NULL,
+                      `start_time` VARCHAR(20) NULL,
+                      `end_time` VARCHAR(20) NULL,
+                      `venue` VARCHAR(100) NULL,
+                      `assessment_mode` VARCHAR(50) NULL,
+                      `main_evaluator` VARCHAR(100) NULL,
+                      `co_evaluator` VARCHAR(100) NULL,
+                      `notify_participants` TINYINT(1) NOT NULL DEFAULT 1,
+                      `add_to_calendar` TINYINT(1) NOT NULL DEFAULT 1,
+                      `auto_certificates` TINYINT(1) NOT NULL DEFAULT 1,
+                      `publish_immediately` TINYINT(1) NOT NULL DEFAULT 1,
+                      `candidates_count` INT NOT NULL DEFAULT 0,
+                      `status` VARCHAR(20) NOT NULL DEFAULT 'Pending',
+                      `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `feepayments` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `receipt_no` VARCHAR(50) NULL,
+                      `student_id` VARCHAR(50) NULL,
+                      `amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `discount_amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `fine_amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `transport_fee` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `transaction_id` VARCHAR(100) NULL,
+                      `payment_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      `payment_method` VARCHAR(50) NULL,
+                      `status` VARCHAR(50) NOT NULL DEFAULT 'Completed'
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+            }
+            catch (System.Exception ex)
+            {
+                System.Console.WriteLine($"[Database Migration Warning] {ex.Message}");
+            }
+
             context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
         }
         catch (System.Exception ex)

@@ -7,6 +7,7 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
+import { createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../api/communication';
 
 export interface AnnouncementItem {
   id: string;
@@ -179,7 +180,7 @@ export const CommunicationView: React.FC = () => {
   const newDateDate = () => new Date().toISOString().split('T')[0];
 
   // Trigger Emergency Dispatch Quick Actions
-  const handleTriggerEmergency = (type: 'weather' | 'early_bus' | 'safety_drill') => {
+  const handleTriggerEmergency = async (type: 'weather' | 'early_bus' | 'safety_drill') => {
     let emergencyTitle = '';
     let emergencyContent = '';
 
@@ -194,8 +195,28 @@ export const CommunicationView: React.FC = () => {
       emergencyContent = 'Special notice regarding Mandatory Campus Safety & Evacuation Drill. All faculty, staff, and students please prepare for the scheduled campus drill.';
     }
 
+    let serverId = `ANN-EMG-${Date.now()}`;
+    try {
+      const res = await createNotificationApi({
+        title: emergencyTitle,
+        content: emergencyContent,
+        targetAudience: 'ALL',
+        category: 'URGENT',
+        createdDate: newDateDate(),
+        author: 'Principal Office',
+        isPinned: true,
+        deliveredCount: 1420,
+        smsSent: true,
+        emailSent: true,
+        pushDelivered: true
+      });
+      if (res?.data?.circularId) serverId = res.data.circularId.toString();
+    } catch (e) {
+      console.warn("Emergency API dispatch warning", e);
+    }
+
     const newEmergencyItem: AnnouncementItem = {
-      id: `ANN-EMG-${Date.now()}`,
+      id: serverId,
       title: emergencyTitle,
       content: emergencyContent,
       targetAudience: 'ALL',
@@ -209,15 +230,6 @@ export const CommunicationView: React.FC = () => {
 
     const updated = [newEmergencyItem, ...localList];
     updateLocalList(updated);
-
-    addAnnouncement({
-      title: emergencyTitle,
-      content: emergencyContent,
-      targetAudience: 'ALL' as any,
-      date: newDateDate(),
-      author: 'Principal Office',
-      category: 'URGENT' as any
-    });
 
     addToast('success', '🚨 Emergency Broadcast Dispatched!', 'Instant SMS, Call & Push Advisory sent to 1,420 users!');
     setIsEmergencyModalOpen(false);
@@ -287,11 +299,25 @@ export const CommunicationView: React.FC = () => {
     setIsComposeModalOpen(true);
   };
 
-  const handleBroadcast = (e: React.FormEvent) => {
+  const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
     if (editingItem) {
+      const numericId = parseInt(editingItem.id.replace(/\D/g, ''), 10);
+      if (numericId) {
+        try {
+          await updateNotificationApi(numericId, {
+            title: title.trim(),
+            content: content.trim(),
+            category: category.toUpperCase(),
+            targetAudience: target.toUpperCase(),
+            isPinned: editingItem.isPinned
+          });
+        } catch (err) {
+          console.warn("API updateNotification error:", err);
+        }
+      }
       const updated = localList.map(item =>
         item.id === editingItem.id
           ? {
@@ -308,8 +334,28 @@ export const CommunicationView: React.FC = () => {
       addToast('success', 'Broadcast Circular Updated', `Saved changes for "${title}"`);
     } else {
       const channelStr = `${sendSMS ? 'SMS' : ''}${sendSMS && sendEmail ? ' & ' : ''}${sendEmail ? 'Email' : ''}${sendPush ? ' & Push' : ''}`;
+      let serverId = `ANN-${Date.now()}`;
+      try {
+        const res = await createNotificationApi({
+          title: title.trim(),
+          content: content.trim(),
+          category: category.toUpperCase(),
+          targetAudience: target.toUpperCase(),
+          createdDate: broadcastDate,
+          author: role.toLowerCase().includes('teacher') ? 'Teacher' : 'Principal Office',
+          isPinned: false,
+          deliveredCount: 1420,
+          smsSent: sendSMS,
+          emailSent: sendEmail,
+          pushDelivered: sendPush
+        });
+        if (res?.data?.circularId) serverId = res.data.circularId.toString();
+      } catch (err) {
+        console.warn("API createNotification error:", err);
+      }
+
       const newCircular: AnnouncementItem = {
-        id: `ANN-${Date.now()}`,
+        id: serverId,
         title: title.trim(),
         content: content.trim(),
         targetAudience: target,
@@ -323,16 +369,6 @@ export const CommunicationView: React.FC = () => {
 
       const updated = [newCircular, ...localList];
       updateLocalList(updated);
-
-      addAnnouncement({
-        title: newCircular.title,
-        content: newCircular.content,
-        targetAudience: newCircular.targetAudience as any,
-        date: newCircular.date,
-        author: newCircular.author,
-        category: newCircular.category as any
-      });
-
       addToast('success', '📢 Broadcast Notification Published!', `Sent circular to ${target} via ${channelStr}`);
     }
 
@@ -340,16 +376,33 @@ export const CommunicationView: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const handleTogglePin = (id: string) => {
+  const handleTogglePin = async (id: string) => {
+    const targetItem = localList.find(i => i.id === id);
+    const newPinStatus = !targetItem?.isPinned;
+    const numericId = parseInt(id.replace(/\D/g, ''), 10);
+    if (numericId) {
+      try {
+        await updateNotificationApi(numericId, { isPinned: newPinStatus });
+      } catch (e) {
+        console.warn("API pin update error:", e);
+      }
+    }
     const updated = localList.map(item =>
-      item.id === id ? { ...item, isPinned: !item.isPinned } : item
+      item.id === id ? { ...item, isPinned: newPinStatus } : item
     );
     updateLocalList(updated);
-    const targetItem = localList.find(i => i.id === id);
-    addToast('info', targetItem?.isPinned ? 'Unpinned Circular' : 'Pinned Circular to Top', `Updated pin status for "${targetItem?.title}"`);
+    addToast('info', newPinStatus ? 'Pinned Circular to Top' : 'Unpinned Circular', `Updated pin status for "${targetItem?.title}"`);
   };
 
-  const handleDeleteCircular = (id: string, titleStr: string) => {
+  const handleDeleteCircular = async (id: string, titleStr: string) => {
+    const numericId = parseInt(id.replace(/\D/g, ''), 10);
+    if (numericId) {
+      try {
+        await deleteNotificationApi(numericId);
+      } catch (e) {
+        console.warn("API delete circular error:", e);
+      }
+    }
     const updated = localList.filter(item => item.id !== id);
     updateLocalList(updated);
     addToast('success', 'Circular Removed', `Deleted "${titleStr}"`);

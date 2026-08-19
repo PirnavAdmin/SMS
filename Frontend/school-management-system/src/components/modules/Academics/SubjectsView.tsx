@@ -159,20 +159,21 @@ export const SubjectsView: React.FC = () => {
       setLoading(true);
       const data = await fetchSubjectsApi();
       const dataArray = Array.isArray(data) ? data : (data?.data || data?.subjects || data?.items || []);
-      if (Array.isArray(dataArray) && dataArray.length > 0) {
+      if (Array.isArray(dataArray)) {
         const mappedData = dataArray.map((item: any) => ({
           id: item.subjectId?.toString() || item.id?.toString() || Math.random().toString(),
           subjectId: item.subjectCode || '',
           name: item.subjectName || item.name || '',
           code: item.courseCode || item.code || '',
-          department: item.department || item.departmentName || 'Mathematics'
+          department: item.department || item.departmentName || ''
         }));
         setSubjects(mappedData);
       } else {
         setSubjects([]);
       }
     } catch (error) {
-      addToast('error', 'Error Fetching Subjects', 'Failed to load subjects.');
+      setSubjects([]);
+      addToast('error', 'Error Fetching Subjects', 'Failed to load subjects from backend.');
     } finally {
       setLoading(false);
     }
@@ -183,7 +184,7 @@ export const SubjectsView: React.FC = () => {
       setLoading(true);
       const data = await fetchDepartmentsApi();
       const dataArray = Array.isArray(data) ? data : (data?.data || []);
-      if (Array.isArray(dataArray) && dataArray.length > 0) {
+      if (Array.isArray(dataArray)) {
         const mappedData = dataArray.map((item: any) => ({
           id: item.departmentId?.toString() || item.id?.toString() || Math.random().toString(),
           departmentName: item.departmentName || '',
@@ -196,11 +197,8 @@ export const SubjectsView: React.FC = () => {
         setDepartments([]);
       }
     } catch (error) {
-      if (contextDepartments && contextDepartments.length > 0) {
-        setDepartments(contextDepartments);
-      } else {
-        addToast('error', 'Error Fetching Departments', 'Failed to load departments.');
-      }
+      setDepartments([]);
+      addToast('error', 'Error Fetching Departments', 'Failed to load departments from backend.');
     } finally {
       setLoading(false);
     }
@@ -210,10 +208,11 @@ export const SubjectsView: React.FC = () => {
     try {
       setLoading(true);
       const res = await fetchDesignationsApi();
-      if (res && res.success && Array.isArray(res.data)) {
-        const mapped = res.data.map((d: any) => ({
+      const dataArray = Array.isArray(res) ? res : (res?.data || []);
+      if (Array.isArray(dataArray)) {
+        const mapped = dataArray.map((d: any) => ({
           id: d.designationId?.toString() || d.id?.toString() || Math.random().toString(),
-          designationName: d.designationName,
+          designationName: d.designationName || '',
           designationCode: d.designationCode || '',
           description: d.description || '',
           employeeCategory: d.employeeCategory || 'Both',
@@ -224,32 +223,19 @@ export const SubjectsView: React.FC = () => {
         setDesignations([]);
       }
     } catch (error) {
-      if (contextDesignations && contextDesignations.length > 0) {
-        setDesignations(contextDesignations);
-      } else {
-        addToast('error', 'Error Fetching Designations', 'Failed to load designations.');
-      }
+      setDesignations([]);
+      addToast('error', 'Error Fetching Designations', 'Failed to load designations from backend.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch all lists on mount so counts in the header tabs are correct immediately
+  // Fetch all lists on initial mount so counts in the header tabs are correct immediately
   useEffect(() => {
     loadSubjects();
     loadDepartments();
     loadDesignations();
   }, []);
-
-  useEffect(() => {
-    if (activeTab === 'subjects') {
-      loadSubjects();
-    } else if (activeTab === 'departments') {
-      loadDepartments();
-    } else if (activeTab === 'designations') {
-      loadDesignations();
-    }
-  }, [activeTab]);
 
   // Update local subjects list if context subjects change
   // Removed static context dependency per request
