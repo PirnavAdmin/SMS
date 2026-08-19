@@ -23,6 +23,17 @@ export const fetchReportDataApi = async (params?: { module?: string; classFilter
   return apiClient(url, { method: 'GET' });
 };
 
+export const fetchPrintReportTemplateApi = async (params?: { module?: string; classFilter?: string; departmentFilter?: string; search?: string }) => {
+  const queryParams = new URLSearchParams();
+  if (params?.module) queryParams.append('module', params.module);
+  if (params?.classFilter) queryParams.append('classFilter', params.classFilter);
+  if (params?.departmentFilter) queryParams.append('departmentFilter', params.departmentFilter);
+  if (params?.search) queryParams.append('search', params.search);
+
+  const url = `/api/school-reports/print-template?${queryParams.toString()}`;
+  return apiClient(url, { method: 'GET' });
+};
+
 export const exportReportCsvApi = async (module?: string) => {
   return apiClient(`/api/school-reports/export-csv?module=${encodeURIComponent(module || 'students')}`, { method: 'GET' });
 };

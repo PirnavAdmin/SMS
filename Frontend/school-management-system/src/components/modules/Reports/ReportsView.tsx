@@ -6,6 +6,7 @@ import {
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
+import { fetchPrintReportTemplateApi } from '../../../api/reports';
 
 export const ReportsView: React.FC = () => {
   const { students, staff, feePayments, attendance, examMarks, academicClasses } = useData();
@@ -114,12 +115,30 @@ export const ReportsView: React.FC = () => {
     return currentDataset.slice(start, start + pageSize);
   }, [currentDataset, page, pageSize]);
 
-  const handlePrintReport = () => {
+  const handlePrintReport = async () => {
+    try {
+      const res: any = await fetchPrintReportTemplateApi({
+        module: activeTab,
+        classFilter: effectiveClass,
+        departmentFilter: effectiveDept,
+        search: searchQuery
+      });
+      if (res?.htmlTemplate) {
+        const printWin = window.open('', '_blank');
+        if (printWin) {
+          printWin.document.write(res.htmlTemplate);
+          printWin.document.close();
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Print template API error:", e);
+    }
     window.print();
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in text-left">
+    <div id="printable-content" className="printable-area space-y-6 animate-in fade-in text-left">
       
       {/* Official School Header for Print Output */}
       <SchoolPrintHeader
@@ -200,7 +219,7 @@ export const ReportsView: React.FC = () => {
       </div>
 
       {/* EXPLICIT DROPDOWN FILTERS & MANUAL OPTION TOOLBAR */}
-      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-3 text-xs">
+      <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm space-y-3 text-xs print:hidden">
         <div className="font-extrabold text-slate-900 dark:text-white flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-sky-600" /> Select Report & Filter Parameters

@@ -4789,6 +4789,78 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     }
   };
 
+  const fetchFacultyTrainingData = async () => {
+    try {
+      const [workshopsRes, assessmentsRes] = await Promise.allSettled([
+        fetchWorkshopsApi(),
+        fetchAssessmentsApi()
+      ]);
+      if (workshopsRes.status === "fulfilled") {
+        const wItems = Array.isArray(workshopsRes.value) ? workshopsRes.value : workshopsRes.value?.data || [];
+        if (Array.isArray(wItems) && wItems.length > 0) {
+          const mappedWorkshops: WorkshopTraining[] = wItems.map((w: any) => ({
+            id: w.workshopId ? `WKS-${w.workshopId}` : (w.id || `WKS-${Math.random()}`),
+            workshopName: w.title || w.workshopName || "Workshop",
+            category: w.category || "Faculty Development Program (FDP)",
+            type: w.type || "Internal",
+            trainerName: w.trainerName || "Trainer",
+            organization: w.organization || "EdTech Innovations Institute",
+            branch: w.branch || "Main Campus",
+            department: w.department || "Academics",
+            applicableDesignation: w.applicableDesignation || "All Staff",
+            venue: w.venue || "Main Auditorium",
+            startDate: w.startDate ? w.startDate.split("T")[0] : new Date().toISOString().split("T")[0],
+            endDate: w.endDate ? w.endDate.split("T")[0] : new Date().toISOString().split("T")[0],
+            startTime: w.startTime || "09:30 AM",
+            endTime: w.endTime || "03:30 PM",
+            capacity: w.capacity || 50,
+            description: w.description || "",
+            targetRoleType: w.targetRoleType || "Teaching Staff",
+            attendancePct: w.attendanceRate || w.attendancePct || 95,
+            status: w.status || "Scheduled",
+            participants: (w.participants || []).map((p: any) => ({
+              employeeId: p.staffId ? `STF-${p.staffId}` : (p.employeeId || "STF-101"),
+              employeeName: p.staffName || p.employeeName || "Staff Member",
+              department: p.department || "Academics",
+              designation: p.designation || "Faculty",
+              attendanceStatus: p.registrationStatus === "Attended" ? "Present" : (p.attendanceStatus || "Present")
+            }))
+          }));
+          setWorkshops(mappedWorkshops);
+        }
+      }
+      if (assessmentsRes.status === "fulfilled") {
+        const aItems = Array.isArray(assessmentsRes.value) ? assessmentsRes.value : assessmentsRes.value?.data || [];
+        if (Array.isArray(aItems) && aItems.length > 0) {
+          const mappedAssessments: EmployeeAssessment[] = aItems.map((a: any) => ({
+            id: a.assessmentId ? `ASM-${a.assessmentId}` : (a.id || `ASM-${Math.random()}`),
+            assessmentName: a.assessmentName || "Competency Assessment",
+            assessmentType: a.assessmentType || "Digital Skills Test",
+            department: a.departmentFilter || a.department || "Academics",
+            totalMarks: a.totalMarks || 100,
+            passingMarks: a.passingMarks || 40,
+            date: a.scheduledDate ? a.scheduledDate.split("T")[0] : new Date().toISOString().split("T")[0],
+            evaluatorName: a.mainEvaluator || a.evaluatorName || "Academic Director",
+            status: a.status || "Scheduled",
+            branch: a.branchFilter || a.branch || "Main Campus",
+            createdAt: a.createdAt ? a.createdAt.split("T")[0] : new Date().toISOString().split("T")[0],
+            results: (a.candidates || []).map((c: any) => ({
+              employeeId: c.staffId ? `STF-${c.staffId}` : (c.employeeId || "STF-101"),
+              employeeName: c.staffName || c.employeeName || "Staff Member",
+              score: c.score || 80,
+              percentage: c.score || 80,
+              result: c.score >= (a.passingMarks || 40) ? "Pass" : "Fail",
+              remarks: c.remarks || "Good performance"
+            }))
+          }));
+          setEmployeeAssessments(mappedAssessments);
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch faculty training data from API", err);
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchFinanceData();
@@ -4814,6 +4886,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       // Communication (replaces initialAnnouncements / initialMeetings mock data)
       fetchAnnouncementsData();
       fetchMeetingsData();
+      // Faculty Training & Development
+      fetchFacultyTrainingData();
     }
     const allowedAdmissionsRoles = [
       "Super Admin",
@@ -12282,13 +12356,27 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     scheduleMeetingApi({
       meetingTitle: newMeeting.title,
       meetingAudience: newMeeting.meetingAudience,
+      participantType: newMeeting.participantType || (newMeeting.participants?.[0]?.type) || "Parent",
+      participantName: newMeeting.participants?.[0]?.name || newMeeting.targetGroupDescription || "Participant",
+      participantPhone: (newMeeting.participants?.[0] as any)?.phone || "9876543210",
+      wardStudentName: (newMeeting.participants?.[0] as any)?.wardName || (newMeeting.participants?.[0] as any)?.studentName || "",
+      wardAdmissionNo: (newMeeting.participants?.[0] as any)?.admissionNo || "",
+      wardClass: (newMeeting.participants?.[0] as any)?.className || "",
       agenda: newMeeting.description,
       meetingMode: newMeeting.mode,
-      building: newMeeting.venue,
+      building: newMeeting.building || "Academic Block A",
+      floor: newMeeting.floor || "1st Floor",
+      meetingRoom: newMeeting.roomVenue || newMeeting.venue || "Conference Room 102",
+      roomCapacity: newMeeting.roomCapacity || 15,
+      onlineMeetingUrl: newMeeting.onlineMeetingUrl || "",
       meetingDate: newMeeting.date,
       startTime: newMeeting.startTime,
       endTime: newMeeting.endTime,
-      meetingStatus: newMeeting.status,
+      meetingStatus: newMeeting.status ? newMeeting.status.toUpperCase() : "SCHEDULED",
+      priority: newMeeting.priority || "Normal",
+      attendancePolicy: newMeeting.attendanceRequired || "Mandatory",
+      recurrence: newMeeting.recurrence || "None (One-time)",
+      totalRecipients: newMeeting.participants?.length || 1
     }).catch((e) => console.warn("API scheduleMeeting error:", e));
 
     if (newMeeting.status === "Scheduled") {
@@ -12317,13 +12405,27 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       updateMeetingApi(numericId, {
         meetingTitle: updates.title,
         meetingAudience: updates.meetingAudience,
+        participantType: updates.participantType || (updates.participants?.[0]?.type),
+        participantName: updates.participants?.[0]?.name || updates.targetGroupDescription,
+        participantPhone: (updates.participants?.[0] as any)?.phone,
+        wardStudentName: (updates.participants?.[0] as any)?.wardName || (updates.participants?.[0] as any)?.studentName,
+        wardAdmissionNo: (updates.participants?.[0] as any)?.admissionNo,
+        wardClass: (updates.participants?.[0] as any)?.className,
         agenda: updates.description,
         meetingMode: updates.mode,
-        building: updates.venue,
+        building: updates.building,
+        floor: updates.floor,
+        meetingRoom: updates.roomVenue || updates.venue,
+        roomCapacity: updates.roomCapacity,
+        onlineMeetingUrl: updates.onlineMeetingUrl,
         meetingDate: updates.date,
         startTime: updates.startTime,
         endTime: updates.endTime,
-        meetingStatus: updates.status,
+        meetingStatus: updates.status ? updates.status.toUpperCase() : undefined,
+        priority: updates.priority,
+        attendancePolicy: updates.attendanceRequired,
+        recurrence: updates.recurrence,
+        totalRecipients: updates.participants?.length
       }).catch((e) => console.warn("API updateMeeting error:", e));
     }
 
@@ -12792,6 +12894,20 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     const id = "ANC-" + Math.floor(10 + Math.random() * 90);
     const newAnn: Announcement = { ...annData, id };
     setAnnouncements((prev) => [newAnn, ...prev]);
+
+    createNotificationApi({
+      title: newAnn.title,
+      category: newAnn.category || "GENERAL",
+      content: newAnn.content,
+      targetAudience: newAnn.targetAudience || "ALL",
+      createdDate: newAnn.date || new Date().toISOString().split("T")[0],
+      author: newAnn.author || "School Administration",
+      isPinned: (newAnn as any).isPinned || false,
+      smsSent: true,
+      emailSent: true,
+      pushDelivered: true
+    }).catch((e) => console.warn("API createNotification error:", e));
+
     logActivity("Published Announcement", `Posted: ${newAnn.title}`);
   };
 
