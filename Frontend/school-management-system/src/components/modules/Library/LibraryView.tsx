@@ -63,6 +63,8 @@ const DEFAULT_RULES: LibraryRule[] = [
 export const LibraryView: React.FC = () => {
   const { role, user } = useAuth();
   const isStudentOrParent = role.toLowerCase() === 'student' || role.toLowerCase() === 'parent';
+  const isAdmin = role.toLowerCase() === 'admin' || role.toLowerCase() === 'super admin' || role.toLowerCase() === 'school admin';
+  const isReadOnlyAccess = isStudentOrParent || isAdmin;
 
   const { books, bookIssues, addBook, issueBook, returnBook, students, staff, admissions } = useData();
   const { addToast } = useToast();
@@ -471,7 +473,7 @@ export const LibraryView: React.FC = () => {
                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
             </div>
-            {!isStudentOrParent && (
+            {!isReadOnlyAccess && (
               <button onClick={() => { setModalType('addBook'); setModalData(null); }} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all">
                 <Plus className="w-4 h-4" /> Add New Book
               </button>
@@ -508,10 +510,16 @@ export const LibraryView: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right space-x-2">
-                        <button onClick={() => { switchTab('phase2', 'issue'); }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px] shadow-sm hover:bg-sky-500">Issue</button>
-                        <button onClick={() => { saveCategories(categories); addToast('success', 'Book Removed', `Removed "${b.title}" from catalog.`); }} className="p-1 rounded-lg text-slate-400 hover:text-rose-600 transition-colors">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        {!isReadOnlyAccess ? (
+                          <>
+                            <button onClick={() => { switchTab('phase2', 'issue'); }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px] shadow-sm hover:bg-sky-500">Issue</button>
+                            <button onClick={() => { saveCategories(categories); addToast('success', 'Book Removed', `Removed "${b.title}" from catalog.`); }} className="p-1 rounded-lg text-slate-400 hover:text-rose-600 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -538,7 +546,7 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Layers className="w-4 h-4 text-sky-500" /> Book Categories Master</h3>
-            <button onClick={() => setModalType('addCategory')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Category</button>
+            {!isReadOnlyAccess && <button onClick={() => setModalType('addCategory')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Category</button>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {categories.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(c => (
@@ -547,9 +555,11 @@ export const LibraryView: React.FC = () => {
                   <span className="px-2.5 py-1 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 font-mono font-black text-xs">{c.code}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-400">{c.totalBooksCount || 0} Books</span>
-                    <button onClick={() => setDeletingItem({ type: 'category', id: c.id, title: c.name })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {!isReadOnlyAccess && (
+                      <button onClick={() => setDeletingItem({ type: 'category', id: c.id, title: c.name })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{c.name}</h4>
@@ -574,16 +584,18 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Users className="w-4 h-4 text-sky-500" /> Authors Directory</h3>
-            <button onClick={() => setModalType('addAuthor')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Author</button>
+            {!isReadOnlyAccess && <button onClick={() => setModalType('addAuthor')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Author</button>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {authors.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(a => (
               <div key={a.id} className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border space-y-2">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-black text-slate-900 dark:text-white">{a.name}</h4>
-                  <button onClick={() => setDeletingItem({ type: 'author', id: a.id, title: a.name })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {!isReadOnlyAccess && (
+                    <button onClick={() => setDeletingItem({ type: 'author', id: a.id, title: a.name })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <p className="text-xs font-semibold text-sky-600 dark:text-sky-400">Publisher: {a.publisher}</p>
                 <p className="text-[11px] text-slate-500">{a.biography || 'Educational Author'}</p>
@@ -608,7 +620,7 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Bookmark className="w-4 h-4 text-sky-500" /> Racks & Shelves Location Mapping</h3>
-            <button onClick={() => setModalType('addRack')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Rack Location</button>
+            {!isReadOnlyAccess && <button onClick={() => setModalType('addRack')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Add Rack Location</button>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {racks.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map(r => (
@@ -617,9 +629,11 @@ export const LibraryView: React.FC = () => {
                   <span className="font-mono font-black text-sky-600 text-sm">{r.rackNo}</span>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold text-slate-500">{r.shelfNo}</span>
-                    <button onClick={() => setDeletingItem({ type: 'rack', id: r.id, title: `${r.rackNo} (${r.shelfNo})` })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {!isReadOnlyAccess && (
+                      <button onClick={() => setDeletingItem({ type: 'rack', id: r.id, title: `${r.rackNo} (${r.shelfNo})` })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <p className="text-xs font-extrabold text-slate-800 dark:text-slate-200">{r.section}</p>
@@ -648,7 +662,7 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-sky-500" /> Library Membership Roster</h3>
-            <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md flex items-center gap-1"><Plus className="w-4 h-4" /> Register Member</button>
+            {!isReadOnlyAccess && <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md flex items-center gap-1"><Plus className="w-4 h-4" /> Register Member</button>}
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -677,9 +691,13 @@ export const LibraryView: React.FC = () => {
                     <td className="py-3 px-4 text-right font-mono font-black text-rose-600">{formatCurrency(m.fineBalance || 0)}</td>
                     <td className="py-3 px-4 text-center"><span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">{m.status}</span></td>
                     <td className="py-3 px-4 text-right">
-                      <button onClick={() => setDeletingItem({ type: 'member', id: m.id, title: m.name })} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isReadOnlyAccess ? (
+                        <button onClick={() => setDeletingItem({ type: 'member', id: m.id, title: m.name })} className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -706,6 +724,20 @@ export const LibraryView: React.FC = () => {
   // Render Main Operations: Phase 2 Components
   const renderPhase2 = () => {
     if (activeSubTab === 'issue') {
+      if (isReadOnlyAccess) {
+        return (
+          <div className="max-w-2xl mx-auto glass-card p-8 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center space-y-3 animate-in fade-in shadow-sm">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center mx-auto border border-amber-200 dark:border-amber-800">
+              <ShieldAlert className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Book Issuance Restricted (Read-Only Mode)</h3>
+            <p className="text-xs text-slate-500 font-medium max-w-md mx-auto">
+              Book issuance dispatch is managed by the Librarian. Admin mode has View-Only access to all library logs, books, and reports.
+            </p>
+          </div>
+        );
+      }
+
       return (
         <div className="max-w-2xl mx-auto glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border shadow-lg space-y-4 animate-in fade-in">
           <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
@@ -821,28 +853,32 @@ export const LibraryView: React.FC = () => {
                         {calculatedFine > 0 ? formatCurrency(calculatedFine) : '₹0 (On Time)'}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button onClick={() => {
-                          returnBook(iss.id);
-                          if (calculatedFine > 0) {
-                            const newFine: LibraryFineRecord = {
-                              id: `FIN-${Date.now()}`,
-                              issueId: iss.id,
-                              memberId: iss.borrowerId,
-                              memberName: iss.borrowerName,
-                              memberRole: iss.borrowerRole,
-                              bookTitle: iss.bookTitle,
-                              overdueDays: lateDays,
-                              fineAmount: calculatedFine,
-                              paymentStatus: 'Unpaid',
-                              createdDate: new Date().toISOString().split('T')[0],
-                              remarks: `Late return fine for ${lateDays} days`
-                            };
-                            saveFines([newFine, ...fineRecords]);
-                          }
-                          addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
-                        }} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm">
-                          Process Return
-                        </button>
+                        {!isReadOnlyAccess ? (
+                          <button onClick={() => {
+                            returnBook(iss.id);
+                            if (calculatedFine > 0) {
+                              const newFine: LibraryFineRecord = {
+                                id: `FIN-${Date.now()}`,
+                                issueId: iss.id,
+                                memberId: iss.borrowerId,
+                                memberName: iss.borrowerName,
+                                memberRole: iss.borrowerRole,
+                                bookTitle: iss.bookTitle,
+                                overdueDays: lateDays,
+                                fineAmount: calculatedFine,
+                                paymentStatus: 'Unpaid',
+                                createdDate: new Date().toISOString().split('T')[0],
+                                remarks: `Late return fine for ${lateDays} days`
+                              };
+                              saveFines([newFine, ...fineRecords]);
+                            }
+                            addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
+                          }} className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px] hover:bg-emerald-500 transition-all shadow-sm">
+                            Process Return
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -891,16 +927,20 @@ export const LibraryView: React.FC = () => {
                     <td className="py-3 px-4 font-mono font-bold text-slate-800">{iss.dueDate}</td>
                     <td className="py-3 px-4 text-center font-mono font-bold text-sky-600">{iss.renewCount || 0} / 2</td>
                     <td className="py-3 px-4 text-right">
-                      <button onClick={() => {
-                        const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
-                        iss.dueDate = newDueDate;
-                        iss.renewCount = (iss.renewCount || 0) + 1;
-                        iss.status = 'Renewed';
-                        addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
-                        switchTab('phase1', 'dashboard');
-                      }} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-[11px] hover:bg-sky-500 transition-all shadow-sm">
-                        Extend +14 Days
-                      </button>
+                      {!isReadOnlyAccess ? (
+                        <button onClick={() => {
+                          const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
+                          iss.dueDate = newDueDate;
+                          iss.renewCount = (iss.renewCount || 0) + 1;
+                          iss.status = 'Renewed';
+                          addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
+                          switchTab('phase1', 'dashboard');
+                        }} className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-[11px] hover:bg-sky-500 transition-all shadow-sm">
+                          Extend +14 Days
+                        </button>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -926,7 +966,7 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Clock className="w-4 h-4 text-amber-500" /> Book Reservation Queue</h3>
-            <button onClick={() => setModalType('addReservation')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Reserve Book</button>
+            {!isReadOnlyAccess && <button onClick={() => setModalType('addReservation')} className="px-4 py-2 rounded-xl bg-sky-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Reserve Book</button>}
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -949,14 +989,20 @@ export const LibraryView: React.FC = () => {
                     <td className="py-3 px-4 font-mono text-slate-500">{res.requestDate}</td>
                     <td className="py-3 px-4 text-center"><span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[10px]">{res.status}</span></td>
                     <td className="py-3 px-4 text-right space-x-2">
-                      <button onClick={() => {
-                        const updated = reservations.map(r => r.id === res.id ? { ...r, status: 'Fulfilled' as any } : r);
-                        saveReservations(updated);
-                        addToast('success', 'Reservation Fulfilled', `Book copy assigned to ${res.memberName}`);
-                      }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px]">Fulfill</button>
-                      <button onClick={() => setDeletingItem({ type: 'reservation', id: res.id, title: res.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isReadOnlyAccess ? (
+                        <>
+                          <button onClick={() => {
+                            const updated = reservations.map(r => r.id === res.id ? { ...r, status: 'Fulfilled' as any } : r);
+                            saveReservations(updated);
+                            addToast('success', 'Reservation Fulfilled', `Book copy assigned to ${res.memberName}`);
+                          }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-[11px]">Fulfill</button>
+                          <button onClick={() => setDeletingItem({ type: 'reservation', id: res.id, title: res.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1029,18 +1075,24 @@ export const LibraryView: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-right space-x-2">
-                      {f.paymentStatus === 'Unpaid' ? (
-                        <button onClick={() => {
-                          const updated = fineRecords.map(item => item.id === f.id ? { ...item, paymentStatus: 'Paid' as any, paidDate: new Date().toISOString().split('T')[0] } : item);
-                          saveFines(updated);
-                          addToast('success', 'Fine Collected', `Collected ${formatCurrency(f.fineAmount)} fine for ${f.memberName}`);
-                        }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px]">Collect Fine</button>
+                      {!isReadOnlyAccess ? (
+                        <>
+                          {f.paymentStatus === 'Unpaid' ? (
+                            <button onClick={() => {
+                              const updated = fineRecords.map(item => item.id === f.id ? { ...item, paymentStatus: 'Paid' as any, paidDate: new Date().toISOString().split('T')[0] } : item);
+                              saveFines(updated);
+                              addToast('success', 'Fine Collected', `Collected ${formatCurrency(f.fineAmount)} fine for ${f.memberName}`);
+                            }} className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px]">Collect Fine</button>
+                          ) : (
+                            <span className="text-[11px] font-bold text-emerald-600">Paid on {f.paidDate}</span>
+                          )}
+                          <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
                       ) : (
-                        <span className="text-[11px] font-bold text-emerald-600">Paid on {f.paidDate}</span>
+                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
                       )}
-                      <button onClick={() => setDeletingItem({ type: 'fine', id: f.id, title: f.memberName })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1066,7 +1118,7 @@ export const LibraryView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in">
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><AlertTriangle className="w-4 h-4 text-amber-500" /> Lost / Damaged Books Registry</h3>
-            <button onClick={() => setModalType('addLostDamaged')} className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Report Issue</button>
+            {!isReadOnlyAccess && <button onClick={() => setModalType('addLostDamaged')} className="px-4 py-2 rounded-xl bg-amber-600 text-white font-bold text-xs shadow-md"><Plus className="w-4 h-4" /> Report Issue</button>}
           </div>
           <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border overflow-hidden shadow-sm">
             <table className="w-full text-left text-xs">
@@ -1091,14 +1143,20 @@ export const LibraryView: React.FC = () => {
                     <td className="py-3 px-4 text-right font-mono font-black text-rose-600">{formatCurrency(ld.replacementCost)}</td>
                     <td className="py-3 px-4 text-center"><span className="px-2.5 py-0.5 rounded-full bg-slate-100 font-bold text-[10px]">{ld.status}</span></td>
                     <td className="py-3 px-4 text-right space-x-2">
-                      <button onClick={() => {
-                        const updated = lostDamagedList.map(item => item.id === ld.id ? { ...item, status: 'Replaced' as any } : item);
-                        saveLostDamaged(updated);
-                        addToast('success', 'Book Replaced', `Recorded replacement copy for "${ld.bookTitle}"`);
-                      }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px]">Mark Replaced</button>
-                      <button onClick={() => setDeletingItem({ type: 'lostDamaged', id: ld.id, title: ld.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isReadOnlyAccess ? (
+                        <>
+                          <button onClick={() => {
+                            const updated = lostDamagedList.map(item => item.id === ld.id ? { ...item, status: 'Replaced' as any } : item);
+                            saveLostDamaged(updated);
+                            addToast('success', 'Book Replaced', `Recorded replacement copy for "${ld.bookTitle}"`);
+                          }} className="px-3 py-1 rounded-lg bg-sky-600 text-white font-bold text-[11px]">Mark Replaced</button>
+                          <button onClick={() => setDeletingItem({ type: 'lostDamaged', id: ld.id, title: ld.bookTitle })} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] font-bold text-slate-400">View Only</span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1260,8 +1318,16 @@ export const LibraryView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Library</h2>
+            <p className="text-xs text-slate-500 font-medium">Digital Library Catalog, Circulation & Inventory Master</p>
           </div>
         </div>
+
+        {isAdmin && (
+          <div className="px-3.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 flex items-center gap-2 text-amber-800 dark:text-amber-300 font-extrabold text-xs shadow-xs">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>Administrator Read-Only Mode (View Purpose Only)</span>
+          </div>
+        )}
       </div>
 
       {/* Phase & Sub-tab Navigation Bar */}
