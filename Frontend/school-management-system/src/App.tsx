@@ -15,7 +15,7 @@ import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordMod
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
 import { AcademicHistoryView } from './components/modules/Students/AcademicHistoryView';
-import { StudentPromotionView } from './components/modules/Students/StudentPromotionView';
+import { StudentPromotionView } from './components/modules/Students/Student Promotion/StudentPromotionView';
 import { CertificatesView } from './components/modules/Certificates/CertificatesView';
 import { AlumniView } from './components/modules/Students/AlumniView';
 import { StaffList } from './components/modules/Staff/StaffList';
