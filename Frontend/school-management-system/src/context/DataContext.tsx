@@ -4308,13 +4308,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const fetchDepartments = async () => {
     try {
       const response: any = await fetchDepartmentsApi();
-      if (response && response.success && response.data) {
-        const mapped: Department[] = response.data.map((item: any) => ({
-          id: item.departmentId.toString(),
-          departmentName: item.departmentName,
-          departmentCode: item.departmentCode || "",
-          description: item.description || "",
-          status: item.status || "Active",
+      const dataArray = Array.isArray(response) ? response : (response?.data || []);
+      if (Array.isArray(dataArray)) {
+        const mapped: Department[] = dataArray.map((item: any) => ({
+          id: (item.departmentId || item.id || Math.random()).toString(),
+          departmentName: item.departmentName || '',
+          departmentCode: item.departmentCode || '',
+          description: item.description || '',
+          status: item.status || 'Active',
         }));
         setDepartments(mapped);
       }
@@ -4326,12 +4327,15 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const fetchDesignations = async () => {
     try {
       const response: any = await fetchDesignationsApi();
-      if (response && response.success && response.data) {
-        const mapped: DesignationMaster[] = response.data.map((item: any) => ({
-          id: item.id.toString(),
-          designationName: item.designationName,
-          employeeCategory: item.employeeCategory || "Both",
-          status: item.status || "Active",
+      const dataArray = Array.isArray(response) ? response : (response?.data || []);
+      if (Array.isArray(dataArray)) {
+        const mapped: DesignationMaster[] = dataArray.map((item: any) => ({
+          id: (item.designationId || item.id || Math.random()).toString(),
+          designationName: item.designationName || '',
+          designationCode: item.designationCode || '',
+          description: item.description || '',
+          employeeCategory: item.employeeCategory || 'Both',
+          status: item.status || 'Active',
         }));
         setDesignations(mapped);
       }
