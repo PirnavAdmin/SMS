@@ -168,11 +168,17 @@ export const SubjectsView: React.FC = () => {
           department: item.department || item.departmentName || 'Mathematics'
         }));
         setSubjects(mappedData);
+      } else if (contextSubjects && contextSubjects.length > 0) {
+        setSubjects(contextSubjects);
       } else {
         setSubjects([]);
       }
     } catch (error) {
-      addToast('error', 'Error Fetching Subjects', 'Failed to load subjects.');
+      if (contextSubjects && contextSubjects.length > 0) {
+        setSubjects(contextSubjects);
+      } else {
+        addToast('error', 'Error Fetching Subjects', 'Failed to load subjects.');
+      }
     } finally {
       setLoading(false);
     }
@@ -192,6 +198,8 @@ export const SubjectsView: React.FC = () => {
           status: item.status || 'Active'
         }));
         setDepartments(mappedData);
+      } else if (contextDepartments && contextDepartments.length > 0) {
+        setDepartments(contextDepartments);
       } else {
         setDepartments([]);
       }
@@ -220,6 +228,8 @@ export const SubjectsView: React.FC = () => {
           status: d.status || 'Active'
         }));
         setDesignations(mapped);
+      } else if (contextDesignations && contextDesignations.length > 0) {
+        setDesignations(contextDesignations);
       } else {
         setDesignations([]);
       }
@@ -234,22 +244,12 @@ export const SubjectsView: React.FC = () => {
     }
   };
 
-  // Fetch all lists on mount so counts in the header tabs are correct immediately
+  // Fetch all lists on initial mount so counts in the header tabs are correct immediately
   useEffect(() => {
     loadSubjects();
     loadDepartments();
     loadDesignations();
   }, []);
-
-  useEffect(() => {
-    if (activeTab === 'subjects') {
-      loadSubjects();
-    } else if (activeTab === 'departments') {
-      loadDepartments();
-    } else if (activeTab === 'designations') {
-      loadDesignations();
-    }
-  }, [activeTab]);
 
   // Update local subjects list if context subjects change
   // Removed static context dependency per request
