@@ -156,17 +156,40 @@ export const TrainingContainerView: React.FC = () => {
   const [assessmentCandidateSearch, setAssessmentCandidateSearch] = useState('');
   const [selectedAssessmentCandidateIds, setSelectedAssessmentCandidateIds] = useState<string[]>([]);
 
+  const availableDepartments = useMemo(() => {
+    const depts = new Set<string>();
+    staff.forEach(s => { if (s.department) depts.add(s.department); });
+    return Array.from(depts);
+  }, [staff]);
+
+  const availableDesignations = useMemo(() => {
+    const desigs = new Set<string>();
+    staff.forEach(s => { if (s.designation) desigs.add(s.designation); });
+    return Array.from(desigs);
+  }, [staff]);
+
   // Matching Candidates for Assessment Wizard Step 2
   const matchingAssessmentCandidates = useMemo(() => {
     return staff.filter(s => {
+      const isTeacherRole = s.role === 'Teacher' || s.role === 'Teaching' || (s as any).employeeType === 'Teaching Staff' ||
+        (s.department || '').toLowerCase().includes('teach') || (s.department || '').toLowerCase().includes('academic') ||
+        (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty');
+
       const matchesRole = wizardStep2.targetEmployeeType === 'Both' ||
-        (wizardStep2.targetEmployeeType === 'Teaching Staff' ? s.role === 'Teacher' : s.role !== 'Teacher');
-      const matchesBranch = wizardStep2.branch === 'All' || s.branch === wizardStep2.branch;
-      const matchesDept = wizardStep2.department === 'All' || s.department === wizardStep2.department;
-      const matchesDesig = wizardStep2.designation === 'All' || s.designation === wizardStep2.designation;
+        (wizardStep2.targetEmployeeType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
+
+      const matchesBranch = wizardStep2.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
+        s.branch.toLowerCase() === wizardStep2.branch.toLowerCase();
+
+      const matchesDept = wizardStep2.department === 'All' ||
+        (wizardStep2.department === 'Academics' ? (isTeacherRole || s.department === 'Academics' || s.department === 'Teaching' || s.department === 'Science' || s.department === 'Mathematics' || s.department === 'English') : (s.department?.toLowerCase() === wizardStep2.department?.toLowerCase()));
+
+      const matchesDesig = wizardStep2.designation === 'All' ||
+        (s.designation?.toLowerCase() === wizardStep2.designation?.toLowerCase());
+
       const staffSubject = (s as any).subject || s.qualification || '';
-      const matchesSubject = wizardStep2.subject === 'All' || !staffSubject || staffSubject === wizardStep2.subject;
-      const matchesSearch = `${s.firstName} ${s.lastName} ${s.department} ${s.designation}`.toLowerCase().includes(assessmentCandidateSearch.toLowerCase());
+      const matchesSubject = wizardStep2.subject === 'All' || !staffSubject || staffSubject.toLowerCase() === wizardStep2.subject.toLowerCase();
+      const matchesSearch = `${s.firstName} ${s.lastName} ${s.department} ${s.designation} ${s.id}`.toLowerCase().includes(assessmentCandidateSearch.toLowerCase());
 
       return matchesRole && matchesBranch && matchesDept && matchesDesig && matchesSubject && matchesSearch;
     });
@@ -1335,10 +1358,10 @@ export const TrainingContainerView: React.FC = () => {
                           className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         >
                           <option value="All">All Departments</option>
-                          <option value="Academics">Academics</option>
-                          <option value="Mathematics">Mathematics</option>
-                          <option value="Science">Science</option>
-                          <option value="Administration">Administration</option>
+                          <option value="Academics">Academics (Teaching Staff)</option>
+                          {availableDepartments.map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
                         </select>
                       </div>
 
@@ -1350,61 +1373,92 @@ export const TrainingContainerView: React.FC = () => {
                           className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border font-bold text-xs cursor-pointer"
                         >
                           <option value="All">All Designations</option>
-                          <option value="Senior Teacher">Senior Teacher</option>
-                          <option value="Teacher">Teacher</option>
-                          <option value="Assistant Teacher">Assistant Teacher</option>
-                          <option value="Department Head">Department Head</option>
+                          {availableDesignations.map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
                         </select>
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300">
+                    <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <span className="font-bold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <UserCheck className="w-4 h-4 text-sky-500" />
                           Selected Candidates ({selectedAssessmentCandidateIds.length} of {matchingAssessmentCandidates.length})
                         </span>
 
                         <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            placeholder="Filter candidate names..."
-                            value={assessmentCandidateSearch}
-                            onChange={e => setAssessmentCandidateSearch(e.target.value)}
-                            className="px-2 py-1 rounded-lg bg-white dark:bg-slate-900 border text-[11px]"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length) {
-                                setSelectedAssessmentCandidateIds([]);
-                              } else {
+                          <span className="text-[11px] font-bold text-slate-500">Quick Select:</span>
+                          <select
+                            defaultValue=""
+                            onChange={e => {
+                              const val = e.target.value;
+                              if (val === 'all') {
                                 setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.map(s => s.id));
+                              } else if (val === 'none') {
+                                setSelectedAssessmentCandidateIds([]);
+                              } else if (val.startsWith('select-')) {
+                                const count = parseInt(val.replace('select-', ''), 10);
+                                setSelectedAssessmentCandidateIds(matchingAssessmentCandidates.slice(0, count).map(s => s.id));
                               }
+                              e.target.value = '';
                             }}
-                            className="text-[10px] font-bold text-sky-600 hover:underline cursor-pointer"
+                            className="px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs font-extrabold text-sky-700 dark:text-sky-300 outline-none cursor-pointer hover:border-sky-500 shadow-xs"
                           >
-                            {selectedAssessmentCandidateIds.length === matchingAssessmentCandidates.length ? 'Deselect All' : 'Select All'}
-                          </button>
+                            <option value="" disabled>Select Candidate Count...</option>
+                            <option value="select-1">Select 1 Candidate</option>
+                            <option value="select-2">Select 2 Candidates</option>
+                            <option value="select-3">Select 3 Candidates</option>
+                            {matchingAssessmentCandidates.length >= 4 && <option value="select-4">Select 4 Candidates</option>}
+                            {matchingAssessmentCandidates.length >= 5 && <option value="select-5">Select 5 Candidates</option>}
+                            {matchingAssessmentCandidates.length >= 10 && <option value="select-10">Select 10 Candidates</option>}
+                            <option value="all">Select All Candidates ({matchingAssessmentCandidates.length})</option>
+                            <option value="none">Deselect All</option>
+                          </select>
                         </div>
                       </div>
 
-                      <div className="max-h-28 overflow-y-auto space-y-1">
-                        {matchingAssessmentCandidates.map(emp => (
-                          <label key={emp.id} className="flex items-center justify-between p-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 cursor-pointer">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={selectedAssessmentCandidateIds.includes(emp.id)}
-                                onChange={e => {
-                                  if (e.target.checked) setSelectedAssessmentCandidateIds([...selectedAssessmentCandidateIds, emp.id]);
-                                  else setSelectedAssessmentCandidateIds(selectedAssessmentCandidateIds.filter(id => id !== emp.id));
-                                }}
-                              />
-                              <span className="font-semibold">{emp.firstName} {emp.lastName}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400">{emp.designation || emp.role} • {emp.department}</span>
-                          </label>
-                        ))}
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          placeholder="Search candidate by name, department, designation..."
+                          value={assessmentCandidateSearch}
+                          onChange={e => setAssessmentCandidateSearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1 rounded-xl bg-white dark:bg-slate-900 border text-xs text-slate-900 dark:text-white"
+                        />
+                      </div>
+
+                      <div className="max-h-40 overflow-y-auto space-y-1 pr-1 border rounded-xl p-1 bg-white/50 dark:bg-slate-900/50">
+                        {matchingAssessmentCandidates.length === 0 ? (
+                          <div className="p-4 text-center text-xs font-bold text-slate-400">
+                            No staff members found matching the selected filters.
+                          </div>
+                        ) : (
+                          matchingAssessmentCandidates.map(emp => (
+                            <label key={emp.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-sky-50/60 dark:hover:bg-slate-800 cursor-pointer transition-colors">
+                              <div className="flex items-center gap-2.5">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedAssessmentCandidateIds.includes(emp.id)}
+                                  onChange={e => {
+                                    if (e.target.checked) setSelectedAssessmentCandidateIds([...selectedAssessmentCandidateIds, emp.id]);
+                                    else setSelectedAssessmentCandidateIds(selectedAssessmentCandidateIds.filter(id => id !== emp.id));
+                                  }}
+                                  className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                />
+                                <div>
+                                  <span className="font-extrabold text-xs text-slate-900 dark:text-white block">{emp.firstName} {emp.lastName}</span>
+                                  <span className="text-[10px] font-bold text-slate-400 font-mono">{emp.id}</span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <span className="px-2 py-0.5 rounded-md bg-sky-50 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-bold text-[10px]">{emp.designation || emp.role}</span>
+                                <span className="text-[10px] text-slate-400 block font-medium">{emp.department || 'Main'} • {emp.branch || 'Main Campus'}</span>
+                              </div>
+                            </label>
+                          ))
+                        )}
                       </div>
                     </div>
                   </div>
