@@ -5,6 +5,7 @@ using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
+using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -142,7 +143,7 @@ public class StaffService : IStaffService
             FirstName = dto.FirstName,
             MiddleName = dto.MiddleName,
             LastName = dto.LastName,
-            Email = dto.Email,
+            Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email,
             Phone = dto.Phone,
             AlternateMobile = dto.AlternateMobile,
             Gender = dto.Gender,
@@ -229,6 +230,7 @@ public class StaffService : IStaffService
 
         await _schoolRepository.AddStaffAsync(staff);
         await _schoolRepository.SaveChangesAsync();
+        await SyncTeacherAssignmentsAsync(staff.StaffId, dto.AssignedClasses, dto.AssignedSubjects);
         return MapToStaffResponseDto(staff);
     }
 
@@ -241,7 +243,7 @@ public class StaffService : IStaffService
         staff.FirstName = dto.FirstName;
         staff.MiddleName = dto.MiddleName;
         staff.LastName = dto.LastName;
-        staff.Email = dto.Email;
+        staff.Email = string.IsNullOrWhiteSpace(dto.Email) ? null : dto.Email;
         staff.Phone = dto.Phone;
         staff.AlternateMobile = dto.AlternateMobile;
         if (dto.Gender != null) staff.Gender = dto.Gender;
@@ -332,6 +334,7 @@ public class StaffService : IStaffService
         }
 
         await _schoolRepository.SaveChangesAsync();
+        await SyncTeacherAssignmentsAsync(staff.StaffId, dto.AssignedClasses, dto.AssignedSubjects);
         return MapToStaffResponseDto(staff);
     }
 
@@ -339,6 +342,20 @@ public class StaffService : IStaffService
     {
         var staff = await _schoolRepository.GetStaffByIdAsync(id)
             ?? throw new NotFoundException($"Staff member with ID '{id}' not found.");
+
+        // Clean up workload assignments first to prevent foreign key errors
+        var existingTa = await _context.TeacherAssignments.Where(a => a.TeacherId == id).ToListAsync();
+        if (existingTa.Any())
+        {
+            _context.TeacherAssignments.RemoveRange(existingTa);
+        }
+
+        var existingTsa = await _context.TeacherSubjectAssignments.Where(a => a.StaffId == id).ToListAsync();
+        if (existingTsa.Any())
+        {
+            _context.TeacherSubjectAssignments.RemoveRange(existingTsa);
+        }
+
         _schoolRepository.RemoveStaff(staff);
         await _schoolRepository.SaveChangesAsync();
         return true;
@@ -465,76 +482,185 @@ public class StaffService : IStaffService
         return true;
     }
 
-    private static StaffResponseDto MapToStaffResponseDto(Staff s) => new()
+    private StaffResponseDto MapToStaffResponseDto(Staff s)
     {
-        StaffId = s.StaffId,
-        EmployeeId = s.EmployeeId ?? "",
-        EmployeeCategory = s.EmployeeCategory ?? "",
-        FirstName = s.FirstName ?? "",
-        MiddleName = s.MiddleName,
-        LastName = s.LastName ?? "",
-        Email = s.Email ?? "",
-        Phone = s.Phone,
-        AlternateMobile = s.AlternateMobile,
-        Gender = s.Gender,
-        DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-dd"),
-        BloodGroup = s.BloodGroup,
-        ResidentialAddress = s.ResidentialAddress,
-        AadhaarNumber = s.AadhaarNumber,
-        PanNumber = s.PanNumber,
-        PresentAddress = s.PresentAddress,
-        PermanentAddress = s.PermanentAddress,
-        City = s.City,
-        State = s.State,
-        PinCode = s.PinCode,
-        Designation = s.Designation ?? "",
-        Department = s.Department ?? "",
-        SystemRole = s.SystemRole,
-        JoiningDate = s.JoiningDate?.ToString("yyyy-MM-dd"),
-        Qualification = s.Qualification,
-        EmploymentType = s.EmploymentType,
-        ReportingManager = s.ReportingManager,
-        AcademicYear = s.AcademicYear,
-        IsClassTeacherEligible = s.IsClassTeacherEligible,
-        PrimarySubject = s.PrimarySubject,
-        Specialization = s.Specialization,
-        MonthlySalary = s.MonthlySalary ?? 0m,
-        AccountHolderName = s.AccountHolderName,
-        AccountNumber = s.AccountNumber,
-        BankName = s.BankName,
-        BranchName = s.BranchName,
-        IfscCode = s.IfscCode,
-        UpiId = s.UpiId,
-        IsActive = s.IsActive ?? true,
-        Qualifications = s.Qualifications.Select(q => new StaffQualificationDto
+        var assignments = _context.TeacherAssignments
+            .Where(a => a.TeacherId == s.StaffId && a.Role == "Subject Teacher")
+            .Include(a => a.ClassGrade)
+            .Include(a => a.Subject)
+            .ToList();
+
+        var assignedClasses = assignments
+            .Where(a => a.ClassGrade != null)
+            .Select(a => $"{a.ClassGrade.ClassName}-{a.SectionLetter}")
+            .Distinct()
+            .ToList();
+
+        var assignedSubjects = assignments
+            .Where(a => a.Subject != null)
+            .Select(a => a.Subject!.SubjectName)
+            .Distinct()
+            .ToList();
+
+        return new StaffResponseDto
         {
-            Id = q.Id,
-            QualificationDegree = q.QualificationDegree,
-            SpecializationSubject = q.SpecializationSubject,
-            InstitutionCollege = q.InstitutionCollege,
-            BoardUniversity = q.BoardUniversity,
-            PassingYear = q.PassingYear,
-            PercentageCgpa = q.PercentageCgpa
-        }).ToList(),
-        ExperienceRecords = s.ExperienceRecords.Select(e => new StaffExperienceDto
+            StaffId = s.StaffId,
+            EmployeeId = s.EmployeeId ?? "",
+            EmployeeCategory = s.EmployeeCategory ?? "",
+            FirstName = s.FirstName ?? "",
+            MiddleName = s.MiddleName,
+            LastName = s.LastName ?? "",
+            Email = s.Email ?? "",
+            Phone = s.Phone,
+            AlternateMobile = s.AlternateMobile,
+            Gender = s.Gender,
+            DateOfBirth = s.DateOfBirth?.ToString("yyyy-MM-dd"),
+            BloodGroup = s.BloodGroup,
+            ResidentialAddress = s.ResidentialAddress,
+            AadhaarNumber = s.AadhaarNumber,
+            PanNumber = s.PanNumber,
+            PresentAddress = s.PresentAddress,
+            PermanentAddress = s.PermanentAddress,
+            City = s.City,
+            State = s.State,
+            PinCode = s.PinCode,
+            Designation = s.Designation ?? "",
+            Department = s.Department ?? "",
+            SystemRole = s.SystemRole,
+            JoiningDate = s.JoiningDate?.ToString("yyyy-MM-dd"),
+            Qualification = s.Qualification,
+            EmploymentType = s.EmploymentType,
+            ReportingManager = s.ReportingManager,
+            AcademicYear = s.AcademicYear,
+            IsClassTeacherEligible = s.IsClassTeacherEligible,
+            PrimarySubject = s.PrimarySubject,
+            Specialization = s.Specialization,
+            MonthlySalary = s.MonthlySalary ?? 0m,
+            AccountHolderName = s.AccountHolderName,
+            AccountNumber = s.AccountNumber,
+            BankName = s.BankName,
+            BranchName = s.BranchName,
+            IfscCode = s.IfscCode,
+            UpiId = s.UpiId,
+            IsActive = s.IsActive ?? true,
+            Qualifications = s.Qualifications.Select(q => new StaffQualificationDto
+            {
+                Id = q.Id,
+                QualificationDegree = q.QualificationDegree,
+                SpecializationSubject = q.SpecializationSubject,
+                InstitutionCollege = q.InstitutionCollege,
+                BoardUniversity = q.BoardUniversity,
+                PassingYear = q.PassingYear,
+                PercentageCgpa = q.PercentageCgpa
+            }).ToList(),
+            ExperienceRecords = s.ExperienceRecords.Select(e => new StaffExperienceDto
+            {
+                Id = e.Id,
+                PreviousOrganization = e.PreviousOrganization,
+                DesignationHeld = e.DesignationHeld,
+                FromDate = e.FromDate?.ToString("yyyy-MM-dd"),
+                ToDate = e.ToDate?.ToString("yyyy-MM-dd"),
+                TotalExperience = e.TotalExperience,
+                ReasonForLeaving = e.ReasonForLeaving
+            }).ToList(),
+            Documents = s.Documents.Select(d => new StaffDocumentDto
+            {
+                StaffDocumentId = d.StaffDocumentId,
+                StaffId = d.StaffId,
+                DocumentType = d.DocumentType,
+                FileUrl = d.FileUrl,
+                IsRequired = d.IsRequired,
+                Status = d.Status,
+                UploadedAt = d.UploadedAt?.ToString("yyyy-MM-dd HH:mm:ss")
+            }).ToList(),
+            AssignedClasses = assignedClasses,
+            AssignedSubjects = assignedSubjects
+        };
+    }
+
+    private async Task SyncTeacherAssignmentsAsync(int staffId, List<string> classes, List<string> subjects)
+    {
+        // 1. Delete existing assignments for this staff member
+        var existingTa = await _context.TeacherAssignments.Where(a => a.TeacherId == staffId).ToListAsync();
+        if (existingTa.Any())
         {
-            Id = e.Id,
-            PreviousOrganization = e.PreviousOrganization,
-            DesignationHeld = e.DesignationHeld,
-            FromDate = e.FromDate?.ToString("yyyy-MM-dd"),
-            ToDate = e.ToDate?.ToString("yyyy-MM-dd"),
-            TotalExperience = e.TotalExperience,
-            ReasonForLeaving = e.ReasonForLeaving
-        }).ToList(),
-        Documents = s.Documents.Select(d => new StaffDocumentDto
+            _context.TeacherAssignments.RemoveRange(existingTa);
+        }
+
+        var existingTsa = await _context.TeacherSubjectAssignments.Where(a => a.StaffId == staffId).ToListAsync();
+        if (existingTsa.Any())
         {
-            StaffDocumentId = d.StaffDocumentId,
-            StaffId = d.StaffId,
-            DocumentType = d.DocumentType,
-            FileUrl = d.FileUrl,
-            IsRequired = d.IsRequired,
-            Status = d.Status,
-            UploadedAt = d.UploadedAt?.ToString("yyyy-MM-dd HH:mm:ss")
-        }).ToList()
-    };
+            _context.TeacherSubjectAssignments.RemoveRange(existingTsa);
+        }
+
+        await _context.SaveChangesAsync();
+
+        if (classes == null || !classes.Any() || subjects == null || !subjects.Any())
+        {
+            return;
+        }
+
+        // 2. Parse and map each class and subject combination
+        foreach (var classStr in classes)
+        {
+            if (string.IsNullOrWhiteSpace(classStr)) continue;
+
+            string className = classStr.Trim();
+            string sectionLetter = "A"; // default fallback
+
+            if (classStr.Contains("-"))
+            {
+                var parts = classStr.Split('-');
+                className = parts[0].Trim();
+                sectionLetter = parts[1].Trim();
+            }
+
+            var classGrade = await _context.Classes
+                .FirstOrDefaultAsync(cg => cg.ClassName != null && cg.ClassName.ToLower() == className.ToLower());
+
+            if (classGrade == null) continue;
+
+            var classSection = await _context.ClassSections
+                .FirstOrDefaultAsync(cs => cs.ClassId == classGrade.ClassId && cs.SectionName.ToLower() == sectionLetter.ToLower());
+
+            int sectionId = classSection?.SectionId ?? 0;
+
+            foreach (var subjectStr in subjects)
+            {
+                if (string.IsNullOrWhiteSpace(subjectStr)) continue;
+
+                var subject = await _context.Subjects
+                    .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == subjectStr.ToLower() || s.SubjectCode.ToLower() == subjectStr.ToLower());
+
+                if (subject == null) continue;
+
+                // Create general assignment
+                var ta = new TeacherAssignment
+                {
+                    ClassId = classGrade.ClassId,
+                    SectionLetter = sectionLetter,
+                    SubjectId = subject.SubjectId,
+                    TeacherId = staffId,
+                    Role = "Subject Teacher",
+                    Status = "Active"
+                };
+                await _context.TeacherAssignments.AddAsync(ta);
+
+                // Create schedule subject assignment (if section exists)
+                if (sectionId > 0)
+                {
+                    var tsa = new TeacherSubjectAssignment
+                    {
+                        ClassId = classGrade.ClassId,
+                        SectionId = sectionId,
+                        SubjectId = subject.SubjectId,
+                        StaffId = staffId
+                    };
+                    await _context.TeacherSubjectAssignments.AddAsync(tsa);
+                }
+            }
+        }
+
+        await _context.SaveChangesAsync();
+    }
 }
