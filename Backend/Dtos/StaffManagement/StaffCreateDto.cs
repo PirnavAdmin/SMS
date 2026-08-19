@@ -10,7 +10,7 @@ public class StaffCreateDto
     [Required] public string FirstName { get; set; } = string.Empty;
     public string? MiddleName { get; set; }
     [Required] public string LastName { get; set; } = string.Empty;
-    [Required][EmailAddress] public string Email { get; set; } = string.Empty;
+    [EmailAddress] public string? Email { get; set; }
     public string? Phone { get; set; }
     public string? AlternateMobile { get; set; }
     public string? Gender { get; set; }
@@ -56,4 +56,7 @@ public class StaffCreateDto
     public List<StaffQualificationDto> Qualifications { get; set; } = new();
     public List<StaffExperienceDto> ExperienceRecords { get; set; } = new();
     public List<StaffDocumentDto> Documents { get; set; } = new();
+
+    public List<string> AssignedClasses { get; set; } = new();
+    public List<string> AssignedSubjects { get; set; } = new();
 }

@@ -54,4 +54,7 @@ public class StaffResponseDto
 	public List<StaffQualificationDto> Qualifications { get; set; } = new();
 	public List<StaffExperienceDto> ExperienceRecords { get; set; } = new();
 	public List<StaffDocumentDto> Documents { get; set; } = new();
+
+	public List<string> AssignedClasses { get; set; } = new();
+	public List<string> AssignedSubjects { get; set; } = new();
 }
