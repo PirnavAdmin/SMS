@@ -842,6 +842,10 @@ export interface BookItem {
   totalCopies: number;
   availableCopies: number;
   rackNo: string;
+  price?: number;
+  publisher?: string;
+  edition?: string;
+  status?: 'Available' | 'Low Stock' | 'Out of Stock';
 }
 
 export interface BookIssue {
@@ -855,7 +859,101 @@ export interface BookIssue {
   dueDate: string;
   returnDate?: string;
   fineAmount: number;
-  status: 'Issued' | 'Returned' | 'Overdue';
+  renewCount?: number;
+  status: 'Issued' | 'Returned' | 'Overdue' | 'Renewed';
+}
+
+export interface BookCategory {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  totalBooksCount?: number;
+}
+
+export interface BookAuthor {
+  id: string;
+  name: string;
+  publisher: string;
+  biography?: string;
+  booksCount?: number;
+}
+
+export interface BookRack {
+  id: string;
+  rackNo: string;
+  shelfNo: string;
+  floor: string;
+  section: string;
+  capacity: number;
+  occupiedCount?: number;
+}
+
+export interface LibraryMember {
+  id: string;
+  memberId: string;
+  name: string;
+  role: 'Student' | 'Staff';
+  email: string;
+  phone: string;
+  className?: string;
+  department?: string;
+  maxLimit: number;
+  issuedCount: number;
+  fineBalance: number;
+  joinedDate: string;
+  status: 'Active' | 'Suspended' | 'Expired';
+}
+
+export interface BookReservation {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  memberId: string;
+  memberName: string;
+  memberRole: 'Student' | 'Staff';
+  requestDate: string;
+  status: 'Pending' | 'Fulfilled' | 'Cancelled';
+}
+
+export interface LibraryFineRecord {
+  id: string;
+  issueId: string;
+  memberId: string;
+  memberName: string;
+  memberRole: 'Student' | 'Staff';
+  bookTitle: string;
+  overdueDays: number;
+  fineAmount: number;
+  paidAmount?: number;
+  paymentStatus: 'Paid' | 'Unpaid' | 'Waived';
+  createdDate: string;
+  paidDate?: string;
+  remarks?: string;
+}
+
+export interface LostDamagedBook {
+  id: string;
+  bookId: string;
+  bookTitle: string;
+  memberId: string;
+  memberName: string;
+  memberRole: 'Student' | 'Staff';
+  issueType: 'Lost' | 'Damaged';
+  fineAmount: number;
+  replacementCost: number;
+  reportDate: string;
+  status: 'Pending' | 'Paid' | 'Replaced' | 'Written Off';
+  notes?: string;
+}
+
+export interface LibraryRule {
+  id: string;
+  userRole: 'Student' | 'Staff';
+  maxBooks: number;
+  issueDurationDays: number;
+  dailyFineRate: number;
+  maxRenewals: number;
 }
 
 

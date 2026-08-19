@@ -28,8 +28,7 @@ export default defineConfig(({ mode }) => {
 
                     headers: {
 
-                        'ngrok-skip-browser-warning': 'true'
-                    }
+                        'ngrok-skip-browser-warning': 'true'                    }
 
                 }
 

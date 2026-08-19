@@ -99,7 +99,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (emailOrPhone: string, password?: string, chosenRole?: UserRole): Promise<boolean> => {
     try {
       const response = await loginApi(emailOrPhone, password);
-
       const realToken = response?.token;
       if (!realToken) {
         throw new Error('No authentication token received.');
@@ -108,14 +107,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const roles = response?.roles || [];
       const priorityRoles: UserRole[] = ['Admin', 'Principal', 'Teacher', 'Staff', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist', 'Student', 'Parent'];
       let mappedRole: UserRole = 'Student'; // Default fallback
-
       if (roles.includes("SuperAdmin") || roles.includes("Admin")) {
         mappedRole = 'Admin';
       } else {
         const resolvedRole = priorityRoles.find(role => roles.includes(role));
         if (resolvedRole) {
           mappedRole = resolvedRole;
-
         }
       }
 
@@ -124,8 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const parts = emailOrPhone.split('@')[0].split('.');
         userName = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
       }
-      const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
 
+      const userIdStr = response?.userId ? String(response.userId) : `USR-${Math.floor(Math.random() * 1000)}`;
       const employeeRoles: UserRole[] = ['Teacher', 'Staff', 'Principal', 'HR', 'Accountant', 'Librarian', 'Transport Manager', 'Hostel Warden', 'Receptionist'];
 
       const loggedUser: User = {
@@ -142,10 +139,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(loggedUser);
       setRoleState(mappedRole);
       setToken(realToken);
-
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
       localStorage.setItem('auth_token', realToken);
-
       // Store roles specifically to mirror backend logic in App
       localStorage.setItem('roles', JSON.stringify(roles));
 
@@ -192,28 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        role,
-        token,
-        isAuthenticated: !!user && !!token,
-        selectedBranch,
-        setSelectedBranch: handleSetBranch,
-        selectedAcademicYear,
-        setSelectedAcademicYear: handleSetAcademicYear,
-        login,
-        logout,
-        setRole,
-        changePassword,
-        sendOtp,
-        verifyOtp,
-        resetPasswordWithOtp,
-        setUser
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={{ user, role, token, isAuthenticated: !!user && !!token, selectedBranch, setSelectedBranch: handleSetBranch, selectedAcademicYear, setSelectedAcademicYear: handleSetAcademicYear, login, logout, setRole, changePassword, sendOtp, verifyOtp, resetPasswordWithOtp, setUser }}>{children}</AuthContext.Provider>
   );
 };
 
@@ -222,4 +196,3 @@ export const useAuth = () => {
   if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 };
-

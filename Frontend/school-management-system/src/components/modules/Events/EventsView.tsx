@@ -40,8 +40,20 @@ export const EventsView: React.FC = () => {
     { id: 'HOL-2027-15', name: 'Annual Summer Vacation Break', type: 'Vacation', startDate: '2027-05-01', endDate: '2027-06-05', branch: 'Main Campus', description: '5-Week Annual Summer Vacation for Students & Academic Staff', status: 'Active' }
   ], []);
 
+  // Ensure default realistic holidays are populated into DataContext if initial count is small
+  React.useEffect(() => {
+    if (holidays && holidays.length > 0 && holidays.length < 15) {
+      const existingNames = new Set(holidays.map(h => h.name.toLowerCase()));
+      REALISTIC_HOLIDAYS_2026_2027.forEach(rh => {
+        if (!existingNames.has(rh.name.toLowerCase())) {
+          addHoliday(rh);
+        }
+      });
+    }
+  }, [holidays, REALISTIC_HOLIDAYS_2026_2027, addHoliday]);
+
   const displayHolidays = useMemo(() => {
-    const rawList = (holidays && holidays.length >= 10) ? holidays : REALISTIC_HOLIDAYS_2026_2027;
+    const rawList = (holidays && holidays.length > 0) ? holidays : REALISTIC_HOLIDAYS_2026_2027;
     return rawList.map(h => {
       let normType: HolidayType = h.type;
       const t = (h.type || '').toString().trim().toUpperCase();
