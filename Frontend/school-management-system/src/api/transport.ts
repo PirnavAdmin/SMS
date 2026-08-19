@@ -1,23 +1,31 @@
 import { apiClient } from './client';
 import { RouteMaster, PickupPoint, VehicleMaster, DriverMaster, VehicleAssignment, StudentTransport, VehicleMaintenance } from '../types';
 import { BusAttendantMaster } from '../components/modules/Transport/transportData';
-import { 
-  initialRouteMasters, 
-  initialPickupPoints, 
-  initialVehicleMasters, 
-  initialDriverMasters, 
-  initialVehicleAssignments, 
-  initialStudentTransports, 
-  initialVehicleMaintenances 
+import {
+  initialRouteMasters,
+  initialPickupPoints,
+  initialVehicleMasters,
+  initialDriverMasters,
+  initialVehicleAssignments,
+  initialStudentTransports,
+  initialVehicleMaintenances
 } from '../services/mockData';
 
-// Direct Backend API Dispatch Helper
+// Testing Mode Helper: Safely try real API, fallback to local testing mock state if backend is offline/unreachable
+
 const safeTransportApiCall = async <T>(endpoint: string, options?: RequestInit, fallbackData?: any): Promise<T> => {
-  const res = await apiClient(endpoint, options);
-  if (res !== undefined && res !== null && !(res as any)?.error) {
-    return (res as any)?.data !== undefined ? (res as any).data : res;
+  try {
+    const res = await apiClient(endpoint, options);
+    if (res !== undefined && res !== null && !(res as any)?.error) {
+      return (res as any)?.data !== undefined ? (res as any).data : res;
+    }
+  } catch (err) {
+    const method = options?.method?.toUpperCase() || 'GET';
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      throw err;
+    }
   }
-  return (res ?? fallbackData) as T;
+  return fallbackData as T;
 };
 
 const fetchListWithLookupFallback = async <T>(
@@ -27,30 +35,36 @@ const fetchListWithLookupFallback = async <T>(
   detailEndpointPrefix: string,
   fallbackData: T
 ): Promise<T> => {
-  const listRes = await apiClient(listEndpoint, { method: 'GET' });
-  let items = Array.isArray(listRes) ? listRes : (listRes?.items || listRes?.data || []);
-  if (items.length > 0) {
-    return (listRes?.data !== undefined ? listRes.data : listRes) as unknown as T;
-  }
-
-  // Fallback: list endpoint returned empty, try using lookup endpoint to fetch item IDs and fetch details
-  const lookups = await apiClient(lookupEndpoint, { method: 'GET' });
-  const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
-  
-  if (lookupList.length > 0) {
-    const detailsPromises = lookupList.map(async (lookup: any) => {
-      const id = lookup[idKey] || lookup.id || lookup.routeId || lookup.driverId || lookup.assignmentId;
-      if (!id) return null;
-      return await apiClient(`${detailEndpointPrefix}/${id}`, { method: 'GET' });
-    });
-    const detailsResults = await Promise.all(detailsPromises);
-    const validDetails = detailsResults.filter(Boolean);
-    if (validDetails.length > 0) {
-      return validDetails as unknown as T;
+  try {
+    const listRes = await apiClient(listEndpoint, { method: 'GET' });
+    let items = Array.isArray(listRes) ? listRes : (listRes?.items || listRes?.data || []);
+    if (items.length > 0) {
+      return (listRes?.data !== undefined ? listRes.data : listRes) as unknown as T;
     }
+    // Fallback: list endpoint returned empty, try using lookup endpoint to fetch item IDs and fetch details
+    const lookups = await apiClient(lookupEndpoint, { method: 'GET' });
+    const lookupList = Array.isArray(lookups) ? lookups : (lookups?.items || lookups?.data || []);
+    if (lookupList.length > 0) {
+      const detailsPromises = lookupList.map(async (lookup: any) => {
+        const id = lookup[idKey] || lookup.id || lookup.routeId || lookup.driverId || lookup.assignmentId;
+        if (!id) return null;
+        try {
+          return await apiClient(`${detailEndpointPrefix}/${id}`, { method: 'GET' });
+        } catch (e) {
+          console.warn(`Failed to fetch lookup detail for ${idKey} ${id}`, e);
+          return null;
+        }
+      });
+      const detailsResults = await Promise.all(detailsPromises);
+      const validDetails = detailsResults.filter(Boolean);
+      if (validDetails.length > 0) {
+        return validDetails as unknown as T;
+      }
+    }
+  } catch (err) {
+    console.error(`Error in fetchListWithLookupFallback for ${listEndpoint}`, err);
   }
-
-  return (listRes ?? fallbackData) as unknown as T;
+  return fallbackData;
 };
 
 const getStoredMock = <T>(key: string, fallback: T): T => {
@@ -71,6 +85,7 @@ const setStoredMock = (key: string, data: any) => {
 };
 
 // Persisted Mock Testing Store
+
 let localRoutes: RouteMaster[] = getStoredMock('route_masters', initialRouteMasters);
 let localPickupPoints: PickupPoint[] = getStoredMock('pickup_points', initialPickupPoints);
 let localVehicles: VehicleMaster[] = getStoredMock('vehicle_masters', initialVehicleMasters);
@@ -80,6 +95,7 @@ let localStudentAssignments: StudentTransport[] = getStoredMock('student_transpo
 let localMaintenance: VehicleMaintenance[] = getStoredMock('vehicle_maintenances', initialVehicleMaintenances);
 
 // --- Routes ---
+
 export const fetchRoutesApi = async (): Promise<RouteMaster[]> => {
   return fetchListWithLookupFallback<RouteMaster[]>(
     '/api/transport/routes',
@@ -107,6 +123,7 @@ export const createRouteApi = async (data: Partial<RouteMaster>): Promise<RouteM
     status: data.status || 'Active',
     description: data.description || ''
   } as unknown as RouteMaster;
+
   localRoutes.push(newRoute);
   setStoredMock('route_masters', localRoutes);
 
@@ -124,7 +141,6 @@ export const updateRouteApi = async (id: string, data: Partial<RouteMaster>): Pr
     setStoredMock('route_masters', localRoutes);
   }
   const updated = localRoutes[idx] || (data as RouteMaster);
-
   return safeTransportApiCall<RouteMaster>(
     `/api/transport/routes/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -143,6 +159,7 @@ export const deleteRouteApi = async (id: string): Promise<{ success: boolean }> 
 };
 
 // --- Pickup Points ---
+
 export const fetchPickupPointsApi = async (): Promise<PickupPoint[]> => {
   return safeTransportApiCall<PickupPoint[]>('/api/transport/pickup-points', { method: 'GET' }, localPickupPoints);
 };
@@ -164,6 +181,7 @@ export const createPickupPointApi = async (data: Partial<PickupPoint>): Promise<
     monthlyFee: data.monthlyFee || 1500,
     status: data.status || 'Active'
   } as unknown as PickupPoint;
+
   localPickupPoints.push(newPoint);
   setStoredMock('pickup_points', localPickupPoints);
 
@@ -181,7 +199,6 @@ export const updatePickupPointApi = async (id: string, data: Partial<PickupPoint
     setStoredMock('pickup_points', localPickupPoints);
   }
   const updated = localPickupPoints[idx] || (data as PickupPoint);
-
   return safeTransportApiCall<PickupPoint>(
     `/api/transport/pickup-points/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -200,6 +217,7 @@ export const deletePickupPointApi = async (id: string): Promise<{ success: boole
 };
 
 // --- Vehicles ---
+
 export const fetchVehiclesApi = async (): Promise<VehicleMaster[]> => {
   return safeTransportApiCall<VehicleMaster[]>('/api/transport/vehicles', { method: 'GET' }, localVehicles);
 };
@@ -225,6 +243,7 @@ export const createVehicleApi = async (data: Partial<VehicleMaster>): Promise<Ve
     gpsDeviceId: data.gpsDeviceId || 'GPS-001',
     status: data.status || 'Active'
   } as unknown as VehicleMaster;
+
   localVehicles.push(newVehicle);
   setStoredMock('vehicle_masters', localVehicles);
 
@@ -242,7 +261,6 @@ export const updateVehicleApi = async (id: string, data: Partial<VehicleMaster>)
     setStoredMock('vehicle_masters', localVehicles);
   }
   const updated = localVehicles[idx] || (data as VehicleMaster);
-
   return safeTransportApiCall<VehicleMaster>(
     `/api/transport/vehicles/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -261,6 +279,7 @@ export const deleteVehicleApi = async (id: string): Promise<{ success: boolean }
 };
 
 // --- Drivers ---
+
 export const fetchDriversApi = async (): Promise<DriverMaster[]> => {
   return fetchListWithLookupFallback<DriverMaster[]>(
     '/api/transport/drivers',
@@ -288,6 +307,7 @@ export const createDriverApi = async (data: Partial<DriverMaster>): Promise<Driv
     experienceYears: data.experienceYears || 5,
     status: data.status || 'Active'
   } as unknown as DriverMaster;
+
   localDrivers.push(newDriver);
   setStoredMock('driver_masters', localDrivers);
 
@@ -305,7 +325,6 @@ export const updateDriverApi = async (id: string, data: Partial<DriverMaster>): 
     setStoredMock('driver_masters', localDrivers);
   }
   const updated = localDrivers[idx] || (data as DriverMaster);
-
   return safeTransportApiCall<DriverMaster>(
     `/api/transport/drivers/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -324,6 +343,7 @@ export const deleteDriverApi = async (id: string): Promise<{ success: boolean }>
 };
 
 // --- Vehicle Assignments ---
+
 export const fetchVehicleAssignmentsApi = async (): Promise<VehicleAssignment[]> => {
   try {
     const lookups = await apiClient('/api/transport/lookups/vehicle-assignments', { method: 'GET' });
@@ -369,6 +389,7 @@ export const createVehicleAssignmentApi = async (data: Partial<VehicleAssignment
     effectiveFrom: data.effectiveFrom || '2026-06-01',
     status: data.status || 'Active'
   } as unknown as VehicleAssignment;
+
   localVehicleAssignments.push(newAssign);
   setStoredMock('vehicle_assignments', localVehicleAssignments);
 
@@ -386,7 +407,6 @@ export const updateVehicleAssignmentApi = async (id: string, data: Partial<Vehic
     setStoredMock('vehicle_assignments', localVehicleAssignments);
   }
   const updated = localVehicleAssignments[idx] || (data as VehicleAssignment);
-
   return safeTransportApiCall<VehicleAssignment>(
     `/api/transport/vehicle-assignments/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -405,6 +425,7 @@ export const deleteVehicleAssignmentApi = async (id: string): Promise<{ success:
 };
 
 // --- Student Transport Assignments ---
+
 export const fetchStudentAssignmentsApi = async (): Promise<StudentTransport[]> => {
   return safeTransportApiCall<StudentTransport[]>('/api/transport/student-assignments', { method: 'GET' }, localStudentAssignments);
 };
@@ -429,6 +450,7 @@ export const createStudentAssignmentApi = async (data: Partial<StudentTransport>
     vehicleId: data.vehicleId || '',
     status: data.status || 'Active'
   } as unknown as StudentTransport;
+
   localStudentAssignments.push(newSt);
   setStoredMock('student_transports', localStudentAssignments);
 
@@ -446,7 +468,6 @@ export const updateStudentAssignmentApi = async (id: string, data: Partial<Stude
     setStoredMock('student_transports', localStudentAssignments);
   }
   const updated = localStudentAssignments[idx] || (data as StudentTransport);
-
   return safeTransportApiCall<StudentTransport>(
     `/api/transport/student-assignments/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -465,6 +486,7 @@ export const deleteStudentAssignmentApi = async (id: string): Promise<{ success:
 };
 
 // --- Maintenance ---
+
 export const fetchMaintenanceApi = async (): Promise<VehicleMaintenance[]> => {
   return safeTransportApiCall<VehicleMaintenance[]>('/api/transport/vehicle-maintenance', { method: 'GET' }, localMaintenance);
 };
@@ -487,6 +509,7 @@ export const createMaintenanceApi = async (data: Partial<VehicleMaintenance>): P
     remarks: data.remarks || '',
     status: data.status || 'Completed'
   } as unknown as VehicleMaintenance;
+
   localMaintenance.push(newM);
   setStoredMock('vehicle_maintenances', localMaintenance);
 
@@ -504,7 +527,6 @@ export const updateMaintenanceApi = async (id: string, data: Partial<VehicleMain
     setStoredMock('vehicle_maintenances', localMaintenance);
   }
   const updated = localMaintenance[idx] || (data as VehicleMaintenance);
-
   return safeTransportApiCall<VehicleMaintenance>(
     `/api/transport/vehicle-maintenance/${id}`,
     { method: 'PUT', body: JSON.stringify(data) },
@@ -527,6 +549,7 @@ export const fetchMaintenanceLookupApi = async (): Promise<any> => {
 };
 
 // --- Dashboards & Reports ---
+
 export const fetchTransportDashboardApi = async (): Promise<any> => {
   const defaultDashboard = {
     totalRoutes: localRoutes.length,
@@ -548,6 +571,7 @@ export const fetchTransportReportsMaintenanceApi = async () => safeTransportApiC
 export const fetchTransportReportsMonthlyCostApi = async () => safeTransportApiCall('/api/transport/reports/monthly-cost', { method: 'GET' }, []);
 
 // --- Dropdown Lookups ---
+
 export const fetchTransportLookupsVehiclesApi = async () => safeTransportApiCall('/api/transport/lookups/vehicles', { method: 'GET' }, localVehicles);
 export const fetchTransportLookupsRoutesApi = async () => safeTransportApiCall('/api/transport/lookups/routes', { method: 'GET' }, localRoutes);
 export const fetchTransportLookupsDriversApi = async () => safeTransportApiCall('/api/transport/lookups/drivers', { method: 'GET' }, localDrivers);
@@ -556,6 +580,7 @@ export const fetchTransportLookupsVehicleAssignmentsApi = async () => safeTransp
 export const fetchTransportLookupsStudentAssignmentsApi = async () => safeTransportApiCall('/api/transport/lookups/student-assignments', { method: 'GET' }, localStudentAssignments);
 
 // --- Bus Attendants ---
+
 export const fetchAttendantsApi = async (): Promise<BusAttendantMaster[]> => {
   return safeTransportApiCall<BusAttendantMaster[]>('/api/transport/bus-attendants', { method: 'GET' }, []);
 };
@@ -585,6 +610,7 @@ export const deleteAttendantApi = async (id: string): Promise<{ success: boolean
 };
 
 // --- Driver Documents ---
+
 export interface DriverDocumentDto {
   id?: number;
   documentCategory: string;
