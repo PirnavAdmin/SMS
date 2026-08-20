@@ -447,34 +447,36 @@ export const CommunicationView: React.FC = () => {
       </div>
 
       {/* LEVEL 2: Navigation Bar (Tab Switcher) Aligned Cleanly */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeTab === 'notifications'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Megaphone className="w-4 h-4" />
-            Broadcast Notifications
-          </button>
-          <button
-            onClick={() => setActiveTab('meetings')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeTab === 'meetings'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            Meetings & Schedules
-          </button>
+      {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') && (
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                activeTab === 'notifications'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Megaphone className="w-4 h-4" />
+              Broadcast Notifications
+            </button>
+            <button
+              onClick={() => setActiveTab('meetings')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                activeTab === 'meetings'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Meetings & Schedules
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {activeTab === 'meetings' ? (
+      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? (
         <MeetingsView />
       ) : (
         <div className="space-y-4 max-w-full">
