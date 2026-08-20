@@ -3,10 +3,10 @@ import {
   BarChart3, Download, UserCheck, Users, IndianRupee, CalendarCheck, 
   Search, Filter, Printer, RefreshCw, Layers, ShieldCheck, CheckCircle2, ChevronLeft, ChevronRight, Edit3, HelpCircle
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { ExportButton } from '../../common/ExportButton';
-import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
-import { fetchPrintReportTemplateApi } from '../../../api/reports';
+import { useData } from '../../../../context/DataContext';
+import { ExportButton } from '../../../common/ExportButton';
+import { SchoolPrintHeader } from '../../../common/SchoolPrintHeader';
+import { fetchReportDataApi } from '../../../../api/reports';
 
 export const ReportsView: React.FC = () => {
   const { students, staff, feePayments, attendance, examMarks, academicClasses } = useData();

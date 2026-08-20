@@ -5,11 +5,11 @@ import {
   AlertCircle, Users, LayoutGrid, Check, FileCheck2, ShieldCheck, XCircle,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { ExportButton } from '../../common/ExportButton';
-import { SectionAssignmentMethod, PromotionHistoryItem } from '../../../types';
-import { executePromotionApi } from '../../../api/studentPromotion';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { ExportButton } from '../../../common/ExportButton';
+import { SectionAssignmentMethod, PromotionHistoryItem } from '../../../../types';
+import { executePromotionApi } from '../../../../api/studentPromotion';
 
 interface StudentPromotionViewProps {
   onNavigate?: (module: string) => void;

@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, Loader2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
-import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface TeacherItem {
   id: string | number;
@@ -136,7 +135,29 @@ export const ParentTeacherInfoView: React.FC = () => {
       </div>
 
       {loading ? (
-        <DashboardShimmer />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
+            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-full shimmer-block shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-32 rounded-md shimmer-block" />
+                  <div className="h-3 w-24 rounded-md shimmer-block" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full shimmer-block shrink-0" />
+                  <div className="h-3 w-28 rounded-md shimmer-block" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full shimmer-block shrink-0" />
+                  <div className="h-3 w-40 rounded-md shimmer-block" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="flex flex-col gap-8">
           {parentWards.map(ward => (

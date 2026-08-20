@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { IndianRupee, Receipt, AlertCircle, FileText, Download, CheckCircle2, Calendar, X } from 'lucide-react';
+import { IndianRupee, AlertCircle, Download, CheckCircle2, Calendar, X } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -195,7 +195,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
           {activeTab === 'parent-fee-dues' ? (
             <><div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl"><IndianRupee className="w-6 h-6 text-sky-600 dark:text-sky-400" /></div> Fee Details</>
           ) : (
-            <><div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl"><Receipt className="w-6 h-6 text-sky-600 dark:text-sky-400" /></div> Payment History</>
+            <><div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl"><IndianRupee className="w-6 h-6 text-sky-600 dark:text-sky-400" /></div> Payment History</>
           )}
         </h2>
       </div>
@@ -362,7 +362,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
           <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-emerald-500" />
+              <IndianRupee className="w-5 h-5 text-emerald-500" />
               Payment History
             </h3>
             <select

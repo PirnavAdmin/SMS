@@ -1833,6 +1833,8 @@ export interface UniformSize {
   sizeCodeName?: string;
   chest?: string;
   waist?: string;
+  shoulder?: string;
+  length?: string;
   height?: string;
   ageGroup?: string;
   gender: 'Male' | 'Female' | 'Unisex';
@@ -1905,6 +1907,7 @@ export interface FinanceUniformConfig {
   effectiveFrom: string;
   effectiveTo?: string;
   status: 'Active' | 'Inactive';
+  packageItems?: { itemName: string; quantity: number; unitPrice: number }[];
 }
 
 // ==========================================

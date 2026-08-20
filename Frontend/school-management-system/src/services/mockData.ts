@@ -3989,8 +3989,8 @@ export const initialStudents: Student[] = [
     id: "STU-1011",
     admissionNo: "REG-1011",
     rollNo: "R-105",
-    firstName: "nagaraj",
-    lastName: "kamati",
+    firstName: "sarath",
+    lastName: "chinta",
     gender: "Male",
     dob: "14/03/2018",
     bloodGroup: "A+",
@@ -4772,7 +4772,7 @@ export const initialAdmissions: AdmissionApplication[] = [
   {
     id: "APP-2026-006",
     applicationNo: "REG-1011",
-    applicantName: "nagaraj kamati",
+    applicantName: "sarath chinta",
     appliedClass: "Class 1",
     gender: "Male",
     dob: "14/03/2018",
@@ -11109,18 +11109,20 @@ export const initialHostelBeds: HostelBed[] = [
 ];
 
 export const initialUniforms: UniformItem[] = [
-  { id: "UNI-01", category: "Boys Uniform Package (Admission Kit)", gender: "Male", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 58 },
-  { id: "UNI-02", category: "Girls Uniform Package (Admission Kit)", gender: "Female", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 59 },
-  { id: "UNI-03", category: "Extra Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "White", price: 350, availableStock: 148 },
-  { id: "UNI-04", category: "Extra Pair of Trousers", gender: "Male", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 119 },
-  { id: "UNI-05", category: "Extra Skirt", gender: "Female", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 109 },
-  { id: "UNI-06", category: "Formal Blazer (Winter)", gender: "Unisex", className: "Class 10", size: "L", color: "Dark Navy", price: 1500, availableStock: 49 },
-  { id: "UNI-07", category: "Tie & Crest", gender: "Unisex", className: "Class 10", size: "Free Size", color: "Navy Stripe", price: 150, availableStock: 159 },
-  { id: "UNI-08", category: "Belt", gender: "Unisex", className: "Class 10", size: "M", color: "Black / Logo", price: 200, availableStock: 129 },
-  { id: "UNI-09", category: "Black Shoes (Pair)", gender: "Unisex", className: "Class 10", size: "8", color: "Black", price: 600, availableStock: 89 },
-  { id: "UNI-10", category: "Socks (Pair)", gender: "Unisex", className: "Class 10", size: "Free Size", color: "White / Striped", price: 150, availableStock: 219 },
-  { id: "UNI-11", category: "Sports Tracksuit Kit", gender: "Unisex", className: "Class 10", size: "M", color: "Navy / House Color", price: 500, availableStock: 49 },
-  { id: "UNI-12", category: "V-Neck Sweater (Winter)", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 800, availableStock: 70 }
+  { id: "UNI-01", category: "Boys Uniform Package (Admission Kit)", name: "Boys Uniform Package (Admission Kit)", gender: "Male", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 58 },
+  { id: "UNI-02", category: "Girls Uniform Package (Admission Kit)", name: "Girls Uniform Package (Admission Kit)", gender: "Female", className: "Class 10", size: "M", color: "Navy / White", price: 3000, availableStock: 59 },
+  { id: "UNI-03", category: "Extra Shirt", name: "Extra Shirt", gender: "Unisex", className: "Class 10", size: "M", color: "White", price: 350, availableStock: 148 },
+  { id: "UNI-04", category: "Extra Pair of Trousers", name: "Extra Pair of Trousers", gender: "Male", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 119 },
+  { id: "UNI-05", category: "Extra Skirt", name: "Extra Skirt", gender: "Female", className: "Class 10", size: "M", color: "Navy Blue", price: 500, availableStock: 109 },
+  { id: "UNI-06", category: "Formal Blazer (Winter)", name: "Formal Blazer (Winter)", gender: "Unisex", className: "Class 10", size: "L", color: "Dark Navy", price: 1500, availableStock: 49 },
+  { id: "UNI-07", category: "Tie & Crest", name: "Tie & Crest", gender: "Unisex", className: "Class 10", size: "Free Size", color: "Navy Stripe", price: 150, availableStock: 159 },
+  { id: "UNI-08", category: "Belt", name: "Belt", gender: "Unisex", className: "Class 10", size: "M", color: "Black / Logo", price: 200, availableStock: 129 },
+  { id: "UNI-09", category: "Black Shoes (Pair)", name: "Black Shoes (Pair)", gender: "Unisex", className: "Class 10", size: "8", color: "Black", price: 600, availableStock: 89 },
+  { id: "UNI-10", category: "Socks (Pair)", name: "Socks (Pair)", gender: "Unisex", className: "Class 10", size: "Free Size", color: "White / Striped", price: 150, availableStock: 219 },
+  { id: "UNI-11", category: "Sports Tracksuit Kit", name: "Sports Tracksuit Kit", gender: "Unisex", className: "Class 10", size: "M", color: "Navy / House Color", price: 1200, availableStock: 49 },
+  { id: "UNI-12", category: "V-Neck Sweater (Winter)", name: "V-Neck Sweater (Winter)", gender: "Unisex", className: "Class 10", size: "M", color: "Navy Blue", price: 800, availableStock: 70 },
+  { id: "UNI-15", category: "Unstitched Uniform Cloth / Fabric", name: "Unstitched Uniform Fabric (Shirt & Trouser Roll)", gender: "Unisex", className: "Class 10", size: "3.0 Meters", color: "Navy / White", price: 800, availableStock: 150 },
+  { id: "UNI-16", category: "Unstitched Uniform Cloth Package", name: "Unstitched Uniform Cloth Package (Full Kit)", gender: "Unisex", className: "Class 10", size: "Unstitched Roll", color: "Navy / White", price: 2500, availableStock: 100 }
 ];
 
 export const initialBooks: BookItem[] = [
@@ -20926,23 +20928,26 @@ export const initialUniformCategories: UniformCategory[] = [
   { id: 'UC-04', name: 'Pant', description: 'Regular school uniform trousers' },
   { id: 'UC-05', name: 'Skirt', description: 'Regular school uniform skirts' },
   { id: 'UC-06', name: 'Blazer', description: 'Formal blazers with embroidered school crest' },
-  { id: 'UC-07', name: 'Extra Shirt', description: 'Summer half-sleeve shirts & polo tees' },
+  { id: 'UC-07', name: 'Extra Shirt', description: 'Extra school uniform formal shirts' },
   { id: 'UC-08', name: 'Extra Pair of Trousers', description: 'School uniform formal trousers' },
   { id: 'UC-09', name: 'Extra Skirt', description: 'School uniform pleated skirts' },
-  { id: 'UC-10', name: 'Formal Blazer (Winter)', description: 'Winter formal blazers with embroidered school crest' },
-  { id: 'UC-11', name: 'V-Neck Sweater (Winter)', description: 'Woolen V-neck sweaters & cardigans for winter' },
-  { id: 'UC-12', name: 'Tie & Crest', description: 'School woven tie and metallic crest badge' },
+  { id: 'UC-10', name: 'Jubba', description: 'Jubba for girls' },
+  { id: 'UC-12', name: 'Tie', description: 'School woven tie and metallic crest badge' },
   { id: 'UC-13', name: 'Belt', description: 'School branded leather uniform belt' },
-  { id: 'UC-14', name: 'Black Shoes (Pair)', description: 'Black formal leather school shoes' },
-  { id: 'UC-15', name: 'Socks (Pair)', description: 'School logo white and navy striped socks' },
-  { id: 'UC-16', name: 'Sports Tracksuit Kit', description: 'Tracksuits, sports tees, and athletic shorts' }
+  { id: 'UC-17', name: 'Unstitched Uniform Cloth / Fabric', description: 'Raw unstitched uniform fabric material rolls for shirts, trousers & skirts (per meter / suit length)' },
+  { id: 'UC-18', name: 'Unstitched Uniform Cloth Package', description: 'Full unstitched uniform fabric set (shirt & trouser/skirt cloth material roll)' }
 ];
 
 export const initialUniformSizes: UniformSize[] = [
-  { id: 'US-01', sizeName: 'S', chest: '36"', waist: '30"', height: '160cm', ageGroup: '11-13 yrs', gender: 'Unisex' },
-  { id: 'US-02', sizeName: 'M', chest: '38"', waist: '32"', height: '170cm', ageGroup: '13-15 yrs', gender: 'Unisex' },
-  { id: 'US-03', sizeName: 'L', chest: '40"', waist: '34"', height: '175cm', ageGroup: '15-17 yrs', gender: 'Unisex' },
-  { id: 'US-04', sizeName: 'XL', chest: '42"', waist: '36"', height: '180cm', ageGroup: '17+ yrs', gender: 'Unisex' }
+  { id: 'US-01', sizeName: 'Size 22 (XS Junior)', chest: '22"', waist: '20"', shoulder: '11"', length: '18"', ageGroup: '3-5 yrs', gender: 'Unisex' },
+  { id: 'US-02', sizeName: 'Size 24 (S Junior)', chest: '24"', waist: '22"', shoulder: '12"', length: '20"', ageGroup: '5-7 yrs', gender: 'Unisex' },
+  { id: 'US-03', sizeName: 'Size 28 (M Junior)', chest: '28"', waist: '24"', shoulder: '13"', length: '23"', ageGroup: '7-9 yrs', gender: 'Unisex' },
+  { id: 'US-04', sizeName: 'Size 32 (L Junior)', chest: '32"', waist: '26"', shoulder: '14"', length: '25"', ageGroup: '9-11 yrs', gender: 'Unisex' },
+  { id: 'US-05', sizeName: 'S', chest: '36"', waist: '30"', shoulder: '15"', length: '26"', ageGroup: '11-13 yrs', gender: 'Unisex' },
+  { id: 'US-06', sizeName: 'M', chest: '38"', waist: '32"', shoulder: '16"', length: '28"', ageGroup: '13-15 yrs', gender: 'Unisex' },
+  { id: 'US-07', sizeName: 'L', chest: '40"', waist: '34"', shoulder: '17"', length: '30"', ageGroup: '15-17 yrs', gender: 'Unisex' },
+  { id: 'US-08', sizeName: 'XL', chest: '42"', waist: '36"', shoulder: '18"', length: '32"', ageGroup: '17+ yrs', gender: 'Unisex' },
+  { id: 'US-09', sizeName: 'XXL', chest: '44"', waist: '38"', shoulder: '19"', length: '34"', ageGroup: '17+ yrs', gender: 'Unisex' }
 ];
 
 export const initialUniformSuppliers: UniformSupplier[] = [
@@ -20967,13 +20972,7 @@ export const initialUniformInventory: UniformInventoryItem[] = [
 
 export const initialStudentUniformIssues: StudentUniformIssue[] = [];
 
-export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [
-  { id: 'FUC-01', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 1', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3000, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-02', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 2', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3000, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-03', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 9', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3500, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-04', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3500, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-05', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 11', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3500, effectiveFrom: '2026-06-01', status: 'Active' }
-];
+export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [];
 
 export const initialLeaveTypes: LeaveType[] = [
   { id: 'LT-01', name: 'Casual Leave', code: 'CL', annualAllowance: 10, carryForward: false, maxConsecutiveDays: 3, requiresAttachment: false, isPaid: true, status: 'Active' },

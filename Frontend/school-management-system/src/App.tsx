@@ -15,7 +15,7 @@ import { ChangePasswordModal } from './components/modules/Auth/ChangePasswordMod
 import { DashboardView } from './components/modules/Dashboard/DashboardView';
 import { StudentList } from './components/modules/Students/StudentList';
 import { AcademicHistoryView } from './components/modules/Students/AcademicHistoryView';
-import { StudentPromotionView } from './components/modules/Students/StudentPromotionView';
+import { StudentPromotionView } from './components/modules/Students/Student Promotion/StudentPromotionView';
 import { CertificatesView } from './components/modules/Certificates/CertificatesView';
 import { AlumniView } from './components/modules/Students/AlumniView';
 import { StaffList } from './components/modules/Staff/StaffList';
@@ -50,12 +50,12 @@ import { TransportContainerView } from './components/modules/Transport/Transport
 import { HostelView } from './components/modules/Hostel/HostelView';
 import { HostelContainerView } from './components/modules/Hostel/HostelContainerView';
 import { InventoryView } from './components/modules/Inventory/InventoryView';
-import { CommunicationView } from './components/modules/Communication/CommunicationView';
-import { EventsView } from './components/modules/Events/EventsView';
-import { ReportsView } from './components/modules/Reports/ReportsView';
+import { CommunicationView } from './components/modules/School Administration/Communication Hub/CommunicationView';
+import { EventsView } from './components/modules/School Administration/Events & Holidays/EventsView';
+import { ReportsView } from './components/modules/School Administration/School Reports/ReportsView';
 import { UserManagementView } from './components/modules/UserManagement/UserManagementView';
 import { SettingsView } from './components/modules/Settings/SettingsView';
-import { TrainingContainerView } from './components/modules/Training/TrainingContainerView';
+import { TrainingContainerView } from './components/modules/School Administration/Faculty Development & Training/TrainingContainerView';
 
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
