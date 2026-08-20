@@ -219,6 +219,50 @@ public class TimetableService : ITimetableService
         if (startTime >= endTime)
             throw new PeriodOverlapException($"Start time ({FormatTime(startTime)}) must be earlier than end time ({FormatTime(endTime)}).");
 
+        // Resolve ClassId by name if not supplied
+        if (dto.ClassId == 0 && !string.IsNullOrWhiteSpace(dto.ClassName))
+        {
+            var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == dto.ClassName.ToLower().Trim());
+            if (matchedClass != null)
+            {
+                dto.ClassId = matchedClass.ClassId;
+            }
+        }
+
+        // Resolve SectionId by name if not supplied
+        if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
+        {
+            var matchedSection = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == dto.ClassId && s.SectionName != null && s.SectionName.ToLower() == dto.SectionName.ToLower().Trim());
+            if (matchedSection != null)
+            {
+                dto.SectionId = matchedSection.SectionId;
+            }
+        }
+
+        // Resolve SubjectId by name if not supplied
+        if (dto.SubjectId == 0 && !string.IsNullOrWhiteSpace(dto.SubjectName))
+        {
+            var matchedSubject = await _context.Subjects.FirstOrDefaultAsync(s => s.SubjectName != null && s.SubjectName.ToLower() == dto.SubjectName.ToLower().Trim());
+            if (matchedSubject != null)
+            {
+                dto.SubjectId = matchedSubject.SubjectId;
+            }
+        }
+
+        // Resolve TeacherId by name if not supplied
+        if ((!dto.TeacherId.HasValue || dto.TeacherId.Value == 0) && !string.IsNullOrWhiteSpace(dto.TeacherName) && dto.TeacherName != "Unassigned" && dto.TeacherName != "--")
+        {
+            var nameParts = dto.TeacherName.Split(' ');
+            var firstName = nameParts[0].Trim();
+            var lastName = nameParts.Length > 1 ? nameParts[1].Trim() : "";
+
+            var matchedTeacher = await _context.Staff.FirstOrDefaultAsync(s => s.FirstName != null && s.FirstName.ToLower() == firstName.ToLower() && (string.IsNullOrEmpty(lastName) || (s.LastName != null && s.LastName.ToLower() == lastName.ToLower())));
+            if (matchedTeacher != null)
+            {
+                dto.TeacherId = matchedTeacher.StaffId;
+            }
+        }
+
         // 1. Get or Create Header
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(dto.ClassId, dto.SectionId, dto.AcademicYear);
         if (header == null)
@@ -237,7 +281,7 @@ public class TimetableService : ITimetableService
 
         // 2. Resolve Subject
         var subject = await _context.Subjects.FindAsync(dto.SubjectId)
-            ?? throw new NotFoundException($"Subject with ID {dto.SubjectId} not found.");
+            ?? throw new NotFoundException($"Subject with ID {dto.SubjectId} (Name: '{dto.SubjectName}') not found.");
 
         // 3. Resolve Assigned Teacher (Auto-populated if not supplied)
         int teacherId;
@@ -255,7 +299,7 @@ public class TimetableService : ITimetableService
                     .Include(s => s.Department)
                     .FirstOrDefaultAsync(s => s.SubjectId == dto.SubjectId);
 
-                if (subjectWithDept?.Department != null)
+                if (subjectWithDept?.Department?.DepartmentName != null)
                 {
                     var deptName = subjectWithDept.Department.DepartmentName.ToLower();
                     assignedStaff = await _context.Staff
@@ -363,6 +407,26 @@ public class TimetableService : ITimetableService
 
     public async Task<ClassTimetableGridDto> PublishTimetableAsync(PublishTimetableDto dto)
     {
+        // Resolve ClassId by name if not supplied
+        if (dto.ClassId == 0 && !string.IsNullOrWhiteSpace(dto.ClassName))
+        {
+            var matchedClass = await _context.Classes.FirstOrDefaultAsync(c => c.ClassName != null && c.ClassName.ToLower() == dto.ClassName.ToLower().Trim());
+            if (matchedClass != null)
+            {
+                dto.ClassId = matchedClass.ClassId;
+            }
+        }
+
+        // Resolve SectionId by name if not supplied
+        if (dto.SectionId == 0 && !string.IsNullOrWhiteSpace(dto.SectionName) && dto.ClassId > 0)
+        {
+            var matchedSection = await _context.ClassSections.FirstOrDefaultAsync(s => s.ClassId == dto.ClassId && s.SectionName != null && s.SectionName.ToLower() == dto.SectionName.ToLower().Trim());
+            if (matchedSection != null)
+            {
+                dto.SectionId = matchedSection.SectionId;
+            }
+        }
+
         var header = await _timetableRepository.GetHeaderByClassSectionAsync(dto.ClassId, dto.SectionId, dto.AcademicYear);
         if (header == null)
         {

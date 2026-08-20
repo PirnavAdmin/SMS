@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import { formatCurrency } from "../utils/currency";
 import { getUniformPackageFeeByClass } from "../utils/uniformUtils";
@@ -2371,6 +2372,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { addToast } = useToast();
+  const activeRequests = useRef<Record<string, any>>({});
   const {
     selectedBranch,
     selectedAcademicYear,
@@ -4184,10 +4186,14 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const fetchAdmissions = async () => {
-    try {
-      const json = await fetchAdmissionsApi();
-      console.log("Admissions API response:", json);
-      if (json && json.success && json.data) {
+    if (activeRequests.current['admissions']) {
+      return activeRequests.current['admissions'];
+    }
+    const promise = (async () => {
+      try {
+        const json = await fetchAdmissionsApi();
+        console.log("Admissions API response:", json);
+        if (json && json.success && json.data) {
         if (json.data.length === 0) {
           addToast(
             "info",
@@ -4302,7 +4308,13 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
             "Unable to connect to the server. Please try again later.",
         );
       }
+      throw err;
+    } finally {
+      delete activeRequests.current['admissions'];
     }
+    })();
+    activeRequests.current['admissions'] = promise;
+    return promise;
   };
 
   const fetchDepartments = async () => {

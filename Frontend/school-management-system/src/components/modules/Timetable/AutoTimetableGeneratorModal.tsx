@@ -117,7 +117,8 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     periodSettings,
     timetable,
     addTimetableSlot,
-    deleteTimetableSlot
+    deleteTimetableSlot,
+    fetchPeriods
   } = useData();
   const { selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -466,187 +467,37 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     setIsGenerating(true);
 
     try {
-      // 1. Add New Master Period Settings
-      for (const p of calculationResult.periods) {
-        addPeriodSetting({
-          periodName: p.name,
-          startTime: p.startTime,
-          endTime: p.endTime,
-          sequence: p.sequence,
-          periodType: p.type === 'Teaching' ? 'Teaching' : (p.type === 'Lunch' ? 'Lunch' : (p.type === 'Assembly' ? 'Assembly' : 'Break')),
-          status: 'Active',
-          academicYear,
-          branch: selectedBranch || 'Main Campus'
-        });
-      }
+      const apiPayload = {
+        academicYear,
+        schoolStartTime,
+        schoolEndTime,
+        periodDurationMinutes: Number(periodDurationMinutes),
+        workingDays,
+        breaks: breaks.map(b => ({
+          name: b.name,
+          durationMinutes: Number(b.durationMinutes),
+          afterPeriod: Number(b.afterPeriod),
+          type: b.type
+        })),
+        selectedClassSections,
+        autoAssignMappedSubjects
+      };
 
-      // 2. Generate Timetable Grid Slots for each selected Class & Section
-      let totalSlotsCreated = 0;
-      let totalSectionsCount = 0;
-
-      // Filter classes to target (classes that have at least one selected section)
-      const targetClasses = academicClasses.filter(c =>
-        (c.sections && c.sections.length > 0 ? c.sections : ['A']).some(sec =>
-          selectedClassSections.includes(`${c.name}-${sec}`)
-        )
-      );
-
-      // Map to track teacher busy time slots across sections: "teachername" -> Set of "Day_TimeSlot"
-      const teacherBusySchedule = new Map<string, Set<string>>();
-
-      // Pre-populate with existing timetable slots that are NOT being regenerated
-      const targetSectionKeys = selectedClassSections; // e.g. ["Class 5-A", "Class 5-B"]
-      timetable.forEach(slot => {
-        const slotKey = `${slot.className}-${slot.section}`;
-        if (!targetSectionKeys.includes(slotKey) && slot.teacherName && slot.teacherName !== 'Unassigned' && slot.teacherName !== '--') {
-          const tNorm = slot.teacherName.toLowerCase().trim();
-          if (!teacherBusySchedule.has(tNorm)) {
-            teacherBusySchedule.set(tNorm, new Set());
-          }
-          teacherBusySchedule.get(tNorm)!.add(`${slot.day}_${slot.timeSlot}`);
+      const res: any = await generateTimetableApi(apiPayload);
+      if (res?.success) {
+        if (fetchPeriods) {
+          await fetchPeriods(true);
         }
-      });
-
-      for (const cls of targetClasses) {
-        const allSecs = cls.sections && cls.sections.length > 0 ? cls.sections : ['A'];
-        // Filter sections to generate for this class (only selected ones)
-        const sections = allSecs.filter(sec => selectedClassSections.includes(`${cls.name}-${sec}`));
-
-        // Find mapped subjects & teachers for this class
-        const rawCls = rawClasses.find(rc => rc.id === cls.id || rc.className === cls.name);
-
-        for (const section of sections) {
-          // 1. Clear any existing timetable slots for this class & section
-          const existingSlots = timetable.filter(t => t.className === cls.name && t.section === section);
-          existingSlots.forEach(slot => {
-            deleteTimetableSlot(slot.id);
-          });
-
-          // Find mapped subjects & teachers for this SPECIFIC section
-          const sectionTeacherAssignments = teacherAssignments.filter(ta =>
-            (ta.className === cls.name || ta.classId === cls.id) &&
-            (ta.section === section || ta.section === `Section ${section}` || section === `Section ${ta.section}`) &&
-            ta.teacherName && ta.teacherName !== 'Unassigned'
-          );
-
-          // STRICT CHECK: If NO teachers are assigned to this section, do NOT generate any timetable for this section!
-          if (sectionTeacherAssignments.length === 0) {
-            addToast('warning', 'Generation Skipped', `Skipped timetable for ${cls.name} - Section ${section}: No teachers assigned in Section ${section}.`);
-            continue; // Skip generating slots for this section!
-          }
-
-          totalSectionsCount++;
-
-          const mappedSubjects: Array<{ subjectName: string; teacherName: string; weeklyPeriods: number }> = [];
-
-          if (rawCls && rawCls.subjects && rawCls.subjects.length > 0) {
-            rawCls.subjects.forEach((s: any) => {
-              const sName = typeof s === 'string' ? s : (s.name || s.subjectName || '');
-              if (sName) {
-                const teacherObj = sectionTeacherAssignments.find(ta => ta.subject === sName);
-                if (teacherObj && teacherObj.teacherName && teacherObj.teacherName !== 'Unassigned') {
-                  mappedSubjects.push({
-                    subjectName: sName,
-                    teacherName: teacherObj.teacherName,
-                    weeklyPeriods: cls.weeklyPeriods?.[sName] || s.weeklyPeriods || 5
-                  });
-                }
-              }
-            });
-          } else if (cls.subjects && cls.subjects.length > 0) {
-            cls.subjects.forEach((sName: string) => {
-              const teacherObj = sectionTeacherAssignments.find(ta => ta.subject === sName);
-              if (teacherObj && teacherObj.teacherName && teacherObj.teacherName !== 'Unassigned') {
-                mappedSubjects.push({
-                  subjectName: sName,
-                  teacherName: teacherObj.teacherName,
-                  weeklyPeriods: cls.weeklyPeriods?.[sName] || 5
-                });
-              }
-            });
-          }
-
-          let subjectDistributionIdx = 0;
-
-          for (const day of workingDays) {
-            for (const period of calculationResult.periods) {
-              const isNonTeaching = period.type !== 'Teaching';
-              const timeSlotStr = `${period.startTime} - ${period.endTime}`;
-              let slotSubject = isNonTeaching ? period.name : 'Study Period';
-              let slotTeacher = isNonTeaching ? '--' : 'Unassigned';
-
-              if (!isNonTeaching && autoAssignMappedSubjects && mappedSubjects.length > 0) {
-                // Find a candidate subject whose assigned teacher is FREE at this (day, timeSlotStr)
-                let selectedSub: { subjectName: string; teacherName: string; weeklyPeriods: number } | null = null;
-                
-                for (let offset = 0; offset < mappedSubjects.length; offset++) {
-                  const candidate = mappedSubjects[(subjectDistributionIdx + offset) % mappedSubjects.length];
-                  const candidateTeacher = candidate.teacherName?.toLowerCase().trim();
-
-                  if (!candidateTeacher || candidateTeacher === 'unassigned' || candidateTeacher === '--') {
-                    selectedSub = candidate;
-                    subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.length;
-                    break;
-                  }
-
-                  const isBusy = teacherBusySchedule.get(candidateTeacher)?.has(`${day}_${timeSlotStr}`);
-                  if (!isBusy) {
-                     selectedSub = candidate;
-                     subjectDistributionIdx = (subjectDistributionIdx + offset + 1) % mappedSubjects.length;
-                     break;
-                  }
-                }
-
-                if (selectedSub) {
-                  slotSubject = selectedSub.subjectName;
-                  slotTeacher = selectedSub.teacherName || 'Unassigned';
-
-                  // Mark teacher as busy for this day & time slot so no other section can double book them!
-                  if (slotTeacher && slotTeacher !== 'Unassigned' && slotTeacher !== '--') {
-                    const tNorm = slotTeacher.toLowerCase().trim();
-                    if (!teacherBusySchedule.has(tNorm)) {
-                      teacherBusySchedule.set(tNorm, new Set());
-                    }
-                    teacherBusySchedule.get(tNorm)!.add(`${day}_${timeSlotStr}`);
-                  }
-                } else {
-                  // All assigned teachers for this section are busy at this exact time slot across other classes!
-                  slotSubject = 'Self Study / Reliever';
-                  slotTeacher = 'Unassigned';
-                }
-              }
-
-              const newSlot: TimetableSlot = {
-                id: `TT-${Date.now()}-${Math.floor(Math.random() * 900000)}`,
-                className: cls.name,
-                section: section,
-                day: day,
-                timeSlot: timeSlotStr,
-                startTime: period.startTime,
-                endTime: period.endTime,
-                subject: slotSubject,
-                teacherName: slotTeacher,
-                roomNo: cls.sectionDetails?.[section]?.roomNo || `Room ${cls.name.replace(/\D/g, '') || '1'}0${section.charCodeAt(0) - 64}`,
-                status: 'Draft',
-                academicYear,
-                branch: selectedBranch || 'Main Campus'
-              };
-
-              addTimetableSlot(newSlot);
-              totalSlotsCreated++;
-            }
-          }
-        }
+        addToast(
+          'success',
+          'Auto-Generation Complete! 🎉',
+          `Timetable successfully generated on the server for the selected class sections.`
+        );
+        if (onSuccess) onSuccess();
+        onClose();
+      } else {
+        throw new Error(res?.message || 'Failed to generate timetable.');
       }
-
-      addToast(
-        'success',
-        'Auto-Generation Complete! 🎉',
-        `Generated ${calculationResult.periods.length} period schedule and created ${totalSlotsCreated} timetable slots across ${targetClasses.length} classes (${totalSectionsCount} sections).`
-      );
-
-      if (onSuccess) onSuccess();
-      onClose();
     } catch (err: any) {
       console.error('Error generating auto timetable:', err);
       addToast('error', 'Generation Error', err.message || 'Failed to generate timetable slots.');

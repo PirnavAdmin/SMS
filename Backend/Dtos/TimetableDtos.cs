@@ -38,6 +38,10 @@ public class SaveTimetableSlotDto
     public int? TeacherId { get; set; } // Optional: Auto-resolved from TeacherSubjectAssignment if null
     public string? RoomNo { get; set; }
     public int? PeriodId { get; set; }
+    public string? ClassName { get; set; }
+    public string? SectionName { get; set; }
+    public string? SubjectName { get; set; }
+    public string? TeacherName { get; set; }
 }
 
 public class TimetableSlotDto
@@ -128,6 +132,8 @@ public class PublishTimetableDto
     public int SectionId { get; set; }
     public string AcademicYear { get; set; } = "2026-2027";
     public string Status { get; set; } = "Published"; // "Draft", "Published"
+    public string? ClassName { get; set; }
+    public string? SectionName { get; set; }
 }
 
 // 6. Generate Timetable DTOs
