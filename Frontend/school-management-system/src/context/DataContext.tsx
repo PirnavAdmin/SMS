@@ -8,7 +8,7 @@ import React, {
   useMemo,
 } from "react";
 import { formatCurrency } from "../utils/currency";
-import { getUniformPackageFeeByClass } from "../utils/uniformUtils";
+import { getUniformPackageFeeByClass, getUniformFeeForClass, getItemFeeFromFinanceConfig } from "../utils/uniformUtils";
 import {
   Student,
   AcademicHistoryRecord,
@@ -2380,10 +2380,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const getStored = <T,>(key: string, initial: T): T => {
     try {
-      const saved = localStorage.getItem(`edu_db_${key}`);
+      const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
+      const saved = localStorage.getItem(storageKey) || localStorage.getItem(key);
       return saved ? JSON.parse(saved) : initial;
     } catch {
-      localStorage.removeItem(`edu_db_${key}`);
+      const storageKey = key.startsWith("edu_db_") ? key : `edu_db_${key}`;
+      localStorage.removeItem(storageKey);
       return initial;
     }
   };
@@ -2500,16 +2502,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     getStored("hostel_beds", initialHostelBeds),
   );
   const [uniforms, setUniforms] = useState<UniformItem[]>(() => {
-    const stored = getStored("edu_db_uniforms", initialUniforms);
-    // Merge: keep all stored (user-configured) items, add any missing initial items by id
-    const storedIds = new Set(stored.map((u: UniformItem) => u.id));
-    const missing = initialUniforms.filter((u) => !storedIds.has(u.id));
-    if (missing.length > 0) {
-      const merged = [...stored, ...missing];
-      localStorage.setItem("edu_db_uniforms", JSON.stringify(merged));
-      return merged;
+    const stored = getStored<UniformItem[]>("uniforms", []);
+    if (stored && stored.length > 0) {
+      return stored;
     }
-    return stored.length > 0 ? stored : initialUniforms;
+    const initialIds = new Set(['UNI-01', 'UNI-02', 'UNI-03', 'UNI-04', 'UNI-05', 'UNI-06']);
+    const sanitizePrice = (u: UniformItem): UniformItem => {
+      let p = u.price;
+      const nameLower = (u.name || u.category || '').toLowerCase();
+      if (nameLower.includes('blazer') && (p < 500 || p === 85)) p = 1500;
+      else if (nameLower.includes('shirt') && (p < 100 || p === 35)) p = 350;
+      else if (nameLower.includes('tracksuit') && p < 300) p = 1200;
+      else if (nameLower.includes('pant') || nameLower.includes('trouser') || nameLower.includes('skirt')) {
+        if (p < 200) p = 500;
+      }
+      return { ...u, price: p };
+    };
+    const sanitized = (initialUniforms || []).map(sanitizePrice);
+    localStorage.setItem("edu_db_uniforms", JSON.stringify(sanitized));
+    return sanitized;
   });
   const [customRoles, setCustomRoles] = useState<CustomRole[]>(() =>
     getStored("custom_roles", initialCustomRoles),
@@ -2670,60 +2681,110 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Uniform ERP States
   const [uniformCategories, setUniformCategories] = useState<UniformCategory[]>(
     () => {
-      const stored = getStored("uniform_categories", initialUniformCategories);
-      const storedNames = new Set(
-        stored.map((c: any) => (c.name || c.categoryName || "").toLowerCase()),
-      );
-      const missing = initialUniformCategories.filter(
-        (c) => !storedNames.has(c.name.toLowerCase()),
-      );
-      if (missing.length > 0) {
-        const merged = [...stored, ...missing];
-        localStorage.setItem(
-          "edu_db_uniform_categories",
-          JSON.stringify(merged),
-        );
-        localStorage.setItem("uniform_categories", JSON.stringify(merged));
-        return merged;
+      const stored = getStored<UniformCategory[]>("uniform_categories", []);
+      if (stored && stored.length > 0) {
+        return stored;
       }
-      return stored.length > 0 ? stored : initialUniformCategories;
+      localStorage.setItem("edu_db_uniform_categories", JSON.stringify(initialUniformCategories));
+      localStorage.setItem("uniform_categories", JSON.stringify(initialUniformCategories));
+      return initialUniformCategories;
     },
   );
-  const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() =>
-    getStored("uniform_sizes", initialUniformSizes),
-  );
-  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(
-    () => getStored("uniform_suppliers", initialUniformSuppliers),
-  );
+  const [uniformSizes, setUniformSizes] = useState<UniformSize[]>(() => {
+    const vKey = "edu_db_uniform_sizes_v20";
+    const hasV20 = localStorage.getItem(vKey);
+    if (!hasV20) {
+      localStorage.setItem(vKey, "true");
+      localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(initialUniformSizes));
+      localStorage.setItem("uniform_sizes", JSON.stringify(initialUniformSizes));
+      return initialUniformSizes;
+    }
+    const savedStr = localStorage.getItem("edu_db_uniform_sizes") || localStorage.getItem("uniform_sizes");
+    let baseList: UniformSize[] = savedStr ? JSON.parse(savedStr) : initialUniformSizes;
+
+    // Strict deduplication by sizeName so duplicate sizes never exist
+    const seenNames = new Set<string>();
+    const deduplicated: UniformSize[] = [];
+
+    for (const s of (baseList || [])) {
+      if (!s || !s.sizeName) continue;
+      const normName = s.sizeName.trim().toUpperCase();
+      if (!seenNames.has(normName)) {
+        seenNames.add(normName);
+        deduplicated.push({ ...s, sizeName: normName });
+      }
+    }
+
+    localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(deduplicated));
+    return deduplicated;
+  });
+  const [uniformSuppliers, setUniformSuppliers] = useState<UniformSupplier[]>(() => {
+    const stored = getStored("uniform_suppliers", initialUniformSuppliers);
+    const defaultMockIds = new Set((initialUniformSuppliers || []).map(s => s.id));
+    const isUserItem = (s: any) => {
+      if (!s || !s.id) return false;
+      if (s.createdAt) return true;
+      if (!defaultMockIds.has(s.id)) return true;
+      const num = parseInt(s.id.replace(/\D/g, ''), 10) || 0;
+      return num > 20;
+    };
+    const userCreated = (stored || []).filter(isUserItem).sort((a: any, b: any) => {
+      if (a.createdAt && b.createdAt) return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      const numA = parseInt((a.id || '').replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt((b.id || '').replace(/\D/g, ''), 10) || 0;
+      return numB - numA;
+    });
+    const defaultMock = (stored || []).filter((s: any) => !isUserItem(s));
+    const storedIds = new Set((stored || []).map((s: any) => s.id));
+    const missing = initialUniformSuppliers.filter((s: any) => !storedIds.has(s.id));
+    const merged = [...userCreated, ...defaultMock, ...missing];
+    localStorage.setItem("edu_db_uniform_suppliers", JSON.stringify(merged));
+    return merged;
+  });
   const [uniformInventory, setUniformInventory] = useState<
     UniformInventoryItem[]
   >(() => {
-    const version = localStorage.getItem("edu_db_uniform_reset_v1659");
-    if (!version) {
-      localStorage.setItem("edu_db_uniform_reset_v1659", "true");
-      localStorage.removeItem("uniform_inventory");
-      localStorage.removeItem("student_uniform_issues");
-      localStorage.setItem(
-        "uniform_inventory",
-        JSON.stringify(initialUniformInventory),
-      );
-      localStorage.setItem("student_uniform_issues", JSON.stringify([]));
-      return initialUniformInventory;
+    try {
+      const saved = localStorage.getItem("edu_db_uniform_inventory") || localStorage.getItem("uniform_inventory");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn("Failed to load uniform_inventory from localStorage", e);
     }
-    return getStored("uniform_inventory", initialUniformInventory);
+    const cleanInventory = (initialUniformInventory || []).map(item => ({
+      ...item,
+      currentStock: item.openingStock || 100,
+      status: 'In Stock' as const
+    }));
+    return cleanInventory;
   });
+
   const [studentUniformIssues, setStudentUniformIssues] = useState<
     StudentUniformIssue[]
   >(() => {
-    const version = localStorage.getItem("edu_db_uniform_reset_v1659");
-    if (!version) {
-      return [];
+    try {
+      const saved = localStorage.getItem("edu_db_student_uniform_issues") || localStorage.getItem("student_uniform_issues");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.warn("Failed to load student_uniform_issues from localStorage", e);
     }
-    return getStored("student_uniform_issues", []);
+    return [];
   });
   const [financeUniformConfigs, setFinanceUniformConfigs] = useState<
     FinanceUniformConfig[]
-  >(() => getStored("finance_uniform_configs", initialFinanceUniformConfigs));
+  >(() => {
+    try {
+      const saved = localStorage.getItem("edu_db_finance_uniform_configs") || localStorage.getItem("finance_uniform_configs");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // ERP Finance System States
   const [feeHeads, setFeeHeads] = useState<FeeHead[]>(() => {
@@ -3551,10 +3612,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       "edu_db_uniform_inventory",
       JSON.stringify(uniformInventory),
     );
+    localStorage.setItem(
+      "uniform_inventory",
+      JSON.stringify(uniformInventory),
+    );
   }, [uniformInventory]);
   useEffect(() => {
     localStorage.setItem(
       "edu_db_student_uniform_issues",
+      JSON.stringify(studentUniformIssues),
+    );
+    localStorage.setItem(
+      "student_uniform_issues",
       JSON.stringify(studentUniformIssues),
     );
   }, [studentUniformIssues]);
@@ -3565,69 +3634,172 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
   }, [financeUniformConfigs]);
 
-  // Auto-sync uniform inventory items with uniforms list
+  // Auto-sync uniform inventory items with uniforms list, deduplicate, and sanitize
   useEffect(() => {
-    if (!uniforms || uniforms.length === 0) return;
     setUniformInventory((prevInv) => {
-      let changed = false;
-      const updated = [...prevInv];
-      uniforms.forEach((u) => {
-        const invIndex = updated.findIndex(
-          (inv) =>
-            inv.itemId === u.id ||
-            inv.itemName.toLowerCase() === u.category.toLowerCase(),
-        );
-        if (invIndex === -1) {
-          changed = true;
-          const stockVal =
-            u.availableStock !== undefined ? Number(u.availableStock) : 50;
-          updated.push({
-            id: "UINV-" + Math.floor(100 + Math.random() * 900),
-            itemId: u.id,
-            itemName: u.category,
-            category: u.category,
-            size: u.size || "M",
-            openingStock: stockVal,
-            currentStock: stockVal,
-            minimumStock: 10,
-            reorderLevel: 15,
-            status:
-              stockVal === 0
-                ? "Out of Stock"
-                : stockVal <= 10
-                  ? "Low Stock"
-                  : "In Stock",
-            branch: (u as any).branch || "Main Campus",
-          } as any);
-        } else {
-          const existing = updated[invIndex];
-          if (existing.size !== u.size && u.size && existing.itemId === u.id) {
-            changed = true;
-            updated[invIndex] = { ...existing, size: u.size };
-          }
-          if (
-            u.availableStock !== undefined &&
-            u.availableStock > 0 &&
-            existing.currentStock === 0 &&
-            existing.openingStock === 0
-          ) {
-            changed = true;
-            const stockVal = Number(u.availableStock);
-            updated[invIndex] = {
-              ...updated[invIndex],
-              openingStock: stockVal,
-              currentStock: stockVal,
-              status:
-                stockVal === 0
-                  ? "Out of Stock"
-                  : stockVal <= 10
-                    ? "Low Stock"
-                    : "In Stock",
-            };
-          }
+      if (!prevInv) return [];
+      const seen = new Set<string>();
+      const deduplicated: UniformInventoryItem[] = [];
+
+      for (const item of prevInv) {
+        if (!item) continue;
+        const normName = (item.itemName || item.category || '').toLowerCase().trim();
+        if (!normName || normName.includes('polo') || normName === 'winter blazer') continue;
+
+        const key = `${normName}_${(item.size || 'm').toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicated.push(item);
+        }
+      }
+      return deduplicated;
+    });
+
+    setUniforms((prevU) => {
+      if (!prevU) return [];
+      const seen = new Set<string>();
+      const deduplicated: UniformItem[] = [];
+
+      for (const u of prevU) {
+        if (!u) continue;
+        const normName = (u.name || u.category || '').toLowerCase().trim();
+        if (!normName || normName.includes('polo') || normName === 'winter blazer') continue;
+
+        const key = `${normName}_${(u.size || 'm').toLowerCase()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduplicated.push(u);
+        }
+      }
+      return deduplicated;
+    });
+
+    setStudentUniformIssues((prev) => {
+      if (!prev) return [];
+      const filtered = prev.filter(
+        (iss) =>
+          !iss.studentName?.toLowerCase().includes("dattu") &&
+          !iss.notes?.toLowerCase().includes("dattu")
+      );
+      return filtered.length !== prev.length ? filtered : prev;
+    });
+  }, []);
+
+  // Auto-sync uniformCategories with uniforms catalog & inventory (Strict 1-to-1 count & deduplication)
+  useEffect(() => {
+    if (!uniformCategories || uniformCategories.length === 0) return;
+
+    const validCatList = uniformCategories.map((c) => {
+      const name = (c.name || (c as any).categoryName || '').trim();
+      return { id: c.id, name, norm: name.toLowerCase() };
+    }).filter(c => c.name !== '');
+
+    const validCatNorms = new Set(validCatList.map(c => c.norm));
+
+    // 1. Strict deduplication of uniforms catalog and dynamic Finance Setup price sync
+    setUniforms((prevU) => {
+      const seenNorms = new Set<string>();
+      const deduplicated: UniformItem[] = [];
+
+      for (const u of (prevU || [])) {
+        if (!u) continue;
+        const norm = (u.category || u.name || '').toLowerCase().trim();
+        if (validCatNorms.has(norm) && !seenNorms.has(norm)) {
+          seenNorms.add(norm);
+          const dynamicPrice = getItemFeeFromFinanceConfig('', u.category || u.name, u.gender, financeUniformConfigs, u.price);
+          deduplicated.push({ ...u, price: dynamicPrice });
+        }
+      }
+
+      // Ensure every category in uniformCategories has 1 catalog item
+      validCatList.forEach(cat => {
+        if (!seenNorms.has(cat.norm)) {
+          seenNorms.add(cat.norm);
+          let defPrice = 350;
+          if (cat.norm.includes('blazer')) defPrice = 1500;
+          else if (cat.norm.includes('sweater')) defPrice = 800;
+          else if (cat.norm.includes('pant') || cat.norm.includes('trouser') || cat.norm.includes('skirt') || cat.norm.includes('shoes') || cat.norm.includes('tracksuit')) defPrice = 500;
+          else if (cat.norm.includes('tie') || cat.norm.includes('belt') || cat.norm.includes('cap')) defPrice = 150;
+
+          const dynamicPrice = getItemFeeFromFinanceConfig('', cat.name, 'Unisex', financeUniformConfigs, defPrice);
+
+          deduplicated.push({
+            id: `UNI-${cat.id || Date.now()}`,
+            category: cat.name,
+            name: cat.name,
+            gender: cat.norm.includes('boys') ? 'Male' : (cat.norm.includes('girls') ? 'Female' : 'Unisex'),
+            size: cat.norm.includes('tie') || cat.norm.includes('belt') || cat.norm.includes('ribbon') || cat.norm.includes('cap') ? 'Free Size' : 'M',
+            className: 'All Wings',
+            color: 'Standard',
+            price: dynamicPrice,
+            availableStock: 100,
+            branch: selectedBranch || 'Main Campus'
+          });
         }
       });
-      return changed ? updated : prevInv;
+
+      if (JSON.stringify(deduplicated) !== JSON.stringify(prevU)) {
+        try {
+          localStorage.setItem("edu_db_uniforms", JSON.stringify(deduplicated));
+        } catch (e) {}
+        return deduplicated;
+      }
+      return prevU;
+    });
+  }, [uniformCategories, financeUniformConfigs]);
+
+  // Auto-sync uniformInventory with uniforms list (Strict deduplication)
+  useEffect(() => {
+    if (!uniforms || uniforms.length === 0) return;
+
+    const validItems = uniforms.map(u => ({
+      id: u.id,
+      name: u.category || u.name || '',
+      norm: (u.category || u.name || '').toLowerCase().trim(),
+      stock: u.availableStock !== undefined ? Number(u.availableStock) : 100
+    })).filter(x => x.name !== '');
+
+    const validNorms = new Set(validItems.map(x => x.norm));
+
+    setUniformInventory((prevInv) => {
+      const seenNorms = new Set<string>();
+      const deduplicated: UniformInventoryItem[] = [];
+
+      for (const inv of (prevInv || [])) {
+        if (!inv) continue;
+        const norm = (inv.itemName || inv.category || '').toLowerCase().trim();
+        if (validNorms.has(norm) && !seenNorms.has(norm)) {
+          seenNorms.add(norm);
+          deduplicated.push(inv);
+        }
+      }
+
+      validItems.forEach(item => {
+        if (!seenNorms.has(item.norm)) {
+          seenNorms.add(item.norm);
+          deduplicated.push({
+            id: `UINV-${item.id || Date.now()}`,
+            itemId: item.id,
+            itemName: item.name,
+            category: item.name,
+            size: item.norm.includes('tie') || item.norm.includes('belt') || item.norm.includes('cap') ? 'Free Size' : 'M',
+            openingStock: item.stock,
+            currentStock: item.stock,
+            minimumStock: 10,
+            reorderLevel: 15,
+            status: item.stock === 0 ? 'Out of Stock' : item.stock <= 10 ? 'Low Stock' : 'In Stock',
+            branch: selectedBranch || 'Main Campus'
+          } as any);
+        }
+      });
+
+      if (deduplicated.length !== (prevInv || []).length) {
+        try {
+          localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(deduplicated));
+        } catch (e) {}
+        return deduplicated;
+      }
+      return prevInv;
     });
   }, [uniforms]);
 
@@ -4547,9 +4719,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           branch: c.branch || selectedBranch || "Main Campus",
         }));
         setUniformCategories((prev) => {
-          const apiIds = new Set(mappedCats.map((c: any) => c.id));
-          const localOnly = (prev || []).filter((c: any) => !apiIds.has(c.id));
-          return [...mappedCats, ...localOnly];
+          if (prev && prev.length > 0) return prev;
+          return mappedCats;
         });
       }
       if (sizes.length) {
@@ -4567,9 +4738,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           branch: s.branch || selectedBranch || "Main Campus",
         }));
         setUniformSizes((prev) => {
-          const apiIds = new Set(mappedSizes.map((s: any) => s.id));
-          const localOnly = (prev || []).filter((s: any) => !apiIds.has(s.id));
-          return [...mappedSizes, ...localOnly];
+          if (prev && prev.length > 0) return prev;
+          return mappedSizes;
         });
       }
       if (suppliers.length) {
@@ -4591,9 +4761,8 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           branch: s.branch || selectedBranch || "Main Campus",
         }));
         setUniformSuppliers((prev) => {
-          const apiIds = new Set(mappedSuppliers.map((s: any) => s.id));
-          const localOnly = (prev || []).filter((s: any) => !apiIds.has(s.id));
-          return [...mappedSuppliers, ...localOnly];
+          if (prev && prev.length > 0) return prev;
+          return mappedSuppliers;
         });
       }
       if (types.length) {
@@ -4643,7 +4812,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setUniformInventory((prev) => {
           const apiIds = new Set(mappedInv.map((i: any) => i.id));
           const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...mappedInv, ...localOnly];
+          return [...localOnly, ...mappedInv];
         });
 
         const mappedUniforms = types.map((t: any) => ({
@@ -4671,7 +4840,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         setUniforms((prev) => {
           const apiIds = new Set(mappedUniforms.map((u: any) => u.id));
           const localOnly = (prev || []).filter((u: any) => !apiIds.has(u.id));
-          return [...mappedUniforms, ...localOnly];
+          return [...localOnly, ...mappedUniforms];
         });
       }
       if (dists.length) {
@@ -6284,11 +6453,10 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
               "ADM2026-" + Math.floor(100 + Math.random() * 900),
             rollNo: "",
             firstName:
-              app.firstName || app.applicantName.split(" ")[0] || "Enrolled",
+              app.firstName || (app.applicantName ? app.applicantName.split(" ")[0] : "Enrolled"),
             lastName:
               app.lastName ||
-              app.applicantName.slice(app.applicantName.indexOf(" ") + 1) ||
-              "Student",
+              (app.applicantName && app.applicantName.includes(" ") ? app.applicantName.slice(app.applicantName.indexOf(" ") + 1) : "Student"),
             gender: app.gender || "Male",
             dob: app.dob || "15/08/2012",
             bloodGroup: app.bloodGroup || "O+",
@@ -6885,10 +7053,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
   };
   const addUniform = (itemData: Omit<UniformItem, "id">) => {
-    const id = "UNI-" + Math.floor(100 + Math.random() * 900);
+    const id = "UNI-" + Date.now();
+    const createdAt = new Date().toISOString();
     const catName = itemData.category || itemData.name || "Uniform Item";
-    const newItem: UniformItem = { ...itemData, id, category: catName };
-    setUniforms((prev) => [...prev, newItem]);
+    const newItem: UniformItem = { ...itemData, id, createdAt, category: catName };
+    setUniforms((prev) => [newItem, ...prev]);
 
     // Automatically sync with uniformCategories so it appears in category lists & dropdowns
     setUniformCategories((prev) => {
@@ -6898,17 +7067,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         )
       )
         return prev;
-      const ucId = "UC-" + Math.floor(10 + Math.random() * 90);
+      const ucId = "UC-" + Date.now();
       return [
-        ...prev,
         {
           id: ucId,
+          createdAt,
           name: catName,
           categoryName: catName,
           description: `Uniform ${catName}`,
           status: "Active",
           branch: (itemData as any).branch || selectedBranch || "Main Campus",
         } as any,
+        ...prev,
       ];
     });
 
@@ -6970,8 +7140,35 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   };
 
   const deleteUniform = (id: string) => {
-    setUniforms((prev) => prev.filter((u) => u.id !== id));
-    setUniformInventory((prev) => prev.filter((inv) => inv.itemId !== id));
+    setUniforms((prev) => {
+      const targetItem = prev.find((u) => u.id === id);
+      const targetName = (targetItem?.category || targetItem?.name || '').toLowerCase().trim();
+      const updatedU = prev.filter((u) => u.id !== id);
+      try {
+        localStorage.setItem("edu_db_uniforms", JSON.stringify(updatedU));
+      } catch (e) {}
+
+      if (targetName) {
+        setUniformCategories((prevCats) => {
+          const updatedCats = prevCats.filter((c) => (c.name || (c as any).categoryName || '').toLowerCase().trim() !== targetName);
+          try {
+            localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
+            localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
+          } catch (e) {}
+          return updatedCats;
+        });
+
+        setUniformInventory((prevInv) => {
+          const updatedInv = prevInv.filter((inv) => inv.itemId !== id && (inv.itemName || inv.category || '').toLowerCase().trim() !== targetName);
+          try {
+            localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(updatedInv));
+          } catch (e) {}
+          return updatedInv;
+        });
+      }
+
+      return updatedU;
+    });
   };
 
   // Custom Roles CRUD
@@ -9244,119 +9441,99 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     const selectedOptional = admApp ? admApp.selectedOptionalFees || [] : null;
 
-    const isUniformOpted = (
-      optList: string[] | null | undefined,
-      hId?: string,
-      hName?: string,
-    ) => {
-      return true;
+    const isUniformOpted = (optList: string[] | null | undefined, hId?: string, hName?: string) => {
+      if (optList === null || optList === undefined) return true;
+      if (Array.isArray(optList) && optList.length === 0) return false;
+      if (hId && optList.includes(hId)) return true;
+      if (hName && optList.some(id => id.toLowerCase().includes('uniform') || id.toLowerCase().includes('kit'))) return true;
+      return optList.some(id => id === 'FH-04' || id === 'FH-004' || id.includes('UNI') || id.includes('04'));
     };
 
-    // 1. Base Fee Structure (Class Fee Structure dfs.items is the ROOT Source of Truth)
+    // 1. Base Fee Structure
     const assignment = studentFeeAssignments.find(
       (a) => a.studentId === studentId && a.status === "Active",
     );
 
     let ledgerItems: LedgerFeeItem[] = [];
 
-    // Always include ALL fee items configured in the Class Fee Structure (dfs.items)
-    const classItems =
-      dfs && dfs.items && dfs.items.length > 0
-        ? dfs.items
-        : assignment && assignment.assignedFeeHeads && assignment.assignedFeeHeads.length > 0
-          ? assignment.assignedFeeHeads
-          : [];
-
-    const isItemMandatoryLocal = (headId: string, headName: string) => {
-      const fh = feeHeads.find(
-        (h) =>
-          (headId && h.id && h.id.toLowerCase() === headId.toLowerCase()) ||
-          (h.name && headName && h.name.toLowerCase().trim() === headName.toLowerCase().trim()),
-      );
-      if (fh !== undefined && fh.mandatory !== undefined) {
-        return fh.mandatory;
-      }
-      const lower = (headName || "").toLowerCase();
-      return (
-        lower.includes("tuition") ||
-        lower.includes("admission") ||
-        lower.includes("book") ||
-        lower.includes("textbook") ||
-        lower.includes("stationery") ||
-        lower.includes("material") ||
-        lower.includes("exam")
-      );
-    };
-
-    classItems.forEach((i) => {
-      const assignedMatch = assignment?.assignedFeeHeads?.find(
-        (h) =>
-          (h.feeHeadId && i.feeHeadId && h.feeHeadId === i.feeHeadId) ||
-          (h.feeHeadName &&
-            i.feeHeadName &&
-            h.feeHeadName.toLowerCase() === i.feeHeadName.toLowerCase()),
-      );
-
-      const finalHeadId = i.feeHeadId || assignedMatch?.feeHeadId || `FH-${i.feeHeadName}`;
-      const finalHeadName = i.feeHeadName || assignedMatch?.feeHeadName || "Fee Item";
-      const itemAmount = i.amount !== undefined ? i.amount : assignedMatch?.amount || 0;
-
-      const isSelected = true;
-
-      ledgerItems.push({
-        headId: finalHeadId,
-        headName: finalHeadName,
-        category:
-          i.category ||
-          assignedMatch?.category ||
-          (finalHeadName.includes("Tuition")
-            ? "Tuition Fee"
-            : finalHeadName.includes("Admission")
-              ? "Admission Fee"
-              : finalHeadName.includes("Book")
-                ? "Books Fee"
-                : isUniformHead(finalHeadName)
-                  ? "Uniform Fee"
-                  : finalHeadName.includes("Lab")
-                    ? "Lab Fee"
-                    : finalHeadName.includes("Sports")
-                      ? "Sports Fee"
-                      : "Other Fee"),
-        originalAmount: itemAmount,
-        scholarshipDeduction: 0,
-        discountDeduction: 0,
-        fineAmount: 0,
-        finalAmount: isSelected ? itemAmount : 0,
-        isApplicable: isSelected,
-        status: "Pending",
-        remarks: isSelected
-          ? undefined
-          : "Optional Fee - Not Selected at Admission",
-      });
-    });
-
-    // Merge any extra custom assigned fee heads from assignment not in dfs.items
-    if (assignment && assignment.assignedFeeHeads) {
+    if (
+      assignment &&
+      assignment.assignedFeeHeads &&
+      assignment.assignedFeeHeads.length > 0
+    ) {
       assignment.assignedFeeHeads.forEach((h) => {
+        const isUni = isUniformHead(h.feeHeadName);
+        const isSelected = isUni ? (selectedOptional !== null ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName) : false) : true;
+        const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs) : 0;
+        const itemAmount = isUni && uniFee > 0 ? uniFee : h.amount;
+
+        ledgerItems.push({
+          headId: h.feeHeadId,
+          headName: isUni ? 'Uniform & Accessories' : h.feeHeadName,
+          category:
+            h.category ||
+            (h.feeHeadName.includes("Tuition")
+              ? "Tuition Fee"
+              : h.feeHeadName.includes("Admission")
+                ? "Admission Fee"
+                : h.feeHeadName.includes("Book")
+                  ? "Books Fee"
+                  : isUni
+                    ? "Uniform Fee"
+                    : h.feeHeadName.includes("Lab")
+                      ? "Lab Fee"
+                      : h.feeHeadName.includes("Sports")
+                        ? "Sports Fee"
+                        : "Other Fee"),
+          originalAmount: itemAmount,
+          scholarshipDeduction: 0,
+          discountDeduction: 0,
+          fineAmount: 0,
+          finalAmount: isSelected ? itemAmount : 0,
+          isApplicable: isSelected,
+          status: "Pending",
+          remarks: isSelected ? undefined : 'Optional Fee - Not Selected at Admission'
+        });
+      });
+    }
+
+    if (dfs && dfs.items && dfs.items.length > 0) {
+      dfs.items.forEach((i) => {
         const exists = ledgerItems.some(
           (item) =>
-            (item.headId && h.feeHeadId && item.headId === h.feeHeadId) ||
-            (item.headName &&
-              h.feeHeadName &&
-              item.headName.toLowerCase() === h.feeHeadName.toLowerCase()),
+            (item.headId && i.feeHeadId && item.headId === i.feeHeadId) ||
+            (item.headName && i.feeHeadName && item.headName.toLowerCase() === i.feeHeadName.toLowerCase()),
         );
         if (!exists) {
+          const isUni = isUniformHead(i.feeHeadName);
+          const isSelected = isUni ? (selectedOptional !== null ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName) : false) : true;
+          const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs) : 0;
+          const itemAmount = isUni && uniFee > 0 ? uniFee : i.amount;
+
           ledgerItems.push({
-            headId: h.feeHeadId,
-            headName: h.feeHeadName,
-            category: h.category || "Other Fee",
-            originalAmount: h.amount,
+            headId: i.feeHeadId,
+            headName: isUni ? 'Uniform & Accessories' : i.feeHeadName,
+            category: i.feeHeadName.includes("Tuition")
+              ? "Tuition Fee"
+              : i.feeHeadName.includes("Admission")
+                ? "Admission Fee"
+                : i.feeHeadName.includes("Book")
+                  ? "Books Fee"
+                  : isUni
+                    ? "Uniform Fee"
+                    : i.feeHeadName.includes("Lab")
+                      ? "Lab Fee"
+                      : i.feeHeadName.includes("Sports")
+                        ? "Sports Fee"
+                        : "Other Fee",
+            originalAmount: itemAmount,
             scholarshipDeduction: 0,
             discountDeduction: 0,
             fineAmount: 0,
-            finalAmount: h.amount,
-            isApplicable: true,
+            finalAmount: isSelected ? itemAmount : 0,
+            isApplicable: isSelected,
             status: "Pending",
+            remarks: isSelected ? undefined : 'Optional Fee - Not Selected at Admission'
           });
         }
       });
@@ -9433,13 +9610,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     // Ensure Uniform Fee category amount matches config lookup
     ledgerItems = ledgerItems.map((item) => {
       if (item.category === "Uniform Fee") {
+        const isApp = item.isApplicable;
         return {
           ...item,
-          originalAmount: uniformAmount,
-          finalAmount: Math.max(
-            0,
-            uniformAmount - item.scholarshipDeduction - item.discountDeduction,
-          ),
+          originalAmount: isApp ? uniformAmount : 0,
+          finalAmount: isApp
+            ? Math.max(
+                0,
+                uniformAmount - item.scholarshipDeduction - item.discountDeduction,
+              )
+            : 0,
         };
       }
       return item;
@@ -9856,12 +10036,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         ? admApp.selectedOptionalFees || []
         : null;
 
-      const isUniformOpted = (
-        optList: string[] | null | undefined,
-        hId?: string,
-        hName?: string,
-      ) => {
-        return true;
+      const isUniformOpted = (optList: string[] | null | undefined, hId?: string, hName?: string) => {
+        if (optList === null || optList === undefined) return true;
+        if (Array.isArray(optList) && optList.length === 0) return false;
+        if (hId && optList.includes(hId)) return true;
+        if (hName && optList.some(id => id.toLowerCase().includes('uniform') || id.toLowerCase().includes('kit'))) return true;
+        return optList.some(id => id === 'FH-04' || id === 'FH-004' || id.includes('UNI') || id.includes('04'));
       };
 
       const assignment = studentFeeAssignments.find(
@@ -9908,17 +10088,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         }
       }
 
-      // Sanitize fee items so uniform items are Pending by default unless paid via feePayments receipt
-      const sanitizedItems = existing.feeItems.map((fi) => {
-        if (
-          isUniform(fi.headName) &&
-          fi.category !== "Additional Uniform Purchase"
-        ) {
+      const sanitizedItems = existing.feeItems.map(fi => {
+        if (isUniform(fi.headName) && fi.category !== 'Additional Uniform Purchase') {
+          const isOptedInApp = selectedOptional !== null ? isUniformOpted(selectedOptional, fi.headId, fi.headName) : true;
+          const shouldBeApplicable = selectedOptional !== null ? isOptedInApp : Boolean(hasUniformInAssignment);
           return {
             ...fi,
-            isApplicable: true,
-            finalAmount: fi.originalAmount,
+            isApplicable: shouldBeApplicable,
+            finalAmount: shouldBeApplicable ? fi.originalAmount : 0,
             status: fi.status || ("Pending" as const),
+            remarks: shouldBeApplicable ? undefined : 'Optional Fee - Not Selected at Admission'
           };
         }
         return fi;
@@ -12929,27 +13108,29 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   // Uniform category CRUD
   const addUniformCategory = (cData: Omit<UniformCategory, "id">) => {
-    const id = "UC-" + Math.floor(10 + Math.random() * 90);
+    const id = "UC-" + Date.now();
+    const createdAt = new Date().toISOString();
     const catName = cData.name || (cData as any).categoryName || "New Category";
     const newCat = {
       ...cData,
       id,
+      createdAt,
       name: catName,
       categoryName: catName,
       branch: (cData as any).branch || selectedBranch || "Main Campus",
     };
-    setUniformCategories((prev) => [...prev, newCat as any]);
+    setUniformCategories((prev) => [newCat as any, ...prev]);
 
     // Automatically sync with uniforms list so it shows in all uniform configuration dropdowns immediately
     setUniforms((prev) => {
       if (prev.some((u) => u.category === catName || u.name === catName))
         return prev;
-      const uId = "UNI-" + Math.floor(100 + Math.random() * 900);
+      const uId = "UNI-" + Date.now();
       const isPkg = catName.includes("Package") || catName.includes("Kit");
       return [
-        ...prev,
         {
           id: uId,
+          createdAt,
           category: catName,
           name: catName,
           gender: catName.toLowerCase().includes("boys")
@@ -12964,18 +13145,19 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           availableStock: 50,
           branch: selectedBranch || "Main Campus",
         },
+        ...prev,
       ];
     });
 
     setUniformInventory((prev) => {
       if (prev.some((i) => i.itemName === catName || i.category === catName))
         return prev;
-      const invId = "UINV-" + Math.floor(100 + Math.random() * 900);
+      const invId = "UINV-" + Date.now();
       return [
-        ...prev,
         {
           id: invId,
-          itemId: "UNI-" + Math.floor(100 + Math.random() * 900),
+          createdAt,
+          itemId: "UNI-" + Date.now(),
           itemName: catName,
           category: catName,
           size: "M",
@@ -12986,6 +13168,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
           status: "In Stock",
           branch: selectedBranch || "Main Campus",
         } as any,
+        ...prev,
       ];
     });
   };
@@ -12998,19 +13181,49 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
   };
   const deleteUniformCategory = (id: string) => {
-    setUniformCategories((prev) => prev.filter((c) => c.id !== id));
+    setUniformCategories((prev) => {
+      const targetCat = prev.find((c) => c.id === id);
+      const targetName = (targetCat?.name || (targetCat as any)?.categoryName || '').toLowerCase().trim();
+      const updatedCats = prev.filter((c) => c.id !== id);
+      try {
+        localStorage.setItem("edu_db_uniform_categories", JSON.stringify(updatedCats));
+        localStorage.setItem("uniform_categories", JSON.stringify(updatedCats));
+      } catch (e) {}
+
+      if (targetName) {
+        setUniforms((prevU) => {
+          const updatedU = prevU.filter((u) => (u.category || u.name || '').toLowerCase().trim() !== targetName);
+          try {
+            localStorage.setItem("edu_db_uniforms", JSON.stringify(updatedU));
+          } catch (e) {}
+          return updatedU;
+        });
+
+        setUniformInventory((prevInv) => {
+          const updatedInv = prevInv.filter((inv) => (inv.itemName || inv.category || '').toLowerCase().trim() !== targetName);
+          try {
+            localStorage.setItem("edu_db_uniform_inventory", JSON.stringify(updatedInv));
+          } catch (e) {}
+          return updatedInv;
+        });
+      }
+
+      return updatedCats;
+    });
   };
 
   // Uniform sizes CRUD
   const addUniformSize = (sData: Omit<UniformSize, "id">) => {
-    const id = "US-" + Math.floor(10 + Math.random() * 90);
+    const id = "US-" + Date.now();
+    const createdAt = new Date().toISOString();
     setUniformSizes((prev) => [
-      ...prev,
       {
         ...sData,
         id,
+        createdAt,
         branch: (sData as any).branch || selectedBranch || "Main Campus",
       } as any,
+      ...prev,
     ]);
   };
   const updateUniformSize = (id: string, updates: Partial<UniformSize>) => {
@@ -13019,19 +13232,27 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     );
   };
   const deleteUniformSize = (id: string) => {
-    setUniformSizes((prev) => prev.filter((s) => s.id !== id));
+    setUniformSizes((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      try {
+        localStorage.setItem("edu_db_uniform_sizes", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   // Uniform suppliers CRUD
   const addUniformSupplier = (sData: Omit<UniformSupplier, "id">) => {
-    const id = "SUP-" + Math.floor(10 + Math.random() * 90);
+    const id = "SUP-" + Date.now();
+    const createdAt = new Date().toISOString();
     setUniformSuppliers((prev) => [
-      ...prev,
       {
         ...sData,
         id,
+        createdAt,
         branch: (sData as any).branch || selectedBranch || "Main Campus",
       } as any,
+      ...prev,
     ]);
   };
   const updateUniformSupplier = (
@@ -13048,14 +13269,16 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   // Uniform inventory CRUD
   const addUniformInventory = (iData: Omit<UniformInventoryItem, "id">) => {
-    const id = "UINV-" + Math.floor(10 + Math.random() * 90);
+    const id = "UINV-" + Date.now();
+    const createdAt = new Date().toISOString();
     setUniformInventory((prev) => [
-      ...prev,
       {
         ...iData,
         id,
+        createdAt,
         branch: (iData as any).branch || selectedBranch || "Main Campus",
       } as any,
+      ...prev,
     ]);
     setUniforms((prev) =>
       prev.map((u) =>
@@ -13100,7 +13323,11 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
     // Reduce stock if issued
     if (issueData.status === "Issued" || issueData.status === "Replaced") {
-      const issueItemName = (issueData.itemName || "").toLowerCase();
+      const issueItemName = (issueData.itemName || "")
+        .replace(/\(extra\)/gi, '')
+        .replace(/\(extra purchase\)/gi, '')
+        .toLowerCase()
+        .trim();
       let calculatedNewStock: number | null = null;
 
       setUniformInventory((prevInv) => {
@@ -13112,9 +13339,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         );
         if (idx === -1 && issueItemName) {
           idx = prevInv.findIndex((i) => {
-            const itemCat = (i.category || "").toLowerCase();
-            const itemName = (i.itemName || "").toLowerCase();
-            return itemName === issueItemName || itemCat === issueItemName;
+            const itemCat = (i.category || "").toLowerCase().trim();
+            const itemName = (i.itemName || "").toLowerCase().trim();
+            return itemName === issueItemName || itemCat === issueItemName || itemName.includes(issueItemName) || issueItemName.includes(itemName);
           });
         }
         if (idx === -1) return prevInv;
@@ -13146,9 +13373,9 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         );
         if (idx === -1 && issueItemName) {
           idx = prevU.findIndex((u) => {
-            const uCat = (u.category || "").toLowerCase();
-            const uName = (u.name || "").toLowerCase();
-            return uCat === issueItemName || uName === issueItemName;
+            const uCat = (u.category || "").toLowerCase().trim();
+            const uName = (u.name || "").toLowerCase().trim();
+            return uCat === issueItemName || uName === issueItemName || uCat.includes(issueItemName) || issueItemName.includes(uCat);
           });
         }
         if (idx === -1) return prevU;
@@ -13165,14 +13392,18 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       });
     }
 
-    setStudentUniformIssues((prev) => [
-      ...prev,
-      {
-        ...issueData,
-        id,
-        branch: issueData.branch || selectedBranch || "Main Campus",
-      },
-    ]);
+    const newIssue = {
+      ...issueData,
+      id: "UIS-" + Date.now() + "-" + Math.floor(Math.random() * 1000000),
+      branch: issueData.branch || selectedBranch || "Main Campus",
+    };
+
+    setStudentUniformIssues((prev) => [newIssue, ...prev]);
+    try {
+      const stored = localStorage.getItem("edu_db_student_uniform_issues") || "[]";
+      const parsed = JSON.parse(stored);
+      localStorage.setItem("edu_db_student_uniform_issues", JSON.stringify([newIssue, ...parsed]));
+    } catch (e) {}
   };
 
   const updateStudentUniformIssue = (
@@ -13376,24 +13607,142 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
     setStudentUniformIssues((prev) => prev.filter((issue) => issue.id !== id));
   };
 
-  // Finance Uniform configurations CRUD
-  const addFinanceUniformConfig = (cData: Omit<FinanceUniformConfig, "id">) => {
-    const id = "FUC-" + Math.floor(10 + Math.random() * 90);
-    setFinanceUniformConfigs((prev) => [
-      ...prev,
-      { ...cData, id, branch: cData.branch || selectedBranch || "Main Campus" },
-    ]);
+  // Finance Uniform configurations CRUD with automatic Sync to Fee Setup & Dynamic Fee Structures
+  const syncUniformConfigToFinanceFees = (config: FinanceUniformConfig) => {
+    if (!config.className || !config.feeAmount || config.feeAmount <= 0) return;
+
+    setDynamicFeeStructures((prevDfs) => {
+      const targetLower = config.className.toLowerCase().trim();
+      const targetDigits = targetLower.replace(/\D/g, '');
+      const cleanTarget = targetLower.replace(/[^a-z0-9]/g, '');
+
+      const existingDfs = prevDfs.find((d) => {
+        if (!d || !d.className) return false;
+        const dLower = d.className.toLowerCase().trim();
+        if (dLower === targetLower) return true;
+        if (targetLower.includes(dLower) || dLower.includes(targetLower)) return true;
+
+        const cleanD = dLower.replace(/[^a-z0-9]/g, '');
+        if (cleanTarget && cleanD && (cleanTarget === cleanD || cleanTarget.includes(cleanD) || cleanD.includes(cleanTarget))) return true;
+
+        const dDigits = dLower.replace(/\D/g, '');
+        if (targetDigits && dDigits && targetDigits === dDigits) return true;
+
+        return false;
+      });
+
+      const feeItemName = config.uniformPackage || "Uniform & Accessories Fee";
+
+      if (existingDfs) {
+        let hasItem = false;
+        const updatedItems = (existingDfs.items || []).map((item) => {
+          const lowerHead = (item.feeHeadName || '').toLowerCase();
+          if (
+            lowerHead.includes("uniform") ||
+            lowerHead.includes("kit") ||
+            lowerHead.includes("accessories")
+          ) {
+            hasItem = true;
+            return { ...item, amount: Number(config.feeAmount), feeHeadName: feeItemName };
+          }
+          return item;
+        });
+
+        if (!hasItem) {
+          updatedItems.push({
+            id: `FI-UNI-${Date.now()}`,
+            feeHeadId: "FH-UNI-01",
+            feeHeadName: feeItemName,
+            amount: Number(config.feeAmount),
+            frequency: config.feePlan || "Annual",
+            dueMonth: "June",
+          });
+        }
+
+        return prevDfs.map((d) =>
+          d.id === existingDfs.id ? { ...d, items: updatedItems } : d
+        );
+      } else {
+        const newDfs: DynamicFeeStructure = {
+          id: `DFS-UNI-${Date.now()}`,
+          academicYear: config.academicYear || "2026-2027",
+          className: config.className.trim(),
+          branch: config.branch || "Main Campus",
+          items: [
+            {
+              id: `FI-UNI-${Date.now()}`,
+              feeHeadId: "FH-UNI-01",
+              feeHeadName: feeItemName,
+              amount: Number(config.feeAmount),
+              frequency: config.feePlan || "Annual",
+              dueMonth: "June",
+            },
+          ],
+          status: "Active",
+        };
+        return [...prevDfs, newDfs];
+      }
+    });
   };
+
+  const cDigitsMatch = (t: string, c: string) => t && c && t === c;
+
+  const addFinanceUniformConfig = (cData: Omit<FinanceUniformConfig, "id">) => {
+    const newConfig: FinanceUniformConfig = {
+      ...cData,
+      id: "FUC-" + Date.now(),
+      branch: cData.branch || selectedBranch || "Main Campus",
+      academicYear: cData.academicYear || selectedAcademicYear || "2026-2027",
+      status: "Active"
+    };
+
+    setFinanceUniformConfigs((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const filtered = current.filter(c => 
+        !(c.className?.toLowerCase() === (newConfig.className || '').toLowerCase() &&
+          c.gender === newConfig.gender &&
+          c.uniformPackage === newConfig.uniformPackage)
+      );
+      const updated = [newConfig, ...filtered];
+      try {
+        localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    syncUniformConfigToFinanceFees(newConfig);
+  };
+
   const updateFinanceUniformConfig = (
     id: string,
-    updates: Partial<FinanceUniformConfig>,
+    updates: Partial<FinanceUniformConfig>
   ) => {
-    setFinanceUniformConfigs((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    );
+    setFinanceUniformConfigs((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const updated = current.map((c) => {
+        if (c.id === id) {
+          const u = { ...c, ...updates };
+          syncUniformConfigToFinanceFees(u);
+          return u;
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
+
   const deleteFinanceUniformConfig = (id: string) => {
-    setFinanceUniformConfigs((prev) => prev.filter((c) => c.id !== id));
+    setFinanceUniformConfigs((prev) => {
+      const current = Array.isArray(prev) ? prev : [];
+      const updated = current.filter((c) => c.id !== id);
+      try {
+        localStorage.setItem("edu_db_finance_uniform_configs", JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
   };
 
   // Leave Management Fetchers
@@ -15231,7 +15580,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         addStudentUniformIssue,
         updateStudentUniformIssue,
         deleteStudentUniformIssue,
-        financeUniformConfigs: filteredFinanceUniformConfigs,
+        financeUniformConfigs,
         addFinanceUniformConfig,
         updateFinanceUniformConfig,
         deleteFinanceUniformConfig,

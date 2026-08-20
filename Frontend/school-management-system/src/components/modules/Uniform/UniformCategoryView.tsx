@@ -11,7 +11,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -23,15 +23,15 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
     description: ''
   });
 
-  const isFiltered = Boolean(query.trim() || filterCategory !== '');
-
-  const filtered = !isFiltered ? [] : (uniformCategories || []).filter(c => {
+  const filtered = (uniformCategories || []).filter(c => {
     if (!c) return false;
     const catName = (c.name || (c as any).categoryName || '').toLowerCase();
     const catDesc = (c.description || '').toLowerCase();
-    const q = (query || '').toLowerCase();
+    const q = (query || '').toLowerCase().trim();
     const matchQuery = !q || catName.includes(q) || catDesc.includes(q);
-    const matchCategory = !filterCategory || filterCategory === 'All' || catName.includes(filterCategory.toLowerCase());
+
+    const fLower = (filterCategory || '').toLowerCase().trim();
+    const matchCategory = !filterCategory || filterCategory === 'All' || fLower === '' || catName === fLower || catName.includes(fLower);
     return matchQuery && matchCategory;
   });
 
@@ -134,16 +134,7 @@ export const UniformCategoryView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {!isFiltered ? (
-                <tr>
-                  <td colSpan={3} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold">
-                    <div className="flex flex-col items-center gap-2">
-                      <Search className="w-6 h-6 text-sky-500/50" />
-                      <span>Select a category filter or type in the search bar to display uniform categories.</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
+              {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="py-8 text-center text-slate-400">No uniform categories found matching the selected filter.</td>
                 </tr>

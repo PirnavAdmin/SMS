@@ -202,7 +202,6 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between"><span className="text-slate-400">School Wing:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.className || 'All Wings'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Color Spec:</span><span className="font-semibold text-slate-800 dark:text-slate-200">{u.color}</span></div>
-                <div className="flex justify-between"><span className="text-slate-400">Unit Price:</span><span className="font-extrabold text-emerald-600">{formatCurrency(u.price)}</span></div>
                 <div className="flex justify-between"><span className="text-slate-400">Stock Available:</span><span className="font-bold text-slate-900 dark:text-white">{u.availableStock} Units</span></div>
               </div>
             </div>
@@ -242,8 +241,13 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                     .filter(Boolean);
 
                   const uniqueCategories = Array.from(new Set(configuredCategories));
-                  const packages = uniqueCategories.filter(name => name.toLowerCase().includes('package') || name.toLowerCase().includes('kit'));
-                  const individualItems = uniqueCategories.filter(name => !(name.toLowerCase().includes('package') || name.toLowerCase().includes('kit')));
+                  const isBasePackage = (name: string) => {
+                    const lower = name.toLowerCase();
+                    return (lower.includes('boys') || lower.includes('girls')) && (lower.includes('package') || lower.includes('kit'));
+                  };
+
+                  const packages = uniqueCategories.filter(isBasePackage);
+                  const individualItems = uniqueCategories.filter(name => !isBasePackage(name));
 
                   return (
                     <select
@@ -369,7 +373,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer font-semibold"
                   >
                     <option value="">Select Size *</option>
-                    {getCategorySizes(formData.category).map(s => (
+                    {getCategorySizes(formData.category, uniformSizes).map(s => (
                       <option key={s.value} value={s.value}>{s.label}</option>
                     ))}
                   </select>
@@ -449,27 +453,15 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold mb-1">Unit Price (₹)</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 350"
-                    value={formData.price ?? ''}
-                    onChange={e => setFormData({ ...formData, price: e.target.value === '' ? undefined : Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold mb-1">Available Stock</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 50"
-                    value={formData.availableStock ?? ''}
-                    onChange={e => setFormData({ ...formData, availableStock: e.target.value === '' ? undefined : Number(e.target.value) })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                  />
-                </div>
+              <div>
+                <label className="block font-semibold mb-1">Available Warehouse Stock *</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 50"
+                  value={formData.availableStock ?? ''}
+                  onChange={e => setFormData({ ...formData, availableStock: e.target.value === '' ? undefined : Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
