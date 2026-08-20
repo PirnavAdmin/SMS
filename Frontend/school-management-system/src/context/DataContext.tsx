@@ -4863,31 +4863,32 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchFinanceData();
-      fetchAcademicClasses();
-      fetchSubjects();
-      fetchPeriods();
-      fetchDepartments();
-      fetchDesignations();
-      // Students (replaces initialStudents mock data)
-      fetchStudents();
-      // Library (replaces initialBooks / initialBookIssues mock data)
-      fetchBooks();
-      fetchBookIssues();
-      // Homework (replaces initialHomework mock data)
-      fetchHomeworkData();
-      // Inventory (replaces initialInventory mock data)
-      fetchInventoryData();
-      // Uniforms (replaces initialUniforms* mock data)
-      fetchUniformData();
-      // Events & Holidays (replaces initialSchoolEvents / initialHolidays mock data)
+      const userRole = role?.toLowerCase() || '';
+      const isParentOrStudent = userRole === 'parent' || userRole === 'student';
+
+      // Always fetch events, holidays, announcements, meetings, and homework as these are relevant to parents/students
       fetchSchoolEventsData();
       fetchHolidaysData();
-      // Communication (replaces initialAnnouncements / initialMeetings mock data)
       fetchAnnouncementsData();
       fetchMeetingsData();
-      // Faculty Training & Development
-      fetchFacultyTrainingData();
+      fetchHomeworkData();
+      
+      // Always fetch students (handles ward lookup for parents)
+      fetchStudents();
+
+      if (!isParentOrStudent) {
+        fetchFinanceData();
+        fetchAcademicClasses();
+        fetchSubjects();
+        fetchPeriods();
+        fetchDepartments();
+        fetchDesignations();
+        fetchBooks();
+        fetchBookIssues();
+        fetchInventoryData();
+        fetchUniformData();
+        fetchFacultyTrainingData();
+      }
     }
     const allowedAdmissionsRoles = [
       "Super Admin",

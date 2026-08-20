@@ -497,8 +497,8 @@ public class StaffService : IStaffService
             .ToList();
 
         var assignedSubjects = assignments
-            .Where(a => a.Subject != null)
-            .Select(a => a.Subject!.SubjectName)
+            .Where(a => a.Subject != null && !string.IsNullOrEmpty(a.Subject.SubjectName))
+            .Select(a => a.Subject!.SubjectName!)
             .Distinct()
             .ToList();
 
@@ -630,7 +630,7 @@ public class StaffService : IStaffService
                 if (string.IsNullOrWhiteSpace(subjectStr)) continue;
 
                 var subject = await _context.Subjects
-                    .FirstOrDefaultAsync(s => s.SubjectName.ToLower() == subjectStr.ToLower() || s.SubjectCode.ToLower() == subjectStr.ToLower());
+                    .FirstOrDefaultAsync(s => (s.SubjectName != null && s.SubjectName.ToLower() == subjectStr.ToLower()) || (s.SubjectCode != null && s.SubjectCode.ToLower() == subjectStr.ToLower()));
 
                 if (subject == null) continue;
 
