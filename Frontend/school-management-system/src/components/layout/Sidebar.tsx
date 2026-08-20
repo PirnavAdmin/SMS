@@ -643,7 +643,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   )}
 
-                  {hasModuleAccess(role, "hostel") && (
+                  {hasModuleAccess(role, "hostel") && isHosteller && (
                     <div className="space-y-1 pt-1">
                       <button
                         onClick={() => {
@@ -736,7 +736,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                   )}
 
-                  {hasModuleAccess(role, "transport") && (
+                  {hasModuleAccess(role, "transport") && usesTransport && (
                     <div className="space-y-1 pt-1">
                       <button
                         onClick={() => {

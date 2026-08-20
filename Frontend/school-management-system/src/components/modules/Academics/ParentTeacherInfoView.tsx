@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, Loader2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
+import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface TeacherItem {
   id: string | number;
@@ -135,10 +136,7 @@ export const ParentTeacherInfoView: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-slate-500">
-          <Loader2 className="w-8 h-8 animate-spin text-sky-600 mb-3" />
-          <p className="text-sm font-medium">Loading teachers information from server...</p>
-        </div>
+        <DashboardShimmer />
       ) : (
         <div className="flex flex-col gap-8">
           {parentWards.map(ward => (

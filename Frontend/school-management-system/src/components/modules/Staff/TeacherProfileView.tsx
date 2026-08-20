@@ -152,8 +152,21 @@ export const TeacherProfileView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full shimmer-block shrink-0" />
+            <div className="space-y-2 flex-1">
+              <div className="h-5 w-48 rounded-md shimmer-block" />
+              <div className="h-3 w-32 rounded-md shimmer-block" />
+            </div>
+          </div>
+          <div className="space-y-3 mt-6">
+            <div className="h-4 w-full rounded-md shimmer-block" />
+            <div className="h-4 w-11/12 rounded-md shimmer-block" />
+            <div className="h-4 w-2/3 rounded-md shimmer-block" />
+          </div>
+        </div>
       </div>
     );
   }
