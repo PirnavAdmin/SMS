@@ -73,7 +73,9 @@ public class Staff
     public string? PresentAddress { get; set; }
     public string? PermanentAddress { get; set; }
     public string? City { get; set; }
+    public string? District { get; set; }
     public string? State { get; set; }
+    public string? Country { get; set; }
     public string? PinCode { get; set; }
     public string? EmploymentType { get; set; }
     public string? ReportingManager { get; set; }
@@ -81,6 +83,11 @@ public class Staff
     public bool? IsClassTeacherEligible { get; set; } = false;
     public string? BloodGroup { get; set; }
     public string? ProfilePhoto { get; set; }
+    public string? Nationality { get; set; }
+    public string? Religion { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? FatherName { get; set; }
+    public string? MotherName { get; set; }
 
     // Navigation Properties
     public ICollection<Section> SectionsTaught { get; set; } = new List<Section>();

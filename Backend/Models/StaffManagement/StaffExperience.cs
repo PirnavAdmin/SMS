@@ -31,4 +31,14 @@ public class StaffExperience
 
     [MaxLength(300)]
     public string? ReasonForLeaving { get; set; }
+
+    [MaxLength(200)]
+    public string? PreviousSchool { get; set; }
+
+    [MaxLength(255)]
+    public string? CertificateFileName { get; set; }
+
+    public string? CertificateFileUrl { get; set; }
+
+    public DateTime? CertificateUploadedAt { get; set; }
 }

@@ -171,6 +171,22 @@ builder.Services.AddScoped<ITeacherAttendanceService, TeacherAttendanceService>(
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.IFacultyTrainingRepository, SMS.Api.Repositories.Implementations.FacultyTrainingRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.IFacultyTrainingService, SMS.Api.Services.Implementations.FacultyTrainingService>();
 
+// Teacher Screens - Personal, Address, Education, Experience, Bank, Document & Review Modules
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherPersonalRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherPersonalRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherPersonalService, SMS.Api.Services.Implementations.TeacherScreens.TeacherPersonalService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherAddressRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherAddressRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherAddressService, SMS.Api.Services.Implementations.TeacherScreens.TeacherAddressService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherEducationRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherEducationRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherEducationService, SMS.Api.Services.Implementations.TeacherScreens.TeacherEducationService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherExperienceRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherExperienceRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherExperienceService, SMS.Api.Services.Implementations.TeacherScreens.TeacherExperienceService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherBankRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherBankRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherBankService, SMS.Api.Services.Implementations.TeacherScreens.TeacherBankService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherDocumentRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherDocumentRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherDocumentService, SMS.Api.Services.Implementations.TeacherScreens.TeacherDocumentService>();
+builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.TeacherScreens.ITeacherReviewRepository, SMS.Api.Repositories.Implementations.TeacherScreens.TeacherReviewRepository>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.TeacherScreens.ITeacherReviewService, SMS.Api.Services.Implementations.TeacherScreens.TeacherReviewService>();
+
 // =========================================================
 // 3. JWT AUTHENTICATION
 // =========================================================
