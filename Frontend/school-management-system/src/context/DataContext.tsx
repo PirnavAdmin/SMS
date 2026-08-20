@@ -2768,7 +2768,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       const saved = localStorage.getItem("edu_db_student_uniform_issues") || localStorage.getItem("student_uniform_issues");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter(i => {
+            const name = (i?.studentName || '').toLowerCase();
+            const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
+            const isDummy = name.includes('fahim') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+            return !isDummy;
+          });
+        }
       }
     } catch (e) {
       console.warn("Failed to load student_uniform_issues from localStorage", e);
@@ -9464,7 +9471,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
       assignment.assignedFeeHeads.forEach((h) => {
         const isUni = isUniformHead(h.feeHeadName);
         const isSelected = isUni ? (selectedOptional !== null ? isUniformOpted(selectedOptional, h.feeHeadId, h.feeHeadName) : false) : true;
-        const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs) : 0;
+        const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs, dynamicFeeStructures) : 0;
         const itemAmount = isUni && uniFee > 0 ? uniFee : h.amount;
 
         ledgerItems.push({
@@ -9507,7 +9514,7 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
         if (!exists) {
           const isUni = isUniformHead(i.feeHeadName);
           const isSelected = isUni ? (selectedOptional !== null ? isUniformOpted(selectedOptional, i.feeHeadId, i.feeHeadName) : false) : true;
-          const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs) : 0;
+          const uniFee = isUni ? getUniformFeeForClass(clsName || student?.className || '', student?.gender || 'Male', financeUniformConfigs, dynamicFeeStructures) : 0;
           const itemAmount = isUni && uniFee > 0 ? uniFee : i.amount;
 
           ledgerItems.push({
@@ -14786,7 +14793,12 @@ function buildDefaultMonthlyConfig(ayStr: string, dueDay: number = 10): MonthlyD
   const filteredUniformSizes = filterByBranch(uniformSizes);
   const filteredUniformSuppliers = filterByBranch(uniformSuppliers);
   const filteredUniformInventory = filterByBranch(uniformInventory);
-  const filteredStudentUniformIssues = filterByBranch(studentUniformIssues);
+  const filteredStudentUniformIssues = filterByBranch(studentUniformIssues).filter(i => {
+    const name = (i?.studentName || '').toLowerCase();
+    const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
+    const isDummy = name.includes('fahim') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+    return !isDummy;
+  });
   const filteredFinanceUniformConfigs = filterByBranch(financeUniformConfigs);
   const filteredLeaveApplications = filterByBranch(leaveApplications);
   const filteredHolidays = filterByBranch(holidays);
