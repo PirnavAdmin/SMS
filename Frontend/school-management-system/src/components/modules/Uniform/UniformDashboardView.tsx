@@ -3,6 +3,7 @@ import { Shirt, Package, AlertTriangle, UserCheck, IndianRupee, Clock, TrendingU
 import { useData } from '../../../context/DataContext';
 import { formatCurrency } from '../../../utils/currency';
 import { Badge } from '../../common/Badge';
+import { getItemPriceFromConfig } from '../../../utils/uniformUtils';
 
 interface UniformDashboardViewProps {
   onNavigate?: (tab: string, subTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory', reportType?: string, statusFilter?: string) => void;
@@ -11,6 +12,7 @@ interface UniformDashboardViewProps {
 export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNavigate }) => {
   const { 
     uniforms, 
+    uniformCategories = [],
     uniformInventory, 
     studentUniformIssues,
     students = [],
@@ -22,12 +24,88 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     financeUniformConfigs = []
   } = useData();
 
-  // 1. KPI Calculations
-  const totalItems = uniforms.length;
-  const totalStock = uniformInventory.reduce((acc, inv) => acc + inv.currentStock, 0);
-  const lowStockItems = uniformInventory.filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
-  const uniformsIssued = studentUniformIssues.filter(x => x.status === 'Issued').reduce((acc, x) => acc + x.quantity, 0);
-  const uniformsReturned = studentUniformIssues.filter(x => x.status === 'Returned').reduce((acc, x) => acc + x.quantity, 0);
+  const totalItems = (uniformCategories && uniformCategories.length > 0) ? uniformCategories.length : uniforms.length;
+  const totalStock = (uniformInventory || []).reduce((acc, inv) => acc + inv.currentStock, 0);
+  const lowStockItems = (uniformInventory || []).filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
+
+  const activeIssues = (studentUniformIssues || []).filter(x => {
+    if (!x || !x.id) return false;
+    const statusLower = (x.status || '').toLowerCase();
+    const notesLower = (x.notes || '').toLowerCase();
+    return statusLower !== 'returned' && statusLower !== 'cancelled' && !notesLower.includes('returned');
+  });
+
+  const returnedIssues = (studentUniformIssues || []).filter(x => {
+    if (!x || !x.id) return false;
+    const statusLower = (x.status || '').toLowerCase();
+    const notesLower = (x.notes || '').toLowerCase();
+    return statusLower === 'returned' || notesLower.includes('returned');
+  });
+
+  const uniformsIssued = React.useMemo(() => {
+    // Group studentUniformIssues into student groups matching StudentUniformView logic 1:1
+    const groupedMap = new Map<string, {
+      basePackage?: StudentUniformIssue;
+      extraItems: StudentUniformIssue[];
+      items: StudentUniformIssue[];
+    }>();
+
+    (studentUniformIssues || []).forEach(issue => {
+      if (!issue || !issue.studentName) return;
+
+      const stdName = (issue.studentName || 'Student').trim();
+      const normKey = stdName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isExplicitBasePkg = issue.type === 'Base Package' || (issue.itemName && issue.itemName.includes('Package') && !issue.itemName.includes('(Extra)') && !issue.type?.includes('Additional') && !issue.notes?.includes('Additional'));
+
+      const existing = groupedMap.get(normKey);
+      if (existing) {
+        if (!existing.items.some(i => i.id === issue.id)) {
+          existing.items.push(issue);
+        }
+        if (isExplicitBasePkg && !existing.basePackage) {
+          existing.basePackage = issue;
+        } else {
+          if (!existing.extraItems.some(e => e.id === issue.id)) {
+            existing.extraItems.push(issue);
+          }
+        }
+      } else {
+        groupedMap.set(normKey, {
+          basePackage: isExplicitBasePkg ? issue : undefined,
+          extraItems: isExplicitBasePkg ? [] : [issue],
+          items: [issue]
+        });
+      }
+    });
+
+    // Synthesize admission Base Package for students with extra base packages
+    groupedMap.forEach(g => {
+      if (!g.basePackage) {
+        const extraPkg = g.extraItems.find(e => e.itemName && (e.itemName.includes('Package') || e.itemName.includes('Kit')));
+        if (extraPkg) {
+          const isBasePkgReturned = g.items.some(i => i.status === 'Returned' && (i.type === 'Base Package' || i.id.startsWith('BASE-SYNTH-')));
+          g.basePackage = {
+            id: 'BASE-SYNTH',
+            quantity: 1,
+            status: isBasePkgReturned ? 'Returned' : 'Issued',
+            type: 'Base Package'
+          } as any;
+        }
+      }
+    });
+
+    // Sum active total count across all student groups
+    let grandTotal = 0;
+    groupedMap.forEach(g => {
+      const activeBase = g.basePackage && g.basePackage.status !== 'Returned' ? (g.basePackage.quantity || 1) : 0;
+      const activeExtras = g.extraItems.filter(i => i.status !== 'Returned').reduce((sum, i) => sum + (i.quantity || 1), 0);
+      grandTotal += (activeBase + activeExtras);
+    });
+
+    return grandTotal;
+  }, [studentUniformIssues]);
+
+  const uniformsReturned = returnedIssues.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
   // Helper to get expected uniform fee amount for student's class
   const getStudentUniformFeeAmount = (className: string) => {
@@ -37,16 +115,89 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     return 3000;
   };
 
-  // Additional sales: ONLY includes Extra Purchases outside baseline admission kit
+  // Additional sales: includes Extra Purchases and Additional Base Packages outside baseline admission kit
   const extraItemsSalesValue = studentUniformIssues
-    .filter(x => x.status === 'Issued' && (x.type === 'Additional Purchase' || x.itemName.includes('(Extra)') || (!x.itemName.toLowerCase().includes('package') && x.type !== 'Base Package')))
+    .filter(x => {
+      if (x.status === 'Returned' || x.status === 'Cancelled') return false;
+
+      const typeLower = ((x as any).transactionType || x.type || '').toLowerCase();
+      const notesLower = (x.notes || '').toLowerCase();
+      const itemNameLower = (x.itemName || '').toLowerCase();
+
+      const isAdditional = 
+        typeLower.includes('additional') || 
+        notesLower.includes('additional') ||
+        itemNameLower.includes('additional');
+
+      const isOriginalBasePkg = 
+        (typeLower === 'base package' || notesLower.includes('admission fee') || notesLower.includes('covered under admission')) && 
+        !isAdditional;
+
+      return !isOriginalBasePkg;
+    })
     .reduce((sum, issue) => {
-      const uItem = uniforms.find(u => u.id === issue.itemId || u.category.toLowerCase() === (issue.itemName || '').toLowerCase());
-      const price = issue.price || (uItem ? uItem.price : (issue.itemName.includes('Package') ? 3000 : 350));
-      return sum + (price * issue.quantity);
+      let price = issue.price || (issue as any).unitPrice || 0;
+      if (!price || price <= 0) {
+        price = getItemPriceFromConfig(issue.itemCategory || issue.itemName, financeUniformConfigs);
+      }
+      return sum + (price * (issue.quantity || 1));
     }, 0);
 
-  const pendingOrders = uniformInventory.filter(x => x.status === 'Out of Stock' || x.currentStock === 0).length;
+  const groupedRecentActivity = React.useMemo(() => {
+    const map = new Map<string, {
+      id: string;
+      studentName: string;
+      className: string;
+      section: string;
+      itemsList: string[];
+      sizesList: string[];
+      totalQuantity: number;
+      date: string;
+      status: string;
+    }>();
+
+    (studentUniformIssues || []).forEach(issue => {
+      const normKey = (issue.studentName || 'Student').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanItemName = (issue.itemName || '').replace(/\s*\(Extra\)/gi, '').trim();
+      const isReturned = issue.status === 'Returned' || issue.status === 'Cancelled';
+
+      const existing = map.get(normKey);
+      if (existing) {
+        if (!isReturned) {
+          if (!existing.itemsList.includes(cleanItemName)) {
+            existing.itemsList.push(cleanItemName);
+          }
+          if (issue.size && !existing.sizesList.includes(issue.size)) {
+            existing.sizesList.push(issue.size);
+          }
+          existing.totalQuantity += (issue.quantity || 1);
+        }
+        if (issue.issueDate && issue.issueDate > existing.date) {
+          existing.date = issue.issueDate;
+        }
+      } else {
+        map.set(normKey, {
+          id: issue.id,
+          studentName: issue.studentName || 'Student',
+          className: issue.className || 'Class 10',
+          section: issue.section || 'A',
+          itemsList: isReturned ? [] : [cleanItemName],
+          sizesList: issue.size ? [issue.size] : ['M'],
+          totalQuantity: isReturned ? 0 : (issue.quantity || 1),
+          date: issue.issueDate || new Date().toISOString().split('T')[0],
+          status: issue.status || 'Issued'
+        });
+      }
+    });
+
+    return Array.from(map.values()).map(g => ({
+      ...g,
+      itemsList: g.itemsList.length > 0 ? g.itemsList : ['All Items Returned'],
+      status: g.totalQuantity === 0 ? 'Returned' : 'Issued'
+    }));
+  }, [studentUniformIssues]);
+
+  const pendingOrders = (uniformInventory || []).filter(x => x.status === 'Out of Stock' || x.currentStock === 0).length;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -170,10 +321,16 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
           </div>
 
           <div className="space-y-3">
-            {uniformInventory.filter(x => x.currentStock > 0 && x.currentStock <= x.minimumStock).length === 0 ? (
+            {uniformInventory.filter(x => {
+              const name = (x.itemName || x.category || '').toLowerCase();
+              return x.currentStock > 0 && x.currentStock <= x.minimumStock && !name.includes('polo') && name !== 'winter blazer';
+            }).length === 0 ? (
               <p className="text-xs text-slate-400 py-6 text-center">All uniform inventory items are comfortably stocked.</p>
             ) : (
-              uniformInventory.filter(x => x.currentStock > 0 && x.currentStock <= x.minimumStock).map(item => {
+              uniformInventory.filter(x => {
+                const name = (x.itemName || x.category || '').toLowerCase();
+                return x.currentStock > 0 && x.currentStock <= x.minimumStock && !name.includes('polo') && name !== 'winter blazer';
+              }).map(item => {
                 const percent = Math.round((item.currentStock / item.openingStock) * 100) || 0;
                 return (
                   <div key={item.id} className="space-y-1">
@@ -205,9 +362,13 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
               const catMap = new Map<string, number>();
               uniformInventory.forEach(inv => {
                 const name = inv.itemName || inv.category;
+                const lower = (name || '').toLowerCase();
+                if (lower.includes('polo') || lower === 'winter blazer') return;
                 catMap.set(name, (catMap.get(name) || 0) + inv.currentStock);
               });
               uniforms.forEach(u => {
+                const lower = (u.category || '').toLowerCase();
+                if (lower.includes('polo') || lower === 'winter blazer') return;
                 if (!catMap.has(u.category)) {
                   catMap.set(u.category, u.availableStock || 0);
                 }
@@ -261,30 +422,32 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
               <tr>
                 <th className="py-2.5 px-3">Student Name</th>
                 <th className="py-2.5 px-3">Class</th>
-                <th className="py-2.5 px-3">Clothing Item</th>
+                <th className="py-2.5 px-3">Clothing Items Issued</th>
                 <th className="py-2.5 px-3 text-center">Size</th>
-                <th className="py-2.5 px-3 text-right">Quantity</th>
+                <th className="py-2.5 px-3 text-right">Total Qty</th>
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {studentUniformIssues.length === 0 ? (
+              {groupedRecentActivity.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-slate-400">No recent uniform issue or return activity recorded.</td>
                 </tr>
               ) : (
-                studentUniformIssues.slice(0, 5).map(issue => (
-                  <tr key={issue.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{issue.studentName}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{issue.className.includes('-') ? issue.className : (issue.section ? `${issue.className} - ${issue.section}` : issue.className)}</td>
-                    <td className="py-2.5 px-3 font-semibold text-sky-600 dark:text-sky-400">{issue.itemName}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-900 dark:text-white">{issue.size}</td>
-                    <td className="py-2.5 px-3 text-right font-black">{issue.quantity} Units</td>
-                    <td className="py-2.5 px-3 font-mono text-[11px]">{issue.issueDate}</td>
+                groupedRecentActivity.slice(0, 5).map(g => (
+                  <tr key={g.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{g.studentName}</td>
+                    <td className="py-2.5 px-3 text-slate-500">{g.className.includes('-') ? g.className : (g.section ? `${g.className} - ${g.section}` : g.className)}</td>
+                    <td className="py-2.5 px-3 font-semibold text-sky-600 dark:text-sky-400 max-w-xs truncate" title={g.itemsList.join(', ')}>
+                      {g.itemsList.join(', ')}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-bold text-slate-900 dark:text-white">{g.sizesList.join(', ')}</td>
+                    <td className="py-2.5 px-3 text-right font-black">{g.totalQuantity} Units</td>
+                    <td className="py-2.5 px-3 font-mono text-[11px]">{g.date}</td>
                     <td className="py-2.5 px-3 text-center">
-                      <Badge variant={issue.status === 'Issued' ? 'success' : (issue.status === 'Returned' ? 'neutral' : 'warning')}>
-                        {issue.status}
+                      <Badge variant={g.status === 'Issued' ? 'success' : (g.status === 'Returned' ? 'neutral' : 'warning')}>
+                        {g.status}
                       </Badge>
                     </td>
                   </tr>
