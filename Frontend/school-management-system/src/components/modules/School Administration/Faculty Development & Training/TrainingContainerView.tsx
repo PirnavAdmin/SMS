@@ -6,13 +6,13 @@ import {
   FileCheck, ShieldCheck, Check, Layers, BarChart3, TrendingUp, HelpCircle,
   Megaphone, ExternalLink, Send, SlidersHorizontal, RefreshCw
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { useAuth } from '../../../../context/AuthContext';
 import {
   WorkshopTraining, EmployeeAssessment, IssuedCertificate,
   TrainingCategory, AssessmentType, AssessmentCategory, AssessmentMode, TrainingParticipant, AssessmentResult, Staff
-} from '../../../types';
+} from '../../../../types';
 
 export const TrainingContainerView: React.FC = () => {
   const {

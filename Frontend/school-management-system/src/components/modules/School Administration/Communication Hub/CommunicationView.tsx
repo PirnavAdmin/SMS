@@ -3,11 +3,11 @@ import {
   Megaphone, Send, Calendar, Plus, X, Edit3, Trash2, Pin, CheckCircle2, 
   ShieldAlert
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { useAuth } from '../../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
-import { createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../api/communication';
+import { createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 
 export interface AnnouncementItem {
   id: string;

@@ -7,10 +7,10 @@ import {
 import { 
   SchoolMeeting, MeetingAudience, MeetingParticipantType, MeetingMode, 
   MeetingStatus, MeetingParticipantInfo 
-} from '../../../types';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { useAuth } from '../../../context/AuthContext';
+} from '../../../../types';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { useAuth } from '../../../../context/AuthContext';
 
 export const MeetingsView: React.FC = () => {
   const { meetings, staff, students, departments, schoolProfile, addMeeting, updateMeeting, cancelMeeting, deleteMeeting } = useData();

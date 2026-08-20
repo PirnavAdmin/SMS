@@ -9,7 +9,7 @@ import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { ExportButton } from '../../../common/ExportButton';
 import { SectionAssignmentMethod, PromotionHistoryItem } from '../../../../types';
-import { executePromotionApi } from '../../../../api/Student Promotion/studentPromotion';
+import { executePromotionApi } from '../../../../api/studentPromotion';
 
 interface StudentPromotionViewProps {
   onNavigate?: (module: string) => void;

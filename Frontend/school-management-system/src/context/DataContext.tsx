@@ -323,7 +323,6 @@ import {
   createHolidayApi,
   updateHolidayApi,
   deleteHolidayApi,
-  fetchCalendarEventsApi,
 } from "../api/events";
 import {
   fetchNotificationsApi,
