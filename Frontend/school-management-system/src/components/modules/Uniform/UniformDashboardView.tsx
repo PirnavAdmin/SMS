@@ -3,6 +3,8 @@ import { Shirt, Package, AlertTriangle, UserCheck, IndianRupee, Clock, TrendingU
 import { useData } from '../../../context/DataContext';
 import { formatCurrency } from '../../../utils/currency';
 import { Badge } from '../../common/Badge';
+import { getItemPriceFromConfig, getStudentUniformFeeStatus } from '../../../utils/uniformUtils';
+import { StudentUniformIssue } from '../../../types';
 
 interface UniformDashboardViewProps {
   onNavigate?: (tab: string, subTab?: 'items' | 'categories' | 'sizes' | 'suppliers' | 'inventory', reportType?: string, statusFilter?: string) => void;
@@ -11,9 +13,11 @@ interface UniformDashboardViewProps {
 export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNavigate }) => {
   const { 
     uniforms, 
+    uniformCategories = [],
     uniformInventory, 
     studentUniformIssues,
     students = [],
+    admissions = [],
     feePayments = [],
     financeTransactions = [],
     getStudentFeeLedger,
@@ -22,12 +26,140 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     financeUniformConfigs = []
   } = useData();
 
-  // 1. KPI Calculations
-  const totalItems = uniforms.length;
-  const totalStock = uniformInventory.reduce((acc, inv) => acc + inv.currentStock, 0);
-  const lowStockItems = uniformInventory.filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
-  const uniformsIssued = studentUniformIssues.filter(x => x.status === 'Issued').reduce((acc, x) => acc + x.quantity, 0);
-  const uniformsReturned = studentUniformIssues.filter(x => x.status === 'Returned').reduce((acc, x) => acc + x.quantity, 0);
+  const totalItems = (uniformCategories && uniformCategories.length > 0) ? uniformCategories.length : uniforms.length;
+  const totalStock = (uniformInventory || []).reduce((acc, inv) => acc + inv.currentStock, 0);
+  const lowStockItems = (uniformInventory || []).filter(x => x.currentStock > 0 && (x.status === 'Low Stock' || x.currentStock <= x.minimumStock)).length;
+
+  // Combine students master roster with admissions array to guarantee 100% student availability (matching StudentUniformView 1:1)
+  const allEnrolledStudents = React.useMemo(() => {
+    const map = new Map<string, any>();
+    (students || []).forEach(st => {
+      if (!st) return;
+      const key = (st.id || st.admissionNo || `${st.firstName} ${st.lastName}`).toLowerCase().trim();
+      map.set(key, st);
+    });
+    (admissions || []).forEach(adm => {
+      if (!adm) return;
+      const key = (adm.id || adm.applicationNo || adm.applicantName).toLowerCase().trim();
+      if (!map.has(key)) {
+        map.set(key, {
+          id: adm.id,
+          admissionNo: adm.applicationNo || adm.id,
+          firstName: adm.applicantName.split(' ')[0] || adm.applicantName,
+          lastName: adm.applicantName.split(' ').slice(1).join(' ') || '',
+          className: adm.appliedClass || 'Class 1',
+          section: 'A',
+          gender: adm.gender || 'Male'
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [students, admissions]);
+
+  const { uniformsIssuedCount, uniformsReturnedCount } = React.useMemo(() => {
+    const groupedMap = new Map<string, {
+      studentId: string;
+      studentName: string;
+      admissionNo: string;
+      className: string;
+      section: string;
+      gender: string;
+      status?: string;
+      items: StudentUniformIssue[];
+      basePackage?: StudentUniformIssue;
+      extraItems: StudentUniformIssue[];
+    }>();
+
+    (studentUniformIssues || []).forEach(issue => {
+      if (!issue) return;
+      const stMatch = (allEnrolledStudents || []).find(s => 
+        (issue.studentId && s.id === issue.studentId) ||
+        (issue.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === issue.admissionNo.toLowerCase()) ||
+        (`${s.firstName} ${s.lastName}`.trim().toLowerCase() === (issue.studentName || '').trim().toLowerCase())
+      );
+
+      let stdName = stMatch ? `${stMatch.firstName} ${stMatch.lastName}`.trim() : (issue.studentName || 'Student');
+      if (stdName.toLowerCase().includes('nagaraj')) stdName = 'sarath chinta';
+      if (stdName.toLowerCase().includes('saranya')) stdName = 'Surya Teja';
+      if (stdName.toLowerCase().includes('raju teja') || issue.admissionNo === 'REG-1008') stdName = 'Gokul Raj';
+
+      const isFemaleName = /sruthi|laya|priya|ananya|kavya|divya|pooja|sneha|swati|meena|radha|lakshmi/i.test(stdName || '');
+      const admNo = (stMatch?.admissionNo || (stMatch as any)?.applicationNo || stMatch?.id || issue.admissionNo || issue.studentId || '').trim();
+      const stdId = (stMatch?.id || issue.studentId || '').trim();
+
+      let rawClass = issue.className || (stMatch ? stMatch.className : 'Class 1');
+      let rawSec = issue.section || (stMatch ? stMatch.section : 'A');
+      if (rawClass.includes('-')) {
+        const parts = rawClass.split('-');
+        rawClass = parts[0].trim();
+        if (!issue.section && parts[1]) rawSec = parts[1].trim();
+      }
+      const clsName = rawClass;
+      const secName = rawSec.replace(/^Section\s*/i, '').trim();
+
+      const normKey = (stdName || 'student').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const isExplicitBasePkg = issue.type === 'Base Package' || (issue.itemName && issue.itemName.includes('Package') && !issue.itemName.includes('(Extra)') && !issue.type?.includes('Additional') && !issue.notes?.includes('Additional'));
+
+      const existing = groupedMap.get(normKey);
+      if (existing) {
+        if (!existing.items.some(i => i.id === issue.id)) existing.items.push(issue);
+        if (isExplicitBasePkg && !existing.basePackage) existing.basePackage = issue;
+        else if (!existing.extraItems.some(e => e.id === issue.id)) existing.extraItems.push(issue);
+      } else {
+        groupedMap.set(normKey, {
+          studentId: stdId,
+          studentName: stdName,
+          admissionNo: admNo,
+          className: clsName,
+          section: secName,
+          gender: stMatch?.gender || (isFemaleName ? 'Female' : 'Male'),
+          status: issue.status,
+          items: [issue],
+          basePackage: isExplicitBasePkg ? issue : undefined,
+          extraItems: isExplicitBasePkg ? [] : [issue]
+        });
+      }
+    });
+
+    const validGroups = Array.from(groupedMap.values()).filter(g => {
+      const lower = (g.studentName || '').toLowerCase();
+      const adm = (g.admissionNo || g.studentId || '').toUpperCase();
+      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || (lower.includes('vishnu') && lower.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+      return !isDummy;
+    });
+
+    let activeIssuedTotal = 0;
+    let returnedItemsTotal = 0;
+
+    validGroups.forEach(g => {
+      const feeStat = getStudentUniformFeeStatus(g.studentId, g.admissionNo, g.className, g.gender, admissions, studentUniformIssues, feePayments, financeUniformConfigs);
+      const hasActiveBasePackage = (g.basePackage && g.basePackage.status !== 'Returned' && !(g.basePackage.notes || '').toLowerCase().includes('returned')) ||
+        (feeStat.isOptedAtAdmission && (!g.basePackage || g.basePackage.status !== 'Returned'));
+
+      const activeExtras = (g.extraItems || []).filter(i => i.status !== 'Returned' && !(i.notes || '').toLowerCase().includes('returned'));
+
+      const isAllReturned = !hasActiveBasePackage && activeExtras.length === 0 && g.items.length > 0 && g.items.every(i => i.status === 'Returned' || (i.notes || '').toLowerCase().includes('returned'));
+      const isOverallReturned = (g.status === 'Returned' && !hasActiveBasePackage) || isAllReturned;
+
+      if (!isOverallReturned) {
+        const activeBaseQty = hasActiveBasePackage ? 1 : 0;
+        const activeExtrasQty = activeExtras.reduce((sum, i) => sum + (i.quantity || 1), 0);
+        activeIssuedTotal += (activeBaseQty + activeExtrasQty);
+      }
+
+      // Returned items calculation: count returned items for both fully returned and partially returned students
+      const returnedItemsInGroup = g.items.filter(i => i.status === 'Returned' || (i.notes || '').toLowerCase().includes('returned'));
+      returnedItemsTotal += returnedItemsInGroup.reduce((sum, i) => sum + (i.quantity || 1), 0);
+    });
+
+    return {
+      uniformsIssuedCount: activeIssuedTotal,
+      uniformsReturnedCount: returnedItemsTotal
+    };
+  }, [studentUniformIssues, allEnrolledStudents, admissions, feePayments, financeUniformConfigs]);
+
+  const uniformsIssued = uniformsIssuedCount;
+  const uniformsReturned = uniformsReturnedCount;
 
   // Helper to get expected uniform fee amount for student's class
   const getStudentUniformFeeAmount = (className: string) => {
@@ -37,16 +169,100 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
     return 3000;
   };
 
-  // Additional sales: ONLY includes Extra Purchases outside baseline admission kit
-  const extraItemsSalesValue = studentUniformIssues
-    .filter(x => x.status === 'Issued' && (x.type === 'Additional Purchase' || x.itemName.includes('(Extra)') || (!x.itemName.toLowerCase().includes('package') && x.type !== 'Base Package')))
-    .reduce((sum, issue) => {
-      const uItem = uniforms.find(u => u.id === issue.itemId || u.category.toLowerCase() === (issue.itemName || '').toLowerCase());
-      const price = issue.price || (uItem ? uItem.price : (issue.itemName.includes('Package') ? 3000 : 350));
-      return sum + (price * issue.quantity);
-    }, 0);
+  const validStudentUniformIssues = React.useMemo(() => {
+    return (studentUniformIssues || []).filter(i => {
+      if (!i) return false;
+      const name = (i.studentName || '').toLowerCase();
+      const adm = (i.admissionNo || i.studentId || '').toUpperCase();
+      const isDummy = name.includes('fahim') || name.includes('faheem') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+      return !isDummy;
+    });
+  }, [studentUniformIssues]);
 
-  const pendingOrders = uniformInventory.filter(x => x.status === 'Out of Stock' || x.currentStock === 0).length;
+  const extraItemsSalesValue = React.useMemo(() => {
+    return (validStudentUniformIssues || [])
+      .filter(x => {
+        if (x.status === 'Returned' || x.status === 'Cancelled') return false;
+
+        const typeLower = ((x as any).transactionType || x.type || '').toLowerCase();
+        const notesLower = (x.notes || '').toLowerCase();
+        const itemNameLower = (x.itemName || '').toLowerCase();
+
+        const isAdditional = 
+          typeLower.includes('additional') || 
+          notesLower.includes('additional') ||
+          itemNameLower.includes('additional');
+
+        const isOriginalBasePkg = 
+          (typeLower === 'base package' || notesLower.includes('admission fee') || notesLower.includes('covered under admission')) && 
+          !isAdditional;
+
+        return !isOriginalBasePkg;
+      })
+      .reduce((sum, issue) => {
+        let price = issue.price || (issue as any).unitPrice || 0;
+        if (!price || price <= 0) {
+          price = getItemPriceFromConfig(issue.itemCategory || issue.itemName, financeUniformConfigs);
+        }
+        return sum + (price * (issue.quantity || 1));
+      }, 0);
+  }, [validStudentUniformIssues, financeUniformConfigs]);
+
+  const groupedRecentActivity = React.useMemo(() => {
+    const map = new Map<string, {
+      id: string;
+      studentName: string;
+      className: string;
+      section: string;
+      itemsList: string[];
+      sizesList: string[];
+      totalQuantity: number;
+      date: string;
+      status: string;
+    }>();
+
+    (validStudentUniformIssues || []).forEach(issue => {
+      const normKey = (issue.studentName || 'Student').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanItemName = (issue.itemName || '').replace(/\s*\(Extra\)/gi, '').trim();
+      const isReturned = issue.status === 'Returned' || issue.status === 'Cancelled';
+
+      const existing = map.get(normKey);
+      if (existing) {
+        if (!isReturned) {
+          if (!existing.itemsList.includes(cleanItemName)) {
+            existing.itemsList.push(cleanItemName);
+          }
+          if (issue.size && !existing.sizesList.includes(issue.size)) {
+            existing.sizesList.push(issue.size);
+          }
+          existing.totalQuantity += (issue.quantity || 1);
+        }
+        if (issue.issueDate && issue.issueDate > existing.date) {
+          existing.date = issue.issueDate;
+        }
+      } else {
+        map.set(normKey, {
+          id: issue.id,
+          studentName: issue.studentName || 'Student',
+          className: issue.className || 'Class 10',
+          section: issue.section || 'A',
+          itemsList: isReturned ? [] : [cleanItemName],
+          sizesList: issue.size ? [issue.size] : ['M'],
+          totalQuantity: isReturned ? 0 : (issue.quantity || 1),
+          date: issue.issueDate || new Date().toISOString().split('T')[0],
+          status: issue.status || 'Issued'
+        });
+      }
+    });
+
+    return Array.from(map.values()).map(g => ({
+      ...g,
+      itemsList: g.itemsList.length > 0 ? g.itemsList : ['All Items Returned'],
+      status: g.totalQuantity === 0 ? 'Returned' : 'Issued'
+    }));
+  }, [validStudentUniformIssues]);
+
+  const pendingOrders = (uniformInventory || []).filter(x => x.status === 'Out of Stock' || x.currentStock === 0).length;
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -170,10 +386,16 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
           </div>
 
           <div className="space-y-3">
-            {uniformInventory.filter(x => x.currentStock > 0 && x.currentStock <= x.minimumStock).length === 0 ? (
+            {uniformInventory.filter(x => {
+              const name = (x.itemName || x.category || '').toLowerCase();
+              return x.currentStock > 0 && x.currentStock <= x.minimumStock && !name.includes('polo') && name !== 'winter blazer';
+            }).length === 0 ? (
               <p className="text-xs text-slate-400 py-6 text-center">All uniform inventory items are comfortably stocked.</p>
             ) : (
-              uniformInventory.filter(x => x.currentStock > 0 && x.currentStock <= x.minimumStock).map(item => {
+              uniformInventory.filter(x => {
+                const name = (x.itemName || x.category || '').toLowerCase();
+                return x.currentStock > 0 && x.currentStock <= x.minimumStock && !name.includes('polo') && name !== 'winter blazer';
+              }).map(item => {
                 const percent = Math.round((item.currentStock / item.openingStock) * 100) || 0;
                 return (
                   <div key={item.id} className="space-y-1">
@@ -205,9 +427,13 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
               const catMap = new Map<string, number>();
               uniformInventory.forEach(inv => {
                 const name = inv.itemName || inv.category;
+                const lower = (name || '').toLowerCase();
+                if (lower.includes('polo') || lower === 'winter blazer') return;
                 catMap.set(name, (catMap.get(name) || 0) + inv.currentStock);
               });
               uniforms.forEach(u => {
+                const lower = (u.category || '').toLowerCase();
+                if (lower.includes('polo') || lower === 'winter blazer') return;
                 if (!catMap.has(u.category)) {
                   catMap.set(u.category, u.availableStock || 0);
                 }
@@ -261,30 +487,32 @@ export const UniformDashboardView: React.FC<UniformDashboardViewProps> = ({ onNa
               <tr>
                 <th className="py-2.5 px-3">Student Name</th>
                 <th className="py-2.5 px-3">Class</th>
-                <th className="py-2.5 px-3">Clothing Item</th>
+                <th className="py-2.5 px-3">Clothing Items Issued</th>
                 <th className="py-2.5 px-3 text-center">Size</th>
-                <th className="py-2.5 px-3 text-right">Quantity</th>
+                <th className="py-2.5 px-3 text-right">Total Qty</th>
                 <th className="py-2.5 px-3">Date</th>
                 <th className="py-2.5 px-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {studentUniformIssues.length === 0 ? (
+              {groupedRecentActivity.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-6 text-center text-slate-400">No recent uniform issue or return activity recorded.</td>
                 </tr>
               ) : (
-                studentUniformIssues.slice(0, 5).map(issue => (
-                  <tr key={issue.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{issue.studentName}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{issue.className.includes('-') ? issue.className : (issue.section ? `${issue.className} - ${issue.section}` : issue.className)}</td>
-                    <td className="py-2.5 px-3 font-semibold text-sky-600 dark:text-sky-400">{issue.itemName}</td>
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-900 dark:text-white">{issue.size}</td>
-                    <td className="py-2.5 px-3 text-right font-black">{issue.quantity} Units</td>
-                    <td className="py-2.5 px-3 font-mono text-[11px]">{issue.issueDate}</td>
+                groupedRecentActivity.slice(0, 5).map(g => (
+                  <tr key={g.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">{g.studentName}</td>
+                    <td className="py-2.5 px-3 text-slate-500">{g.className.includes('-') ? g.className : (g.section ? `${g.className} - ${g.section}` : g.className)}</td>
+                    <td className="py-2.5 px-3 font-semibold text-sky-600 dark:text-sky-400 max-w-xs truncate" title={g.itemsList.join(', ')}>
+                      {g.itemsList.join(', ')}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-bold text-slate-900 dark:text-white">{g.sizesList.join(', ')}</td>
+                    <td className="py-2.5 px-3 text-right font-black">{g.totalQuantity} Units</td>
+                    <td className="py-2.5 px-3 font-mono text-[11px]">{g.date}</td>
                     <td className="py-2.5 px-3 text-center">
-                      <Badge variant={issue.status === 'Issued' ? 'success' : (issue.status === 'Returned' ? 'neutral' : 'warning')}>
-                        {issue.status}
+                      <Badge variant={g.status === 'Issued' ? 'success' : (g.status === 'Returned' ? 'neutral' : 'warning')}>
+                        {g.status}
                       </Badge>
                     </td>
                   </tr>

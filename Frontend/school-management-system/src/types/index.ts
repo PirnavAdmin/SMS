@@ -551,6 +551,8 @@ export interface AdmissionApplication {
   applicationDate?: string;
   status: 'Pending' | 'Verified' | 'Approved' | 'Rejected' | 'Enrolled';
   documentsSubmitted: string[];
+  admissionNo?: string;
+  parentPhone?: string;
 }
 
 export interface Bus {
@@ -621,6 +623,8 @@ export interface FeePayment {
   chequeDate?: string;
   bankName?: string;
   selectedInstallmentIds?: string[];
+  amount?: number;
+  feeHeadName?: string;
 }
 
 export interface DailyAttendance {
@@ -831,6 +835,8 @@ export interface UniformItem {
   color: string;
   price: number;
   availableStock: number;
+  branch?: string;
+  createdAt?: string;
 }
 
 export interface BookItem {
@@ -1041,6 +1047,7 @@ export interface SchoolEvent {
   endDate: string;
   startTime?: string;
   endTime?: string;
+  time?: string;
   branch: string;
   academicYear: string;
   applicableClasses?: string[];
@@ -1180,10 +1187,12 @@ export interface FeeHead {
 }
 
 export interface FeeStructureItem {
+  id?: string;
   feeHeadId: string;
   feeHeadName: string;
   category?: string;
   amount: number;
+  frequency?: string;
 }
 
 export interface DynamicFeeStructure {
@@ -1833,6 +1842,8 @@ export interface UniformSize {
   sizeCodeName?: string;
   chest?: string;
   waist?: string;
+  shoulder?: string;
+  length?: string;
   height?: string;
   ageGroup?: string;
   gender: 'Male' | 'Female' | 'Unisex';
@@ -1882,7 +1893,7 @@ export interface StudentUniformIssue {
   status: 'Issued' | 'Returned' | 'Replaced' | string;
   returnDate?: string;
   replacementDate?: string;
-  academicYear: string;
+  academicYear?: string;
   branch?: string;
   notes?: string;
   type?: 'Base Package' | 'Additional Purchase';
@@ -1891,6 +1902,7 @@ export interface StudentUniformIssue {
   itemCategory?: string;
   totalAmount?: number;
   unitPrice?: number;
+  gender?: string;
 }
 
 export interface FinanceUniformConfig {
@@ -1905,6 +1917,7 @@ export interface FinanceUniformConfig {
   effectiveFrom: string;
   effectiveTo?: string;
   status: 'Active' | 'Inactive';
+  packageItems?: { itemName: string; quantity: number; unitPrice: number }[];
 }
 
 // ==========================================
@@ -1921,6 +1934,7 @@ export interface LeaveType {
   requiresAttachment: boolean;
   isPaid: boolean;
   status: 'Active' | 'Inactive';
+  maxDays?: number;
 }
 
 export interface LeaveApplication {
@@ -2304,15 +2318,18 @@ export interface SchoolMeeting {
   participants: MeetingParticipantInfo[];
   targetGroupDescription?: string;
   meetingMode: MeetingMode;
+  mode?: any;
   
   building?: string;
   floor?: string;
   roomVenue?: string;
+  venue?: any;
   roomCapacity?: number;
   
   onlineMeetingUrl?: string;
 
   meetingDate: string;
+  date?: any;
   startTime: string;
   endTime: string;
   
@@ -2327,6 +2344,7 @@ export interface SchoolMeeting {
   attendanceRequired?: 'Mandatory' | 'Optional';
   recurrence?: 'None' | 'Daily' | 'Weekly' | 'Monthly';
   excludedParticipantIds?: string[];
+  selectedParticipantIds?: string[];
 }
 
 // ==========================================
@@ -2438,6 +2456,7 @@ export interface AssessmentResult {
   evaluatedDate?: string;
   certificateIssued?: boolean;
   certificateNo?: string;
+  score?: number;
 }
 
 export interface EmployeeAssessment {
@@ -2448,19 +2467,19 @@ export interface EmployeeAssessment {
   description?: string;
   gradingScheme?: 'Letter Grade' | 'Percentage' | 'Pass/Fail';
   department: string;
-  applicableDesignation: string;
+  applicableDesignation?: string;
   branch: string;
   academicYear?: string;
   targetEmployeeType?: 'Teaching Staff' | 'Non-Teaching Staff' | 'Both';
   date: string;
   startTime?: string;
   endTime?: string;
-  durationMinutes: number;
+  durationMinutes?: number;
   venue?: string;
   mode?: AssessmentMode;
   totalMarks: number;
   passingMarks: number;
-  instructions: string;
+  instructions?: string;
   evaluatorName: string;
   coEvaluatorName?: string;
   options?: {

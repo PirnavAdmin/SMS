@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import {
   FileText, Plus, Edit, Trash2, Eye, Printer, Calendar, CheckCircle, XCircle, Search, Filter,
@@ -25,8 +25,15 @@ export const LeaveManagementView: React.FC = () => {
     staff,
     leaveTypes, addLeaveType, updateLeaveType, deleteLeaveType,
     leaveApplications, addLeaveApplication, updateLeaveApplication, deleteLeaveApplication, updateLeaveApplicationStatus,
-    holidays, addHoliday, updateHoliday, deleteHoliday
+    holidays, addHoliday, updateHoliday, deleteHoliday,
+    fetchLeaveTypes, fetchLeaveApplications, fetchLeaveBalances
   } = useData();
+
+  useEffect(() => {
+    if (fetchLeaveTypes) fetchLeaveTypes();
+    if (fetchLeaveApplications) fetchLeaveApplications();
+    if (fetchLeaveBalances) fetchLeaveBalances();
+  }, [fetchLeaveTypes, fetchLeaveApplications, fetchLeaveBalances]);
 
   const activeLeaveTypes = (Array.isArray(leaveTypes) && leaveTypes.length > 0) ? leaveTypes : DEFAULT_LEAVE_TYPES;
 

@@ -21,6 +21,8 @@ using SMS.Api.Services.Implementations.Examination;
 using SMS.Api.Services.Implementations.AcademicManagement;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine(BCrypt.Net.BCrypt.HashPassword("admin1234"));
+
 
 builder.Services.AddCors(options =>
 {
@@ -637,6 +639,27 @@ using (var scope = app.Services.CreateScope())
                 `Status` tinyint(1) NOT NULL DEFAULT 1,
                 `IsDeleted` tinyint(1) NOT NULL DEFAULT 0,
                 PRIMARY KEY (`AssignmentId`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `student_promotion_histories` (
+                `id` int NOT NULL AUTO_INCREMENT,
+                `student_id` int NOT NULL,
+                `admission_no` varchar(50) NOT NULL,
+                `student_name` varchar(150) NOT NULL,
+                `from_academic_year` varchar(50) NOT NULL,
+                `to_academic_year` varchar(50) NOT NULL,
+                `from_class` varchar(50) NOT NULL,
+                `to_class` varchar(50) NOT NULL,
+                `from_section` varchar(20) NOT NULL,
+                `to_section` varchar(20) NOT NULL,
+                `overall_pct` decimal(5,2) NOT NULL DEFAULT 0.00,
+                `grade` varchar(10) NOT NULL DEFAULT 'A',
+                `final_result` varchar(20) NOT NULL DEFAULT 'PASS',
+                `status` varchar(30) NOT NULL DEFAULT 'Promoted',
+                `remarks` varchar(255) NULL,
+                `promotion_date` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                PRIMARY KEY (`id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
             @"CREATE TABLE IF NOT EXISTS `student_transport_assignments` (
@@ -1537,6 +1560,77 @@ using (var scope = app.Services.CreateScope())
                 JOIN `users` u ON u.`UserId` = ur.`UserId`
                 WHERE u.`Role` = 'Admin';");
 
+            try
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `faculty_workshops` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `title` VARCHAR(200) NOT NULL,
+                      `description` TEXT NULL,
+                      `trainer_name` VARCHAR(100) NULL,
+                      `organization` VARCHAR(150) NULL,
+                      `venue` VARCHAR(100) NULL,
+                      `start_date` DATETIME NULL,
+                      `end_date` DATETIME NULL,
+                      `start_time` VARCHAR(20) DEFAULT '10:00 AM',
+                      `end_time` VARCHAR(20) DEFAULT '04:00 PM',
+                      `category` VARCHAR(50) NOT NULL DEFAULT 'Pedagogy',
+                      `target_role_type` VARCHAR(100) NULL,
+                      `branch` VARCHAR(100) NULL,
+                      `status` VARCHAR(20) NOT NULL DEFAULT 'Scheduled',
+                      `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `employee_competency_assessments` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `assessment_name` VARCHAR(200) NOT NULL,
+                      `assessment_type` VARCHAR(100) NOT NULL DEFAULT 'Subject Knowledge Test',
+                      `assessment_category` VARCHAR(100) NOT NULL DEFAULT 'Knowledge',
+                      `total_marks` INT NOT NULL DEFAULT 100,
+                      `passing_marks` INT NOT NULL DEFAULT 70,
+                      `grading_scheme` VARCHAR(100) NOT NULL DEFAULT 'Letter Grade',
+                      `description` TEXT NULL,
+                      `assessment_instructions` TEXT NULL,
+                      `employee_type_filter` VARCHAR(100) NULL,
+                      `branch_filter` VARCHAR(100) NULL,
+                      `department_filter` VARCHAR(100) NULL,
+                      `designation_filter` VARCHAR(100) NULL,
+                      `scheduled_date` DATETIME NULL,
+                      `start_time` VARCHAR(20) NULL,
+                      `end_time` VARCHAR(20) NULL,
+                      `venue` VARCHAR(100) NULL,
+                      `assessment_mode` VARCHAR(50) NULL,
+                      `main_evaluator` VARCHAR(100) NULL,
+                      `co_evaluator` VARCHAR(100) NULL,
+                      `notify_participants` TINYINT(1) NOT NULL DEFAULT 1,
+                      `add_to_calendar` TINYINT(1) NOT NULL DEFAULT 1,
+                      `auto_certificates` TINYINT(1) NOT NULL DEFAULT 1,
+                      `publish_immediately` TINYINT(1) NOT NULL DEFAULT 1,
+                      `candidates_count` INT NOT NULL DEFAULT 0,
+                      `status` VARCHAR(20) NOT NULL DEFAULT 'Pending',
+                      `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `feepayments` (
+                      `id` INT AUTO_INCREMENT PRIMARY KEY,
+                      `receipt_no` VARCHAR(50) NULL,
+                      `student_id` VARCHAR(50) NULL,
+                      `amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `discount_amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `fine_amount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `transport_fee` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                      `transaction_id` VARCHAR(100) NULL,
+                      `payment_date` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      `payment_method` VARCHAR(50) NULL,
+                      `status` VARCHAR(50) NOT NULL DEFAULT 'Completed'
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+            }
+            catch (System.Exception ex)
+            {
+                System.Console.WriteLine($"[Database Migration Warning] {ex.Message}");
+            }
+
             context.Database.ExecuteSqlRaw("DELETE FROM `users` WHERE `Role` = 'Admin';");
         }
         catch (System.Exception ex)
@@ -1682,79 +1776,7 @@ using (var scope = app.Services.CreateScope())
         var parentRole = await context.Roles
             .FirstOrDefaultAsync(x => x.RoleName == "Parent");
 
-        var portalUsers = new[]
-        {
-            new
-            {
-                FullName = "Robert Teacher",
-                Email = "teacher@pirnavschools.com",
-                Mobile = "9876543221",
-                Password = "Teacher@123",
-                Role = teacherRole
-            },
-            new
-            {
-                FullName = "Arjun Student",
-                Email = "student@pirnavschools.com",
-                Mobile = "9876543222",
-                Password = "Student@123",
-                Role = studentRole
-            },
-            new
-            {
-                FullName = "Kumar Parent",
-                Email = "parent@pirnavschools.com",
-                Mobile = "9876543223",
-                Password = "Parent@123",
-                Role = parentRole
-            }
-        };
-
-        foreach (var portalUser in portalUsers)
-        {
-            if (portalUser.Role == null)
-            {
-                continue;
-            }
-
-            var existingUser = await context.Users
-                .Include(x => x.Roles)
-                .FirstOrDefaultAsync(x =>
-                    x.Email == portalUser.Email ||
-                    x.MobileNumber == portalUser.Mobile);
-
-            if (existingUser == null)
-            {
-                var newUser = new User
-                {
-                    FullName = portalUser.FullName,
-                    Email = portalUser.Email,
-                    MobileNumber = portalUser.Mobile,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(
-                        portalUser.Password),
-                    Role = portalUser.Role.RoleName,
-                    IsEmailVerified = true,
-                    IsMobileVerified = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-
-                newUser.Roles.Add(portalUser.Role);
-
-                await context.Users.AddAsync(newUser);
-            }
-            else
-            {
-                existingUser.Role = portalUser.Role.RoleName;
-
-                if (existingUser.Roles.All(x =>
-                    x.RoleId != portalUser.Role.RoleId))
-                {
-                    existingUser.Roles.Add(portalUser.Role);
-                }
-            }
-        }
-
-        await context.SaveChangesAsync();
+        // Portal users seeding removed (Teacher, Student, Parent users)
 
         // =================================================
         // SEED BRANCHES
@@ -1770,634 +1792,13 @@ using (var scope = app.Services.CreateScope())
         }
         await context.SaveChangesAsync();
 
-        // =================================================
-        // SEED DEPARTMENTS
-        // =================================================
+        // Departments and subjects seeding removed
 
-        var departmentSeeds = new[]
-        {
-            new Department
-            {
-                DepartmentName = "Mathematics",
-                DepartmentCode = "DEPT-MTH",
-                Description = "Department of Mathematics",
-                Status = "Active"
-            },
-            new Department
-            {
-                DepartmentName = "Science",
-                DepartmentCode = "DEPT-SCI",
-                Description = "Department of Science",
-                Status = "Active"
-            },
-            new Department
-            {
-                DepartmentName = "Languages",
-                DepartmentCode = "DEPT-LNG",
-                Description = "Department of Languages",
-                Status = "Active"
-            }
-        };
+        // Classes and sections seeding removed
 
-        foreach (var departmentSeed in departmentSeeds)
-        {
-            var departmentExists = await context.Departments.AnyAsync(
-                x => x.DepartmentCode == departmentSeed.DepartmentCode);
+        // Admission applications seeding and admissions-to-students sync removed
 
-            if (!departmentExists)
-            {
-                await context.Departments.AddAsync(departmentSeed);
-            }
-        }
-
-        // Save departments first because Subjects.DepartmentId
-        // is a foreign key to Departments.DepartmentId.
-        await context.SaveChangesAsync();
-
-        var mathematicsDepartment = await context.Departments
-            .SingleAsync(x => x.DepartmentCode == "DEPT-MTH");
-
-        var scienceDepartment = await context.Departments
-            .SingleAsync(x => x.DepartmentCode == "DEPT-SCI");
-
-        var languagesDepartment = await context.Departments
-            .SingleAsync(x => x.DepartmentCode == "DEPT-LNG");
-
-        // =================================================
-        // SEED SUBJECTS
-        // =================================================
-
-        var subjectSeeds = new[]
-        {
-            new Subject
-            {
-                SubjectCode = "MATH101",
-                SubjectName = "Mathematics",
-                CourseCode = "MATH",
-                DepartmentId = mathematicsDepartment.DepartmentId
-            },
-            new Subject
-            {
-                SubjectCode = "PHY101",
-                SubjectName = "Physics",
-                CourseCode = "PHY",
-                DepartmentId = scienceDepartment.DepartmentId
-            },
-            new Subject
-            {
-                SubjectCode = "ENG101",
-                SubjectName = "English Literature",
-                CourseCode = "ENG",
-                DepartmentId = languagesDepartment.DepartmentId
-            },
-            new Subject
-            {
-                SubjectCode = "CHEM101",
-                SubjectName = "Chemistry",
-                CourseCode = "CHEM",
-                DepartmentId = scienceDepartment.DepartmentId
-            }
-        };
-
-        foreach (var subjectSeed in subjectSeeds)
-        {
-            var subjectExists = await context.Subjects.AnyAsync(
-                x => x.SubjectCode == subjectSeed.SubjectCode);
-
-            if (!subjectExists)
-            {
-                await context.Subjects.AddAsync(subjectSeed);
-            }
-        }
-
-        await context.SaveChangesAsync();
-
-        // =================================================
-        // SEED CLASSES AND SECTIONS
-        // =================================================
-
-        if (!await context.Classes.AnyAsync())
-        {
-            var staffMembers = await context.Staff
-                .OrderBy(x => x.StaffId)
-                .Take(2)
-                .ToListAsync();
-
-            var staff1 = staffMembers.ElementAtOrDefault(0);
-            var staff2 = staffMembers.ElementAtOrDefault(1);
-
-            // Fetch a default subject to satisfy FK constraint on teacher_assignments
-            var defaultSubject = await context.Subjects.FirstOrDefaultAsync();
-            var defaultSubjectId = defaultSubject?.SubjectId ?? 1;
-
-            for (var classNumber = 1;
-                 classNumber <= 12;
-                 classNumber++)
-            {
-                var classGrade = new ClassGrade
-                {
-                    ClassName = $"Class {classNumber}"
-                };
-
-                // Save the class first to generate ClassId.
-                await context.Classes.AddAsync(classGrade);
-                await context.SaveChangesAsync();
-
-                if (classNumber == 1)
-                {
-                    await context.ClassSections.AddAsync(
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "A"
-                        });
-                    if (staff1 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "A",
-                                TeacherId = staff1.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                }
-                else if (classNumber == 2)
-                {
-                    await context.ClassSections.AddAsync(
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "A"
-                        });
-                    if (staff2 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "A",
-                                TeacherId = staff2.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                }
-                else if (classNumber == 9)
-                {
-                    await context.ClassSections.AddRangeAsync(
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "A"
-                        },
-                        new ClassSection
-                        {
-                            ClassId = classGrade.ClassId,
-                            SectionName = "B"
-                        });
-                    if (staff1 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "A",
-                                TeacherId = staff1.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                    if (staff2 != null)
-                    {
-                        await context.TeacherAssignments.AddAsync(
-                            new TeacherAssignment
-                            {
-                                ClassId = classGrade.ClassId,
-                                SectionLetter = "B",
-                                TeacherId = staff2.StaffId,
-                                SubjectId = defaultSubjectId,
-                                Role = "Class Teacher",
-                                Status = "Active"
-                            });
-                    }
-                }
-
-                await context.SaveChangesAsync();
-            }
-        }
-
-        // =================================================
-        // SEED ADMISSION APPLICATION
-        // =================================================
-
-        {
-            // Retrieve first class as fallback
-            var firstClass = await context.Classes.OrderBy(x => x.ClassId).FirstOrDefaultAsync();
-            var class10 = await context.Classes.FirstOrDefaultAsync(x => x.ClassName == "Class 10");
-            var class9 = await context.Classes.FirstOrDefaultAsync(x => x.ClassName == "Class 9");
-
-            if (firstClass != null)
-            {
-                var c10Id = class10?.ClassId ?? firstClass.ClassId;
-                var c9Id = class9?.ClassId ?? firstClass.ClassId;
-
-                // Predefined diverse distribution mapping for the 12 registration records
-                var seedApps = new List<AdmissionApplication>
-                {
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1001",
-                        FirstName = "Alexander",
-                        LastName = "Wright",
-                        DateOfBirth = new DateTime(2012, 8, 15),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "North Branch",
-                        FatherName = "Robert Wright",
-                        FatherContact = "9876543210",
-                        Status = "Enrolled",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1002",
-                        FirstName = "Rahul",
-                        LastName = "Sharma",
-                        DateOfBirth = new DateTime(2012, 5, 15),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "North Branch",
-                        FatherName = "Aman Sharma",
-                        FatherContact = "+1 (555) 019-2831",
-                        Status = "Rejected",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1003",
-                        FirstName = "Priya",
-                        LastName = "Patel",
-                        DateOfBirth = new DateTime(2012, 8, 22),
-                        Gender = "Female",
-                        AppliedClassId = c10Id,
-                        BranchName = "Main Campus",
-                        FatherName = "Rajesh Patel",
-                        FatherContact = "+1 (555) 019-3829",
-                        Status = "Deleted",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1004",
-                        FirstName = "Sneha",
-                        LastName = "Reddy",
-                        DateOfBirth = new DateTime(2013, 9, 28),
-                        Gender = "Female",
-                        AppliedClassId = c9Id,
-                        BranchName = "North Branch",
-                        FatherName = "Prasad Reddy",
-                        FatherContact = "+1 (555) 019-7832",
-                        Status = "Enrolled",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1005",
-                        FirstName = "Alex",
-                        LastName = "Wright",
-                        DateOfBirth = new DateTime(2000, 1, 9),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "North Branch",
-                        FatherName = "Robert Wright",
-                        FatherContact = "9876543210",
-                        Status = "Pending",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1006",
-                        FirstName = "sample",
-                        LastName = "sample",
-                        DateOfBirth = new DateTime(2000, 1, 9),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "West Campus",
-                        FatherName = "sample",
-                        FatherContact = "9999999999",
-                        Status = "Pending",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1007",
-                        FirstName = "Narendra",
-                        LastName = "Modi",
-                        DateOfBirth = new DateTime(1999, 12, 14),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "North Branch",
-                        FatherName = "Damodardas",
-                        FatherContact = "8888888888",
-                        Status = "Pending",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1008",
-                        FirstName = "Gokul",
-                        LastName = "Raj",
-                        DateOfBirth = new DateTime(2016, 2, 1),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "Main Campus",
-                        FatherName = "Shankar",
-                        FatherContact = "8998897887",
-                        Status = "Enrolled",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1009",
-                        FirstName = "Veera",
-                        LastName = "Garikapati",
-                        DateOfBirth = new DateTime(2004, 10, 26),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "Hyderabad",
-                        FatherName = "Srinivasa Rao",
-                        FatherContact = "9581768555",
-                        Status = "Enrolled",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1010",
-                        FirstName = "nagaraj",
-                        LastName = "kamati",
-                        DateOfBirth = new DateTime(2011, 6, 15),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "Main Campus",
-                        FatherName = "Basappa",
-                        FatherContact = "9999999999",
-                        Status = "Pending",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1011",
-                        FirstName = "nagaraj",
-                        LastName = "kamati",
-                        DateOfBirth = new DateTime(2011, 6, 15),
-                        Gender = "Male",
-                        AppliedClassId = firstClass.ClassId,
-                        BranchName = "Main Campus",
-                        FatherName = "Basappa",
-                        FatherContact = "9999999999",
-                        Status = "pending",
-                        CreatedAt = DateTime.UtcNow
-                    },
-                    new AdmissionApplication
-                    {
-                        RegistrationNo = "REG-1012",
-                        FirstName = "Rahul",
-                        LastName = "Kumar",
-                        DateOfBirth = new DateTime(2011, 6, 15),
-                        Gender = "Male",
-                        AppliedClassId = c10Id,
-                        BranchName = "Main Campus",
-                        FatherName = "Rajesh",
-                        FatherContact = "9999999999",
-                        Status = "Deleted",
-                        CreatedAt = DateTime.UtcNow
-                    }
-                };
-
-                foreach (var seedApp in seedApps)
-                {
-                    var existingApp = await context.AdmissionApplications.FirstOrDefaultAsync(x => x.RegistrationNo == seedApp.RegistrationNo);
-                    if (existingApp == null)
-                    {
-                        await context.AdmissionApplications.AddAsync(seedApp);
-                    }
-                    else
-                    {
-                        // Update existing app to distribute branch and status
-                        existingApp.BranchName = seedApp.BranchName;
-                        existingApp.Status = seedApp.Status;
-                        existingApp.AppliedClassId = seedApp.AppliedClassId;
-
-                        // Retain user custom names if they exist, otherwise update them
-                        if (existingApp.FirstName == "sample" || string.IsNullOrEmpty(existingApp.FirstName))
-                        {
-                            existingApp.FirstName = seedApp.FirstName;
-                        }
-                        if (existingApp.LastName == "sample" || string.IsNullOrEmpty(existingApp.LastName))
-                        {
-                            existingApp.LastName = seedApp.LastName;
-                        }
-                    }
-                }
-                await context.SaveChangesAsync();
-
-            }
-        }
-
-
-        // =================================================
-        // SYNC: ADMISSIONS → STUDENTS (startup heal)
-        // Ensures the `students` table is populated from the `admissions`
-        // table so that attendance, hostel, and library modules work correctly.
-        // Runs in its own try-catch so a missing table never crashes seeding.
-        // =================================================
-        try
-        {
-            // Verify prerequisite tables exist before querying them
-            var conn = context.Database.GetDbConnection();
-            if (conn.State != System.Data.ConnectionState.Open)
-                await conn.OpenAsync();
-
-            bool tablesReady = false;
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = @"
-                    SELECT COUNT(*) FROM information_schema.tables
-                    WHERE table_schema = DATABASE()
-                    AND table_name IN ('academic_years', 'branches', 'students', 'admissions', 'class_sections')";
-                var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-                tablesReady = count >= 5;
-            }
-
-            if (tablesReady)
-            {
-                var defaultBranch = await context.Branches.FirstOrDefaultAsync();
-                var defaultAcademicYear = await context.AcademicYears.FirstOrDefaultAsync();
-
-                if (defaultBranch != null && defaultAcademicYear != null)
-                {
-                    // 1. Sync enrolled applications from admission_applications to admissions table
-                    var enrolledApps = await context.AdmissionApplications
-                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
-                        .ToListAsync();
-
-                    var branches = await context.Branches.ToListAsync();
-
-                    foreach (var admApp in enrolledApps)
-                    {
-                        var existingAdmission = await context.Admissions
-                            .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo);
-
-                        var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
-
-                        if (existingAdmission == null)
-                        {
-                            var newAdmission = new Admission
-                            {
-                                ApplicationNo = admApp.RegistrationNo ?? "",
-                                StudentName = $"{admApp.FirstName} {admApp.LastName}".Trim(),
-                                Dob = admApp.DateOfBirth,
-                                Gender = admApp.Gender,
-                                FatherName = admApp.FatherName,
-                                FatherMobile = admApp.FatherContact,
-                                BloodGroup = admApp.BloodGroup,
-                                Caste = admApp.Caste,
-                                BranchId = appBranch.BranchId,
-                                ClassId = admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 ? admApp.AppliedClassId.Value : 1,
-                                SectionLetter = "A",
-                                AdmissionType = "Regular",
-                                Status = admApp.Status ?? "",
-                                IsDeleted = false,
-                                CreatedDate = DateTime.UtcNow
-                            };
-                            await context.Admissions.AddAsync(newAdmission);
-                        }
-                        else
-                        {
-                            existingAdmission.BranchId = appBranch.BranchId;
-                            existingAdmission.Status = admApp.Status ?? "";
-                        }
-                    }
-                    await context.SaveChangesAsync();
-
-                    // 2. Sync from admissions to students table
-                    var activeAdmissions = await context.Admissions
-                        .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
-                        .ToListAsync();
-
-                    foreach (var admission in activeAdmissions)
-                    {
-                        if (admission.ClassId == null)
-                            continue;
-
-                        var sectionLetter = string.IsNullOrEmpty(admission.SectionLetter) ? "A" : admission.SectionLetter;
-                        var sectionObj = await context.ClassSections
-                            .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == sectionLetter.ToLower());
-                        
-                        if (sectionObj == null)
-                        {
-                            sectionObj = await context.ClassSections
-                                .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId);
-                        }
-                        if (sectionObj == null) continue;
-
-                        var existing = await context.Students
-                            .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
-
-                        if (existing != null)
-                        {
-                            existing.SectionId = sectionObj.SectionId;
-                            existing.RollNumber = admission.RollNo ?? existing.RollNumber;
-                            existing.BranchId = (int)admission.BranchId;
-                            existing.Status = "Active";
-                        }
-                        else
-                        {
-                            var student = new Student
-                            {
-                                AdmissionNumber = admission.ApplicationNo ?? $"ADM-{admission.AdmissionId}",
-                                RollNumber = admission.RollNo ?? $"R-{admission.AdmissionId}",
-                                StudentName = admission.StudentName ?? string.Empty,
-                                DateOfBirth = admission.Dob,
-                                Gender = admission.Gender,
-                                FatherName = admission.FatherName,
-                                FatherMobile = admission.FatherMobile,
-                                BranchId = (int)admission.BranchId,
-                                AcademicYearId = defaultAcademicYear.AcademicYearId,
-                                ClassId = admission.ClassId.Value,
-                                SectionId = sectionObj.SectionId,
-                                Status = "Active",
-                                CreatedAt = DateTime.UtcNow
-                            };
-                            await context.Students.AddAsync(student);
-                        }
-                    }
-
-                    await context.SaveChangesAsync();
-                }
-            }
-            else
-            {
-                var logger = services.GetRequiredService<ILogger<Program>>();
-                logger.LogWarning("Admissions→Students sync skipped: one or more required tables do not exist yet. Will sync on next startup after migrations.");
-            }
-        }
-        catch (Exception syncEx)
-        {
-            var logger = services.GetRequiredService<ILogger<Program>>();
-            logger.LogWarning(syncEx, "Admissions→Students startup sync failed. This is non-fatal — sync will retry on next startup.");
-        }
-
-        // =================================================
-        // SEED PERIOD SETTINGS
-        // =================================================
-        if (!await context.PeriodSettings.AnyAsync(p => !p.IsDeleted))
-        {
-            var defaultPeriods = new[]
-            {
-                new PeriodSetting { PeriodName = "Period 1", StartTime = new TimeSpan(8, 30, 0), EndTime = new TimeSpan(9, 15, 0), PeriodType = "Teaching Period", DisplayOrder = 1 },
-                new PeriodSetting { PeriodName = "Period 2", StartTime = new TimeSpan(9, 15, 0), EndTime = new TimeSpan(10, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 2 },
-                new PeriodSetting { PeriodName = "Morning Break", StartTime = new TimeSpan(10, 0, 0), EndTime = new TimeSpan(10, 15, 0), PeriodType = "Break / Recess", DisplayOrder = 3 },
-                new PeriodSetting { PeriodName = "Period 3", StartTime = new TimeSpan(10, 15, 0), EndTime = new TimeSpan(11, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 4 },
-                new PeriodSetting { PeriodName = "Period 4", StartTime = new TimeSpan(11, 0, 0), EndTime = new TimeSpan(11, 45, 0), PeriodType = "Teaching Period", DisplayOrder = 5 },
-                new PeriodSetting { PeriodName = "Lunch Break", StartTime = new TimeSpan(11, 45, 0), EndTime = new TimeSpan(12, 30, 0), PeriodType = "Break / Recess", DisplayOrder = 6 },
-                new PeriodSetting { PeriodName = "Period 5", StartTime = new TimeSpan(12, 30, 0), EndTime = new TimeSpan(13, 15, 0), PeriodType = "Teaching Period", DisplayOrder = 7 },
-                new PeriodSetting { PeriodName = "Period 6", StartTime = new TimeSpan(13, 15, 0), EndTime = new TimeSpan(14, 0, 0), PeriodType = "Teaching Period", DisplayOrder = 8 }
-            };
-
-            await context.PeriodSettings.AddRangeAsync(defaultPeriods);
-            await context.SaveChangesAsync();
-        }
-
-        // =================================================
-        // SEED TEACHER SUBJECT ASSIGNMENTS
-        // =================================================
-        if (!await context.TeacherSubjectAssignments.AnyAsync())
-        {
-            var firstClass = await context.Classes.FirstOrDefaultAsync();
-            var firstSec = await context.ClassSections.FirstOrDefaultAsync();
-            var firstSub = await context.Subjects.FirstOrDefaultAsync();
-            var firstTeacher = await context.Staff.FirstOrDefaultAsync(s => s.IsActive == true);
-
-            if (firstClass != null && firstSec != null && firstSub != null && firstTeacher != null)
-            {
-                var sampleAssignment = new TeacherSubjectAssignment
-                {
-                    ClassId = firstClass.ClassId,
-                    SectionId = firstSec.SectionId,
-                    SubjectId = firstSub.SubjectId,
-                    StaffId = firstTeacher.StaffId
-                };
-                await context.TeacherSubjectAssignments.AddAsync(sampleAssignment);
-                await context.SaveChangesAsync();
-            }
-        }
+        // Period settings and teacher subject assignments seeding removed
         // =================================================
         // SEED LEAVE TYPES CONFIG
         // =================================================
@@ -2416,105 +1817,7 @@ using (var scope = app.Services.CreateScope())
             await context.SaveChangesAsync();
         }
 
-        // =================================================
-        // SEED LEAVE APPLICATIONS
-        // =================================================
-        if (!await context.LeaveApplications.AnyAsync())
-        {
-            var teacher = await context.Staff.FirstOrDefaultAsync(s => s.EmployeeCategory == "Teacher" || s.SystemRole == "Teacher");
-            var clType = await context.LeaveTypeConfigs.FirstOrDefaultAsync(l => l.Code == "CL");
-            if (teacher != null && clType != null)
-            {
-                var sampleLeave = new LeaveApplication
-                {
-                    StaffId = teacher.StaffId,
-                    LeaveTypeId = clType.LeaveTypeId,
-                    FromDate = DateTime.UtcNow.AddDays(2).Date,
-                    ToDate = DateTime.UtcNow.AddDays(3).Date,
-                    IsHalfDay = false,
-                    RequestedDays = 2,
-                    Reason = "Family function to attend",
-                    AppliedDate = DateTime.UtcNow.AddDays(-1),
-                    Status = "Pending"
-                };
-                await context.LeaveApplications.AddAsync(sampleLeave);
-                await context.SaveChangesAsync();
-            }
-        }
-
-        // =================================================
-        // SEED SALARY STRUCTURES
-        // =================================================
-        if (!await context.SalaryStructures.AnyAsync())
-        {
-            var teacherScale = new SalaryStructure
-            {
-                StructureCode = "SAL-STR-TCH",
-                StructureName = "Teaching Staff Scale",
-                StaffCategory = "Teacher",
-                Branch = "Main Campus",
-                Department = "Academics",
-                Designation = "Teacher",
-                EmploymentType = "Full-time",
-                EffectiveDate = DateTime.UtcNow.Date,
-                Status = "Active",
-                Notes = "Standard scale for teaching staff members.",
-                MonthlyGrossSalary = 50000,
-                AssignedEmployeesCount = 0,
-                PayrollFrequency = "Monthly",
-                SalaryPaymentDay = "5",
-                PfApplicable = true,
-                PfPercentage = 12,
-                EsiApplicable = true,
-                EsiPercentage = 0.75m,
-                ProfessionalTaxApplicable = true,
-                ProfessionalTaxAmount = 200,
-                RoundOffRule = "Nearest 1"
-            };
-
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Basic Salary", ComponentType = "Earning", Amount = 30000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "HRA", ComponentType = "Earning", Amount = 10000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "DA", ComponentType = "Earning", Amount = 5000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Travel Allowance", ComponentType = "Earning", Amount = 5000 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Employee PF", ComponentType = "Deduction", Amount = 3600 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "ESI", ComponentType = "Deduction", Amount = 375 });
-            teacherScale.Items.Add(new SalaryStructureItem { ComponentName = "Professional Tax", ComponentType = "Deduction", Amount = 200 });
-
-            var adminScale = new SalaryStructure
-            {
-                StructureCode = "SAL-STR-ADM",
-                StructureName = "Non-Teaching Admin Scale",
-                StaffCategory = "Staff",
-                Branch = "Main Campus",
-                Department = "Administration",
-                Designation = "Administrator",
-                EmploymentType = "Full-time",
-                EffectiveDate = DateTime.UtcNow.Date,
-                Status = "Active",
-                Notes = "Standard scale for administration staff members.",
-                MonthlyGrossSalary = 35000,
-                AssignedEmployeesCount = 0,
-                PayrollFrequency = "Monthly",
-                SalaryPaymentDay = "5",
-                PfApplicable = true,
-                PfPercentage = 12,
-                EsiApplicable = false,
-                EsiPercentage = 0,
-                ProfessionalTaxApplicable = true,
-                ProfessionalTaxAmount = 150,
-                RoundOffRule = "Nearest 1"
-            };
-
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Basic Salary", ComponentType = "Earning", Amount = 20000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "HRA", ComponentType = "Earning", Amount = 8000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "DA", ComponentType = "Earning", Amount = 3000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Travel Allowance", ComponentType = "Earning", Amount = 4000 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Employee PF", ComponentType = "Deduction", Amount = 2400 });
-            adminScale.Items.Add(new SalaryStructureItem { ComponentName = "Professional Tax", ComponentType = "Deduction", Amount = 150 });
-
-            await context.SalaryStructures.AddRangeAsync(teacherScale, adminScale);
-            await context.SaveChangesAsync();
-        }
+        // Leave applications and salary structures seeding removed
       }
     }
     catch (Exception exception)

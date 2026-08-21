@@ -5,6 +5,7 @@ import { Pagination } from '../../common/Pagination';
 import { FileSpreadsheet, Download, Printer, Search, Calendar, Filter, RefreshCw, BarChart2, CheckCircle2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { getItemPriceFromConfig, getUniformFeeForClass } from '../../../utils/uniformUtils';
 
 interface UniformReportsViewProps {
   initialReportType?: string;
@@ -16,7 +17,8 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     uniformInventory,
     studentUniformIssues,
     uniformSuppliers,
-    academicClasses
+    academicClasses,
+    financeUniformConfigs = []
   } = useData();
 
   const { addToast } = useToast();
@@ -98,14 +100,29 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
   });
 
   const filteredStudentIssues = studentUniformIssues.filter(i => {
+    const name = (i?.studentName || '').toLowerCase();
+    const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
+    const isDummy = name.includes('fahim') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+    if (isDummy) return false;
+
     if (filterClass !== 'All' && i.className !== filterClass) return false;
     if (fromDate && i.issueDate < fromDate) return false;
     if (reportType === 'Additional Uniform Sales') {
-      if (i.status !== 'Issued') return false;
-      const isExtra = i.type === 'Additional Purchase' || 
-                      i.itemName.includes('(Extra)') || 
-                      (!i.itemName.toLowerCase().includes('package') && i.type !== 'Base Package');
-      if (!isExtra) return false;
+      if (i.status === 'Returned' || i.status === 'Cancelled') return false;
+      const itemNameLower = (i.itemName || '').toLowerCase();
+      const typeLower = ((i as any).transactionType || i.type || '').toLowerCase();
+      const notesLower = (i.notes || '').toLowerCase();
+
+      const isAdditional = 
+        typeLower.includes('additional') || 
+        notesLower.includes('additional') ||
+        itemNameLower.includes('additional');
+
+      const isOriginalBasePkg = 
+        (typeLower === 'base package' || notesLower.includes('admission fee') || notesLower.includes('covered under admission')) && 
+        !isAdditional;
+
+      if (isOriginalBasePkg) return false;
     }
     if (reportType === 'Replacement Report' && i.status !== 'Replaced') return false;
 
@@ -125,10 +142,97 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
     return true;
   });
 
+  const groupedStudentIssues = React.useMemo(() => {
+    if (reportType !== 'Additional Uniform Sales') {
+      return filteredStudentIssues.map(i => {
+        const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
+        const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 5000 : 350));
+        return {
+          id: i.id,
+          studentName: i.studentName,
+          admissionNo: i.admissionNo,
+          className: i.className,
+          section: i.section || 'A',
+          itemsList: [i.itemName.replace(' (Extra)', '')],
+          sizesList: [i.size],
+          totalQuantity: i.quantity,
+          unitPriceStr: formatCurrency(unitPrice),
+          totalAmount: unitPrice * i.quantity,
+          issueDate: i.issueDate,
+          status: i.status,
+          notes: i.notes || 'N/A'
+        };
+      });
+    }
+
+    const map = new Map<string, {
+      id: string;
+      studentName: string;
+      admissionNo: string;
+      className: string;
+      section: string;
+      itemsList: string[];
+      sizesList: string[];
+      totalQuantity: number;
+      totalAmount: number;
+      issueDate: string;
+      status: string;
+      notes: string;
+    }>();
+
+    filteredStudentIssues.forEach(i => {
+      const normKey = (i.studentName || 'Student').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanItemName = i.itemName.replace(/\s*\(Extra\)/gi, '').trim();
+      const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
+      let price = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 5000 : 350));
+      if (!price || price <= 0) {
+        price = getItemPriceFromConfig(i.itemCategory || i.itemName, financeUniformConfigs);
+      }
+      const itemTotal = price * (i.quantity || 1);
+
+      const existing = map.get(normKey);
+      if (existing) {
+        if (!existing.itemsList.includes(cleanItemName)) {
+          existing.itemsList.push(cleanItemName);
+        }
+        if (i.size && !existing.sizesList.includes(i.size)) {
+          existing.sizesList.push(i.size);
+        }
+        existing.totalQuantity += (i.quantity || 1);
+        existing.totalAmount += itemTotal;
+        if (i.issueDate && i.issueDate > existing.issueDate) {
+          existing.issueDate = i.issueDate;
+        }
+      } else {
+        map.set(normKey, {
+          id: i.id,
+          studentName: i.studentName,
+          admissionNo: i.admissionNo,
+          className: i.className,
+          section: i.section || 'A',
+          itemsList: [cleanItemName],
+          sizesList: i.size ? [i.size] : ['M'],
+          totalQuantity: i.quantity || 1,
+          totalAmount: itemTotal,
+          issueDate: i.issueDate,
+          status: i.status || 'Issued',
+          notes: i.notes || 'Additional Uniform Purchases'
+        });
+      }
+    });
+
+    return Array.from(map.values()).map(g => ({
+      ...g,
+      unitPriceStr: '--'
+    }));
+  }, [filteredStudentIssues, reportType, uniforms, financeUniformConfigs]);
+
   const recordCount = ['Current Stock', 'Low Stock'].includes(reportType) 
     ? filteredInventory.length 
-    : ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType)
+    : ['Uniform Issue Report', 'Student Uniform History', 'Replacement Report'].includes(reportType)
     ? filteredStudentIssues.length
+    : reportType === 'Additional Uniform Sales'
+    ? groupedStudentIssues.length
     : filteredSuppliers.length;
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -136,6 +240,7 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
   const paginatedInventory = filteredInventory.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const paginatedStudentIssues = filteredStudentIssues.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedGroupedIssues = groupedStudentIssues.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // Download ONLY the active filtered records
@@ -229,11 +334,18 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
 
   const totalReportRevenue = React.useMemo(() => {
     return filteredStudentIssues.reduce((sum, i) => {
-      const uItem = uniforms.find(u => u.id === i.itemId || u.category.toLowerCase() === (i.itemName || '').toLowerCase());
-      const unitPrice = i.price || (uItem ? uItem.price : (i.itemName.includes('Package') ? 3000 : 350));
-      return sum + (unitPrice * i.quantity);
+      let price = i.price || (i as any).unitPrice || 0;
+      if (!price || price <= 0) {
+        const isPkg = i.type === 'Base Package' || (i.itemName && (i.itemName.toLowerCase().includes('package') || i.itemName.toLowerCase().includes('base')));
+        if (isPkg) {
+          price = getUniformFeeForClass(i.className || '', i.gender || 'Unisex', financeUniformConfigs);
+        } else {
+          price = getItemPriceFromConfig(i.itemCategory || i.itemName, financeUniformConfigs);
+        }
+      }
+      return sum + (price * (i.quantity || 1));
     }, 0);
-  }, [filteredStudentIssues, uniforms]);
+  }, [filteredStudentIssues, financeUniformConfigs]);
 
   const totalReportQuantity = React.useMemo(() => {
     return filteredStudentIssues.reduce((sum, i) => sum + i.quantity, 0);
@@ -439,31 +551,31 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
         )}
       </div>
 
-      {/* Active Report Header & Live Metrics Banner */}
-      <div className="glass-card p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 via-brand-500/5 to-transparent border border-sky-200 dark:border-sky-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 print:hidden">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Active Real-Time Filtered Report
-          </span>
-          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mt-0.5">
-            <BarChart2 className="w-4 h-4 text-sky-600" />
-            {reportType}
-          </h3>
-        </div>
-        <div className="flex items-center gap-2">
-          {['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) && (
-            <span className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs shadow-md shadow-emerald-500/20">
-              Total Revenue: {formatCurrency(totalReportRevenue)}
+      {/* Dynamic Results Grid Table (Screen Paginated View - Single Unified Card) */}
+      <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs print:hidden">
+        {/* Unified Card Header */}
+        <div className="p-4 bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Active Real-Time Filtered Report
             </span>
-          )}
-          <span className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-xs shadow-md shadow-sky-500/20">
-            {recordCount} {recordCount === 1 ? 'Filtered Record' : 'Filtered Records'}
-          </span>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 mt-0.5">
+              <BarChart2 className="w-4 h-4 text-sky-600" />
+              {reportType}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            {['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) && (
+              <span className="px-3.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-xs shadow-xs">
+                Total Revenue: {formatCurrency(totalReportRevenue)}
+              </span>
+            )}
+            <span className="px-3.5 py-1.5 rounded-xl bg-sky-600 text-white font-extrabold text-xs shadow-xs">
+              {recordCount} {recordCount === 1 ? 'Filtered Record' : 'Filtered Records'}
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Dynamic Results Grid Table (Screen Paginated View) */}
-      <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm print:hidden">
         <div className="overflow-x-auto">
           <table className="min-w-[1100px] w-full text-left text-xs text-slate-700 dark:text-slate-300">
             <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
@@ -544,7 +656,34 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
                     </tr>
                   ))
                 )
-              ) : ['Uniform Issue Report', 'Student Uniform History', 'Additional Uniform Sales', 'Replacement Report'].includes(reportType) ? (
+              ) : reportType === 'Additional Uniform Sales' ? (
+                paginatedGroupedIssues.length === 0 ? (
+                  <tr>
+                    <td colSpan={12} className="py-8 text-center text-slate-400">No additional uniform sales logged.</td>
+                  </tr>
+                ) : (
+                  paginatedGroupedIssues.map(g => (
+                    <tr key={g.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors divide-x divide-slate-100 dark:divide-slate-800/60">
+                      <td className="py-3 px-3.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">{g.studentName}</td>
+                      <td className="py-3 px-3.5 font-mono whitespace-nowrap">{g.admissionNo}</td>
+                      <td className="py-3 px-3.5 font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{g.className}</td>
+                      <td className="py-3 px-3.5 text-center font-bold text-sky-600 dark:text-sky-400 whitespace-nowrap">{g.section}</td>
+                      <td className="py-3 px-3.5 font-semibold text-sky-600 max-w-xs truncate" title={g.itemsList.join(', ')}>{g.itemsList.join(', ')}</td>
+                      <td className="py-3 px-3.5 text-center font-bold whitespace-nowrap">{g.sizesList.join(', ')}</td>
+                      <td className="py-3 px-3.5 text-right font-bold whitespace-nowrap">{g.totalQuantity}</td>
+                      <td className="py-3 px-3.5 text-right font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">--</td>
+                      <td className="py-3 px-3.5 text-right font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatCurrency(g.totalAmount)}</td>
+                      <td className="py-3 px-3.5 font-mono whitespace-nowrap">{g.issueDate}</td>
+                      <td className="py-3 px-3.5 whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          {g.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3.5 text-slate-500 italic whitespace-nowrap">{g.notes}</td>
+                    </tr>
+                  ))
+                )
+              ) : ['Uniform Issue Report', 'Student Uniform History', 'Replacement Report'].includes(reportType) ? (
                 filteredStudentIssues.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="py-8 text-center text-slate-400">No student transactions match active filters.</td>

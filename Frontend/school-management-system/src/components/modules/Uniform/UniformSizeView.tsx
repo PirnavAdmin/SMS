@@ -22,14 +22,12 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
     sizeName: '',
     chest: '',
     waist: '',
-    height: '',
+    shoulder: '',
     ageGroup: '',
     gender: '' as any
   });
 
-  const isFiltered = Boolean(query.trim() || filterGender !== '');
-
-  const filtered = !isFiltered ? [] : (uniformSizes || []).filter(s => {
+  const filtered = (uniformSizes || []).filter(s => {
     if (!s) return false;
     const name = (s.sizeName || (s as any).sizeCodeName || '').toLowerCase();
     const age = (s.ageGroup || (s as any).ageBracket || '').toLowerCase();
@@ -43,7 +41,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
 
   const handleOpenAdd = () => {
     setEditingSize(null);
-    setForm({ sizeName: '', chest: '', waist: '', height: '', ageGroup: '', gender: '' as any });
+    setForm({ sizeName: '', chest: '', waist: '', shoulder: '', ageGroup: '', gender: '' as any });
     setIsModalOpen(true);
   };
 
@@ -54,7 +52,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
       sizeName: s.sizeName || (s as any).sizeCodeName || '',
       chest: s.chest || '',
       waist: s.waist || '',
-      height: s.height || '',
+      shoulder: s.shoulder || '',
       ageGroup: s.ageGroup || '',
       gender: s.gender || 'Unisex'
     });
@@ -123,8 +121,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
             onChange={e => setFilterGender(e.target.value)}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20"
           >
-            <option value="">Select Gender</option>
-            <option value="All">All Genders</option>
+            <option value="">All Genders</option>
             <option value="Unisex">Unisex</option>
             <option value="Male">Male</option>
             <option value="Female">Female</option>
@@ -140,25 +137,21 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                 <th className="py-3 px-4">Size Name</th>
                 <th className="py-3 px-4">Chest Spec</th>
                 <th className="py-3 px-4">Waist Spec</th>
-                <th className="py-3 px-4">Height Target</th>
+                <th className="py-3 px-4">Shoulder Spec</th>
                 <th className="py-3 px-4">Age Bracket</th>
                 <th className="py-3 px-4">Gender</th>
                 <th className="py-3 px-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {!isFiltered ? (
+              {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold">
                     <div className="flex flex-col items-center gap-2">
                       <Search className="w-6 h-6 text-sky-500/50" />
-                      <span>Select a gender filter or type in the search bar to display size configurations.</span>
+                      <span>No size specifications found. Click "Add Size" to create a new size configuration.</span>
                     </div>
                   </td>
-                </tr>
-              ) : filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-400">No size specifications found matching the selected filter.</td>
                 </tr>
               ) : (
                 paginated.map(s => (
@@ -166,7 +159,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                     <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{s.sizeName}</td>
                     <td className="py-3 px-4 font-mono">{s.chest || 'N/A'}</td>
                     <td className="py-3 px-4 font-mono">{s.waist || 'N/A'}</td>
-                    <td className="py-3 px-4 font-mono">{s.height || 'N/A'}</td>
+                    <td className="py-3 px-4 font-mono">{s.shoulder || 'N/A'}</td>
                     <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{s.ageGroup || 'N/A'}</td>
                     <td className="py-3 px-4">{s.gender}</td>
                     <td className="py-3 px-4 text-center">
@@ -230,7 +223,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Chest Width</label>
                   <input
                     type="text"
-                    placeholder="e.g. 38 inches"
+                    placeholder='e.g. 38"'
                     value={form.chest || ''}
                     onChange={e => setForm({ ...form, chest: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -240,7 +233,7 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Waist Specs</label>
                   <input
                     type="text"
-                    placeholder="e.g. 32 inches"
+                    placeholder='e.g. 32"'
                     value={form.waist || ''}
                     onChange={e => setForm({ ...form, waist: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
@@ -250,20 +243,20 @@ export const UniformSizeView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) =>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Height Bounds</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Shoulder Spec</label>
                   <input
                     type="text"
-                    placeholder="e.g. 170-175 cm"
-                    value={form.height || ''}
-                    onChange={e => setForm({ ...form, height: e.target.value })}
+                    placeholder='e.g. 16"'
+                    value={form.shoulder || ''}
+                    onChange={e => setForm({ ...form, shoulder: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Age Group</label>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Age Bracket</label>
                   <input
                     type="text"
-                    placeholder="e.g. 13-15 years"
+                    placeholder="e.g. 13-15 yrs"
                     value={form.ageGroup || ''}
                     onChange={e => setForm({ ...form, ageGroup: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"

@@ -95,6 +95,7 @@ namespace SMS.Api.Data
         public DbSet<UniformSize> UniformSizes { get; set; } = null!;
         public DbSet<UniformSupplier> UniformSuppliers { get; set; } = null!;
         public DbSet<StudentUniformDistribution> StudentUniformDistributions { get; set; } = null!;
+        public DbSet<StudentPromotionHistory> StudentPromotionHistories { get; set; } = null!;
 
         // Inventory & Attendants
         public DbSet<TransportAttendant> TransportAttendants { get; set; } = null!;

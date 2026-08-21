@@ -215,7 +215,44 @@ export const TeacherProfileView: React.FC = () => {
     }
   };
 
-  const activePhoto = profile.profilePhoto || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80';
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-full shimmer-block shrink-0" />
+            <div className="space-y-2 flex-1">
+              <div className="h-5 w-48 rounded-md shimmer-block" />
+              <div className="h-3 w-32 rounded-md shimmer-block" />
+            </div>
+          </div>
+          <div className="space-y-3 mt-6">
+            <div className="h-4 w-full rounded-md shimmer-block" />
+            <div className="h-4 w-11/12 rounded-md shimmer-block" />
+            <div className="h-4 w-2/3 rounded-md shimmer-block" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !profile) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 text-center text-red-700 dark:text-red-400">
+        <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500" />
+        <h3 className="text-lg font-semibold mb-2">Profile Error</h3>
+        <p className="mb-4">{error}</p>
+        <button
+          onClick={fetchProfileData}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const activePhoto = profile?.profilePhoto || user?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=300&auto=format&fit=crop&q=80';
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">

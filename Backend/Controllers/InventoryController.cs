@@ -119,66 +119,7 @@ public class InventoryController : ControllerBase
             // Database query fallback
         }
 
-        if (!items.Any())
-        {
-            // Seed sample matching Screenshot 1
-            var seedList = new List<InventoryItemDto>
-            {
-                new InventoryItemDto
-                {
-                    InventoryItemId = 1,
-                    ItemName = "Dell Core i7 Lab PCs",
-                    Category = "Lab Equipment",
-                    Quantity = 35,
-                    UnitPrice = 850m,
-                    Location = "Computer Lab 1",
-                    Status = "In Stock",
-                    CreatedAt = DateTime.UtcNow
-                },
-                new InventoryItemDto
-                {
-                    InventoryItemId = 2,
-                    ItemName = "Interactive Smart Boards",
-                    Category = "Electronics & IT",
-                    Quantity = 12,
-                    UnitPrice = 1200m,
-                    Location = "Main Campus Classrooms",
-                    Status = "In Stock",
-                    CreatedAt = DateTime.UtcNow
-                },
-                new InventoryItemDto
-                {
-                    InventoryItemId = 3,
-                    ItemName = "Student Wooden Desks",
-                    Category = "Furniture",
-                    Quantity = 150,
-                    UnitPrice = 120m,
-                    Location = "Main Furniture Warehouse",
-                    Status = "In Stock",
-                    CreatedAt = DateTime.UtcNow
-                }
-            };
-
-            var filtered = seedList.AsQueryable();
-
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                string s = search.ToLower().Trim();
-                filtered = filtered.Where(i => i.ItemName.ToLower().Contains(s) || i.Category.ToLower().Contains(s));
-            }
-
-            if (!string.IsNullOrWhiteSpace(category) && !category.Equals("All Categories", StringComparison.OrdinalIgnoreCase))
-            {
-                filtered = filtered.Where(i => i.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(status) && !status.Equals("All Statuses", StringComparison.OrdinalIgnoreCase))
-            {
-                filtered = filtered.Where(i => i.Status.Equals(status, StringComparison.OrdinalIgnoreCase));
-            }
-
-            items = filtered.ToList();
-        }
+        // Do not seed fallback mock inventory list. Everything should come from the database.
 
         int totalCount = items.Count;
         int currentPage = page > 0 ? page : 1;

@@ -10,6 +10,7 @@ import { Badge } from '../../common/Badge';
 import { TeacherDashboardView } from './TeacherDashboardView';
 import { ParentDashboardView } from './ParentDashboardView';
 import { StudentDashboardView } from './StudentDashboardView';
+import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
@@ -26,9 +27,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   } = useData();
   const fetchStaff = (useData() as any).fetchStaff || (async () => {});
 
+  const userRole = user?.role?.toLowerCase() || '';
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const isParentOrStudent = ['parent', 'student'].includes(userRole);
+    if (isParentOrStudent) {
+      setLoading(false);
+      return;
+    }
+
     const loadDashboardData = async () => {
       try {
         setLoading(true);
@@ -46,9 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     };
     loadDashboardData();
-  }, []);
-
-  const userRole = user?.role?.toLowerCase() || '';
+  }, [userRole]);
 
   if (userRole === 'student') return <StudentDashboardView onNavigate={onNavigate} />;
   if (userRole === 'parent') return <ParentDashboardView onNavigate={onNavigate} />;
@@ -332,14 +338,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     results.sort((a, b) => a.daysUntil - b.daysUntil);
     return results;
   }, [staff]);
-  
+
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <div className="w-10 h-10 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
-        <span className="text-sm font-bold text-slate-500">Loading Dashboard Statistics...</span>
-      </div>
-    );
+    return <DashboardShimmer />;
   }
 
   return (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Filter, Printer } from 'lucide-react';
+import { Clock, Printer } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -7,7 +7,6 @@ export const ParentTimetableView: React.FC = () => {
   const { students, timetable } = useData();
   const { user, role } = useAuth();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
-  const [selectedDay, setSelectedDay] = useState('Monday');
 
   // Match children by email or phone, or own ID if student
   let parentWards = students.filter(s => 
@@ -35,15 +34,20 @@ export const ParentTimetableView: React.FC = () => {
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
   
-  // Filter the global timetable data for this specific ward's class and section
-  const wardTimetableRaw = timetable.filter(t => 
+  // Filter the global timetable data for this specific ward's class and section for the whole week
+  const wardTimetableWholeWeek = timetable.filter(t => 
     t.className === currentWard.className &&
     t.section === currentWard.section &&
-    t.day === selectedDay &&
     (!t.status || t.status === 'Published')
-  ).sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+  );
 
-  // Static Fallback if the mock database is empty for this class
+  const hasDbTimetable = wardTimetableWholeWeek.length > 0;
+
+  // Extract unique timeSlots from DB or fallback
+  const dbTimeSlots = Array.from(new Set(wardTimetableWholeWeek.map(t => t.timeSlot)))
+    .filter(Boolean)
+    .sort((a, b) => (a || '').localeCompare(b || ''));
+
   const staticFallbackTimetable = [
     { id: 'mock-1', timeSlot: '08:30 AM - 09:15 AM', subject: 'Mathematics', subjectCode: 'MAT-101', teacherName: 'Viollet D\'Amore' },
     { id: 'mock-2', timeSlot: '09:15 AM - 10:00 AM', subject: 'English', subjectCode: 'ENG-103', teacherName: 'Annamae Schmeler' },
@@ -55,7 +59,7 @@ export const ParentTimetableView: React.FC = () => {
     { id: 'mock-6', timeSlot: '01:15 PM - 02:00 PM', subject: 'Physics', subjectCode: 'PHY-102', teacherName: 'Robert Chen' },
   ];
 
-  const wardTimetable = wardTimetableRaw.length > 0 ? wardTimetableRaw : staticFallbackTimetable;
+  const timeSlots = hasDbTimetable ? dbTimeSlots : staticFallbackTimetable.map(s => s.timeSlot);
 
   const getSubjectCode = (subjectName: string) => {
     if (!subjectName || subjectName === 'Break' || subjectName === 'Lunch Break') return '';
@@ -71,8 +75,10 @@ export const ParentTimetableView: React.FC = () => {
   };
 
   return (
-    <div id="printable-content" className="space-y-6 animate-in fade-in">
-      <div>
+    <div id="printable-content" className="space-y-6 animate-in fade-in timetable-printable">
+      
+      {/* Page Header (No Print) */}
+      <div className="flex justify-between items-center no-print">
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-3">
           <div className="p-2.5 bg-sky-100 dark:bg-sky-500/20 rounded-xl">
             <Clock className="w-6 h-6 text-sky-600 dark:text-sky-400" />
@@ -81,9 +87,9 @@ export const ParentTimetableView: React.FC = () => {
         </h2>
       </div>
 
-      {/* Ward Selector Tabs */}
+      {/* Ward Selector Tabs (No Print) */}
       {role !== 'Student' && parentWards.length > 1 && (
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl w-max">
+        <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl w-max no-print">
           {parentWards.map((ward, idx) => (
             <button
               key={ward.id}
@@ -100,86 +106,120 @@ export const ParentTimetableView: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+      {/* Timetable Card */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-6 space-y-6">
         
-        {/* Top Filter Bar */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 flex justify-between items-center">
-          <h3 className="font-bold text-slate-800 dark:text-white">Class Schedule</h3>
-          
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <select
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/50 outline-none appearance-none min-w-[140px] shadow-sm cursor-pointer"
-              >
-                {days.map(day => (
-                  <option key={day} value={day}>{day}</option>
-                ))}
-              </select>
+        {/* School Header (Required for download/print, always visible on top) */}
+        <div className="pb-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center gap-3.5">
+            <div>
+              <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-white uppercase">PIRNAV SCHOOLS</h1>
+              <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-0.5">Class Timetable</p>
             </div>
-            
+          </div>
+
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+            <span className="inline-block px-3 py-1.5 bg-brand-50/50 dark:bg-slate-800 text-xs font-black text-brand-700 dark:text-brand-400 border border-brand-200/50 dark:border-slate-700 rounded-lg">
+              {currentWard.className} — Section {currentWard.section}
+            </span>
+
             <button 
               onClick={() => window.print()}
-              className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm"
+              className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-sm cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span className="hidden sm:inline">Print</span>
+              <span>Print / Download</span>
             </button>
           </div>
         </div>
 
+        {/* Weekly Grid Table */}
         <div className="overflow-x-auto">
-          {/* Data Table */}
-          <div className="min-w-[600px]">
-            <table className="w-full text-left border-collapse">
+          <div className="min-w-[800px]">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-6 font-bold text-sm text-slate-700 dark:text-slate-300">Time</th>
-                  <th className="py-3.5 px-6 font-bold text-sm text-slate-700 dark:text-slate-300">Subject</th>
-                  <th className="py-3.5 px-6 font-bold text-sm text-slate-700 dark:text-slate-300">Teacher</th>
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3 px-4 min-w-[140px]">Period & Time</th>
+                  {days.map(day => (
+                    <th key={day} className="py-3 px-4 text-center min-w-[130px]">{day}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody>
-                {wardTimetable.length > 0 ? (
-                  wardTimetable.map((slot: any, idx: number) => (
-                    slot.isBreak ? (
-                      <tr 
-                        key={slot.id || idx} 
-                        className="bg-amber-50/50 dark:bg-amber-900/10 border-b border-slate-100 dark:border-slate-800/50 relative"
-                      >
-                        <td colSpan={3} className="py-3.5 px-6">
-                          <div className="flex items-center justify-center w-full">
-                            <span className="absolute left-6 text-sm font-medium text-amber-700 dark:text-amber-500 whitespace-nowrap">{slot.timeSlot}</span>
-                            <span className="text-sm font-bold text-amber-700 dark:text-amber-500 uppercase tracking-widest">{slot.subject}</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      <tr 
-                        key={slot.id || idx} 
-                        className={`border-b border-slate-100 dark:border-slate-800/50 hover:bg-sky-50/50 dark:hover:bg-slate-800/30 transition-colors ${idx % 2 !== 0 ? 'bg-slate-50/30 dark:bg-slate-900/50' : 'bg-white dark:bg-slate-900'}`}
-                      >
-                        <td className="py-3.5 px-6 text-sm text-slate-600 dark:text-slate-400 whitespace-nowrap">{slot.timeSlot}</td>
-                        <td className="py-3.5 px-6 text-sm text-slate-900 dark:text-white font-medium">
-                          <div className="flex flex-col">
-                            <span>{slot.subject}</span>
-                            {(slot.subjectCode || getSubjectCode(slot.subject)) && (
-                              <span className="opacity-60 text-xs font-normal lowercase">({(slot.subjectCode || getSubjectCode(slot.subject)).toLowerCase()})</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-6 text-sm text-slate-600 dark:text-slate-400">{slot.teacherName}</td>
-                      </tr>
-                    )
-                  ))
-                ) : (
+              <tbody className="font-medium divide-y divide-slate-100 dark:divide-slate-800/80">
+                {timeSlots.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="py-12 text-center text-slate-500 font-medium">
-                      No classes scheduled for {selectedDay}.
+                    <td colSpan={days.length + 1} className="py-16 text-center text-slate-400 dark:text-slate-500">
+                      No period slots allocated for {currentWard.className} - Section {currentWard.section}.
                     </td>
                   </tr>
+                ) : (
+                  timeSlots.map((slot, pIdx) => {
+                    const isFallbackBreak = !hasDbTimetable && staticFallbackTimetable.find(s => s.timeSlot === slot)?.isBreak;
+                    
+                    if (isFallbackBreak) {
+                      const breakObj = staticFallbackTimetable.find(s => s.timeSlot === slot);
+                      return (
+                        <tr key={slot} className="bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 font-bold">
+                          <td className="py-3 px-4 font-mono">{slot}</td>
+                          <td colSpan={days.length} className="py-3 px-4 text-center uppercase tracking-widest text-[11px]">
+                            ☕ {breakObj?.subject || 'Break Interval'}
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return (
+                      <tr key={slot} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/20 text-slate-900 dark:text-slate-100">
+                        <td className="py-3 px-4 font-mono font-bold whitespace-nowrap bg-slate-50/40 dark:bg-slate-800/10">
+                          <span className="text-brand-600 dark:text-brand-400 block text-[9px] uppercase tracking-wider font-extrabold mb-0.5">
+                            Period {pIdx + 1}
+                          </span>
+                          {slot}
+                        </td>
+                        
+                        {days.map(day => {
+                          let match: any = null;
+                          if (hasDbTimetable) {
+                            match = wardTimetableWholeWeek.find(t => t.day === day && t.timeSlot === slot);
+                          } else {
+                            match = staticFallbackTimetable.find(s => s.timeSlot === slot);
+                          }
+
+                          if (match?.isBreak) {
+                            return (
+                              <td key={day} className="py-3 px-2 text-center align-middle bg-amber-50/20 dark:bg-amber-950/10 text-amber-700 font-extrabold">
+                                {match.subject}
+                              </td>
+                            );
+                          }
+
+                          return (
+                            <td key={day} className="py-3 px-2 text-center align-middle">
+                              {match ? (
+                                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1 text-left mx-auto w-36 hover:shadow-xs transition-all">
+                                  <p className="font-extrabold text-slate-900 dark:text-white truncate">
+                                    {match.subject}
+                                    {(() => {
+                                      const code = match.subjectCode || getSubjectCode(match.subject);
+                                      return code ? ` (${code.toLowerCase()})` : '';
+                                    })()}
+                                  </p>
+                                  <p className="text-[10px] font-bold text-brand-600 dark:text-brand-400 truncate">{match.teacherName || 'Instructor'}</p>
+                                  <div className="pt-1">
+                                    <span className="px-1.5 py-0.5 rounded bg-white dark:bg-slate-900 text-[9px] font-mono font-bold text-slate-500 border border-slate-200 dark:border-slate-800">
+                                      {match.roomNo || 'Classroom'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-350 dark:text-slate-600 italic text-[11px]">-</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

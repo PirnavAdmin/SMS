@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   FileText, Plus, CheckCircle2, Calendar, Edit, Trash2, X, Paperclip, 
   Lock, Search, Save, Send, Users, User, ArrowRight, Eye, RefreshCw
@@ -10,7 +10,13 @@ import { Homework, HomeworkAttachment, Student } from '../../../types';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, students, schoolProfile } = useData();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, students, schoolProfile, fetchHomeworkData } = useData();
+
+  useEffect(() => {
+    if (fetchHomeworkData) {
+      fetchHomeworkData();
+    }
+  }, [fetchHomeworkData]);
   const { role, user } = useAuth();
   const { addToast } = useToast();
 

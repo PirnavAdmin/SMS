@@ -14,7 +14,7 @@ import {
   UniformCategory, UniformSize, UniformSupplier, UniformInventoryItem, StudentUniformIssue, FinanceUniformConfig,
   LeaveType, LeaveApplication, Payslip, PayrollConfiguration, PayrollComponent, PayrollAmountLine,
   SalaryStructure, EmployeeSalaryAssignment, PayrollRun, QuestionPaper, SchoolMeeting, Department,
-  CertificateTemplateConfig
+  CertificateTemplateConfig, Designation
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
@@ -30,28 +30,6 @@ export const initialSchoolProfile: SchoolProfile = {
 };
 
 export const initialAcademicYears: AcademicYearMaster[] = [
-  {
-    id: 'AY-2024-2025',
-    academicYear: '2024-2025',
-    startDate: '2024-04-01',
-    endDate: '2025-03-31',
-    status: 'Closed',
-    description: 'Historical academic cycle',
-    isCurrentAcademicYear: false,
-    createdAt: '2024-03-01T09:00:00.000Z',
-    updatedAt: '2025-03-31T18:00:00.000Z'
-  },
-  {
-    id: 'AY-2025-2026',
-    academicYear: '2025-2026',
-    startDate: '2025-04-01',
-    endDate: '2026-03-31',
-    status: 'Closed',
-    description: 'Previous academic cycle',
-    isCurrentAcademicYear: false,
-    createdAt: '2025-03-01T09:00:00.000Z',
-    updatedAt: '2026-03-31T18:00:00.000Z'
-  },
   {
     id: 'AY-2026-2027',
     academicYear: '2026-2027',
@@ -11513,103 +11491,60 @@ export const initialScholarships: Scholarship[] = [
   }
 ];
 
+export const initialStudents: Student[] = [];
+export const initialStaff: Staff[] = [];
+export const initialAdmissions: AdmissionApplication[] = [];
+export const initialFeeStructures: FeeStructure[] = [];
+export const initialFeePayments: FeePayment[] = [];
+export const initialExamSetups: ExamSetup[] = [];
+export const initialExamMarks: ExamMark[] = [];
+export const initialTimetable: TimetableSlot[] = [];
+export const initialHomework: Homework[] = [];
+export const initialBooks: BookItem[] = [];
+export const initialBookIssues: BookIssue[] = [];
+export const initialTransportRoutes: TransportRoute[] = [];
+export const initialHostelBlocks: HostelBlock[] = [];
+export const initialHostelRooms: HostelRoom[] = [];
+export const initialHostelBeds: HostelBed[] = [];
+export const initialBuses: Bus[] = [];
+export const initialUniforms: UniformItem[] = [];
+export const initialCustomRoles: CustomRole[] = [];
+export const initialInventory: InventoryItem[] = [];
+export const initialAnnouncements: Announcement[] = [];
+export const initialHolidays: Holiday[] = [];
+export const initialBirthdays: Birthday[] = [];
+export const initialAuditLogs: AuditLog[] = [];
+export const initialSubjects: SubjectItem[] = [];
+export const initialFeeHeads: FeeHead[] = [];
+export const initialDynamicFeeStructures: DynamicFeeStructure[] = [];
+export const initialStudentFeeAssignments: StudentFeeAssignment[] = [];
+export const initialScholarships: Scholarship[] = [];
 export const initialStudentScholarships: StudentScholarship[] = [];
-
-export const initialDiscounts: Discount[] = [
-  { id: 'DSC-01', name: 'Sibling Concession', code: 'SIBLING-01', type: 'Sibling Discount', mode: 'Percentage', value: 10, description: 'Applicable for students having siblings studying in the same school.', status: 'Active' },
-  { id: 'DSC-02', name: 'Early Payment Grant', code: 'EARLY-PAY', type: 'Early Payment Discount', mode: 'Fixed Amount', value: 1000, description: 'Early payment grant concession for fees settled before due date', status: 'Active' }
-];
-
+export const initialDiscounts: Discount[] = [];
 export const initialStudentDiscounts: StudentDiscount[] = [];
-
-export const initialFineRules: FineRule[] = [
-  {
-    id: 'FR-01',
-    ruleName: 'Standard Monthly Late Fine',
-    dueDate: '2026-08-15',
-    graceDays: 5,
-    fineType: 'Daily Fine',
-    dailyFine: 50,
-    fixedFine: 200,
-    maximumFine: 1500,
-    status: 'Active'
-  }
-];
-
-export const initialERPTransportRoutes: ERPTransportRoute[] = [
-  {
-    id: 'TRP-01',
-    routeName: 'Route A - North Suburbs Express',
-    routeCode: 'R-NORTH',
-    vehicleNumber: 'NY-99-AB-1001',
-    vehicleName: 'Tata Starbus AC 40-Seater',
-    driverName: 'Michael Scott',
-    driverMobile: '+1 555-333-111',
-    pickupPoint: 'North Suburbs Stop 4',
-    dropPoint: 'Academy Main Gate',
-    distanceKm: 12.5,
-    monthlyFee: 1800,
-    quarterlyFee: 5000,
-    halfYearlyFee: 9500,
-    annualFee: 18000,
-    status: 'Active'
-  },
-  {
-    id: 'TRP-02',
-    routeName: 'Route B - East Downtown Loop',
-    routeCode: 'R-EAST',
-    vehicleNumber: 'NY-99-AB-1002',
-    vehicleName: 'Ashok Leyland 45-Seater',
-    driverName: 'Jim Halpert',
-    driverMobile: '+1 555-333-222',
-    pickupPoint: 'Downtown Central Square',
-    dropPoint: 'Academy Main Gate',
-    distanceKm: 8.0,
-    monthlyFee: 1500,
-    quarterlyFee: 4200,
-    halfYearlyFee: 8000,
-    annualFee: 15000,
-    status: 'Active'
-  }
-];
-
+export const initialFineRules: FineRule[] = [];
+export const initialERPTransportRoutes: ERPTransportRoute[] = [];
 export const initialStudentTransports: StudentTransport[] = [];
-
+export const initialHostelMasters: HostelMaster[] = [];
 export const initialStudentHostels: StudentHostel[] = [];
-
-export const initialRefunds: Refund[] = [
-  {
-    id: 'RFD-01',
-    refundNo: 'RF-2026-001',
-    receiptNo: 'REC-2026-0891',
-    studentId: 'STU-001',
-    studentName: 'Alexander Wright',
-    amount: 1000,
-    reason: 'Scholarship Adjustment',
-    approvedBy: 'Dr. Eleanor Vance (Principal)',
-    refundMode: 'Bank Transfer',
-    refundDate: '2026-07-10',
-    remarks: 'Approved post merit list publication adjustment',
-    status: 'Approved'
-  }
-];
-
+export const initialRefunds: Refund[] = [];
 export const initialFinanceSettings: FinanceSettings = {
-  academicYear: '2025-2026',
-  defaultCurrency: 'INR',
-  receiptFormat: 'Standard GST Format',
-  lateFeeRuleId: 'FR-01',
-  receiptPrefix: 'REC-2026-',
-  invoicePrefix: 'INV-2026-',
-  paymentModes: ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'Online Gateway'],
-  financialYear: '2025-2026',
-  autoReceiptNo: true,
-  taxSettings: {
-    enabled: false,
-    taxName: 'GST',
-    percentage: 0
-  }
+  activeAcademicYear: '2026-2027',
+  currency: 'INR',
+  paymentGatewayEnabled: false,
+  autoInvoiceGeneration: false,
+  invoiceDueDays: 15,
+  taxRatePct: 0,
+  taxRegistrationNo: '',
+  bankName: '',
+  bankBranch: '',
+  accountName: '',
+  accountNo: '',
+  ifscCode: '',
+  lateFeeDailyAmount: 10,
+  lateFeeGraceDays: 5
 };
+<<<<<<< HEAD
 
 export const initialRouteMasters: RouteMaster[] = [
   {
@@ -20944,780 +20879,38 @@ export const initialStudentHostelAssignments: StudentHostelAssignment[] = [
   }
 ];
 
+=======
+export const initialRouteMasters: RouteMaster[] = [];
+export const initialPickupPoints: PickupPoint[] = [];
+export const initialVehicleMasters: VehicleMaster[] = [];
+export const initialDriverMasters: DriverMaster[] = [];
+export const initialVehicleAssignments: VehicleAssignment[] = [];
+export const initialVehicleMaintenances: VehicleMaintenance[] = [];
+export const initialFinanceTransportConfigs: FinanceTransportConfig[] = [];
+export const initialStudentFeeLedgers: StudentFeeLedger[] = [];
+export const initialRoomTypeMasters: RoomTypeMaster[] = [];
+export const initialRoomMasters: RoomMaster[] = [];
+export const initialStudentHostelAssignments: StudentHostelAssignment[] = [];
+>>>>>>> b5b4cbdead38c51d41070b89e29229c7ee569121
 export const initialHostelVisitorLogs: any[] = [];
-
-export const initialHostelAttendanceLogs: HostelAttendanceLog[] = [
-  {
-    id: 'HAL-01',
-    studentId: 'STU-002',
-    studentName: 'Sophia Montgomery',
-    hostelId: 'HM-02',
-    hostelName: 'Girls Excellence Residence Block B',
-    roomNo: '201',
-    date: '2026-07-21',
-    status: 'Present',
-    remarks: 'Night Roll Call Verified'
-  }
-];
-
-export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [
-  {
-    id: 'FHC-01',
-    hostelId: 'HM-01',
-    hostelName: 'Boys Central Hostel Block A',
-    roomTypeId: 'RT-02',
-    roomTypeName: 'Double Sharing',
-    feePlan: 'Annual',
-    hostelFee: 40000,
-    securityDeposit: 5000,
-    effectiveFrom: '2026-06-01',
-    status: 'Active'
-  },
-  {
-    id: 'FHC-02',
-    hostelId: 'HM-02',
-    hostelName: 'Girls Excellence Residence Block B',
-    roomTypeId: 'RT-01',
-    roomTypeName: 'Single Sharing',
-    feePlan: 'Annual',
-    hostelFee: 50000,
-    securityDeposit: 5000,
-    effectiveFrom: '2026-06-01',
-    status: 'Active'
-  }
-];
-
-export const initialUniformCategories: UniformCategory[] = [
-  { id: 'UC-01', name: 'Boys Uniform Package (Admission Kit)', description: 'Full Admission Uniform Kit for Boys (2 Shirts, 2 Trousers, Blazer, Tie & Belt, Pair of Socks)' },
-  { id: 'UC-02', name: 'Girls Uniform Package (Admission Kit)', description: 'Full Admission Uniform Kit for Girls (2 Shirts, 2 Skirts/Pants, Blazer, Ribbon & Belt, Pair of Socks)' },
-  { id: 'UC-03', name: 'Shirt', description: 'Regular school uniform shirts' },
-  { id: 'UC-04', name: 'Pant', description: 'Regular school uniform trousers' },
-  { id: 'UC-05', name: 'Skirt', description: 'Regular school uniform skirts' },
-  { id: 'UC-06', name: 'Blazer', description: 'Formal blazers with embroidered school crest' },
-  { id: 'UC-07', name: 'Extra Shirt', description: 'Summer half-sleeve shirts & polo tees' },
-  { id: 'UC-08', name: 'Extra Pair of Trousers', description: 'School uniform formal trousers' },
-  { id: 'UC-09', name: 'Extra Skirt', description: 'School uniform pleated skirts' },
-  { id: 'UC-10', name: 'Formal Blazer (Winter)', description: 'Winter formal blazers with embroidered school crest' },
-  { id: 'UC-11', name: 'V-Neck Sweater (Winter)', description: 'Woolen V-neck sweaters & cardigans for winter' },
-  { id: 'UC-12', name: 'Tie & Crest', description: 'School woven tie and metallic crest badge' },
-  { id: 'UC-13', name: 'Belt', description: 'School branded leather uniform belt' },
-  { id: 'UC-14', name: 'Black Shoes (Pair)', description: 'Black formal leather school shoes' },
-  { id: 'UC-15', name: 'Socks (Pair)', description: 'School logo white and navy striped socks' },
-  { id: 'UC-16', name: 'Sports Tracksuit Kit', description: 'Tracksuits, sports tees, and athletic shorts' }
-];
-
-export const initialUniformSizes: UniformSize[] = [
-  { id: 'US-01', sizeName: 'S', chest: '36"', waist: '30"', height: '160cm', ageGroup: '11-13 yrs', gender: 'Unisex' },
-  { id: 'US-02', sizeName: 'M', chest: '38"', waist: '32"', height: '170cm', ageGroup: '13-15 yrs', gender: 'Unisex' },
-  { id: 'US-03', sizeName: 'L', chest: '40"', waist: '34"', height: '175cm', ageGroup: '15-17 yrs', gender: 'Unisex' },
-  { id: 'US-04', sizeName: 'XL', chest: '42"', waist: '36"', height: '180cm', ageGroup: '17+ yrs', gender: 'Unisex' }
-];
-
-export const initialUniformSuppliers: UniformSupplier[] = [
-  { id: 'SUP-01', supplierName: 'Apex Apparel Group', contactPerson: 'John Miller', mobile: '9876543210', email: 'apex@apparel.com', gstNumber: '29AAAAA1111A1Z1', address: '12 Industrial Area, Phase 1, New Delhi', status: 'Active' },
-  { id: 'SUP-02', supplierName: 'Elite Uniforms Ltd', contactPerson: 'Sarah Davis', mobile: '8765432109', email: 'sales@eliteuniforms.com', gstNumber: '29BBBBB2222B2Z2', address: '45 Textile Hub, Surat, Gujarat', status: 'Active' }
-];
-
-export const initialUniformInventory: UniformInventoryItem[] = [
-  { id: 'UINV-01', itemId: 'UNI-01', itemName: 'Boys Uniform Package (Admission Kit)', category: 'Boys Package', size: 'M', openingStock: 100, currentStock: 100, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-02', itemId: 'UNI-02', itemName: 'Girls Uniform Package (Admission Kit)', category: 'Girls Package', size: 'M', openingStock: 100, currentStock: 100, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-03', itemId: 'UNI-03', itemName: 'Extra Shirt', category: 'Shirt', size: 'M', openingStock: 200, currentStock: 200, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
-  { id: 'UINV-04', itemId: 'UNI-04', itemName: 'Extra Pair of Trousers', category: 'Pant / Trousers', size: 'M', openingStock: 150, currentStock: 150, minimumStock: 20, reorderLevel: 30, status: 'In Stock' },
-  { id: 'UINV-05', itemId: 'UNI-05', itemName: 'Extra Skirt', category: 'Skirt', size: 'M', openingStock: 150, currentStock: 150, minimumStock: 20, reorderLevel: 30, status: 'In Stock' },
-  { id: 'UINV-06', itemId: 'UNI-06', itemName: 'Formal Blazer (Winter)', category: 'Formal Blazer (Winter)', size: 'L', openingStock: 60, currentStock: 60, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-07', itemId: 'UNI-07', itemName: 'Tie & Crest', category: 'Tie & Belt', size: 'Free Size', openingStock: 200, currentStock: 200, minimumStock: 20, reorderLevel: 30, status: 'In Stock' },
-  { id: 'UINV-08', itemId: 'UNI-08', itemName: 'Belt', category: 'Tie & Belt', size: 'M', openingStock: 150, currentStock: 150, minimumStock: 15, reorderLevel: 25, status: 'In Stock' },
-  { id: 'UINV-09', itemId: 'UNI-09', itemName: 'Black Shoes (Pair)', category: 'Shoes & Socks', size: '8', openingStock: 100, currentStock: 100, minimumStock: 15, reorderLevel: 20, status: 'In Stock' },
-  { id: 'UINV-10', itemId: 'UNI-10', itemName: 'Socks (Pair)', category: 'Shoes & Socks', size: 'Free Size', openingStock: 250, currentStock: 250, minimumStock: 30, reorderLevel: 50, status: 'In Stock' },
-  { id: 'UINV-11', itemId: 'UNI-11', itemName: 'Sports Tracksuit Kit', category: 'Sports Uniform', size: 'M', openingStock: 80, currentStock: 80, minimumStock: 10, reorderLevel: 15, status: 'In Stock' },
-  { id: 'UINV-12', itemId: 'UNI-12', itemName: 'V-Neck Sweater (Winter)', category: 'V-Neck Sweater (Winter)', size: 'M', openingStock: 119, currentStock: 119, minimumStock: 10, reorderLevel: 15, status: 'In Stock' }
-];
-
+export const initialHostelAttendanceLogs: HostelAttendanceLog[] = [];
+export const initialFinanceHostelConfigs: FinanceHostelConfig[] = [];
+export const initialUniformCategories: UniformCategory[] = [];
+export const initialUniformSizes: UniformSize[] = [];
+export const initialUniformSuppliers: UniformSupplier[] = [];
+export const initialUniformInventory: UniformInventoryItem[] = [];
 export const initialStudentUniformIssues: StudentUniformIssue[] = [];
-
-export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [
-  { id: 'FUC-01', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 1', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3000, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-02', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 2', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3000, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-03', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 9', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3500, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-04', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 10', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3500, effectiveFrom: '2026-06-01', status: 'Active' },
-  { id: 'FUC-05', academicYear: '2026-2027', branch: 'Main Campus', className: 'Class 11', gender: 'Unisex', uniformPackage: 'Full Kit', feePlan: 'Annual', feeAmount: 3500, effectiveFrom: '2026-06-01', status: 'Active' }
-];
-
-export const initialLeaveTypes: LeaveType[] = [
-  { id: 'LT-01', name: 'Casual Leave', code: 'CL', annualAllowance: 10, carryForward: false, maxConsecutiveDays: 3, requiresAttachment: false, isPaid: true, status: 'Active' },
-  { id: 'LT-02', name: 'Sick Leave', code: 'SL', annualAllowance: 12, carryForward: true, maxConsecutiveDays: 5, requiresAttachment: true, isPaid: true, status: 'Active' },
-  { id: 'LT-03', name: 'Earned Leave', code: 'EL', annualAllowance: 15, carryForward: true, maxConsecutiveDays: 10, requiresAttachment: false, isPaid: true, status: 'Active' },
-  { id: 'LT-04', name: 'Maternity Leave', code: 'ML', annualAllowance: 90, carryForward: false, maxConsecutiveDays: 90, requiresAttachment: true, isPaid: true, status: 'Active' },
-  { id: 'LT-05', name: 'Paternity Leave', code: 'PL', annualAllowance: 15, carryForward: false, maxConsecutiveDays: 15, requiresAttachment: true, isPaid: true, status: 'Active' },
-  { id: 'LT-06', name: 'Loss of Pay', code: 'LOP', annualAllowance: 0, carryForward: false, maxConsecutiveDays: 30, requiresAttachment: false, isPaid: false, status: 'Active' }
-];
-
-export const initialLeaveApplications: LeaveApplication[] = [
-  {
-    id: 'LAP-01',
-    employeeId: 'STF-002',
-    employeeName: 'Jonathan Miller',
-    empId: 'EMP002',
-    department: 'Mathematics',
-    designation: 'Senior Teacher',
-    branch: 'Main Campus',
-    employeeCategory: 'Teacher',
-    leaveTypeId: 'LT-01',
-    leaveTypeName: 'Casual Leave',
-    fromDate: '2026-07-28',
-    toDate: '2026-07-29',
-    isHalfDay: false,
-    numberOfDays: 2,
-    reason: 'Family function at hometown',
-    attachments: [],
-    status: 'Pending',
-    appliedDate: '2026-07-23'
-  }
-];
-
-export const initialPayslips: Payslip[] = [
-  {
-    id: 'PAY-1001', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', branch: 'Main Campus', department: 'Academics', designation: 'Principal', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 6000, hra: 3000, da: 2000, grossSalary: 11000, pfDeduction: 1000, lopDeduction: 0, netSalary: 10000, bankAccount: '****12301', disbursedDate: '2023-11-01', status: 'Generated'
-  },
-  {
-    id: 'PAY-1002', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', branch: 'Main Campus', department: 'Mathematics', designation: 'Class Teacher', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 4500, hra: 1500, da: 1000, grossSalary: 7000, pfDeduction: 500, lopDeduction: 0, netSalary: 6500, bankAccount: '****56789', disbursedDate: '2023-11-01', status: 'Paid'
-  },
-  {
-    id: 'PAY-1003', employeeId: 'STF-003', employeeName: 'Sarah Jenkins', empId: 'EMP003', branch: 'North Wing', department: 'Science', designation: 'Senior Teacher', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 4800, hra: 1600, da: 1100, grossSalary: 7500, pfDeduction: 600, lopDeduction: 0, netSalary: 6900, bankAccount: '****34567', disbursedDate: '2023-11-01', status: 'Emailed'
-  },
-  {
-    id: 'PAY-1004', employeeId: 'STF-004', employeeName: 'Robert Chang', empId: 'EMP004', branch: 'Main Campus', department: 'Administration', designation: 'Admin Officer', employeeCategory: 'Staff', month: 'October 2023', basicSalary: 4000, hra: 1200, da: 800, grossSalary: 6000, pfDeduction: 400, lopDeduction: 100, netSalary: 5500, bankAccount: '****89012', disbursedDate: '2023-11-01', status: 'Paid'
-  },
-  {
-    id: 'PAY-1005', employeeId: 'STF-005', employeeName: 'Maria Garcia', empId: 'EMP005', branch: 'Main Campus', department: 'Languages', designation: 'Teacher', employeeCategory: 'Teacher', month: 'October 2023', basicSalary: 4200, hra: 1400, da: 900, grossSalary: 6500, pfDeduction: 450, lopDeduction: 0, netSalary: 6050, bankAccount: '****45678', disbursedDate: '2023-11-01', status: 'Generated'
-  },
-  {
-    id: 'PAY-1006', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', branch: 'Main Campus', department: 'Academics', designation: 'Principal', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 6000, hra: 3000, da: 2000, grossSalary: 11000, pfDeduction: 1000, lopDeduction: 0, netSalary: 10000, bankAccount: '****12301', disbursedDate: '2023-10-01', status: 'Paid'
-  },
-  {
-    id: 'PAY-1007', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', branch: 'Main Campus', department: 'Mathematics', designation: 'Class Teacher', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 4500, hra: 1500, da: 1000, grossSalary: 7000, pfDeduction: 500, lopDeduction: 0, netSalary: 6500, bankAccount: '****56789', disbursedDate: '2023-10-01', status: 'Emailed'
-  },
-  {
-    id: 'PAY-1008', employeeId: 'STF-003', employeeName: 'Sarah Jenkins', empId: 'EMP003', branch: 'North Wing', department: 'Science', designation: 'Senior Teacher', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 4800, hra: 1600, da: 1100, grossSalary: 7500, pfDeduction: 600, lopDeduction: 200, netSalary: 6700, bankAccount: '****34567', disbursedDate: '2023-10-01', status: 'Paid'
-  },
-  {
-    id: 'PAY-1009', employeeId: 'STF-004', employeeName: 'Robert Chang', empId: 'EMP004', branch: 'Main Campus', department: 'Administration', designation: 'Admin Officer', employeeCategory: 'Staff', month: 'September 2023', basicSalary: 4000, hra: 1200, da: 800, grossSalary: 6000, pfDeduction: 400, lopDeduction: 0, netSalary: 5600, bankAccount: '****89012', disbursedDate: '2023-10-01', status: 'Paid'
-  },
-  {
-    id: 'PAY-1010', employeeId: 'STF-005', employeeName: 'Maria Garcia', empId: 'EMP005', branch: 'Main Campus', department: 'Languages', designation: 'Teacher', employeeCategory: 'Teacher', month: 'September 2023', basicSalary: 4200, hra: 1400, da: 900, grossSalary: 6500, pfDeduction: 450, lopDeduction: 0, netSalary: 6050, bankAccount: '****45678', disbursedDate: '2023-10-01', status: 'Paid'
-  }
-];
-
-export const initialPayrollComponents: PayrollComponent[] = [
-  { id: 'PC-E01', name: 'Basic Salary', category: 'Earning', type: 'Fixed', value: 0, taxable: true, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-E02', name: 'House Rent Allowance (HRA)', category: 'Earning', type: 'Percentage', value: 20, taxable: true, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-E03', name: 'Dearness Allowance (DA)', category: 'Earning', type: 'Percentage', value: 10, taxable: true, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-E04', name: 'Transport Allowance', category: 'Earning', type: 'Fixed', value: 1200, taxable: false, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-E05', name: 'Medical Allowance', category: 'Earning', type: 'Fixed', value: 1500, taxable: false, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-E06', name: 'Special Allowance', category: 'Earning', type: 'Fixed', value: 2500, taxable: true, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-E07', name: 'Performance Incentive', category: 'Earning', type: 'Fixed', value: 0, taxable: true, status: 'Inactive', branch: 'All Branches' },
-  { id: 'PC-D01', name: 'Provident Fund (PF)', category: 'Deduction', type: 'Percentage', value: 8, mandatory: true, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-D02', name: 'Employee State Insurance (ESI)', category: 'Deduction', type: 'Percentage', value: 0.75, mandatory: false, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-D03', name: 'Professional Tax', category: 'Deduction', type: 'Fixed', value: 200, mandatory: true, status: 'Active', branch: 'All Branches' },
-  { id: 'PC-D04', name: 'Income Tax (TDS)', category: 'Deduction', type: 'Percentage', value: 0, mandatory: false, status: 'Inactive', branch: 'All Branches' },
-  { id: 'PC-D05', name: 'Loan Recovery', category: 'Deduction', type: 'Fixed', value: 0, mandatory: false, status: 'Inactive', branch: 'All Branches' },
-  { id: 'PC-D06', name: 'Advance Salary Recovery', category: 'Deduction', type: 'Fixed', value: 0, mandatory: false, status: 'Inactive', branch: 'All Branches' }
-];
-
-export const initialPayrollConfigurations: PayrollConfiguration[] = [
-  {
-    id: 'PAYCFG-01',
-    branch: 'Main Campus',
-    financialYear: '2026-2027',
-    payrollName: 'Main Campus Payroll FY 2026-27',
-    status: 'Active',
-    currency: 'INR',
-    effectiveFrom: '2026-04-01',
-    effectiveTo: '2027-03-31',
-    leaveRules: initialLeaveTypes.map(type => ({
-      leaveTypeId: type.id,
-      leaveTypeName: type.name,
-      paidLeave: type.isPaid,
-      deductSalary: !type.isPaid,
-      maximumPaidDays: type.annualAllowance,
-      carryForward: type.carryForward
-    })),
-    attendanceRules: {
-      salaryCalculationMethod: 'Calendar Days',
-      calendarDays: 30,
-      workingDays: 26,
-      includeWeeklyOff: true,
-      includePublicHolidays: true,
-      includeApprovedLeave: true,
-      twoHalfDaysOneFullDay: true,
-      deductHalfSalary: true,
-      lateEntriesForHalfDay: 3,
-      halfDaysForLop: 2
-    },
-    deductionRules: {
-      lopDeduction: '1 LOP = One Day Salary',
-      halfDayDeduction: 'Half Day = 50% Daily Salary',
-      unauthorizedAbsence: 'Unauthorized Absence = One Day Salary',
-      lateComing: '3 Late Entries = Half Day',
-      earlyExit: '2 Early Exits = Half Day'
-    },
-    payrollCycle: {
-      payrollType: 'Monthly',
-      payrollStartDate: '1',
-      payrollEndDate: 'Last Day',
-      salaryPaymentDate: '5th of Next Month'
-    },
-    overtime: {
-      enabled: false,
-      calculationType: 'Multiplier',
-      hourlyRate: 0,
-      weekendRate: 1.5,
-      holidayRate: 2
-    },
-    settings: {
-      autoGeneratePayslips: true,
-      autoLockPayrollAfterProcessing: false,
-      allowManualAdjustment: true,
-      autoCalculateLeaveDeduction: true,
-      autoSendPayslips: false,
-      enablePayrollApprovalWorkflow: true
-    }
-  }
-];
-
-const sumLines = (lines: PayrollAmountLine[] = []) => lines.reduce((total, line) => total + line.amount, 0);
-
-const makeStructure = (draft: {
-  id?: string;
-  structureCode: string;
-  structureName: string;
-  employeeCategory: 'Teacher' | 'Staff';
-  branch: string;
-  designation: string;
-  employmentType: string;
-  salaryPaymentDay?: string;
-  pfApplicable?: boolean;
-  pfPercentage?: number;
-  esiApplicable?: boolean;
-  esiPercentage?: number;
-  professionalTaxApplicable?: boolean;
-  professionalTaxAmount?: number;
-  roundOffRule?: 'No Round Off' | 'Nearest 1' | 'Nearest 10' | 'Nearest 50';
-  payrollFrequency?: 'Monthly' | 'Weekly' | 'Bi-Weekly';
-  basicSalary: number;
-  hra: number;
-  da: number;
-  medicalAllowance: number;
-  conveyance?: number;
-  travelAllowance?: number;
-  specialAllowance: number;
-  performanceAllowance?: number;
-  otherAllowance?: number;
-  pf?: number;
-  employeePf?: number;
-  employerPf?: number;
-  esi: number;
-  professionalTax: number;
-  incomeTax?: number;
-  loanDeduction?: number;
-  otherDeductions?: number;
-  otherDeduction?: number;
-  effectiveDate?: string;
-  status: 'Active' | 'Inactive';
-  notes?: string;
-}): SalaryStructure => {
-  const employeePf = draft.employeePf ?? draft.pf ?? 0;
-  const employerPf = draft.employerPf ?? draft.pf ?? employeePf;
-  const travelAllowance = draft.travelAllowance ?? draft.conveyance ?? 0;
-  const performanceAllowance = draft.performanceAllowance ?? 0;
-  const otherAllowance = draft.otherAllowance ?? 0;
-  const incomeTax = draft.incomeTax ?? 0;
-  const loanDeduction = draft.loanDeduction ?? 0;
-  const otherDeduction = draft.otherDeduction ?? draft.otherDeductions ?? 0;
-  const earnings: PayrollAmountLine[] = [
-    { name: 'Basic Salary', amount: draft.basicSalary, type: 'Fixed', value: draft.basicSalary },
-    { name: 'HRA', amount: draft.hra, type: 'Fixed', value: draft.hra },
-    { name: 'DA', amount: draft.da, type: 'Fixed', value: draft.da },
-    { name: 'Medical Allowance', amount: draft.medicalAllowance, type: 'Fixed', value: draft.medicalAllowance },
-    { name: 'Travel Allowance', amount: travelAllowance, type: 'Fixed', value: travelAllowance },
-    { name: 'Special Allowance', amount: draft.specialAllowance, type: 'Fixed', value: draft.specialAllowance }
-    ,{ name: 'Performance Allowance', amount: performanceAllowance, type: 'Fixed', value: performanceAllowance },
-    { name: 'Other Allowance', amount: otherAllowance, type: 'Fixed', value: otherAllowance }
-  ];
-
-  const deductions: PayrollAmountLine[] = [
-    { name: 'Employee PF', amount: employeePf, type: 'Fixed', value: employeePf },
-    { name: 'Employer PF', amount: employerPf, type: 'Fixed', value: employerPf },
-    { name: 'Employee State Insurance (ESI)', amount: draft.esi, type: 'Fixed', value: draft.esi },
-    { name: 'Professional Tax', amount: draft.professionalTax, type: 'Fixed', value: draft.professionalTax },
-    { name: 'Income Tax', amount: incomeTax, type: 'Fixed', value: incomeTax },
-    { name: 'Loan Deduction', amount: loanDeduction, type: 'Fixed', value: loanDeduction },
-    { name: 'Other Deduction', amount: otherDeduction, type: 'Fixed', value: otherDeduction }
-  ];
-
-  return {
-    id: draft.id || draft.structureCode,
-    structureCode: draft.structureCode,
-    structureName: draft.structureName,
-    employeeCategory: draft.employeeCategory,
-    branch: draft.branch,
-    earnings,
-    deductions,
-    grossSalary: sumLines(earnings),
-    netSalaryFormula: 'Gross Salary - Total Deductions',
-    status: draft.status,
-    designation: draft.designation,
-    department: draft.designation === 'Principal' || draft.designation === 'Vice Principal' ? 'Administration' : draft.employeeCategory === 'Teacher' ? 'Academics' : 'Operations',
-    employmentType: draft.employmentType,
-    payrollFrequency: draft.payrollFrequency || 'Monthly',
-    salaryPaymentDay: draft.salaryPaymentDay || '5',
-    pfApplicable: draft.pfApplicable ?? employeePf > 0,
-    pfPercentage: draft.pfPercentage ?? 12,
-    esiApplicable: draft.esiApplicable ?? draft.esi > 0,
-    esiPercentage: draft.esiPercentage ?? 1.75,
-    professionalTaxApplicable: draft.professionalTaxApplicable ?? draft.professionalTax > 0,
-    professionalTaxAmount: draft.professionalTaxAmount ?? draft.professionalTax,
-    roundOffRule: draft.roundOffRule || 'Nearest 1',
-    notes: draft.notes,
-    effectiveDate: draft.effectiveDate || '2026-04-01'
-  };
-};
-
-export const initialSalaryStructures: SalaryStructure[] = [
-  makeStructure({
-    id: 'SAL-STR-01',
-    structureCode: 'PRI-01',
-    structureName: 'Principal Scale',
-    employeeCategory: 'Teacher',
-    branch: 'Main Campus',
-    designation: 'Principal',
-    employmentType: 'Permanent',
-    basicSalary: 45000,
-    hra: 12000,
-    da: 8000,
-    medicalAllowance: 4000,
-    conveyance: 3000,
-    specialAllowance: 15000,
-    pf: 5400,
-    esi: 585,
-    professionalTax: 200,
-    otherDeductions: 500,
-    status: 'Active',
-    notes: 'Leadership scale for the school head office.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-02',
-    structureCode: 'VPR-01',
-    structureName: 'Vice Principal Scale',
-    employeeCategory: 'Teacher',
-    branch: 'Main Campus',
-    designation: 'Vice Principal',
-    employmentType: 'Permanent',
-    basicSalary: 38000,
-    hra: 9500,
-    da: 6200,
-    medicalAllowance: 3200,
-    conveyance: 2800,
-    specialAllowance: 9800,
-    pf: 4560,
-    esi: 495,
-    professionalTax: 200,
-    otherDeductions: 300,
-    status: 'Active',
-    notes: 'Used for vice principal and senior academic administration roles.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-03',
-    structureCode: 'PGT-01',
-    structureName: 'PGT Scale',
-    employeeCategory: 'Teacher',
-    branch: 'Main Campus',
-    designation: 'PGT Teacher',
-    employmentType: 'Permanent',
-    basicSalary: 32000,
-    hra: 8200,
-    da: 5200,
-    medicalAllowance: 2500,
-    conveyance: 2200,
-    specialAllowance: 6000,
-    pf: 3840,
-    esi: 396,
-    professionalTax: 200,
-    otherDeductions: 250,
-    status: 'Active',
-    notes: 'Senior teaching scale for postgraduate subject teachers.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-04',
-    structureCode: 'TGT-01',
-    structureName: 'TGT Scale',
-    employeeCategory: 'Teacher',
-    branch: 'Main Campus',
-    designation: 'TGT Teacher',
-    employmentType: 'Permanent',
-    basicSalary: 26000,
-    hra: 6400,
-    da: 3900,
-    medicalAllowance: 2200,
-    conveyance: 2000,
-    specialAllowance: 4200,
-    pf: 3120,
-    esi: 303,
-    professionalTax: 200,
-    otherDeductions: 200,
-    status: 'Active',
-    notes: 'Standard teaching scale for trained graduate teachers.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-05',
-    structureCode: 'PRT-01',
-    structureName: 'PRT Scale',
-    employeeCategory: 'Teacher',
-    branch: 'Main Campus',
-    designation: 'PRT Teacher',
-    employmentType: 'Permanent',
-    basicSalary: 22000,
-    hra: 5200,
-    da: 3100,
-    medicalAllowance: 2000,
-    conveyance: 1800,
-    specialAllowance: 3500,
-    pf: 2640,
-    esi: 255,
-    professionalTax: 200,
-    otherDeductions: 150,
-    status: 'Active',
-    notes: 'Primary teacher scale for early learning and foundation classes.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-06',
-    structureCode: 'ACC-01',
-    structureName: 'Accountant Scale',
-    employeeCategory: 'Staff',
-    branch: 'Main Campus',
-    designation: 'Accountant',
-    employmentType: 'Permanent',
-    basicSalary: 26000,
-    hra: 6000,
-    da: 3600,
-    medicalAllowance: 2200,
-    conveyance: 1800,
-    specialAllowance: 4200,
-    pf: 3120,
-    esi: 303,
-    professionalTax: 200,
-    otherDeductions: 200,
-    status: 'Active',
-    notes: 'Accounts and finance operations scale.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-07',
-    structureCode: 'REC-01',
-    structureName: 'Receptionist Scale',
-    employeeCategory: 'Staff',
-    branch: 'Main Campus',
-    designation: 'Receptionist',
-    employmentType: 'Permanent',
-    basicSalary: 18000,
-    hra: 4000,
-    da: 2500,
-    medicalAllowance: 1800,
-    conveyance: 1500,
-    specialAllowance: 3000,
-    pf: 2160,
-    esi: 220,
-    professionalTax: 200,
-    otherDeductions: 120,
-    status: 'Active',
-    notes: 'Front desk and admission support scale.'
-  }),
-  makeStructure({
-    id: 'SAL-STR-08',
-    structureCode: 'OPS-01',
-    structureName: 'Office Assistant Scale',
-    employeeCategory: 'Staff',
-    branch: 'Main Campus',
-    designation: 'Office Assistant',
-    employmentType: 'Permanent',
-    basicSalary: 17000,
-    hra: 3800,
-    da: 2200,
-    medicalAllowance: 1500,
-    conveyance: 1400,
-    specialAllowance: 2800,
-    pf: 2040,
-    esi: 205,
-    professionalTax: 200,
-    otherDeductions: 100,
-    status: 'Active',
-    notes: 'Administrative support scale for office operations.'
-  })
-];
-
-export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [
-  { id: 'ESA-01', employeeId: 'STF-001', employeeName: 'Dr. Eleanor Vance', empId: 'EMP001', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-01', salaryStructureName: 'Principal Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-02', employeeId: 'STF-002', employeeName: 'Jonathan Miller', empId: 'EMP002', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Mathematics', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-03', employeeId: 'STF-003', employeeName: 'Staff Member 3', empId: 'EMP003', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Science', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-04', employeeId: 'STF-004', employeeName: 'Staff Member 4', empId: 'EMP004', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'English', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-05', employeeId: 'STF-005', employeeName: 'Staff Member 5', empId: 'EMP005', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Administration', salaryStructureId: 'SAL-STR-04', salaryStructureName: 'Clerical Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-06', employeeId: 'STF-006', employeeName: 'Staff Member 6', empId: 'EMP006', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Social Studies', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-07', employeeId: 'STF-007', employeeName: 'Staff Member 7', empId: 'EMP007', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Physical Education', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-08', employeeId: 'STF-008', employeeName: 'Staff Member 8', empId: 'EMP008', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Maintenance', salaryStructureId: 'SAL-STR-05', salaryStructureName: 'Support Staff Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-09', employeeId: 'STF-009', employeeName: 'Staff Member 9', empId: 'EMP009', employeeCategory: 'Staff', branch: 'Main Campus', department: 'Security', salaryStructureId: 'SAL-STR-05', salaryStructureName: 'Support Staff Scale', effectiveDate: '2026-04-01', status: 'Active' },
-  { id: 'ESA-10', employeeId: 'STF-010', employeeName: 'Staff Member 10', empId: 'EMP010', employeeCategory: 'Teacher', branch: 'Main Campus', department: 'Computer Science', salaryStructureId: 'SAL-STR-03', salaryStructureName: 'PGT Scale', effectiveDate: '2026-04-01', status: 'Active' }
-];
-
+export const initialFinanceUniformConfigs: FinanceUniformConfig[] = [];
+export const initialLeaveTypes: LeaveType[] = [];
+export const initialLeaveApplications: LeaveApplication[] = [];
+export const initialPayslips: Payslip[] = [];
+export const initialPayrollConfigurations: PayrollConfiguration[] = [];
+export const initialPayrollComponents: PayrollComponent[] = [];
+export const initialSalaryStructures: SalaryStructure[] = [];
+export const initialEmployeeSalaryAssignments: EmployeeSalaryAssignment[] = [];
 export const initialPayrollRuns: PayrollRun[] = [];
-
-export const initialQuestionPapers: QuestionPaper[] = [
-  {
-    id: "QP-101",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    examId: "EX-001",
-    examName: "Mid-Term Examination 2026",
-    className: "Class 10",
-    section: "A",
-    subject: "Mathematics",
-    paperTitle: "Class 10 Mathematics Mid-Term Question Paper",
-    examDate: "2026-09-15",
-    duration: "3 Hours",
-    maxMarks: 100,
-    instructions: "Answer all questions in Section A. Show neat calculations.",
-    fileUrl: "#",
-    fileName: "Class10_Maths_MidTerm_2026.pdf",
-    fileSize: "1.4 MB",
-    fileType: "PDF Document",
-    uploadedBy: "Jonathan Miller",
-    uploadedOn: "2026-08-20",
-    status: "Published"
-  },
-  {
-    id: "QP-102",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    examId: "EX-001",
-    examName: "Mid-Term Examination 2026",
-    className: "Class 10",
-    section: "A",
-    subject: "Physics",
-    paperTitle: "Class 10 Physics Mid-Term Theory & Lab Paper",
-    examDate: "2026-09-17",
-    duration: "3 Hours",
-    maxMarks: 100,
-    instructions: "Scientific calculators are permitted. Attempt all numericals.",
-    fileUrl: "#",
-    fileName: "Class10_Physics_MidTerm_2026.pdf",
-    fileSize: "2.1 MB",
-    fileType: "PDF Document",
-    uploadedBy: "Sarah Jenkins",
-    uploadedOn: "2026-08-22",
-    status: "Published"
-  }
-];
-
-export const initialMeetings: SchoolMeeting[] = [
-  {
-    id: "MTG-101",
-    title: "Parent-Teacher Performance Sync (Alex Morgan)",
-    description: "In-person discussion regarding Class 10 Mid-Term progress and career stream selection.",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    meetingAudience: "Individual",
-    participantType: "Parent",
-    participants: [
-      {
-        id: "PAR-101",
-        name: "Robert Morgan (Parent)",
-        type: "Parent",
-        details: "Parent of Alex Morgan (Class 10-A • ADM-101)",
-        email: "robert.m@example.com",
-        phone: "9876543210"
-      }
-    ],
-    meetingMode: "In-Person",
-    building: "Academic Block A",
-    floor: "2nd Floor",
-    roomVenue: "Conference Room 204",
-    roomCapacity: 12,
-    meetingDate: "2026-08-10",
-    startTime: "14:00",
-    endTime: "14:30",
-    status: "Scheduled",
-    organizerName: "Jonathan Miller",
-    organizerRole: "HOD Mathematics",
-    createdAt: "2026-07-25"
-  },
-  {
-    id: "MTG-102",
-    title: "HOD & Mathematics Faculty Academic Alignment",
-    description: "Group strategy session to align syllabus completion for Class 9 and Class 10 upcoming assessments.",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    meetingAudience: "Group",
-    targetGroupDescription: "All Mathematics Department Faculty",
-    participants: [
-      {
-        id: "STF-002",
-        name: "Jonathan Miller",
-        type: "Teaching Staff",
-        details: "EMP002 • Mathematics • HOD",
-        email: "jonathan.m@school.edu"
-      },
-      {
-        id: "STF-003",
-        name: "Sarah Jenkins",
-        type: "Teaching Staff",
-        details: "EMP003 • Mathematics • Subject Teacher",
-        email: "sarah.j@school.edu"
-      }
-    ],
-    meetingMode: "In-Person",
-    building: "Science & Tech Wing",
-    floor: "1st Floor",
-    roomVenue: "Staff Seminar Hall B",
-    roomCapacity: 30,
-    meetingDate: "2026-08-12",
-    startTime: "11:00",
-    endTime: "12:00",
-    status: "Scheduled",
-    organizerName: "Dr. Eleanor Vance",
-    organizerRole: "Principal",
-    createdAt: "2026-07-26"
-  },
-  {
-    id: "MTG-103",
-    title: "Science & Mathematics Joint Curriculum Sync",
-    description: "Joint alignment meeting between Science and Mathematics departments to discuss interdisciplinary STEM topics and laboratory schedules.",
-    academicYear: "2025-2026",
-    branch: "Main Campus",
-    meetingAudience: "Group",
-    targetGroupDescription: "Science & Mathematics Faculty",
-    participants: [
-      {
-        id: "STF-002",
-        name: "Jonathan Miller",
-        type: "Teaching Staff",
-        details: "EMP002 • Mathematics • HOD",
-        email: "jonathan.m@school.edu"
-      },
-      {
-        id: "STF-003",
-        name: "Sarah Jenkins",
-        type: "Teaching Staff",
-        details: "EMP003 • Science • HOD",
-        email: "sarah.j@school.edu"
-      }
-    ],
-    meetingMode: "In-Person",
-    building: "Main Administration Block",
-    floor: "1st Floor",
-    roomVenue: "Principal Conference Hall",
-    roomCapacity: 20,
-    meetingDate: "2026-07-30",
-    startTime: "14:30",
-    endTime: "15:30",
-    status: "Scheduled",
-    organizerName: "Dr. Eleanor Vance",
-    organizerRole: "Principal",
-    createdAt: "2026-07-28"
-  }
-];
-
-export const initialCertificateTemplates: CertificateTemplateConfig[] = [
-  {
-    id: 'TPL-TC',
-    certificateType: 'Transfer Certificate',
-    title: 'OFFICIAL TRANSFER CERTIFICATE',
-    subTitle: 'CBSE Affiliation No: 883012 • School Code: 40192',
-    headerStyle: 'Classic Double Border',
-    themeColor: '#1e3a8a',
-    showLogo: true,
-    showSeal: true,
-    signatory1: 'Class Teacher Signature',
-    signatory2: 'Verified By (Accounts)',
-    signatory3: 'Principal Signature & Seal',
-    customPreamble: 'Certified that the student details listed below are verified from original school admission registers.',
-    footerDisclaimer: 'Official Transfer Certificate issued in accordance with Education Code Rules.'
-  },
-  {
-    id: 'TPL-BONAFIDE',
-    certificateType: 'Bonafide Certificate',
-    title: 'BONAFIDE STUDY CERTIFICATE',
-    subTitle: 'Recognized Educational Institution',
-    headerStyle: 'Modern Minimalist',
-    themeColor: '#065f46',
-    showLogo: true,
-    showSeal: true,
-    signatory1: 'Class Teacher',
-    signatory2: 'Administrative Officer',
-    signatory3: 'Headmaster / Principal',
-    customPreamble: 'This is to certify that the student is a genuine student studying in our institution.',
-    footerDisclaimer: 'Valid for official passport, bank, or scholarship verification.'
-  },
-  {
-    id: 'TPL-CONDUCT',
-    certificateType: 'Character Certificate',
-    title: 'CHARACTER & CONDUCT CERTIFICATE',
-    subTitle: 'General Student Conduct Evaluation',
-    headerStyle: 'Executive Slate',
-    themeColor: '#1e293b',
-    showLogo: true,
-    showSeal: true,
-    signatory1: 'Counselor / Class Teacher',
-    signatory2: 'Vice Principal',
-    signatory3: 'Principal',
-    customPreamble: 'This is to certify that the student bears exemplary moral character and disciplined conduct.',
-    footerDisclaimer: 'Valid for higher education and institutional admissions.'
-  },
-  {
-    id: 'TPL-LEAVING',
-    certificateType: 'Leaving Certificate',
-    title: 'SCHOOL LEAVING CERTIFICATE',
-    subTitle: 'Department of Education',
-    headerStyle: 'Classic Double Border',
-    themeColor: '#334155',
-    showLogo: true,
-    showSeal: true,
-    signatory1: 'Head Teacher',
-    signatory2: 'Examiner',
-    signatory3: 'Principal',
-    customPreamble: 'This is to certify that the student has completed the prescribed course of study.',
-    footerDisclaimer: 'Official School Leaving Document.'
-  },
-  {
-    id: 'TPL-MERIT',
-    certificateType: 'Merit Certificate',
-    title: 'CERTIFICATE OF ACADEMIC MERIT',
-    subTitle: 'Excellence in Education & Achievements',
-    headerStyle: 'Royal Gold Crest',
-    themeColor: '#d97706',
-    showLogo: true,
-    showSeal: true,
-    signatory1: 'Event Coordinator',
-    signatory2: 'Academic Dean',
-    signatory3: 'Principal',
-    customPreamble: 'In recognition of outstanding academic performance and scholarly achievement.',
-    footerDisclaimer: 'Awarded for exceptional academic excellence.'
-  },
-  {
-    id: 'TPL-SPORTS',
-    certificateType: 'Sports Certificate',
-    title: 'CERTIFICATE OF SPORTS EXCELLENCE',
-    subTitle: 'Annual Sports & Athletic Achievements',
-    headerStyle: 'Modern Minimalist',
-    themeColor: '#15803d',
-    showLogo: true,
-    showSeal: true,
-    signatory1: 'Sports Instructor',
-    signatory2: 'Physical Education HOD',
-    signatory3: 'Principal',
-    customPreamble: 'Awarded for active participation and commendable achievement in sports competitions.',
-    footerDisclaimer: 'Recognized by the School Sports Committee.'
-  }
-];
-
-
-
-
-
+export const initialQuestionPapers: QuestionPaper[] = [];
+export const initialMeetings: SchoolMeeting[] = [];
+export const initialDepartments: Department[] = [];
+export const initialDesignations: Designation[] = [];
+export const initialCertificateTemplates: CertificateTemplateConfig[] = [];

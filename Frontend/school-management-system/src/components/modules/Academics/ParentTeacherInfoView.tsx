@@ -135,9 +135,28 @@ export const ParentTeacherInfoView: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="py-20 flex flex-col items-center justify-center text-slate-500">
-          <Loader2 className="w-8 h-8 animate-spin text-sky-600 mb-3" />
-          <p className="text-sm font-medium">Loading teachers information from server...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[1, 2, 3, 4, 5, 6].map((idx) => (
+            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-205 dark:border-slate-800 rounded-xl p-4 flex flex-col gap-3 shadow-xs">
+              <div className="flex items-start gap-3">
+                <div className="w-12 h-12 rounded-full shimmer-block shrink-0" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-4 w-32 rounded-md shimmer-block" />
+                  <div className="h-3 w-24 rounded-md shimmer-block" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 pt-4 border-t border-slate-100 dark:border-slate-800/80">
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full shimmer-block shrink-0" />
+                  <div className="h-3 w-28 rounded-md shimmer-block" />
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full shimmer-block shrink-0" />
+                  <div className="h-3 w-40 rounded-md shimmer-block" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="flex flex-col gap-8">

@@ -1,12 +1,61 @@
+import { UniformSize } from '../types';
+
 export interface UniformSizeOption {
   value: string;
   label: string;
 }
 
-export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOption[] => {
+export const getCategorySizes = (
+  itemNameOrCategory: string = '',
+  customSizes?: UniformSize[]
+): UniformSizeOption[] => {
   const itemLower = (itemNameOrCategory || '').toLowerCase();
 
-  // 1. Footwear / Shoes
+  // Helper to format configured custom sizes from Size Configurations
+  const formatConfiguredSizes = (sizes: UniformSize[], categoryName: string = ''): UniformSizeOption[] => {
+    const itemLow = categoryName.toLowerCase();
+    const isTop = itemLow.includes('shirt') || itemLow.includes('blazer') || itemLow.includes('sweater') || itemLow.includes('t-shirt') || itemLow.includes('jacket') || itemLow.includes('top') || itemLow.includes('package') || !itemLow;
+    const isBottom = itemLow.includes('pant') || itemLow.includes('trouser') || itemLow.includes('skirt') || itemLow.includes('short') || itemLow.includes('lower');
+
+    const seen = new Set<string>();
+    const list: UniformSizeOption[] = [];
+
+    sizes.forEach(s => {
+      const name = s.sizeName || (s as any).sizeCodeName || '';
+      if (!name || seen.has(name.toLowerCase().trim())) return;
+      seen.add(name.toLowerCase().trim());
+
+      const specs: string[] = [];
+      if (isTop && s.chest) specs.push(`Chest: ${s.chest}`);
+      if (isBottom && s.waist) specs.push(`Waist: ${s.waist}`);
+      if (isTop && s.shoulder) specs.push(`Shoulder: ${s.shoulder}`);
+      if (s.ageGroup) specs.push(s.ageGroup);
+
+      const specStr = specs.length > 0 ? ` (${specs.join(', ')})` : '';
+      list.push({ value: name, label: `${name}${specStr}` });
+    });
+
+    if (!seen.has('others')) {
+      list.push({ value: 'Others', label: 'Others (Custom Tailored)' });
+    }
+    return list;
+  };
+
+  // 1. Cap / Hat / Headwear
+  if (
+    itemLower.includes('cap') ||
+    itemLower.includes('hat') ||
+    itemLower.includes('headwear')
+  ) {
+    return [
+      { value: 'Free Size', label: 'Free Size (Adjustable Cap)' },
+      { value: 'Small', label: 'Small (Kids Cap)' },
+      { value: 'Medium', label: 'Medium (Junior Cap)' },
+      { value: 'Large', label: 'Large (Senior Cap)' }
+    ];
+  }
+
+  // 2. Footwear / Shoes
   if (
     itemLower.includes('shoe') ||
     itemLower.includes('footwear') ||
@@ -27,7 +76,7 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     ];
   }
 
-  // 2. Skirts / Trousers / Pants / Shorts / Bottomwear
+  // 3. Skirts / Trousers / Pants / Shorts / Bottomwear
   if (
     itemLower.includes('skirt') ||
     itemLower.includes('trouser') ||
@@ -37,6 +86,9 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     itemLower.includes('lower') ||
     itemLower.includes('trackpant')
   ) {
+    if (Array.isArray(customSizes) && customSizes.length > 0) {
+      return formatConfiguredSizes(customSizes, itemNameOrCategory);
+    }
     return [
       { value: '22', label: '22" Waist (Primary)' },
       { value: '24', label: '24" Waist (Primary)' },
@@ -56,7 +108,7 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     ];
   }
 
-  // 3. Socks
+  // 4. Socks
   if (itemLower.includes('sock')) {
     return [
       { value: 'Free Size', label: 'Free Size (Universal)' },
@@ -66,7 +118,7 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     ];
   }
 
-  // 4. Tie, Crest, Ribbon, Badges
+  // 5. Tie, Crest, Ribbon, Badges
   if (
     itemLower.includes('tie') ||
     itemLower.includes('crest') ||
@@ -81,7 +133,7 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     ];
   }
 
-  // 5. Belts
+  // 6. Belts
   if (itemLower.includes('belt')) {
     return [
       { value: 'Free Size', label: 'Free Size (Adjustable)' },
@@ -91,7 +143,27 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
     ];
   }
 
-  // 6. Default Tops / Shirts / Blazers / Sweaters / Packages
+  // 6. Unstitched Uniform Cloth / Fabric Material
+  if (
+    itemLower.includes('cloth') ||
+    itemLower.includes('fabric') ||
+    itemLower.includes('material') ||
+    itemLower.includes('unstitched')
+  ) {
+    return [
+      { value: '2.5 Meters', label: '2.5 Meters (Shirt/Trouser Length)' },
+      { value: '3.0 Meters', label: '3.0 Meters (Suit/Pants Length)' },
+      { value: '4.0 Meters', label: '4.0 Meters (Full Uniform Fabric Set)' },
+      { value: '5.0 Meters', label: '5.0 Meters (Suit & Blazer Set Fabric)' },
+      { value: 'Unstitched Roll', label: 'Unstitched Roll / Standard Cut' }
+    ];
+  }
+
+  // 7. Default Tops / Shirts / Blazers / Sweaters / Packages
+  if (Array.isArray(customSizes) && customSizes.length > 0) {
+    return formatConfiguredSizes(customSizes, itemNameOrCategory);
+  }
+
   return [
     { value: '28', label: '28" Chest (Kids)' },
     { value: '30', label: '30" Chest (Junior)' },
@@ -112,58 +184,278 @@ export const getCategorySizes = (itemNameOrCategory: string = ''): UniformSizeOp
 
 export const getUniformPackageFeeByClass = (className: string = ''): number => {
   const clsLower = (className || '').toLowerCase().trim();
-  if (
-    clsLower.includes('lkg') ||
-    clsLower.includes('ukg') ||
-    clsLower.includes('nursery') ||
-    clsLower.includes('pkg') ||
-    clsLower.includes('playgroup') ||
-    clsLower.includes('pre-primary') ||
-    clsLower.includes('kg')
-  ) {
-    return 2000;
+
+  if (clsLower.includes('11') || clsLower.includes('12')) return 4000;
+  if (clsLower.includes('9') || clsLower.includes('10')) return 3500;
+  if (clsLower.includes('6') || clsLower.includes('7') || clsLower.includes('8')) return 3200;
+  if (clsLower.includes('1') || clsLower.includes('2') || clsLower.includes('3') || clsLower.includes('4') || clsLower.includes('5')) return 3000;
+  if (clsLower.includes('nursery') || clsLower.includes('lkg') || clsLower.includes('ukg') || clsLower.includes('pp')) return 2500;
+
+  return 3500;
+};
+
+const checkExactClassMatch = (targetClass: string, configClass: string): boolean => {
+  const tClass = (targetClass || '').toLowerCase().trim();
+  const cClass = (configClass || '').toLowerCase().trim();
+
+  if (!cClass || cClass === 'all classes' || cClass === 'all') return true;
+  if (!tClass) return true;
+
+  const tClean = tClass.replace(/[^a-z0-9]/g, '');
+  const cClean = cClass.replace(/[^a-z0-9]/g, '');
+
+  if (tClean === cClean) return true;
+
+  const tNumMatch = tClass.match(/\b(?:class|grade|std)?\s*(\d+)\b/i) || tClass.match(/\b(\d+)\b/);
+  const cNumMatch = cClass.match(/\b(?:class|grade|std)?\s*(\d+)\b/i) || cClass.match(/\b(\d+)\b/);
+
+  const tNum = tNumMatch ? tNumMatch[1] : '';
+  const cNum = cNumMatch ? cNumMatch[1] : '';
+
+  if (tNum && cNum) {
+    return tNum === cNum;
   }
-  if (
-    clsLower.includes('class 1') ||
-    clsLower.includes('class 2') ||
-    clsLower.includes('class 3') ||
-    clsLower.includes('class 4') ||
-    clsLower.includes('class 5') ||
-    clsLower.includes('class 6') ||
-    clsLower.includes('class 7') ||
-    clsLower.includes('class 8') ||
-    clsLower.includes('grade 1') ||
-    clsLower.includes('grade 2') ||
-    clsLower.includes('grade 3') ||
-    clsLower.includes('grade 4') ||
-    clsLower.includes('grade 5') ||
-    clsLower.includes('grade 6') ||
-    clsLower.includes('grade 7') ||
-    clsLower.includes('grade 8') ||
-    /^(1|2|3|4|5|6|7|8)th$/.test(clsLower) ||
-    /^(1|2|3|4|5|6|7|8)$/.test(clsLower)
-  ) {
-    return 2500;
+
+  return tClean === cClean;
+};
+
+export const getUniformFeeForClass = (
+  className: string = '',
+  genderOrConfigs: any = '',
+  financeUniformConfigsParam: any[] = [],
+  feeStructuresParam: any[] = []
+): number => {
+  const rawClass = (className || '').toLowerCase().trim();
+  const targetGender = typeof genderOrConfigs === 'string' ? (genderOrConfigs || '').toLowerCase().trim() : '';
+  const financeUniformConfigs = Array.isArray(genderOrConfigs) ? genderOrConfigs : (financeUniformConfigsParam || []);
+  const feeStructures = Array.isArray(financeUniformConfigsParam) ? financeUniformConfigsParam : (feeStructuresParam || []);
+
+  // 1. Check User's Uniform Configurations (Finance & Fees -> Uniform Setup / Configs shown in user screenshot)
+  if (Array.isArray(financeUniformConfigs) && financeUniformConfigs.length > 0 && rawClass) {
+    const activeConfigs = [...financeUniformConfigs].reverse().filter(c => c && c.status !== 'Inactive');
+
+    const isTargetFemale = targetGender.includes('female') || targetGender.includes('girl');
+    const isTargetMale = targetGender.includes('male') || targetGender.includes('boy');
+
+    // Exact class & gender match first (Male/Boys or Female/Girls)
+    const exactGenderMatch = activeConfigs.find(c => {
+      if (!checkExactClassMatch(rawClass, c.className)) return false;
+      const cGender = (c.gender || '').toLowerCase().trim();
+      const cPkg = (c.uniformPackage || '').toLowerCase();
+
+      if (isTargetFemale) return cGender.includes('female') || cGender.includes('girl') || cPkg.includes('girls');
+      if (isTargetMale) return (cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys')) && !cGender.includes('female') && !cPkg.includes('girls');
+      return false;
+    });
+
+    if (exactGenderMatch && exactGenderMatch.feeAmount && Number(exactGenderMatch.feeAmount) > 0) {
+      return Number(exactGenderMatch.feeAmount);
+    }
+
+    // Fallback match by class if gender is unisex or general
+    const fallbackMatch = activeConfigs.find(c => {
+      if (!checkExactClassMatch(rawClass, c.className)) return false;
+      const cGender = (c.gender || '').toLowerCase().trim();
+      return !cGender || cGender === 'unisex' || cGender === 'all';
+    });
+
+    if (fallbackMatch && fallbackMatch.feeAmount && Number(fallbackMatch.feeAmount) > 0) {
+      return Number(fallbackMatch.feeAmount);
+    }
+
+    // Direct match by class alone in activeConfigs
+    const anyClassMatch = activeConfigs.find(c => checkExactClassMatch(rawClass, c.className));
+    if (anyClassMatch && anyClassMatch.feeAmount && Number(anyClassMatch.feeAmount) > 0) {
+      return Number(anyClassMatch.feeAmount);
+    }
   }
-  if (
-    clsLower.includes('class 9') ||
-    clsLower.includes('class 10') ||
-    clsLower.includes('grade 9') ||
-    clsLower.includes('grade 10') ||
-    /^(9|10)th$/.test(clsLower) ||
-    /^(9|10)$/.test(clsLower)
-  ) {
-    return 3000;
+
+  // 2. Check Fee Setup / Dynamic Fee Structures configured under Finance & Fees
+  if (Array.isArray(feeStructures) && feeStructures.length > 0 && rawClass) {
+    const matchedStructure = feeStructures.find(fs => {
+      if (!fs || fs.status === 'Inactive') return false;
+      const fsClass = (fs.className || '').toLowerCase().trim();
+      return fsClass && checkExactClassMatch(rawClass, fsClass);
+    });
+
+    if (matchedStructure && matchedStructure.items && Array.isArray(matchedStructure.items)) {
+      const uniItem = matchedStructure.items.find((i: any) => {
+        const headName = (i.feeHeadName || i.name || i.feeHeadId || '').toLowerCase();
+        const headId = (i.feeHeadId || i.id || '').toLowerCase();
+        return headId === 'fh-04' || headId === 'fh-004' || headName.includes('uniform');
+      });
+
+      if (uniItem && uniItem.amount && Number(uniItem.amount) > 0) {
+        return Number(uniItem.amount);
+      }
+    }
   }
-  if (
-    clsLower.includes('class 11') ||
-    clsLower.includes('class 12') ||
-    clsLower.includes('grade 11') ||
-    clsLower.includes('grade 12') ||
-    /^(11|12)th$/.test(clsLower) ||
-    /^(11|12)$/.test(clsLower)
-  ) {
-    return 3500;
+
+  // 3. Fallback class tier table
+  return getUniformPackageFeeByClass(className);
+};
+
+export const getItemFeeFromFinanceConfig = (
+  className: string = '',
+  itemName: string = '',
+  gender: string = '',
+  financeUniformConfigs: any[] = [],
+  fallbackPrice?: number
+): number => {
+  if (Array.isArray(financeUniformConfigs) && financeUniformConfigs.length > 0 && itemName) {
+    const targetClassLower = (className || '').toLowerCase().trim();
+    const targetItemLower = (itemName || '')
+      .toLowerCase()
+      .replace(/\(extra\)/gi, '')
+      .replace(/\(extra purchase\)/gi, '')
+      .trim();
+    const targetGenderLower = (gender || '').toLowerCase().trim();
+
+    const activeConfigs = [...financeUniformConfigs].reverse().filter(c => c && c.status !== 'Inactive');
+
+    const match = activeConfigs.find(c => {
+      const cClass = (c.className || '').toLowerCase().trim();
+      const cPkg = (c.uniformPackage || c.name || '').toLowerCase().trim();
+      const cGender = (c.gender || '').toLowerCase().trim();
+
+      const isClassMatch = checkExactClassMatch(targetClassLower, cClass);
+
+      if (!isClassMatch) return false;
+
+      let isItemMatch =
+        cPkg === targetItemLower ||
+        cPkg.includes(targetItemLower) ||
+        targetItemLower.includes(cPkg);
+
+      if (!isItemMatch) {
+        if ((targetItemLower.includes('shoe') && cPkg.includes('shoe')) ||
+            (targetItemLower.includes('sock') && cPkg.includes('sock')) ||
+            (targetItemLower.includes('tie') && cPkg.includes('tie')) ||
+            (targetItemLower.includes('belt') && cPkg.includes('belt')) ||
+            ((targetItemLower.includes('pant') || targetItemLower.includes('trouser')) && (cPkg.includes('pant') || cPkg.includes('trouser'))) ||
+            (targetItemLower.includes('skirt') && cPkg.includes('skirt')) ||
+            (targetItemLower.includes('shirt') && cPkg.includes('shirt')) ||
+            (targetItemLower.includes('cap') && cPkg.includes('cap'))) {
+          isItemMatch = true;
+        }
+      }
+
+      if (!isItemMatch) return false;
+
+      if (!targetGenderLower || cGender === 'unisex' || !cGender) return true;
+
+      const isFemale = targetGenderLower.includes('female') || targetGenderLower.includes('girl');
+      if (isFemale) return cGender.includes('female') || cGender.includes('girl') || cPkg.includes('girls') || cGender === 'unisex';
+
+      return cGender.includes('male') || cGender.includes('boy') || cPkg.includes('boys') || cGender === 'unisex';
+    });
+
+    if (match && match.feeAmount && Number(match.feeAmount) > 0) {
+      return Number(match.feeAmount);
+    }
   }
-  return 2500;
+
+  if (fallbackPrice && fallbackPrice > 0 && fallbackPrice !== 85) {
+    return fallbackPrice;
+  }
+
+  return 350;
+};
+
+export const getItemPriceFromConfig = (
+  itemName: string = '',
+  financeUniformConfigs: any[] = [],
+  className: string = '',
+  gender: string = ''
+): number => {
+  return getItemFeeFromFinanceConfig(className, itemName, gender, financeUniformConfigs);
+};
+
+export const getStudentUniformFeeStatus = (
+  studentId: string = '',
+  studentAdmissionNo: string = '',
+  className: string = '',
+  gender: string = '',
+  admissions: any[] = [],
+  studentUniformIssues: any[] = [],
+  feePayments: any[] = [],
+  financeUniformConfigs: any[] = []
+) => {
+  const configAmount = getUniformFeeForClass(className, gender, financeUniformConfigs);
+
+  const admMatch = (admissions || []).find(a => 
+    (studentId && (a.id === studentId || a.applicationNo === studentId)) ||
+    (studentAdmissionNo && (a.applicationNo === studentAdmissionNo || a.id === studentAdmissionNo))
+  );
+
+  const optList = admMatch?.selectedOptionalFees;
+
+  const baseIssue = (studentUniformIssues || []).find(i => 
+    ((i.studentId && (i.studentId === studentId || (studentAdmissionNo && i.studentId === studentAdmissionNo))) ||
+     (i.admissionNo && (i.admissionNo === studentId || (studentAdmissionNo && i.admissionNo === studentAdmissionNo)))) &&
+    i.type === 'Base Package' &&
+    !i.notes?.includes('Additional') &&
+    !i.notes?.includes('Kit 2')
+  );
+
+  const baseNotesLower = (baseIssue?.notes || '').toLowerCase();
+  const isExplicitlyNotOptedInNotes = baseNotesLower.includes('not opted') || baseNotesLower.includes('billed to finance');
+
+  const isOptedAtAdmission = isExplicitlyNotOptedInNotes
+    ? false
+    : (optList === null || optList === undefined ? true : (Array.isArray(optList) && (optList.some(id => id === 'FH-04' || id === 'FH-004' || String(id).toLowerCase().includes('uniform') || String(id).toLowerCase().includes('kit')))));
+
+  const baseUniformPayment = (feePayments || []).find(p => {
+    if (!p || !p.amountPaid || p.amountPaid <= 0) return false;
+    const isStudentMatch = p.studentId === studentId || 
+      (studentAdmissionNo && (p.studentId === studentAdmissionNo || (p.receiptNo && p.receiptNo.includes(studentAdmissionNo))));
+    if (!isStudentMatch) return false;
+
+    const hasBaseInstId = p.selectedInstallmentIds?.some((id: any) => 
+      String(id).includes('UNIF-BASE') || String(id).includes('FH-04') || String(id).includes('FH-UNI-BASE')
+    );
+    if (hasBaseInstId) return true;
+
+    if (p.paymentAllocation && p.paymentAllocation.length > 0) {
+      return p.paymentAllocation.some((alloc: any) => {
+        const head = (alloc.feeHeadName || alloc.termName || alloc.feeHeadId || '').toLowerCase();
+        const isBaseHead = head.includes('uniform') || head.includes('package') || head.includes('fh-04') || head.includes('fh-uni-base');
+        const isExtraHead = head.includes('extra') || head.includes('socks') || head.includes('tracksuit') || head.includes('shoes');
+        return isBaseHead && !isExtraHead;
+      });
+    }
+    return false;
+  });
+
+  const isExplicitlyPaidNote = baseNotesLower.includes('fees paid') || baseNotesLower.includes('paid at counter') || baseNotesLower.includes('already paid');
+
+  const isPaid = Boolean(
+    baseUniformPayment || 
+    (baseIssue && (baseIssue.status as string) === 'Paid') ||
+    isExplicitlyPaidNote
+  );
+
+  if (isPaid) {
+    return {
+      isOptedAtAdmission,
+      isPaid: true,
+      status: 'Paid' as const,
+      amount: configAmount,
+      receiptNo: baseUniformPayment?.receiptNo || 'REC-PAID',
+      paymentDate: baseUniformPayment?.paymentDate || new Date().toISOString().split('T')[0],
+      paymentMode: baseUniformPayment?.paymentMode || 'Cash',
+      source: 'Fees Paid Already in Finance'
+    };
+  }
+
+  return {
+    isOptedAtAdmission,
+    isPaid: false,
+    status: 'Pending' as const,
+    amount: configAmount,
+    receiptNo: '',
+    paymentDate: '',
+    paymentMode: '',
+    source: isOptedAtAdmission ? 'Fee Pending at Finance' : 'Uniform Not Opted at Admission'
+  };
 };

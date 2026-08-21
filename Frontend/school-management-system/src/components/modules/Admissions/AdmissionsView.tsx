@@ -53,6 +53,7 @@ import {
   formatToISO,
 } from "../../../utils/dateValidation";
 import { formatCurrency } from "../../../utils/currency";
+import { getUniformPackageFeeByClass, getUniformFeeForClass } from "../../../utils/uniformUtils";
 import {
   getHostelBlocks,
   getRooms,
@@ -215,12 +216,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     updateAdmission,
     deleteAdmission,
     updateAdmissionStatus,
+    fetchStudents,
     students,
     routeMasters,
     pickupPoints,
     getStudentFeeLedger,
     dynamicFeeStructures,
     financeTransportConfigs,
+    financeUniformConfigs,
     hostelMasters,
     hostelBlocks,
     hostelRooms,
@@ -344,25 +347,27 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   useEffect(() => {
-    setLoadingHostels(true);
-    Promise.all([
-      getHostelBlocks().catch(() => []),
-      getRooms().catch(() => []),
-      getRoomTypes().catch(() => []),
-      getAllocations().catch(() => []),
-    ])
-      .then(([blocks, rooms, roomTypes, allocs]) => {
-        setDynamicHostelBlocks(Array.isArray(blocks) ? blocks : []);
-        setDynamicHostelRooms(Array.isArray(rooms) ? rooms : []);
-        setDynamicRoomTypes(Array.isArray(roomTypes) ? roomTypes : []);
-        setDynamicAllocations(Array.isArray(allocs) ? allocs : []);
-      })
-      .catch((err) => {
-        console.error("Failed to load dynamic hostel data:", err);
-      })
-      .finally(() => {
-        setLoadingHostels(false);
-      });
+    if (isFormView) {
+      setLoadingHostels(true);
+      Promise.all([
+        getHostelBlocks().catch(() => []),
+        getRooms().catch(() => []),
+        getRoomTypes().catch(() => []),
+        getAllocations().catch(() => []),
+      ])
+        .then(([blocks, rooms, roomTypes, allocs]) => {
+          setDynamicHostelBlocks(Array.isArray(blocks) ? blocks : []);
+          setDynamicHostelRooms(Array.isArray(rooms) ? rooms : []);
+          setDynamicRoomTypes(Array.isArray(roomTypes) ? roomTypes : []);
+          setDynamicAllocations(Array.isArray(allocs) ? allocs : []);
+        })
+        .catch((err) => {
+          console.warn("Dynamic hostel data unavailable:", err?.message || err);
+        })
+        .finally(() => {
+          setLoadingHostels(false);
+        });
+    }
   }, [isFormView]);
 
   // Form Fields State
@@ -1460,6 +1465,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       remarks?: string;
     }[] = [];
 
+    const uniFeeAmount = getUniformFeeForClass(clsName, formData.gender || 'Male', financeUniformConfigs);
+
     baseItems.forEach((i) => {
       const isMandatory = isItemMandatory(i);
       const isSelected =
@@ -1469,11 +1476,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             idOrName === i.feeHeadId ||
             idOrName === i.feeHeadName ||
             idOrName.replace("-0", "-") === i.feeHeadId.replace("-0", "-") ||
-            i.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-"),
+            i.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-") ||
+            (idOrName.toLowerCase().includes('uniform') && i.feeHeadName.toLowerCase().includes('uniform'))
         );
+
+      let amt = i.amount;
+      let itemName = i.feeHeadName;
+      const lowerName = (i.feeHeadName || '').toLowerCase();
+      const isUniform = lowerName.includes('uniform') || lowerName.includes('kit');
+      if (isUniform) {
+        amt = uniFeeAmount > 0 ? uniFeeAmount : i.amount;
+        itemName = 'Uniform & Accessories';
+      }
       items.push({
-        name: i.feeHeadName,
-        amount: i.amount,
+        name: itemName,
+        amount: amt,
         isApplicable: isSelected,
         remarks: isSelected ? undefined : "Optional Fee Not Selected",
       });
@@ -3188,11 +3205,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             (idOrName) =>
                               idOrName === item.feeHeadId ||
                               idOrName === item.feeHeadName ||
-                              idOrName.replace("-0", "-") ===
-                                item.feeHeadId.replace("-0", "-") ||
-                              item.feeHeadId.replace("-0", "-") ===
-                                idOrName.replace("-0", "-"),
+                              idOrName.replace("-0", "-") === item.feeHeadId.replace("-0", "-") ||
+                              item.feeHeadId.replace("-0", "-") === idOrName.replace("-0", "-") ||
+                              (idOrName.toLowerCase().includes('uniform') && (item.feeHeadName || '').toLowerCase().includes('uniform'))
                           );
+                          const isUniformHead = (item.feeHeadName || '').toLowerCase().includes('uniform') || (item.feeHeadName || '').toLowerCase().includes('kit');
+                          const displayAmount = isUniformHead ? getUniformFeeForClass(clsName, formData.gender || 'Male', financeUniformConfigs) : item.amount;
                           return (
                             <label
                               key={item.feeHeadId}
@@ -3224,10 +3242,14 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                               />
                               <div>
                                 <span className="block font-bold text-slate-900 dark:text-white text-xs">
-                                  {item.feeHeadName}
+                                  {isUniformHead
+                                    ? ((formData.gender || '').toLowerCase().includes('female') || (formData.gender || '').toLowerCase().includes('girl')
+                                        ? 'Girls Uniform Package (Admission Kit)'
+                                        : 'Boys Uniform Package (Admission Kit)')
+                                    : item.feeHeadName}
                                 </span>
-                                <span className="block text-[10px] text-slate-500">
-                                  {formatCurrency(item.amount)}
+                                <span className="block text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                  ₹{displayAmount?.toLocaleString('en-IN')}
                                 </span>
                               </div>
                             </label>
@@ -4039,6 +4061,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               confirmingApp.status,
             );
             if (confirmingApp.status === "Enrolled") {
+              await fetchStudents();
               if (studentId) {
                 setFeeSummaryStudentId(studentId);
               } else {

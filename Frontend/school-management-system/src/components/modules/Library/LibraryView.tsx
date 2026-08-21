@@ -2315,11 +2315,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       {deletingItem && (
         <ConfirmModal
           isOpen={Boolean(deletingItem)}
-          onClose={() => setDeletingItem(null)}
+          onCancel={() => setDeletingItem(null)}
           onConfirm={confirmDelete}
           title="Confirm Deletion"
           message={`Are you sure you want to delete "${deletingItem.title}"? This action will permanently remove the record.`}
-          confirmText="Delete Record"
+          confirmLabel="Delete Record"
           variant="danger"
         />
       )}

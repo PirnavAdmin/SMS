@@ -293,11 +293,14 @@ export const FeeStructuresView: React.FC = () => {
                     item.feeHeadName.toLowerCase().includes("exam")
                   );
                   const freq = head ? head.frequency : "Quarterly";
+                  const displayName = (item.feeHeadName || '').toLowerCase().includes('uniform') || (item.feeHeadName || '').toLowerCase().includes('package')
+                    ? 'Uniform & Accessories'
+                    : item.feeHeadName;
 
                   return (
                     <div key={item.feeHeadId} className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-0.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 dark:text-white">{item.feeHeadName}</span>
+                        <span className="font-semibold text-slate-900 dark:text-white">{displayName}</span>
                         <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider ${
                           isMandatory ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
                         }`}>
@@ -379,7 +382,9 @@ export const FeeStructuresView: React.FC = () => {
                                 className="w-4 h-4 rounded text-sky-600 border-slate-300 dark:border-slate-700 bg-white focus:ring-sky-500 cursor-pointer"
                               />
                               <div>
-                                <p className="font-bold text-slate-900 dark:text-white text-xs">{head.name}</p>
+                                <p className="font-bold text-slate-900 dark:text-white text-xs">
+                                  {(head.name || '').toLowerCase().includes('uniform') || (head.name || '').toLowerCase().includes('package') ? 'Uniform & Accessories' : head.name}
+                                </p>
                                 <p className="text-[10px] text-slate-400 font-medium">
                                   {head.category} • {head.frequency}
                                 </p>

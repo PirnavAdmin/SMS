@@ -83,7 +83,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       if (s.designation?.trim().toLowerCase() !== value.designation.trim().toLowerCase()) return false;
       
       const otherSubjects = s.assignedSubjects || [];
-      const hasCommonSubject = value.assignedSubjects.some((subj: string) => 
+      const hasCommonSubject = (value.assignedSubjects || []).some((subj: string) => 
         otherSubjects.some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
       );
       
@@ -91,7 +91,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     });
 
     if (match) {
-      const commonSubjects = value.assignedSubjects.filter((subj: string) =>
+      const commonSubjects = (value.assignedSubjects || []).filter((subj: string) =>
         (match.assignedSubjects || []).some((os: string) => os.trim().toLowerCase() === subj.trim().toLowerCase())
       );
       return {
@@ -815,6 +815,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       ) : (
                         filteredSubjectOptions.map(subj => {
                           const isChecked = (value.assignedSubjects || []).includes(subj);
+                          const matchingSubject = subjects.find(s => s.name === subj);
+                          const subjectCode = matchingSubject?.code;
+                          const displayLabel = subjectCode ? `${subj} (${subjectCode})` : subj;
                           return (
                             <label key={subj} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
                               <input
@@ -829,7 +832,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                                 }}
                                 className="rounded border-slate-300 dark:border-slate-700 text-brand-600 focus:ring-brand-500 w-3.5 h-3.5 cursor-pointer"
                               />
-                              {subj}
+                              <span className="select-none">{displayLabel}</span>
                             </label>
                           );
                         })

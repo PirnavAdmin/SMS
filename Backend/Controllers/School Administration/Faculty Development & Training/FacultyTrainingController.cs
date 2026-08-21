@@ -8,6 +8,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/v1/faculty-training")]
+    [Route("api/faculty-training")]
     public class FacultyTrainingController : ControllerBase
     {
         private readonly IFacultyTrainingService _service;

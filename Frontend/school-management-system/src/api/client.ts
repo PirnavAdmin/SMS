@@ -36,6 +36,9 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
       }
     }
     let errorMessage = `HTTP error! status: ${response.status}`;
+    if (response.status === 502) {
+      errorMessage = `Gateway Error (502 Bad Gateway): The proxy server could not reach the backend API. Please make sure your backend dotnet server is running.`;
+    }
     try {
       const errorBody = await response.text();
       const errorJson = JSON.parse(errorBody);

@@ -441,9 +441,15 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     );
     if (duplicateSlot) errors.push(`Duplicate Allocation: ${testSlot.className}-${testSlot.section} already has ${duplicateSlot.subject} assigned at ${testSlot.timeSlot} on ${testSlot.day}.`);
 
-    if (testSlot.teacherName) {
+    if (testSlot.teacherName && testSlot.teacherName !== 'Unassigned' && testSlot.teacherName !== '--') {
       const teacherConflict = timetable.find(t =>
-        t.id !== currentId && t.teacherName === testSlot.teacherName && t.day === testSlot.day && t.timeSlot === testSlot.timeSlot
+        t.id !== currentId &&
+        t.teacherName &&
+        t.teacherName !== 'Unassigned' &&
+        t.teacherName !== '--' &&
+        t.teacherName.trim().toLowerCase() === testSlot.teacherName.trim().toLowerCase() &&
+        t.day === testSlot.day &&
+        t.timeSlot === testSlot.timeSlot
       );
       if (teacherConflict) errors.push(`Teacher Conflict: ${testSlot.teacherName} is already assigned to teach ${teacherConflict.className}-${teacherConflict.section} at ${testSlot.timeSlot} on ${testSlot.day}.`);
     }
@@ -453,14 +459,23 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
     const existingSubjectCount = timetable.filter(t => t.id !== currentId && t.className === testSlot.className && t.section === testSlot.section && t.subject === testSlot.subject).length;
     if (existingSubjectCount >= weeklyLimit) errors.push(`Subject Weekly Limit Exceeded: ${testSlot.subject} has a maximum limit of ${weeklyLimit} periods/week for ${testSlot.className}-${testSlot.section}.`);
 
-    if (testSlot.teacherName) {
-      const teacherObj = teachingStaff.find(s => `${s.firstName} ${s.lastName}` === testSlot.teacherName);
+    if (testSlot.teacherName && testSlot.teacherName !== 'Unassigned' && testSlot.teacherName !== '--') {
+      const teacherObj = teachingStaff.find(s => `${s.firstName} ${s.lastName}`.trim().toLowerCase() === testSlot.teacherName?.trim().toLowerCase());
       const dailyLimit = teacherObj?.dailyWorkloadLimit || 5;
-      const teacherDayCount = timetable.filter(t => t.id !== currentId && t.teacherName === testSlot.teacherName && t.day === testSlot.day).length;
+      const teacherDayCount = timetable.filter(t =>
+        t.id !== currentId &&
+        t.teacherName &&
+        t.teacherName.trim().toLowerCase() === testSlot.teacherName.trim().toLowerCase() &&
+        t.day === testSlot.day
+      ).length;
       if (teacherDayCount >= dailyLimit) errors.push(`Teacher Daily Workload Limit: ${testSlot.teacherName} exceeds the limit of ${dailyLimit} periods on ${testSlot.day}.`);
 
       const weeklyWLimit = teacherObj?.weeklyWorkloadLimit || 24;
-      const teacherWeekCount = timetable.filter(t => t.id !== currentId && t.teacherName === testSlot.teacherName).length;
+      const teacherWeekCount = timetable.filter(t =>
+        t.id !== currentId &&
+        t.teacherName &&
+        t.teacherName.trim().toLowerCase() === testSlot.teacherName.trim().toLowerCase()
+      ).length;
       if (teacherWeekCount >= weeklyWLimit) errors.push(`Teacher Weekly Workload Limit: ${testSlot.teacherName} exceeds the limit of ${weeklyWLimit} periods/week.`);
     }
 
@@ -1118,7 +1133,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
       {/* TAB 1: CLASS TIMETABLE (WEEKLY GRID) */}
       {activeTab === 'class-timetable' && (
-        <div id="printable-content" className="space-y-4">
+        <div id="printable-content" className="space-y-4 timetable-printable">
           <div className="hidden print:block pb-3 mb-2 border-b-2 border-slate-800">
             <div className="flex items-center justify-between">
               <div>
@@ -1698,7 +1713,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
 
       {/* TAB 3: TEACHER TIMETABLE */}
       {activeTab === 'teacher-timetable' && (
-        <div id="printable-content" className="space-y-6">
+        <div id="printable-content" className="space-y-6 timetable-printable">
           <div className="hidden print:block mb-4 text-center border-b pb-4">
             <h1 className="text-2xl font-black">Teacher Timetable</h1>
             <p className="text-sm font-bold text-slate-600 mt-2">Teacher: {selectedTeacherName} | Year: {academicYear}</p>

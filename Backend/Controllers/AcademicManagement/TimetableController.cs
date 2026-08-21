@@ -369,5 +369,41 @@ namespace SMS.Api.Controllers.AcademicManagement
                 return BadRequest(new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Auto-generate timetable slots based on school timings, breaks, and working days
+        /// </summary>
+        [HttpPost("/api/academics/timetable/generate")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> GenerateTimetable([FromBody] GenerateTimetableRequestDto dto)
+        {
+            try
+            {
+                var result = await _timetableService.GenerateTimetableAsync(dto);
+                return Ok(new { success = true, message = "Timetable generated successfully.", data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Validate the weekly timetable grid for a class section to check clashes
+        /// </summary>
+        [HttpPost("/api/academics/timetable/validate")]
+        [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+        public async Task<IActionResult> ValidateTimetable([FromQuery] int classId, [FromQuery] int sectionId, [FromQuery] string academicYear = "2026-2027")
+        {
+            try
+            {
+                var result = await _timetableService.ValidateTimetableAsync(classId, sectionId, academicYear);
+                return Ok(new { success = true, message = "Timetable validated successfully.", data = result });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
     }
 }

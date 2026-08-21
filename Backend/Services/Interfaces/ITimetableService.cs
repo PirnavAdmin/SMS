@@ -26,4 +26,8 @@ public interface ITimetableService
 
     // Class Subjects Candidate Helper
     Task<List<ClassSubjectQuotaDto>> GetClassSubjectsCandidatesAsync(int classId, int sectionId);
+
+    // Timetable Generation and Validation
+    Task<List<TimetableSlotDto>> GenerateTimetableAsync(GenerateTimetableRequestDto dto);
+    Task<TimetableValidationResultDto> ValidateTimetableAsync(int classId, int sectionId, string academicYear);
 }

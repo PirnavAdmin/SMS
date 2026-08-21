@@ -3,6 +3,7 @@ import { UniformDashboardView } from './UniformDashboardView';
 import { UniformMastersView } from './UniformMastersView';
 import { StudentUniformView } from './StudentUniformView';
 import { UniformReportsView } from './UniformReportsView';
+import { useData } from '../../../context/DataContext';
 
 interface UniformContainerViewProps {
   initialTab?: string;
@@ -10,6 +11,14 @@ interface UniformContainerViewProps {
 }
 
 export const UniformContainerView: React.FC<UniformContainerViewProps> = ({ initialTab = 'dashboard', onTabChange }) => {
+  const { fetchUniformData } = useData();
+
+  useEffect(() => {
+    if (fetchUniformData) {
+      fetchUniformData();
+    }
+  }, [fetchUniformData]);
+
   const normalizeTab = (tab: string) => tab.startsWith('uniform-') ? tab.replace('uniform-', '') : tab;
 
   const [activeTab, setActiveTab] = useState(normalizeTab(initialTab));

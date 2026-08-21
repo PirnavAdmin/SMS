@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   GraduationCap, Award, Calendar, BookOpen, CheckCircle2, AlertTriangle,
   Plus, Search, Filter, Download, Printer, UserCheck, Users, FileText,
@@ -6,20 +6,26 @@ import {
   FileCheck, ShieldCheck, Check, Layers, BarChart3, TrendingUp, HelpCircle,
   Megaphone, ExternalLink, Send, SlidersHorizontal, RefreshCw
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { useAuth } from '../../../../context/AuthContext';
 import {
   WorkshopTraining, EmployeeAssessment, IssuedCertificate,
   TrainingCategory, AssessmentType, AssessmentCategory, AssessmentMode, TrainingParticipant, AssessmentResult, Staff
-} from '../../../types';
+} from '../../../../types';
 
 export const TrainingContainerView: React.FC = () => {
   const {
     staff, workshops, addWorkshop, updateWorkshop, deleteWorkshop, markWorkshopAttendance, submitWorkshopFeedback,
     employeeAssessments, addAssessment, updateAssessment, deleteAssessment, saveAssessmentResults,
-    issuedCertificates, issueCertificate, reissueCertificate, logActivity
+    issuedCertificates, issueCertificate, reissueCertificate, logActivity, fetchFacultyTrainingData
   } = useData();
+
+  useEffect(() => {
+    if (fetchFacultyTrainingData) {
+      fetchFacultyTrainingData();
+    }
+  }, [fetchFacultyTrainingData]);
 
   const { addToast } = useToast();
   const { role, selectedBranch } = useAuth();
@@ -172,21 +178,22 @@ export const TrainingContainerView: React.FC = () => {
 
   // Matching Candidates for Assessment Wizard Step 2
   const matchingAssessmentCandidates = useMemo(() => {
-    return staff.filter(s => {
+    const list = staff.filter(s => {
       const isTeacherRole = s.role === 'Teacher' || s.role === 'Teaching' || (s as any).employeeType === 'Teaching Staff' ||
         (s.department || '').toLowerCase().includes('teach') || (s.department || '').toLowerCase().includes('academic') ||
-        (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty');
+        (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty') ||
+        !s.role;
 
-      const matchesRole = wizardStep2.targetEmployeeType === 'Both' ||
+      const matchesRole = (wizardStep2.targetEmployeeType as string) === 'Both' || (wizardStep2.targetEmployeeType as string) === 'All Staff' ||
         (wizardStep2.targetEmployeeType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
-      const matchesBranch = wizardStep2.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
+      const matchesBranch = wizardStep2.branch === 'All' || wizardStep2.branch === 'Main Campus' || !s.branch || s.branch === 'All Branches' ||
         s.branch.toLowerCase() === wizardStep2.branch.toLowerCase();
 
-      const matchesDept = wizardStep2.department === 'All' ||
+      const matchesDept = wizardStep2.department === 'All' || wizardStep2.department === 'All Departments' || !wizardStep2.department ||
         (wizardStep2.department === 'Academics' ? (isTeacherRole || s.department === 'Academics' || s.department === 'Teaching' || s.department === 'Science' || s.department === 'Mathematics' || s.department === 'English') : (s.department?.toLowerCase() === wizardStep2.department?.toLowerCase()));
 
-      const matchesDesig = wizardStep2.designation === 'All' ||
+      const matchesDesig = wizardStep2.designation === 'All' || wizardStep2.designation === 'All Designations' || !wizardStep2.designation ||
         (s.designation?.toLowerCase() === wizardStep2.designation?.toLowerCase());
 
       const staffSubject = (s as any).subject || s.qualification || '';
@@ -195,6 +202,7 @@ export const TrainingContainerView: React.FC = () => {
 
       return matchesRole && matchesBranch && matchesDept && matchesDesig && matchesSubject && matchesSearch;
     });
+    return list.length > 0 ? list : staff;
   }, [staff, wizardStep2, assessmentCandidateSearch]);
 
   // Sync selected candidates when filters change
@@ -213,7 +221,7 @@ export const TrainingContainerView: React.FC = () => {
       const matchesSearch = w.workshopName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         w.trainerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         w.category.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesDept = departmentFilter === 'All' || w.department === departmentFilter || !w.department;
+      const matchesDept = departmentFilter === 'All' || departmentFilter === 'All Departments' || w.department === departmentFilter || !w.department;
       return matchesSearch && matchesDept;
     });
   }, [workshops, searchQuery, departmentFilter]);
@@ -222,7 +230,7 @@ export const TrainingContainerView: React.FC = () => {
     return employeeAssessments.filter(a => {
       const matchesSearch = a.assessmentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         a.assessmentType.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesDept = departmentFilter === 'All' || a.department === departmentFilter;
+      const matchesDept = departmentFilter === 'All' || departmentFilter === 'All Departments' || a.department === departmentFilter;
       return matchesSearch && matchesDept;
     });
   }, [employeeAssessments, searchQuery, departmentFilter]);
@@ -265,25 +273,27 @@ export const TrainingContainerView: React.FC = () => {
 
   // Matching Employee Selection List
   const candidateEmployees = useMemo(() => {
-    return staff.filter(s => {
+    const list = staff.filter(s => {
       const isTeacherRole = s.role === 'Teacher' || s.role === 'Teaching' || (s as any).employeeType === 'Teaching Staff' ||
         (s.department || '').toLowerCase().includes('teach') || (s.department || '').toLowerCase().includes('academic') ||
-        (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty');
+        (s.designation || '').toLowerCase().includes('teacher') || (s.designation || '').toLowerCase().includes('faculty') ||
+        !s.role;
 
       const matchesRole = (workshopForm.targetRoleType as string) === 'All Staff' || (workshopForm.targetRoleType as string) === 'Both' ||
         (workshopForm.targetRoleType === 'Teaching Staff' ? isTeacherRole : !isTeacherRole);
 
-      const matchesBranch = participantFilters.branch === 'All' || !s.branch || s.branch === 'All Branches' ||
+      const matchesBranch = participantFilters.branch === 'All' || participantFilters.branch === 'Main Campus' || !s.branch || s.branch === 'All Branches' ||
         s.branch.toLowerCase() === participantFilters.branch.toLowerCase();
 
-      const matchesDept = participantFilters.department === 'All' ||
+      const matchesDept = participantFilters.department === 'All' || participantFilters.department === 'All Departments' ||
         s.department?.toLowerCase() === participantFilters.department?.toLowerCase();
 
-      const matchesDesig = participantFilters.designation === 'All' ||
+      const matchesDesig = participantFilters.designation === 'All' || participantFilters.designation === 'All Designations' ||
         s.designation?.toLowerCase() === participantFilters.designation?.toLowerCase();
 
       return matchesRole && matchesBranch && matchesDept && matchesDesig;
     });
+    return list.length > 0 ? list : staff;
   }, [staff, workshopForm.targetRoleType, participantFilters]);
 
   // Auto-sync selected employees when candidateEmployees change or modal opens
@@ -545,7 +555,7 @@ export const TrainingContainerView: React.FC = () => {
       </div>
 
       {/* Sub-Navigation Tabs */}
-      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 max-w-4xl border border-slate-200/60 dark:border-slate-800 overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1 p-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 w-full border border-slate-200/60 dark:border-slate-800 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
@@ -597,7 +607,7 @@ export const TrainingContainerView: React.FC = () => {
             activeTab === 'profile-view' ? 'bg-white dark:bg-slate-950 text-brand-600 shadow-sm' : 'text-slate-600 dark:text-slate-400'
           }`}
         >
-          <UserCheck className="w-3.5 h-3.5 text-sky-500" /> Staff Development Logs
+          <UserCheck className="w-3.5 h-3.5 text-sky-500" /> Staff Profiles
         </button>
       </div>
 

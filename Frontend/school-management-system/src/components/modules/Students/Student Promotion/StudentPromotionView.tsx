@@ -5,10 +5,11 @@ import {
   AlertCircle, Users, LayoutGrid, Check, FileCheck2, ShieldCheck, XCircle,
   ChevronLeft, ChevronRight
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { ExportButton } from '../../common/ExportButton';
-import { SectionAssignmentMethod, PromotionHistoryItem } from '../../../types';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { ExportButton } from '../../../common/ExportButton';
+import { SectionAssignmentMethod, PromotionHistoryItem } from '../../../../types';
+import { executePromotionApi } from '../../../../api/studentPromotion';
 
 interface StudentPromotionViewProps {
   onNavigate?: (module: string) => void;
@@ -589,6 +590,29 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       if (isPromote) promotedCount++;
       else retainedCount++;
     });
+
+    executePromotionApi({
+      currentAcademicYear: currentYear,
+      targetAcademicYear: targetYear,
+      currentClass: fromClass,
+      branch: branch,
+      policy: assignmentMethod,
+      promotions: rowsToProcess.map(r => ({
+        studentId: Number(r.id) || 0,
+        id: r.id,
+        admissionNo: r.admissionNo,
+        rollNo: r.rollNo,
+        currentClass: r.currentClass,
+        currentSection: r.currentSection,
+        promotionStatus: r.promotionStatus,
+        newClass: r.newClass,
+        newSection: r.newSection,
+        overallPct: r.overallPct,
+        grade: r.grade,
+        finalResult: r.finalResult,
+        remarks: r.remarks
+      }))
+    }).catch(() => {});
 
     const remainingRows = promotionRows.filter(r => !rowsToProcess.some(p => p.id === r.id));
 

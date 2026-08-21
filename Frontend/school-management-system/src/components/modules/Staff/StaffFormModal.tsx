@@ -252,7 +252,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         if (s.designation?.trim().toLowerCase() !== form.designation.trim().toLowerCase()) return false;
         
         const otherSubjects = s.assignedSubjects || [];
-        return form.assignedSubjects.some(subj => 
+        return (form.assignedSubjects || []).some(subj => 
           otherSubjects.some(os => os.trim().toLowerCase() === subj.trim().toLowerCase())
         );
       });

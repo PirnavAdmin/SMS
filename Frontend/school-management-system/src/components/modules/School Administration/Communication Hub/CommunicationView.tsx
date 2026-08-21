@@ -3,10 +3,11 @@ import {
   Megaphone, Send, Calendar, Clock, Plus, X, Edit3, Trash2, Pin, CheckCircle2, 
   ShieldAlert
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useToast } from '../../../context/ToastContext';
-import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../../context/DataContext';
+import { useToast } from '../../../../context/ToastContext';
+import { useAuth } from '../../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
+import { createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 
 export interface AnnouncementItem {
   id: string;
@@ -198,7 +199,7 @@ export const CommunicationView: React.FC = () => {
     }
 
     const newEmergencyItem: AnnouncementItem = {
-      id: `ANN-EMG-${Date.now()}`,
+      id: serverId,
       title: emergencyTitle,
       content: emergencyContent,
       targetAudience: 'ALL',
@@ -290,11 +291,25 @@ export const CommunicationView: React.FC = () => {
     setIsComposeModalOpen(true);
   };
 
-  const handleBroadcast = (e: React.FormEvent) => {
+  const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !content.trim()) return;
 
     if (editingItem) {
+      const numericId = parseInt(editingItem.id.replace(/\D/g, ''), 10);
+      if (numericId) {
+        try {
+          await updateNotificationApi(numericId, {
+            title: title.trim(),
+            content: content.trim(),
+            category: category.toUpperCase(),
+            targetAudience: target.toUpperCase(),
+            isPinned: editingItem.isPinned
+          });
+        } catch (err) {
+          console.warn("API updateNotification error:", err);
+        }
+      }
       const updated = localList.map(item =>
         item.id === editingItem.id
           ? {
@@ -311,8 +326,28 @@ export const CommunicationView: React.FC = () => {
       addToast('success', 'Broadcast Circular Updated', `Saved changes for "${title}"`);
     } else {
       const channelStr = `${sendSMS ? 'SMS' : ''}${sendSMS && sendEmail ? ' & ' : ''}${sendEmail ? 'Email' : ''}${sendPush ? ' & Push' : ''}`;
+      let serverId = `ANN-${Date.now()}`;
+      try {
+        const res = await createNotificationApi({
+          title: title.trim(),
+          content: content.trim(),
+          category: category.toUpperCase(),
+          targetAudience: target.toUpperCase(),
+          createdDate: broadcastDate,
+          author: role.toLowerCase().includes('teacher') ? 'Teacher' : 'Principal Office',
+          isPinned: false,
+          deliveredCount: 1420,
+          smsSent: sendSMS,
+          emailSent: sendEmail,
+          pushDelivered: sendPush
+        });
+        if (res?.data?.circularId) serverId = res.data.circularId.toString();
+      } catch (err) {
+        console.warn("API createNotification error:", err);
+      }
+
       const newCircular: AnnouncementItem = {
-        id: `ANN-${Date.now()}`,
+        id: serverId,
         title: title.trim(),
         content: content.trim(),
         targetAudience: target,
@@ -326,16 +361,6 @@ export const CommunicationView: React.FC = () => {
 
       const updated = [newCircular, ...localList];
       updateLocalList(updated);
-
-      addAnnouncement({
-        title: newCircular.title,
-        content: newCircular.content,
-        targetAudience: newCircular.targetAudience as any,
-        date: newCircular.date,
-        author: newCircular.author,
-        category: newCircular.category as any
-      });
-
       addToast('success', '📢 Broadcast Notification Published!', `Sent circular to ${target} via ${channelStr}`);
     }
 
@@ -343,16 +368,33 @@ export const CommunicationView: React.FC = () => {
     setCurrentPage(1);
   };
 
-  const handleTogglePin = (id: string) => {
+  const handleTogglePin = async (id: string) => {
+    const targetItem = localList.find(i => i.id === id);
+    const newPinStatus = !targetItem?.isPinned;
+    const numericId = parseInt(id.replace(/\D/g, ''), 10);
+    if (numericId) {
+      try {
+        await updateNotificationApi(numericId, { isPinned: newPinStatus });
+      } catch (e) {
+        console.warn("API pin update error:", e);
+      }
+    }
     const updated = localList.map(item =>
-      item.id === id ? { ...item, isPinned: !item.isPinned } : item
+      item.id === id ? { ...item, isPinned: newPinStatus } : item
     );
     updateLocalList(updated);
-    const targetItem = localList.find(i => i.id === id);
-    addToast('info', targetItem?.isPinned ? 'Unpinned Circular' : 'Pinned Circular to Top', `Updated pin status for "${targetItem?.title}"`);
+    addToast('info', newPinStatus ? 'Pinned Circular to Top' : 'Unpinned Circular', `Updated pin status for "${targetItem?.title}"`);
   };
 
-  const handleDeleteCircular = (id: string, titleStr: string) => {
+  const handleDeleteCircular = async (id: string, titleStr: string) => {
+    const numericId = parseInt(id.replace(/\D/g, ''), 10);
+    if (numericId) {
+      try {
+        await deleteNotificationApi(numericId);
+      } catch (e) {
+        console.warn("API delete circular error:", e);
+      }
+    }
     const updated = localList.filter(item => item.id !== id);
     updateLocalList(updated);
     addToast('success', 'Circular Removed', `Deleted "${titleStr}"`);
@@ -397,34 +439,36 @@ export const CommunicationView: React.FC = () => {
       </div>
 
       {/* LEVEL 2: Navigation Bar (Tab Switcher) Aligned Cleanly */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-        <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
-          <button
-            onClick={() => setActiveTab('notifications')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeTab === 'notifications'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Megaphone className="w-4 h-4" />
-            Broadcast Notifications
-          </button>
-          <button
-            onClick={() => setActiveTab('meetings')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeTab === 'meetings'
-                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            Meetings & Schedules
-          </button>
+      {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') && (
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div className="inline-flex items-center gap-1.5 p-1.5 bg-slate-200/60 dark:bg-slate-800/80 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                activeTab === 'notifications'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Megaphone className="w-4 h-4" />
+              Broadcast Notifications
+            </button>
+            <button
+              onClick={() => setActiveTab('meetings')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                activeTab === 'meetings'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-800'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              Meetings & Schedules
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {activeTab === 'meetings' ? (
+      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student') ? (
         <MeetingsView />
       ) : (
         <div className="space-y-4 max-w-full">

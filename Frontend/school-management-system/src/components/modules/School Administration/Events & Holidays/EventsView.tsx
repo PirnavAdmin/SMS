@@ -6,12 +6,12 @@ import {
   Paperclip, Send, Layers, LayoutGrid, List, HelpCircle, Shield, Award, Megaphone,
   Landmark, Sun, PartyPopper, Check, CalendarDays
 } from 'lucide-react';
-import { useData } from '../../../context/DataContext';
-import { useAuth } from '../../../context/AuthContext';
-import { useToast } from '../../../context/ToastContext';
+import { useData } from '../../../../context/DataContext';
+import { useAuth } from '../../../../context/AuthContext';
+import { useToast } from '../../../../context/ToastContext';
 import {
   Holiday, SchoolEvent, UnifiedCalendarEvent, UnifiedEventType, HolidayType, EventCategory, Student, Staff
-} from '../../../types';
+} from '../../../../types';
 
 export const EventsView: React.FC = () => {
   const {
