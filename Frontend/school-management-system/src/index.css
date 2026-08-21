@@ -130,9 +130,8 @@
   }
   #printable-content th:first-child,
   .printable-area th:first-child {
-    text-align: left !important;
-    padding-left: 6px !important;
-    width: 15% !important;
+    text-align: center !important;
+    width: 60% !important;
   }
   #printable-content td,
   .printable-area td {
@@ -150,8 +149,7 @@
     background-color: #f8fafc !important;
     font-weight: 700 !important;
     font-size: 9px !important;
-    text-align: left !important;
-    padding-left: 6px !important;
+    text-align: center !important;
   }
   /* Strip all inner container cards in print so cells render cleanly */
   #printable-content td > div,

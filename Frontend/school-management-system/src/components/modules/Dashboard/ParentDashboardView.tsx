@@ -15,7 +15,7 @@ interface ParentDashboardViewProps {
 
 export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
-  const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents } = useData();
+  const { students, attendance, homework, announcements, holidays, studentHostels, hostelMasters, roomMasters, studentFeeLedgers, meetings, schoolEvents, exams } = useData();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -108,7 +108,15 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       type: 'Holiday'
     }));
 
-    const all = [...eventsList, ...announces, ...hols].filter(item => Boolean(item.date));
+    const examList = (exams || []).map(ex => ({
+      id: `EX-${ex.id}`,
+      title: ex.name,
+      category: ex.term || 'Examination',
+      date: ex.startDate,
+      type: 'Exam'
+    }));
+
+    const all = [...eventsList, ...announces, ...hols, ...examList].filter(item => Boolean(item.date));
 
     // Filter for upcoming items (today onwards)
     const upcoming = all.filter(item => {
@@ -122,7 +130,7 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     }
 
     return all.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 8);
-  }, [schoolEvents, announcements, holidays]);
+  }, [schoolEvents, announcements, holidays, exams]);
 
   // Early conditional return blocks (must be placed AFTER all Hook calls!)
   if (loading) {
@@ -413,24 +421,24 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
           </div>
         </div>
 
-        {/* Upcoming Events & Holidays */}
+        {/* Upcoming Events, Holidays & Exams */}
         <div onClick={() => onNavigate?.('events')} className="bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800/40 hover:border-brand-400 transition-colors rounded-2xl p-6 shadow-xs space-y-4 flex flex-col h-[320px] cursor-pointer">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60 pb-3 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
               <Calendar className="w-5 h-5 text-brand-650 shrink-0" />
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">Upcoming Events & Holidays</h3>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">Upcoming Events, Holidays & Exams</h3>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {upcomingEventsAndHolidays.length === 0 ? (
-              <p className="text-xs text-slate-500 py-2 text-center font-medium">No upcoming events or holidays.</p>
+              <p className="text-xs text-slate-500 py-2 text-center font-medium">No upcoming events, holidays, or exams.</p>
             ) : upcomingEventsAndHolidays.map(e => (
-              <div key={e.id} className={`flex items-center justify-between p-3 rounded-xl text-xs border ${e.type === 'Holiday' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'}`}>
+              <div key={e.id} className={`flex items-center justify-between p-3 rounded-xl text-xs border ${e.type === 'Holiday' ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : e.type === 'Exam' ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-100 dark:border-slate-800'}`}>
                 <div className="min-w-0 flex-1 pr-2">
                   <p className="font-bold text-slate-900 dark:text-white truncate">{e.title}</p>
                   <p className="text-[10px] text-slate-500 truncate mt-0.5">{e.category}</p>
                 </div>
-                <span className={`font-semibold px-2 py-1 rounded-lg text-[10px] shrink-0 ml-2 ${e.type === 'Holiday' ? 'bg-amber-100 text-amber-700 dark:bg-amber-855 dark:text-amber-100' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
+                <span className={`font-semibold px-2 py-1 rounded-lg text-[10px] shrink-0 ml-2 ${e.type === 'Holiday' ? 'bg-amber-100 text-amber-700 dark:bg-amber-855 dark:text-amber-100' : e.type === 'Exam' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400' : 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'}`}>
                   {new Date(e.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
                 </span>
               </div>

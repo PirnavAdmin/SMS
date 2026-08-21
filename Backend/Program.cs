@@ -21,6 +21,8 @@ using SMS.Api.Services.Implementations.Examination;
 using SMS.Api.Services.Implementations.AcademicManagement;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine(BCrypt.Net.BCrypt.HashPassword("admin1234"));
+
 
 builder.Services.AddCors(options =>
 {

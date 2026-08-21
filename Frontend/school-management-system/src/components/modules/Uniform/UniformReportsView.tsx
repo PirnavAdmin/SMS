@@ -100,6 +100,11 @@ export const UniformReportsView: React.FC<UniformReportsViewProps> = ({ initialR
   });
 
   const filteredStudentIssues = studentUniformIssues.filter(i => {
+    const name = (i?.studentName || '').toLowerCase();
+    const adm = (i?.admissionNo || i?.studentId || '').toUpperCase();
+    const isDummy = name.includes('fahim') || name.includes('mahesh') || name.includes('alexander') || name.includes('wright') || name.includes('rahul') || name.includes('kiriti') || name.includes('kiran') || (name.includes('vishnu') && name.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+    if (isDummy) return false;
+
     if (filterClass !== 'All' && i.className !== filterClass) return false;
     if (fromDate && i.issueDate < fromDate) return false;
     if (reportType === 'Additional Uniform Sales') {

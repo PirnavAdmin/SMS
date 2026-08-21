@@ -12,6 +12,7 @@ namespace Backend.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 0;");
             // migrationBuilder.DropForeignKey(
             //     name: "FK_admissionapplications_Classes_AppliedClassId",
             //     table: "admissionapplications");
@@ -819,11 +820,14 @@ namespace Backend.Migrations
                 column: "SchoolId",
                 principalTable: "schools",
                 principalColumn: "SchoolId");
+
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 1;");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 0;");
             migrationBuilder.DropForeignKey(
                 name: "FK_admission_applications_classes_AppliedClassId",
                 table: "admission_applications");
@@ -1610,6 +1614,8 @@ namespace Backend.Migrations
                 principalTable: "transport_vehicles",
                 principalColumn: "VehicleId",
                 onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.Sql("SET FOREIGN_KEY_CHECKS = 1;");
         }
     }
 }

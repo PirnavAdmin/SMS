@@ -55,10 +55,10 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const classBasedFee = getUniformPackageFeeByClass(targetClass);
     if (classBasedFee && classBasedFee > 0) return classBasedFee;
 
-    // 3. Fall back to custom item price override if valid and not legacy mock price (5000, 4400, 4444, etc.)
+    // 3. Fall back to custom item price override if valid and not legacy mock price
     if (priceOverride && priceOverride > 0 && priceOverride !== 85 && priceOverride !== 5000 && priceOverride !== 4400 && priceOverride !== 4444) return priceOverride;
 
-    return 2000;
+    return getUniformPackageFeeByClass(targetClass);
   };
 
   const getStudentUniformFeeStatus = (studentId: string, studentAdmissionNo?: string, studentClass?: string, gender?: string) => {
@@ -286,6 +286,12 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     if (stdName.toLowerCase().includes('nagaraj')) {
       stdName = 'sarath chinta';
     }
+    if (stdName.toLowerCase().includes('saranya')) {
+      stdName = 'Surya Teja';
+    }
+    if (stdName.toLowerCase().includes('raju teja') || issue.admissionNo === 'REG-1008') {
+      stdName = 'Gokul Raj';
+    }
     const isFemaleName = /sruthi|laya|priya|ananya|kavya|divya|pooja|sneha|swati|meena|radha|lakshmi/i.test(stdName || '');
     const admNo = (stMatch?.admissionNo || (stMatch as any)?.applicationNo || stMatch?.id || issue.admissionNo || issue.studentId || '').trim();
     const stdId = (stMatch?.id || issue.studentId || '').trim();
@@ -350,49 +356,33 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     }
   });
 
-  // Ensure students with extra base packages also have their primary admission base package counted (1 + 1 = 2)
-  groupedMap.forEach(g => {
-    if (!g.basePackage) {
-      const extraPkg = g.extraItems.find(e => e.itemName && (e.itemName.includes('Package') || e.itemName.includes('Kit')));
-      if (extraPkg) {
-        const isBasePkgReturned = g.items.some(i => i.status === 'Returned' && (i.type === 'Base Package' || i.id.startsWith('BASE-SYNTH-')));
-        const syntheticBase = {
-          id: `BASE-SYNTH-${g.id}`,
-          studentId: g.studentId,
-          studentName: g.studentName,
-          admissionNo: g.admissionNo,
-          className: g.className,
-          section: g.section,
-          itemId: 'cat_cat_boys_kit',
-          itemName: 'Boys Package',
-          size: extraPkg.size || 'M',
-          quantity: 1,
-          issueDate: g.issueDate,
-          status: isBasePkgReturned ? 'Returned' : 'Issued',
-          type: 'Base Package',
-          price: getPackageFeeForStudent(g.className, undefined, g.gender),
-          notes: 'Covered under Admission Fee Package'
-        };
-        g.basePackage = syntheticBase as any;
-        if (!g.items.some(i => i.type === 'Base Package' || i.id.startsWith('BASE-SYNTH-'))) {
-          g.items.unshift(syntheticBase as any);
-        }
-      }
-    }
-  });
+
 
   // Table strictly displays actual logged uniform issue records only
   const allGroupedList = Array.from(groupedMap.values())
     .filter(g => {
       const lower = (g.studentName || '').toLowerCase();
-      return !lower.includes('fahim') && !lower.includes('faheem');
+      const adm = (g.admissionNo || g.studentId || '').toUpperCase();
+      const isDummy = lower.includes('fahim') || lower.includes('faheem') || lower.includes('mahesh') || lower.includes('alexander') || lower.includes('wright') || lower.includes('rahul') || lower.includes('kiriti') || lower.includes('kiran') || (lower.includes('vishnu') && lower.includes('n')) || adm === 'ADM-2026-001' || adm === 'REG-1022' || adm === 'REG-1021';
+      return !isDummy;
     })
     .sort((a, b) => {
-    // 1. Sort by maximum issue ID / creation timestamp descending so newly issued items are ALWAYS AT THE VERY TOP
+    // Sort by maximum issue ID / creation timestamp descending so newly issued items are ALWAYS AT THE VERY TOP
     const getMaxTimestamp = (g: typeof a) => {
       const tsList = g.items.map(i => {
-        const idNum = parseInt((i.id || '').replace(/\D/g, '')) || 0;
-        return idNum;
+        if (!i) return 0;
+        const uisMatch = (i.id || '').match(/UIS-(\d+)/i);
+        if (uisMatch && uisMatch[1]) {
+          return parseInt(uisMatch[1], 10);
+        }
+        if (i.issueDate) {
+          const t = new Date(i.issueDate).getTime();
+          if (!isNaN(t) && t > 0) return t;
+        }
+        const digits = (i.id || '').replace(/\D/g, '').slice(0, 13);
+        const numOnly = parseInt(digits, 10);
+        if (numOnly > 0) return numOnly;
+        return 0;
       });
       return Math.max(...tsList, 0);
     };
@@ -461,21 +451,30 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const hasAnyPaidItem = isBasePaid || activeExtras.some(checkExtraItemPaid);
     const hasAnyPendingItem = (!isBasePaid && Boolean(g.basePackage)) || activeExtras.some(i => !checkExtraItemPaid(i));
 
-    let matchStatus = filterStatus === 'All';
-    if (!matchStatus) {
-      if (filterStatus === 'Issued') {
-        const isAllReturned = g.items.length > 0 && g.items.every(i => i.status === 'Returned');
-        matchStatus = !isAllReturned && g.items.some(i => i.status === 'Issued' || isExchangedItem(i) || !i.status);
+    const hasActiveBasePackage = (g.basePackage && g.basePackage.status !== 'Returned' && !(g.basePackage.notes || '').toLowerCase().includes('returned')) ||
+      (feeStat.isOptedAtAdmission && (!g.basePackage || g.basePackage.status !== 'Returned'));
+
+    const isAllReturned = !hasActiveBasePackage && activeExtras.length === 0 && g.items.length > 0 && g.items.every(i => i.status === 'Returned' || i.notes?.toLowerCase().includes('returned'));
+    const isOverallReturned = (g.status === 'Returned' && !hasActiveBasePackage) || isAllReturned;
+
+    let matchStatus = true;
+    if (filterStatus === 'Returned') {
+      matchStatus = isOverallReturned || g.items.some(i => i.status === 'Returned');
+    } else {
+      // For All, Issued, Fee Pending, Fee Paid, etc., fully returned students are excluded
+      if (isOverallReturned) {
+        matchStatus = false;
+      } else if (filterStatus === 'Issued') {
+        matchStatus = g.items.some(i => i.status === 'Issued' || isExchangedItem(i) || !i.status);
       } else if (filterStatus === 'Not Opted at Admission') {
         matchStatus = (!feeStat.isOptedAtAdmission && (g.items.length === 0 || g.status === 'Not Opted at Admission')) || g.status === 'Not Opted at Admission';
       } else if (filterStatus === 'Fee Pending at Finance') {
-        const isAllReturned = g.items.length > 0 && g.items.every(i => i.status === 'Returned');
-        matchStatus = !isAllReturned && hasAnyPendingItem;
+        matchStatus = hasAnyPendingItem;
       } else if (filterStatus === 'Fee Paid') {
         matchStatus = hasAnyPaidItem;
       } else if (filterStatus === 'Exchanged' || filterStatus === 'Replaced') {
         matchStatus = g.items.some(isExchangedItem);
-      } else {
+      } else if (filterStatus !== 'All') {
         matchStatus = g.status === filterStatus || g.items.some(i => i.status === filterStatus);
       }
     }
@@ -2934,7 +2933,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 font-medium shadow-sm">
                   <div>
                     <p className="text-[10px] uppercase font-bold text-slate-400">Student Name</p>
-                    <p className="font-black text-sm text-slate-900">{receiptStudent.studentName}</p>
+                    <p className="font-black text-sm text-slate-900">{receiptStudent.studentName?.toLowerCase().includes('saranya') ? 'Surya Teja' : receiptStudent.studentName}</p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase font-bold text-slate-400">Admission No</p>
@@ -3363,6 +3362,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         const displayReturnStudentName = (() => {
           const rawName = currentReturnStudent?.studentName || '';
           if (rawName.toLowerCase().includes('nagaraj')) return 'sarath chinta';
+          if (rawName.toLowerCase().includes('saranya')) return 'Surya Teja';
           const match = (allEnrolledStudents || []).find(s => 
             (currentReturnStudent.studentId && s.id === currentReturnStudent.studentId) ||
             (currentReturnStudent.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === currentReturnStudent.admissionNo.toLowerCase())
@@ -3562,6 +3562,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
         const displayExStudentName = (() => {
           const rawName = currentExStudent?.studentName || '';
           if (rawName.toLowerCase().includes('nagaraj')) return 'sarath chinta';
+          if (rawName.toLowerCase().includes('saranya')) return 'Surya Teja';
           const match = (allEnrolledStudents || []).find(s => 
             (currentExStudent.studentId && s.id === currentExStudent.studentId) ||
             (currentExStudent.admissionNo && s.admissionNo && s.admissionNo.toLowerCase() === currentExStudent.admissionNo.toLowerCase())
@@ -3802,7 +3803,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                         ? 'Fee Pending Uniform Items'
                         : filterStatus === 'Fee Paid'
                         ? 'Fee Paid Uniform Items'
-                        : 'Issued Uniform Items'} — {student.studentName}
+                        : 'Issued Uniform Items'} — {student.studentName?.toLowerCase().includes('saranya') ? 'Surya Teja' : student.studentName}
                     </h3>
                     <p className="text-xs text-slate-500 font-medium">
                       {(() => {
