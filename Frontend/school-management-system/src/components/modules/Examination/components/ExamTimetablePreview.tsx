@@ -143,7 +143,7 @@ export const ExamTimetablePreview: React.FC<ExamTimetablePreviewProps> = ({
       </div>
 
       {/* Grids list */}
-      <div id="printable-content" className="space-y-6">
+      <div id="printable-content" className="space-y-6 timetable-printable">
         {auditVisibleClasses.length === 0 ? (
           <div className="p-8 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl space-y-2">
             <Calendar className="w-8 h-8 text-sky-500 mx-auto" />

@@ -103,30 +103,8 @@ export const SubjectsView: React.FC = () => {
   const [desigCategoryFilter, setDesigCategoryFilter] = useState<'All' | 'Teaching' | 'Non-Teaching'>('All');
   
   const allDesignations = useMemo(() => {
-    const list = [...designations];
-    const existingNames = new Set(list.map(d => (d.designationName || '').toLowerCase().trim()));
-    
-    // Find all unique designations from staff
-    const staffDesignations = new Set(
-      (contextStaff || [])
-        .map(st => (st.designation || '').trim())
-        .filter(Boolean)
-    );
-
-    staffDesignations.forEach(name => {
-      if (!existingNames.has(name.toLowerCase())) {
-        const isTeaching = teachingDesignationNames.has(name) || name.toLowerCase().includes('teacher');
-        list.push({
-          id: `static-${name.toLowerCase().replace(/\s+/g, '-')}`,
-          designationName: name,
-          employeeCategory: isTeaching ? 'Teaching' : 'Non-Teaching',
-          status: 'Active'
-        });
-      }
-    });
-
-    return list;
-  }, [designations, contextStaff]);
+    return [...designations];
+  }, [designations]);
 
   const filteredDesignations = allDesignations.filter(d => {
     const q = desigQuery.toLowerCase();
